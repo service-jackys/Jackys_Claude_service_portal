@@ -9,9 +9,12 @@ The live Google Apps Script application remains the production system. This loca
 - Phase 0 foundation: complete and committed.
 - Phase 1 PostgreSQL persistence: implemented and verified locally.
 - Phase 2 complaint workflow: implemented and verified locally.
+- Phase 3 scheduling and technician operations: implemented and verified locally.
+- Phase 4 web portal journeys: implemented and browser-verified locally.
+- Phase 5 service operations parity: in progress locally; the initial job-card backend slice is uncommitted and the protected web workspace remains.
 - Production cutover: not started.
 
-The local system currently provides an Express TypeScript API, PostgreSQL migrations, local-only authentication for development, OpenAPI/Swagger documentation, the initial service-operations database schema, and the Phase2 complaint workflow.
+The local system currently provides an Express TypeScript API, PostgreSQL migrations, local-only authentication for development, OpenAPI/Swagger documentation, complaint operations, technician and appointment scheduling, calendar and recovery workflows, and the initial Phase 5 service job-card backend. The live Google Apps Script application remains the production and rollback system.
 
 ## Before you start
 
@@ -345,4 +348,4 @@ docker compose down -v
 - `docs/DEVELOPMENT_PLAN.md` — planned phases through cutover and rollback.
 - `docs/architecture/target-architecture.md` — architecture and safety baseline.
 
-The Phase2 complaint workflow is implemented and verified. It includes contracts, authorization boundaries, public submission, rate limiting, transactional reference generation, protected inbox/detail/notes/status endpoints, audit/history writes, and PostgreSQL integration coverage. The next capability is Phase3 scheduling and technician operations.
+Phase4 web journeys are implemented and browser-verified locally. They include public complaint registration, local staff sign-in, complaint inbox and updates, technician lookup, appointment scheduling and assignment, calendar views, ICS download, rescheduling, status transitions, terminal-state handling, and authorization/recovery states. The next capability is Phase5 service operations parity, beginning with the protected service job-card workspace.
