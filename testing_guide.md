@@ -1,6 +1,6 @@
 # Jacky's Service Portal Testing Guide
 
-This guide is for testing the local migration project. It is written for the first browser-based slice of Phase 4 and assumes the previous system was built with Google Apps Script.
+This guide is for testing the local migration project. It includes the complete Phase 4 browser verification checklist and assumes the previous system was built with Google Apps Script.
 
 ## 1. Understand the two systems
 
@@ -247,7 +247,182 @@ The protected API should reject an unauthenticated request. For example, this sh
 GET http://localhost:3000/api/complaints
 ```
 
-## 11. Run automated tests
+## 11. Manual Phase4 browser verification
+
+Use this section when you want to verify Phase4 yourself in Chrome or Edge. Use fake local data only. Keep the backend terminal visible so you can report any API or database errors.
+
+### 11.1 Start the local services
+
+Use the startup steps in sections 5–7, then confirm:
+
+- `http://localhost:3000/health` returns a healthy response.
+- `http://localhost:3000/portal/` displays **Jacky's Service Portal**.
+- PostgreSQL is running in Docker.
+- The browser is using the local portal URL, not a production Apps Script URL.
+
+If this is a fresh local process, complete the first-time administrator setup in section 9. The local account is created in memory and must be recreated after restarting the backend.
+
+### 11.2 Public complaint registration and confirmation
+
+1. Open `http://localhost:3000/portal/` in a new private/incognito window.
+2. Confirm the page title is **Jacky's Service Portal** and the **Register a service complaint** section is visible.
+3. Select **Individual** as the customer type.
+4. Enter clearly fake local values, for example:
+   - Customer name: `Phase4 Browser Customer`
+   - Contact number: `0500000000`
+   - Customer email: `phase4.browser@example.test` (optional)
+   - Region: `Dubai`
+   - Brand: `Test Brand`
+   - Model: `Test Model`
+   - Issue description: `Phase4 browser verification only`
+5. Submit the form.
+6. Confirm a success message appears with a generated complaint reference such as `CMP-yymmdd-XXX`.
+7. Select **Start a new request** or the equivalent reset action and confirm the form becomes available again.
+
+Negative check:
+
+1. Submit the empty form.
+2. Confirm field messages appear for customer type, customer name, contact number, and issue description.
+3. Confirm no success reference appears.
+
+### 11.3 Staff sign-in and complaint inbox
+
+1. Return to the **Staff workspace** section.
+2. Select **First-time setup** only if the current backend process has no administrator yet. Otherwise select **Sign in**.
+3. Use the local administrator email and password created in section 9.
+4. Confirm the protected workspace appears and displays the signed-in name, email, and role.
+5. Confirm **Complaint inbox**, **Service requests**, and **Appointments** navigation is visible for the local administrator.
+6. Confirm the complaint created in section 11.2 appears in the inbox.
+7. Open the complaint and confirm its customer details, issue description, status, and history are visible.
+8. Add a note such as `Phase4 browser note` and select **Save notes**. Confirm **Notes saved.** appears.
+9. Change the complaint status from **New** to **Under Review**, enter a reason, and select **Update status**. Confirm **Complaint status updated.** appears.
+10. Confirm the detail view refreshes and the new status and history entry are visible.
+11. Select **Sign out** and confirm the protected workspace is hidden.
+12. Refresh the page and confirm that the local session is not retained; sign in again when continuing.
+
+### 11.4 Prepare a scheduling test record
+
+The portal does not include technician master-data or availability screens. A technician and availability window must therefore be created through local Swagger before the scheduling journey can be tested. Do this only with the local administrator session/token.
+
+1. Sign in again through the portal.
+2. Open `http://localhost:3000/api/docs` in another tab.
+3. In Swagger, use `POST /api/auth/login` with the same local administrator email and password. Copy the returned temporary `token` only into Swagger's **Authorize** dialog as `Bearer <token>`. Do not save or publish the token.
+4. In Swagger, use `POST /api/technicians` with a fake technician:
+
+```json
+{
+  "name": "Phase4 Test Technician",
+  "region": "Dubai",
+  "phone": "0500000001",
+  "email": "phase4.technician@example.test",
+  "active": true
+}
+```
+
+5. Record the returned technician `id` locally for this test session.
+6. Use `PUT /api/technicians/{id}/availability` for the returned ID. Choose a weekday matching the appointment date you will use. For example, for Monday use:
+
+```json
+{
+  "windows": [{ "weekday": 1, "startsAt": "08:00", "endsAt": "17:00" }]
+}
+```
+
+`weekday` uses JavaScript numbering: Sunday `0`, Monday `1`, Tuesday `2`, Wednesday `3`, Thursday `4`, Friday `5`, Saturday `6`.
+
+7. Return to the portal and open **Complaint inbox**.
+8. Open the test complaint and move it through the valid workflow:
+   - **New** → **Under Review**
+   - **Under Review** → **Ready for Scheduling**
+9. Confirm the complaint is no longer treated as a normal new complaint and is available under **Service requests**.
+
+If Swagger is disabled, confirm `.env` contains `OPENAPI_DOCS_ENABLED=true`, restart `npm run dev`, and open the docs URL again. Never enable Swagger in production.
+
+### 11.5 Schedule and assign an appointment
+
+1. In the portal, select **Service requests**.
+2. Confirm the test complaint appears with the **Ready for Scheduling** status.
+3. Open the complaint.
+4. Enter an appointment date and time that match the technician availability created in section 11.4.
+5. Select **Find available technicians**.
+6. Confirm **Phase4 Test Technician** appears in the technician list.
+7. Select the technician and choose **Schedule appointment**.
+8. Confirm an appointment reference is displayed and the complaint moves to **Scheduled**.
+9. Open **Appointments** and confirm the appointment appears in the list with its date, time, technician, and status.
+10. Open the appointment detail and confirm the assigned technician, appointment history, and **Download calendar file** action are visible.
+11. Select **Download calendar file** and confirm the browser downloads an `.ics` calendar file.
+
+### 11.6 Appointment calendar, filters, and navigation
+
+1. In **Appointments**, confirm the month calendar displays appointment dates and events.
+2. Select **Week** and confirm the view changes to seven day cells.
+3. Select **Month** and confirm the month view returns.
+4. Select **Previous**, **Today**, and **Next**. Confirm the calendar title and displayed appointments update.
+5. Search by the appointment reference or customer name and confirm the list is filtered.
+6. Filter by **Scheduled** and confirm only scheduled appointments remain.
+7. Clear the filters and confirm the appointment returns.
+
+### 11.7 Rescheduling and appointment status workflow
+
+1. Open the scheduled appointment detail.
+2. Change the date and time to another available slot and select **Save schedule**.
+3. Confirm **Appointment schedule updated.** appears and the detail reflects the new schedule.
+4. Change the appointment status from **Scheduled** to **In Progress** and provide a reason if requested.
+5. Confirm the status and history update.
+6. Change **In Progress** to **Completed**.
+7. Confirm the appointment becomes terminal:
+   - Rescheduling controls are hidden or disabled.
+   - Further status choices are unavailable.
+8. Try to reschedule a second appointment into the same technician/time slot if another local record is available. Confirm a conflict message is shown and the current appointment state is refreshed.
+
+### 11.8 Authorization and recovery checks
+
+- Sign out and request a protected page action. Confirm the protected workspace is no longer available.
+- With no bearer token, open `http://localhost:3000/api/complaints` directly. Confirm HTTP `401`.
+- In the signed-in workspace, verify that an unauthorized API response shows an authorization message rather than silently failing. A non-admin role should not see navigation items for permissions it does not have.
+- For a missing complaint or appointment detail, confirm the UI shows a not-found message and offers a retry or return action where provided.
+- For a scheduling conflict, confirm the UI shows the conflict message and reloads authoritative appointment data.
+- Confirm terminal completed appointments do not expose rescheduling or further status controls.
+
+### 11.9 Phase4 manual results to report back
+
+Copy this checklist into your reply and mark each item `PASS`, `FAIL`, or `BLOCKED`. Include the exact error text for any failure and the step where it occurred.
+
+```text
+Phase4 browser verification date:
+Browser and version:
+Backend URL:
+PostgreSQL status:
+
+[ ] Public complaint validation:
+[ ] Public complaint submission and reference:
+[ ] Administrator sign-in:
+[ ] Complaint inbox and detail:
+[ ] Complaint notes update:
+[ ] Complaint status update:
+[ ] Sign-out/session clearing:
+[ ] Technician setup and availability:
+[ ] Ready-for-scheduling workflow:
+[ ] Appointment creation and assignment:
+[ ] Appointment list and detail:
+[ ] ICS download:
+[ ] Month calendar:
+[ ] Week calendar:
+[ ] Calendar navigation:
+[ ] Appointment filters/search:
+[ ] Appointment rescheduling:
+[ ] Appointment status transitions:
+[ ] Terminal appointment lock:
+[ ] Scheduling conflict recovery:
+[ ] Unauthorized/recovery behavior:
+
+Failures or blockers:
+Browser console errors:
+Backend terminal errors:
+Screenshots or downloaded files:
+```
+
+## 12. Run automated tests
 
 Stop any command that is currently using the terminal only if necessary. From the project folder, run the API and contract tests:
 
@@ -273,7 +448,7 @@ npx playwright install chromium
 
 The generated `test-results/` directory is test output and should not be committed.
 
-## 12. Run project verification checks
+## 13. Run project verification checks
 
 Run these commands from the project folder:
 
@@ -293,7 +468,7 @@ What they check:
 
 `dist/` is generated output and should not be committed.
 
-## 13. Stop the local services safely
+## 14. Stop the local services safely
 
 To stop the development server, focus the terminal running `npm run dev` and press:
 
@@ -315,7 +490,7 @@ docker compose start
 
 Use `docker compose down` only when you intentionally want to remove the containers. Do not add `-v` unless you intentionally want to erase the local database volume and all local test data.
 
-## 14. Troubleshooting
+## 15. Troubleshooting
 
 ### `npm` cannot find `package.json`
 
@@ -386,7 +561,7 @@ Check that:
 - You are using local test credentials and the correct local bootstrap token.
 - No production credentials or live URLs were copied into the local project.
 
-## 15. Safety reminders
+## 16. Safety reminders
 
 - Google Apps Script remains the production and rollback system.
 - Do not change the live Apps Script deployment while testing this migration slice.
