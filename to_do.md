@@ -324,7 +324,7 @@ navigation, card-based panels, a contextual workflow stepper).
       client-side name-required guard, and an invalid-token error state) — the last of these needs no
       staff sign-in, matching how a real customer reaches it.
 - [x] `npm run typecheck`, `npm run build`, and `npx prettier --check` all pass; `npx playwright test
-  --list` resolves 51 tests across 5 files with no parse errors (was 37 across 4).
+--list` resolves 51 tests across 5 files with no parse errors (was 37 across 4).
 - [ ] **Not yet run against a live server** — same limitation as every other Playwright checkpoint in
       this file. Please run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100`) after you've
       applied migrations 005-009 and walked the manual Phase 5 checklist below, since these tests read
@@ -401,6 +401,24 @@ a new appointment with "The complaint already has an active appointment."
 - [ ] Not verified against a live run — needs `npm run db:migrate`-current Postgres and either the new
       integration test or a manual repeat of the original repro (reopen a `Scheduled` complaint, then
       try to schedule it again).
+
+#### Playwright fixes — 2026-09-28: real run of the new Phase 5 spec found 6/51 failing
+
+- [x] 4 were a strict-mode locator collision in the new spec itself: `getByRole('button', { name:
+    'Quotations' })` (and Inspections/Warranty approvals/Dashboard) matched both the sidebar nav
+      button and that workspace's hidden "Refresh X" button, since "Refresh quotations" contains
+      "quotations" and Playwright's default name matching isn't exact. Added `exact: true` to all four,
+      matching the convention already used elsewhere (e.g. `'Appointments'`).
+- [x] The job-card print test (and, transitively, the quotation/inspection print assertions once the
+      locator fix let them run) asserted `popup.getByText(...).toBeVisible()`, which timed out even
+      though the print popup opened. Switched to polling `popup.content()` for the reference string
+      after waiting for the popup's load state — checks the DOM/HTML directly rather than depending on
+      visibility/layout timing in a freshly opened window, which is the more likely thing to be flaky
+      about a `window.open('', ...)` popup, not the app's print code itself.
+- [x] `npm run typecheck` and `prettier` pass; `playwright test --list` still resolves 51/5.
+- [ ] **Not yet re-run** — please run `npm run test:e2e` again (`E2E_BASE_URL=http://localhost:3100`) to
+      confirm all 51 are green now, especially the print-popup fix, which is a best-effort guess at the
+      failure mode rather than a confirmed root cause.
 
 ### Phase 6: Commercial and pricing features
 
