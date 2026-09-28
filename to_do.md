@@ -342,11 +342,23 @@ navigation, card-based panels, a contextual workflow stepper).
 - [x] Re-ran `npm run typecheck`, `npm run build`, a div/duplicate-id structural check, and
       `npx prettier --write` on both touched files; all pass. `npx playwright test --list` still
       resolves all 37 tests across 4 files with no parse errors.
-- [ ] **Not verified against a live run** — same limitation as the checkpoint above, this sandbox has
-      no reachable dev server. Please re-run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100`
-      set) and report back whether all 18 failures are resolved. A few other duplicate labels exist
-      elsewhere in `index.html` ("Next status" x3, "Technician" x2) that weren't in the reported
-      failures and weren't touched — flag if the next run surfaces them.
+- [x] Real run confirmed: 35/37 passing after the fixes above, down from 19/37. The remaining 2
+      failures (`portal.spec.ts:1463` and `portal.spec.ts:1661`, both "service job-card workspace")
+      were a genuine test/app mismatch, not a redesign regression: `createJobCard()` in `app.js` first
+      calls `GET /api/appointments/:id/job-card/prefill` to open an editable review panel, and only
+      the panel's own submit button ("Create job card", `#submitJobCardCreateButton`) actually POSTs
+      the job card — the tests clicked "Create service job card" once and expected the POST to have
+      already happened. The unmocked prefill request fell through to the real backend, got a 401 for
+      the fake test token, and the app signed itself out ("Your session has expired"), which is what
+      the timeouts were actually waiting on. Fixed both tests in `tests/e2e/portal.spec.ts` to mock the
+      prefill GET and click through the two-step flow (open panel → submit), and updated the first
+      test's body assertion to check the submitted `customerName` instead of asserting a `null` body
+      that no longer matches how the app submits job-card creation.
+- [ ] **Not verified against a live run** — same limitation as above, this sandbox has no reachable dev
+      server. Please re-run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100` set) to
+      confirm all 37 tests pass now. A few other duplicate labels exist elsewhere in `index.html`
+      ("Next status" x3, "Technician" x2) that weren't in the reported failures and weren't touched —
+      flag if a future run surfaces them.
 
 ### Phase 6: Commercial and pricing features
 

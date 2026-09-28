@@ -1522,6 +1522,39 @@ test.describe('service job-card workspace', () => {
         });
         return;
       }
+      if (url.pathname === '/api/appointments/501/job-card/prefill' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            content: {
+              jobCardDate: '2026-10-05',
+              customerName: appointment.customerName,
+              customerContact: appointment.contactNumber,
+              customerAddress: '',
+              itemDescription: '',
+              modelNo: '',
+              brand: '',
+              warrantyStatus: '',
+              technicianName: '',
+              complaint: appointment.faultDescription,
+              serviceRendered: '',
+              periodFrom: null,
+              periodTo: null,
+              serviceCharge: 0,
+              amountChargeable: null,
+              invoiceNo: '',
+              deliveryDate: null,
+              jobFinalStatus: 'WIP',
+              schoolContactPerson: '',
+              schoolContactNumber: '',
+              customerNumber: '',
+              legacyReference: '',
+              parts: [],
+            },
+          }),
+        });
+        return;
+      }
       if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'POST') {
         createBody = request.postDataJSON();
         await route.fulfill({
@@ -1556,12 +1589,16 @@ test.describe('service job-card workspace', () => {
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.getByRole('button', { name: 'Create service job card' }).click();
 
+    await expect(page.locator('#jobCardCreatePanel')).toBeVisible();
+    await page.getByRole('button', { name: 'Create job card' }).click();
+
     await expect(page.getByRole('heading', { name: 'Service job cards' })).toBeVisible();
     await expect(page.locator('#jobCardDetailHeading')).toHaveText('JBC-2026-00001');
     await expect(page.locator('#workspaceMessage')).toHaveText(
       'Service job card JBC-2026-00001 created.',
     );
-    expect(createBody).toBeNull();
+    expect(createBody).not.toBeNull();
+    expect((createBody as { customerName?: string }).customerName).toBe('Appointment Customer');
   });
 
   test('returns to sign in after the job-card queue returns unauthorized', async ({ page }) => {
@@ -1717,6 +1754,39 @@ test.describe('service job-card workspace', () => {
         });
         return;
       }
+      if (url.pathname === '/api/appointments/501/job-card/prefill' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            content: {
+              jobCardDate: '2026-10-05',
+              customerName: appointment.customerName,
+              customerContact: appointment.contactNumber,
+              customerAddress: '',
+              itemDescription: '',
+              modelNo: '',
+              brand: '',
+              warrantyStatus: '',
+              technicianName: '',
+              complaint: appointment.faultDescription,
+              serviceRendered: '',
+              periodFrom: null,
+              periodTo: null,
+              serviceCharge: 0,
+              amountChargeable: null,
+              invoiceNo: '',
+              deliveryDate: null,
+              jobFinalStatus: 'WIP',
+              schoolContactPerson: '',
+              schoolContactNumber: '',
+              customerNumber: '',
+              legacyReference: '',
+              parts: [],
+            },
+          }),
+        });
+        return;
+      }
       if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'POST') {
         await route.fulfill({
           status: 409,
@@ -1735,6 +1805,9 @@ test.describe('service job-card workspace', () => {
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.getByRole('button', { name: 'Create service job card' }).click();
+
+    await expect(page.locator('#jobCardCreatePanel')).toBeVisible();
+    await page.getByRole('button', { name: 'Create job card' }).click();
 
     await expect(page.locator('#workspaceMessage')).toHaveText(
       'The appointment already has a service job card.',
