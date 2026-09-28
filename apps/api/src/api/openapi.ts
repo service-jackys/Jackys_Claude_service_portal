@@ -161,6 +161,22 @@ const requestBodies = {
       },
     },
   },
+  quotation: {
+    required: false,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/QuotationRequest' },
+      },
+    },
+  },
+  inspection: {
+    required: false,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/InspectionRequest' },
+      },
+    },
+  },
 };
 
 export function createOpenApiDocument(routes: RouteDefinition[]) {
@@ -546,6 +562,112 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 },
               },
             },
+          },
+        },
+        QuotationRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            appointmentId: { type: 'string', pattern: '^\\d+$' },
+            quotationDate: { type: 'string', format: 'date' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
+            projectName: { type: 'string', minLength: 1, maxLength: 200 },
+            siteLocation: { type: 'string', minLength: 1, maxLength: 500 },
+            dateOfCollection: { type: 'string', format: 'date' },
+            technicianName: { type: 'string', minLength: 1, maxLength: 120 },
+            customerComplaint: { type: 'string', minLength: 1, maxLength: 10000 },
+            technicalDiagnosis: { type: 'string', minLength: 1, maxLength: 10000 },
+            products: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            parts: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            labourAmount: { type: 'number', minimum: 0, maximum: 10000000 },
+            preparedBy: { type: 'string', minLength: 1, maxLength: 120 },
+            preparedDate: { type: 'string', format: 'date' },
+            approvedBy: { type: 'string', minLength: 1, maxLength: 120 },
+            approvedDate: { type: 'string', format: 'date' },
+            customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
+            signatureDate: { type: 'string', format: 'date' },
+          },
+        },
+        InspectionRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            appointmentId: { type: 'string', pattern: '^\\d+$' },
+            inspectionDate: { type: 'string', format: 'date' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
+            projectName: { type: 'string', minLength: 1, maxLength: 200 },
+            siteLocation: { type: 'string', minLength: 1, maxLength: 500 },
+            dateOfCollection: { type: 'string', format: 'date' },
+            technicianName: { type: 'string', minLength: 1, maxLength: 120 },
+            customerComplaint: { type: 'string', minLength: 1, maxLength: 10000 },
+            visualFindings: { type: 'string', minLength: 1, maxLength: 10000 },
+            technicalDiagnosis: { type: 'string', minLength: 1, maxLength: 10000 },
+            products: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            faultyParts: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            recommendedAction: { type: 'string', minLength: 1, maxLength: 10000 },
+            refQuotationNo: { type: 'string', minLength: 1, maxLength: 120 },
+            warrantyStatus: { type: 'string', minLength: 1, maxLength: 50 },
+            estRepairCost: { type: 'number', minimum: 0, maximum: 10000000 },
+            inspectedBy: { type: 'string', minLength: 1, maxLength: 120 },
+            inspectedDate: { type: 'string', format: 'date' },
+            reviewedBy: { type: 'string', minLength: 1, maxLength: 120 },
+            reviewedDate: { type: 'string', format: 'date' },
+            customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
+            signatureDate: { type: 'string', format: 'date' },
           },
         },
         Complaint: {

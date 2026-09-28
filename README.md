@@ -73,6 +73,24 @@ first (`pullJobCardFromScheduler` in `code.gs`). Rebuilt end to end:
 **Before this is usable, run the new migration:** `npm run db:migrate` (adds the columns above to your
 local database) — see "Start the server" below.
 
+**2026-09-28 — Added quotations and inspections (Phase 5).** Built the next two Phase 5 items from
+`docs/DEVELOPMENT_PLAN.md`: quotation records and inspection records, matching the live system's field
+sets exactly (`docs/code.gs` `HEADERS_BY_TYPE['quotation']` / `['inspection']`). Neither has a workflow
+status in the live system, so records stay editable — no "final" lock like job cards.
+
+- Migration `006_quotations_inspections.sql` adds the `quotations` and `inspections` tables and grants
+  the `quotation.*`/`inspection.*` permissions (seeded since Phase 1 but never actually granted to any
+  role besides admin) to management and sales.
+- New API: `/api/quotations` and `/api/inspections`, both with list/create/detail/edit. Quotation grand
+  totals (products + parts + labour) are always computed server-side.
+- New web UI: "Quotations" and "Inspections" tabs with search, a create form, and an editable detail
+  form with add/remove line-item tables.
+- Quotation-sourced job cards (the live system's `pullJobCardFromQuotation`) are intentionally still out
+  of scope — job cards can only be created from a completed appointment for now.
+- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+
+**Run `npm run db:migrate` again** to pick up migration 006 before using these.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

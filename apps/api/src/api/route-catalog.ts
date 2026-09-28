@@ -19,6 +19,10 @@ import { createScheduleHandlers } from '../schedules/routes.js';
 import { createScheduleService } from '../schedules/service.js';
 import { createServiceJobCardHandlers } from '../job-cards/routes.js';
 import { createServiceJobCardService } from '../job-cards/service.js';
+import { createQuotationHandlers } from '../quotations/routes.js';
+import { createQuotationService } from '../quotations/service.js';
+import { createInspectionHandlers } from '../inspections/routes.js';
+import { createInspectionService } from '../inspections/service.js';
 
 export type RouteDefinition = {
   method: 'get' | 'post' | 'patch' | 'put';
@@ -44,7 +48,9 @@ export type RouteDefinition = {
     | 'draftSchedule'
     | 'serviceJobCardCreate'
     | 'serviceJobCardUpdate'
-    | 'serviceJobCardStatus';
+    | 'serviceJobCardStatus'
+    | 'quotation'
+    | 'inspection';
   parameters?: object[];
   responseContentType?: string;
   responses: number[];
@@ -247,7 +253,15 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        prefill: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        updateContent: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -264,6 +278,46 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         status: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const quotationHandlers = pool
+    ? createQuotationHandlers(createQuotationService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const inspectionHandlers = pool
+    ? createInspectionHandlers(createInspectionService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        update: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1000,6 +1054,102 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 409, 500],
         handlers: scheduleHandlers.cancel,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/quotations',
+        operationId: 'listQuotations',
+        tags: ['Quotations'],
+        summary: 'List quotations',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'appointmentId', in: 'query', schema: { type: 'string', pattern: '^\d+$' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: quotationHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/quotations',
+        operationId: 'createQuotation',
+        tags: ['Quotations'],
+        summary: 'Create a quotation',
+        security: 'bearerAuth' as const,
+        requestBody: 'quotation' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: quotationHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/quotations/{id}',
+        operationId: 'getQuotation',
+        tags: ['Quotations'],
+        summary: 'Get a quotation',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: quotationHandlers.detail,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/quotations/{id}',
+        operationId: 'updateQuotation',
+        tags: ['Quotations'],
+        summary: 'Edit a quotation',
+        security: 'bearerAuth' as const,
+        requestBody: 'quotation' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: quotationHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/inspections',
+        operationId: 'listInspections',
+        tags: ['Inspections'],
+        summary: 'List inspections',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'appointmentId', in: 'query', schema: { type: 'string', pattern: '^\d+$' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: inspectionHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/inspections',
+        operationId: 'createInspection',
+        tags: ['Inspections'],
+        summary: 'Create an inspection',
+        security: 'bearerAuth' as const,
+        requestBody: 'inspection' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: inspectionHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/inspections/{id}',
+        operationId: 'getInspection',
+        tags: ['Inspections'],
+        summary: 'Get an inspection',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: inspectionHandlers.detail,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/inspections/{id}',
+        operationId: 'updateInspection',
+        tags: ['Inspections'],
+        summary: 'Edit an inspection',
+        security: 'bearerAuth' as const,
+        requestBody: 'inspection' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: inspectionHandlers.update,
       },
     ],
   ];

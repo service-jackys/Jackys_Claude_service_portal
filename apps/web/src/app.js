@@ -304,6 +304,8 @@
     $('#complaintsNav').hidden = !canReadComplaints;
     $('#serviceRequestsNav').hidden = !canReadComplaints;
     $('#jobCardsNav').hidden = !hasPermission('service_job_card.read');
+    $('#quotationsNav').hidden = !hasPermission('quotation.read');
+    $('#inspectionsNav').hidden = !hasPermission('inspection.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
   }
 
@@ -333,43 +335,63 @@
     if (mode === 'service-requests' && !hasPermission('complaints.read')) return;
     if (mode === 'appointments' && !hasPermission('appointments.read')) return;
     if (mode === 'job-cards' && !hasPermission('service_job_card.read')) return;
+    if (mode === 'quotations' && !hasPermission('quotation.read')) return;
+    if (mode === 'inspections' && !hasPermission('inspection.read')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
     const jobCards = mode === 'job-cards';
-    $('#complaintsNav').setAttribute(
-      'aria-current',
-      serviceRequests || appointments || jobCards ? 'false' : 'page',
-    );
+    const quotations = mode === 'quotations';
+    const inspections = mode === 'inspections';
+    const anyOtherPanel = serviceRequests || appointments || jobCards || quotations || inspections;
+    $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
+    $('#quotationsNav').setAttribute('aria-current', quotations ? 'page' : 'false');
+    $('#inspectionsNav').setAttribute('aria-current', inspections ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
-    $('#complaintWorkspace').hidden = appointments || jobCards;
+    $('#complaintWorkspace').hidden = appointments || jobCards || quotations || inspections;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
-    $('#refreshComplaintsButton').hidden = appointments || jobCards;
+    $('#quotationWorkspace').hidden = !quotations;
+    $('#inspectionWorkspace').hidden = !inspections;
+    $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
+    $('#refreshQuotationsButton').hidden = !quotations;
+    $('#refreshInspectionsButton').hidden = !inspections;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
       : jobCards
         ? 'Service job cards'
-        : serviceRequests
-          ? 'Service requests'
-          : 'Complaint inbox';
+        : quotations
+          ? 'Quotations'
+          : inspections
+            ? 'Inspections'
+            : serviceRequests
+              ? 'Service requests'
+              : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
         ? 'Track service work from an open job card through completion or cancellation.'
-        : serviceRequests
-          ? 'Review complaints that are ready to be scheduled.'
-          : 'Review incoming service requests and open their history.';
+        : quotations
+          ? 'Prepare and edit customer repair quotations.'
+          : inspections
+            ? 'Record inspection findings and link them to a quotation.'
+            : serviceRequests
+              ? 'Review complaints that are ready to be scheduled.'
+              : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
       loadAppointments();
     } else if (jobCards) {
       loadJobCards();
+    } else if (quotations) {
+      loadQuotations();
+    } else if (inspections) {
+      loadInspections();
     } else {
       loadComplaints();
     }
@@ -533,17 +555,40 @@
     });
   }
 
-  function renderJobCardParts(prefix) {
-    const body = $(`#${prefix}PartsBody`);
-    const parts = jobCardPartsState[prefix];
-    body.innerHTML = parts
+  function initQuotationForms() {
+    $('#quotationCreateFields').innerHTML = quotationFieldsHtml('qtc');
+    $('#quotationEditFields').innerHTML = quotationFieldsHtml('qte');
+    initQuotationForm('qtc');
+    initQuotationForm('qte');
+  }
+
+  function initInspectionForms() {
+    $('#inspectionCreateFields').innerHTML = inspectionFieldsHtml('iqc');
+    $('#inspectionEditFields').innerHTML = inspectionFieldsHtml('iqe');
+    initInspectionForm('iqc');
+    initInspectionForm('iqe');
+  }
+
+  // Generic add/remove/qty*price-total line-item table, driven off
+  // lineItemsState[stateKey] and rendered into #<bodyId>. Used by the job
+  // card parts table and by the quotation/inspection products & parts
+  // tables -- each table gets its own stateKey (and its own bodyId) so
+  // several tables can live on the same form (e.g. quotation has both a
+  // Products table and a Parts table). onChange fires after every edit so
+  // the caller can recompute whatever totals depend on this table.
+  const lineItemsState = jobCardPartsState;
+
+  function renderLineItemsTable(stateKey, bodyId, onChange) {
+    const body = $(`#${bodyId}`);
+    const items = lineItemsState[stateKey];
+    body.innerHTML = items
       .map(
-        (part, idx) => `<tr data-idx="${idx}">
-          <td><input type="text" value="${escapeHtml(part.partNo)}" data-field="partNo" maxlength="120"></td>
-          <td><input type="text" value="${escapeHtml(part.description)}" data-field="description" maxlength="300"></td>
-          <td><input type="number" min="0" value="${part.qty}" data-field="qty" style="width:70px;"></td>
-          <td><input type="number" min="0" step="0.01" value="${part.unitPrice}" data-field="unitPrice" style="width:90px;"></td>
-          <td>${money((part.qty || 0) * (part.unitPrice || 0))}</td>
+        (item, idx) => `<tr data-idx="${idx}">
+          <td><input type="text" value="${escapeHtml(item.partNo)}" data-field="partNo" maxlength="120"></td>
+          <td><input type="text" value="${escapeHtml(item.description)}" data-field="description" maxlength="300"></td>
+          <td><input type="number" min="0" value="${item.qty}" data-field="qty" style="width:70px;"></td>
+          <td><input type="number" min="0" step="0.01" value="${item.unitPrice}" data-field="unitPrice" style="width:90px;"></td>
+          <td>${money((item.qty || 0) * (item.unitPrice || 0))}</td>
           <td><button type="button" class="button-link" data-remove-part="${idx}">Remove</button></td>
         </tr>`,
       )
@@ -553,21 +598,25 @@
         const row = event.target.closest('tr');
         const idx = Number(row.dataset.idx);
         const field = event.target.dataset.field;
-        parts[idx][field] =
+        items[idx][field] =
           field === 'partNo' || field === 'description'
             ? event.target.value
             : parseNumber(event.target.value);
-        row.children[4].textContent = money((parts[idx].qty || 0) * (parts[idx].unitPrice || 0));
-        recalcJobCardTotals(prefix);
+        row.children[4].textContent = money((items[idx].qty || 0) * (items[idx].unitPrice || 0));
+        onChange();
       });
     });
     body.querySelectorAll('[data-remove-part]').forEach((button) => {
       button.addEventListener('click', () => {
-        parts.splice(Number(button.dataset.removePart), 1);
-        renderJobCardParts(prefix);
+        items.splice(Number(button.dataset.removePart), 1);
+        renderLineItemsTable(stateKey, bodyId, onChange);
       });
     });
-    recalcJobCardTotals(prefix);
+    onChange();
+  }
+
+  function renderJobCardParts(prefix) {
+    renderLineItemsTable(prefix, `${prefix}PartsBody`, () => recalcJobCardTotals(prefix));
   }
 
   function recalcJobCardTotals(prefix) {
@@ -660,6 +709,317 @@
     };
   }
 
+  // ---- Quotations & Inspections (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
+  // Same field-template-plus-generic-table approach as the job card forms
+  // above. Neither entity has a workflow-lock status in the live system, so
+  // there's a single always-editable form per record instead of a status
+  // action panel.
+  let currentQuotationId = null;
+  let currentInspectionId = null;
+
+  function quotationFieldsHtml(prefix) {
+    return `
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
+        <div class="field"><label for="${prefix}ProjectName">Project name</label><input type="text" id="${prefix}ProjectName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
+        <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
+        <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+      </div>
+      <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
+      <div class="field"><label for="${prefix}TechnicalDiagnosis">Technical diagnosis</label><textarea id="${prefix}TechnicalDiagnosis" maxlength="10000"></textarea></div>
+      <h5>Products</h5>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <tbody id="${prefix}ProductsBody"></tbody>
+        </table>
+      </div>
+      <button class="button button-outline" type="button" id="${prefix}AddProductButton">Add product</button>
+      <h5>Parts</h5>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <tbody id="${prefix}PartsBody"></tbody>
+        </table>
+      </div>
+      <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}LabourAmount">Labour (AED)</label><input type="number" step="0.01" min="0" id="${prefix}LabourAmount"></div>
+        <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}PreparedBy">Prepared by</label><input type="text" id="${prefix}PreparedBy" maxlength="120"></div>
+        <div class="field"><label for="${prefix}PreparedDate">Prepared date</label><input type="date" id="${prefix}PreparedDate"></div>
+        <div class="field"><label for="${prefix}ApprovedBy">Approved by</label><input type="text" id="${prefix}ApprovedBy" maxlength="120"></div>
+        <div class="field"><label for="${prefix}ApprovedDate">Approved date</label><input type="date" id="${prefix}ApprovedDate"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}CustomerSignature">Customer signature (name)</label><input type="text" id="${prefix}CustomerSignature" maxlength="200"></div>
+        <div class="field"><label for="${prefix}SignatureDate">Signature date</label><input type="date" id="${prefix}SignatureDate"></div>
+      </div>
+    `;
+  }
+
+  function initQuotationForm(prefix) {
+    lineItemsState[`${prefix}Products`] = [];
+    lineItemsState[`${prefix}Parts`] = [];
+    const recalc = () => {
+      const products = lineItemsState[`${prefix}Products`];
+      const parts = lineItemsState[`${prefix}Parts`];
+      const lineTotal = [...products, ...parts].reduce(
+        (sum, item) => sum + (item.qty || 0) * (item.unitPrice || 0),
+        0,
+      );
+      const labour = parseNumber($(`#${prefix}LabourAmount`).value);
+      $(`#${prefix}GrandTotal`).value = money(lineTotal + labour);
+    };
+    $(`#${prefix}AddProductButton`).addEventListener('click', () => {
+      lineItemsState[`${prefix}Products`].push({
+        partNo: '',
+        description: '',
+        qty: 1,
+        unitPrice: 0,
+      });
+      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+    });
+    $(`#${prefix}AddPartButton`).addEventListener('click', () => {
+      lineItemsState[`${prefix}Parts`].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
+      renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+    });
+    $(`#${prefix}LabourAmount`).addEventListener('input', recalc);
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+    renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+  }
+
+  function fillQuotationForm(prefix, q) {
+    $(`#${prefix}Date`).value = (q.quotationDate || '').slice(0, 10);
+    $(`#${prefix}CustomerName`).value = q.customerName || '';
+    $(`#${prefix}ContactNumber`).value = q.contactNumber || '';
+    $(`#${prefix}ProjectName`).value = q.projectName || '';
+    $(`#${prefix}SiteLocation`).value = q.siteLocation || '';
+    $(`#${prefix}DateOfCollection`).value = (q.dateOfCollection || '').slice(0, 10);
+    $(`#${prefix}TechnicianName`).value = q.technicianName || '';
+    $(`#${prefix}CustomerComplaint`).value = q.customerComplaint || '';
+    $(`#${prefix}TechnicalDiagnosis`).value = q.technicalDiagnosis || '';
+    $(`#${prefix}LabourAmount`).value = q.labourAmount || 0;
+    $(`#${prefix}PreparedBy`).value = q.preparedBy || '';
+    $(`#${prefix}PreparedDate`).value = (q.preparedDate || '').slice(0, 10);
+    $(`#${prefix}ApprovedBy`).value = q.approvedBy || '';
+    $(`#${prefix}ApprovedDate`).value = (q.approvedDate || '').slice(0, 10);
+    $(`#${prefix}CustomerSignature`).value = q.customerSignature || '';
+    $(`#${prefix}SignatureDate`).value = (q.signatureDate || '').slice(0, 10);
+    const recalc = () => {
+      const products = lineItemsState[`${prefix}Products`];
+      const parts = lineItemsState[`${prefix}Parts`];
+      const lineTotal = [...products, ...parts].reduce(
+        (sum, item) => sum + (item.qty || 0) * (item.unitPrice || 0),
+        0,
+      );
+      const labour = parseNumber($(`#${prefix}LabourAmount`).value);
+      $(`#${prefix}GrandTotal`).value = money(lineTotal + labour);
+    };
+    lineItemsState[`${prefix}Products`] = (q.products || []).map((item) => ({
+      partNo: item.partNo || '',
+      description: item.description || '',
+      qty: item.qty || 0,
+      unitPrice: item.unitPrice || 0,
+    }));
+    lineItemsState[`${prefix}Parts`] = (q.parts || []).map((item) => ({
+      partNo: item.partNo || '',
+      description: item.description || '',
+      qty: item.qty || 0,
+      unitPrice: item.unitPrice || 0,
+    }));
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+    renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+  }
+
+  function collectQuotationForm(prefix) {
+    return {
+      quotationDate: $(`#${prefix}Date`).value || undefined,
+      customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
+      contactNumber: $(`#${prefix}ContactNumber`).value.trim() || undefined,
+      projectName: $(`#${prefix}ProjectName`).value.trim() || undefined,
+      siteLocation: $(`#${prefix}SiteLocation`).value.trim() || undefined,
+      dateOfCollection: $(`#${prefix}DateOfCollection`).value || undefined,
+      technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
+      customerComplaint: $(`#${prefix}CustomerComplaint`).value.trim() || undefined,
+      technicalDiagnosis: $(`#${prefix}TechnicalDiagnosis`).value.trim() || undefined,
+      products: lineItemsState[`${prefix}Products`].map((item) => ({
+        partNo: item.partNo,
+        description: item.description,
+        qty: parseNumber(item.qty),
+        unitPrice: parseNumber(item.unitPrice),
+      })),
+      parts: lineItemsState[`${prefix}Parts`].map((item) => ({
+        partNo: item.partNo,
+        description: item.description,
+        qty: parseNumber(item.qty),
+        unitPrice: parseNumber(item.unitPrice),
+      })),
+      labourAmount: parseNumber($(`#${prefix}LabourAmount`).value),
+      preparedBy: $(`#${prefix}PreparedBy`).value.trim() || undefined,
+      preparedDate: $(`#${prefix}PreparedDate`).value || undefined,
+      approvedBy: $(`#${prefix}ApprovedBy`).value.trim() || undefined,
+      approvedDate: $(`#${prefix}ApprovedDate`).value || undefined,
+      customerSignature: $(`#${prefix}CustomerSignature`).value.trim() || undefined,
+      signatureDate: $(`#${prefix}SignatureDate`).value || undefined,
+    };
+  }
+
+  function inspectionFieldsHtml(prefix) {
+    return `
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}Date">Inspection date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
+        <div class="field"><label for="${prefix}ProjectName">Project name</label><input type="text" id="${prefix}ProjectName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
+        <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
+        <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+        <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
+      </div>
+      <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
+      <div class="field"><label for="${prefix}VisualFindings">Visual findings</label><textarea id="${prefix}VisualFindings" maxlength="10000"></textarea></div>
+      <div class="field"><label for="${prefix}TechnicalDiagnosis">Technical diagnosis</label><textarea id="${prefix}TechnicalDiagnosis" maxlength="10000"></textarea></div>
+      <div class="field"><label for="${prefix}RecommendedAction">Recommended action</label><textarea id="${prefix}RecommendedAction" maxlength="10000"></textarea></div>
+      <h5>Products</h5>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <tbody id="${prefix}ProductsBody"></tbody>
+        </table>
+      </div>
+      <button class="button button-outline" type="button" id="${prefix}AddProductButton">Add product</button>
+      <h5>Faulty parts</h5>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <tbody id="${prefix}FaultyPartsBody"></tbody>
+        </table>
+      </div>
+      <button class="button button-outline" type="button" id="${prefix}AddFaultyPartButton">Add faulty part</button>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}RefQuotationNo">Ref. quotation no.</label><input type="text" id="${prefix}RefQuotationNo" maxlength="120"></div>
+        <div class="field"><label for="${prefix}EstRepairCost">Est. repair cost (AED)</label><input type="number" step="0.01" min="0" id="${prefix}EstRepairCost"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}InspectedBy">Inspected by</label><input type="text" id="${prefix}InspectedBy" maxlength="120"></div>
+        <div class="field"><label for="${prefix}InspectedDate">Inspected date</label><input type="date" id="${prefix}InspectedDate"></div>
+        <div class="field"><label for="${prefix}ReviewedBy">Reviewed by</label><input type="text" id="${prefix}ReviewedBy" maxlength="120"></div>
+        <div class="field"><label for="${prefix}ReviewedDate">Reviewed date</label><input type="date" id="${prefix}ReviewedDate"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}CustomerSignature">Customer signature (name)</label><input type="text" id="${prefix}CustomerSignature" maxlength="200"></div>
+        <div class="field"><label for="${prefix}SignatureDate">Signature date</label><input type="date" id="${prefix}SignatureDate"></div>
+      </div>
+    `;
+  }
+
+  function initInspectionForm(prefix) {
+    lineItemsState[`${prefix}Products`] = [];
+    lineItemsState[`${prefix}FaultyParts`] = [];
+    $(`#${prefix}AddProductButton`).addEventListener('click', () => {
+      lineItemsState[`${prefix}Products`].push({
+        partNo: '',
+        description: '',
+        qty: 1,
+        unitPrice: 0,
+      });
+      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+    });
+    $(`#${prefix}AddFaultyPartButton`).addEventListener('click', () => {
+      lineItemsState[`${prefix}FaultyParts`].push({
+        partNo: '',
+        description: '',
+        qty: 1,
+        unitPrice: 0,
+      });
+      renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
+    });
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+    renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
+  }
+
+  function fillInspectionForm(prefix, i) {
+    $(`#${prefix}Date`).value = (i.inspectionDate || '').slice(0, 10);
+    $(`#${prefix}CustomerName`).value = i.customerName || '';
+    $(`#${prefix}ContactNumber`).value = i.contactNumber || '';
+    $(`#${prefix}ProjectName`).value = i.projectName || '';
+    $(`#${prefix}SiteLocation`).value = i.siteLocation || '';
+    $(`#${prefix}DateOfCollection`).value = (i.dateOfCollection || '').slice(0, 10);
+    $(`#${prefix}TechnicianName`).value = i.technicianName || '';
+    $(`#${prefix}WarrantyStatus`).value = i.warrantyStatus || '';
+    $(`#${prefix}CustomerComplaint`).value = i.customerComplaint || '';
+    $(`#${prefix}VisualFindings`).value = i.visualFindings || '';
+    $(`#${prefix}TechnicalDiagnosis`).value = i.technicalDiagnosis || '';
+    $(`#${prefix}RecommendedAction`).value = i.recommendedAction || '';
+    $(`#${prefix}RefQuotationNo`).value = i.refQuotationNo || '';
+    $(`#${prefix}EstRepairCost`).value = i.estRepairCost ?? '';
+    $(`#${prefix}InspectedBy`).value = i.inspectedBy || '';
+    $(`#${prefix}InspectedDate`).value = (i.inspectedDate || '').slice(0, 10);
+    $(`#${prefix}ReviewedBy`).value = i.reviewedBy || '';
+    $(`#${prefix}ReviewedDate`).value = (i.reviewedDate || '').slice(0, 10);
+    $(`#${prefix}CustomerSignature`).value = i.customerSignature || '';
+    $(`#${prefix}SignatureDate`).value = (i.signatureDate || '').slice(0, 10);
+    lineItemsState[`${prefix}Products`] = (i.products || []).map((item) => ({
+      partNo: item.partNo || '',
+      description: item.description || '',
+      qty: item.qty || 0,
+      unitPrice: item.unitPrice || 0,
+    }));
+    lineItemsState[`${prefix}FaultyParts`] = (i.faultyParts || []).map((item) => ({
+      partNo: item.partNo || '',
+      description: item.description || '',
+      qty: item.qty || 0,
+      unitPrice: item.unitPrice || 0,
+    }));
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+    renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
+  }
+
+  function collectInspectionForm(prefix) {
+    return {
+      inspectionDate: $(`#${prefix}Date`).value || undefined,
+      customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
+      contactNumber: $(`#${prefix}ContactNumber`).value.trim() || undefined,
+      projectName: $(`#${prefix}ProjectName`).value.trim() || undefined,
+      siteLocation: $(`#${prefix}SiteLocation`).value.trim() || undefined,
+      dateOfCollection: $(`#${prefix}DateOfCollection`).value || undefined,
+      technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
+      warrantyStatus: $(`#${prefix}WarrantyStatus`).value.trim() || undefined,
+      customerComplaint: $(`#${prefix}CustomerComplaint`).value.trim() || undefined,
+      visualFindings: $(`#${prefix}VisualFindings`).value.trim() || undefined,
+      technicalDiagnosis: $(`#${prefix}TechnicalDiagnosis`).value.trim() || undefined,
+      recommendedAction: $(`#${prefix}RecommendedAction`).value.trim() || undefined,
+      products: lineItemsState[`${prefix}Products`].map((item) => ({
+        partNo: item.partNo,
+        description: item.description,
+        qty: parseNumber(item.qty),
+        unitPrice: parseNumber(item.unitPrice),
+      })),
+      faultyParts: lineItemsState[`${prefix}FaultyParts`].map((item) => ({
+        partNo: item.partNo,
+        description: item.description,
+        qty: parseNumber(item.qty),
+        unitPrice: parseNumber(item.unitPrice),
+      })),
+      refQuotationNo: $(`#${prefix}RefQuotationNo`).value.trim() || undefined,
+      estRepairCost: $(`#${prefix}EstRepairCost`).value
+        ? parseNumber($(`#${prefix}EstRepairCost`).value)
+        : undefined,
+      inspectedBy: $(`#${prefix}InspectedBy`).value.trim() || undefined,
+      inspectedDate: $(`#${prefix}InspectedDate`).value || undefined,
+      reviewedBy: $(`#${prefix}ReviewedBy`).value.trim() || undefined,
+      reviewedDate: $(`#${prefix}ReviewedDate`).value || undefined,
+      customerSignature: $(`#${prefix}CustomerSignature`).value.trim() || undefined,
+      signatureDate: $(`#${prefix}SignatureDate`).value || undefined,
+    };
+  }
+
   function renderComplaints(complaints) {
     const body = $('#complaintsBody');
     body.innerHTML = complaints
@@ -745,6 +1105,262 @@
       $('#jobCardsBody').innerHTML = '';
       $('#jobCardsEmpty').hidden = false;
     }
+  }
+
+  // ---- Quotations ----
+  function renderQuotations(quotations) {
+    const body = $('#quotationsBody');
+    body.innerHTML = quotations
+      .map(
+        (q) =>
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+      )
+      .join('');
+    $('#quotationsEmpty').hidden = quotations.length > 0;
+    $$('#quotationsBody [data-quotation-id]').forEach((button) =>
+      button.addEventListener('click', () => loadQuotationDetail(button.dataset.quotationId)),
+    );
+  }
+
+  async function loadQuotations() {
+    if (!hasPermission('quotation.read')) return;
+    clearWorkspaceRecovery();
+    const params = new URLSearchParams({ page: '1', pageSize: '50' });
+    const search = $('#quotationSearch').value.trim();
+    if (search) params.set('search', search);
+    $('#quotationsBody').innerHTML =
+      '<tr><td colspan="4" class="empty-state">Loading quotations…</td></tr>';
+    try {
+      const result = await apiRequest('/api/quotations?' + params);
+      renderQuotations(result.quotations || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view quotations.', loadQuotations);
+      } else {
+        setWorkspaceRecovery(error.message, loadQuotations);
+      }
+      $('#quotationsBody').innerHTML = '';
+      $('#quotationsEmpty').hidden = false;
+    }
+  }
+
+  async function loadQuotationDetail(id) {
+    if (!hasPermission('quotation.read')) return;
+    setMessage('#workspaceMessage', '', false);
+    try {
+      const result = await apiRequest('/api/quotations/' + encodeURIComponent(id));
+      currentQuotationId = result.quotation.id;
+      $('#quotationDetailHeading').textContent = result.quotation.quotationReference;
+      fillQuotationForm('qte', result.quotation);
+      $('#saveQuotationButton').hidden = !hasPermission('quotation.write');
+      $('#quotationDetail').hidden = false;
+      $('#quotationDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 404) {
+        currentQuotationId = null;
+        $('#quotationDetail').hidden = true;
+        setWorkspaceRecovery('This quotation no longer exists.', loadQuotations);
+      } else {
+        setWorkspaceRecovery(error.message, () => loadQuotationDetail(id));
+      }
+    }
+  }
+
+  async function submitQuotationCreate() {
+    const button = $('#submitQuotationCreateButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      const result = await apiRequest('/api/quotations', {
+        method: 'POST',
+        body: JSON.stringify(collectQuotationForm('qtc')),
+      });
+      $('#quotationCreatePanel').hidden = true;
+      await loadQuotations();
+      await loadQuotationDetail(result.quotation.id);
+      setMessage(
+        '#workspaceMessage',
+        `Quotation ${result.quotation.quotationReference} created.`,
+        true,
+      );
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function saveQuotation() {
+    if (!currentQuotationId) return;
+    const button = $('#saveQuotationButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      await apiRequest('/api/quotations/' + encodeURIComponent(currentQuotationId), {
+        method: 'PATCH',
+        body: JSON.stringify(collectQuotationForm('qte')),
+      });
+      await loadQuotationDetail(currentQuotationId);
+      await loadQuotations();
+      setMessage('#workspaceMessage', 'Quotation saved.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 404) {
+        await loadQuotations();
+        setMessage('#workspaceMessage', error.message);
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  function resetQuotationWorkspace() {
+    currentQuotationId = null;
+    $('#quotationDetail').hidden = true;
+    $('#quotationCreatePanel').hidden = true;
+    $('#quotationsBody').innerHTML = '';
+    $('#quotationsEmpty').hidden = true;
+  }
+
+  // ---- Inspections ----
+  function renderInspections(inspections) {
+    const body = $('#inspectionsBody');
+    body.innerHTML = inspections
+      .map(
+        (i) =>
+          `<tr><td><button class="table-link" type="button" data-inspection-id="${escapeHtml(i.id)}">${escapeHtml(i.inspectionReference)}</button></td><td>${escapeHtml(i.customerName || '—')}<br>${escapeHtml(i.contactNumber || '')}</td><td>${escapeHtml(i.projectName || '—')}<br>${escapeHtml(i.siteLocation || '')}</td><td>${escapeHtml(formatDate(i.updatedAt))}</td></tr>`,
+      )
+      .join('');
+    $('#inspectionsEmpty').hidden = inspections.length > 0;
+    $$('#inspectionsBody [data-inspection-id]').forEach((button) =>
+      button.addEventListener('click', () => loadInspectionDetail(button.dataset.inspectionId)),
+    );
+  }
+
+  async function loadInspections() {
+    if (!hasPermission('inspection.read')) return;
+    clearWorkspaceRecovery();
+    const params = new URLSearchParams({ page: '1', pageSize: '50' });
+    const search = $('#inspectionSearch').value.trim();
+    if (search) params.set('search', search);
+    $('#inspectionsBody').innerHTML =
+      '<tr><td colspan="4" class="empty-state">Loading inspections…</td></tr>';
+    try {
+      const result = await apiRequest('/api/inspections?' + params);
+      renderInspections(result.inspections || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view inspections.', loadInspections);
+      } else {
+        setWorkspaceRecovery(error.message, loadInspections);
+      }
+      $('#inspectionsBody').innerHTML = '';
+      $('#inspectionsEmpty').hidden = false;
+    }
+  }
+
+  async function loadInspectionDetail(id) {
+    if (!hasPermission('inspection.read')) return;
+    setMessage('#workspaceMessage', '', false);
+    try {
+      const result = await apiRequest('/api/inspections/' + encodeURIComponent(id));
+      currentInspectionId = result.inspection.id;
+      $('#inspectionDetailHeading').textContent = result.inspection.inspectionReference;
+      fillInspectionForm('iqe', result.inspection);
+      $('#saveInspectionButton').hidden = !hasPermission('inspection.write');
+      $('#inspectionDetail').hidden = false;
+      $('#inspectionDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 404) {
+        currentInspectionId = null;
+        $('#inspectionDetail').hidden = true;
+        setWorkspaceRecovery('This inspection no longer exists.', loadInspections);
+      } else {
+        setWorkspaceRecovery(error.message, () => loadInspectionDetail(id));
+      }
+    }
+  }
+
+  async function submitInspectionCreate() {
+    const button = $('#submitInspectionCreateButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      const result = await apiRequest('/api/inspections', {
+        method: 'POST',
+        body: JSON.stringify(collectInspectionForm('iqc')),
+      });
+      $('#inspectionCreatePanel').hidden = true;
+      await loadInspections();
+      await loadInspectionDetail(result.inspection.id);
+      setMessage(
+        '#workspaceMessage',
+        `Inspection ${result.inspection.inspectionReference} created.`,
+        true,
+      );
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function saveInspection() {
+    if (!currentInspectionId) return;
+    const button = $('#saveInspectionButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      await apiRequest('/api/inspections/' + encodeURIComponent(currentInspectionId), {
+        method: 'PATCH',
+        body: JSON.stringify(collectInspectionForm('iqe')),
+      });
+      await loadInspectionDetail(currentInspectionId);
+      await loadInspections();
+      setMessage('#workspaceMessage', 'Inspection saved.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 404) {
+        await loadInspections();
+        setMessage('#workspaceMessage', error.message);
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  function resetInspectionWorkspace() {
+    currentInspectionId = null;
+    $('#inspectionDetail').hidden = true;
+    $('#inspectionCreatePanel').hidden = true;
+    $('#inspectionsBody').innerHTML = '';
+    $('#inspectionsEmpty').hidden = true;
   }
 
   function renderJobCardActions(jobCard) {
@@ -1785,6 +2401,8 @@
     workspaceMode = 'complaints';
     resetAppointmentWorkspace();
     resetJobCardWorkspace();
+    resetQuotationWorkspace();
+    resetInspectionWorkspace();
     $('#staff-workspace').hidden = true;
     $('#staff-access').hidden = false;
     $('#authCard').hidden = false;
@@ -1830,14 +2448,62 @@
   $('#refreshComplaintsButton').addEventListener('click', loadComplaints);
   $('#refreshAppointmentsButton').addEventListener('click', loadAppointments);
   $('#refreshJobCardsButton').addEventListener('click', loadJobCards);
+  $('#refreshQuotationsButton').addEventListener('click', loadQuotations);
+  $('#refreshInspectionsButton').addEventListener('click', loadInspections);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
   $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
+  $('#applyQuotationFilters').addEventListener('click', loadQuotations);
+  $('#applyInspectionFilters').addEventListener('click', loadInspections);
   $('#appointmentSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadAppointments();
   });
   $('#jobCardSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadJobCards();
+  });
+  $('#quotationSearch').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') loadQuotations();
+  });
+  $('#inspectionSearch').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') loadInspections();
+  });
+  $('#createQuotationButton').addEventListener('click', () => {
+    $('#quotationDetail').hidden = true;
+    $('#quotationCreatePanel').hidden = false;
+    $('#quotationCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#cancelQuotationCreateButton').addEventListener('click', () => {
+    $('#quotationCreatePanel').hidden = true;
+  });
+  $('#quotationCreateForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitQuotationCreate();
+  });
+  $('#quotationEditForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await saveQuotation();
+  });
+  $('#closeQuotationDetailButton').addEventListener('click', () => {
+    $('#quotationDetail').hidden = true;
+  });
+  $('#createInspectionButton').addEventListener('click', () => {
+    $('#inspectionDetail').hidden = true;
+    $('#inspectionCreatePanel').hidden = false;
+    $('#inspectionCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#cancelInspectionCreateButton').addEventListener('click', () => {
+    $('#inspectionCreatePanel').hidden = true;
+  });
+  $('#inspectionCreateForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitInspectionCreate();
+  });
+  $('#inspectionEditForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await saveInspection();
+  });
+  $('#closeInspectionDetailButton').addEventListener('click', () => {
+    $('#inspectionDetail').hidden = true;
   });
   $('#findTechniciansButton').addEventListener('click', loadAvailableTechnicians);
   $('#technicianId').addEventListener('change', () => {
@@ -1858,6 +2524,8 @@
   $('#complaintsNav').addEventListener('click', () => setWorkspaceMode('complaints'));
   $('#serviceRequestsNav').addEventListener('click', () => setWorkspaceMode('service-requests'));
   $('#jobCardsNav').addEventListener('click', () => setWorkspaceMode('job-cards'));
+  $('#quotationsNav').addEventListener('click', () => setWorkspaceMode('quotations'));
+  $('#inspectionsNav').addEventListener('click', () => setWorkspaceMode('inspections'));
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
@@ -1950,4 +2618,6 @@
   });
   $('#signOutButton').addEventListener('click', () => signOut());
   initJobCardForms();
+  initQuotationForms();
+  initInspectionForms();
 })();

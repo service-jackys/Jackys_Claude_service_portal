@@ -1331,6 +1331,12 @@
                 <button class="dashboard-link" type="button" id="jobCardsNav" hidden>
                   Service job cards <span aria-hidden="true">→</span>
                 </button>
+                <button class="dashboard-link" type="button" id="quotationsNav" hidden>
+                  Quotations <span aria-hidden="true">→</span>
+                </button>
+                <button class="dashboard-link" type="button" id="inspectionsNav" hidden>
+                  Inspections <span aria-hidden="true">→</span>
+                </button>
                 <button class="dashboard-link" type="button" id="appointmentsNav" hidden>
                   Appointments <span aria-hidden="true">→</span>
                 </button>
@@ -1368,6 +1374,22 @@
                   hidden
                 >
                   Refresh job cards
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshQuotationsButton"
+                  hidden
+                >
+                  Refresh quotations
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshInspectionsButton"
+                  hidden
+                >
+                  Refresh inspections
                 </button>
               </div>
             </div>
@@ -1722,6 +1744,192 @@
                   </div>
                   <h4>Job-card history</h4>
                   <ol class="history" id="jobCardHistoryList"></ol>
+                </div>
+              </div>
+            </div>
+            <div class="card" id="quotationWorkspace" hidden>
+              <div class="card-body">
+                <div class="inbox-tools">
+                  <label class="visually-hidden" for="quotationSearch">Search quotations</label>
+                  <input
+                    id="quotationSearch"
+                    type="search"
+                    placeholder="Search reference, customer, project"
+                  /><button
+                    class="button button-secondary"
+                    type="button"
+                    id="applyQuotationFilters"
+                  >
+                    Apply filters</button
+                  ><button class="button button-primary" type="button" id="createQuotationButton">
+                    New quotation
+                  </button>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <caption class="visually-hidden">
+                      Quotations
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Reference</th>
+                        <th>Customer</th>
+                        <th>Project / site</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody id="quotationsBody"></tbody>
+                  </table>
+                </div>
+                <p class="empty-state" id="quotationsEmpty" hidden>
+                  No quotations match the selected filters.
+                </p>
+                <section
+                  class="detail-action-card"
+                  id="quotationCreatePanel"
+                  aria-labelledby="quotationCreateHeading"
+                  hidden
+                >
+                  <h4 id="quotationCreateHeading">New quotation</h4>
+                  <form id="quotationCreateForm" novalidate>
+                    <div id="quotationCreateFields"></div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="cancelQuotationCreateButton"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        class="button button-primary"
+                        type="submit"
+                        id="submitQuotationCreateButton"
+                      >
+                        Save quotation
+                      </button>
+                    </div>
+                  </form>
+                </section>
+                <div class="detail-panel" id="quotationDetail" hidden>
+                  <div class="dashboard-header">
+                    <div>
+                      <h3 id="quotationDetailHeading">Quotation details</h3>
+                    </div>
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="closeQuotationDetailButton"
+                    >
+                      Close details
+                    </button>
+                  </div>
+                  <form id="quotationEditForm" novalidate>
+                    <div id="quotationEditFields"></div>
+                    <div class="form-footer">
+                      <span></span>
+                      <button
+                        class="button button-secondary"
+                        type="submit"
+                        id="saveQuotationButton"
+                      >
+                        Save quotation
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+            <div class="card" id="inspectionWorkspace" hidden>
+              <div class="card-body">
+                <div class="inbox-tools">
+                  <label class="visually-hidden" for="inspectionSearch">Search inspections</label>
+                  <input
+                    id="inspectionSearch"
+                    type="search"
+                    placeholder="Search reference, customer, project"
+                  /><button
+                    class="button button-secondary"
+                    type="button"
+                    id="applyInspectionFilters"
+                  >
+                    Apply filters</button
+                  ><button class="button button-primary" type="button" id="createInspectionButton">
+                    New inspection
+                  </button>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <caption class="visually-hidden">
+                      Inspections
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Reference</th>
+                        <th>Customer</th>
+                        <th>Project / site</th>
+                        <th>Updated</th>
+                      </tr>
+                    </thead>
+                    <tbody id="inspectionsBody"></tbody>
+                  </table>
+                </div>
+                <p class="empty-state" id="inspectionsEmpty" hidden>
+                  No inspections match the selected filters.
+                </p>
+                <section
+                  class="detail-action-card"
+                  id="inspectionCreatePanel"
+                  aria-labelledby="inspectionCreateHeading"
+                  hidden
+                >
+                  <h4 id="inspectionCreateHeading">New inspection</h4>
+                  <form id="inspectionCreateForm" novalidate>
+                    <div id="inspectionCreateFields"></div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="cancelInspectionCreateButton"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        class="button button-primary"
+                        type="submit"
+                        id="submitInspectionCreateButton"
+                      >
+                        Save inspection
+                      </button>
+                    </div>
+                  </form>
+                </section>
+                <div class="detail-panel" id="inspectionDetail" hidden>
+                  <div class="dashboard-header">
+                    <div>
+                      <h3 id="inspectionDetailHeading">Inspection details</h3>
+                    </div>
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="closeInspectionDetailButton"
+                    >
+                      Close details
+                    </button>
+                  </div>
+                  <form id="inspectionEditForm" novalidate>
+                    <div id="inspectionEditFields"></div>
+                    <div class="form-footer">
+                      <span></span>
+                      <button
+                        class="button button-secondary"
+                        type="submit"
+                        id="saveInspectionButton"
+                      >
+                        Save inspection
+                      </button>
+                    </div>
+                  </form>
                 </div>
               </div>
             </div>

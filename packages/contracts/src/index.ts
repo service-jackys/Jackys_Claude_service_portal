@@ -240,6 +240,84 @@ export type ServiceJobCardCreateInput = z.infer<typeof serviceJobCardCreateSchem
 export const serviceJobCardUpdateSchema = z.object(jobCardContentFields).strict();
 export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchema>;
 
+// Quotation and inspection records (Phase 5 -- docs/DEVELOPMENT_PLAN.md),
+// matching the live system's HEADERS_BY_TYPE['quotation'] and
+// ['inspection'] (docs/code.gs). Unlike job cards, neither has an enforced
+// workflow status in the live system -- Prepared/Approved and
+// Inspected/Reviewed by/date are plain fields the CCE fills in, so these
+// schemas carry no status field and no transition rules.
+export const quotationWriteSchema = z
+  .object({
+    appointmentId: z.string().regex(/^\d+$/).optional(),
+    quotationDate: dateSchema.optional(),
+    customerName: optionalText(200),
+    contactNumber: optionalText(50),
+    projectName: optionalText(200),
+    siteLocation: optionalText(500),
+    dateOfCollection: dateSchema.optional(),
+    technicianName: optionalText(120),
+    customerComplaint: optionalText(10000),
+    technicalDiagnosis: optionalText(10000),
+    products: z.array(jobCardPartSchema).max(50).optional(),
+    parts: z.array(jobCardPartSchema).max(50).optional(),
+    labourAmount: z.number().min(0).max(10000000).optional(),
+    preparedBy: optionalText(120),
+    preparedDate: dateSchema.optional(),
+    approvedBy: optionalText(120),
+    approvedDate: dateSchema.optional(),
+    customerSignature: optionalText(200),
+    signatureDate: dateSchema.optional(),
+  })
+  .strict();
+export type QuotationWriteInput = z.infer<typeof quotationWriteSchema>;
+
+export const quotationListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    appointmentId: z.string().regex(/^\d+$/).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
+export const inspectionWriteSchema = z
+  .object({
+    appointmentId: z.string().regex(/^\d+$/).optional(),
+    inspectionDate: dateSchema.optional(),
+    customerName: optionalText(200),
+    contactNumber: optionalText(50),
+    projectName: optionalText(200),
+    siteLocation: optionalText(500),
+    dateOfCollection: dateSchema.optional(),
+    technicianName: optionalText(120),
+    customerComplaint: optionalText(10000),
+    visualFindings: optionalText(10000),
+    technicalDiagnosis: optionalText(10000),
+    products: z.array(jobCardPartSchema).max(50).optional(),
+    faultyParts: z.array(jobCardPartSchema).max(50).optional(),
+    recommendedAction: optionalText(10000),
+    refQuotationNo: optionalText(120),
+    warrantyStatus: optionalText(50),
+    estRepairCost: z.number().min(0).max(10000000).optional(),
+    inspectedBy: optionalText(120),
+    inspectedDate: dateSchema.optional(),
+    reviewedBy: optionalText(120),
+    reviewedDate: dateSchema.optional(),
+    customerSignature: optionalText(200),
+    signatureDate: dateSchema.optional(),
+  })
+  .strict();
+export type InspectionWriteInput = z.infer<typeof inspectionWriteSchema>;
+
+export const inspectionListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    appointmentId: z.string().regex(/^\d+$/).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
 export const availabilityWindowSchema = z
   .object({
     weekday: z.number().int().min(0).max(6),

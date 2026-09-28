@@ -122,6 +122,30 @@ done so far" log; pushed to GitHub.
       existing Phase 5 browser tests were written against the old (inverted) creation flow and will need
       updating to the new prefill → create flow.
 
+#### Phase 5 checkpoint — 2026-09-28: quotation and inspection records added
+
+- [x] Migration `006_quotations_inspections.sql`: `quotations` and `inspections` tables matching the live
+      system's field sets (`docs/code.gs` `HEADERS_BY_TYPE['quotation']` / `['inspection']`), plus
+      granting the already-seeded `quotation.*`/`inspection.*` permissions to management/sales (they
+      existed since Phase 1 but were never granted to any role but admin).
+- [x] `GET/POST /api/quotations`, `GET/PATCH /api/quotations/{id}` — products + parts line-item tables,
+      grand total always computed server-side (products + parts + labour), matching `recalcQuotation()`.
+- [x] `GET/POST /api/inspections`, `GET/PATCH /api/inspections/{id}` — products + faulty-parts tables,
+      free-text `Ref. Quotation No.` field (matches live: not a real FK there either).
+- [x] Neither has a workflow-lock status, matching the live system — Prepared/Approved and
+      Inspected/Reviewed by/date are plain editable fields, not an enforced state machine, so records
+      stay editable (no "terminal" lock like job cards).
+- [x] Web app: new "Quotations" and "Inspections" nav items, list + search, a create panel, and an
+      always-editable detail form with add/remove line-item tables (reused the job-card parts-table
+      code, generalized into `renderLineItemsTable`).
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **Not done yet — needs you:** `npm run db:migrate` on your machine (applies migration 006), then
+      walk through creating a quotation and an inspection via the web app.
+- [ ] Quotation-sourced job cards (live system's `pullJobCardFromQuotation`) are still out of scope —
+      `service_job_cards.source_type` is still constrained to `'Scheduler'` only. Revisit once quotations
+      are verified working.
+- [ ] Playwright coverage for quotations/inspections not yet written.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.
