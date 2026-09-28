@@ -340,6 +340,118 @@
         line-height: 1.55;
       }
 
+      .facility-band {
+        position: relative;
+        overflow: hidden;
+        min-height: 360px;
+        display: flex;
+        align-items: center;
+        background: #0b1f38;
+      }
+      .facility-band img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.55;
+      }
+      .facility-band::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          100deg,
+          rgba(8, 26, 48, 0.97) 0%,
+          rgba(8, 26, 48, 0.88) 38%,
+          rgba(8, 26, 48, 0.45) 72%,
+          rgba(8, 26, 48, 0.15) 100%
+        );
+      }
+      .facility-copy {
+        position: relative;
+        z-index: 1;
+        max-width: 520px;
+        color: #fff;
+        padding: 3.4rem 0;
+      }
+      .facility-copy .section-kicker {
+        color: #9ed4ff;
+      }
+      .facility-copy h2 {
+        color: #fff;
+        font-size: clamp(1.7rem, 3vw, 2.2rem);
+        margin: 0.5rem 0 0.85rem;
+      }
+      .facility-copy p {
+        color: #dceaff;
+        font-size: 0.96rem;
+        line-height: 1.65;
+        margin: 0 0 1.4rem;
+      }
+      .facility-stats {
+        display: flex;
+        gap: 1.8rem;
+        flex-wrap: wrap;
+      }
+      .facility-stats div strong {
+        display: block;
+        font-size: 1.5rem;
+        color: #fff;
+      }
+      .facility-stats div span {
+        font-size: 0.72rem;
+        color: #9ed4ff;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+
+      .coverage-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 2.4rem;
+        align-items: center;
+      }
+      @media (max-width: 900px) {
+        .coverage-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+      .coverage-map {
+        border-radius: 22px;
+        overflow: hidden;
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+        padding: 1.2rem;
+      }
+      .coverage-map img {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      .coverage-list {
+        display: grid;
+        gap: 0.7rem;
+        margin-top: 1.2rem;
+      }
+      .coverage-list li {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 0.92rem;
+      }
+      .coverage-list li::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--red);
+        flex: none;
+      }
+
       .brands {
         background: var(--navy);
         color: #fff;
@@ -457,6 +569,8 @@
       }
 
       .cta-panel {
+        position: relative;
+        overflow: hidden;
         display: flex;
         flex-wrap: wrap;
         align-items: center;
@@ -466,6 +580,19 @@
         border-radius: var(--radius);
         background: linear-gradient(120deg, var(--red-deep), var(--red));
         color: #fff;
+      }
+      .cta-panel img {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0.22;
+        mix-blend-mode: luminosity;
+      }
+      .cta-panel > * {
+        position: relative;
+        z-index: 1;
       }
       .cta-panel h2 {
         margin: 0 0 0.4rem;
@@ -580,6 +707,29 @@
         </div>
       </section>
 
+      <section class="facility-band" aria-labelledby="facility-heading">
+        <img
+          src="assets/landing/jdi-web-14.png"
+          alt="Jacky's Distribution warehouse and logistics floor"
+        />
+        <div class="container">
+          <div class="facility-copy reveal">
+            <p class="section-kicker">Built for follow-through</p>
+            <h2 id="facility-heading">Backed by real stock, not just a call center</h2>
+            <p>
+              Every job card is supported by Jacky's Distribution's own warehousing and logistics
+              operation — genuine parts and replacement units are sourced and dispatched from the
+              same network that runs our retail and B2B supply chain.
+            </p>
+            <div class="facility-stats">
+              <div><strong>7</strong><span>Emirates stocked</span></div>
+              <div><strong>3</strong><span>Authorized brands</span></div>
+              <div><strong>24/7</strong><span>Request intake</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <section class="section" aria-labelledby="proof-heading">
         <div class="container">
           <div class="section-heading reveal">
@@ -624,6 +774,36 @@
                 </div>
                 <img src="assets/landing/jdi-web-1.jpg" alt="Two people shaking hands" />
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt" aria-labelledby="coverage-heading">
+        <div class="container">
+          <div class="coverage-grid">
+            <div class="reveal">
+              <p class="section-kicker">UAE-wide coverage</p>
+              <h2 id="coverage-heading">One service network, all seven emirates</h2>
+              <p>
+                Wherever the customer is registered, the same complaint-to-completion process and
+                technician network applies.
+              </p>
+              <ul class="coverage-list">
+                <li>Dubai</li>
+                <li>Sharjah</li>
+                <li>Ajman</li>
+                <li>Ras Al Khaimah</li>
+                <li>Fujairah</li>
+                <li>Umm Al Quwain</li>
+                <li>Abu Dhabi &amp; Al Ain</li>
+              </ul>
+            </div>
+            <div class="coverage-map reveal hover-lift">
+              <img
+                src="assets/landing/jdi-web-5.png"
+                alt="Map of the UAE showing Jacky's Distribution's seven-emirate service coverage"
+              />
             </div>
           </div>
         </div>
@@ -691,6 +871,7 @@
       <section class="section section-alt">
         <div class="container">
           <div class="cta-panel reveal">
+            <img src="assets/landing/philips-ac02.jpg" alt="" aria-hidden="true" />
             <div>
               <h2>Ready to get your service request moving?</h2>
               <p>
