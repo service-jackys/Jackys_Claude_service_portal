@@ -3,7 +3,11 @@ import type { Pool } from 'pg';
 import {
   serviceJobCardStatusTransitions,
   serviceJobCardStatusUpdateSchema,
-  type ServiceJobCardStatus,
+  serviceJobCardCreateSchema,
+  serviceJobCardUpdateSchema,
+  type JobCardPart,
+  type ServiceJobCardCreateInput,
+  type ServiceJobCardUpdateInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
   findServiceJobCardByAppointmentId,
@@ -12,10 +16,16 @@ import {
   insertServiceJobCardHistory,
   listServiceJobCardHistory,
   listServiceJobCards,
+  updateServiceJobCardContent,
   updateServiceJobCardStatus,
+  type ServiceJobCardContent,
 } from '../../../../packages/db/src/job-cards.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
-import { findAppointmentById } from '../../../../packages/db/src/appointments.js';
+import {
+  findAppointmentById,
+  type AppointmentRecord,
+} from '../../../../packages/db/src/appointments.js';
+import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
 import { allocateJobCardReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
@@ -37,21 +47,138 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
 }
 
+/** Time Consumed is derived from Period From/To (whole hours, rounded), matching
+ *  the live system's calcJobCardTimeConsumed() -- never typed by hand. */
+function calcTimeConsumedHours(periodFrom: string | null, periodTo: string | null): number | null {
+  if (!periodFrom || !periodTo) return null;
+  const from = new Date(periodFrom);
+  const to = new Date(periodTo);
+  const diffMs = to.getTime() - from.getTime();
+  if (Number.isNaN(diffMs) || diffMs < 0) return null;
+  return Math.round(diffMs / 3600000);
+}
+
+/** Mirrors the live system's recalcJobCardTotals(): totalCost is always the sum of
+ *  the parts lines, grandTotal is always totalCost + serviceCharge. Neither is
+ *  ever accepted from the client -- both are recomputed server-side every time. */
+function computeTotals(parts: JobCardPart[], serviceCharge: number) {
+  const totalCost = parts.reduce((sum, part) => sum + (part.qty || 0) * (part.unitPrice || 0), 0);
+  return { totalCost, grandTotal: totalCost + (serviceCharge || 0) };
+}
+
+async function resolveTechnicianName(
+  client: Parameters<typeof findTechnicianById>[0],
+  technicianId: string | null,
+) {
+  if (!technicianId) return null;
+  const technician = await findTechnicianById(client, technicianId);
+  return technician?.name ?? null;
+}
+
+/** Default job-card content pulled from a completed appointment, matching the live
+ *  system's pullJobCardFromScheduler(). The CCE can edit anything from here before
+ *  saving; nothing here is final until the job card is created. */
+function defaultsFromAppointment(
+  appointment: AppointmentRecord,
+  technicianName: string | null,
+): ServiceJobCardContent {
+  return {
+    jobCardDate: new Date().toISOString().slice(0, 10),
+    customerName: appointment.customerName,
+    customerContact: appointment.contactNumber,
+    customerAddress: appointment.address,
+    itemDescription: [appointment.brand, appointment.model].filter(Boolean).join(' ') || null,
+    modelNo: appointment.model,
+    warrantyStatus: appointment.jobWarranty,
+    complaint: appointment.faultDescription,
+    serviceRendered: null,
+    periodFrom: null,
+    periodTo: null,
+    timeConsumedHours: null,
+    parts: [],
+    totalCost: 0,
+    serviceCharge: 0,
+    grandTotal: 0,
+    amountChargeable: null,
+    invoiceNo: null,
+    deliveryDate: null,
+    technicianName,
+    brand: appointment.brand,
+    jobFinalStatus: 'WIP',
+    schoolContactPerson: appointment.b2bBranchSchool ? appointment.schoolContactPerson : null,
+    schoolContactNumber: appointment.b2bBranchSchool ? appointment.schoolContactNumber : null,
+    customerNumber: appointment.customerNumber,
+  };
+}
+
+function mergeContent(
+  defaults: ServiceJobCardContent,
+  overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
+): ServiceJobCardContent {
+  const merged: ServiceJobCardContent = {
+    ...defaults,
+    ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value !== undefined)),
+  } as ServiceJobCardContent;
+  const parts = merged.parts ?? [];
+  const serviceCharge = merged.serviceCharge ?? 0;
+  const { totalCost, grandTotal } = computeTotals(parts, serviceCharge);
+  merged.parts = parts;
+  merged.serviceCharge = serviceCharge;
+  merged.totalCost = totalCost;
+  merged.grandTotal = grandTotal;
+  merged.timeConsumedHours =
+    overrides.periodFrom !== undefined || overrides.periodTo !== undefined
+      ? calcTimeConsumedHours(merged.periodFrom, merged.periodTo)
+      : (merged.timeConsumedHours ?? calcTimeConsumedHours(merged.periodFrom, merged.periodTo));
+  return merged;
+}
+
 export function createServiceJobCardService(pool: Pool) {
+  async function prefill(appointmentId: string) {
+    const client = await pool.connect();
+    try {
+      const appointment = await findAppointmentById(client, appointmentId);
+      if (!appointment) {
+        throw new ServiceJobCardError('not-found', 'The appointment was not found.');
+      }
+      if (appointment.status !== 'Completed') {
+        throw new ServiceJobCardError(
+          'appointment-ineligible',
+          'A job card can only be prefilled from a completed appointment.',
+        );
+      }
+      if (await findServiceJobCardByAppointmentId(client, appointmentId)) {
+        throw new ServiceJobCardError(
+          'duplicate',
+          'The appointment already has a service job card.',
+        );
+      }
+      const technicianName = await resolveTechnicianName(client, appointment.technicianId);
+      return {
+        appointment,
+        content: defaultsFromAppointment(appointment, technicianName),
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async function create(
     appointmentId: string,
+    input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
   ) {
+    const overrides = serviceJobCardCreateSchema.parse(input ?? {});
     return withTransaction(pool, async (client) => {
       const appointment = await findAppointmentById(client, appointmentId, true);
       if (!appointment) {
         throw new ServiceJobCardError('not-found', 'The appointment was not found.');
       }
-      if (appointment.status === 'Completed' || appointment.status === 'Cancelled') {
+      if (appointment.status !== 'Completed') {
         throw new ServiceJobCardError(
           'appointment-ineligible',
-          `A ${appointment.status.toLowerCase()} appointment cannot receive a job card.`,
+          'A job card will be created once the appointment is completed.',
         );
       }
       if (await findServiceJobCardByAppointmentId(client, appointmentId, true)) {
@@ -61,6 +188,9 @@ export function createServiceJobCardService(pool: Pool) {
         );
       }
 
+      const technicianName = await resolveTechnicianName(client, appointment.technicianId);
+      const content = mergeContent(defaultsFromAppointment(appointment, technicianName), overrides);
+
       const jobCardReference = await allocateJobCardReference(client, appointment.appointmentDate);
       let jobCard;
       try {
@@ -68,6 +198,7 @@ export function createServiceJobCardService(pool: Pool) {
           jobCardReference,
           appointmentId,
           createdBy: profileId,
+          content,
         });
       } catch (error) {
         if (isUniqueViolation(error)) {
@@ -103,6 +234,69 @@ export function createServiceJobCardService(pool: Pool) {
     });
   }
 
+  async function updateContent(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const overrides = serviceJobCardUpdateSchema.parse(input ?? {});
+    return withTransaction(pool, async (client) => {
+      const current = await findServiceJobCardById(client, id, true);
+      if (!current) {
+        throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      }
+      if (current.status === 'Completed' || current.status === 'Cancelled') {
+        throw new ServiceJobCardError(
+          'terminal-job-card',
+          `A job card in ${current.status} can no longer be edited.`,
+        );
+      }
+      const content = mergeContent(
+        {
+          jobCardDate: current.jobCardDate,
+          customerName: current.customerName,
+          customerContact: current.customerContact,
+          customerAddress: current.customerAddress,
+          itemDescription: current.itemDescription,
+          modelNo: current.modelNo,
+          warrantyStatus: current.warrantyStatus,
+          complaint: current.complaint,
+          serviceRendered: current.serviceRendered,
+          periodFrom: current.periodFrom ? new Date(current.periodFrom).toISOString() : null,
+          periodTo: current.periodTo ? new Date(current.periodTo).toISOString() : null,
+          timeConsumedHours: current.timeConsumedHours ? Number(current.timeConsumedHours) : null,
+          parts: current.parts,
+          totalCost: Number(current.totalCost),
+          serviceCharge: Number(current.serviceCharge),
+          grandTotal: Number(current.grandTotal),
+          amountChargeable: current.amountChargeable ? Number(current.amountChargeable) : null,
+          invoiceNo: current.invoiceNo,
+          deliveryDate: current.deliveryDate,
+          technicianName: current.technicianName,
+          brand: current.brand,
+          jobFinalStatus: current.jobFinalStatus,
+          schoolContactPerson: current.schoolContactPerson,
+          schoolContactNumber: current.schoolContactNumber,
+          customerNumber: current.customerNumber,
+        },
+        overrides,
+      );
+      const jobCard = await updateServiceJobCardContent(client, id, content, profileId);
+      if (!jobCard)
+        throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'job_card.content_updated',
+        targetType: 'service_job_card',
+        targetId: id,
+        metadata: { jobCardReference: jobCard.jobCardReference },
+        requestId,
+      });
+      return jobCard;
+    });
+  }
+
   async function list(query: Record<string, unknown>) {
     const client = await pool.connect();
     try {
@@ -121,7 +315,8 @@ export function createServiceJobCardService(pool: Pool) {
     const client = await pool.connect();
     try {
       const jobCard = await findServiceJobCardById(client, id);
-      if (!jobCard) throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      if (!jobCard)
+        throw new ServiceJobCardError('not-found', 'The service job card was not found.');
       const history = await listServiceJobCardHistory(client, id);
       return { jobCard, history };
     } finally {
@@ -133,7 +328,8 @@ export function createServiceJobCardService(pool: Pool) {
     const client = await pool.connect();
     try {
       const appointment = await findAppointmentById(client, appointmentId);
-      if (!appointment) throw new ServiceJobCardError('not-found', 'The appointment was not found.');
+      if (!appointment)
+        throw new ServiceJobCardError('not-found', 'The appointment was not found.');
       const jobCard = await findServiceJobCardByAppointmentId(client, appointmentId);
       return { jobCard };
     } finally {
@@ -174,14 +370,9 @@ export function createServiceJobCardService(pool: Pool) {
         );
       }
       const finalized = data.status === 'Completed' || data.status === 'Cancelled';
-      const result = await updateServiceJobCardStatus(
-        client,
-        id,
-        data,
-        profileId,
-        finalized,
-      );
-      if (!result) throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      const result = await updateServiceJobCardStatus(client, id, data, profileId, finalized);
+      if (!result)
+        throw new ServiceJobCardError('not-found', 'The service job card was not found.');
       await insertServiceJobCardHistory(
         client,
         id,
@@ -207,7 +398,7 @@ export function createServiceJobCardService(pool: Pool) {
     });
   }
 
-  return { list, create, detail, byAppointment, history, changeStatus };
+  return { list, create, prefill, updateContent, detail, byAppointment, history, changeStatus };
 }
 
 export type ServiceJobCardService = ReturnType<typeof createServiceJobCardService>;

@@ -46,6 +46,33 @@ matched. Findings are in `docs/PARITY_REVIEW_2026-09-28.md`. Fixed:
   drop the old constraint first, then remap (now case/whitespace-tolerant), then add the new constraint.
 - Connected this project to its GitHub repository and pushed everything above.
 
+**2026-09-28 — Job-card creation logic fixed to match the live system (full rebuild).** Found and fixed
+a business-logic inversion: this project's job-card feature rejected Completed appointments and only
+allowed creating a job card from a non-terminal one — the exact opposite of the live system, where a job
+card is created FROM a completed appointment, with that appointment's data pulled into an editable form
+first (`pullJobCardFromScheduler` in `code.gs`). Rebuilt end to end:
+
+- Migration `005_job_card_live_parity.sql` adds the full set of job-card content columns the live system
+  carries: customer/item/warranty/complaint fields, parts (JSON), period from/to with derived time
+  consumed, costs and totals, invoice/delivery, technician, and `jobFinalStatus` (`WIP` / `BER` /
+  `Rejected` / `Repair Completed` / `Spare pending` — a separate concept from this project's own
+  Open/In Progress/Completed/Cancelled workflow status).
+- `GET /api/appointments/{id}/job-card/prefill` now pulls default content from a completed appointment
+  (customer, item, technician name, complaint, etc.), which the CCE can edit before creating.
+- `POST /api/appointments/{id}/job-card` now requires the appointment to be Completed (inverted from
+  before) and accepts the edited content; `PATCH /api/job-cards/{id}` edits an existing, non-terminal
+  job card's content. Totals (`totalCost`, `grandTotal`) and time consumed are always computed
+  server-side, never accepted from the client, matching the live system's `recalcJobCardTotals` /
+  `calcJobCardTimeConsumed`.
+- The staff web app: the "Create service job card" button now only appears once an appointment is
+  Completed; clicking it loads the prefill into an editable form instead of creating immediately; the
+  job-card detail view gained an editable content form (with an add/remove parts table) alongside the
+  existing status-change form.
+- `npm run typecheck`, `npm run build`, and `prettier --check`/`--write` all pass on every changed file.
+
+**Before this is usable, run the new migration:** `npm run db:migrate` (adds the columns above to your
+local database) — see "Start the server" below.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

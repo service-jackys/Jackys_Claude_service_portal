@@ -447,6 +447,219 @@
       : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   }
 
+  // ---- Service job card content form (create-prefill panel with prefix 'jcc',
+  // existing-job-card edit panel with prefix 'jce'). Both share the same field
+  // set (packages/contracts jobCardContentFields / docs/code.gs HEADERS_BY_TYPE
+  // ['service-job-card']), so one template and one set of handlers, parameterized
+  // by prefix, drive both panels instead of duplicating the markup and logic.
+  const jobFinalStatusOptions = ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'];
+  const jobCardPartsState = { jcc: [], jce: [] };
+
+  function parseNumber(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  }
+
+  function money(value) {
+    return (Number(value) || 0).toFixed(2);
+  }
+
+  function toDateTimeLocal(value) {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.valueOf())) return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  function jobCardFieldsHtml(prefix) {
+    return `
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}Date">Job card date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}CustomerContact">Customer contact</label><input type="text" id="${prefix}CustomerContact" maxlength="50"></div>
+        <div class="field"><label for="${prefix}CustomerAddress">Customer address</label><input type="text" id="${prefix}CustomerAddress" maxlength="500"></div>
+        <div class="field"><label for="${prefix}ItemDescription">Item description</label><input type="text" id="${prefix}ItemDescription" maxlength="300"></div>
+        <div class="field"><label for="${prefix}ModelNo">Model no.</label><input type="text" id="${prefix}ModelNo" maxlength="120"></div>
+        <div class="field"><label for="${prefix}Brand">Brand</label><input type="text" id="${prefix}Brand" maxlength="120"></div>
+        <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
+        <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+      </div>
+      <div class="field"><label for="${prefix}Complaint">Complaint</label><textarea id="${prefix}Complaint" maxlength="10000"></textarea></div>
+      <div class="field"><label for="${prefix}ServiceRendered">Service rendered</label><textarea id="${prefix}ServiceRendered" maxlength="10000"></textarea></div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}PeriodFrom">Period from</label><input type="datetime-local" id="${prefix}PeriodFrom"></div>
+        <div class="field"><label for="${prefix}PeriodTo">Period to</label><input type="datetime-local" id="${prefix}PeriodTo"></div>
+        <div class="field"><label for="${prefix}TimeConsumed">Time consumed (hours)</label><input type="text" id="${prefix}TimeConsumed" readonly></div>
+      </div>
+      <h5>Parts used</h5>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <tbody id="${prefix}PartsBody"></tbody>
+        </table>
+      </div>
+      <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}TotalCost">Total cost (AED)</label><input type="text" id="${prefix}TotalCost" readonly></div>
+        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED)</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"></div>
+        <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
+        <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (AED)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
+        <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
+        <div class="field"><label for="${prefix}JobFinalStatus">Job final status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
+        <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
+        <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
+      </div>
+    `;
+  }
+
+  function initJobCardForms() {
+    $('#jobCardCreateFields').innerHTML = jobCardFieldsHtml('jcc');
+    $('#jobCardContentFields').innerHTML = jobCardFieldsHtml('jce');
+    ['jcc', 'jce'].forEach((prefix) => {
+      $(`#${prefix}AddPartButton`).addEventListener('click', () => {
+        jobCardPartsState[prefix].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
+        renderJobCardParts(prefix);
+      });
+      $(`#${prefix}ServiceCharge`).addEventListener('input', () => recalcJobCardTotals(prefix));
+      $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
+      $(`#${prefix}PeriodTo`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
+    });
+  }
+
+  function renderJobCardParts(prefix) {
+    const body = $(`#${prefix}PartsBody`);
+    const parts = jobCardPartsState[prefix];
+    body.innerHTML = parts
+      .map(
+        (part, idx) => `<tr data-idx="${idx}">
+          <td><input type="text" value="${escapeHtml(part.partNo)}" data-field="partNo" maxlength="120"></td>
+          <td><input type="text" value="${escapeHtml(part.description)}" data-field="description" maxlength="300"></td>
+          <td><input type="number" min="0" value="${part.qty}" data-field="qty" style="width:70px;"></td>
+          <td><input type="number" min="0" step="0.01" value="${part.unitPrice}" data-field="unitPrice" style="width:90px;"></td>
+          <td>${money((part.qty || 0) * (part.unitPrice || 0))}</td>
+          <td><button type="button" class="button-link" data-remove-part="${idx}">Remove</button></td>
+        </tr>`,
+      )
+      .join('');
+    body.querySelectorAll('input[data-field]').forEach((input) => {
+      input.addEventListener('input', (event) => {
+        const row = event.target.closest('tr');
+        const idx = Number(row.dataset.idx);
+        const field = event.target.dataset.field;
+        parts[idx][field] =
+          field === 'partNo' || field === 'description'
+            ? event.target.value
+            : parseNumber(event.target.value);
+        row.children[4].textContent = money((parts[idx].qty || 0) * (parts[idx].unitPrice || 0));
+        recalcJobCardTotals(prefix);
+      });
+    });
+    body.querySelectorAll('[data-remove-part]').forEach((button) => {
+      button.addEventListener('click', () => {
+        parts.splice(Number(button.dataset.removePart), 1);
+        renderJobCardParts(prefix);
+      });
+    });
+    recalcJobCardTotals(prefix);
+  }
+
+  function recalcJobCardTotals(prefix) {
+    const totalCost = jobCardPartsState[prefix].reduce(
+      (sum, part) => sum + (part.qty || 0) * (part.unitPrice || 0),
+      0,
+    );
+    const serviceCharge = parseNumber($(`#${prefix}ServiceCharge`).value);
+    $(`#${prefix}TotalCost`).value = money(totalCost);
+    $(`#${prefix}GrandTotal`).value = money(totalCost + serviceCharge);
+  }
+
+  function calcJobCardTimeConsumed(prefix) {
+    const fromValue = $(`#${prefix}PeriodFrom`).value;
+    const toValue = $(`#${prefix}PeriodTo`).value;
+    const field = $(`#${prefix}TimeConsumed`);
+    if (!fromValue || !toValue) {
+      field.value = '';
+      return;
+    }
+    const diffMs = new Date(toValue) - new Date(fromValue);
+    field.value = Number.isNaN(diffMs) || diffMs < 0 ? '' : String(Math.round(diffMs / 3600000));
+  }
+
+  function fillJobCardForm(prefix, content) {
+    $(`#${prefix}Date`).value = (content.jobCardDate || '').slice(0, 10);
+    $(`#${prefix}CustomerName`).value = content.customerName || '';
+    $(`#${prefix}CustomerContact`).value = content.customerContact || '';
+    $(`#${prefix}CustomerAddress`).value = content.customerAddress || '';
+    $(`#${prefix}ItemDescription`).value = content.itemDescription || '';
+    $(`#${prefix}ModelNo`).value = content.modelNo || '';
+    $(`#${prefix}Brand`).value = content.brand || '';
+    $(`#${prefix}WarrantyStatus`).value = content.warrantyStatus || '';
+    $(`#${prefix}TechnicianName`).value = content.technicianName || '';
+    $(`#${prefix}Complaint`).value = content.complaint || '';
+    $(`#${prefix}ServiceRendered`).value = content.serviceRendered || '';
+    $(`#${prefix}PeriodFrom`).value = toDateTimeLocal(content.periodFrom);
+    $(`#${prefix}PeriodTo`).value = toDateTimeLocal(content.periodTo);
+    $(`#${prefix}ServiceCharge`).value = content.serviceCharge || 0;
+    $(`#${prefix}AmountChargeable`).value = content.amountChargeable ?? '';
+    $(`#${prefix}InvoiceNo`).value = content.invoiceNo || '';
+    $(`#${prefix}DeliveryDate`).value = content.deliveryDate
+      ? content.deliveryDate.slice(0, 10)
+      : '';
+    $(`#${prefix}JobFinalStatus`).value = content.jobFinalStatus || 'WIP';
+    $(`#${prefix}SchoolContactPerson`).value = content.schoolContactPerson || '';
+    $(`#${prefix}SchoolContactNumber`).value = content.schoolContactNumber || '';
+    $(`#${prefix}CustomerNumber`).value = content.customerNumber || '';
+    jobCardPartsState[prefix] = (content.parts || []).map((part) => ({
+      partNo: part.partNo || '',
+      description: part.description || '',
+      qty: part.qty || 0,
+      unitPrice: part.unitPrice || 0,
+    }));
+    renderJobCardParts(prefix);
+    calcJobCardTimeConsumed(prefix);
+  }
+
+  function collectJobCardForm(prefix) {
+    return {
+      jobCardDate: $(`#${prefix}Date`).value || undefined,
+      customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
+      customerContact: $(`#${prefix}CustomerContact`).value.trim() || undefined,
+      customerAddress: $(`#${prefix}CustomerAddress`).value.trim() || undefined,
+      itemDescription: $(`#${prefix}ItemDescription`).value.trim() || undefined,
+      modelNo: $(`#${prefix}ModelNo`).value.trim() || undefined,
+      brand: $(`#${prefix}Brand`).value.trim() || undefined,
+      warrantyStatus: $(`#${prefix}WarrantyStatus`).value.trim() || undefined,
+      technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
+      complaint: $(`#${prefix}Complaint`).value.trim() || undefined,
+      serviceRendered: $(`#${prefix}ServiceRendered`).value.trim() || undefined,
+      periodFrom: $(`#${prefix}PeriodFrom`).value || undefined,
+      periodTo: $(`#${prefix}PeriodTo`).value || undefined,
+      parts: jobCardPartsState[prefix].map((part) => ({
+        partNo: part.partNo,
+        description: part.description,
+        qty: parseNumber(part.qty),
+        unitPrice: parseNumber(part.unitPrice),
+      })),
+      serviceCharge: parseNumber($(`#${prefix}ServiceCharge`).value),
+      amountChargeable: $(`#${prefix}AmountChargeable`).value
+        ? parseNumber($(`#${prefix}AmountChargeable`).value)
+        : undefined,
+      invoiceNo: $(`#${prefix}InvoiceNo`).value.trim() || undefined,
+      deliveryDate: $(`#${prefix}DeliveryDate`).value || undefined,
+      jobFinalStatus: $(`#${prefix}JobFinalStatus`).value || undefined,
+      schoolContactPerson: $(`#${prefix}SchoolContactPerson`).value.trim() || undefined,
+      schoolContactNumber: $(`#${prefix}SchoolContactNumber`).value.trim() || undefined,
+      customerNumber: $(`#${prefix}CustomerNumber`).value.trim() || undefined,
+    };
+  }
+
   function renderComplaints(complaints) {
     const body = $('#complaintsBody');
     body.innerHTML = complaints
@@ -538,7 +751,9 @@
     const canWrite = hasPermission('service_job_card.write');
     const terminal = jobCard.status === 'Completed' || jobCard.status === 'Cancelled';
     $('#jobCardActions').hidden = !canWrite || terminal;
+    $('#jobCardContentAction').hidden = !canWrite || terminal;
     $('#jobCardStatusAction').hidden = !canWrite || terminal;
+    if (canWrite && !terminal) fillJobCardForm('jce', jobCard);
     const nextStatuses = jobCardTransitions[jobCard.status] || [];
     $('#jobCardNextStatus').innerHTML = nextStatuses.length
       ? nextStatuses
@@ -566,10 +781,21 @@
       const details = [
         ['Appointment', jobCard.appointmentReference],
         ['Customer', jobCard.customerName],
-        ['Contact', jobCard.contactNumber],
+        ['Contact', jobCard.customerContact],
         ['Appointment date', jobCard.appointmentDate],
         ['Appointment time', jobCard.appointmentTime],
         ['Fault description', jobCard.faultDescription],
+        ['Complaint', jobCard.complaint],
+        ['Service rendered', jobCard.serviceRendered],
+        ['Technician', jobCard.technicianName],
+        ['Job final status', jobCard.jobFinalStatus],
+        ['Time consumed (hours)', jobCard.timeConsumedHours],
+        ['Total cost (AED)', jobCard.totalCost],
+        ['Service charge (AED)', jobCard.serviceCharge],
+        ['Grand total (AED)', jobCard.grandTotal],
+        ['Amount chargeable (AED)', jobCard.amountChargeable],
+        ['Invoice no.', jobCard.invoiceNo],
+        ['Delivery date', jobCard.deliveryDate],
         ['Finalized at', formatDate(jobCard.finalizedAt)],
         ['Finalized by', jobCard.finalizedBy],
         ['Created', formatDate(jobCard.createdAt)],
@@ -614,14 +840,45 @@
   }
 
   async function createJobCard() {
+    // Step 1 of 2: pull the default job-card content from the completed
+    // appointment (matching the live system's pullJobCardFromScheduler) and
+    // show it in an editable form -- nothing is created yet. Step 2 is
+    // submitJobCardCreate() below, fired by the form's own submit button.
     if (!currentAppointmentId || !hasPermission('service_job_card.write')) return;
     const button = $('#createJobCardButton');
+    setBusy(button, true, 'Loading…');
+    try {
+      const result = await apiRequest(
+        '/api/appointments/' + encodeURIComponent(currentAppointmentId) + '/job-card/prefill',
+      );
+      fillJobCardForm('jcc', result.content);
+      $('#jobCardCreatePanel').hidden = false;
+      $('#jobCardCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        button.hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to create service job cards.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function submitJobCardCreate() {
+    if (!currentAppointmentId) return;
+    const button = $('#submitJobCardCreateButton');
     setBusy(button, true, 'Creating…');
     try {
       const result = await apiRequest(
         '/api/appointments/' + encodeURIComponent(currentAppointmentId) + '/job-card',
-        { method: 'POST' },
+        { method: 'POST', body: JSON.stringify(collectJobCardForm('jcc')) },
       );
+      $('#jobCardCreatePanel').hidden = true;
       await loadAppointments();
       setWorkspaceMode('job-cards');
       await loadJobCardDetail(result.jobCard.id);
@@ -635,9 +892,39 @@
         await signOut(false);
         setMessage('#authMessage', 'Your session has expired. Please sign in again.');
       } else if (error.status === 403) {
-        button.hidden = true;
+        $('#jobCardCreatePanel').hidden = true;
         setMessage('#workspaceMessage', 'You are not authorized to create service job cards.');
-      } else if (error.status === 404 || error.status === 409) {
+      } else if (error.status === 400 || error.status === 404 || error.status === 409) {
+        setMessage('#workspaceMessage', error.message);
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function saveJobCardContent() {
+    if (!currentJobCardId) return;
+    const button = $('#saveJobCardContentButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      await apiRequest('/api/job-cards/' + encodeURIComponent(currentJobCardId), {
+        method: 'PATCH',
+        body: JSON.stringify(collectJobCardForm('jce')),
+      });
+      await loadJobCardDetail(currentJobCardId);
+      await loadJobCards();
+      setMessage('#workspaceMessage', 'Service job-card details saved.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#jobCardContentAction').hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to edit service job cards.');
+      } else if (error.status === 400 || error.status === 404 || error.status === 409) {
+        await loadJobCardDetail(currentJobCardId);
         setMessage('#workspaceMessage', error.message);
       } else {
         setMessage('#workspaceMessage', error.message);
@@ -865,8 +1152,14 @@
   function renderAppointmentActions(appointment) {
     const canWrite = hasPermission('appointments.write');
     const terminal = appointment.status === 'Completed' || appointment.status === 'Cancelled';
+    // A job card is created FROM a completed appointment (it records what was
+    // actually done), never before -- so the button only ever shows once the
+    // appointment reaches Completed, not merely once it stops being editable.
+    const eligibleForJobCard = appointment.status === 'Completed';
     $('#appointmentActions').hidden = !canWrite;
-    $('#createJobCardButton').hidden = !hasPermission('service_job_card.write') || terminal;
+    $('#createJobCardButton').hidden =
+      !hasPermission('service_job_card.write') || !eligibleForJobCard;
+    $('#jobCardCreatePanel').hidden = true;
     $('#appointmentAssignmentAction').hidden = !canWrite;
     $('#appointmentScheduleAction').hidden = !canWrite || terminal;
     $('#appointmentStatusAction').hidden = !canWrite;
@@ -1590,6 +1883,17 @@
     await updateAppointmentStatus();
   });
   $('#createJobCardButton').addEventListener('click', createJobCard);
+  $('#cancelJobCardCreateButton').addEventListener('click', () => {
+    $('#jobCardCreatePanel').hidden = true;
+  });
+  $('#jobCardCreateForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitJobCardCreate();
+  });
+  $('#jobCardContentForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await saveJobCardContent();
+  });
   $('#jobCardStatusForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await updateJobCardStatus();
@@ -1645,4 +1949,5 @@
     $('#complaintDetail').hidden = true;
   });
   $('#signOutButton').addEventListener('click', () => signOut());
+  initJobCardForms();
 })();

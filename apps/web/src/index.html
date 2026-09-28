@@ -351,6 +351,12 @@
       .field-wide {
         grid-column: 1 / -1;
       }
+      .field-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+      }
       label {
         color: var(--ink);
         font-size: 0.88rem;
@@ -1659,6 +1665,26 @@
                   <div class="detail-actions" id="jobCardActions" hidden>
                     <section
                       class="detail-action-card"
+                      id="jobCardContentAction"
+                      aria-labelledby="jobCardContentHeading"
+                    >
+                      <h4 id="jobCardContentHeading">Job card details</h4>
+                      <form id="jobCardContentForm" novalidate>
+                        <div id="jobCardContentFields"></div>
+                        <div class="form-footer">
+                          <span></span>
+                          <button
+                            class="button button-secondary"
+                            type="submit"
+                            id="saveJobCardContentButton"
+                          >
+                            Save details
+                          </button>
+                        </div>
+                      </form>
+                    </section>
+                    <section
+                      class="detail-action-card"
                       id="jobCardStatusAction"
                       aria-labelledby="jobCardStatusHeading"
                     >
@@ -1938,6 +1964,37 @@
                       Download calendar file
                     </button>
                   </div>
+                  <section
+                    class="detail-action-card"
+                    id="jobCardCreatePanel"
+                    aria-labelledby="jobCardCreateHeading"
+                    hidden
+                  >
+                    <h4 id="jobCardCreateHeading">Create service job card</h4>
+                    <p>
+                      Details pulled from this completed appointment. Review and edit anything
+                      before creating the job card.
+                    </p>
+                    <form id="jobCardCreateForm" novalidate>
+                      <div id="jobCardCreateFields"></div>
+                      <div class="form-footer">
+                        <button
+                          class="button button-outline"
+                          type="button"
+                          id="cancelJobCardCreateButton"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          class="button button-primary"
+                          type="submit"
+                          id="submitJobCardCreateButton"
+                        >
+                          Create job card
+                        </button>
+                      </div>
+                    </form>
+                  </section>
                   <h4>Appointment history</h4>
                   <ol class="history" id="appointmentHistoryList"></ol>
                 </div>

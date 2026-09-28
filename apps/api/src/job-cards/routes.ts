@@ -37,6 +37,20 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    prefill: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.prefill(String(request.params.appointmentId)));
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     create: [
       requirePermission('service_job_card.write'),
       async (request, response, next) => {
@@ -45,6 +59,29 @@ export function createServiceJobCardHandlers(
           response.status(201).json({
             jobCard: await service.create(
               String(request.params.appointmentId),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    updateContent: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            jobCard: await service.updateContent(
+              String(request.params.id),
+              request.body,
               auth.profileId,
               request.header('x-request-id') ?? undefined,
             ),

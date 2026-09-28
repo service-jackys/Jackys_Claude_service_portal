@@ -42,6 +42,8 @@ export type RouteDefinition = {
     | 'appointmentSchedule'
     | 'appointmentStatus'
     | 'draftSchedule'
+    | 'serviceJobCardCreate'
+    | 'serviceJobCardUpdate'
     | 'serviceJobCardStatus';
   parameters?: object[];
   responseContentType?: string;
@@ -839,16 +841,30 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         handlers: serviceJobCardHandlers.list,
       },
       {
+        method: 'get' as const,
+        path: '/api/appointments/{appointmentId}/job-card/prefill',
+        operationId: 'prefillServiceJobCard',
+        tags: ['Service Job Cards'],
+        summary: 'Pull default job card content from a completed appointment',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'appointmentId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: [200, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.prefill,
+      },
+      {
         method: 'post' as const,
         path: '/api/appointments/{appointmentId}/job-card',
         operationId: 'createServiceJobCard',
         tags: ['Service Job Cards'],
         summary: 'Create a service job card for an appointment',
         security: 'bearerAuth' as const,
+        requestBody: 'serviceJobCardCreate' as const,
         parameters: [
           { name: 'appointmentId', in: 'path', required: true, schema: { type: 'string' } },
         ],
-        responses: [201, 401, 403, 404, 409, 500],
+        responses: [201, 400, 401, 403, 404, 409, 500],
         handlers: serviceJobCardHandlers.create,
       },
       {
@@ -885,6 +901,18 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: serviceJobCardHandlers.history,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/job-cards/{id}',
+        operationId: 'updateServiceJobCardContent',
+        tags: ['Service Job Cards'],
+        summary: "Edit a service job card's content",
+        security: 'bearerAuth' as const,
+        requestBody: 'serviceJobCardUpdate' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.updateContent,
       },
       {
         method: 'patch' as const,

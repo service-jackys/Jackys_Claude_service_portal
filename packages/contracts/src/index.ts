@@ -129,6 +129,7 @@ export const serviceJobCardStatusUpdateSchema = z
   .strict();
 export type ServiceJobCardStatusUpdateInput = z.infer<typeof serviceJobCardStatusUpdateSchema>;
 
+// Matches the live system's JOB_FINAL_STATUS_OPTIONS exactly (docs/code.gs).
 export const customerWriteSchema = z
   .object({
     customerType: customerTypeSchema,
@@ -175,6 +176,69 @@ const dateSchema = z
       date.getUTCDate() === day
     );
   }, 'Date must be a real calendar date.');
+
+// A separate concept from serviceJobCardStatuses above: this is the outcome/
+// diagnostic field a CCE sets as work progresses, not the workflow-lock state.
+export const jobFinalStatuses = [
+  'WIP',
+  'BER',
+  'Rejected',
+  'Repair Completed',
+  'Spare pending',
+] as const;
+export const jobFinalStatusSchema = z.enum(jobFinalStatuses);
+export type JobFinalStatus = (typeof jobFinalStatuses)[number];
+
+export const jobCardPartSchema = z
+  .object({
+    partNo: z.string().trim().max(120).optional().default(''),
+    description: z.string().trim().max(300).optional().default(''),
+    qty: z.number().min(0).max(100000).optional().default(0),
+    unitPrice: z.number().min(0).max(10000000).optional().default(0),
+  })
+  .strict();
+export type JobCardPart = z.infer<typeof jobCardPartSchema>;
+
+// The content fields a job card carries, matching the live system's
+// HEADERS_BY_TYPE['service-job-card'] (docs/code.gs). Shared between create
+// (where these values start out pulled from the source appointment, then are
+// whatever the CCE edited before saving) and update (editing an existing,
+// non-terminal job card as work progresses) -- both accept the same shape,
+// all optional, because a create call only needs to override what the
+// pre-fill got wrong and an update call only needs to change what's new.
+const jobCardContentFields = {
+  jobCardDate: dateSchema.optional(),
+  customerName: optionalText(200),
+  customerContact: optionalText(50),
+  customerAddress: optionalText(500),
+  itemDescription: optionalText(300),
+  modelNo: optionalText(120),
+  warrantyStatus: optionalText(50),
+  complaint: optionalText(10000),
+  serviceRendered: optionalText(10000),
+  // Free-form datetime strings (matches the live <input type="datetime-local">
+  // field) rather than a strict ISO schema -- time_consumed_hours is derived
+  // server-side from these two when both are present and parseable.
+  periodFrom: optionalText(40),
+  periodTo: optionalText(40),
+  parts: z.array(jobCardPartSchema).max(50).optional(),
+  serviceCharge: z.number().min(0).max(10000000).optional(),
+  amountChargeable: z.number().min(0).max(10000000).optional(),
+  invoiceNo: optionalText(120),
+  deliveryDate: dateSchema.optional(),
+  technicianName: optionalText(120),
+  brand: optionalText(120),
+  jobFinalStatus: jobFinalStatusSchema.optional(),
+  schoolContactPerson: optionalText(500),
+  schoolContactNumber: optionalText(100),
+  customerNumber: optionalText(100),
+};
+
+export const serviceJobCardCreateSchema = z.object(jobCardContentFields).strict();
+export type ServiceJobCardCreateInput = z.infer<typeof serviceJobCardCreateSchema>;
+
+export const serviceJobCardUpdateSchema = z.object(jobCardContentFields).strict();
+export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchema>;
 
 export const availabilityWindowSchema = z
   .object({

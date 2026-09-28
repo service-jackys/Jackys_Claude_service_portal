@@ -129,6 +129,22 @@ const requestBodies = {
       },
     },
   },
+  serviceJobCardCreate: {
+    required: false,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ServiceJobCardCreateRequest' },
+      },
+    },
+  },
+  serviceJobCardUpdate: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ServiceJobCardUpdateRequest' },
+      },
+    },
+  },
   serviceJobCardStatus: {
     required: true,
     content: {
@@ -407,6 +423,94 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               enum: ['Scheduled', 'In Progress', 'Completed', 'Cancelled'],
             },
             reason: { type: 'string', maxLength: 1000 },
+          },
+        },
+        ServiceJobCardCreateRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            jobCardDate: { type: 'string', format: 'date' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            customerContact: { type: 'string', minLength: 1, maxLength: 50 },
+            customerAddress: { type: 'string', minLength: 1, maxLength: 500 },
+            itemDescription: { type: 'string', minLength: 1, maxLength: 300 },
+            modelNo: { type: 'string', minLength: 1, maxLength: 120 },
+            warrantyStatus: { type: 'string', minLength: 1, maxLength: 50 },
+            complaint: { type: 'string', minLength: 1, maxLength: 10000 },
+            serviceRendered: { type: 'string', minLength: 1, maxLength: 10000 },
+            periodFrom: { type: 'string', minLength: 1, maxLength: 40 },
+            periodTo: { type: 'string', minLength: 1, maxLength: 40 },
+            parts: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            serviceCharge: { type: 'number', minimum: 0, maximum: 10000000 },
+            amountChargeable: { type: 'number', minimum: 0, maximum: 10000000 },
+            invoiceNo: { type: 'string', minLength: 1, maxLength: 120 },
+            deliveryDate: { type: 'string', format: 'date' },
+            technicianName: { type: 'string', minLength: 1, maxLength: 120 },
+            brand: { type: 'string', minLength: 1, maxLength: 120 },
+            jobFinalStatus: {
+              type: 'string',
+              enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],
+            },
+            schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
+          },
+        },
+        ServiceJobCardUpdateRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            jobCardDate: { type: 'string', format: 'date' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            customerContact: { type: 'string', minLength: 1, maxLength: 50 },
+            customerAddress: { type: 'string', minLength: 1, maxLength: 500 },
+            itemDescription: { type: 'string', minLength: 1, maxLength: 300 },
+            modelNo: { type: 'string', minLength: 1, maxLength: 120 },
+            warrantyStatus: { type: 'string', minLength: 1, maxLength: 50 },
+            complaint: { type: 'string', minLength: 1, maxLength: 10000 },
+            serviceRendered: { type: 'string', minLength: 1, maxLength: 10000 },
+            periodFrom: { type: 'string', minLength: 1, maxLength: 40 },
+            periodTo: { type: 'string', minLength: 1, maxLength: 40 },
+            parts: {
+              type: 'array',
+              maxItems: 50,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  partNo: { type: 'string', maxLength: 120 },
+                  description: { type: 'string', maxLength: 300 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                  unitPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+                },
+              },
+            },
+            serviceCharge: { type: 'number', minimum: 0, maximum: 10000000 },
+            amountChargeable: { type: 'number', minimum: 0, maximum: 10000000 },
+            invoiceNo: { type: 'string', minLength: 1, maxLength: 120 },
+            deliveryDate: { type: 'string', format: 'date' },
+            technicianName: { type: 'string', minLength: 1, maxLength: 120 },
+            brand: { type: 'string', minLength: 1, maxLength: 120 },
+            jobFinalStatus: {
+              type: 'string',
+              enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],
+            },
+            schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
           },
         },
         ServiceJobCardStatusRequest: {
