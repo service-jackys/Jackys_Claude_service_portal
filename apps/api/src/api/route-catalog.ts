@@ -413,24 +413,6 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
   const routes: RouteDefinition[] = [
     {
       method: 'get',
-      path: '/',
-      operationId: 'getRoot',
-      tags: ['System'],
-      summary: 'Get service metadata',
-      responses: [200],
-      handlers: [
-        (_request, response) => {
-          response.json({
-            name: "Jacky's Service Portal API",
-            version: appVersion,
-            status: 'ok',
-            links: { api: '/api', health: '/health' },
-          });
-        },
-      ],
-    },
-    {
-      method: 'get',
       path: '/api',
       operationId: 'getApiInfo',
       tags: ['System'],
