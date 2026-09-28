@@ -2,22 +2,28 @@ services:
   postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: jackys_service_portal
+      POSTGRES_DB: jackys_service_portal_nah
       POSTGRES_USER: jackys
       POSTGRES_PASSWORD: jackys
     # Host port changed from the default 5432 -> 5544 so this project's Postgres
     # never collides with another project's Postgres container already using 5432
     # on this machine. The container's own internal port stays 5432 (only the
     # host-side mapping changed) -- update DATABASE_URL in .env to match.
+    #
+    # Database renamed to jackys_service_portal_nah (was jackys_service_portal)
+    # and given its own new volume, so this project never shares a database
+    # name, volume, or any data with another instance running on this machine
+    # (e.g. the separate app/Postgres already using port 3000). This is a
+    # fresh, empty database -- run `npm run db:migrate` after bringing it up.
     ports:
       - '5544:5432'
     volumes:
-      - jackys-postgres-data:/var/lib/postgresql/data
+      - jackys-postgres-data-nah:/var/lib/postgresql/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U jackys -d jackys_service_portal']
+      test: ['CMD-SHELL', 'pg_isready -U jackys -d jackys_service_portal_nah']
       interval: 5s
       timeout: 5s
       retries: 10
 
 volumes:
-  jackys-postgres-data:
+  jackys-postgres-data-nah:

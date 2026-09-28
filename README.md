@@ -57,9 +57,12 @@ uses the actual values for this machine:
 - API / web UI: **http://localhost:3100**
 - Postgres: host port **5544** (the container's own internal port is still 5432 — only the
   host-side mapping changed, in `docker-compose.yml`)
+- Database name: **jackys_service_portal_nah** — renamed with its own dedicated Docker
+  volume so this project never shares a database, volume, or data with anything else
+  running on this machine.
 
 Both are set in `.env` (`PORT=3100`, `APP_BASE_URL=http://localhost:3100`,
-`DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal`) and in
+`DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal_nah_nah`) and in
 `docker-compose.yml` (`"5544:5432"`). This is a per-machine override, not a project
 default — a fresh clone on a machine with nothing else on 3000/5432 can use `3000`/`5432`
 instead; just update `.env` and `docker-compose.yml` to match.
@@ -149,7 +152,7 @@ Keep these local development values:
 ```text
 NODE_ENV=development
 AUTH_PROVIDER=local
-DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal
+DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal_nah
 EMAIL_ENABLED=false
 ```
 
@@ -167,7 +170,7 @@ docker compose ps
 The PostgreSQL service may show `health: starting` for a few seconds. Wait until it shows `healthy` or run this readiness check:
 
 ```cmd
-docker compose exec postgres pg_isready -U jackys -d jackys_service_portal
+docker compose exec postgres pg_isready -U jackys -d jackys_service_portal_nah
 ```
 
 The successful result ends with:
@@ -217,7 +220,7 @@ cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 docker info
 docker compose up -d postgres
 docker compose ps
-docker compose exec postgres pg_isready -U jackys -d jackys_service_portal
+docker compose exec postgres pg_isready -U jackys -d jackys_service_portal_nah
 npm run db:migrate
 ```
 
@@ -324,7 +327,7 @@ Wait a few seconds and run:
 
 ```cmd
 docker compose ps
-docker compose exec postgres pg_isready -U jackys -d jackys_service_portal
+docker compose exec postgres pg_isready -U jackys -d jackys_service_portal_nah
 docker compose logs postgres
 ```
 

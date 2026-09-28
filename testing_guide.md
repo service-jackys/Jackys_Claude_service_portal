@@ -147,7 +147,7 @@ Confirm that these values are present:
 NODE_ENV=development
 AUTH_PROVIDER=local
 LOCAL_BOOTSTRAP_TOKEN=<your-local-token-of-at-least-32-characters>
-DATABASE_URL=postgresql://jackys:jackys@localhost:5432/jackys_service_portal
+DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal_nah
 ```
 
 The token must be at least 32 characters. It must not be the short value `jsc`. Save the file and restart the backend after changing it because the server reads `.env` only at startup.

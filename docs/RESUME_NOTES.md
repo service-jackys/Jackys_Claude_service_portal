@@ -1,5 +1,7 @@
 # Resume Notes
 
+> **Note (2026-09-28):** this file is a Phase3 checkpoint and its commands/paths below are stale (project folder path, port 3000/5432, db name `jackys_service_portal`). For current commands, ports (3100/5544), and the actual database name (`jackys_service_portal_nah`), use `README.md` instead.
+
 **Updated:** 2026-09-26
 **Project folder:** `C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal`
 **Repository:** `https://github.com/service-jackys/Jackys-service-portal`
