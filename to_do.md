@@ -173,6 +173,28 @@ done so far" log; pushed to GitHub.
 - [ ] Swap local disk storage for Supabase Storage before production (Phase 8) — the `storage_key`
       design already anticipates this; only `storage.ts` should need to change.
 
+#### Phase 5 checkpoint — 2026-09-28: print views and legacy-reference field added
+
+- [x] Migration `008_print_legacy_reference.sql`: adds an optional `legacy_reference` text column to
+      `service_job_cards`, `quotations`, and `inspections` — a place to record a matching document's
+      reference from the old Google Sheets/Apps Script system, printed alongside this project's own
+      auto-generated reference. Free text, not a foreign key (the legacy system's references pre-date
+      this project's reference allocator).
+- [x] `POST`/`PATCH` job-card, quotation, and inspection endpoints accept an optional `legacyReference`
+      field; each create/edit form has a "Legacy reference" input.
+- [x] Web app: each of the job card, quotation, and inspection detail panels gained a "Print" button
+      that opens a clean, self-contained printable document (matching the live system's per-document
+      "Print / PDF" buttons) in a new tab and triggers the browser's print dialog — no server round
+      trip, works entirely from already-loaded detail data.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **Not done yet — needs you:** `npm run db:migrate` on your machine (applies migration 008), then
+      open a job card/quotation/inspection and try "Print" — confirm your browser's print dialog opens
+      with a clean, correctly laid-out document, and that a pop-up blocker doesn't silently swallow it
+      (the button shows a message if the window was blocked).
+- [ ] The full historical-import side of "legacy-reference preservation" (auto-populating this field from
+      an authorized export) is Phase 7 scope, not this item — for now the field is filled in by hand.
+- [ ] Playwright coverage for print/legacy-reference not yet written.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

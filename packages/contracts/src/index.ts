@@ -232,6 +232,11 @@ const jobCardContentFields = {
   schoolContactPerson: optionalText(500),
   schoolContactNumber: optionalText(100),
   customerNumber: optionalText(100),
+  // Optional free-text reference to a corresponding document in the legacy
+  // Google Sheets/Apps Script system, printed alongside this record's own
+  // reference (see "Add print views and legacy-reference preservation",
+  // Phase 5).
+  legacyReference: optionalText(120),
 };
 
 export const serviceJobCardCreateSchema = z.object(jobCardContentFields).strict();
@@ -267,6 +272,7 @@ export const quotationWriteSchema = z
     approvedDate: dateSchema.optional(),
     customerSignature: optionalText(200),
     signatureDate: dateSchema.optional(),
+    legacyReference: optionalText(120),
   })
   .strict();
 export type QuotationWriteInput = z.infer<typeof quotationWriteSchema>;
@@ -305,6 +311,7 @@ export const inspectionWriteSchema = z
     reviewedDate: dateSchema.optional(),
     customerSignature: optionalText(200),
     signatureDate: dateSchema.optional(),
+    legacyReference: optionalText(120),
   })
   .strict();
 export type InspectionWriteInput = z.infer<typeof inspectionWriteSchema>;

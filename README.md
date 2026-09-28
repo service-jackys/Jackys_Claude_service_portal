@@ -111,6 +111,25 @@ attachments using private storage, size/MIME validation, signed URLs, and audit 
 
 **Run `npm run db:migrate` again** to pick up migration 007 before using this.
 
+**2026-09-28 — Added print views and a legacy-reference field (Phase 5).** Built the fourth Phase 5
+item: print views and legacy-reference preservation.
+
+- Migration `008_print_legacy_reference.sql` adds an optional `legacy_reference` text column to job
+  cards, quotations, and inspections — a place to record a matching document's reference from the old
+  Google Sheets/Apps Script system, so continuity is visible on the printed document. Free text, since
+  the legacy system's references pre-date this project's own reference allocator.
+- The job-card, quotation, and inspection create/edit forms each gained a "Legacy reference" input.
+- Each of the three detail panels gained a "Print" button that opens a clean, self-contained printable
+  document — header, field grid, complaint/diagnosis text blocks, a line-item table with totals, and
+  signature lines — in a new browser tab and triggers the print dialog, matching the live system's
+  per-document "Print / PDF" buttons. This is entirely client-side, built from already-loaded detail
+  data, so it needs no new API endpoint and no auth handling in the new tab.
+- Auto-populating `legacyReference` from an authorized historical export (rather than typing it by hand)
+  is Phase 7 scope and stays out of this item.
+- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+
+**Run `npm run db:migrate` again** to pick up migration 008 before using this.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

@@ -6,6 +6,7 @@
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentJobCardId = null;
+  let currentJobCard = null;
   let workspaceMode = 'complaints';
   let availabilityRequestSequence = 0;
   let calendarView = 'month';
@@ -561,6 +562,7 @@
         <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
         <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
+        <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
       </div>
     `;
   }
@@ -689,6 +691,7 @@
     $(`#${prefix}SchoolContactPerson`).value = content.schoolContactPerson || '';
     $(`#${prefix}SchoolContactNumber`).value = content.schoolContactNumber || '';
     $(`#${prefix}CustomerNumber`).value = content.customerNumber || '';
+    $(`#${prefix}LegacyReference`).value = content.legacyReference || '';
     jobCardPartsState[prefix] = (content.parts || []).map((part) => ({
       partNo: part.partNo || '',
       description: part.description || '',
@@ -730,6 +733,7 @@
       schoolContactPerson: $(`#${prefix}SchoolContactPerson`).value.trim() || undefined,
       schoolContactNumber: $(`#${prefix}SchoolContactNumber`).value.trim() || undefined,
       customerNumber: $(`#${prefix}CustomerNumber`).value.trim() || undefined,
+      legacyReference: $(`#${prefix}LegacyReference`).value.trim() || undefined,
     };
   }
 
@@ -739,7 +743,9 @@
   // there's a single always-editable form per record instead of a status
   // action panel.
   let currentQuotationId = null;
+  let currentQuotation = null;
   let currentInspectionId = null;
+  let currentInspection = null;
 
   function quotationFieldsHtml(prefix) {
     return `
@@ -783,6 +789,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}CustomerSignature">Customer signature (name)</label><input type="text" id="${prefix}CustomerSignature" maxlength="200"></div>
         <div class="field"><label for="${prefix}SignatureDate">Signature date</label><input type="date" id="${prefix}SignatureDate"></div>
+        <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
       </div>
     `;
   }
@@ -835,6 +842,7 @@
     $(`#${prefix}ApprovedDate`).value = (q.approvedDate || '').slice(0, 10);
     $(`#${prefix}CustomerSignature`).value = q.customerSignature || '';
     $(`#${prefix}SignatureDate`).value = (q.signatureDate || '').slice(0, 10);
+    $(`#${prefix}LegacyReference`).value = q.legacyReference || '';
     const recalc = () => {
       const products = lineItemsState[`${prefix}Products`];
       const parts = lineItemsState[`${prefix}Parts`];
@@ -891,6 +899,7 @@
       approvedDate: $(`#${prefix}ApprovedDate`).value || undefined,
       customerSignature: $(`#${prefix}CustomerSignature`).value.trim() || undefined,
       signatureDate: $(`#${prefix}SignatureDate`).value || undefined,
+      legacyReference: $(`#${prefix}LegacyReference`).value.trim() || undefined,
     };
   }
 
@@ -939,6 +948,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}CustomerSignature">Customer signature (name)</label><input type="text" id="${prefix}CustomerSignature" maxlength="200"></div>
         <div class="field"><label for="${prefix}SignatureDate">Signature date</label><input type="date" id="${prefix}SignatureDate"></div>
+        <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
       </div>
     `;
   }
@@ -989,6 +999,7 @@
     $(`#${prefix}ReviewedDate`).value = (i.reviewedDate || '').slice(0, 10);
     $(`#${prefix}CustomerSignature`).value = i.customerSignature || '';
     $(`#${prefix}SignatureDate`).value = (i.signatureDate || '').slice(0, 10);
+    $(`#${prefix}LegacyReference`).value = i.legacyReference || '';
     lineItemsState[`${prefix}Products`] = (i.products || []).map((item) => ({
       partNo: item.partNo || '',
       description: item.description || '',
@@ -1041,7 +1052,247 @@
       reviewedDate: $(`#${prefix}ReviewedDate`).value || undefined,
       customerSignature: $(`#${prefix}CustomerSignature`).value.trim() || undefined,
       signatureDate: $(`#${prefix}SignatureDate`).value || undefined,
+      legacyReference: $(`#${prefix}LegacyReference`).value.trim() || undefined,
     };
+  }
+
+  // ---- Print views (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add print views
+  // and legacy-reference preservation"). Builds a clean, self-contained
+  // printable document from already-loaded detail data and opens it in a
+  // new tab so the browser's own Print/Save-as-PDF dialog produces a clean
+  // page -- no server round trip or auth header needed in the new tab,
+  // matching the live system's per-document "Print / PDF" buttons. Each
+  // document also shows its optional legacy reference (see
+  // packages/db/migrations/008_print_legacy_reference.sql) alongside this
+  // project's own auto-generated reference.
+  function printDocumentShell(title, bodyHtml) {
+    return `<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>${escapeHtml(title)}</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 12px; margin: 0; padding: 12px; }
+  .doc-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #17324d; padding-bottom: 10px; margin-bottom: 14px; }
+  .doc-head .company { font-size: 17px; font-weight: 700; color: #17324d; }
+  .doc-head .title { font-size: 13px; color: #444; margin-top: 2px; }
+  .doc-head .ref { text-align: right; }
+  .doc-head .ref strong { display: block; font-size: 15px; }
+  .doc-head .legacy-ref { font-size: 11px; color: #666; margin-top: 2px; }
+  .doc-head .printed-at { font-size: 10px; color: #888; margin-top: 6px; }
+  h2 { font-size: 12.5px; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; color: #17324d; }
+  .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 24px; margin-bottom: 8px; }
+  .grid .item span.label { display: block; font-size: 9.5px; color: #666; text-transform: uppercase; letter-spacing: .03em; }
+  .grid .item span.value { display: block; font-size: 12px; }
+  .block-label { font-size: 9.5px; color: #666; text-transform: uppercase; letter-spacing: .03em; margin-bottom: 2px; }
+  .block { white-space: pre-wrap; font-size: 12px; border: 1px solid #ddd; padding: 6px 8px; border-radius: 4px; background: #fafafa; margin-bottom: 10px; min-height: 1em; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+  th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 11px; text-align: left; }
+  th { background: #f0f2f5; }
+  td.num, th.num { text-align: right; }
+  .totals { width: 260px; margin-left: auto; border-collapse: collapse; }
+  .totals td { border: none; padding: 2px 6px; font-size: 12px; }
+  .totals td.num { text-align: right; }
+  .totals tr.grand td { font-weight: 700; border-top: 1.5px solid #17324d; padding-top: 4px; }
+  .sign-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
+  .sign-box { border-top: 1px solid #333; padding-top: 4px; font-size: 11px; color: #444; }
+  @media print { .no-print { display: none !important; } }
+</style>
+</head>
+<body>
+${bodyHtml}
+<p class="no-print" style="margin-top:20px;color:#888;font-size:11px;">This window opened for printing / Save as PDF -- use your browser's print dialog.</p>
+</body>
+</html>`;
+  }
+
+  function printFieldGrid(pairs) {
+    return `<div class="grid">${pairs
+      .map(
+        ([label, value]) =>
+          `<div class="item"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(value || '\u2014')}</span></div>`,
+      )
+      .join('')}</div>`;
+  }
+
+  function printTextBlock(label, value) {
+    return `<div class="block-label">${escapeHtml(label)}</div><div class="block">${escapeHtml(value || '\u2014')}</div>`;
+  }
+
+  function printLineItemsTable(items) {
+    const rows = (items || [])
+      .map(
+        (item) =>
+          `<tr><td>${escapeHtml(item.partNo || '')}</td><td>${escapeHtml(item.description || '')}</td><td class="num">${escapeHtml(String(item.qty ?? 0))}</td><td class="num">${money(item.unitPrice || 0)}</td><td class="num">${money((item.qty || 0) * (item.unitPrice || 0))}</td></tr>`,
+      )
+      .join('');
+    return `<table><thead><tr><th>Part no.</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price (AED)</th><th class="num">Total (AED)</th></tr></thead><tbody>${
+      rows || '<tr><td colspan="5" style="text-align:center;color:#888;">No line items</td></tr>'
+    }</tbody></table>`;
+  }
+
+  function printDocHead(companyTitle, docTitle, reference, legacyReference) {
+    return `<div class="doc-head">
+      <div>
+        <div class="company">${escapeHtml(companyTitle)}</div>
+        <div class="title">${escapeHtml(docTitle)}</div>
+      </div>
+      <div class="ref">
+        <strong>${escapeHtml(reference || '\u2014')}</strong>
+        ${legacyReference ? `<div class="legacy-ref">Legacy ref: ${escapeHtml(legacyReference)}</div>` : ''}
+        <div class="printed-at">Printed ${escapeHtml(formatDate(new Date().toISOString()))}</div>
+      </div>
+    </div>`;
+  }
+
+  function openPrintWindow(html) {
+    const printWindow = window.open('', '_blank', 'noopener');
+    if (!printWindow) {
+      setMessage(
+        '#workspaceMessage',
+        'Your browser blocked the print window -- please allow pop-ups for this site and try again.',
+      );
+      return;
+    }
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.addEventListener('load', () => printWindow.print());
+  }
+
+  function printJobCard(jobCard) {
+    if (!jobCard) return;
+    const body = `
+      ${printDocHead("Jacky's Distribution LLC", 'Service Job Card', jobCard.jobCardReference, jobCard.legacyReference)}
+      <h2>Job details</h2>
+      ${printFieldGrid([
+        ['Appointment ref.', jobCard.appointmentReference],
+        ['Job card date', jobCard.jobCardDate],
+        ['Customer name', jobCard.customerName],
+        ['Customer contact', jobCard.customerContact],
+        ['Customer address', jobCard.customerAddress],
+        ['Item description', jobCard.itemDescription],
+        ['Model no.', jobCard.modelNo],
+        ['Brand', jobCard.brand],
+        ['Warranty status', jobCard.warrantyStatus],
+        ['Technician', jobCard.technicianName],
+        ['Job final status', jobCard.jobFinalStatus],
+        ['Status', jobCard.status],
+      ])}
+      ${printTextBlock('Complaint', jobCard.complaint)}
+      ${printTextBlock('Service rendered', jobCard.serviceRendered)}
+      <h2>Parts used</h2>
+      ${printLineItemsTable(jobCard.parts)}
+      <table class="totals">
+        <tr><td>Total cost (AED)</td><td class="num">${money(jobCard.totalCost || 0)}</td></tr>
+        <tr><td>Service charge (AED)</td><td class="num">${money(jobCard.serviceCharge || 0)}</td></tr>
+        <tr class="grand"><td>Grand total (AED)</td><td class="num">${money(jobCard.grandTotal || 0)}</td></tr>
+        ${jobCard.amountChargeable != null ? `<tr><td>Amount chargeable (AED)</td><td class="num">${money(jobCard.amountChargeable)}</td></tr>` : ''}
+      </table>
+      <h2>Invoice / delivery</h2>
+      ${printFieldGrid([
+        ['Invoice no.', jobCard.invoiceNo],
+        ['Delivery date', jobCard.deliveryDate],
+        ['Time consumed (hours)', jobCard.timeConsumedHours],
+        ['Site contact person', jobCard.schoolContactPerson],
+        ['Site contact number', jobCard.schoolContactNumber],
+        ['Customer number', jobCard.customerNumber],
+      ])}
+      <div class="sign-row">
+        <div class="sign-box">Technician signature</div>
+        <div class="sign-box">Customer signature</div>
+      </div>
+    `;
+    openPrintWindow(printDocumentShell(`Service Job Card ${jobCard.jobCardReference || ''}`, body));
+  }
+
+  function printQuotation(quotation) {
+    if (!quotation) return;
+    const body = `
+      ${printDocHead("Jacky's Distribution LLC", 'Quotation', quotation.quotationReference, quotation.legacyReference)}
+      <h2>Customer details</h2>
+      ${printFieldGrid([
+        ['Quotation date', quotation.quotationDate],
+        ['Customer name', quotation.customerName],
+        ['Contact number', quotation.contactNumber],
+        ['Project name', quotation.projectName],
+        ['Site / location', quotation.siteLocation],
+        ['Date of collection', quotation.dateOfCollection],
+        ['Technician', quotation.technicianName],
+      ])}
+      ${printTextBlock('Customer complaint', quotation.customerComplaint)}
+      ${printTextBlock('Technical diagnosis', quotation.technicalDiagnosis)}
+      <h2>Products</h2>
+      ${printLineItemsTable(quotation.products)}
+      <h2>Spare parts</h2>
+      ${printLineItemsTable(quotation.parts)}
+      <table class="totals">
+        <tr><td>Labour (AED)</td><td class="num">${money(quotation.labourAmount || 0)}</td></tr>
+        <tr class="grand"><td>Grand total (AED)</td><td class="num">${money(quotation.grandTotal || 0)}</td></tr>
+      </table>
+      <h2>Approval</h2>
+      ${printFieldGrid([
+        ['Prepared by', quotation.preparedBy],
+        ['Prepared date', quotation.preparedDate],
+        ['Approved by', quotation.approvedBy],
+        ['Approved date', quotation.approvedDate],
+      ])}
+      <div class="sign-row">
+        <div class="sign-box">${escapeHtml(quotation.customerSignature || 'Customer signature')}${quotation.signatureDate ? ` \u2014 ${escapeHtml(quotation.signatureDate)}` : ''}</div>
+        <div class="sign-box">Authorized signature</div>
+      </div>
+    `;
+    openPrintWindow(printDocumentShell(`Quotation ${quotation.quotationReference || ''}`, body));
+  }
+
+  function printInspection(inspection) {
+    if (!inspection) return;
+    const body = `
+      ${printDocHead("Jacky's Distribution LLC", 'Inspection Report', inspection.inspectionReference, inspection.legacyReference)}
+      <h2>Customer details</h2>
+      ${printFieldGrid([
+        ['Inspection date', inspection.inspectionDate],
+        ['Customer name', inspection.customerName],
+        ['Contact number', inspection.contactNumber],
+        ['Project name', inspection.projectName],
+        ['Site / location', inspection.siteLocation],
+        ['Date of collection', inspection.dateOfCollection],
+        ['Technician', inspection.technicianName],
+        ['Warranty status', inspection.warrantyStatus],
+      ])}
+      ${printTextBlock('Customer complaint', inspection.customerComplaint)}
+      ${printTextBlock('Visual findings', inspection.visualFindings)}
+      ${printTextBlock('Technical diagnosis', inspection.technicalDiagnosis)}
+      ${printTextBlock('Recommended action', inspection.recommendedAction)}
+      <h2>Products</h2>
+      ${printLineItemsTable(inspection.products)}
+      <h2>Faulty parts</h2>
+      ${printLineItemsTable(inspection.faultyParts)}
+      ${printFieldGrid([
+        ['Ref. quotation no.', inspection.refQuotationNo],
+        [
+          'Est. repair cost (AED)',
+          inspection.estRepairCost != null ? money(inspection.estRepairCost) : null,
+        ],
+      ])}
+      <h2>Review</h2>
+      ${printFieldGrid([
+        ['Inspected by', inspection.inspectedBy],
+        ['Inspected date', inspection.inspectedDate],
+        ['Reviewed by', inspection.reviewedBy],
+        ['Reviewed date', inspection.reviewedDate],
+      ])}
+      <div class="sign-row">
+        <div class="sign-box">${escapeHtml(inspection.customerSignature || 'Customer signature')}${inspection.signatureDate ? ` \u2014 ${escapeHtml(inspection.signatureDate)}` : ''}</div>
+        <div class="sign-box">Authorized signature</div>
+      </div>
+    `;
+    openPrintWindow(
+      printDocumentShell(`Inspection Report ${inspection.inspectionReference || ''}`, body),
+    );
   }
 
   function renderComplaints(complaints) {
@@ -1177,6 +1428,7 @@
     try {
       const result = await apiRequest('/api/quotations/' + encodeURIComponent(id));
       currentQuotationId = result.quotation.id;
+      currentQuotation = result.quotation;
       $('#quotationDetailHeading').textContent = result.quotation.quotationReference;
       fillQuotationForm('qte', result.quotation);
       $('#saveQuotationButton').hidden = !hasPermission('quotation.write');
@@ -1253,6 +1505,7 @@
 
   function resetQuotationWorkspace() {
     currentQuotationId = null;
+    currentQuotation = null;
     $('#quotationDetail').hidden = true;
     $('#quotationCreatePanel').hidden = true;
     $('#quotationsBody').innerHTML = '';
@@ -1305,6 +1558,7 @@
     try {
       const result = await apiRequest('/api/inspections/' + encodeURIComponent(id));
       currentInspectionId = result.inspection.id;
+      currentInspection = result.inspection;
       $('#inspectionDetailHeading').textContent = result.inspection.inspectionReference;
       fillInspectionForm('iqe', result.inspection);
       $('#saveInspectionButton').hidden = !hasPermission('inspection.write');
@@ -1381,6 +1635,7 @@
 
   function resetInspectionWorkspace() {
     currentInspectionId = null;
+    currentInspection = null;
     $('#inspectionDetail').hidden = true;
     $('#inspectionCreatePanel').hidden = true;
     $('#inspectionsBody').innerHTML = '';
@@ -1413,6 +1668,7 @@
       const result = await apiRequest('/api/job-cards/' + encodeURIComponent(id));
       const jobCard = result.jobCard;
       currentJobCardId = jobCard.id;
+      currentJobCard = jobCard;
       renderJobCardActions(jobCard);
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
@@ -1436,6 +1692,7 @@
         ['Amount chargeable (AED)', jobCard.amountChargeable],
         ['Invoice no.', jobCard.invoiceNo],
         ['Delivery date', jobCard.deliveryDate],
+        ['Legacy reference', jobCard.legacyReference],
         ['Finalized at', formatDate(jobCard.finalizedAt)],
         ['Finalized by', jobCard.finalizedBy],
         ['Created', formatDate(jobCard.createdAt)],
@@ -2184,6 +2441,7 @@
 
   function resetJobCardWorkspace() {
     currentJobCardId = null;
+    currentJobCard = null;
     $('#jobCardDetail').hidden = true;
     $('#jobCardsBody').innerHTML = '';
     $('#jobCardsEmpty').hidden = true;
@@ -2599,6 +2857,7 @@
   $('#closeQuotationDetailButton').addEventListener('click', () => {
     $('#quotationDetail').hidden = true;
   });
+  $('#printQuotationButton').addEventListener('click', () => printQuotation(currentQuotation));
   $('#createInspectionButton').addEventListener('click', () => {
     $('#inspectionDetail').hidden = true;
     $('#inspectionCreatePanel').hidden = false;
@@ -2618,6 +2877,7 @@
   $('#closeInspectionDetailButton').addEventListener('click', () => {
     $('#inspectionDetail').hidden = true;
   });
+  $('#printInspectionButton').addEventListener('click', () => printInspection(currentInspection));
   $('#findTechniciansButton').addEventListener('click', loadAvailableTechnicians);
   $('#technicianId').addEventListener('change', () => {
     $('#scheduleAppointmentButton').disabled = !$('#technicianId').value;
@@ -2683,6 +2943,7 @@
   $('#closeJobCardDetailButton').addEventListener('click', () => {
     $('#jobCardDetail').hidden = true;
   });
+  $('#printJobCardButton').addEventListener('click', () => printJobCard(currentJobCard));
   $('#appointmentScheduleForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await rescheduleAppointment(

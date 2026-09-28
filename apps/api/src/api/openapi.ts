@@ -483,6 +483,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },
         ServiceJobCardUpdateRequest: {
@@ -527,6 +528,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },
         ServiceJobCardStatusRequest: {
@@ -613,6 +615,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             approvedDate: { type: 'string', format: 'date' },
             customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
             signatureDate: { type: 'string', format: 'date' },
+            legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },
         InspectionRequest: {
@@ -668,6 +671,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             reviewedDate: { type: 'string', format: 'date' },
             customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
             signatureDate: { type: 'string', format: 'date' },
+            legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },
         Complaint: {

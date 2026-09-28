@@ -108,6 +108,7 @@ function defaultsFromAppointment(
     schoolContactPerson: appointment.b2bBranchSchool ? appointment.schoolContactPerson : null,
     schoolContactNumber: appointment.b2bBranchSchool ? appointment.schoolContactNumber : null,
     customerNumber: appointment.customerNumber,
+    legacyReference: null,
   };
 }
 
@@ -279,6 +280,7 @@ export function createServiceJobCardService(pool: Pool) {
           schoolContactPerson: current.schoolContactPerson,
           schoolContactNumber: current.schoolContactNumber,
           customerNumber: current.customerNumber,
+          legacyReference: current.legacyReference,
         },
         overrides,
       );

@@ -43,6 +43,7 @@ export type ServiceJobCardRecord = {
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
+  legacyReference: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -89,6 +90,7 @@ export type ServiceJobCardContent = {
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
+  legacyReference: string | null;
 };
 
 const columns = `
@@ -128,6 +130,7 @@ const columns = `
   service_job_cards.school_contact_person AS "schoolContactPerson",
   service_job_cards.school_contact_number AS "schoolContactNumber",
   service_job_cards.customer_number AS "customerNumber",
+  service_job_cards.legacy_reference AS "legacyReference",
   service_job_cards.created_at AS "createdAt",
   service_job_cards.updated_at AS "updatedAt",
   service_job_cards.created_by AS "createdBy",
@@ -152,7 +155,7 @@ export async function insertServiceJobCard(
        period_from, period_to, time_consumed_hours, parts,
        total_cost, service_charge, grand_total, amount_chargeable,
        invoice_no, delivery_date, technician_name, brand, job_final_status,
-       school_contact_person, school_contact_number, customer_number
+       school_contact_person, school_contact_number, customer_number, legacy_reference
      ) VALUES (
        $1, $2, $3, $3,
        'Scheduler', $4, $5, $6, $7,
@@ -160,7 +163,7 @@ export async function insertServiceJobCard(
        $13, $14, $15, $16,
        $17, $18, $19, $20,
        $21, $22, $23, $24, $25,
-       $26, $27, $28
+       $26, $27, $28, $29
      )
      RETURNING id`,
     [
@@ -192,6 +195,7 @@ export async function insertServiceJobCard(
       c.schoolContactPerson,
       c.schoolContactNumber,
       c.customerNumber,
+      c.legacyReference,
     ],
   );
   const jobCard = await findServiceJobCardById(client, result.rows[0].id);
@@ -213,8 +217,8 @@ export async function updateServiceJobCardContent(
          parts = $14, total_cost = $15, service_charge = $16, grand_total = $17,
          amount_chargeable = $18, invoice_no = $19, delivery_date = $20, technician_name = $21,
          brand = $22, job_final_status = $23, school_contact_person = $24,
-         school_contact_number = $25, customer_number = $26,
-         updated_by = $27, updated_at = now()
+         school_contact_number = $25, customer_number = $26, legacy_reference = $27,
+         updated_by = $28, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -244,6 +248,7 @@ export async function updateServiceJobCardContent(
       content.schoolContactPerson,
       content.schoolContactNumber,
       content.customerNumber,
+      content.legacyReference,
       profileId,
     ],
   );

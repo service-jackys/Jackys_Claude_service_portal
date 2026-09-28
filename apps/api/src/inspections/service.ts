@@ -50,6 +50,7 @@ function toContent(input: InspectionWriteInput, existing?: InspectionContent): I
     reviewedDate: null,
     customerSignature: null,
     signatureDate: null,
+    legacyReference: null,
   };
   return {
     appointmentId: input.appointmentId ?? base.appointmentId,
@@ -75,6 +76,7 @@ function toContent(input: InspectionWriteInput, existing?: InspectionContent): I
     reviewedDate: input.reviewedDate ?? base.reviewedDate,
     customerSignature: input.customerSignature ?? base.customerSignature,
     signatureDate: input.signatureDate ?? base.signatureDate,
+    legacyReference: input.legacyReference ?? base.legacyReference,
   };
 }
 
@@ -135,6 +137,7 @@ export function createInspectionService(pool: Pool) {
         reviewedDate: current.reviewedDate,
         customerSignature: current.customerSignature,
         signatureDate: current.signatureDate,
+        legacyReference: current.legacyReference,
       };
       const inspection = await updateInspection(client, id, toContent(data, existing), profileId);
       if (!inspection) {

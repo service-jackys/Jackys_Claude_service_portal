@@ -59,6 +59,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     approvedDate: null,
     customerSignature: null,
     signatureDate: null,
+    legacyReference: null,
   };
   const merged: QuotationContent = {
     appointmentId: input.appointmentId ?? base.appointmentId,
@@ -81,6 +82,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     approvedDate: input.approvedDate ?? base.approvedDate,
     customerSignature: input.customerSignature ?? base.customerSignature,
     signatureDate: input.signatureDate ?? base.signatureDate,
+    legacyReference: input.legacyReference ?? base.legacyReference,
   };
   merged.grandTotal = computeGrandTotal({
     products: merged.products,
@@ -144,6 +146,7 @@ export function createQuotationService(pool: Pool) {
         approvedDate: current.approvedDate,
         customerSignature: current.customerSignature,
         signatureDate: current.signatureDate,
+        legacyReference: current.legacyReference,
       };
       const quotation = await updateQuotation(client, id, toContent(data, existing), profileId);
       if (!quotation) throw new QuotationServiceError('not-found', 'The quotation was not found.');

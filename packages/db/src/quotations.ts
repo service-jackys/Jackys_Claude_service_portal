@@ -24,6 +24,7 @@ export type QuotationRecord = {
   approvedDate: string | null;
   customerSignature: string | null;
   signatureDate: string | null;
+  legacyReference: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -51,6 +52,7 @@ export type QuotationContent = {
   approvedDate: string | null;
   customerSignature: string | null;
   signatureDate: string | null;
+  legacyReference: string | null;
 };
 
 const columns = `
@@ -76,6 +78,7 @@ const columns = `
   approved_date::text AS "approvedDate",
   customer_signature AS "customerSignature",
   signature_date::text AS "signatureDate",
+  legacy_reference AS "legacyReference",
   created_at AS "createdAt",
   updated_at AS "updatedAt",
   created_by AS "createdBy",
@@ -93,13 +96,13 @@ export async function insertQuotation(
        project_name, site_location, date_of_collection, technician_name, customer_complaint,
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
-       created_by, updated_by
+       legacy_reference, created_by, updated_by
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $22
+       $22, $23, $23
      )
      RETURNING id`,
     [
@@ -124,6 +127,7 @@ export async function insertQuotation(
       c.approvedDate,
       c.customerSignature,
       c.signatureDate,
+      c.legacyReference,
       input.createdBy,
     ],
   );
@@ -145,7 +149,7 @@ export async function updateQuotation(
          customer_complaint = $10, technical_diagnosis = $11, products = $12, parts = $13,
          labour_amount = $14, grand_total = $15, prepared_by = $16, prepared_date = $17,
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
-         updated_by = $22, updated_at = now()
+         legacy_reference = $22, updated_by = $23, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -170,6 +174,7 @@ export async function updateQuotation(
       content.approvedDate,
       content.customerSignature,
       content.signatureDate,
+      content.legacyReference,
       profileId,
     ],
   );

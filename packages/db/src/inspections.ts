@@ -27,6 +27,7 @@ export type InspectionRecord = {
   reviewedDate: string | null;
   customerSignature: string | null;
   signatureDate: string | null;
+  legacyReference: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -57,6 +58,7 @@ export type InspectionContent = {
   reviewedDate: string | null;
   customerSignature: string | null;
   signatureDate: string | null;
+  legacyReference: string | null;
 };
 
 const columns = `
@@ -85,6 +87,7 @@ const columns = `
   reviewed_date::text AS "reviewedDate",
   customer_signature AS "customerSignature",
   signature_date::text AS "signatureDate",
+  legacy_reference AS "legacyReference",
   created_at AS "createdAt",
   updated_at AS "updatedAt",
   created_by AS "createdBy",
@@ -103,14 +106,14 @@ export async function insertInspection(
        visual_findings, technical_diagnosis, products, faulty_parts, recommended_action,
        ref_quotation_no, warranty_status, est_repair_cost,
        inspected_by, inspected_date, reviewed_by, reviewed_date,
-       customer_signature, signature_date, created_by, updated_by
+       customer_signature, signature_date, legacy_reference, created_by, updated_by
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18,
        $19, $20, $21, $22,
-       $23, $24, $25, $25
+       $23, $24, $25, $26, $26
      )
      RETURNING id`,
     [
@@ -138,6 +141,7 @@ export async function insertInspection(
       c.reviewedDate,
       c.customerSignature,
       c.signatureDate,
+      c.legacyReference,
       input.createdBy,
     ],
   );
@@ -160,7 +164,7 @@ export async function updateInspection(
          products = $13, faulty_parts = $14, recommended_action = $15, ref_quotation_no = $16,
          warranty_status = $17, est_repair_cost = $18, inspected_by = $19, inspected_date = $20,
          reviewed_by = $21, reviewed_date = $22, customer_signature = $23, signature_date = $24,
-         updated_by = $25, updated_at = now()
+         legacy_reference = $25, updated_by = $26, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -188,6 +192,7 @@ export async function updateInspection(
       content.reviewedDate,
       content.customerSignature,
       content.signatureDate,
+      content.legacyReference,
       profileId,
     ],
   );
