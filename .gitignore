@@ -14,6 +14,9 @@ test-results/
 # Local migration exports and customer data
 exports/
 backups/
+
+# Private uploaded attachments (job-card photos, PDFs) -- never committed
+storage/attachments/
 *.xlsx
 *.xls
 *.csv

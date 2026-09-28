@@ -146,6 +146,33 @@ done so far" log; pushed to GitHub.
       are verified working.
 - [ ] Playwright coverage for quotations/inspections not yet written.
 
+#### Phase 5 checkpoint — 2026-09-28: job-card attachments added
+
+- [x] Migration `007_job_card_attachments.sql`: `job_card_attachments` table (file name, content type,
+      size, opaque UUID-based `storage_key`, uploader, timestamp), `ON DELETE CASCADE` from
+      `service_job_cards`, size capped at 20 MB.
+- [x] Private local-disk storage (`storage/attachments/`, gitignored), addressed only by opaque
+      `storage_key` -- deliberately the swap-point for Supabase Storage in Phase 8 without changing the
+      DB schema shape.
+- [x] Upload validated server-side against an allow-list (`image/jpeg`, `image/png`, `image/webp`,
+      `image/heic`, `application/pdf`) and the 20 MB size cap; rejected files never reach disk.
+- [x] Downloads use a signed, time-limited URL (HMAC-SHA256 over attachment id + expiry, verified with a
+      constant-time comparison) instead of a permission-gated route, so an `<img src>`/direct link works
+      without sending an auth header; secret comes from `ATTACHMENT_URL_SECRET` (dev-only insecure
+      fallback, throws if unset in production).
+- [x] `POST/GET /api/job-cards/{jobCardId}/attachments`, `GET /api/attachments/{id}/download` (signed
+      token, no permission check), `DELETE /api/attachments/{id}` (removes DB row, disk file, and logs an
+      audit event).
+- [x] Web app: job-card detail panel has a file picker + upload button (writable, non-terminal job cards
+      only) and an attachments list with download/remove links.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **Not done yet — needs you:** `npm run db:migrate` on your machine (applies migration 007), then
+      upload/download/remove a file against a real job card to confirm the signed-URL flow works end to
+      end.
+- [ ] Playwright coverage for attachments not yet written.
+- [ ] Swap local disk storage for Supabase Storage before production (Phase 8) — the `storage_key`
+      design already anticipates this; only `storage.ts` should need to change.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

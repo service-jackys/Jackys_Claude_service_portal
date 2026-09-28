@@ -145,6 +145,30 @@
     return response.blob();
   }
 
+  // multipart/form-data upload -- deliberately not routed through
+  // apiRequest(), which always sets Content-Type: application/json when a
+  // body is present; a FormData body needs the browser to set its own
+  // multipart boundary in that header instead.
+  async function apiUploadRequest(url, formData) {
+    const headers = new Headers();
+    if (authToken) headers.set('authorization', 'Bearer ' + authToken);
+    const response = await fetch(url, { method: 'POST', headers, body: formData });
+    let body = null;
+    if (response.status !== 204) {
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+    }
+    if (!response.ok) {
+      const error = new Error(body?.detail || body?.title || 'The request could not be completed.');
+      error.status = response.status;
+      throw error;
+    }
+    return body;
+  }
+
   function setBusy(button, busy, label) {
     if (!button.dataset.label) button.dataset.label = button.textContent;
     button.disabled = busy;
@@ -1430,6 +1454,8 @@
               `<li><time>${escapeHtml(formatDate(entry.changedAt))}</time><div><strong>${escapeHtml(entry.fromStatus ? entry.fromStatus + ' → ' : '')}${escapeHtml(entry.toStatus)}</strong>${entry.reason ? `<br><span>${escapeHtml(entry.reason)}</span>` : ''}</div></li>`,
           )
           .join('') || '<li><span>No history recorded.</span></li>';
+      $('#jobCardAttachmentUpload').hidden = !hasPermission('service_job_card.write');
+      await loadJobCardAttachments(jobCard.id);
       $('#jobCardDetail').hidden = false;
       $('#jobCardDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
@@ -1451,6 +1477,92 @@
       } else {
         $('#jobCardDetail').hidden = true;
         setWorkspaceRecovery(error.message, () => loadJobCardDetail(id));
+      }
+    }
+  }
+
+  function renderJobCardAttachments(attachments) {
+    const canWrite = hasPermission('service_job_card.write');
+    const list = $('#jobCardAttachmentsList');
+    list.innerHTML =
+      attachments
+        .map(
+          (attachment) =>
+            `<li><a href="${escapeHtml(attachment.downloadUrl)}" target="_blank" rel="noopener">${escapeHtml(attachment.fileName)}</a> <small>(${escapeHtml(attachment.contentType)}, ${(attachment.sizeBytes / 1024).toFixed(0)} KB)</small>${
+              canWrite
+                ? ` <button type="button" class="button-link" data-remove-attachment="${escapeHtml(attachment.id)}">Delete</button>`
+                : ''
+            }</li>`,
+        )
+        .join('') || '<li><span>No attachments yet.</span></li>';
+    list.querySelectorAll('[data-remove-attachment]').forEach((button) => {
+      button.addEventListener('click', () =>
+        removeJobCardAttachment(button.dataset.removeAttachment),
+      );
+    });
+  }
+
+  async function loadJobCardAttachments(jobCardId) {
+    if (!hasPermission('service_job_card.read')) return;
+    try {
+      const result = await apiRequest(
+        '/api/job-cards/' + encodeURIComponent(jobCardId) + '/attachments',
+      );
+      renderJobCardAttachments(result.attachments || []);
+    } catch (error) {
+      if (error.status !== 403) {
+        $('#jobCardAttachmentsList').innerHTML =
+          '<li><span>Attachments could not be loaded.</span></li>';
+      }
+    }
+  }
+
+  async function uploadJobCardAttachment() {
+    if (!currentJobCardId) return;
+    const input = $('#jobCardAttachmentFile');
+    const file = input.files?.[0];
+    if (!file) {
+      setMessage('#workspaceMessage', 'Choose a file to upload first.');
+      return;
+    }
+    const button = $('#uploadJobCardAttachmentButton');
+    setBusy(button, true, 'Uploading…');
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      await apiUploadRequest(
+        '/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/attachments',
+        formData,
+      );
+      input.value = '';
+      await loadJobCardAttachments(currentJobCardId);
+      setMessage('#workspaceMessage', 'Attachment uploaded.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function removeJobCardAttachment(attachmentId) {
+    if (!currentJobCardId) return;
+    try {
+      await apiRequest('/api/attachments/' + encodeURIComponent(attachmentId), {
+        method: 'DELETE',
+      });
+      await loadJobCardAttachments(currentJobCardId);
+      setMessage('#workspaceMessage', 'Attachment deleted.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
       }
     }
   }
@@ -2075,6 +2187,7 @@
     $('#jobCardDetail').hidden = true;
     $('#jobCardsBody').innerHTML = '';
     $('#jobCardsEmpty').hidden = true;
+    $('#jobCardAttachmentsList').innerHTML = '';
   }
 
   function resetScheduleForm() {
@@ -2551,6 +2664,7 @@
     await updateAppointmentStatus();
   });
   $('#createJobCardButton').addEventListener('click', createJobCard);
+  $('#uploadJobCardAttachmentButton').addEventListener('click', uploadJobCardAttachment);
   $('#cancelJobCardCreateButton').addEventListener('click', () => {
     $('#jobCardCreatePanel').hidden = true;
   });

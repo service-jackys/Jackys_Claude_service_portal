@@ -91,6 +91,26 @@ status in the live system, so records stay editable — no "final" lock like job
 
 **Run `npm run db:migrate` again** to pick up migration 006 before using these.
 
+**2026-09-28 — Added job-card attachments (Phase 5).** Built the third Phase 5 item: job-card
+attachments using private storage, size/MIME validation, signed URLs, and audit events.
+
+- Migration `007_job_card_attachments.sql` adds the `job_card_attachments` table (cascades on job-card
+  delete, size capped at 20 MB).
+- Files are stored on local disk under `storage/attachments/` (gitignored), addressed only by an opaque
+  UUID `storage_key` — never the original filename — deliberately built as the swap-point for Supabase
+  Storage in Phase 8 without touching the DB schema.
+- Uploads are validated server-side against an allow-list (JPEG/PNG/WEBP/HEIC images, PDF) and the size
+  cap before anything is written to disk.
+- Downloads use a signed, time-limited URL (HMAC-SHA256, constant-time verified) rather than a
+  permission-gated route, so a plain `<img src>` or link works without an auth header.
+- New API: `POST/GET /api/job-cards/{jobCardId}/attachments`, `GET /api/attachments/{id}/download`,
+  `DELETE /api/attachments/{id}` (deletes the DB row, the file on disk, and logs an audit event).
+- New web UI: the job-card detail panel gained a file picker/upload control and an attachments list with
+  download/remove links, shown only on writable, non-terminal job cards.
+- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+
+**Run `npm run db:migrate` again** to pick up migration 007 before using this.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

@@ -23,9 +23,11 @@ import { createQuotationHandlers } from '../quotations/routes.js';
 import { createQuotationService } from '../quotations/service.js';
 import { createInspectionHandlers } from '../inspections/routes.js';
 import { createInspectionService } from '../inspections/service.js';
+import { createAttachmentHandlers } from '../attachments/routes.js';
+import { createAttachmentService } from '../attachments/service.js';
 
 export type RouteDefinition = {
-  method: 'get' | 'post' | 'patch' | 'put';
+  method: 'get' | 'post' | 'patch' | 'put' | 'delete';
   path: string;
   operationId: string;
   tags: string[];
@@ -318,6 +320,26 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const attachmentHandlers = pool
+    ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
+    : {
+        upload: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        download: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        remove: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1150,6 +1172,54 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: inspectionHandlers.update,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/job-cards/{jobCardId}/attachments',
+        operationId: 'uploadJobCardAttachment',
+        tags: ['Service Job Cards'],
+        summary: 'Upload a job-card attachment (photo or PDF, multipart/form-data)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'jobCardId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [201, 400, 401, 403, 404, 500],
+        handlers: attachmentHandlers.upload,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/{jobCardId}/attachments',
+        operationId: 'listJobCardAttachments',
+        tags: ['Service Job Cards'],
+        summary: "List a job card's attachments, each with a short-lived signed download URL",
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'jobCardId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: attachmentHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/attachments/{id}/download',
+        operationId: 'downloadAttachment',
+        tags: ['Service Job Cards'],
+        summary: 'Download an attachment via a short-lived signed URL (no bearer token needed)',
+        parameters: [
+          { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'token', in: 'query', required: true, schema: { type: 'string' } },
+          { name: 'expires', in: 'query', required: true, schema: { type: 'string' } },
+        ],
+        responseContentType: 'application/octet-stream',
+        responses: [200, 404],
+        handlers: attachmentHandlers.download,
+      },
+      {
+        method: 'delete' as const,
+        path: '/api/attachments/{id}',
+        operationId: 'deleteJobCardAttachment',
+        tags: ['Service Job Cards'],
+        summary: 'Delete a job-card attachment',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 401, 403, 404, 500],
+        handlers: attachmentHandlers.remove,
       },
     ],
   ];
