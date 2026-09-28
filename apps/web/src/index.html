@@ -118,9 +118,21 @@
       .brand {
         display: flex;
         align-items: center;
+        justify-content: flex-start;
         gap: 0.8rem;
         color: var(--navy);
         text-decoration: none;
+        margin-right: auto;
+      }
+      .brand img.brand-logo {
+        height: 34px;
+        width: auto;
+        display: block;
+      }
+      @media (min-width: 640px) {
+        .brand img.brand-logo {
+          height: 40px;
+        }
       }
       .brand-mark {
         display: grid;
@@ -962,6 +974,255 @@
           animation-duration: 0.01ms !important;
         }
       }
+
+      /* ---------- Enterprise CRM redesign: sidebar, header, stepper, motion ---------- */
+      .hero-staff {
+        min-height: 0;
+      }
+      .hero-staff .hero-inner {
+        min-height: 260px;
+        padding: 2.8rem 0;
+      }
+      .hero-staff h1 {
+        font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+      }
+
+      .dashboard {
+        display: grid;
+        grid-template-columns: 264px minmax(0, 1fr);
+        gap: 1.6rem;
+        align-items: start;
+      }
+      @media (max-width: 900px) {
+        .dashboard {
+          grid-template-columns: 1fr;
+        }
+      }
+      .dashboard-nav {
+        position: sticky;
+        top: 92px;
+      }
+      .user-card {
+        display: grid;
+        gap: 0.2rem;
+        padding: 1.4rem 1.2rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: linear-gradient(180deg, #fff, var(--surface-soft));
+        box-shadow: var(--shadow);
+      }
+      .user-avatar {
+        display: grid;
+        place-items: center;
+        width: 46px;
+        height: 46px;
+        margin-bottom: 0.4rem;
+        border-radius: 12px;
+        background: var(--red);
+        color: #fff;
+        font-weight: 800;
+        font-size: 1.1rem;
+      }
+      .user-card strong {
+        color: var(--navy);
+        font-size: 1rem;
+      }
+      .user-card small {
+        color: var(--muted);
+      }
+      .role {
+        justify-self: start;
+        margin-top: 0.3rem;
+        padding: 0.2rem 0.55rem;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .dashboard-links {
+        display: grid;
+        gap: 0.2rem;
+        margin-top: 1.1rem;
+        padding-top: 1.1rem;
+        border-top: 1px solid var(--line);
+      }
+      .dashboard-link {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        border: none;
+        border-radius: 10px;
+        background: transparent;
+        color: var(--ink);
+        font-weight: 600;
+        font-size: 0.92rem;
+        text-align: left;
+        padding: 0.62rem 0.7rem;
+        transition:
+          background-color 0.16s ease,
+          color 0.16s ease,
+          transform 0.16s ease;
+      }
+      .dashboard-link::before {
+        content: '\25CF';
+        margin-right: 0.55rem;
+        color: var(--line);
+        font-size: 0.5rem;
+      }
+      .dashboard-link:hover {
+        background: var(--blue-soft);
+        color: var(--navy);
+        transform: translateX(2px);
+      }
+      .dashboard-link[aria-current='page'] {
+        background: var(--navy);
+        color: #fff;
+        box-shadow: 0 8px 18px rgb(16 43 78 / 18%);
+      }
+      .dashboard-link[aria-current='page']::before {
+        color: #f6bd4b;
+      }
+      #signOutButton {
+        margin-top: 0.5rem;
+        border-top: 1px solid var(--line);
+        padding-top: 0.75rem;
+        color: var(--red);
+      }
+      #signOutButton::before {
+        content: '\21B7';
+        color: var(--red);
+      }
+
+      .dashboard-content {
+        min-width: 0;
+      }
+      .dashboard-header {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1.2rem;
+        padding-bottom: 1.1rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .dashboard-header h2 {
+        margin: 0.15rem 0 0;
+        color: var(--navy);
+        font-size: 1.5rem;
+        letter-spacing: -0.03em;
+      }
+      .dashboard-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      /* Workflow pipeline stepper — shown inside a detail panel, highlights
+         the current stage for that complaint / appointment / job card. */
+      .workflow-stepper {
+        display: flex;
+        align-items: center;
+        margin: 0.9rem 0 1.3rem;
+        padding: 1rem 1.1rem;
+        border: 1px solid var(--line);
+        border-radius: var(--radius-sm);
+        background: var(--surface-soft);
+        overflow-x: auto;
+      }
+      .workflow-stepper .stepper-item {
+        display: flex;
+        align-items: center;
+        flex: 1 0 auto;
+        gap: 0.6rem;
+        min-width: 150px;
+      }
+      .workflow-stepper .stepper-dot {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        flex: none;
+        border-radius: 50%;
+        background: #fff;
+        border: 2px solid var(--line);
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 800;
+        transition:
+          background-color 0.2s ease,
+          border-color 0.2s ease,
+          color 0.2s ease;
+      }
+      .workflow-stepper .stepper-label {
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .workflow-stepper .stepper-connector {
+        flex: 1 1 auto;
+        height: 2px;
+        min-width: 24px;
+        background: var(--line);
+        margin: 0 0.2rem;
+      }
+      .workflow-stepper .stepper-item.is-done .stepper-dot {
+        background: var(--success);
+        border-color: var(--success);
+        color: #fff;
+      }
+      .workflow-stepper .stepper-item.is-done .stepper-label {
+        color: var(--ink);
+      }
+      .workflow-stepper .stepper-item.is-current .stepper-dot {
+        background: var(--navy);
+        border-color: var(--navy);
+        color: #fff;
+        box-shadow: 0 0 0 4px var(--blue-soft);
+      }
+      .workflow-stepper .stepper-item.is-current .stepper-label {
+        color: var(--navy);
+        font-weight: 800;
+      }
+      .workflow-stepper .stepper-item.is-cancelled .stepper-dot {
+        background: #fdecec;
+        border-color: var(--red);
+        color: var(--red);
+      }
+
+      /* Subtle entrance motion for cards and detail panels */
+      .card,
+      .detail-panel,
+      .dashboard-tile {
+        animation: portal-fade-in 0.32s ease both;
+      }
+      @keyframes portal-fade-in {
+        from {
+          opacity: 0;
+          transform: translateY(8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      .button,
+      .dashboard-link,
+      .auth-tab {
+        transition:
+          transform 0.16s ease,
+          box-shadow 0.16s ease,
+          background-color 0.16s ease,
+          color 0.16s ease;
+      }
+      tbody tr {
+        transition: background-color 0.14s ease;
+      }
     </style>
   </head>
   <body>
@@ -974,48 +1235,48 @@
     </div>
     <nav class="nav" aria-label="Primary navigation">
       <div class="nav-inner">
-        <a class="brand" href="#top" aria-label="Jacky's Service Portal home">
-          <span class="brand-mark" aria-hidden="true">J</span>
-          <span class="brand-copy"
-            ><strong>JACKY'S DISTRIBUTION</strong><span>Service Center Portal</span></span
-          >
+        <a
+          class="brand"
+          href="/portal/"
+          aria-label="Jacky's Distribution Internal Service Portal home"
+        >
+          <img class="brand-logo" src="assets/landing/jdi-logogt.png" alt="Jacky's Distribution" />
         </a>
         <div class="nav-actions">
-          <a class="button button-outline" href="#staff-access">Staff sign in</a>
-          <a class="button button-primary" href="#complaint-form">Submit a request</a>
+          <a class="button button-outline" href="/">Public site</a>
+          <a class="button button-outline" href="/complaints">Customer complaints</a>
         </div>
       </div>
     </nav>
 
-    <header class="hero" id="top">
+    <header class="hero hero-staff" id="top">
       <div class="container hero-inner">
         <div>
-          <p class="eyebrow">Service, made clear</p>
-          <h1>Get the right support for every service request.</h1>
+          <p class="eyebrow">Internal Service Team</p>
+          <h1>Service operations, in one workspace.</h1>
           <p>
-            Send us the details of your product issue and our service team will have the information
-            they need to respond efficiently.
+            Sign in to review complaints, schedule appointments, and manage job cards, quotations,
+            inspections, and warranty approvals.
           </p>
           <div class="hero-actions">
-            <a class="button button-primary" href="#complaint-form">Start a service request</a>
-            <a class="button button-outline" href="#staff-access">Open staff workspace</a>
+            <a class="button button-primary" href="#staff-access">Sign in to the workspace</a>
           </div>
         </div>
-        <aside class="hero-card" aria-label="Service request benefits">
-          <h2>A better handoff starts here</h2>
-          <p>Complete details help the team understand the issue before the first follow-up.</p>
+        <aside class="hero-card" aria-label="Staff workspace overview">
+          <h2>Everything the service team needs</h2>
+          <p>One authenticated workspace covering the full complaint-to-completion pipeline.</p>
           <div class="hero-stat">
-            <span class="hero-stat-icon" aria-hidden="true">1</span
+            <span class="hero-stat-icon" aria-hidden="true">&#8594;</span
             ><span
-              ><strong>One clear request</strong
-              ><span>Capture customer, product, and fault details together.</span></span
+              ><strong>Server-authoritative workflow</strong
+              ><span>Status transitions and permissions are enforced by the API.</span></span
             >
           </div>
           <div class="hero-stat">
-            <span class="hero-stat-icon" aria-hidden="true">2</span
+            <span class="hero-stat-icon" aria-hidden="true">&#128274;</span
             ><span
-              ><strong>Trackable reference</strong
-              ><span>Receive a complaint reference after submission.</span></span
+              ><strong>Role-gated access</strong
+              ><span>Local authentication for development and testing only.</span></span
             >
           </div>
         </aside>
@@ -1023,183 +1284,6 @@
     </header>
 
     <main id="main-content">
-      <section class="container" id="complaint-form" aria-labelledby="complaint-heading">
-        <div class="section-heading">
-          <p class="eyebrow">For customers and partners</p>
-          <h2>Register a service complaint</h2>
-          <p>
-            Fields marked with <span class="required">*</span> are required. Please provide enough
-            detail for the service team to assess your request.
-          </p>
-        </div>
-        <div class="workspace-grid">
-          <form class="card" id="publicComplaintForm" novalidate>
-            <div class="card-body">
-              <div id="publicFormMessage" class="notice notice-error" role="alert" hidden></div>
-              <div id="publicSuccess" class="notice notice-success" role="status" hidden>
-                <strong>Your request has been received.</strong>
-                <p class="success-reference" id="successReference"></p>
-                <p>Keep this reference for future service conversations.</p>
-                <button class="button button-outline" type="button" id="newComplaintButton">
-                  Submit another request
-                </button>
-              </div>
-              <div id="complaintFields">
-                <div class="form-section">
-                  <h4>Customer details</h4>
-                  <div class="form-grid">
-                    <div class="field">
-                      <label for="customerType"
-                        >Customer type <span class="required">*</span></label
-                      >
-                      <select id="customerType" name="customerType" required>
-                        <option value="">Select a type</option>
-                        <option value="B2C">B2C (Direct customer)</option>
-                        <option value="B2B">B2B (Corporate client)</option>
-                        <option value="B2B-SalesChannel">B2B Sales Channel</option>
-                      </select>
-                      <span class="field-error" data-error-for="customerType"></span>
-                    </div>
-                    <div class="field">
-                      <label for="customerName"
-                        >Customer / Company name <span class="required">*</span></label
-                      >
-                      <input id="customerName" name="customerName" autocomplete="name" required />
-                      <span class="field-error" data-error-for="customerName"></span>
-                    </div>
-                    <div class="field">
-                      <label for="contactNumber"
-                        >Contact number <span class="required">*</span></label
-                      >
-                      <input
-                        id="contactNumber"
-                        name="contactNumber"
-                        type="tel"
-                        autocomplete="tel"
-                        required
-                      />
-                      <span class="field-error" data-error-for="contactNumber"></span>
-                    </div>
-                    <div class="field">
-                      <label for="customerEmail">Email address</label>
-                      <input
-                        id="customerEmail"
-                        name="customerEmail"
-                        type="email"
-                        autocomplete="email"
-                      />
-                      <span class="field-error" data-error-for="customerEmail"></span>
-                    </div>
-                    <div class="field field-wide">
-                      <label for="address">Address</label>
-                      <input id="address" name="address" autocomplete="street-address" />
-                      <span class="field-error" data-error-for="address"></span>
-                    </div>
-                    <div class="field">
-                      <label for="region">Region</label>
-                      <select id="region" name="region">
-                        <option value="">— Select region —</option>
-                        <option>Dubai</option>
-                        <option>Sharjah</option>
-                        <option>Ajman</option>
-                        <option>Ras Al Khaimah</option>
-                        <option>Fujairah</option>
-                        <option>Umm Al Quwain</option>
-                        <option>Abu Dhabi</option>
-                        <option>Al Ain</option>
-                      </select>
-                      <span class="field-error" data-error-for="region"></span>
-                    </div>
-                    <div class="field">
-                      <label for="b2bBranchSchool">B2B Branch / School</label>
-                      <input id="b2bBranchSchool" name="b2bBranchSchool" />
-                      <span class="field-error" data-error-for="b2bBranchSchool"></span>
-                    </div>
-                    <div class="field">
-                      <label for="schoolContactPerson">Site contact person</label>
-                      <input id="schoolContactPerson" name="schoolContactPerson" />
-                      <span class="field-error" data-error-for="schoolContactPerson"></span>
-                    </div>
-                    <div class="field">
-                      <label for="schoolContactNumber">Site contact number</label>
-                      <input id="schoolContactNumber" name="schoolContactNumber" type="tel" />
-                      <span class="field-error" data-error-for="schoolContactNumber"></span>
-                    </div>
-                    <div class="field">
-                      <label for="customerNumber">Customer number</label>
-                      <input id="customerNumber" name="customerNumber" />
-                      <span class="field-error" data-error-for="customerNumber"></span>
-                    </div>
-                    <div class="field">
-                      <label for="salesOrderNumber">Sales order no.</label>
-                      <input id="salesOrderNumber" name="salesOrderNumber" />
-                      <span class="field-error" data-error-for="salesOrderNumber"></span>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-section">
-                  <h4>Product and issue</h4>
-                  <div class="form-grid">
-                    <div class="field">
-                      <label for="brand">Brand</label>
-                      <input id="brand" name="brand" />
-                      <span class="field-error" data-error-for="brand"></span>
-                    </div>
-                    <div class="field">
-                      <label for="model">Model</label>
-                      <input id="model" name="model" />
-                      <span class="field-error" data-error-for="model"></span>
-                    </div>
-                    <div class="field field-wide">
-                      <label for="serialOrItemCode">Serial number or item code</label>
-                      <input id="serialOrItemCode" name="serialOrItemCode" />
-                      <span class="field-error" data-error-for="serialOrItemCode"></span>
-                    </div>
-                    <div class="field field-wide">
-                      <label for="description"
-                        >Describe the issue <span class="required">*</span></label
-                      >
-                      <textarea id="description" name="description" required></textarea>
-                      <span class="field-error" data-error-for="description"></span>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-footer">
-                  <p class="form-note">
-                    Your information is sent securely to the service application.
-                  </p>
-                  <button class="button button-primary" type="submit" id="submitComplaintButton">
-                    Submit service request
-                  </button>
-                </div>
-              </div>
-            </div>
-          </form>
-          <aside class="info-stack">
-            <div class="info-card">
-              <h3>What happens next?</h3>
-              <ul class="info-list">
-                <li><b>1</b><span>Your request is registered with a unique reference.</span></li>
-                <li>
-                  <b>2</b
-                  ><span>The service team reviews the information and follows up if needed.</span>
-                </li>
-                <li>
-                  <b>3</b><span>Scheduling and further updates are coordinated by the team.</span>
-                </li>
-              </ul>
-            </div>
-            <div class="info-card">
-              <h3>Need help before submitting?</h3>
-              <p>
-                Include the product model, serial or item code, and a clear description of the fault
-                whenever those details are available.
-              </p>
-            </div>
-          </aside>
-        </div>
-      </section>
-
       <section class="container staff-section" id="staff-access" aria-labelledby="staff-heading">
         <div class="section-heading">
           <p class="eyebrow">For service teams</p>
@@ -1515,6 +1599,12 @@
                     <div>
                       <h3 id="detailHeading">Complaint details</h3>
                       <p id="detailStatus"></p>
+                      <div
+                        class="workflow-stepper"
+                        id="workflowStepper"
+                        aria-label="Complaint workflow stage"
+                        hidden
+                      ></div>
                     </div>
                     <button class="button button-outline" type="button" id="closeDetailButton">
                       Close details
@@ -1756,6 +1846,12 @@
                     <div>
                       <h3 id="jobCardDetailHeading">Service job card details</h3>
                       <p id="jobCardDetailStatus"></p>
+                      <div
+                        class="workflow-stepper"
+                        id="jobCardWorkflowStepper"
+                        aria-label="Job card workflow stage"
+                        hidden
+                      ></div>
                     </div>
                     <div>
                       <button class="button button-outline" type="button" id="printJobCardButton">
@@ -2296,6 +2392,12 @@
                     <div>
                       <h3 id="appointmentDetailHeading">Appointment details</h3>
                       <p id="appointmentDetailStatus"></p>
+                      <div
+                        class="workflow-stepper"
+                        id="appointmentWorkflowStepper"
+                        aria-label="Appointment workflow stage"
+                        hidden
+                      ></div>
                     </div>
                     <button
                       class="button button-outline"

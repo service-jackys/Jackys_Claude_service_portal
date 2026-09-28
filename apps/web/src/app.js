@@ -85,28 +85,6 @@
     );
   }
 
-  function validatePublicForm(data, form) {
-    clearErrors(form);
-    const required = [
-      ['customerType', 'Select a customer type.'],
-      ['customerName', 'Enter the customer name.'],
-      ['contactNumber', 'Enter a contact number.'],
-      ['description', 'Describe the issue.'],
-    ];
-    let valid = true;
-    required.forEach(([field, message]) => {
-      if (!data[field]) {
-        showFieldError(form, field, message);
-        valid = false;
-      }
-    });
-    if (data.customerEmail && !/^\S+@\S+\.\S+$/.test(data.customerEmail)) {
-      showFieldError(form, 'customerEmail', 'Enter a valid email address.');
-      valid = false;
-    }
-    return valid;
-  }
-
   async function apiRequest(url, options = {}) {
     const headers = new Headers(options.headers || {});
     if (options.body && !headers.has('content-type'))
@@ -177,41 +155,79 @@
     button.textContent = busy ? label : button.dataset.label;
   }
 
-  function resetPublicForm() {
-    const form = $('#publicComplaintForm');
-    form.reset();
-    clearErrors(form);
-    $('#publicSuccess').hidden = true;
-    $('#complaintFields').hidden = false;
-    setMessage('#publicFormMessage', '', false);
-    $('#complaint-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // ---------- Workflow pipeline stepper ----------
+  // Shows a contextual "Complaint -> Scheduling -> Job Card -> Completion"
+  // stepper on a detail view, highlighting the current stage. Cancelled
+  // records show a dedicated cancelled marker instead of a stage.
+  const WORKFLOW_STAGES = ['Complaint', 'Scheduling', 'Job Card', 'Completion'];
+
+  function workflowStageForComplaintStatus(status) {
+    switch (status) {
+      case 'New':
+      case 'Under Review':
+      case 'Pending Information':
+        return 0;
+      case 'Ready for Scheduling':
+      case 'Scheduled':
+        return 1;
+      case 'Closed':
+        return 3;
+      case 'Cancelled':
+        return -1;
+      default:
+        return 0;
+    }
   }
 
-  $('#publicComplaintForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    const data = formDataObject(form);
-    setMessage('#publicFormMessage', '', false);
-    if (!validatePublicForm(data, form)) return;
-    const button = $('#submitComplaintButton');
-    setBusy(button, true, 'Submitting…');
-    try {
-      const result = await apiRequest('/api/public/complaints', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
-      $('#successReference').textContent =
-        result.complaint?.complaintReference || 'Reference created';
-      $('#publicSuccess').hidden = false;
-      $('#complaintFields').hidden = true;
-      $('#publicSuccess').focus?.();
-    } catch (error) {
-      setMessage('#publicFormMessage', error.message);
-    } finally {
-      setBusy(button, false);
+  function workflowStageForAppointmentStatus(status) {
+    switch (status) {
+      case 'Scheduled':
+        return 1;
+      case 'In Progress':
+        return 2;
+      case 'Completed':
+        return 3;
+      case 'Cancelled':
+        return -1;
+      default:
+        return 1;
     }
-  });
-  $('#newComplaintButton').addEventListener('click', resetPublicForm);
+  }
+
+  function workflowStageForJobCardStatus(status) {
+    switch (status) {
+      case 'Open':
+      case 'In Progress':
+        return 2;
+      case 'Completed':
+        return 3;
+      case 'Cancelled':
+        return -1;
+      default:
+        return 2;
+    }
+  }
+
+  function renderWorkflowStepper(elementId, stageIndex) {
+    const container = $('#' + elementId);
+    if (!container) return;
+    if (stageIndex < 0) {
+      container.hidden = false;
+      container.innerHTML =
+        '<div class="stepper-item is-cancelled"><span class="stepper-dot" aria-hidden="true">&times;</span><span class="stepper-label">Cancelled</span></div>';
+      return;
+    }
+    container.hidden = false;
+    container.innerHTML = WORKFLOW_STAGES.map((label, index) => {
+      const state = index < stageIndex ? 'is-done' : index === stageIndex ? 'is-current' : '';
+      const dot = index < stageIndex ? '&#10003;' : String(index + 1);
+      const connector =
+        index < WORKFLOW_STAGES.length - 1
+          ? '<span class="stepper-connector" aria-hidden="true"></span>'
+          : '';
+      return `<div class="stepper-item ${state}"><span class="stepper-dot" aria-hidden="true">${dot}</span><span class="stepper-label">${escapeHtml(label)}</span></div>${connector}`;
+    }).join('');
+  }
 
   function selectAuthTab(tab) {
     const login = tab === 'login';
@@ -1993,6 +2009,10 @@ ${bodyHtml}
         jobCard.jobCardReference || 'Service job card details';
       $('#jobCardDetailStatus').innerHTML =
         `<span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span>`;
+      renderWorkflowStepper(
+        'jobCardWorkflowStepper',
+        workflowStageForJobCardStatus(jobCard.status),
+      );
       const details = [
         ['Appointment', jobCard.appointmentReference],
         ['Customer', jobCard.customerName],
@@ -2539,6 +2559,10 @@ ${bodyHtml}
         appointment.appointmentReference || 'Appointment details';
       $('#appointmentDetailStatus').innerHTML =
         `<span class="status ${statusClass(appointment.status)}">${escapeHtml(appointment.status)}</span>`;
+      renderWorkflowStepper(
+        'appointmentWorkflowStepper',
+        workflowStageForAppointmentStatus(appointment.status),
+      );
       const details = [
         ['Customer', appointment.customerName],
         ['Contact', appointment.contactNumber],
@@ -2872,6 +2896,7 @@ ${bodyHtml}
       $('#detailHeading').textContent = complaint.complaintReference || 'Complaint details';
       $('#detailStatus').innerHTML =
         `<span class="status ${statusClass(complaint.status)}">${escapeHtml(complaint.status)}</span>`;
+      renderWorkflowStepper('workflowStepper', workflowStageForComplaintStatus(complaint.status));
       const details = [
         ['Customer', complaint.customerName],
         ['Type', complaint.customerType],

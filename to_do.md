@@ -256,6 +256,46 @@ verified. The Phase 5 gate in `docs/DEVELOPMENT_PLAN.md` ("accepted against repr
 scenarios") also still needs updated/new Playwright coverage across all of the above, which is listed as
 outstanding in each checkpoint.
 
+#### Front-end redesign checkpoint — 2026-09-28: split landing / customer / staff experiences
+
+The previous single SPA mixed the public complaint form with the internal staff tools in one
+`apps/web/src/index.html`. This is now three separate pages, all reusing the same brand tokens
+(`apps/web/src/assets/landing/brand.css`) and the crest-only Jacky's logo (no header wordmark text,
+per the customer's direct feedback), and styled toward a cleaner enterprise-CRM look (left sidebar
+navigation, card-based panels, a contextual workflow stepper).
+
+- [x] Added `apps/web/src/landing.html` — a new public marketing/overview page (served at `/`): hero,
+      "how it works" 3-step section, service capability/proof showcase using the real Jacky's service
+      photography, a brand-partner logo strip (Thomson, Philips, Venus), a dual "choose your access"
+      section (Customer & Sales Channel → `/complaints`, Internal Service Team → `/portal/`), a stats
+      bar, and a final CTA. Structurally modeled on the reference landing page the customer shared;
+      colors/typography reuse Jacky's own existing brand tokens, not the reference file's palette.
+- [x] Added `apps/web/src/complaints.html` + `apps/web/src/complaints.js` — the public complaint
+      registration form extracted into its own standalone page (served at `/complaints`), with no
+      shared staff auth, modeled on the existing `approve.html` standalone-page pattern. Submits to the
+      same complaint API the old embedded form used — no API contract changes.
+- [x] Rebuilt `apps/web/src/index.html` as the staff-only portal (served at `/portal/`): the public
+      complaint form was removed from it entirely. Its section nav is a proper left sidebar
+      (`.dashboard-nav`, 270px fixed column, collapses to a top stack on narrow screens) instead of a
+      top button row.
+- [x] Added a workflow-stepper component (`.workflow-stepper` CSS + `renderWorkflowStepper()` in
+      `app.js`) that visualizes the Complaint → Scheduling/Appointment → Job Card → Completion pipeline
+      and highlights the current stage; wired contextually into the complaint, appointment, and job-card
+      detail views (not static — computed per record's actual status).
+- [x] Copied the customer's brand/photography assets into `apps/web/src/assets/landing/` (from their
+      `service-jackys.github.io/landing_page_images` folder) and renamed them to URL-safe filenames.
+- [x] Wired Express routing in `apps/api/src/app.ts`: `/` serves `landing.html`, `/complaints` (and
+      `/complaints/`) serves `complaints.html`, `/portal/` continues serving the staff SPA exactly as
+      before. No existing API routes were touched.
+- [x] Typecheck, build, `node --check` on both JS files, and a div-balance/duplicate-id check on all
+      three HTML files all pass; files formatted with `npx prettier --write`.
+- [ ] **Playwright coverage for the redesigned front end (landing, complaints, portal) is explicitly
+      PARKED** — do this after the redesign itself is reviewed and accepted, not before. This applies on
+      top of the still-outstanding Phase 5 Playwright coverage listed in the checkpoints above.
+- [ ] Manual visual review of all three pages in a real browser (desktop + mobile width) is still
+      needed — this pass was verified by static checks (parse/build/lint) only, not a rendered
+      walkthrough.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

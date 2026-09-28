@@ -63,6 +63,18 @@ export function createApp() {
 
   registerRoutes(app, routes);
 
+  // Public marketing/landing page and standalone customer complaint page,
+  // both served from the same static web root but without the SPA's
+  // index.html fallback (index: false) so requesting '/' or a bare file
+  // name doesn't accidentally serve the staff portal shell.
+  app.use(express.static(webRoot(), { index: false }));
+  app.get('/', (_request, response) => {
+    response.sendFile(path.join(webRoot(), 'landing.html'));
+  });
+  app.get(['/complaints', '/complaints/'], (_request, response) => {
+    response.sendFile(path.join(webRoot(), 'complaints.html'));
+  });
+
   app.use('/portal', express.static(webRoot(), { index: 'index.html' }));
   app.get('/portal/*splat', (_request, response) => {
     response.sendFile(path.join(webRoot(), 'index.html'));

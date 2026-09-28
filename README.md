@@ -24,6 +24,22 @@ The local system currently provides an Express TypeScript API, PostgreSQL migrat
 
 A running log of completed work, newest first, so you can see progress without digging through commits.
 
+**2026-09-28 — Front-end split into landing / customer / staff portal, with an enterprise-CRM style
+redesign.** The public complaint form and the internal staff SPA used to live in one page
+(`apps/web/src/index.html`), which mixed customer- and staff-facing UI. Split into three:
+
+- `/` — a new public marketing/overview page (`landing.html`): hero, how-it-works, service showcase,
+  brand-partner strip, and a dual "Customer" / "Internal Service Team" access section.
+- `/complaints` — the public complaint form, now its own standalone page (`complaints.html` +
+  `complaints.js`), same API contract as before.
+- `/portal/` — the staff-only portal, restyled with a left sidebar for section navigation and a
+  contextual workflow-stepper (Complaint → Scheduling → Job Card → Completion) on complaint,
+  appointment, and job-card detail views.
+
+The header logo across all three pages is the Jacky's crest image only (no adjacent wordmark text),
+left-aligned, per direct feedback while reviewing the running dev server. Playwright coverage for the
+redesigned pages is intentionally parked — see `to_do.md`.
+
 **2026-09-28 — Phase 0-4 parity review and fixes.** Reviewed this project's Phase 0-4 build against the
 live system's `code.gs`, `Index.html`, and `ComplaintRegistration.html` to confirm fields and workflow
 matched. Findings are in `docs/PARITY_REVIEW_2026-09-28.md`. Fixed:
