@@ -1,0 +1,355 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex, nofollow" />
+    <title>Approval request — Jacky's Distribution LLC</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --navy: #102b4e;
+        --blue: #1769aa;
+        --blue-soft: #e9f3fb;
+        --red: #c53030;
+        --ink: #172334;
+        --muted: #5e6d7e;
+        --line: #d9e2eb;
+        --surface: #ffffff;
+        --surface-soft: #f4f7fa;
+        --success: #176b4d;
+        --shadow: 0 20px 55px rgb(16 43 78 / 10%);
+        --radius: 16px;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--surface-soft);
+        color: var(--ink);
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          Arial,
+          sans-serif;
+        display: flex;
+        justify-content: center;
+        padding: 32px 16px;
+      }
+      .card {
+        width: 100%;
+        max-width: 560px;
+        background: var(--surface);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 28px 28px 32px;
+      }
+      .brand {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--blue);
+        margin-bottom: 4px;
+      }
+      h1 {
+        font-size: 21px;
+        margin: 0 0 4px;
+        color: var(--navy);
+      }
+      .subtitle {
+        color: var(--muted);
+        font-size: 14px;
+        margin: 0 0 20px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px 20px;
+        margin-bottom: 18px;
+      }
+      .grid .item span.label {
+        display: block;
+        font-size: 10px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .grid .item span.value {
+        display: block;
+        font-size: 14px;
+        margin-top: 2px;
+      }
+      .notes-block {
+        background: var(--blue-soft);
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 14px;
+        white-space: pre-wrap;
+        margin-bottom: 18px;
+      }
+      label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        margin: 14px 0 4px;
+      }
+      input[type='text'],
+      textarea {
+        width: 100%;
+        padding: 10px 12px;
+        border: 1.5px solid var(--line);
+        border-radius: 10px;
+        font-size: 14px;
+        font-family: inherit;
+        color: var(--ink);
+      }
+      textarea {
+        min-height: 70px;
+        resize: vertical;
+      }
+      .actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 22px;
+      }
+      button {
+        flex: 1;
+        border: none;
+        border-radius: 10px;
+        padding: 12px 16px;
+        font-size: 15px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      button.approve {
+        background: var(--success);
+        color: #fff;
+      }
+      button.decline {
+        background: #fff;
+        color: var(--red);
+        border: 1.5px solid var(--red);
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .status-banner {
+        border-radius: 10px;
+        padding: 12px 14px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 18px;
+      }
+      .status-banner.pending {
+        background: #fff6e0;
+        color: #8a5a00;
+      }
+      .status-banner.approved {
+        background: #e5f5ee;
+        color: var(--success);
+      }
+      .status-banner.declined {
+        background: #fdecec;
+        color: var(--red);
+      }
+      .error-state,
+      .loading-state {
+        color: var(--muted);
+        font-size: 14px;
+      }
+      .fine-print {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 18px;
+      }
+      [hidden] {
+        display: none !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <div class="brand">Jacky's Distribution LLC</div>
+      <h1>Out-of-warranty approval</h1>
+      <p class="subtitle">
+        Please review the details below and let us know whether we should proceed with the
+        chargeable repair.
+      </p>
+
+      <p class="loading-state" id="loadingState">Loading your approval request…</p>
+      <p class="error-state" id="errorState" hidden></p>
+
+      <div id="content" hidden>
+        <div id="statusBanner" class="status-banner" hidden></div>
+        <div class="grid" id="detailsGrid"></div>
+        <div id="notesBlockWrap" hidden>
+          <div class="notes-block" id="notesBlock"></div>
+        </div>
+
+        <form id="decisionForm">
+          <label for="decidedByName">Your name</label>
+          <input type="text" id="decidedByName" maxlength="200" required />
+          <label for="decisionNotes">Comments (optional)</label>
+          <textarea id="decisionNotes" maxlength="2000"></textarea>
+          <p class="error-state" id="decisionError" hidden></p>
+          <div class="actions">
+            <button type="button" class="decline" id="declineButton">Decline</button>
+            <button type="button" class="approve" id="approveButton">Approve</button>
+          </div>
+        </form>
+
+        <p class="fine-print">
+          Reference <strong id="approvalReference"></strong>. If you have questions before deciding,
+          please contact your service coordinator directly rather than replying to this page.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        function $(selector) {
+          return document.querySelector(selector);
+        }
+
+        function escapeHtml(value) {
+          return String(value ?? '').replace(
+            /[&<>"']/g,
+            (char) =>
+              ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char],
+          );
+        }
+
+        function money(value) {
+          return (Number(value) || 0).toFixed(2);
+        }
+
+        function formatDate(value) {
+          if (!value) return '—';
+          const date = new Date(value);
+          return Number.isNaN(date.valueOf())
+            ? String(value)
+            : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        async function fetchApproval() {
+          const response = await fetch(
+            '/api/public/warranty-approvals/' + encodeURIComponent(token),
+          );
+          const body = await response.json().catch(() => ({}));
+          if (!response.ok) {
+            throw new Error((body && body.detail) || 'This approval link is no longer valid.');
+          }
+          return body.approval;
+        }
+
+        async function submitDecision(decision) {
+          const decidedByName = $('#decidedByName').value.trim();
+          if (!decidedByName) {
+            $('#decisionError').textContent = 'Please enter your name before continuing.';
+            $('#decisionError').hidden = false;
+            return;
+          }
+          $('#decisionError').hidden = true;
+          $('#approveButton').disabled = true;
+          $('#declineButton').disabled = true;
+          try {
+            const response = await fetch(
+              '/api/public/warranty-approvals/' + encodeURIComponent(token) + '/decision',
+              {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  decision,
+                  decidedByName,
+                  decisionNotes: $('#decisionNotes').value.trim() || undefined,
+                }),
+              },
+            );
+            const body = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error((body && body.detail) || 'Could not submit your decision.');
+            }
+            render(body.approval);
+          } catch (error) {
+            $('#decisionError').textContent = error.message;
+            $('#decisionError').hidden = false;
+            $('#approveButton').disabled = false;
+            $('#declineButton').disabled = false;
+          }
+        }
+
+        function render(approval) {
+          $('#loadingState').hidden = true;
+          $('#errorState').hidden = true;
+          $('#content').hidden = false;
+          $('#approvalReference').textContent = approval.approvalReference;
+
+          const details = [
+            ['Item', approval.itemDescription],
+            ['Warranty status', approval.warrantyStatus],
+            [
+              'Estimated cost (AED)',
+              approval.estimatedCost != null ? money(approval.estimatedCost) : null,
+            ],
+            ['Customer', approval.customerName],
+          ];
+          $('#detailsGrid').innerHTML = details
+            .map(
+              ([label, value]) =>
+                `<div class="item"><span class="label">${escapeHtml(label)}</span><span class="value">${escapeHtml(value || '—')}</span></div>`,
+            )
+            .join('');
+
+          if (approval.notes) {
+            $('#notesBlockWrap').hidden = false;
+            $('#notesBlock').textContent = approval.notes;
+          } else {
+            $('#notesBlockWrap').hidden = true;
+          }
+
+          const banner = $('#statusBanner');
+          const form = $('#decisionForm');
+          if (approval.status === 'Pending') {
+            banner.hidden = true;
+            form.hidden = false;
+          } else {
+            form.hidden = true;
+            banner.hidden = false;
+            banner.className = 'status-banner ' + approval.status.toLowerCase();
+            banner.textContent =
+              approval.status === 'Approved'
+                ? `Approved by ${approval.decidedByName || 'the customer'} on ${formatDate(approval.decidedAt)}.`
+                : `Declined by ${approval.decidedByName || 'the customer'} on ${formatDate(approval.decidedAt)}.`;
+          }
+        }
+
+        $('#approveButton').addEventListener('click', () => submitDecision('Approved'));
+        $('#declineButton').addEventListener('click', () => submitDecision('Declined'));
+
+        if (!token) {
+          $('#loadingState').hidden = true;
+          $('#errorState').hidden = false;
+          $('#errorState').textContent =
+            'This approval link is missing its token and cannot be opened.';
+        } else {
+          fetchApproval()
+            .then(render)
+            .catch((error) => {
+              $('#loadingState').hidden = true;
+              $('#errorState').hidden = false;
+              $('#errorState').textContent = error.message;
+            });
+        }
+      })();
+    </script>
+  </body>
+</html>

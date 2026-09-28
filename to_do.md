@@ -195,6 +195,35 @@ done so far" log; pushed to GitHub.
       an authorized export) is Phase 7 scope, not this item — for now the field is filled in by hand.
 - [ ] Playwright coverage for print/legacy-reference not yet written.
 
+#### Phase 5 checkpoint — 2026-09-28: out-of-warranty approval flow and customer-facing links added
+
+- [x] Migration `009_warranty_approvals.sql`: new `warranty_approvals` table (approval reference
+      `WA-YYYY-NNNNN`, linked to exactly one of a job card or an inspection), two new permissions
+      (`warranty_approval.read`/`.write`, granted to admin/management/sales), and a widened
+      `reference_counters` namespace check. This is new functionality, not live-system parity — the
+      live Apps Script system has no equivalent workflow.
+- [x] Staff side: `POST/GET /api/warranty-approvals`, `GET /api/warranty-approvals/{id}` — raise a
+      request against a job card or inspection ID (exactly one required), with customer/item/warranty
+      details pulled from the source record when not given explicitly. A new "Warranty approvals" nav
+      tab lists requests and shows each one's status plus a copyable customer approval link.
+- [x] Customer side: `GET/POST /api/public/warranty-approvals/{token}[/decision]` — unauthenticated,
+      token-authorized (an opaque, non-expiring access token, not the short-lived HMAC signed URLs used
+      for attachment downloads, since the customer has no staff account and no session to keep alive).
+      A decision can only be submitted once — a Pending request moves to Approved/Declined and stays
+      there.
+- [x] New standalone page `apps/web/src/approve.html` — the actual customer-facing link target,
+      served alongside the staff SPA at `/portal/approve.html?token=...`. Self-contained (no shared auth
+      state with the staff app), shows the item/warranty/cost details and, while Pending, an
+      approve/decline form; once decided, shows who decided and when instead.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **Not done yet — needs you:** `npm run db:migrate` on your machine (applies migration 009), then
+      create a job card or inspection, raise a warranty approval request against it from the "Warranty
+      approvals" tab, copy the link, open it in a private/incognito window (to confirm it needs no staff
+      sign-in), and submit a decision.
+- [ ] No rate limiting on the public decision endpoint yet, unlike the public complaint form — worth
+      adding before this is exposed outside a trusted network.
+- [ ] Playwright coverage for warranty approvals not yet written.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

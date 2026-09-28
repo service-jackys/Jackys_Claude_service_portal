@@ -130,6 +130,26 @@ item: print views and legacy-reference preservation.
 
 **Run `npm run db:migrate` again** to pick up migration 008 before using this.
 
+**2026-09-28 — Added an out-of-warranty approval flow and customer-facing links (Phase 5).** Built the
+fifth and final planned Phase 5 item. Unlike the rest of Phase 5, this is new functionality, not
+live-system parity — the live Apps Script system has no equivalent workflow.
+
+- Migration `009_warranty_approvals.sql` adds a `warranty_approvals` table (reference `WA-YYYY-NNNNN`,
+  linked to exactly one of a job card or an inspection) and two new permissions granted to
+  admin/management/sales.
+- Staff raise a request from the new "Warranty approvals" tab against a job card or inspection ID;
+  customer/item/warranty details are pulled from the source record when not given explicitly. The tab
+  lists requests by status and shows each one's copyable customer approval link.
+- The customer opens that link — `apps/web/src/approve.html`, a standalone page served alongside the
+  staff app, needing no sign-in — sees the item, warranty status, and estimated cost, and approves or
+  declines with their name and optional comments. The decision can only be submitted once.
+- The public endpoints (`/api/public/warranty-approvals/{token}[/decision]`) are authorized by an
+  opaque, non-expiring access token rather than the short-lived signed URLs used for attachment
+  downloads, since the customer has no session to keep alive.
+- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+
+**Run `npm run db:migrate` again** to pick up migration 009 before using this.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

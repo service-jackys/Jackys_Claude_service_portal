@@ -325,6 +325,54 @@ export const inspectionListQuerySchema = z
   })
   .strict();
 
+// Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
+// New functionality, not a live-system parity item: staff raise a request
+// against a job card or inspection that's Out of Warranty, and the customer
+// approves or declines it themselves through an unauthenticated link
+// (see apps/web/src/approve.html and /api/public/warranty-approvals/*).
+export const warrantyApprovalStatuses = ['Pending', 'Approved', 'Declined'] as const;
+export const warrantyApprovalStatusSchema = z.enum(warrantyApprovalStatuses);
+export type WarrantyApprovalStatus = (typeof warrantyApprovalStatuses)[number];
+
+export const warrantyApprovalCreateSchema = z
+  .object({
+    jobCardId: z.string().regex(/^\d+$/).optional(),
+    inspectionId: z.string().regex(/^\d+$/).optional(),
+    customerName: optionalText(200),
+    contactNumber: optionalText(50),
+    itemDescription: optionalText(300),
+    warrantyStatus: optionalText(50),
+    estimatedCost: z.number().min(0).max(10000000).optional(),
+    notes: optionalText(2000),
+  })
+  .strict()
+  .refine((value) => Boolean(value.jobCardId) !== Boolean(value.inspectionId), {
+    message: 'Provide exactly one of jobCardId or inspectionId.',
+    path: ['jobCardId'],
+  });
+export type WarrantyApprovalCreateInput = z.infer<typeof warrantyApprovalCreateSchema>;
+
+export const warrantyApprovalListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    status: warrantyApprovalStatusSchema.optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
+// Submitted by the customer through the unauthenticated approval link --
+// deliberately a small, separate shape from the create schema above (no
+// reference to internal record ids, no cost editing).
+export const warrantyApprovalDecisionSchema = z
+  .object({
+    decision: z.enum(['Approved', 'Declined']),
+    decidedByName: z.string().trim().min(1).max(200),
+    decisionNotes: optionalText(2000),
+  })
+  .strict();
+export type WarrantyApprovalDecisionInput = z.infer<typeof warrantyApprovalDecisionSchema>;
+
 export const availabilityWindowSchema = z
   .object({
     weekday: z.number().int().min(0).max(6),

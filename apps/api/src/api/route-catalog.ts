@@ -25,6 +25,8 @@ import { createInspectionHandlers } from '../inspections/routes.js';
 import { createInspectionService } from '../inspections/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
+import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
+import { createWarrantyApprovalService } from '../warranty-approvals/service.js';
 
 export type RouteDefinition = {
   method: 'get' | 'post' | 'patch' | 'put' | 'delete';
@@ -52,7 +54,9 @@ export type RouteDefinition = {
     | 'serviceJobCardUpdate'
     | 'serviceJobCardStatus'
     | 'quotation'
-    | 'inspection';
+    | 'inspection'
+    | 'warrantyApprovalCreate'
+    | 'warrantyApprovalDecision';
   parameters?: object[];
   responseContentType?: string;
   responses: number[];
@@ -340,6 +344,30 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         remove: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const warrantyApprovalHandlers = pool
+    ? createWarrantyApprovalHandlers(createWarrantyApprovalService(pool), requirePermission)
+    : {
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        publicDetail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        decide: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1220,6 +1248,69 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [204, 401, 403, 404, 500],
         handlers: attachmentHandlers.remove,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/warranty-approvals',
+        operationId: 'createWarrantyApproval',
+        tags: ['Warranty Approvals'],
+        summary: 'Raise an out-of-warranty approval request against a job card or inspection',
+        security: 'bearerAuth' as const,
+        requestBody: 'warrantyApprovalCreate' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: warrantyApprovalHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/warranty-approvals',
+        operationId: 'listWarrantyApprovals',
+        tags: ['Warranty Approvals'],
+        summary: 'List out-of-warranty approval requests',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['Pending', 'Approved', 'Declined'] },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: warrantyApprovalHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/warranty-approvals/{id}',
+        operationId: 'getWarrantyApproval',
+        tags: ['Warranty Approvals'],
+        summary: 'Get an out-of-warranty approval request',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: warrantyApprovalHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/public/warranty-approvals/{token}',
+        operationId: 'getPublicWarrantyApproval',
+        tags: ['Warranty Approvals'],
+        summary:
+          'View an out-of-warranty approval request via its customer-facing link (no bearer token needed)',
+        parameters: [{ name: 'token', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 404],
+        handlers: warrantyApprovalHandlers.publicDetail,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/public/warranty-approvals/{token}/decision',
+        operationId: 'decideWarrantyApproval',
+        tags: ['Warranty Approvals'],
+        summary:
+          'Submit the customer decision for an out-of-warranty approval request (no bearer token needed)',
+        requestBody: 'warrantyApprovalDecision' as const,
+        parameters: [{ name: 'token', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 404, 409, 500],
+        handlers: warrantyApprovalHandlers.decide,
       },
     ],
   ];

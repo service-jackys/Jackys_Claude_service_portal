@@ -177,6 +177,22 @@ const requestBodies = {
       },
     },
   },
+  warrantyApprovalCreate: {
+    required: false,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/WarrantyApprovalCreateRequest' },
+      },
+    },
+  },
+  warrantyApprovalDecision: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/WarrantyApprovalDecisionRequest' },
+      },
+    },
+  },
 };
 
 export function createOpenApiDocument(routes: RouteDefinition[]) {
@@ -672,6 +688,30 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
             signatureDate: { type: 'string', format: 'date' },
             legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
+          },
+        },
+        WarrantyApprovalCreateRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            jobCardId: { type: 'string', pattern: '^\\d+$' },
+            inspectionId: { type: 'string', pattern: '^\\d+$' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
+            itemDescription: { type: 'string', minLength: 1, maxLength: 300 },
+            warrantyStatus: { type: 'string', minLength: 1, maxLength: 50 },
+            estimatedCost: { type: 'number', minimum: 0, maximum: 10000000 },
+            notes: { type: 'string', minLength: 1, maxLength: 2000 },
+          },
+        },
+        WarrantyApprovalDecisionRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['decision', 'decidedByName'],
+          properties: {
+            decision: { type: 'string', enum: ['Approved', 'Declined'] },
+            decidedByName: { type: 'string', minLength: 1, maxLength: 200 },
+            decisionNotes: { type: 'string', minLength: 1, maxLength: 2000 },
           },
         },
         Complaint: {

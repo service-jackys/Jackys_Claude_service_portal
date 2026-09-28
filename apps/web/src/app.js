@@ -331,6 +331,7 @@
     $('#jobCardsNav').hidden = !hasPermission('service_job_card.read');
     $('#quotationsNav').hidden = !hasPermission('quotation.read');
     $('#inspectionsNav').hidden = !hasPermission('inspection.read');
+    $('#warrantyApprovalsNav').hidden = !hasPermission('warranty_approval.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
   }
 
@@ -362,29 +363,36 @@
     if (mode === 'job-cards' && !hasPermission('service_job_card.read')) return;
     if (mode === 'quotations' && !hasPermission('quotation.read')) return;
     if (mode === 'inspections' && !hasPermission('inspection.read')) return;
+    if (mode === 'warranty-approvals' && !hasPermission('warranty_approval.read')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
     const jobCards = mode === 'job-cards';
     const quotations = mode === 'quotations';
     const inspections = mode === 'inspections';
-    const anyOtherPanel = serviceRequests || appointments || jobCards || quotations || inspections;
+    const warrantyApprovals = mode === 'warranty-approvals';
+    const anyOtherPanel =
+      serviceRequests || appointments || jobCards || quotations || inspections || warrantyApprovals;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
     $('#quotationsNav').setAttribute('aria-current', quotations ? 'page' : 'false');
     $('#inspectionsNav').setAttribute('aria-current', inspections ? 'page' : 'false');
+    $('#warrantyApprovalsNav').setAttribute('aria-current', warrantyApprovals ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
-    $('#complaintWorkspace').hidden = appointments || jobCards || quotations || inspections;
+    $('#complaintWorkspace').hidden =
+      appointments || jobCards || quotations || inspections || warrantyApprovals;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
     $('#inspectionWorkspace').hidden = !inspections;
+    $('#warrantyApprovalWorkspace').hidden = !warrantyApprovals;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
     $('#refreshQuotationsButton').hidden = !quotations;
     $('#refreshInspectionsButton').hidden = !inspections;
+    $('#refreshWarrantyApprovalsButton').hidden = !warrantyApprovals;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
       : jobCards
@@ -393,9 +401,11 @@
           ? 'Quotations'
           : inspections
             ? 'Inspections'
-            : serviceRequests
-              ? 'Service requests'
-              : 'Complaint inbox';
+            : warrantyApprovals
+              ? 'Warranty approvals'
+              : serviceRequests
+                ? 'Service requests'
+                : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -404,9 +414,11 @@
           ? 'Prepare and edit customer repair quotations.'
           : inspections
             ? 'Record inspection findings and link them to a quotation.'
-            : serviceRequests
-              ? 'Review complaints that are ready to be scheduled.'
-              : 'Review incoming service requests and open their history.';
+            : warrantyApprovals
+              ? 'Raise out-of-warranty approval requests and share the customer-facing approval link.'
+              : serviceRequests
+                ? 'Review complaints that are ready to be scheduled.'
+                : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -417,6 +429,8 @@
       loadQuotations();
     } else if (inspections) {
       loadInspections();
+    } else if (warrantyApprovals) {
+      loadWarrantyApprovals();
     } else {
       loadComplaints();
     }
@@ -1642,6 +1656,177 @@ ${bodyHtml}
     $('#inspectionsEmpty').hidden = true;
   }
 
+  // ---- Warranty approvals (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add
+  // out-of-warranty approval flow and customer-facing approval links").
+  // New functionality, not live-system parity -- staff raise a request
+  // against a job card or inspection, and the customer decides through an
+  // unauthenticated link (apps/web/src/approve.html) built from the
+  // request's opaque access token.
+  let currentWarrantyApprovalId = null;
+
+  function renderWarrantyApprovals(approvals) {
+    const body = $('#warrantyApprovalsBody');
+    body.innerHTML = approvals
+      .map(
+        (approval) =>
+          `<tr><td><button class="table-link" type="button" data-warranty-approval-id="${escapeHtml(approval.id)}">${escapeHtml(approval.approvalReference)}</button></td><td>${escapeHtml(approval.customerName || '—')}<br>${escapeHtml(approval.contactNumber || '')}</td><td>${escapeHtml(approval.itemDescription || '—')}</td><td><span class="status ${statusClass(approval.status)}">${escapeHtml(approval.status)}</span></td><td>${escapeHtml(formatDate(approval.updatedAt))}</td></tr>`,
+      )
+      .join('');
+    $('#warrantyApprovalsEmpty').hidden = approvals.length > 0;
+    $$('#warrantyApprovalsBody [data-warranty-approval-id]').forEach((button) =>
+      button.addEventListener('click', () =>
+        loadWarrantyApprovalDetail(button.dataset.warrantyApprovalId),
+      ),
+    );
+  }
+
+  async function loadWarrantyApprovals() {
+    if (!hasPermission('warranty_approval.read')) return;
+    clearWorkspaceRecovery();
+    const params = new URLSearchParams({ page: '1', pageSize: '50' });
+    const search = $('#warrantyApprovalSearch').value.trim();
+    const status = $('#warrantyApprovalStatusFilter').value;
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    $('#warrantyApprovalsBody').innerHTML =
+      '<tr><td colspan="5" class="empty-state">Loading warranty approvals…</td></tr>';
+    try {
+      const result = await apiRequest('/api/warranty-approvals?' + params);
+      renderWarrantyApprovals(result.approvals || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery(
+          'You are not authorized to view warranty approval requests.',
+          loadWarrantyApprovals,
+        );
+      } else {
+        setWorkspaceRecovery(error.message, loadWarrantyApprovals);
+      }
+      $('#warrantyApprovalsBody').innerHTML = '';
+      $('#warrantyApprovalsEmpty').hidden = false;
+    }
+  }
+
+  function warrantyApprovalLinkUrl(approval) {
+    return `${window.location.origin}/portal/approve.html?token=${encodeURIComponent(approval.accessToken)}`;
+  }
+
+  async function loadWarrantyApprovalDetail(id) {
+    if (!hasPermission('warranty_approval.read')) return;
+    setMessage('#workspaceMessage', '', false);
+    try {
+      const result = await apiRequest('/api/warranty-approvals/' + encodeURIComponent(id));
+      const approval = result.approval;
+      currentWarrantyApprovalId = approval.id;
+      $('#warrantyApprovalDetailHeading').textContent = approval.approvalReference;
+      $('#warrantyApprovalDetailStatus').innerHTML =
+        `<span class="status ${statusClass(approval.status)}">${escapeHtml(approval.status)}</span>`;
+      const details = [
+        ['Source', approval.jobCardReference || approval.inspectionReference],
+        ['Customer name', approval.customerName],
+        ['Contact number', approval.contactNumber],
+        ['Item description', approval.itemDescription],
+        ['Warranty status', approval.warrantyStatus],
+        [
+          'Estimated cost (AED)',
+          approval.estimatedCost != null ? money(approval.estimatedCost) : null,
+        ],
+        ['Notes', approval.notes],
+        ['Decided at', formatDate(approval.decidedAt)],
+        ['Decided by (customer)', approval.decidedByName],
+        ['Decision notes', approval.decisionNotes],
+        ['Created', formatDate(approval.createdAt)],
+        ['Updated', formatDate(approval.updatedAt)],
+      ];
+      $('#warrantyApprovalDetailGrid').innerHTML = details
+        .map(
+          ([label, value]) =>
+            `<div class="detail-item"><small>${escapeHtml(label)}</small><p>${escapeHtml(value || '—')}</p></div>`,
+        )
+        .join('');
+      $('#warrantyApprovalLinkInput').value = warrantyApprovalLinkUrl(approval);
+      $('#warrantyApprovalDetail').hidden = false;
+      $('#warrantyApprovalDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 404) {
+        currentWarrantyApprovalId = null;
+        $('#warrantyApprovalDetail').hidden = true;
+        setWorkspaceRecovery(
+          'This warranty approval request no longer exists.',
+          loadWarrantyApprovals,
+        );
+      } else {
+        setWorkspaceRecovery(error.message, () => loadWarrantyApprovalDetail(id));
+      }
+    }
+  }
+
+  function collectWarrantyApprovalForm() {
+    const jobCardId = $('#waJobCardId').value.trim();
+    const inspectionId = $('#waInspectionId').value.trim();
+    return {
+      jobCardId: jobCardId || undefined,
+      inspectionId: jobCardId ? undefined : inspectionId || undefined,
+      customerName: $('#waCustomerName').value.trim() || undefined,
+      contactNumber: $('#waContactNumber').value.trim() || undefined,
+      itemDescription: $('#waItemDescription').value.trim() || undefined,
+      warrantyStatus: $('#waWarrantyStatus').value.trim() || undefined,
+      estimatedCost: $('#waEstimatedCost').value
+        ? parseNumber($('#waEstimatedCost').value)
+        : undefined,
+      notes: $('#waNotes').value.trim() || undefined,
+    };
+  }
+
+  async function submitWarrantyApprovalCreate() {
+    const jobCardId = $('#waJobCardId').value.trim();
+    const inspectionId = $('#waInspectionId').value.trim();
+    if (Boolean(jobCardId) === Boolean(inspectionId)) {
+      setMessage('#workspaceMessage', 'Enter exactly one of Job card ID or Inspection ID.');
+      return;
+    }
+    const button = $('#submitWarrantyApprovalCreateButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      const result = await apiRequest('/api/warranty-approvals', {
+        method: 'POST',
+        body: JSON.stringify(collectWarrantyApprovalForm()),
+      });
+      $('#warrantyApprovalCreatePanel').hidden = true;
+      $('#warrantyApprovalCreateForm').reset();
+      await loadWarrantyApprovals();
+      await loadWarrantyApprovalDetail(result.approval.id);
+      setMessage(
+        '#workspaceMessage',
+        `Warranty approval request ${result.approval.approvalReference} created.`,
+        true,
+      );
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  function resetWarrantyApprovalWorkspace() {
+    currentWarrantyApprovalId = null;
+    $('#warrantyApprovalDetail').hidden = true;
+    $('#warrantyApprovalCreatePanel').hidden = true;
+    $('#warrantyApprovalsBody').innerHTML = '';
+    $('#warrantyApprovalsEmpty').hidden = true;
+  }
+
   function renderJobCardActions(jobCard) {
     const canWrite = hasPermission('service_job_card.write');
     const terminal = jobCard.status === 'Completed' || jobCard.status === 'Cancelled';
@@ -2774,6 +2959,7 @@ ${bodyHtml}
     resetJobCardWorkspace();
     resetQuotationWorkspace();
     resetInspectionWorkspace();
+    resetWarrantyApprovalWorkspace();
     $('#staff-workspace').hidden = true;
     $('#staff-access').hidden = false;
     $('#authCard').hidden = false;
@@ -2821,11 +3007,13 @@ ${bodyHtml}
   $('#refreshJobCardsButton').addEventListener('click', loadJobCards);
   $('#refreshQuotationsButton').addEventListener('click', loadQuotations);
   $('#refreshInspectionsButton').addEventListener('click', loadInspections);
+  $('#refreshWarrantyApprovalsButton').addEventListener('click', loadWarrantyApprovals);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
   $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
   $('#applyQuotationFilters').addEventListener('click', loadQuotations);
   $('#applyInspectionFilters').addEventListener('click', loadInspections);
+  $('#applyWarrantyApprovalFilters').addEventListener('click', loadWarrantyApprovals);
   $('#appointmentSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadAppointments();
   });
@@ -2837,6 +3025,9 @@ ${bodyHtml}
   });
   $('#inspectionSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadInspections();
+  });
+  $('#warrantyApprovalSearch').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') loadWarrantyApprovals();
   });
   $('#createQuotationButton').addEventListener('click', () => {
     $('#quotationDetail').hidden = true;
@@ -2878,6 +3069,37 @@ ${bodyHtml}
     $('#inspectionDetail').hidden = true;
   });
   $('#printInspectionButton').addEventListener('click', () => printInspection(currentInspection));
+  $('#createWarrantyApprovalButton').addEventListener('click', () => {
+    $('#warrantyApprovalDetail').hidden = true;
+    $('#warrantyApprovalCreatePanel').hidden = false;
+    $('#warrantyApprovalCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('#cancelWarrantyApprovalCreateButton').addEventListener('click', () => {
+    $('#warrantyApprovalCreatePanel').hidden = true;
+  });
+  $('#warrantyApprovalCreateForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitWarrantyApprovalCreate();
+  });
+  $('#closeWarrantyApprovalDetailButton').addEventListener('click', () => {
+    $('#warrantyApprovalDetail').hidden = true;
+  });
+  $('#copyWarrantyApprovalLinkButton').addEventListener('click', async () => {
+    const input = $('#warrantyApprovalLinkInput');
+    input.select();
+    try {
+      await navigator.clipboard.writeText(input.value);
+      setMessage('#workspaceMessage', 'Approval link copied.', true);
+    } catch (error) {
+      setMessage(
+        '#workspaceMessage',
+        'Could not copy automatically -- the link is selected, copy it manually.',
+      );
+    }
+  });
+  $('#warrantyApprovalsNav').addEventListener('click', () =>
+    setWorkspaceMode('warranty-approvals'),
+  );
   $('#findTechniciansButton').addEventListener('click', loadAvailableTechnicians);
   $('#technicianId').addEventListener('change', () => {
     $('#scheduleAppointmentButton').disabled = !$('#technicianId').value;
