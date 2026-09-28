@@ -320,6 +320,34 @@ navigation, card-based panels, a contextual workflow stepper).
       today's front-end split. Next chunk of Playwright work once the redesign coverage above is
       confirmed passing.
 
+#### Playwright failure fixes — 2026-09-28: real `npm run test:e2e` run reported 18/37 failures, diagnosed and fixed
+
+- [x] Root-caused via the real `test-results/**/error-context.md` accessibility-tree snapshots (no live
+      server reachable from this environment, so diagnosis was entirely from the user's pasted output
+      and generated error-context files): the `.dashboard-link::before { content: '\25CF'; }` CSS
+      bullet is included in the Chromium-computed accessible name (e.g. "● Dashboard" instead of
+      "Dashboard"), breaking every `getByRole('button', { name: ..., exact: true })` query against the
+      staff sidebar nav. This alone accounted for most of the 18 failures (`phase4-scheduling.spec.ts`
+      and many `portal.spec.ts` tests going through the sidebar). Fixed by adding explicit
+      `aria-label` attributes to all 9 `.dashboard-link` buttons in `apps/web/src/index.html`, which
+      override the content-based accessible name.
+- [x] Fixed a strict-mode `getByLabel('Notes', { exact: true })` collision: both `#complaintNotes` and
+      `#waNotes` used the literal label text "Notes". Renamed the warranty-approval field's label to
+      "Approval notes" in `apps/web/src/index.html`.
+- [x] Fixed a strict-mode `getByRole('link', { name: 'Internal Service Team' })` collision in
+      `tests/e2e/complaints.spec.ts:40`: the nav link "Internal Service Team" and the footer link
+      "Internal Service Team sign in" both matched (substring, not exact-text issue — `exact: true`
+      wasn't set on this query). Scoped the locator to `page.locator('nav').getByRole('link', ...)`
+      instead of changing the footer link text.
+- [x] Re-ran `npm run typecheck`, `npm run build`, a div/duplicate-id structural check, and
+      `npx prettier --write` on both touched files; all pass. `npx playwright test --list` still
+      resolves all 37 tests across 4 files with no parse errors.
+- [ ] **Not verified against a live run** — same limitation as the checkpoint above, this sandbox has
+      no reachable dev server. Please re-run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100`
+      set) and report back whether all 18 failures are resolved. A few other duplicate labels exist
+      elsewhere in `index.html` ("Next status" x3, "Technician" x2) that weren't in the reported
+      failures and weren't touched — flag if the next run surfaces them.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

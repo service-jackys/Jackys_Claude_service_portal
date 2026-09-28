@@ -46,10 +46,9 @@ test.describe('public complaint registration page', () => {
       'href',
       'landing.html',
     );
-    await expect(page.getByRole('link', { name: 'Internal Service Team' })).toHaveAttribute(
-      'href',
-      '/portal/',
-    );
+    await expect(
+      page.locator('nav').getByRole('link', { name: 'Internal Service Team' }),
+    ).toHaveAttribute('href', '/portal/');
   });
 
   test('also resolves with a trailing slash', async ({ page }) => {
