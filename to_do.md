@@ -311,9 +311,9 @@ navigation, card-based panels, a contextual workflow stepper).
       needs `E2E_BASE_URL=http://localhost:3100` set first) and report back any real failures.
 - [x] Documented the `E2E_BASE_URL=http://localhost:3100` requirement in `testing_guide.md` — the guide
       previously only mentioned the port-3000 default, which doesn't match this checkout's ports.
-- [ ] `portal.spec.ts`'s existing staff-workspace tests were not touched beyond removing the old
-      public-journey block — they were spot-checked against the new sidebar markup (same element IDs
-      preserved) but not re-run. Confirm they still pass once you run the suite.
+- [x] `portal.spec.ts`'s existing staff-workspace tests were not touched beyond removing the old
+      public-journey block — confirmed passing against the new sidebar markup by the real 37/37 run
+      above.
 - [ ] Still no Playwright coverage at all for: quotations, inspections, attachments, print views,
       warranty approvals, the operational dashboard, or the workflow-stepper component itself — these
       were already flagged as outstanding in the Phase 5 checkpoints above and are unaffected by
@@ -354,11 +354,11 @@ navigation, card-based panels, a contextual workflow stepper).
       prefill GET and click through the two-step flow (open panel → submit), and updated the first
       test's body assertion to check the submitted `customerName` instead of asserting a `null` body
       that no longer matches how the app submits job-card creation.
-- [ ] **Not verified against a live run** — same limitation as above, this sandbox has no reachable dev
-      server. Please re-run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100` set) to
-      confirm all 37 tests pass now. A few other duplicate labels exist elsewhere in `index.html`
-      ("Next status" x3, "Technician" x2) that weren't in the reported failures and weren't touched —
-      flag if a future run surfaces them.
+- [x] Confirmed via a real `npm run test:e2e` run: **37/37 passing.** All redesign coverage
+      (`landing.spec.ts`, `complaints.spec.ts`) and all existing staff-workspace coverage
+      (`portal.spec.ts`, `phase4-scheduling.spec.ts`) are green. A few other duplicate labels exist
+      elsewhere in `index.html` ("Next status" x3, "Technician" x2) that weren't exercised by any
+      current test — flag if a future test surfaces them.
 
 ### Phase 6: Commercial and pricing features
 
