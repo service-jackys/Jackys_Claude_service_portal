@@ -1,6 +1,16 @@
+# Explicit, unique project name so this stack's containers/network/volumes
+# never collide with another Docker Compose project on this machine, even one
+# whose folder happens to normalize to a similar name. Without this, Compose
+# derives the project name from the folder's basename only (not its full
+# path), so two different projects with similar folder names can be treated
+# as the SAME Compose project -- starting one can stop or replace the
+# other's containers. This is what was happening with jackysserviceportal.
+name: jackys-claude-service-portal
+
 services:
   postgres:
     image: postgres:16-alpine
+    container_name: jackys-claude-service-portal-postgres
     environment:
       POSTGRES_DB: jackys_service_portal_nah
       POSTGRES_USER: jackys
@@ -27,3 +37,4 @@ services:
 
 volumes:
   jackys-postgres-data-nah:
+    name: jackys-claude-service-portal-postgres-data-nah
