@@ -314,11 +314,22 @@ navigation, card-based panels, a contextual workflow stepper).
 - [x] `portal.spec.ts`'s existing staff-workspace tests were not touched beyond removing the old
       public-journey block — confirmed passing against the new sidebar markup by the real 37/37 run
       above.
-- [ ] Still no Playwright coverage at all for: quotations, inspections, attachments, print views,
-      warranty approvals, the operational dashboard, or the workflow-stepper component itself — these
-      were already flagged as outstanding in the Phase 5 checkpoints above and are unaffected by
-      today's front-end split. Next chunk of Playwright work once the redesign coverage above is
-      confirmed passing.
+- [x] Added `tests/e2e/phase5-records.spec.ts` (14 tests) closing the Phase 5 Playwright gap:
+      quotations (nav permission gating, list + create + print), inspections (same), warranty approvals
+      (nav permission gating, the client-side "exactly one of job card/inspection" guard with zero
+      network calls, create + customer link), the operational dashboard (summary tiles), service
+      job-card attachments (upload + list + download href + delete), a dedicated job-card print test,
+      the workflow-stepper component (current/done stage labels for a closed complaint, the single
+      "Cancelled" marker), and the customer-facing `approve.html` decision page (approve flow with the
+      client-side name-required guard, and an invalid-token error state) — the last of these needs no
+      staff sign-in, matching how a real customer reaches it.
+- [x] `npm run typecheck`, `npm run build`, and `npx prettier --check` all pass; `npx playwright test
+    --list` resolves 51 tests across 5 files with no parse errors (was 37 across 4).
+- [ ] **Not yet run against a live server** — same limitation as every other Playwright checkpoint in
+      this file. Please run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100`) after you've
+      applied migrations 005-009 and walked the manual Phase 5 checklist below, since these tests read
+      real Phase 5 markup (quotation/inspection field prefixes, the attachment upload panel, the
+      warranty-approval link field) that has never been exercised by an actual browser run before now.
 
 #### Playwright failure fixes — 2026-09-28: real `npm run test:e2e` run reported 18/37 failures, diagnosed and fixed
 
