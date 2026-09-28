@@ -670,7 +670,18 @@ Run the browser tests:
 npm run test:e2e
 ```
 
-The browser tests use Chromium and the local server at `http://127.0.0.1:3000` by default. The backend must already be running.
+The browser tests use Chromium and the local server at `http://127.0.0.1:3000` by default. The backend
+must already be running. **This checkout runs its backend on port 3100** (see section 6/9), so set
+`E2E_BASE_URL` to match before running the browser tests, otherwise Playwright will try to reach a
+server on port 3000 that isn't there:
+
+```cmd
+set E2E_BASE_URL=http://localhost:3100
+npm run test:e2e
+```
+
+(Use `$env:E2E_BASE_URL = "http://localhost:3100"` in PowerShell, or `export E2E_BASE_URL=...` in a
+bash/zsh terminal.)
 
 If Playwright reports that a browser executable is missing, install the supported browser once:
 

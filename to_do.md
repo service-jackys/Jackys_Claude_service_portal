@@ -289,12 +289,36 @@ navigation, card-based panels, a contextual workflow stepper).
       before. No existing API routes were touched.
 - [x] Typecheck, build, `node --check` on both JS files, and a div-balance/duplicate-id check on all
       three HTML files all pass; files formatted with `npx prettier --write`.
-- [ ] **Playwright coverage for the redesigned front end (landing, complaints, portal) is explicitly
-      PARKED** — do this after the redesign itself is reviewed and accepted, not before. This applies on
-      top of the still-outstanding Phase 5 Playwright coverage listed in the checkpoints above.
-- [ ] Manual visual review of all three pages in a real browser (desktop + mobile width) is still
-      needed — this pass was verified by static checks (parse/build/lint) only, not a rendered
-      walkthrough.
+- [x] Manual visual review of the landing page in a real browser is done — several follow-up fixes
+      came out of it: a header-logo cleanup, a real (previously CSP-blocked) rendering bug, and image
+      sizing/selection fixes across the hero and capability cards. See the git log for
+      2026-09-28 for the individual commits.
+
+#### Playwright coverage checkpoint — 2026-09-28: unparked, redesign coverage added
+
+- [x] Moved the old embedded-complaint-form tests out of `portal.spec.ts` (they targeted markup that no
+      longer exists at `/portal/`) into a new `tests/e2e/complaints.spec.ts` targeting `/complaints`:
+      renders the standalone form, required-field validation, outbound links to the landing page and
+      staff portal, and the trailing-slash route.
+- [x] Added `tests/e2e/landing.spec.ts`: hero renders with both access-path links, every image on the
+      page actually loads (not just present in markup), and — as a direct regression test for the
+      inline-script CSP bug fixed the same day — every `.reveal` section below the hero actually
+      becomes visible on scroll instead of staying at `opacity: 0`.
+- [x] `npx playwright test --list` and `npm run typecheck`/`npm run build` all pass with the new/moved
+      spec files (37 tests across 4 files). **Not actually executed against a running server in this
+      pass** — this environment has no reachable Docker/Postgres/dev server, only static
+      parse/type-checking. Run `npm run test:e2e` yourself (see `testing_guide.md` §13 — this checkout
+      needs `E2E_BASE_URL=http://localhost:3100` set first) and report back any real failures.
+- [x] Documented the `E2E_BASE_URL=http://localhost:3100` requirement in `testing_guide.md` — the guide
+      previously only mentioned the port-3000 default, which doesn't match this checkout's ports.
+- [ ] `portal.spec.ts`'s existing staff-workspace tests were not touched beyond removing the old
+      public-journey block — they were spot-checked against the new sidebar markup (same element IDs
+      preserved) but not re-run. Confirm they still pass once you run the suite.
+- [ ] Still no Playwright coverage at all for: quotations, inspections, attachments, print views,
+      warranty approvals, the operational dashboard, or the workflow-stepper component itself — these
+      were already flagged as outstanding in the Phase 5 checkpoints above and are unaffected by
+      today's front-end split. Next chunk of Playwright work once the redesign coverage above is
+      confirmed passing.
 
 ### Phase 6: Commercial and pricing features
 
