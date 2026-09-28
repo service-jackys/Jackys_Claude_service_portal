@@ -1197,7 +1197,13 @@ ${bodyHtml}
   }
 
   function openPrintWindow(html) {
-    const printWindow = window.open('', '_blank', 'noopener');
+    // No 'noopener' here: this window only ever gets same-origin,
+    // app-generated content written into it via document.write below, so
+    // there is no untrusted page for noopener to protect against -- and
+    // modern Chromium returns null from window.open() whenever 'noopener'
+    // is set, which made this silently no-op for every real user (caught by
+    // a Playwright print test, not manual testing).
+    const printWindow = window.open('', '_blank');
     if (!printWindow) {
       setMessage(
         '#workspaceMessage',

@@ -405,7 +405,7 @@ a new appointment with "The complaint already has an active appointment."
 #### Playwright fixes — 2026-09-28: real run of the new Phase 5 spec found 6/51 failing
 
 - [x] 4 were a strict-mode locator collision in the new spec itself: `getByRole('button', { name:
-    'Quotations' })` (and Inspections/Warranty approvals/Dashboard) matched both the sidebar nav
+'Quotations' })` (and Inspections/Warranty approvals/Dashboard) matched both the sidebar nav
       button and that workspace's hidden "Refresh X" button, since "Refresh quotations" contains
       "quotations" and Playwright's default name matching isn't exact. Added `exact: true` to all four,
       matching the convention already used elsewhere (e.g. `'Appointments'`).
@@ -419,6 +419,32 @@ a new appointment with "The complaint already has an active appointment."
 - [ ] **Not yet re-run** — please run `npm run test:e2e` again (`E2E_BASE_URL=http://localhost:3100`) to
       confirm all 51 are green now, especially the print-popup fix, which is a best-effort guess at the
       failure mode rather than a confirmed root cause.
+
+#### Bug fix — 2026-09-28: the Print button never actually printed in any real browser
+
+The best-effort print-popup fix above wasn't enough — the real re-run showed `popup.content()` polling
+against a completely empty `<html><head></head><body></body></html>` on all 3 print tests, which is a
+much more specific and useful signal than the earlier timeout.
+
+- [x] Root cause: `openPrintWindow()` in `apps/web/src/app.js` called
+      `window.open('', '_blank', 'noopener')`. Modern Chromium returns `null` from `window.open()`
+      whenever the `noopener` window feature is set, even though the tab still physically opens — so
+      `printWindow` was always `null`, and the function's own `if (!printWindow)` guard was silently
+      firing every single time, before `document.write(html)` ever ran. This has been true for every
+      real user of the Print button since it was added (Phase 5 checkpoint "print views and
+      legacy-reference field"), not just under test — manual verification of Print was still an open
+      "needs you" item in that checkpoint, so nobody had caught it yet.
+- [x] Fix: dropped `noopener` from the `window.open()` call. It was never doing anything useful here —
+      `noopener` protects against an untrusted third-party page reaching back into the opener via
+      `window.opener`; this window only ever receives same-origin, app-generated HTML, so there's
+      nothing for it to protect against, and it was the only thing breaking the return reference the
+      function needs to actually write content into the window.
+- [x] `npm run typecheck`, `npm run build`, `node --check apps/web/src/app.js`, and `prettier` all pass.
+- [ ] **Not yet verified against a live run.** Please re-run `npm run test:e2e` once more — this should
+      be the real fix (confirmed by the exact symptom matching: an untouched blank document is exactly
+      what `window.open()` returning `null` plus a swallowed early-return would produce), and also try
+      Print by hand once on a job card, quotation, and inspection per the original Phase 5 checkpoint's
+      manual-verification item, since this was never actually confirmed working end to end before now.
 
 ### Phase 6: Commercial and pricing features
 
