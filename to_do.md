@@ -96,6 +96,32 @@ model, serial/item code, email), not just the new B2B fields. Fixed once in `for
 
 **Resume first:** complete manual Phase5 verification, record the results, then inspect the uncommitted diff before committing or pushing.
 
+#### Phase 5 checkpoint — 2026-09-28: job-card creation logic fixed to match live system
+
+Found and fixed a business-logic inversion reported via manual walkthrough: the job-card feature only
+allowed creating a job card from a non-terminal (Scheduled/In Progress) appointment and rejected
+Completed ones outright — the opposite of the live system, where a job card is created FROM a completed
+appointment with its data pulled into an editable form first. Full detail in `README.md`'s "What we've
+done so far" log; pushed to GitHub.
+
+- [x] Migration `005_job_card_live_parity.sql`: full job-card content field set from the live system
+      (customer/item/warranty, complaint, service rendered, parts, period/time-consumed, costs/totals,
+      invoice/delivery, technician, `jobFinalStatus`).
+- [x] `GET /api/appointments/{id}/job-card/prefill` — pulls defaults from a completed appointment.
+- [x] `POST /api/appointments/{id}/job-card` — now requires `Completed`, accepts edited content.
+- [x] `PATCH /api/job-cards/{id}` — edits a non-terminal job card's content; totals/time-consumed always
+      computed server-side.
+- [x] Web app: create button only shows once `Completed`; opens the editable prefill form instead of
+      creating immediately; job-card detail view has an editable content form with a parts table.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --check` all pass.
+- [ ] **Not done yet — needs you:** run `npm run db:migrate` on your machine to apply migration 005, then
+      walk the flow end to end (complaint → appointment → mark Completed → create job card → edit →
+      save) using `testing_guide.md`, and report back anything that doesn't match what you expect from
+      the live system.
+- [ ] Re-run the Playwright suite for the job-card feature after the above manual check passes — the
+      existing Phase 5 browser tests were written against the old (inverted) creation flow and will need
+      updating to the new prefill → create flow.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.
