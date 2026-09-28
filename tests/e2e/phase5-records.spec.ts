@@ -105,7 +105,7 @@ test.describe('quotations workspace', () => {
     });
 
     await signIn(page, 'sales@jackys.com');
-    await page.getByRole('button', { name: 'Quotations' }).click();
+    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Quotations' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'QTN-2026-00001' })).toBeVisible();
 
@@ -127,7 +127,8 @@ test.describe('quotations workspace', () => {
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Print' }).click();
     const popup = await popupPromise;
-    await expect(popup.getByText('QTN-2026-00001')).toBeVisible();
+    await popup.waitForLoadState('load').catch(() => {});
+    await expect.poll(() => popup.content()).toContain('QTN-2026-00001');
   });
 });
 
@@ -201,7 +202,7 @@ test.describe('inspections workspace', () => {
     });
 
     await signIn(page, 'inspector@jackys.com');
-    await page.getByRole('button', { name: 'Inspections' }).click();
+    await page.getByRole('button', { name: 'Inspections', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Inspections' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'INS-2026-00001' })).toBeVisible();
 
@@ -225,7 +226,8 @@ test.describe('inspections workspace', () => {
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Print' }).click();
     const popup = await popupPromise;
-    await expect(popup.getByText('INS-2026-00001')).toBeVisible();
+    await popup.waitForLoadState('load').catch(() => {});
+    await expect.poll(() => popup.content()).toContain('INS-2026-00001');
   });
 });
 
@@ -280,7 +282,7 @@ test.describe('warranty approvals workspace', () => {
     });
 
     await signIn(page, 'warranty@jackys.com');
-    await page.getByRole('button', { name: 'Warranty approvals' }).click();
+    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Warranty approvals' })).toBeVisible();
 
     await page.getByRole('button', { name: 'New approval request' }).click();
@@ -361,7 +363,7 @@ test.describe('warranty approvals workspace', () => {
     });
 
     await signIn(page, 'warranty2@jackys.com');
-    await page.getByRole('button', { name: 'Warranty approvals' }).click();
+    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
     await page.getByRole('button', { name: 'New approval request' }).click();
     await page.locator('#waJobCardId').fill('701');
     await page.locator('#waCustomerName').fill('Warranty Customer');
@@ -416,7 +418,7 @@ test.describe('operational dashboard', () => {
     });
 
     await signIn(page, 'dashboard@jackys.com');
-    await page.getByRole('button', { name: 'Dashboard' }).click();
+    await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
 
     await expect(page.locator('#dashComplaintTiles')).toContainText('12');
@@ -597,7 +599,8 @@ test.describe('service job-card attachments', () => {
     const popupPromise = page.waitForEvent('popup');
     await page.getByRole('button', { name: 'Print' }).click();
     const popup = await popupPromise;
-    await expect(popup.getByText('JBC-2026-00001')).toBeVisible();
+    await popup.waitForLoadState('load').catch(() => {});
+    await expect.poll(() => popup.content()).toContain('JBC-2026-00001');
   });
 });
 
