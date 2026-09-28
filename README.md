@@ -1,5 +1,7 @@
 # Jacky's Service Portal
 
+**Repository:** <https://github.com/service-jackys/Jackys_Claude_service_portal>
+
 This private repository is the migration workspace for replacing the current Google Apps Script service application with a normal web application.
 
 The live Google Apps Script application remains the production system. This local project is for development and testing only.
@@ -11,10 +13,56 @@ The live Google Apps Script application remains the production system. This loca
 - Phase 2 complaint workflow: implemented and verified locally.
 - Phase 3 scheduling and technician operations: implemented and verified locally.
 - Phase 4 web portal journeys: implemented and browser-verified locally.
-- Phase 5 service operations parity: in progress locally; the initial job-card backend slice is uncommitted and the protected web workspace remains.
+- Phase 0-4 parity fixes (2026-09-28): the field/workflow gaps found by comparing this project
+  against the live Apps Script system are closed — see "What we've done so far" below.
+- Phase 5 service operations parity: in progress locally; the initial job-card backend and protected web workspace are implemented and remain pending manual verification before they're treated as done.
 - Production cutover: not started.
 
 The local system currently provides an Express TypeScript API, PostgreSQL migrations, local-only authentication for development, OpenAPI/Swagger documentation, complaint operations, technician and appointment scheduling, calendar and recovery workflows, and the initial Phase 5 service job-card backend. The live Google Apps Script application remains the production and rollback system.
+
+## What we've done so far
+
+A running log of completed work, newest first, so you can see progress without digging through commits.
+
+**2026-09-28 — Phase 0-4 parity review and fixes.** Reviewed this project's Phase 0-4 build against the
+live system's `code.gs`, `Index.html`, and `ComplaintRegistration.html` to confirm fields and workflow
+matched. Findings are in `docs/PARITY_REVIEW_2026-09-28.md`. Fixed:
+
+- Added the missing B2B/school workflow fields end to end (migration, contracts, API, web forms):
+  `b2bBranchSchool`, `schoolContactPerson`, `schoolContactNumber`, `customerNumber`.
+- Surfaced `salesOrderNumber` as a real input on the public complaint form and the staff scheduling
+  screen, with staff input overriding the linked complaint's value when both are present.
+- Replaced the placeholder `customerType` values (`individual`/`company`/`b2b`) with the live system's
+  actual three tiers: `B2C`, `B2B`, `B2B-SalesChannel` — migration, contracts, OpenAPI, and the public
+  form's dropdown all updated together.
+- Replaced the free-text `region` input on the public form with the fixed 8-emirate dropdown used live.
+- Added a `sub_group` (product category) field on appointments.
+- Fixed a bug where the public complaint form sent blank optional fields as empty strings instead of
+  omitting them, which broke submission validation on any blank optional field.
+- Set up this checkout to run on its own ports (3100 / 5544) so it doesn't collide with another
+  project's servers already running on 3000 / 5432 on this machine.
+- Fixed a migration ordering bug in `004_b2b_parity_fields.sql`: the data-remap step ran before the old
+  `customer_type` constraint was dropped, so it tripped over its own still-active old rule. Reordered to
+  drop the old constraint first, then remap (now case/whitespace-tolerant), then add the new constraint.
+- Connected this project to its GitHub repository and pushed everything above.
+
+Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
+
+## Ports on this machine (read this first)
+
+This checkout runs on **non-default ports** because another project's backend and Postgres
+are already using `3000` and `5432` on this machine. Every command and URL in this README
+uses the actual values for this machine:
+
+- API / web UI: **http://localhost:3100**
+- Postgres: host port **5544** (the container's own internal port is still 5432 — only the
+  host-side mapping changed, in `docker-compose.yml`)
+
+Both are set in `.env` (`PORT=3100`, `APP_BASE_URL=http://localhost:3100`,
+`DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal`) and in
+`docker-compose.yml` (`"5544:5432"`). This is a per-machine override, not a project
+default — a fresh clone on a machine with nothing else on 3000/5432 can use `3000`/`5432`
+instead; just update `.env` and `docker-compose.yml` to match.
 
 ## Before you start
 
@@ -25,7 +73,7 @@ You need the following on the Windows computer:
 3. This repository downloaded or cloned to:
 
    ```text
-   C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal
+   C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal
    ```
 
 You do not need to install PostgreSQL directly on Windows. PostgreSQL runs inside Docker.
@@ -43,7 +91,7 @@ Open Command Prompt from the Windows Start menu.
 ### 2. Go to the project folder
 
 ```cmd
-cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 ```
 
 Check that the terminal is in the correct folder:
@@ -101,7 +149,7 @@ Keep these local development values:
 ```text
 NODE_ENV=development
 AUTH_PROVIDER=local
-DATABASE_URL=postgresql://jackys:jackys@localhost:5432/jackys_service_portal
+DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal
 EMAIL_ENABLED=false
 ```
 
@@ -165,7 +213,7 @@ Repeat these steps whenever you restart Windows. You do not need to run `npm ins
 3. Run:
 
 ```cmd
-cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 docker info
 docker compose up -d postgres
 docker compose ps
@@ -180,23 +228,23 @@ Leave this terminal available for database diagnostics.
 Open a second Command Prompt window and run:
 
 ```cmd
-cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 npm run dev
 ```
 
 Keep this terminal running. The API uses `tsx watch`, so it automatically restarts after API source changes.
 
-A successful startup prints a message that the API is listening on port `3000`.
+A successful startup prints a message that the API is listening on port `3100`.
 
 ## Check that the backend is working
 
 With `npm run dev` still running, open these addresses in a browser:
 
-- API root: <http://localhost:3000/>
-- API information: <http://localhost:3000/api>
-- Health check: <http://localhost:3000/health>
-- Swagger UI for local development: <http://localhost:3000/api/docs>
-- OpenAPI JSON: <http://localhost:3000/api/openapi.json>
+- API root: <http://localhost:3100/>
+- API information: <http://localhost:3100/api>
+- Health check: <http://localhost:3100/health>
+- Swagger UI for local development: <http://localhost:3100/api/docs>
+- OpenAPI JSON: <http://localhost:3100/api/openapi.json>
 
 The health check is the most important first check. If it does not load, the backend is not reachable yet.
 
@@ -226,7 +274,7 @@ Name: Vysakh
 
 Keep the bootstrap token and administrator password private. The bootstrap token belongs in your ignored `.env` file as `LOCAL_BOOTSTRAP_TOKEN`; the password should only be entered locally. Neither secret belongs in this README, source code, screenshots, or GitHub.
 
-Start the backend, open `http://localhost:3000/portal/`, select **Staff workspace → First-time setup**, and enter the exact token from `.env`, the profile above, and a password of at least 12 characters. The web UI is the recommended setup method because it keeps the returned bearer token in memory for the protected workspace.
+Start the backend, open `http://localhost:3100/portal/`, select **Staff workspace → First-time setup**, and enter the exact token from `.env`, the profile above, and a password of at least 12 characters. The web UI is the recommended setup method because it keeps the returned bearer token in memory for the protected workspace.
 
 For a direct API check, send one `POST` request to `/api/auth/bootstrap` with this structure:
 
@@ -287,7 +335,7 @@ Do not delete the Docker volume while diagnosing a startup issue.
 The terminal is in the wrong folder. Run this exact command again:
 
 ```cmd
-cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 ```
 
 Then verify with:
@@ -299,10 +347,10 @@ dir package.json
 ### The browser displays `Cannot GET /` or the page does not load
 
 1. Confirm that `npm run dev` is still running.
-2. Confirm that the terminal says the API is listening on port `3000`.
-3. Open <http://localhost:3000/health> first.
+2. Confirm that the terminal says the API is listening on port `3100`.
+3. Open <http://localhost:3100/health> first.
 4. If the health check fails, stop the backend with `Ctrl+C` and run `npm run dev` again from the project folder.
-5. Check that another program is not already using port `3000`.
+5. Check that another program is not already using port `3100`.
 
 ### A migration fails
 
@@ -323,7 +371,7 @@ To stop the backend, go to its terminal and press `Ctrl+C`.
 To stop PostgreSQL without deleting the local database volume:
 
 ```cmd
-cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
 docker compose down
 ```
 
@@ -343,9 +391,12 @@ docker compose down -v
 
 ## Project documents
 
+- `to_do.md` — the phase-by-phase checklist: what's done, what's next, in what order.
+- `testing_guide.md` — the full beginner-friendly walkthrough for testing every feature by hand.
 - `docs/RESUME_NOTES.md` — current state and the next resume sequence.
 - `docs/BUILD_STATUS.md` — capability and verification matrix.
 - `docs/DEVELOPMENT_PLAN.md` — planned phases through cutover and rollback.
+- `docs/PARITY_REVIEW_2026-09-28.md` — the field/workflow comparison against the live Apps Script system.
 - `docs/architecture/target-architecture.md` — architecture and safety baseline.
 
-Phase4 web journeys are implemented and browser-verified locally. They include public complaint registration, local staff sign-in, complaint inbox and updates, technician lookup, appointment scheduling and assignment, calendar views, ICS download, rescheduling, status transitions, terminal-state handling, and authorization/recovery states. The next capability is Phase5 service operations parity, beginning with the protected service job-card workspace.
+Phase4 web journeys are implemented and browser-verified locally. They include public complaint registration, local staff sign-in, complaint inbox and updates, technician lookup, appointment scheduling and assignment, calendar views, ICS download, rescheduling, status transitions, terminal-state handling, and authorization/recovery states. Phase5 currently includes the protected service job-card workspace with appointment-linked creation, queue search/filtering, detail/history, status transitions, terminal locks, permission gating, and recovery states. Manual Phase5 verification is documented in `testing_guide.md`; the full integration suite still requires safe resolution of the existing migration checksum mismatch before the bounded slice is committed.

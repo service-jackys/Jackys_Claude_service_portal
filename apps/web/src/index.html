@@ -1017,15 +1017,15 @@
                       >
                       <select id="customerType" name="customerType" required>
                         <option value="">Select a type</option>
-                        <option value="individual">Individual</option>
-                        <option value="company">Company</option>
-                        <option value="b2b">B2B partner</option>
+                        <option value="B2C">B2C (Direct customer)</option>
+                        <option value="B2B">B2B (Corporate client)</option>
+                        <option value="B2B-SalesChannel">B2B Sales Channel</option>
                       </select>
                       <span class="field-error" data-error-for="customerType"></span>
                     </div>
                     <div class="field">
                       <label for="customerName"
-                        >Customer name <span class="required">*</span></label
+                        >Customer / Company name <span class="required">*</span></label
                       >
                       <input id="customerName" name="customerName" autocomplete="name" required />
                       <span class="field-error" data-error-for="customerName"></span>
@@ -1060,8 +1060,43 @@
                     </div>
                     <div class="field">
                       <label for="region">Region</label>
-                      <input id="region" name="region" />
+                      <select id="region" name="region">
+                        <option value="">— Select region —</option>
+                        <option>Dubai</option>
+                        <option>Sharjah</option>
+                        <option>Ajman</option>
+                        <option>Ras Al Khaimah</option>
+                        <option>Fujairah</option>
+                        <option>Umm Al Quwain</option>
+                        <option>Abu Dhabi</option>
+                        <option>Al Ain</option>
+                      </select>
                       <span class="field-error" data-error-for="region"></span>
+                    </div>
+                    <div class="field">
+                      <label for="b2bBranchSchool">B2B Branch / School</label>
+                      <input id="b2bBranchSchool" name="b2bBranchSchool" />
+                      <span class="field-error" data-error-for="b2bBranchSchool"></span>
+                    </div>
+                    <div class="field">
+                      <label for="schoolContactPerson">Site contact person</label>
+                      <input id="schoolContactPerson" name="schoolContactPerson" />
+                      <span class="field-error" data-error-for="schoolContactPerson"></span>
+                    </div>
+                    <div class="field">
+                      <label for="schoolContactNumber">Site contact number</label>
+                      <input id="schoolContactNumber" name="schoolContactNumber" type="tel" />
+                      <span class="field-error" data-error-for="schoolContactNumber"></span>
+                    </div>
+                    <div class="field">
+                      <label for="customerNumber">Customer number</label>
+                      <input id="customerNumber" name="customerNumber" />
+                      <span class="field-error" data-error-for="customerNumber"></span>
+                    </div>
+                    <div class="field">
+                      <label for="salesOrderNumber">Sales order no.</label>
+                      <input id="salesOrderNumber" name="salesOrderNumber" />
+                      <span class="field-error" data-error-for="salesOrderNumber"></span>
                     </div>
                   </div>
                 </div>
@@ -1287,6 +1322,9 @@
                 <button class="dashboard-link" type="button" id="serviceRequestsNav" hidden>
                   Service requests <span aria-hidden="true">→</span>
                 </button>
+                <button class="dashboard-link" type="button" id="jobCardsNav" hidden>
+                  Service job cards <span aria-hidden="true">→</span>
+                </button>
                 <button class="dashboard-link" type="button" id="appointmentsNav" hidden>
                   Appointments <span aria-hidden="true">→</span>
                 </button>
@@ -1316,6 +1354,14 @@
                   hidden
                 >
                   Refresh appointments
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshJobCardsButton"
+                  hidden
+                >
+                  Refresh job cards
                 </button>
               </div>
             </div>
@@ -1490,6 +1536,51 @@
                           </select>
                           <p class="form-note" id="scheduleAvailabilityMessage" role="status"></p>
                         </div>
+                        <div class="field">
+                          <label for="scheduleSalesOrderNumber">Sales order no.</label>
+                          <input
+                            id="scheduleSalesOrderNumber"
+                            name="salesOrderNumber"
+                            placeholder="Leave blank to keep the complaint's value"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="scheduleB2bBranchSchool">B2B Branch / School</label>
+                          <input
+                            id="scheduleB2bBranchSchool"
+                            name="b2bBranchSchool"
+                            placeholder="Leave blank to keep the complaint's value"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="scheduleSchoolContactPerson">Site contact person</label>
+                          <input
+                            id="scheduleSchoolContactPerson"
+                            name="schoolContactPerson"
+                            placeholder="Leave blank to keep the complaint's value"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="scheduleSchoolContactNumber">Site contact number</label>
+                          <input
+                            id="scheduleSchoolContactNumber"
+                            name="schoolContactNumber"
+                            type="tel"
+                            placeholder="Leave blank to keep the complaint's value"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="scheduleCustomerNumber">Customer number</label>
+                          <input
+                            id="scheduleCustomerNumber"
+                            name="customerNumber"
+                            placeholder="Leave blank to keep the complaint's value"
+                          />
+                        </div>
+                        <div class="field">
+                          <label for="scheduleSubGroup">Sub group</label>
+                          <input id="scheduleSubGroup" name="subGroup" />
+                        </div>
                         <div class="form-footer">
                           <span class="form-note" id="scheduleResult" role="status"></span>
                           <button
@@ -1505,6 +1596,106 @@
                   </div>
                   <h4>History</h4>
                   <ol class="history" id="historyList"></ol>
+                </div>
+              </div>
+            </div>
+            <div class="card" id="jobCardWorkspace" hidden>
+              <div class="card-body">
+                <div class="inbox-tools">
+                  <label class="visually-hidden" for="jobCardSearch"
+                    >Search service job cards</label
+                  >
+                  <input
+                    id="jobCardSearch"
+                    type="search"
+                    placeholder="Search job card, appointment, or customer"
+                  /><label class="visually-hidden" for="jobCardStatusFilter"
+                    >Filter job-card status</label
+                  ><select id="jobCardStatusFilter">
+                    <option value="">All statuses</option>
+                    <option>Open</option>
+                    <option>In Progress</option>
+                    <option>Completed</option>
+                    <option>Cancelled</option></select
+                  ><button class="button button-secondary" type="button" id="applyJobCardFilters">
+                    Apply filters
+                  </button>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <caption class="visually-hidden">
+                      Service job cards
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Reference</th>
+                        <th>Appointment</th>
+                        <th>Customer</th>
+                        <th>Schedule</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody id="jobCardsBody"></tbody>
+                  </table>
+                </div>
+                <p class="empty-state" id="jobCardsEmpty" hidden>
+                  No service job cards match the selected filters.
+                </p>
+                <div class="detail-panel" id="jobCardDetail" hidden>
+                  <div class="dashboard-header">
+                    <div>
+                      <h3 id="jobCardDetailHeading">Service job card details</h3>
+                      <p id="jobCardDetailStatus"></p>
+                    </div>
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="closeJobCardDetailButton"
+                    >
+                      Close details
+                    </button>
+                  </div>
+                  <div class="detail-grid" id="jobCardDetailGrid"></div>
+                  <div class="detail-actions" id="jobCardActions" hidden>
+                    <section
+                      class="detail-action-card"
+                      id="jobCardStatusAction"
+                      aria-labelledby="jobCardStatusHeading"
+                    >
+                      <h4 id="jobCardStatusHeading">Update job-card status</h4>
+                      <p>Choose the next status allowed by the service workflow.</p>
+                      <form id="jobCardStatusForm" novalidate>
+                        <div class="field">
+                          <label for="jobCardNextStatus">Next status</label>
+                          <select id="jobCardNextStatus" name="status"></select>
+                          <span class="field-error" data-error-for="jobCardNextStatus"></span>
+                        </div>
+                        <div class="field">
+                          <label for="jobCardStatusReason"
+                            >Reason <span class="visually-hidden">(optional)</span></label
+                          >
+                          <textarea
+                            id="jobCardStatusReason"
+                            name="reason"
+                            maxlength="1000"
+                          ></textarea>
+                          <span class="field-error" data-error-for="jobCardStatusReason"></span>
+                        </div>
+                        <div class="form-footer">
+                          <span></span>
+                          <button
+                            class="button button-secondary"
+                            type="submit"
+                            id="updateJobCardStatusButton"
+                          >
+                            Update status
+                          </button>
+                        </div>
+                      </form>
+                    </section>
+                  </div>
+                  <h4>Job-card history</h4>
+                  <ol class="history" id="jobCardHistoryList"></ol>
                 </div>
               </div>
             </div>
@@ -1731,6 +1922,14 @@
                   </div>
                   <div class="form-footer appointment-detail-footer">
                     <span></span>
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="createJobCardButton"
+                      hidden
+                    >
+                      Create service job card
+                    </button>
                     <button
                       class="button button-outline"
                       type="button"

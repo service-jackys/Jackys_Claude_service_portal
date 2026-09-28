@@ -140,8 +140,20 @@ export function createAppointmentService(pool: Pool) {
           model: complaint.model,
           itemCode: complaint.serialOrItemCode,
           faultDescription: complaint.description,
-          salesOrderNumber: complaint.salesOrderNumber,
           jobWarranty: complaint.warrantyClassification,
+          // These five are NOT in appointmentCreateSchema's "standaloneFields"
+          // block list, so staff scheduling from a complaint may legitimately
+          // send their own value for one of these alongside a complaintId
+          // (e.g. a Sales Order No. that only became known at scheduling
+          // time, or a site contact that changed). Default to the complaint's
+          // captured value, but let the staff's own form input win when they
+          // provided one — same "always editable, never gated" rule the live
+          // Scheduler uses. See docs/PARITY_REVIEW_2026-09-28.md, gap #1.
+          salesOrderNumber: data.salesOrderNumber ?? complaint.salesOrderNumber,
+          b2bBranchSchool: data.b2bBranchSchool ?? complaint.b2bBranchSchool,
+          schoolContactPerson: data.schoolContactPerson ?? complaint.schoolContactPerson,
+          schoolContactNumber: data.schoolContactNumber ?? complaint.schoolContactNumber,
+          customerNumber: data.customerNumber ?? complaint.customerNumber,
         };
       }
       const reference = await allocateAppointmentReference(client, data.appointmentDate);

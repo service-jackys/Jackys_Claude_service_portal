@@ -3,10 +3,10 @@ import type { Pool } from 'pg';
 import {
   complaintListQuerySchema,
   complaintNotesSchema,
+  complaintSchedulingTransitions,
   complaintStatusUpdateSchema,
   publicComplaintSchema,
   type ComplaintListQuery,
-  type ComplaintStatus,
   type PublicComplaintInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
@@ -21,16 +21,6 @@ import {
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { allocateComplaintReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
-
-const transitions: Record<ComplaintStatus, readonly ComplaintStatus[]> = {
-  New: ['Under Review', 'Cancelled'],
-  'Under Review': ['Pending Information', 'Ready for Scheduling', 'Cancelled'],
-  'Pending Information': ['Under Review', 'Cancelled'],
-  'Ready for Scheduling': ['Scheduled', 'Cancelled'],
-  Scheduled: ['Closed', 'Cancelled'],
-  Closed: [],
-  Cancelled: [],
-};
 
 export class ComplaintServiceError extends Error {
   constructor(
@@ -125,7 +115,7 @@ export function createComplaintService(pool: Pool) {
     return withTransaction(pool, async (client) => {
       const current = await findComplaintById(client, id, true);
       if (!current) throw new ComplaintServiceError('not-found', 'The complaint was not found.');
-      if (!transitions[current.status].includes(data.status)) {
+      if (!complaintSchedulingTransitions[current.status].includes(data.status)) {
         throw new ComplaintServiceError(
           'invalid-transition',
           `A complaint in ${current.status} cannot transition to ${data.status}.`,

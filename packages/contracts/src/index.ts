@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
-export const customerTypes = ['individual', 'company', 'b2b'] as const;
+// Matches the live system's three customer types exactly (see
+// docs/PARITY_REVIEW_2026-09-28.md, gap #3). 'B2B-SalesChannel' is a real,
+// reporting-relevant tier in the live Revenue Dashboard (different margin/
+// commission treatment from a direct B2B job) — it is not the same as B2B
+// and must not be collapsed into it.
+export const customerTypes = ['B2C', 'B2B', 'B2B-SalesChannel'] as const;
 export const complaintStatuses = [
   'New',
   'Under Review',
@@ -16,6 +21,25 @@ export const customerTypeSchema = z.enum(customerTypes);
 
 const optionalText = (maximum: number) => z.string().trim().min(1).max(maximum).optional();
 
+// The 8 emirates the live public complaint form offers as a fixed dropdown
+// (see docs/PARITY_REVIEW_2026-09-28.md, gap #4). Exported so the web UI can
+// build its <select> from one source of truth instead of a hardcoded list.
+// Not enforced server-side as a strict enum — the live backend never
+// validates region against this list either, only its own front-end select
+// constrains it; keeping this field as free text here avoids breaking any
+// other flow (branch admin form, standalone staff-created appointments) that
+// may send a region this list doesn't cover.
+export const uaeRegions = [
+  'Dubai',
+  'Sharjah',
+  'Ajman',
+  'Ras Al Khaimah',
+  'Fujairah',
+  'Umm Al Quwain',
+  'Abu Dhabi',
+  'Al Ain',
+] as const;
+
 export const publicComplaintSchema = z
   .object({
     customerType: customerTypeSchema,
@@ -28,6 +52,14 @@ export const publicComplaintSchema = z
     model: optionalText(120),
     serialOrItemCode: optionalText(120),
     description: z.string().trim().min(1).max(10000),
+    // B2B/school workflow fields — see docs/PARITY_REVIEW_2026-09-28.md, gap #1.
+    // Plain optional text, exactly like the live ComplaintRegistration_26.html
+    // public form: never gated, no picker required, blank for a B2C submission.
+    b2bBranchSchool: optionalText(500),
+    schoolContactPerson: optionalText(500),
+    schoolContactNumber: optionalText(100),
+    customerNumber: optionalText(100),
+    salesOrderNumber: optionalText(100),
   })
   .strict();
 
@@ -74,6 +106,28 @@ export type CustomerType = (typeof customerTypes)[number];
 export const appointmentStatuses = ['Scheduled', 'In Progress', 'Completed', 'Cancelled'] as const;
 export const appointmentStatusSchema = z.enum(appointmentStatuses);
 export type AppointmentStatus = (typeof appointmentStatuses)[number];
+
+export const serviceJobCardStatuses = ['Open', 'In Progress', 'Completed', 'Cancelled'] as const;
+export const serviceJobCardStatusSchema = z.enum(serviceJobCardStatuses);
+export type ServiceJobCardStatus = (typeof serviceJobCardStatuses)[number];
+
+export const serviceJobCardStatusTransitions: Record<
+  ServiceJobCardStatus,
+  readonly ServiceJobCardStatus[]
+> = {
+  Open: ['In Progress', 'Cancelled'],
+  'In Progress': ['Completed', 'Cancelled'],
+  Completed: [],
+  Cancelled: [],
+};
+
+export const serviceJobCardStatusUpdateSchema = z
+  .object({
+    status: serviceJobCardStatusSchema,
+    reason: z.string().trim().max(1000).optional(),
+  })
+  .strict();
+export type ServiceJobCardStatusUpdateInput = z.infer<typeof serviceJobCardStatusUpdateSchema>;
 
 export const customerWriteSchema = z
   .object({
@@ -165,6 +219,15 @@ export const appointmentCreateSchema = z
     faultDescription: z.string().trim().min(1).max(10000).optional(),
     jobWarranty: optionalText(120),
     salesOrderNumber: optionalText(120),
+    // B2B/school workflow + product-category fields — see
+    // docs/PARITY_REVIEW_2026-09-28.md, gaps #1 and #2. Always optional and
+    // editable regardless of customerType, matching the live Scheduler's
+    // "select branch, or type it in manually, never gated" rule.
+    b2bBranchSchool: optionalText(500),
+    schoolContactPerson: optionalText(500),
+    schoolContactNumber: optionalText(100),
+    customerNumber: optionalText(100),
+    subGroup: optionalText(120),
     appointmentDate: dateSchema,
     appointmentTime: timeSchema,
   })

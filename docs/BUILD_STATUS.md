@@ -1,11 +1,11 @@
 # Build Status
 
-**Updated:** 2026-09-25
-**Repository:** `https://github.com/service-jackys/Jackys-service-portal`
+**Updated:** 2026-09-26
+**Repository:** `https://github.com/service-jackys/Jackys_Claude_service_portal`
 **Branch:** `main`
 **Latest committed baseline:** `89bc4aa Record Phase3 commit state`
 
-Phase2 and Phase3 changes are committed, verified, and pushed to `origin/main`. This project is paused after Phase3.
+Phase2 through Phase4 changes are committed, verified, and pushed to `origin/main`. Phase5 service-operations parity is now in progress locally and remains uncommitted.
 
 ## Overall status
 
@@ -15,7 +15,7 @@ Phase2 and Phase3 changes are committed, verified, and pushed to `origin/main`. 
 
 | Area                             | Status      | Notes                                                               |
 | -------------------------------- | ----------- | ------------------------------------------------------------------- |
-| Repository and GitHub remote     | Complete    | `main` pushed to `service-jackys/Jackys-service-portal`             |
+| Repository and GitHub remote     | Complete    | `main` pushed to `service-jackys/Jackys_Claude_service_portal`      |
 | Express TypeScript API shell     | Complete    | API root, health, errors, security headers                          |
 | Local development authentication | Complete    | In-memory only; not production-safe or persistent                   |
 | OpenAPI and Swagger              | Complete    | Explicit local flag; disabled in production                         |
@@ -31,7 +31,9 @@ Phase2 and Phase3 changes are committed, verified, and pushed to `origin/main`. 
 | Technician API                   | Complete    | Protected CRUD, availability replacement, locking, and audit        |
 | Appointment API                  | Complete    | Transactional linkage, assignment, status, history, audit, and ICS  |
 | Draft scheduling                 | Complete    | Idempotent drafts and atomic promotion with retry-safe results      |
-| Production web UI                | Not started | Only minimal web shell exists                                       |
+| Phase5 job-card backend          | In progress | Lifecycle, history, finalization locks, audit, queue API, contracts |
+| Phase5 job-card web workspace    | Not started | Protected queue/detail UI remains                                   |
+| Production web UI                | In progress | Phase4 web journeys complete; Phase5 workspace remains              |
 | Historical import/reconciliation | Not started | Must use authorized exports outside Git                             |
 | Production deployment/cutover    | Not started | Apps Script remains production                                      |
 
@@ -39,10 +41,10 @@ Phase2 and Phase3 changes are committed, verified, and pushed to `origin/main`. 
 
 | Check                          | Previous result                          | Current action                              |
 | ------------------------------ | ---------------------------------------- | ------------------------------------------- |
-| `npm run typecheck`            | Passed                                   | Verified after Phase3 changes               |
-| `npm run build`                | Passed                                   | Verified after Phase3 changes               |
-| `npm run format:check`         | Passed                                   | Verified after Phase3 changes               |
-| API/OpenAPI tests              | Passed                                   | All 9 tests pass with `npm test`            |
+| `npm run typecheck`            | Passed                                   | Passed after the Phase5 queue endpoint       |
+| `npm run build`                | Pending                                  | Run after the Phase5 frontend work           |
+| `npm run format:check`         | Pending                                  | New Phase5 files need formatting review      |
+| API/OpenAPI tests              | Pending                                  | Contract/OpenAPI checks were added; rerun    |
 | Docker availability            | Passed: Docker 29.8.0 and Compose v5.5.1 | Recheck after a workstation restart         |
 | PostgreSQL container           | Passed: healthy and running              | Run `docker compose ps`                     |
 | Migration first run            | Passed: no pending migrations            | Migration `002` is already applied          |
@@ -60,10 +62,30 @@ Phase2 and Phase3 changes are committed, verified, and pushed to `origin/main`. 
 - `npm test` reports the PostgreSQL integration test passing, not skipped.
 - Typecheck, format check, and build pass.
 
+## Phase 0-4 parity fixes — 2026-09-28 (pushed)
+
+Added the B2B/school workflow fields and customer-type taxonomy confirmed missing in
+`docs/PARITY_REVIEW_2026-09-28.md` (migration `004_b2b_parity_fields.sql`, contracts, db layer,
+appointment/complaint services, and the web UI). Verified in this pass: `npm run typecheck`,
+`npm run build`, and `npm run format:check` all pass. **Still needs verification on your machine**:
+`npm run db:migrate` against a real database, `npm test` (unit + integration), and `npm run test:e2e` —
+the environment this change was made from has no Docker Desktop and a different OS/architecture than
+this project's installed native dependencies (`esbuild`), so the test runner itself can't execute there.
+Run those on your own machine (per `to_do.md`) before treating this change as fully verified.
+
+While first running the migration on real local data, its remap step tripped over a still-active old
+constraint (an ordering bug: the remap `UPDATE`s ran before the old `customer_type` CHECK constraint was
+dropped). Fixed in the same migration file: constraints are now dropped first, then data is remapped
+(case/whitespace-tolerant, with a safe fallback), then the new constraint is added.
+
+Committed and pushed to `https://github.com/service-jackys/Jackys_Claude_service_portal` on 2026-09-28.
+
 ## Current blockers
 
-1. `npm audit --audit-level=high` still requires npm registry/network access.
-2. Supabase production authentication, the web UI, historical import, and cutover remain unstarted.
+1. Existing PostgreSQL migration checksum mismatch for `001_initial_schema.sql` blocks integration execution; do not bypass validation or delete the database volume.
+2. `npm audit --audit-level=high` still requires npm registry/network access.
+3. Phase5 job-card web workspace and focused browser coverage remain to be implemented.
+4. Supabase production authentication, historical import, and cutover remain unstarted.
 
 ## Do not do during troubleshooting
 

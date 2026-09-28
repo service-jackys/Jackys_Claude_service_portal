@@ -23,6 +23,10 @@ export type ComplaintRecord = {
   serialOrItemCode: string | null;
   description: string;
   salesOrderNumber: string | null;
+  b2bBranchSchool: string | null;
+  schoolContactPerson: string | null;
+  schoolContactNumber: string | null;
+  customerNumber: string | null;
   warrantyClassification: string | null;
   status: ComplaintStatus;
   cceNotes: string | null;
@@ -61,6 +65,10 @@ const complaintColumns = `
   complaints.serial_or_item_code AS "serialOrItemCode",
   complaints.description,
   complaints.sales_order_number AS "salesOrderNumber",
+  complaints.b2b_branch_school AS "b2bBranchSchool",
+  complaints.school_contact_person AS "schoolContactPerson",
+  complaints.school_contact_number AS "schoolContactNumber",
+  complaints.customer_number AS "customerNumber",
   complaints.warranty_classification AS "warrantyClassification",
   complaints.status,
   complaints.cce_notes AS "cceNotes",
@@ -77,8 +85,10 @@ export async function insertComplaint(
   const result = await client.query<ComplaintRecord>(
     `INSERT INTO complaints (
        complaint_reference, customer_type, customer_name, contact_number,
-       customer_email, address, region, brand, model, serial_or_item_code, description
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+       customer_email, address, region, brand, model, serial_or_item_code, description,
+       sales_order_number, b2b_branch_school, school_contact_person, school_contact_number,
+       customer_number
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING ${complaintColumns}`,
     [
       reference,
@@ -92,6 +102,11 @@ export async function insertComplaint(
       input.model ?? null,
       input.serialOrItemCode ?? null,
       input.description,
+      input.salesOrderNumber ?? null,
+      input.b2bBranchSchool ?? null,
+      input.schoolContactPerson ?? null,
+      input.schoolContactNumber ?? null,
+      input.customerNumber ?? null,
     ],
   );
   return result.rows[0];

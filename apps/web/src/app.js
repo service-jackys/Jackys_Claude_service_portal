@@ -5,6 +5,7 @@
   let currentUser = null;
   let currentComplaintId = null;
   let currentAppointmentId = null;
+  let currentJobCardId = null;
   let workspaceMode = 'complaints';
   let availabilityRequestSequence = 0;
   let calendarView = 'month';
@@ -24,6 +25,12 @@
   };
   const appointmentTransitions = {
     Scheduled: ['In Progress', 'Cancelled'],
+    'In Progress': ['Completed', 'Cancelled'],
+    Completed: [],
+    Cancelled: [],
+  };
+  const jobCardTransitions = {
+    Open: ['In Progress', 'Cancelled'],
     'In Progress': ['Completed', 'Cancelled'],
     Completed: [],
     Cancelled: [],
@@ -62,8 +69,17 @@
   }
 
   function formDataObject(form) {
+    // Optional fields left blank must be OMITTED, not sent as "" — every
+    // optional string field on the server's Zod schemas is `.optional()`
+    // (undefined allowed) but still `.min(1)` when present, so an empty
+    // string fails validation instead of being treated as "not provided".
+    // This was already true for the pre-existing optional fields (address,
+    // region, brand, model, serialOrItemCode, customerEmail) before the
+    // B2B/school fields were added here — fixed once, for all of them.
     return Object.fromEntries(
-      [...new FormData(form)].map(([key, value]) => [key, String(value).trim()]),
+      [...new FormData(form)]
+        .map(([key, value]) => [key, String(value).trim()])
+        .filter(([, value]) => value !== ''),
     );
   }
 
@@ -206,6 +222,8 @@
       setWorkspaceMode('appointments');
     } else if (hasPermission('complaints.read')) {
       setWorkspaceMode('complaints');
+    } else if (hasPermission('service_job_card.read')) {
+      setWorkspaceMode('job-cards');
     } else {
       showNoWorkspaceAccess();
     }
@@ -285,6 +303,7 @@
     const canReadComplaints = hasPermission('complaints.read');
     $('#complaintsNav').hidden = !canReadComplaints;
     $('#serviceRequestsNav').hidden = !canReadComplaints;
+    $('#jobCardsNav').hidden = !hasPermission('service_job_card.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
   }
 
@@ -293,10 +312,13 @@
     $('#complaintsNav').setAttribute('aria-current', 'false');
     $('#serviceRequestsNav').setAttribute('aria-current', 'false');
     $('#appointmentsNav').setAttribute('aria-current', 'false');
+    $('#jobCardsNav').setAttribute('aria-current', 'false');
     $('#complaintWorkspace').hidden = true;
     $('#appointmentWorkspace').hidden = true;
+    $('#jobCardWorkspace').hidden = true;
     $('#refreshComplaintsButton').hidden = true;
     $('#refreshAppointmentsButton').hidden = true;
+    $('#refreshJobCardsButton').hidden = true;
     $('#workspace-heading').textContent = 'No workspace access';
     $('#workspaceDescription').textContent =
       'Your account does not have permission to open a service workspace.';
@@ -310,33 +332,44 @@
     if (mode === 'complaints' && !hasPermission('complaints.read')) return;
     if (mode === 'service-requests' && !hasPermission('complaints.read')) return;
     if (mode === 'appointments' && !hasPermission('appointments.read')) return;
+    if (mode === 'job-cards' && !hasPermission('service_job_card.read')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
+    const jobCards = mode === 'job-cards';
     $('#complaintsNav').setAttribute(
       'aria-current',
-      serviceRequests || appointments ? 'false' : 'page',
+      serviceRequests || appointments || jobCards ? 'false' : 'page',
     );
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
+    $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
-    $('#complaintWorkspace').hidden = appointments;
+    $('#complaintWorkspace').hidden = appointments || jobCards;
     $('#appointmentWorkspace').hidden = !appointments;
-    $('#refreshComplaintsButton').hidden = appointments;
+    $('#jobCardWorkspace').hidden = !jobCards;
+    $('#refreshComplaintsButton').hidden = appointments || jobCards;
     $('#refreshAppointmentsButton').hidden = !appointments;
+    $('#refreshJobCardsButton').hidden = !jobCards;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
-      : serviceRequests
-        ? 'Service requests'
-        : 'Complaint inbox';
+      : jobCards
+        ? 'Service job cards'
+        : serviceRequests
+          ? 'Service requests'
+          : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
-      : serviceRequests
-        ? 'Review complaints that are ready to be scheduled.'
-        : 'Review incoming service requests and open their history.';
+      : jobCards
+        ? 'Track service work from an open job card through completion or cancellation.'
+        : serviceRequests
+          ? 'Review complaints that are ready to be scheduled.'
+          : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
       loadAppointments();
+    } else if (jobCards) {
+      loadJobCards();
     } else {
       loadComplaints();
     }
@@ -455,6 +488,209 @@
         setWorkspaceRecovery(error.message, loadComplaints);
       }
       $('#complaintsBody').innerHTML = '';
+    }
+  }
+
+  function renderJobCards(jobCards) {
+    const body = $('#jobCardsBody');
+    body.innerHTML = jobCards
+      .map(
+        (jobCard) =>
+          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td>${escapeHtml(jobCard.appointmentReference)}</td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span></td></tr>`,
+      )
+      .join('');
+    $('#jobCardsEmpty').hidden = jobCards.length > 0;
+    body
+      .querySelectorAll('[data-job-card-id]')
+      .forEach((button) =>
+        button.addEventListener('click', () => loadJobCardDetail(button.dataset.jobCardId)),
+      );
+  }
+
+  async function loadJobCards() {
+    if (!hasPermission('service_job_card.read')) return;
+    clearWorkspaceRecovery();
+    const params = new URLSearchParams({ page: '1', pageSize: '50' });
+    const search = $('#jobCardSearch').value.trim();
+    const status = $('#jobCardStatusFilter').value;
+    if (search) params.set('search', search);
+    if (status) params.set('status', status);
+    $('#jobCardsBody').innerHTML =
+      '<tr><td colspan="5" class="empty-state">Loading service job cards…</td></tr>';
+    try {
+      const result = await apiRequest('/api/job-cards?' + params);
+      renderJobCards(result.jobCards || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view service job cards.', loadJobCards);
+      } else {
+        setWorkspaceRecovery(error.message, loadJobCards);
+      }
+      $('#jobCardsBody').innerHTML = '';
+      $('#jobCardsEmpty').hidden = false;
+    }
+  }
+
+  function renderJobCardActions(jobCard) {
+    const canWrite = hasPermission('service_job_card.write');
+    const terminal = jobCard.status === 'Completed' || jobCard.status === 'Cancelled';
+    $('#jobCardActions').hidden = !canWrite || terminal;
+    $('#jobCardStatusAction').hidden = !canWrite || terminal;
+    const nextStatuses = jobCardTransitions[jobCard.status] || [];
+    $('#jobCardNextStatus').innerHTML = nextStatuses.length
+      ? nextStatuses
+          .map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`)
+          .join('')
+      : '<option value="">No further transitions</option>';
+    $('#jobCardNextStatus').disabled = nextStatuses.length === 0;
+    $('#updateJobCardStatusButton').disabled = nextStatuses.length === 0;
+    $('#jobCardStatusReason').value = '';
+    clearErrors($('#jobCardStatusForm'));
+  }
+
+  async function loadJobCardDetail(id) {
+    if (!hasPermission('service_job_card.read')) return;
+    setMessage('#workspaceMessage', '', false);
+    try {
+      const result = await apiRequest('/api/job-cards/' + encodeURIComponent(id));
+      const jobCard = result.jobCard;
+      currentJobCardId = jobCard.id;
+      renderJobCardActions(jobCard);
+      $('#jobCardDetailHeading').textContent =
+        jobCard.jobCardReference || 'Service job card details';
+      $('#jobCardDetailStatus').innerHTML =
+        `<span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span>`;
+      const details = [
+        ['Appointment', jobCard.appointmentReference],
+        ['Customer', jobCard.customerName],
+        ['Contact', jobCard.contactNumber],
+        ['Appointment date', jobCard.appointmentDate],
+        ['Appointment time', jobCard.appointmentTime],
+        ['Fault description', jobCard.faultDescription],
+        ['Finalized at', formatDate(jobCard.finalizedAt)],
+        ['Finalized by', jobCard.finalizedBy],
+        ['Created', formatDate(jobCard.createdAt)],
+        ['Updated', formatDate(jobCard.updatedAt)],
+      ];
+      $('#jobCardDetailGrid').innerHTML = details
+        .map(
+          ([label, value]) =>
+            `<div class="detail-item"><small>${escapeHtml(label)}</small><p>${escapeHtml(value || '—')}</p></div>`,
+        )
+        .join('');
+      $('#jobCardHistoryList').innerHTML =
+        (result.history || [])
+          .map(
+            (entry) =>
+              `<li><time>${escapeHtml(formatDate(entry.changedAt))}</time><div><strong>${escapeHtml(entry.fromStatus ? entry.fromStatus + ' → ' : '')}${escapeHtml(entry.toStatus)}</strong>${entry.reason ? `<br><span>${escapeHtml(entry.reason)}</span>` : ''}</div></li>`,
+          )
+          .join('') || '<li><span>No history recorded.</span></li>';
+      $('#jobCardDetail').hidden = false;
+      $('#jobCardDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#jobCardDetail').hidden = true;
+        setWorkspaceRecovery('You are not authorized to view service job-card details.', () =>
+          loadJobCardDetail(id),
+        );
+      } else if (error.status === 404) {
+        currentJobCardId = null;
+        $('#jobCardDetail').hidden = true;
+        setWorkspaceRecovery(
+          'This service job card no longer exists. Return to the job-card list and try again.',
+          loadJobCards,
+        );
+      } else {
+        $('#jobCardDetail').hidden = true;
+        setWorkspaceRecovery(error.message, () => loadJobCardDetail(id));
+      }
+    }
+  }
+
+  async function createJobCard() {
+    if (!currentAppointmentId || !hasPermission('service_job_card.write')) return;
+    const button = $('#createJobCardButton');
+    setBusy(button, true, 'Creating…');
+    try {
+      const result = await apiRequest(
+        '/api/appointments/' + encodeURIComponent(currentAppointmentId) + '/job-card',
+        { method: 'POST' },
+      );
+      await loadAppointments();
+      setWorkspaceMode('job-cards');
+      await loadJobCardDetail(result.jobCard.id);
+      setMessage(
+        '#workspaceMessage',
+        `Service job card ${result.jobCard.jobCardReference} created.`,
+        true,
+      );
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        button.hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to create service job cards.');
+      } else if (error.status === 404 || error.status === 409) {
+        setMessage('#workspaceMessage', error.message);
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function updateJobCardStatus() {
+    const form = $('#jobCardStatusForm');
+    clearErrors(form);
+    const status = $('#jobCardNextStatus').value;
+    if (!status) {
+      showFieldError(
+        form,
+        'jobCardNextStatus',
+        'There are no valid next statuses for this job card.',
+      );
+      return;
+    }
+    const button = $('#updateJobCardStatusButton');
+    setBusy(button, true, 'Updating…');
+    try {
+      await apiRequest('/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/status', {
+        method: 'PATCH',
+        body: JSON.stringify({
+          status,
+          reason: $('#jobCardStatusReason').value.trim() || undefined,
+        }),
+      });
+      await loadJobCardDetail(currentJobCardId);
+      await loadJobCards();
+      setMessage('#workspaceMessage', 'Service job-card status updated.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#jobCardActions').hidden = true;
+        setMessage(
+          '#workspaceMessage',
+          'You are not authorized to update service job-card status.',
+        );
+      } else if (error.status === 404 || error.status === 409) {
+        await loadJobCardDetail(currentJobCardId);
+        await loadJobCards();
+        setMessage('#workspaceMessage', error.message);
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
     }
   }
 
@@ -630,6 +866,7 @@
     const canWrite = hasPermission('appointments.write');
     const terminal = appointment.status === 'Completed' || appointment.status === 'Cancelled';
     $('#appointmentActions').hidden = !canWrite;
+    $('#createJobCardButton').hidden = !hasPermission('service_job_card.write') || terminal;
     $('#appointmentAssignmentAction').hidden = !canWrite;
     $('#appointmentScheduleAction').hidden = !canWrite || terminal;
     $('#appointmentStatusAction').hidden = !canWrite;
@@ -699,6 +936,7 @@
       const result = await apiRequest('/api/appointments/' + encodeURIComponent(id));
       const appointment = result.appointment;
       currentAppointmentId = appointment.id;
+      $('#createJobCardButton').hidden = true;
       renderAppointmentActions(appointment);
       $('#appointmentDetailHeading').textContent =
         appointment.appointmentReference || 'Appointment details';
@@ -718,6 +956,11 @@
         ['Item code', appointment.itemCode],
         ['Warranty', appointment.jobWarranty],
         ['Sales order', appointment.salesOrderNumber],
+        ['B2B Branch / School', appointment.b2bBranchSchool],
+        ['Site contact person', appointment.schoolContactPerson],
+        ['Site contact number', appointment.schoolContactNumber],
+        ['Customer number', appointment.customerNumber],
+        ['Sub group', appointment.subGroup],
         ['Description', appointment.faultDescription],
         ['Created', formatDate(appointment.createdAt)],
         ['Updated', formatDate(appointment.updatedAt)],
@@ -736,6 +979,19 @@
           )
           .join('') || '<li><span>No history recorded.</span></li>';
       $('#appointmentDetail').hidden = false;
+      if (hasPermission('service_job_card.read')) {
+        try {
+          const jobCardResult = await apiRequest(
+            '/api/appointments/' + encodeURIComponent(appointment.id) + '/job-card',
+          );
+          $('#createJobCardButton').hidden =
+            Boolean(jobCardResult.jobCard) || !hasPermission('service_job_card.write');
+        } catch (jobCardError) {
+          if (jobCardError.status === 403) $('#createJobCardButton').hidden = true;
+        }
+      } else {
+        $('#createJobCardButton').hidden = true;
+      }
       if (hasPermission('appointments.write') && hasPermission('technicians.read')) {
         await loadAppointmentTechnicians(appointment);
       }
@@ -905,6 +1161,13 @@
     $('#appointmentsEmpty').hidden = true;
   }
 
+  function resetJobCardWorkspace() {
+    currentJobCardId = null;
+    $('#jobCardDetail').hidden = true;
+    $('#jobCardsBody').innerHTML = '';
+    $('#jobCardsEmpty').hidden = true;
+  }
+
   function resetScheduleForm() {
     availabilityRequestSequence += 1;
     $('#scheduleForm').reset();
@@ -1019,6 +1282,11 @@
         ['Brand', complaint.brand],
         ['Model', complaint.model],
         ['Serial or item code', complaint.serialOrItemCode],
+        ['Sales order', complaint.salesOrderNumber],
+        ['B2B Branch / School', complaint.b2bBranchSchool],
+        ['Site contact person', complaint.schoolContactPerson],
+        ['Site contact number', complaint.schoolContactNumber],
+        ['Customer number', complaint.customerNumber],
         ['Description', complaint.description],
         ['Submitted', formatDate(complaint.submittedAt)],
         ['Updated', formatDate(complaint.updatedAt)],
@@ -1159,6 +1427,18 @@
     const button = $('#scheduleAppointmentButton');
     setBusy(button, true, 'Scheduling…');
     try {
+      // Optional overrides: send only what the staff actually typed here.
+      // Left blank, the created appointment falls back to whatever the
+      // linked complaint already captured (see appointments/service.ts) —
+      // these fields are never required to schedule a job.
+      const overrides = Object.fromEntries(
+        [...new FormData(form)]
+          .map(([key, value]) => [key, String(value).trim()])
+          .filter(
+            ([key, value]) =>
+              value !== '' && !['appointmentDate', 'appointmentTime', 'technicianId'].includes(key),
+          ),
+      );
       const result = await apiRequest('/api/appointments', {
         method: 'POST',
         body: JSON.stringify({
@@ -1166,6 +1446,7 @@
           technicianId,
           appointmentDate: date,
           appointmentTime: time,
+          ...overrides,
         }),
       });
       const appointment = result.appointment;
@@ -1210,6 +1491,7 @@
     currentUser = null;
     workspaceMode = 'complaints';
     resetAppointmentWorkspace();
+    resetJobCardWorkspace();
     $('#staff-workspace').hidden = true;
     $('#staff-access').hidden = false;
     $('#authCard').hidden = false;
@@ -1254,10 +1536,15 @@
 
   $('#refreshComplaintsButton').addEventListener('click', loadComplaints);
   $('#refreshAppointmentsButton').addEventListener('click', loadAppointments);
+  $('#refreshJobCardsButton').addEventListener('click', loadJobCards);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
+  $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
   $('#appointmentSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadAppointments();
+  });
+  $('#jobCardSearch').addEventListener('keydown', (event) => {
+    if (event.key === 'Enter') loadJobCards();
   });
   $('#findTechniciansButton').addEventListener('click', loadAvailableTechnicians);
   $('#technicianId').addEventListener('change', () => {
@@ -1277,6 +1564,7 @@
   });
   $('#complaintsNav').addEventListener('click', () => setWorkspaceMode('complaints'));
   $('#serviceRequestsNav').addEventListener('click', () => setWorkspaceMode('service-requests'));
+  $('#jobCardsNav').addEventListener('click', () => setWorkspaceMode('job-cards'));
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
@@ -1300,6 +1588,14 @@
   $('#appointmentStatusForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await updateAppointmentStatus();
+  });
+  $('#createJobCardButton').addEventListener('click', createJobCard);
+  $('#jobCardStatusForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await updateJobCardStatus();
+  });
+  $('#closeJobCardDetailButton').addEventListener('click', () => {
+    $('#jobCardDetail').hidden = true;
   });
   $('#appointmentScheduleForm').addEventListener('submit', async (event) => {
     event.preventDefault();

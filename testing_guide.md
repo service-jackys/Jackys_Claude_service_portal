@@ -87,7 +87,7 @@ This starts the local Express server. The browser UI and API are served from the
 Open this address in Chrome or Edge:
 
 ```text
-http://localhost:3000/portal/
+http://localhost:3100/portal/
 ```
 
 The trailing `/portal/` path is the local migration web UI. It does not replace the production Apps Script links.
@@ -95,15 +95,15 @@ The trailing `/portal/` path is the local migration web UI. It does not replace 
 Useful health checks:
 
 ```text
-http://localhost:3000/health
-http://localhost:3000/api
+http://localhost:3100/health
+http://localhost:3100/api
 ```
 
 Leave the backend terminal running while using the browser or running the end-to-end tests.
 
 ## 8. Test the public complaint form
 
-1. Open `http://localhost:3000/portal/`.
+1. Open `http://localhost:3100/portal/`.
 2. Confirm that the page title is **Jacky's Service Portal**.
 3. Confirm that **Register a service complaint** is visible.
 4. Click **Submit service request** without entering anything.
@@ -166,7 +166,7 @@ Keep this terminal open. The API must be running before using Swagger or the por
 
 This is the recommended method because the web UI automatically keeps the returned session token in memory.
 
-1. Open `http://localhost:3000/portal/`.
+1. Open `http://localhost:3100/portal/`.
 2. Scroll to **Staff workspace**.
 3. Select **First-time setup**.
 4. Enter the exact token currently stored in `.env` after `LOCAL_BOOTSTRAP_TOKEN=`.
@@ -185,7 +185,7 @@ The local backend creates this account with the `admin` role and all local permi
 Swagger is useful for checking the API directly. Open:
 
 ```text
-http://localhost:3000/api/docs
+http://localhost:3100/api/docs
 ```
 
 Find `POST /api/auth/bootstrap`, select **Try it out**, and send this structure. Replace the two angle-bracket values locally; do not commit the completed request body:
@@ -244,7 +244,7 @@ The browser keeps the short-lived bearer token in memory only. Closing or refres
 The protected API should reject an unauthenticated request. For example, this should return HTTP 401 when no token is supplied:
 
 ```text
-GET http://localhost:3000/api/complaints
+GET http://localhost:3100/api/complaints
 ```
 
 ## 11. Manual Phase4 browser verification
@@ -255,8 +255,8 @@ Use this section when you want to verify Phase4 yourself in Chrome or Edge. Use 
 
 Use the startup steps in sections 5–7, then confirm:
 
-- `http://localhost:3000/health` returns a healthy response.
-- `http://localhost:3000/portal/` displays **Jacky's Service Portal**.
+- `http://localhost:3100/health` returns a healthy response.
+- `http://localhost:3100/portal/` displays **Jacky's Service Portal**.
 - PostgreSQL is running in Docker.
 - The browser is using the local portal URL, not a production Apps Script URL.
 
@@ -264,7 +264,7 @@ If this is a fresh local process, complete the first-time administrator setup in
 
 ### 11.2 Public complaint registration and confirmation
 
-1. Open `http://localhost:3000/portal/` in a new private/incognito window.
+1. Open `http://localhost:3100/portal/` in a new private/incognito window.
 2. Confirm the page title is **Jacky's Service Portal** and the **Register a service complaint** section is visible.
 3. Select **Individual** as the customer type.
 4. Enter clearly fake local values, for example:
@@ -305,7 +305,7 @@ Negative check:
 The portal does not include technician master-data or availability screens. A technician and availability window must therefore be created through local Swagger before the scheduling journey can be tested. Do this only with the local administrator session/token.
 
 1. Sign in again through the portal.
-2. Open `http://localhost:3000/api/docs` in another tab.
+2. Open `http://localhost:3100/api/docs` in another tab.
 3. In Swagger, use `POST /api/auth/login` with the same local administrator email and password. Copy the returned temporary `token` only into Swagger's **Authorize** dialog as `Bearer <token>`. Do not save or publish the token.
 4. In Swagger, use `POST /api/technicians` with a fake technician:
 
@@ -378,7 +378,7 @@ If Swagger is disabled, confirm `.env` contains `OPENAPI_DOCS_ENABLED=true`, res
 ### 11.8 Authorization and recovery checks
 
 - Sign out and request a protected page action. Confirm the protected workspace is no longer available.
-- With no bearer token, open `http://localhost:3000/api/complaints` directly. Confirm HTTP `401`.
+- With no bearer token, open `http://localhost:3100/api/complaints` directly. Confirm HTTP `401`.
 - In the signed-in workspace, verify that an unauthorized API response shows an authorization message rather than silently failing. A non-admin role should not see navigation items for permissions it does not have.
 - For a missing complaint or appointment detail, confirm the UI shows a not-found message and offers a retry or return action where provided.
 - For a scheduling conflict, confirm the UI shows the conflict message and reloads authoritative appointment data.
@@ -422,7 +422,239 @@ Backend terminal errors:
 Screenshots or downloaded files:
 ```
 
-## 12. Run automated tests
+## 12. Manual Phase5 service job-card verification
+
+Use this section to verify the current Phase5 service job-card slice in Chrome or Edge. It covers the job-card workflow currently implemented by the local portal: an authorized staff member creates a job card from an existing appointment, views the queue and history, and moves the job card through its allowed statuses.
+
+This Phase5 slice is intentionally appointment-linked. There is no standalone blank job-card form. The normal test path is:
+
+```text
+Complaint → Ready for Scheduling → Appointment → Create service job card → Open → In Progress → Completed or Cancelled
+```
+
+Use fake local test information only. Do not use production credentials, live customer information, or the Google Apps Script system for this test.
+
+### 12.1 Decide whether a restart is needed
+
+Use this checklist before starting:
+
+- **PostgreSQL restart:** not required for every test. Run `docker compose ps`; restart Docker PostgreSQL only if the container is stopped or unhealthy.
+- **Database migration:** run `npm run db:migrate` after pulling a migration change or when the local database has not been initialized. Do not delete the Docker volume to resolve a normal test error.
+- **Backend restart:** required after changing `.env`, including `OPENAPI_DOCS_ENABLED`, `LOCAL_BOOTSTRAP_TOKEN`, `DATABASE_URL`, or authentication settings. It is also required after changing backend source when the `npm run dev` watcher has not reloaded successfully.
+- **Browser refresh only:** enough when the backend and `.env` are unchanged and you are only repeating a browser step.
+- **Authentication after restart:** local users and sessions are held in the development backend process. After every backend restart, bootstrap the local administrator again, sign in again, and obtain a fresh temporary bearer token if using Swagger.
+
+Do not restart PostgreSQL or the backend after every browser action. Keep the `npm run dev` terminal open and watch it for errors.
+
+### 12.2 Start or verify the local services
+
+Open Command Prompt and use the migration project folder, not the older Apps Script project:
+
+```cmd
+cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal"
+dir package.json
+docker compose up -d
+docker compose ps
+npm run db:migrate
+npm run dev
+```
+
+Run `npm run dev` in its own terminal and leave it running. In another terminal, verify:
+
+```text
+http://localhost:3100/health
+http://localhost:3100/portal/
+```
+
+Expected result:
+
+- The Docker PostgreSQL service is running.
+- `/health` returns a healthy JSON response.
+- `/portal/` displays **Jacky's Service Portal**.
+- The backend terminal remains available for error details.
+
+If the backend is already running and neither source code nor `.env` changed, do not start a second `npm run dev` process. Refresh the portal instead.
+
+### 12.3 Bootstrap or sign in to the local administrator
+
+If the backend was restarted, complete the first-time setup in section 9 again. Use the bootstrap token from the ignored local `.env` file and the local administrator details already described there. Do not copy the token or returned bearer token into this guide or into source code.
+
+If the backend has not restarted and the browser session is still active, continue with the existing session. Otherwise use **Staff sign in** with the local administrator email and local password.
+
+Confirm that:
+
+1. The protected workspace is visible.
+2. The signed-in user is the local administrator.
+3. **Appointments** is available.
+4. **Service job cards** is visible for an administrator with all local permissions.
+
+If the job-card navigation is not visible, check the signed-in user and permissions before changing application code. The job-card workspace requires `service_job_card.read`.
+
+### 12.4 Confirm or create a scheduled appointment
+
+Use an existing non-terminal appointment if one is already available. The appointment must not already have a service job card.
+
+If no suitable appointment exists, complete the Phase4 preparation and scheduling steps in sections 11.4 and 11.5 using fake local data. The appointment should be in a non-terminal state such as **Scheduled**. Do not use an appointment with status **Completed** or **Cancelled**, because the current service prevents creating a job card for terminal appointments.
+
+1. Open **Appointments**.
+2. Search for the fake appointment or customer used for this test.
+3. Open the appointment detail.
+4. Confirm the appointment reference, customer, date, time, and status are displayed.
+5. Confirm the appointment does not already show an existing service job card.
+6. Keep this appointment detail available for the creation test.
+
+### 12.5 Create the service job card
+
+1. In the appointment detail, confirm **Create service job card** is visible.
+2. Select **Create service job card** once.
+3. Wait for the success message containing a generated reference such as `JBC-2026-00001`.
+4. Confirm the portal opens the **Service job cards** workspace and displays the new detail.
+5. Confirm the initial status is **Open**.
+6. Confirm the detail includes:
+   - Job-card reference.
+   - Appointment reference.
+   - Customer name and contact number.
+   - Appointment date and time.
+   - Fault description.
+   - Created and updated timestamps.
+   - Empty finalization fields while the card is non-terminal.
+7. Confirm the history contains the initial `Open` entry.
+
+Expected result: one job card is created for the appointment and the job-card reference is shown. If the appointment already has a job card, the create request should return a conflict instead of creating a second record.
+
+### 12.6 Verify the job-card queue, search, and status filter
+
+1. Select **Service job cards** in the navigation if it is not already selected.
+2. Confirm the new job card appears in the queue.
+3. Confirm the queue shows the job-card reference, appointment reference, customer, status, and updated information.
+4. Enter the job-card reference in the search box and select **Apply filters**. Confirm only the matching card remains.
+5. Clear the search, enter the customer name or appointment reference, and apply the filter. Confirm the same card can be found by those values.
+6. Select the **Open** status filter and apply it. Confirm the new card remains visible.
+7. Select another status such as **Completed** and apply it. Confirm the open card is not shown.
+8. Clear the status filter and refresh. Confirm the card is visible again.
+9. Select the job-card row and confirm its detail panel opens.
+
+Expected result: search and status filtering work without changing the job card, and selecting a result loads the correct detail and history.
+
+### 12.7 Test the allowed status transitions and history
+
+For the created job card:
+
+1. Confirm the available next status is **In Progress**.
+2. Optionally enter a reason such as `Technician started local Phase5 verification`.
+3. Select the status update action.
+4. Confirm the success message and the new **In Progress** status.
+5. Confirm the history now contains the transition `Open → In Progress` and the reason when one was entered.
+6. Select **Completed** or **Cancelled** as the next status.
+7. Enter a reason such as `Phase5 browser verification completed`.
+8. Submit the update.
+9. Confirm the final status is displayed.
+10. Confirm the history contains the second transition and reason.
+11. Confirm finalization information is populated for the terminal record.
+
+The allowed transitions are:
+
+```text
+Open → In Progress
+Open → Cancelled
+In Progress → Completed
+In Progress → Cancelled
+```
+
+The current UI should not offer a transition from **Completed** or **Cancelled**. Do not try to reopen a terminal card through the UI. If testing the API through Swagger, an invalid or terminal transition should return a conflict response rather than changing the record.
+
+### 12.8 Confirm terminal read-only behavior
+
+After the card is **Completed** or **Cancelled**:
+
+1. Refresh the job-card detail.
+2. Confirm the status remains unchanged.
+3. Confirm the status action controls are hidden or disabled.
+4. Confirm the queue and detail remain readable to a user with `service_job_card.read`.
+5. Refresh the browser and open the same job card again.
+6. Confirm the terminal status and history are still displayed.
+
+Expected result: terminal job cards are readable but cannot be reopened or changed through the normal UI.
+
+### 12.9 Test permissions when suitable local users are available
+
+The bootstrap administrator has all local permissions. The current portal does not provide a browser user-administration screen, so do not invent another account or modify database rows manually just to run this check. If a suitable local test profile is already available, verify the following:
+
+- A user with `service_job_card.read` can see **Service job cards**, search, filter, and open detail/history.
+- A user without `service_job_card.read` does not see the **Service job cards** navigation and cannot load the job-card queue.
+- A read-only user with `service_job_card.read` but without `service_job_card.write` can view job cards but cannot create a job card or update status.
+- A user without the required permission receives HTTP `403` from the protected API rather than receiving job-card data.
+
+Record this check as **BLOCKED** if no suitable local test profile exists. Do not weaken permissions or use production accounts to force the test.
+
+### 12.10 Test duplicate creation and recovery behavior
+
+Use the original appointment after its job card has been created:
+
+1. Return to **Appointments**.
+2. Open the same appointment.
+3. Confirm the create action is hidden when the existing job card is loaded, or otherwise do not submit it repeatedly.
+4. If the action can still be submitted because the page is stale, select it once and wait for the response.
+5. Confirm the API returns a conflict (`409`) and no second job card is created.
+6. Refresh the appointment and job-card workspaces.
+7. Confirm exactly one job card remains linked to the appointment.
+
+A stale browser page or a second operator can produce this conflict. The expected recovery is to refresh and use the already-created job card, not to retry repeatedly.
+
+### 12.11 Test unauthorized, not-found, and conflict recovery
+
+Use the following safe checks:
+
+- **401 unauthorized:** sign out, then request a protected action or open the protected workspace. Confirm the session is cleared and the portal asks you to sign in again. Directly opening `http://localhost:3100/api/job-cards` without a bearer token should return HTTP `401`.
+- **403 forbidden:** use a suitable local profile without `service_job_card.read`, if one exists. Confirm the portal shows an authorization message and does not display job-card data. Mark this **BLOCKED** if no such local profile exists.
+- **404 not found:** if a test endpoint or stale detail link refers to a job-card ID that does not exist, confirm the detail is hidden and the portal offers recovery to the job-card list. Do not delete a real local record merely to manufacture this case.
+- **409 conflict:** submit the same appointment-to-job-card creation only once after a job card already exists, or use the duplicate check in section 12.10. Confirm the conflict message appears and the authoritative appointment/job-card data can be refreshed.
+
+For every failed check, keep the exact browser message, URL, HTTP status, and backend terminal error. Do not hide the error by restarting services before recording it.
+
+### 12.12 Phase5 manual results to report back
+
+Copy this checklist into your reply and mark each item `PASS`, `FAIL`, or `BLOCKED`. Include the exact error text, HTTP status, and step for every failure or blocker.
+
+```text
+Phase5 browser verification date:
+Browser and version:
+Project folder:
+Backend URL:
+PostgreSQL status:
+Was the backend restarted during testing? Why:
+Was the administrator re-bootstrapped after restart?:
+
+[ ] Local health and portal load:
+[ ] Administrator sign-in:
+[ ] Existing or newly scheduled appointment:
+[ ] Create service job card:
+[ ] Initial Open status:
+[ ] Queue displays the job card:
+[ ] Search by job-card reference:
+[ ] Search by appointment or customer:
+[ ] Status filter:
+[ ] Detail fields:
+[ ] Initial history entry:
+[ ] Open → In Progress:
+[ ] In Progress → Completed or Cancelled:
+[ ] Status-change history and reason:
+[ ] Terminal finalization details:
+[ ] Terminal read-only behavior:
+[ ] Duplicate creation returns 409:
+[ ] 401 session recovery:
+[ ] 403 permission check or BLOCKED with reason:
+[ ] 404 detail recovery or BLOCKED with reason:
+[ ] Browser refresh and repeat access:
+
+Failures or blockers:
+Exact HTTP status and response message:
+Browser console errors:
+Backend terminal errors:
+Screenshots or downloaded files:
+```
+
+## 13. Run automated tests
 
 Stop any command that is currently using the terminal only if necessary. From the project folder, run the API and contract tests:
 
@@ -448,7 +680,7 @@ npx playwright install chromium
 
 The generated `test-results/` directory is test output and should not be committed.
 
-## 13. Run project verification checks
+## 14. Run project verification checks
 
 Run these commands from the project folder:
 
@@ -468,7 +700,7 @@ What they check:
 
 `dist/` is generated output and should not be committed.
 
-## 14. Stop the local services safely
+## 15. Stop the local services safely
 
 To stop the development server, focus the terminal running `npm run dev` and press:
 
@@ -490,7 +722,7 @@ docker compose start
 
 Use `docker compose down` only when you intentionally want to remove the containers. Do not add `-v` unless you intentionally want to erase the local database volume and all local test data.
 
-## 15. Troubleshooting
+## 16. Troubleshooting
 
 ### `npm` cannot find `package.json`
 
@@ -519,7 +751,7 @@ Stop the other local server using port 3000, or identify the process before stop
 
 ### The page loads but buttons do nothing
 
-Check the terminal running `npm run dev` for errors. Then refresh `http://localhost:3000/portal/`. The browser UI loads its JavaScript from `/portal/app.js`; a direct file-open URL such as `file:///.../index.html` will not work correctly.
+Check the terminal running `npm run dev` for errors. Then refresh `http://localhost:3100/portal/`. The browser UI loads its JavaScript from `/portal/app.js`; a direct file-open URL such as `file:///.../index.html` will not work correctly.
 
 ### Browser tests cannot connect
 
@@ -561,7 +793,7 @@ Check that:
 - You are using local test credentials and the correct local bootstrap token.
 - No production credentials or live URLs were copied into the local project.
 
-## 16. Safety reminders
+## 17. Safety reminders
 
 - Google Apps Script remains the production and rollback system.
 - Do not change the live Apps Script deployment while testing this migration slice.

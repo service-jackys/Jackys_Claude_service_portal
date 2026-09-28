@@ -1286,3 +1286,545 @@ test.describe('staff access boundary', () => {
     expect(appointmentListRequests).toBe(0);
   });
 });
+
+test.describe('service job-card workspace', () => {
+  const openJobCard = {
+    id: '701',
+    jobCardReference: 'JBC-2026-00001',
+    appointmentReference: 'APT-2026-00001',
+    appointmentDate: '2026-10-05',
+    appointmentTime: '09:00',
+    customerName: 'Job Card Customer',
+    contactNumber: '0500000000',
+    faultDescription: 'The appliance does not start.',
+    status: 'Open',
+    finalizedAt: null,
+    finalizedBy: null,
+    createdAt: '2026-09-26T08:00:00.000Z',
+    updatedAt: '2026-09-26T08:00:00.000Z',
+  };
+
+  test('lists, filters, opens, and updates a job card with history', async ({ page }) => {
+    let status = 'Open';
+    let statusBody: unknown = null;
+    const listUrls: string[] = [];
+    const history = [
+      {
+        fromStatus: null,
+        toStatus: 'Open',
+        reason: 'Job card created.',
+        changedAt: '2026-09-26T08:00:00.000Z',
+      },
+    ];
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Job Card Operator',
+              email: 'jobcards@jackys.com',
+              role: 'staff',
+              permissions: ['service_job_card.read', 'service_job_card.write'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        listUrls.push(request.url());
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            jobCards: [{ ...openJobCard, status }],
+            pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: { ...openJobCard, status }, history }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701/status' && request.method() === 'PATCH') {
+        statusBody = request.postDataJSON();
+        status = (statusBody as { status: string }).status;
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: { ...openJobCard, status } }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('jobcards@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Service job cards' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'JBC-2026-00001' })).toBeVisible();
+    await page.locator('#jobCardSearch').fill('JBC-2026');
+    await page.locator('#jobCardStatusFilter').selectOption('Open');
+    await page.getByRole('button', { name: 'Apply filters' }).click();
+    await expect.poll(() => listUrls.at(-1)).toContain('search=JBC-2026');
+    expect(new URL(listUrls.at(-1)!).searchParams.get('status')).toBe('Open');
+
+    await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
+    await expect(page.locator('#jobCardDetail')).toBeVisible();
+    await expect(page.locator('#jobCardDetailGrid')).toContainText('Job Card Customer');
+    await expect(page.locator('#jobCardHistoryList')).toContainText('Job card created.');
+
+    await page.locator('#jobCardNextStatus').selectOption('In Progress');
+    await page.locator('#jobCardStatusReason').fill('Technician started work.');
+    await page.locator('#jobCardStatusForm').getByRole('button', { name: 'Update status' }).click();
+    await expect(page.locator('#workspaceMessage')).toHaveText('Service job-card status updated.');
+    expect(statusBody).toEqual({ status: 'In Progress', reason: 'Technician started work.' });
+    await expect(page.locator('#jobCardDetailStatus')).toContainText('In Progress');
+  });
+
+  test('keeps terminal job cards read-only for a read-only user', async ({ page }) => {
+    const terminalJobCard = { ...openJobCard, status: 'Completed' };
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Read Only Job Card User',
+              email: 'readonly-jobcards@jackys.com',
+              role: 'staff',
+              permissions: ['service_job_card.read'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCards: [terminalJobCard] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: terminalJobCard, history: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('readonly-jobcards@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
+
+    await expect(page.locator('#jobCardActions')).toBeHidden();
+    await expect(page.locator('#jobCardNextStatus')).toBeDisabled();
+  });
+
+  test('shows no workspace access without job-card permission', async ({ page }) => {
+    let jobCardRequests = 0;
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Basic User',
+              email: 'basic@jackys.com',
+              role: 'staff',
+              permissions: ['dashboard.read'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards') jobCardRequests += 1;
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('basic@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.getByRole('heading', { name: 'No workspace access' })).toBeVisible();
+    await expect(page.locator('#jobCardsNav')).toBeHidden();
+    expect(jobCardRequests).toBe(0);
+  });
+
+  test('creates a job card from an appointment and opens its detail', async ({ page }) => {
+    let createBody: unknown = null;
+    const appointment = {
+      id: '501',
+      appointmentReference: 'APT-2026-00001',
+      customerName: 'Appointment Customer',
+      contactNumber: '0500000000',
+      appointmentDate: '2026-10-05',
+      appointmentTime: '09:00',
+      faultDescription: 'The appliance does not start.',
+      status: 'Scheduled',
+    };
+    const createdJobCard = {
+      ...openJobCard,
+      appointmentReference: appointment.appointmentReference,
+    };
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Appointment Operator',
+              email: 'appointments@jackys.com',
+              role: 'staff',
+              permissions: ['appointments.read', 'service_job_card.read', 'service_job_card.write'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointments: [appointment] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointment, history: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: null }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'POST') {
+        createBody = request.postDataJSON();
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: createdJobCard }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCards: [createdJobCard] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: createdJobCard, history: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('appointments@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.getByRole('button', { name: 'APT-2026-00001' }).click();
+    await page.getByRole('button', { name: 'Create service job card' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Service job cards' })).toBeVisible();
+    await expect(page.locator('#jobCardDetailHeading')).toHaveText('JBC-2026-00001');
+    await expect(page.locator('#workspaceMessage')).toHaveText(
+      'Service job card JBC-2026-00001 created.',
+    );
+    expect(createBody).toBeNull();
+  });
+
+  test('returns to sign in after the job-card queue returns unauthorized', async ({ page }) => {
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Job Card Operator',
+              email: 'jobcards@jackys.com',
+              role: 'staff',
+              permissions: ['service_job_card.read'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          status: 401,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ detail: 'Authentication is required.' }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('jobcards@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.locator('#staff-workspace')).toBeHidden();
+    await expect(page.locator('#authMessage')).toHaveText(
+      'Your session has expired. Please sign in again.',
+    );
+  });
+
+  test('shows retry recovery when the job-card queue returns forbidden', async ({ page }) => {
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Job Card Operator',
+              email: 'jobcards@jackys.com',
+              role: 'staff',
+              permissions: ['service_job_card.read'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          status: 403,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ detail: 'You are not authorized to view service job cards.' }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('jobcards@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+
+    await expect(page.locator('#workspaceRecoveryMessage')).toHaveText(
+      'You are not authorized to view service job cards.',
+    );
+    await expect(page.locator('#retryWorkspaceButton')).toBeVisible();
+  });
+
+  test('shows a conflict when creating a duplicate job card from an appointment', async ({
+    page,
+  }) => {
+    const appointment = {
+      id: '501',
+      appointmentReference: 'APT-2026-00001',
+      customerName: 'Appointment Customer',
+      contactNumber: '0500000000',
+      appointmentDate: '2026-10-05',
+      appointmentTime: '09:00',
+      faultDescription: 'The appliance does not start.',
+      status: 'Scheduled',
+    };
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Appointment Operator',
+              email: 'appointments@jackys.com',
+              role: 'staff',
+              permissions: ['appointments.read', 'service_job_card.read', 'service_job_card.write'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointments: [appointment] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointment, history: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard: null }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'POST') {
+        await route.fulfill({
+          status: 409,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ detail: 'The appointment already has a service job card.' }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('appointments@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.getByRole('button', { name: 'APT-2026-00001' }).click();
+    await page.getByRole('button', { name: 'Create service job card' }).click();
+
+    await expect(page.locator('#workspaceMessage')).toHaveText(
+      'The appointment already has a service job card.',
+    );
+  });
+
+  test('shows recovery after a job-card detail request returns not found', async ({ page }) => {
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Job Card Operator',
+              email: 'jobcards@jackys.com',
+              role: 'staff',
+              permissions: ['service_job_card.read'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCards: [{ ...openJobCard }] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+        await route.fulfill({
+          status: 404,
+          contentType: 'application/problem+json',
+          body: JSON.stringify({ detail: 'The service job card was not found.' }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('jobcards@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
+
+    await expect(page.locator('#workspaceRecoveryMessage')).toHaveText(
+      'This service job card no longer exists. Return to the job-card list and try again.',
+    );
+    await expect(page.locator('#retryWorkspaceButton')).toBeVisible();
+  });
+});

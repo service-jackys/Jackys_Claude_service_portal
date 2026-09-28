@@ -129,6 +129,14 @@ const requestBodies = {
       },
     },
   },
+  serviceJobCardStatus: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ServiceJobCardStatusRequest' },
+      },
+    },
+  },
   draftSchedule: {
     required: true,
     content: {
@@ -241,7 +249,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           additionalProperties: false,
           required: ['customerType', 'customerName', 'contactNumber', 'description'],
           properties: {
-            customerType: { type: 'string', enum: ['individual', 'company', 'b2b'] },
+            customerType: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
             customerName: { type: 'string', minLength: 1, maxLength: 200 },
             contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
             customerEmail: { type: 'string', format: 'email', maxLength: 320 },
@@ -251,6 +259,11 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             model: { type: 'string', minLength: 1, maxLength: 120 },
             serialOrItemCode: { type: 'string', minLength: 1, maxLength: 120 },
             description: { type: 'string', minLength: 1, maxLength: 10000 },
+            b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            salesOrderNumber: { type: 'string', minLength: 1, maxLength: 100 },
           },
         },
         ComplaintNotesRequest: {
@@ -284,7 +297,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           additionalProperties: false,
           required: ['customerType', 'name', 'contactNumber'],
           properties: {
-            customerType: { type: 'string', enum: ['individual', 'company', 'b2b'] },
+            customerType: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
             name: { type: 'string', minLength: 1, maxLength: 200 },
             contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
             email: { type: 'string', format: 'email', maxLength: 320 },
@@ -348,7 +361,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             customerId: { type: 'string', pattern: '^\\d+$' },
             branchId: { type: 'string', pattern: '^\\d+$' },
             technicianId: { type: 'string', pattern: '^\\d+$' },
-            customerType: { type: 'string', enum: ['individual', 'company', 'b2b'] },
+            customerType: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
             customerName: { type: 'string', minLength: 1, maxLength: 200 },
             contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
             customerEmail: { type: 'string', format: 'email', maxLength: 320 },
@@ -360,6 +373,11 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             faultDescription: { type: 'string', minLength: 1, maxLength: 10000 },
             jobWarranty: { type: 'string', minLength: 1, maxLength: 120 },
             salesOrderNumber: { type: 'string', minLength: 1, maxLength: 120 },
+            b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
+            schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            subGroup: { type: 'string', minLength: 1, maxLength: 120 },
             appointmentDate: { type: 'string', format: 'date' },
             appointmentTime: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
           },
@@ -387,6 +405,18 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             status: {
               type: 'string',
               enum: ['Scheduled', 'In Progress', 'Completed', 'Cancelled'],
+            },
+            reason: { type: 'string', maxLength: 1000 },
+          },
+        },
+        ServiceJobCardStatusRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['status'],
+          properties: {
+            status: {
+              type: 'string',
+              enum: ['Open', 'In Progress', 'Completed', 'Cancelled'],
             },
             reason: { type: 'string', maxLength: 1000 },
           },
@@ -439,6 +469,10 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             serialOrItemCode: { type: ['string', 'null'] },
             description: { type: 'string' },
             salesOrderNumber: { type: ['string', 'null'] },
+            b2bBranchSchool: { type: ['string', 'null'] },
+            schoolContactPerson: { type: ['string', 'null'] },
+            schoolContactNumber: { type: ['string', 'null'] },
+            customerNumber: { type: ['string', 'null'] },
             warrantyClassification: { type: ['string', 'null'] },
             status: {
               type: 'string',

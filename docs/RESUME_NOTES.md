@@ -1,6 +1,6 @@
 # Resume Notes
 
-**Updated:** 2026-09-25
+**Updated:** 2026-09-26
 **Project folder:** `C:\Users\Vysakh Raju\Desktop\Jacky's\jackys service portal`
 **Repository:** `https://github.com/service-jackys/Jackys-service-portal`
 **Branch:** `main`
@@ -97,13 +97,30 @@ Do not delete the database volume or use `docker compose down -v` while diagnosi
 
 ## Project paused state
 
-Phase3 scheduling and technician operations are complete, verified, and pushed to `origin/main`. Work is paused here while a separate project is handled in another folder.
+Phase4 web journeys are complete. Phase5 service-operations parity is in progress locally and remains uncommitted.
 
-When this project is resumed, the next backlog capability is Phase4 web journeys:
+### Phase5 completed today — 2026-09-26
 
-1. Public complaint registration and confirmation.
-2. Staff sign-in and role-gated navigation.
-3. Complaint inbox/detail/update screens.
-4. New-request and appointment scheduling screens.
-5. Technician assignment and appointment list/calendar views.
-6. Browser tests for golden-path and unauthorized access behavior.
+- Added migration `003_phase5_job_cards.sql` for service job cards and status history.
+- Added one-card-per-appointment enforcement and `JBC-YYYY-NNNNN` references.
+- Added strict status contracts for `Open`, `In Progress`, `Completed`, and `Cancelled`.
+- Added transactional creation, status transitions, history, finalization metadata, and audit events.
+- Added protected API routes for job-card listing, creation, appointment lookup, detail, history, and status changes.
+- Added a paginated/searchable queue endpoint protected by `service_job_card.read`.
+- Added contract and integration coverage for the job-card lifecycle.
+- `npm run typecheck` passed after the backend queue work.
+
+### Known verification limitation
+
+Integration execution is currently blocked by the existing migration runner reporting a checksum mismatch for `001_initial_schema.sql`. Do not edit migration history, bypass checksum validation, delete the PostgreSQL volume, or use `docker compose down -v`. Repair the local environment only through a safe, approved approach.
+
+### First resume steps
+
+1. Start Docker Desktop and run `docker compose up -d postgres` from the project folder.
+2. Inspect the uncommitted Phase5 changes before editing further.
+3. Continue the protected job-card workspace in `apps/web/src/index.html` and `apps/web/src/app.js`.
+4. Add focused Playwright coverage for authorized/read-only access, creation, status transitions, terminal locks, and 401/403/404/409 recovery.
+5. Run typecheck, formatting, build, contract tests, integration tests where the migration environment permits, and browser tests.
+6. Review changed files for secrets and production changes. Create a commit only if explicitly requested; do not push or deploy.
+
+The next backlog after the job-card slice remains inspections, quotations, approvals, attachments, print views, legacy-reference preservation, and reporting; none of those are started.

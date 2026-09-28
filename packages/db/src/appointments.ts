@@ -20,6 +20,11 @@ export type AppointmentRecord = {
   faultDescription: string;
   jobWarranty: string | null;
   salesOrderNumber: string | null;
+  b2bBranchSchool: string | null;
+  schoolContactPerson: string | null;
+  schoolContactNumber: string | null;
+  customerNumber: string | null;
+  subGroup: string | null;
   appointmentDate: string;
   appointmentTime: string;
   status: AppointmentStatus;
@@ -58,6 +63,11 @@ const columns = `
   appointments.fault_description AS "faultDescription",
   appointments.job_warranty AS "jobWarranty",
   appointments.sales_order_number AS "salesOrderNumber",
+  appointments.b2b_branch_school AS "b2bBranchSchool",
+  appointments.school_contact_person AS "schoolContactPerson",
+  appointments.school_contact_number AS "schoolContactNumber",
+  appointments.customer_number AS "customerNumber",
+  appointments.sub_group AS "subGroup",
   appointments.appointment_date::text AS "appointmentDate",
   to_char(appointments.appointment_time, 'HH24:MI') AS "appointmentTime",
   appointments.status,
@@ -77,8 +87,9 @@ export async function insertAppointment(
       appointment_reference, complaint_id, customer_id, branch_id, technician_id,
       customer_type, customer_name, contact_number, customer_email, address, region,
       brand, model, item_code, fault_description, job_warranty, sales_order_number,
+      b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
       appointment_date, appointment_time, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
     RETURNING ${columns}`,
     [
       input.appointmentReference,
@@ -98,6 +109,11 @@ export async function insertAppointment(
       input.faultDescription,
       input.jobWarranty ?? null,
       input.salesOrderNumber ?? null,
+      input.b2bBranchSchool ?? null,
+      input.schoolContactPerson ?? null,
+      input.schoolContactNumber ?? null,
+      input.customerNumber ?? null,
+      input.subGroup ?? null,
       input.appointmentDate,
       input.appointmentTime,
       input.createdBy ?? null,

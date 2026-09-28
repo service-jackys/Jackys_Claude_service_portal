@@ -17,6 +17,8 @@ import { createAppointmentHandlers } from '../appointments/routes.js';
 import { createAppointmentService } from '../appointments/service.js';
 import { createScheduleHandlers } from '../schedules/routes.js';
 import { createScheduleService } from '../schedules/service.js';
+import { createServiceJobCardHandlers } from '../job-cards/routes.js';
+import { createServiceJobCardService } from '../job-cards/service.js';
 
 export type RouteDefinition = {
   method: 'get' | 'post' | 'patch' | 'put';
@@ -39,7 +41,8 @@ export type RouteDefinition = {
     | 'appointmentAssignment'
     | 'appointmentSchedule'
     | 'appointmentStatus'
-    | 'draftSchedule';
+    | 'draftSchedule'
+    | 'serviceJobCardStatus';
   parameters?: object[];
   responseContentType?: string;
   responses: number[];
@@ -231,6 +234,34 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         schedule: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const serviceJobCardHandlers = pool
+    ? createServiceJobCardHandlers(createServiceJobCardService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        byAppointment: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        history: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        status: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -788,6 +819,84 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 409, 500],
         handlers: appointmentHandlers.status,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards',
+        operationId: 'listServiceJobCards',
+        tags: ['Service Job Cards'],
+        summary: 'List service job cards',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['Open', 'In Progress', 'Completed', 'Cancelled'] },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: serviceJobCardHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/appointments/{appointmentId}/job-card',
+        operationId: 'createServiceJobCard',
+        tags: ['Service Job Cards'],
+        summary: 'Create a service job card for an appointment',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'appointmentId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: [201, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/appointments/{appointmentId}/job-card',
+        operationId: 'getAppointmentJobCard',
+        tags: ['Service Job Cards'],
+        summary: 'Get the service job card for an appointment',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'appointmentId', in: 'path', required: true, schema: { type: 'string' } },
+        ],
+        responses: [200, 401, 403, 404, 500],
+        handlers: serviceJobCardHandlers.byAppointment,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/{id}',
+        operationId: 'getServiceJobCard',
+        tags: ['Service Job Cards'],
+        summary: 'Get a service job card',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: serviceJobCardHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/{id}/history',
+        operationId: 'getServiceJobCardHistory',
+        tags: ['Service Job Cards'],
+        summary: 'Get service job card history',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: serviceJobCardHandlers.history,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/job-cards/{id}/status',
+        operationId: 'updateServiceJobCardStatus',
+        tags: ['Service Job Cards'],
+        summary: 'Change a service job card status',
+        security: 'bearerAuth' as const,
+        requestBody: 'serviceJobCardStatus' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.status,
       },
       {
         method: 'get' as const,
