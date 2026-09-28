@@ -7,6 +7,7 @@
   let currentAppointmentId = null;
   let currentJobCardId = null;
   let currentJobCard = null;
+  let lastLoadedJobCards = [];
   let workspaceMode = 'complaints';
   let availabilityRequestSequence = 0;
   let calendarView = 'month';
@@ -332,6 +333,7 @@
     $('#quotationsNav').hidden = !hasPermission('quotation.read');
     $('#inspectionsNav').hidden = !hasPermission('inspection.read');
     $('#warrantyApprovalsNav').hidden = !hasPermission('warranty_approval.read');
+    $('#dashboardNav').hidden = !hasPermission('dashboard.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
   }
 
@@ -364,6 +366,7 @@
     if (mode === 'quotations' && !hasPermission('quotation.read')) return;
     if (mode === 'inspections' && !hasPermission('inspection.read')) return;
     if (mode === 'warranty-approvals' && !hasPermission('warranty_approval.read')) return;
+    if (mode === 'dashboard' && !hasPermission('dashboard.read')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
@@ -371,28 +374,38 @@
     const quotations = mode === 'quotations';
     const inspections = mode === 'inspections';
     const warrantyApprovals = mode === 'warranty-approvals';
+    const dashboard = mode === 'dashboard';
     const anyOtherPanel =
-      serviceRequests || appointments || jobCards || quotations || inspections || warrantyApprovals;
+      serviceRequests ||
+      appointments ||
+      jobCards ||
+      quotations ||
+      inspections ||
+      warrantyApprovals ||
+      dashboard;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
     $('#quotationsNav').setAttribute('aria-current', quotations ? 'page' : 'false');
     $('#inspectionsNav').setAttribute('aria-current', inspections ? 'page' : 'false');
     $('#warrantyApprovalsNav').setAttribute('aria-current', warrantyApprovals ? 'page' : 'false');
+    $('#dashboardNav').setAttribute('aria-current', dashboard ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
     $('#complaintWorkspace').hidden =
-      appointments || jobCards || quotations || inspections || warrantyApprovals;
+      appointments || jobCards || quotations || inspections || warrantyApprovals || dashboard;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
     $('#inspectionWorkspace').hidden = !inspections;
     $('#warrantyApprovalWorkspace').hidden = !warrantyApprovals;
+    $('#dashboardWorkspace').hidden = !dashboard;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
     $('#refreshQuotationsButton').hidden = !quotations;
     $('#refreshInspectionsButton').hidden = !inspections;
     $('#refreshWarrantyApprovalsButton').hidden = !warrantyApprovals;
+    $('#refreshDashboardButton').hidden = !dashboard;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
       : jobCards
@@ -403,9 +416,11 @@
             ? 'Inspections'
             : warrantyApprovals
               ? 'Warranty approvals'
-              : serviceRequests
-                ? 'Service requests'
-                : 'Complaint inbox';
+              : dashboard
+                ? 'Dashboard'
+                : serviceRequests
+                  ? 'Service requests'
+                  : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -416,9 +431,11 @@
             ? 'Record inspection findings and link them to a quotation.'
             : warrantyApprovals
               ? 'Raise out-of-warranty approval requests and share the customer-facing approval link.'
-              : serviceRequests
-                ? 'Review complaints that are ready to be scheduled.'
-                : 'Review incoming service requests and open their history.';
+              : dashboard
+                ? 'Operational summary across complaints, appointments, job cards, and approvals.'
+                : serviceRequests
+                  ? 'Review complaints that are ready to be scheduled.'
+                  : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -431,6 +448,8 @@
       loadInspections();
     } else if (warrantyApprovals) {
       loadWarrantyApprovals();
+    } else if (dashboard) {
+      loadDashboard();
     } else {
       loadComplaints();
     }
@@ -1369,6 +1388,50 @@ ${bodyHtml}
       );
   }
 
+  // ---- Service report (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add service
+  // reports and operational dashboard summaries"). A CSV export of whatever
+  // job-card list is currently on screen -- built entirely client-side from
+  // already-loaded data, the same approach the print views use, so it needs
+  // no new API endpoint.
+  function csvEscape(value) {
+    const text = value == null ? '' : String(value);
+    return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+  }
+
+  function exportJobCardsCsv() {
+    if (!lastLoadedJobCards.length) {
+      setMessage('#workspaceMessage', 'There are no service job cards to export.');
+      return;
+    }
+    const columns = [
+      ['Reference', (jc) => jc.jobCardReference],
+      ['Appointment', (jc) => jc.appointmentReference],
+      ['Customer', (jc) => jc.customerName],
+      ['Contact', (jc) => jc.customerContact],
+      ['Status', (jc) => jc.status],
+      ['Technician', (jc) => jc.technicianName],
+      ['Job final status', (jc) => jc.jobFinalStatus],
+      ['Total cost (AED)', (jc) => jc.totalCost],
+      ['Service charge (AED)', (jc) => jc.serviceCharge],
+      ['Grand total (AED)', (jc) => jc.grandTotal],
+      ['Created', (jc) => jc.createdAt],
+      ['Updated', (jc) => jc.updatedAt],
+    ];
+    const rows = [
+      columns.map(([label]) => csvEscape(label)).join(','),
+      ...lastLoadedJobCards.map((jc) => columns.map(([, get]) => csvEscape(get(jc))).join(',')),
+    ];
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `service-job-cards-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function loadJobCards() {
     if (!hasPermission('service_job_card.read')) return;
     clearWorkspaceRecovery();
@@ -1381,7 +1444,8 @@ ${bodyHtml}
       '<tr><td colspan="5" class="empty-state">Loading service job cards…</td></tr>';
     try {
       const result = await apiRequest('/api/job-cards?' + params);
-      renderJobCards(result.jobCards || []);
+      lastLoadedJobCards = result.jobCards || [];
+      renderJobCards(lastLoadedJobCards);
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -1825,6 +1889,76 @@ ${bodyHtml}
     $('#warrantyApprovalCreatePanel').hidden = true;
     $('#warrantyApprovalsBody').innerHTML = '';
     $('#warrantyApprovalsEmpty').hidden = true;
+  }
+
+  // ---- Dashboard (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add service
+  // reports and operational dashboard summaries"). Deliberately covers the
+  // day-to-day service workflows only; revenue/pricing reporting is Phase 6
+  // scope. Renders whatever statuses /api/dashboard/summary returns rather
+  // than a hardcoded list, so a status this page doesn't otherwise track
+  // still shows up as a tile instead of silently vanishing.
+  function dashboardTilesHtml(byStatus, extra = []) {
+    const tiles = [...Object.entries(byStatus || {}), ...extra];
+    if (!tiles.length) {
+      return '<div class="dashboard-tile"><span class="tile-value">0</span><span class="tile-label">No records yet</span></div>';
+    }
+    return tiles
+      .map(
+        ([label, value]) =>
+          `<div class="dashboard-tile"><span class="tile-value">${escapeHtml(String(value))}</span><span class="tile-label">${escapeHtml(label)}</span></div>`,
+      )
+      .join('');
+  }
+
+  function renderDashboard(summary) {
+    $('#dashComplaintTiles').innerHTML = dashboardTilesHtml(summary.complaints.byStatus, [
+      ['Total', summary.complaints.total],
+    ]);
+    $('#dashAppointmentTiles').innerHTML = dashboardTilesHtml(summary.appointments.byStatus, [
+      ['Today', summary.appointments.today],
+      ['Total', summary.appointments.total],
+    ]);
+    $('#dashJobCardTiles').innerHTML = dashboardTilesHtml(summary.jobCards.byStatus, [
+      ['Total', summary.jobCards.total],
+    ]);
+    $('#dashQuotationInspectionTiles').innerHTML = dashboardTilesHtml({}, [
+      ['Quotations (total)', summary.quotations.total],
+      ['Quotations (this month)', summary.quotations.thisMonth],
+      ['Inspections (total)', summary.inspections.total],
+      ['Inspections (this month)', summary.inspections.thisMonth],
+    ]);
+    $('#dashWarrantyApprovalTiles').innerHTML = dashboardTilesHtml(
+      summary.warrantyApprovals.byStatus,
+      [['Total', summary.warrantyApprovals.total]],
+    );
+  }
+
+  async function loadDashboard() {
+    if (!hasPermission('dashboard.read')) return;
+    clearWorkspaceRecovery();
+    $('#dashboardEmpty').hidden = true;
+    try {
+      const result = await apiRequest('/api/dashboard/summary');
+      renderDashboard(result.summary);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view the dashboard.', loadDashboard);
+      } else {
+        setWorkspaceRecovery(error.message, loadDashboard);
+        $('#dashboardEmpty').hidden = false;
+      }
+    }
+  }
+
+  function resetDashboardWorkspace() {
+    $('#dashComplaintTiles').innerHTML = '';
+    $('#dashAppointmentTiles').innerHTML = '';
+    $('#dashJobCardTiles').innerHTML = '';
+    $('#dashQuotationInspectionTiles').innerHTML = '';
+    $('#dashWarrantyApprovalTiles').innerHTML = '';
   }
 
   function renderJobCardActions(jobCard) {
@@ -2627,6 +2761,7 @@ ${bodyHtml}
   function resetJobCardWorkspace() {
     currentJobCardId = null;
     currentJobCard = null;
+    lastLoadedJobCards = [];
     $('#jobCardDetail').hidden = true;
     $('#jobCardsBody').innerHTML = '';
     $('#jobCardsEmpty').hidden = true;
@@ -2960,6 +3095,7 @@ ${bodyHtml}
     resetQuotationWorkspace();
     resetInspectionWorkspace();
     resetWarrantyApprovalWorkspace();
+    resetDashboardWorkspace();
     $('#staff-workspace').hidden = true;
     $('#staff-access').hidden = false;
     $('#authCard').hidden = false;
@@ -3008,6 +3144,7 @@ ${bodyHtml}
   $('#refreshQuotationsButton').addEventListener('click', loadQuotations);
   $('#refreshInspectionsButton').addEventListener('click', loadInspections);
   $('#refreshWarrantyApprovalsButton').addEventListener('click', loadWarrantyApprovals);
+  $('#refreshDashboardButton').addEventListener('click', loadDashboard);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
   $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
@@ -3100,6 +3237,7 @@ ${bodyHtml}
   $('#warrantyApprovalsNav').addEventListener('click', () =>
     setWorkspaceMode('warranty-approvals'),
   );
+  $('#dashboardNav').addEventListener('click', () => setWorkspaceMode('dashboard'));
   $('#findTechniciansButton').addEventListener('click', loadAvailableTechnicians);
   $('#technicianId').addEventListener('change', () => {
     $('#scheduleAppointmentButton').disabled = !$('#technicianId').value;
@@ -3147,6 +3285,7 @@ ${bodyHtml}
   });
   $('#createJobCardButton').addEventListener('click', createJobCard);
   $('#uploadJobCardAttachmentButton').addEventListener('click', uploadJobCardAttachment);
+  $('#exportJobCardsCsvButton').addEventListener('click', exportJobCardsCsv);
   $('#cancelJobCardCreateButton').addEventListener('click', () => {
     $('#jobCardCreatePanel').hidden = true;
   });

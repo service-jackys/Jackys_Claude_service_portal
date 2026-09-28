@@ -781,6 +781,37 @@
         margin: 0.15rem 0 0;
         overflow-wrap: anywhere;
       }
+      .dashboard-tile-group {
+        margin-bottom: 1.6rem;
+      }
+      .dashboard-tile-group h4 {
+        margin: 0 0 0.7rem;
+        font-size: 0.95rem;
+        color: var(--navy);
+      }
+      .dashboard-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.8rem;
+      }
+      .dashboard-tile {
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 0.9rem 1rem;
+      }
+      .dashboard-tile .tile-value {
+        display: block;
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--navy);
+      }
+      .dashboard-tile .tile-label {
+        display: block;
+        margin-top: 0.2rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
       .history {
         margin: 1.4rem 0 0;
         padding: 0;
@@ -1322,6 +1353,9 @@
               <small id="userEmail"></small>
               <span class="role" id="userRole">Staff</span>
               <div class="dashboard-links">
+                <button class="dashboard-link" type="button" id="dashboardNav" hidden>
+                  Dashboard <span aria-hidden="true">→</span>
+                </button>
                 <button class="dashboard-link" type="button" aria-current="page" id="complaintsNav">
                   Complaint inbox <span aria-hidden="true">→</span>
                 </button>
@@ -1401,6 +1435,14 @@
                   hidden
                 >
                   Refresh warranty approvals
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshDashboardButton"
+                  hidden
+                >
+                  Refresh dashboard
                 </button>
               </div>
             </div>
@@ -1638,6 +1680,33 @@
                 </div>
               </div>
             </div>
+            <div class="card" id="dashboardWorkspace" hidden>
+              <div class="card-body">
+                <p class="empty-state" id="dashboardEmpty" hidden>Could not load dashboard data.</p>
+                <div id="dashboardTiles">
+                  <div class="dashboard-tile-group">
+                    <h4>Complaints</h4>
+                    <div class="dashboard-tiles" id="dashComplaintTiles"></div>
+                  </div>
+                  <div class="dashboard-tile-group">
+                    <h4>Appointments</h4>
+                    <div class="dashboard-tiles" id="dashAppointmentTiles"></div>
+                  </div>
+                  <div class="dashboard-tile-group">
+                    <h4>Service job cards</h4>
+                    <div class="dashboard-tiles" id="dashJobCardTiles"></div>
+                  </div>
+                  <div class="dashboard-tile-group">
+                    <h4>Quotations &amp; inspections</h4>
+                    <div class="dashboard-tiles" id="dashQuotationInspectionTiles"></div>
+                  </div>
+                  <div class="dashboard-tile-group">
+                    <h4>Warranty approvals</h4>
+                    <div class="dashboard-tiles" id="dashWarrantyApprovalTiles"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
             <div class="card" id="jobCardWorkspace" hidden>
               <div class="card-body">
                 <div class="inbox-tools">
@@ -1657,7 +1726,9 @@
                     <option>Completed</option>
                     <option>Cancelled</option></select
                   ><button class="button button-secondary" type="button" id="applyJobCardFilters">
-                    Apply filters
+                    Apply filters</button
+                  ><button class="button button-outline" type="button" id="exportJobCardsCsvButton">
+                    Export CSV
                   </button>
                 </div>
                 <div class="table-wrap">

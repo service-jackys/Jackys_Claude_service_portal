@@ -150,6 +150,24 @@ live-system parity — the live Apps Script system has no equivalent workflow.
 
 **Run `npm run db:migrate` again** to pick up migration 009 before using this.
 
+**2026-09-28 — Added an operational dashboard and a service report (Phase 5).** Built the sixth and
+final planned Phase 5 item — every item in `docs/DEVELOPMENT_PLAN.md`'s Phase 5 list is now built.
+
+- A new `GET /api/dashboard/summary` endpoint (no schema change — it's aggregate queries against the
+  existing tables) returns counts by status for complaints, appointments, and service job cards, plus
+  totals for quotations, inspections, and warranty approvals. Deliberately operational only; revenue and
+  pricing reporting stays Phase 6 scope.
+- A new "Dashboard" tab renders these as tile groups.
+- The service job cards list gained an "Export CSV" button — the closest thing to a "service report"
+  for now — that downloads the currently-loaded, filtered list as a CSV, entirely client-side.
+- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+
+**Phase 5 is now fully built** (job cards + locks, quotations/inspections, attachments, print views +
+legacy reference, out-of-warranty approvals, dashboard + service report). None of migrations 005–009
+have been applied to a real database yet, and the Phase 5 gate ("accepted against representative legacy
+scenarios") still needs manual verification and updated Playwright coverage before treating it as done —
+see `to_do.md` for the outstanding items under each checkpoint.
+
 Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
 
 ## Ports on this machine (read this first)

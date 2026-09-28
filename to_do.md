@@ -224,6 +224,38 @@ done so far" log; pushed to GitHub.
       adding before this is exposed outside a trusted network.
 - [ ] Playwright coverage for warranty approvals not yet written.
 
+#### Phase 5 checkpoint — 2026-09-28: operational dashboard and a service report added
+
+This closes out every item planned for Phase 5 in `docs/DEVELOPMENT_PLAN.md`.
+
+- [x] `GET /api/dashboard/summary` (permission `dashboard.read`, already seeded since Phase 1 and granted
+      to every staff role) — counts by status for complaints, appointments (plus a "today" count), and
+      service job cards; totals and month-to-date totals for quotations and inspections; counts by status
+      for warranty approvals. Deliberately operational only — revenue/pricing reporting is Phase 6 scope
+      (`docs/DEVELOPMENT_PLAN.md`'s "reports, exports, and dashboard reconciliation").
+- [x] New "Dashboard" nav tab renders these as tile groups, rendering whatever statuses the API returns
+      rather than a hardcoded list, so a status this page doesn't already know about still shows up as a
+      tile instead of silently vanishing.
+- [x] A "service report": an "Export CSV" button on the service job cards list downloads the
+      currently-loaded (filtered) list as a CSV — reference, appointment, customer, contact, status,
+      technician, job final status, costs/totals, created/updated — entirely client-side from
+      already-loaded data, the same approach the print views use, so it needed no new API endpoint.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **Not done yet — needs you:** open the "Dashboard" tab and confirm the counts match what you see
+      in the Complaint inbox / Appointments / Service job cards / Quotations / Inspections / Warranty
+      approvals lists; open the job cards list and try "Export CSV".
+- [ ] Only job cards get a CSV export for now — quotations/inspections/warranty approvals could get the
+      same treatment later if it's useful.
+- [ ] Playwright coverage for the dashboard and CSV export not yet written.
+
+**All six Phase 5 items from `docs/DEVELOPMENT_PLAN.md` are now built** (job cards + locks; quotations/
+inspections; attachments; print views + legacy reference; out-of-warranty approvals; dashboard + service
+report). None of migrations 005–009 have been applied against a real database yet — run
+`npm run db:migrate` and walk through each feature per its checkpoint above before treating Phase 5 as
+verified. The Phase 5 gate in `docs/DEVELOPMENT_PLAN.md` ("accepted against representative legacy
+scenarios") also still needs updated/new Playwright coverage across all of the above, which is listed as
+outstanding in each checkpoint.
+
 ### Phase 6: Commercial and pricing features
 
 - [ ] Define the approved pricing and quotation contracts.

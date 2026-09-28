@@ -27,6 +27,8 @@ import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
 import { createWarrantyApprovalService } from '../warranty-approvals/service.js';
+import { createDashboardHandlers } from '../dashboard/routes.js';
+import { createDashboardService } from '../dashboard/service.js';
 
 export type RouteDefinition = {
   method: 'get' | 'post' | 'patch' | 'put' | 'delete';
@@ -368,6 +370,14 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         decide: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const dashboardHandlers = pool
+    ? createDashboardHandlers(createDashboardService(pool), requirePermission)
+    : {
+        summary: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1311,6 +1321,17 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'token', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 404, 409, 500],
         handlers: warrantyApprovalHandlers.decide,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/dashboard/summary',
+        operationId: 'getDashboardSummary',
+        tags: ['Dashboard'],
+        summary:
+          'Operational summary counts across complaints, appointments, job cards, quotations, inspections, and warranty approvals',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: dashboardHandlers.summary,
       },
     ],
   ];
