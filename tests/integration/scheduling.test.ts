@@ -452,3 +452,138 @@ test(
     }
   },
 );
+
+test(
+  'reopening a Scheduled complaint to Ready for Scheduling cancels its active appointment',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+
+    const pool = createDbPool(databaseUrl);
+    const profileEmail = `reopen-scheduling-${randomUUID()}@example.test`;
+    const profile = await pool.query<{ id: string }>(
+      `INSERT INTO profiles (email, display_name) VALUES ($1, 'Reopen Scheduling Integration') RETURNING id`,
+      [profileEmail],
+    );
+    const profileId = profile.rows[0].id;
+    const technicianService = createTechnicianService(pool);
+    const complaintService = createComplaintService(pool);
+    const appointmentService = createAppointmentService(pool);
+    const date = nextDateForWeekday(0);
+    const technicianIds: string[] = [];
+    const complaintIds: string[] = [];
+    const appointmentIds: string[] = [];
+
+    try {
+      const technician = await technicianService.create(
+        { name: 'Reopen Scheduling Technician', region: 'Dubai' },
+        profileId,
+        'reopen-technician',
+      );
+      technicianIds.push(technician.id);
+      await technicianService.replaceAvailability(
+        technician.id,
+        { windows: [{ weekday: 0, startsAt: '08:00', endsAt: '17:00' }] },
+        profileId,
+        'reopen-availability',
+      );
+
+      const complaint = await complaintService.submit(
+        {
+          customerType: 'individual',
+          customerName: 'Reopen Scheduling Customer',
+          contactNumber: '0500000900',
+          description: 'Complaint that gets manually reopened for scheduling',
+          region: 'Dubai',
+        },
+        'reopen-complaint',
+      );
+      complaintIds.push(complaint.id);
+      await complaintService.changeStatus(complaint.id, { status: 'Under Review' }, profileId);
+      await complaintService.changeStatus(
+        complaint.id,
+        { status: 'Ready for Scheduling' },
+        profileId,
+      );
+
+      const firstAppointment = await appointmentService.create(
+        {
+          complaintId: complaint.id,
+          technicianId: technician.id,
+          appointmentDate: date,
+          appointmentTime: '09:00',
+        },
+        profileId,
+        'reopen-appointment-1',
+      );
+      appointmentIds.push(firstAppointment.id);
+      assert.equal(firstAppointment.status, 'Scheduled');
+      assert.equal((await complaintService.detail(complaint.id)).complaint.status, 'Scheduled');
+
+      // Manually reopen scheduling on the Scheduled complaint -- this must
+      // cancel the still-active first appointment, otherwise a second
+      // appointment can never be created (findActiveAppointmentForComplaint
+      // would keep finding the stale Scheduled one).
+      const reopened = await complaintService.changeStatus(
+        complaint.id,
+        { status: 'Ready for Scheduling', reason: 'Technician unavailable, redoing scheduling' },
+        profileId,
+      );
+      assert.equal(reopened.status, 'Ready for Scheduling');
+
+      const cancelledFirst = await appointmentService.detail(firstAppointment.id);
+      assert.equal(cancelledFirst.appointment.status, 'Cancelled');
+      assert.ok(
+        cancelledFirst.history.some(
+          (entry) => entry.toStatus === 'Cancelled' && entry.fromStatus === 'Scheduled',
+        ),
+      );
+
+      const secondAppointment = await appointmentService.create(
+        {
+          complaintId: complaint.id,
+          technicianId: technician.id,
+          appointmentDate: date,
+          appointmentTime: '10:00',
+        },
+        profileId,
+        'reopen-appointment-2',
+      );
+      appointmentIds.push(secondAppointment.id);
+      assert.equal(secondAppointment.status, 'Scheduled');
+      assert.equal((await complaintService.detail(complaint.id)).complaint.status, 'Scheduled');
+    } finally {
+      if (appointmentIds.length) {
+        await pool.query(
+          `DELETE FROM audit_events WHERE target_type = 'appointment' AND target_id = ANY($1::bigint[])`,
+          [appointmentIds],
+        );
+        await pool.query(`DELETE FROM appointments WHERE id = ANY($1::bigint[])`, [appointmentIds]);
+      }
+      if (complaintIds.length) {
+        await pool.query(
+          `DELETE FROM audit_events WHERE target_type = 'complaint' AND target_id = ANY($1::bigint[])`,
+          [complaintIds],
+        );
+        await pool.query(`DELETE FROM complaints WHERE id = ANY($1::bigint[])`, [complaintIds]);
+      }
+      if (technicianIds.length) {
+        await pool.query(
+          `DELETE FROM audit_events WHERE target_type = 'technician' AND target_id = ANY($1::bigint[])`,
+          [technicianIds],
+        );
+        await pool.query(`DELETE FROM technicians WHERE id = ANY($1::bigint[])`, [technicianIds]);
+      }
+      await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);
+      await pool.end();
+    }
+  },
+);

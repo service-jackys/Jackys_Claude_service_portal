@@ -324,7 +324,7 @@ navigation, card-based panels, a contextual workflow stepper).
       client-side name-required guard, and an invalid-token error state) — the last of these needs no
       staff sign-in, matching how a real customer reaches it.
 - [x] `npm run typecheck`, `npm run build`, and `npx prettier --check` all pass; `npx playwright test
-    --list` resolves 51 tests across 5 files with no parse errors (was 37 across 4).
+  --list` resolves 51 tests across 5 files with no parse errors (was 37 across 4).
 - [ ] **Not yet run against a live server** — same limitation as every other Playwright checkpoint in
       this file. Please run `npm run test:e2e` (with `E2E_BASE_URL=http://localhost:3100`) after you've
       applied migrations 005-009 and walked the manual Phase 5 checklist below, since these tests read
@@ -370,6 +370,37 @@ navigation, card-based panels, a contextual workflow stepper).
       (`portal.spec.ts`, `phase4-scheduling.spec.ts`) are green. A few other duplicate labels exist
       elsewhere in `index.html` ("Next status" x3, "Technician" x2) that weren't exercised by any
       current test — flag if a future test surfaces them.
+
+#### Bug fix — 2026-09-28: reopening a Scheduled complaint left a stale "active" appointment behind
+
+Reported via manual walkthrough: a complaint (`CMP-260928-002`) showing `Ready for Scheduling` refused
+a new appointment with "The complaint already has an active appointment."
+
+- [x] Root cause: `complaintSchedulingTransitions` (packages/contracts) deliberately allows a manual
+      `Scheduled` → `Ready for Scheduling` complaint-status transition as an explicit staff recovery
+      action (asserted by `tests/contracts.test.ts`) — but `changeStatus()` in
+      `apps/api/src/complaints/service.ts` only updated the complaint row; it never cancelled the
+      still-`Scheduled` appointment underneath it. `findActiveAppointmentForComplaint()` treats any
+      non-`Cancelled` appointment as active, so the old appointment kept blocking every new one even
+      though the complaint itself looked schedulable again.
+- [x] Fix: when `changeStatus()` performs that specific transition, it now looks up the complaint's
+      active appointment (if any) and cancels it in the same transaction — same appointment-history and
+      audit-event trail a normal appointment cancellation gets. No API contract or schema change; the
+      staff UI needs no changes since it already calls the same status-update endpoint.
+- [x] Added `tests/integration/scheduling.test.ts`: "reopening a Scheduled complaint to Ready for
+      Scheduling cancels its active appointment" — creates a complaint, schedules it, reopens
+      scheduling, confirms the first appointment is now `Cancelled` with a history entry, then confirms
+      a second appointment can be created without the conflict error. Requires a live Postgres
+      (`DATABASE_URL`) to actually run, same as the rest of that file — not run in this pass.
+- [x] `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
+- [ ] **To unblock `CMP-260928-002` right now**, without waiting for a deploy: open the Appointments
+      tab, find its existing appointment (search by the complaint's customer name or contact number —
+      appointment search doesn't index by complaint reference), and cancel it from there. That
+      immediately clears the conflict and this fix stops it from recurring for every complaint after
+      this deploy.
+- [ ] Not verified against a live run — needs `npm run db:migrate`-current Postgres and either the new
+      integration test or a manual repeat of the original repro (reopen a `Scheduled` complaint, then
+      try to schedule it again).
 
 ### Phase 6: Commercial and pricing features
 

@@ -18,6 +18,11 @@ import {
   updateComplaintNotes,
   updateComplaintStatus,
 } from '../../../../packages/db/src/complaints.js';
+import {
+  findActiveAppointmentForComplaint,
+  insertAppointmentHistory,
+  updateAppointmentStatus,
+} from '../../../../packages/db/src/appointments.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { allocateComplaintReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
@@ -120,6 +125,42 @@ export function createComplaintService(pool: Pool) {
           'invalid-transition',
           `A complaint in ${current.status} cannot transition to ${data.status}.`,
         );
+      }
+      // Reopening scheduling on a Scheduled complaint is an explicit manual
+      // recovery path (see tests/contracts.test.ts), not something that
+      // happens automatically -- staff use it when the existing appointment
+      // needs to be redone. Cancel that appointment here so it doesn't keep
+      // blocking new ones as "active" (findActiveAppointmentForComplaint
+      // only excludes Cancelled appointments) once the complaint is back to
+      // Ready for Scheduling.
+      if (current.status === 'Scheduled' && data.status === 'Ready for Scheduling') {
+        const activeAppointment = await findActiveAppointmentForComplaint(client, id, true);
+        if (activeAppointment) {
+          const appointmentResult = await updateAppointmentStatus(
+            client,
+            activeAppointment.id,
+            { status: 'Cancelled', reason: data.reason },
+            profileId,
+          );
+          if (appointmentResult) {
+            await insertAppointmentHistory(
+              client,
+              activeAppointment.id,
+              appointmentResult.previousStatus,
+              'Cancelled',
+              profileId,
+              data.reason || 'Complaint returned to Ready for Scheduling.',
+            );
+            await insertAuditEvent(client, {
+              actorProfileId: profileId,
+              action: 'appointment.status_changed',
+              targetType: 'appointment',
+              targetId: activeAppointment.id,
+              metadata: { fromStatus: appointmentResult.previousStatus, toStatus: 'Cancelled' },
+              requestId,
+            });
+          }
+        }
       }
       const updated = await updateComplaintStatus(client, id, data, profileId);
       if (!updated) throw new ComplaintServiceError('not-found', 'The complaint was not found.');
