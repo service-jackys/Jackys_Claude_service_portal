@@ -35,10 +35,15 @@ export async function findProfileAccessByEmail(
   return result.rows[0] ?? null;
 }
 
-export async function ensureLocalAdminProfile(
+// Upserts a `profiles` row for a locally-authenticated user and grants it
+// the given role. ensureLocalAdminProfile (below) is the bootstrap-only
+// special case; createLocalUserProfile is what the admin-only "add a
+// teammate" endpoint uses for every other role (see modification.md #10).
+export async function ensureLocalProfile(
   pool: Pool,
   email: string,
   displayName: string,
+  roleCode: string,
 ): Promise<void> {
   await withTransaction(pool, async (client) => {
     const profile = await client.query<{ id: string }>(
@@ -52,9 +57,17 @@ export async function ensureLocalAdminProfile(
     );
     await client.query(
       `INSERT INTO profile_roles (profile_id, role_id)
-       SELECT $1, roles.id FROM roles WHERE roles.code = 'admin'
+       SELECT $1, roles.id FROM roles WHERE roles.code = $2
        ON CONFLICT DO NOTHING`,
-      [profile.rows[0].id],
+      [profile.rows[0].id, roleCode],
     );
   });
+}
+
+export async function ensureLocalAdminProfile(
+  pool: Pool,
+  email: string,
+  displayName: string,
+): Promise<void> {
+  return ensureLocalProfile(pool, email, displayName, 'admin');
 }

@@ -49,6 +49,21 @@ export const loginSchema = z
   })
   .strict();
 
+// Lets an already-authenticated admin add another local-auth user (see
+// modification.md #10) -- bootstrap only ever creates the first admin, and
+// there's no other route to add teammates. Role decides the effective
+// permission set: 'admin' gets the same '*' shortcut bootstrap gets,
+// everything else defers to whatever the matching DB profile/role grants
+// (see application-auth.ts's resolve()).
+export const createUserSchema = z
+  .object({
+    email: z.string().email().max(320),
+    name: z.string().trim().min(1).max(120),
+    password: z.string().min(12).max(200),
+    role: z.enum(localRoles),
+  })
+  .strict();
+
 type LocalAuthOptions = {
   bootstrapToken?: string;
 };
@@ -116,6 +131,28 @@ export function createLocalAuth(options: LocalAuthOptions) {
 
   function revokeToken(token: string): void {
     sessions.delete(hashToken(token).toString('hex'));
+  }
+
+  function listUsers(): AuthUser[] {
+    return [...users.values()].map(publicUser);
+  }
+
+  async function createUser(input: unknown) {
+    const data = createUserSchema.parse(input);
+    const email = normalizeEmail(data.email);
+    if ([...users.values()].some((candidate) => candidate.email === email)) {
+      return { kind: 'email-taken' as const };
+    }
+    const user: LocalUser = {
+      id: randomBytes(16).toString('hex'),
+      email,
+      name: data.name,
+      role: data.role,
+      permissions: rolePermissions[data.role],
+      passwordHash: await hashPassword(data.password),
+    };
+    users.set(user.id, user);
+    return { kind: 'created' as const, user: publicUser(user) };
   }
 
   async function bootstrap(input: unknown) {
@@ -193,6 +230,8 @@ export function createLocalAuth(options: LocalAuthOptions) {
   return {
     bootstrap,
     login,
+    createUser,
+    listUsers,
     requireAuth,
     requirePermission,
     getUserFromToken,

@@ -1801,6 +1801,15 @@
                 <button
                   class="dashboard-link"
                   type="button"
+                  id="teamAccountsNav"
+                  hidden
+                  aria-label="Team logins"
+                >
+                  Team logins <span aria-hidden="true">→</span>
+                </button>
+                <button
+                  class="dashboard-link"
+                  type="button"
                   id="appointmentsNav"
                   hidden
                   aria-label="Appointments"
@@ -1878,6 +1887,14 @@
                   hidden
                 >
                   Refresh technicians
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshTeamAccountsButton"
+                  hidden
+                >
+                  Refresh team logins
                 </button>
                 <button
                   class="button button-outline"
@@ -2937,6 +2954,88 @@
                       </button>
                       <button class="button button-primary" type="submit" id="saveTechnicianButton">
                         Add technician
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="teamAccountWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Add a login for a teammate so they can test the portal with their own account
+                  instead of sharing the administrator login. This list lives in the running
+                  server's memory, not the database — restarting the backend clears it, so teammates
+                  will need to be re-added (with a new password) after a restart.
+                </p>
+                <div class="table-wrap">
+                  <table>
+                    <caption class="visually-hidden">
+                      Team logins
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Email</th>
+                        <th>Role</th>
+                      </tr>
+                    </thead>
+                    <tbody id="teamAccountsBody"></tbody>
+                  </table>
+                </div>
+                <p class="empty-state" id="teamAccountsEmpty" hidden>
+                  No teammate logins added yet.
+                </p>
+                <section
+                  class="detail-action-card"
+                  id="teamAccountFormPanel"
+                  aria-labelledby="teamAccountFormHeading"
+                >
+                  <h4 id="teamAccountFormHeading">Add a teammate login</h4>
+                  <form id="teamAccountForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field">
+                        <label for="teamAccountName">Name</label>
+                        <input type="text" id="teamAccountName" maxlength="120" required />
+                        <span class="field-error" data-error-for="teamAccountName"></span>
+                      </div>
+                      <div class="field">
+                        <label for="teamAccountEmail">Email address</label>
+                        <input type="email" id="teamAccountEmail" maxlength="320" required />
+                        <span class="field-error" data-error-for="teamAccountEmail"></span>
+                      </div>
+                      <div class="field">
+                        <label for="teamAccountPassword">Password</label>
+                        <input
+                          type="text"
+                          id="teamAccountPassword"
+                          maxlength="200"
+                          autocomplete="new-password"
+                          required
+                        />
+                        <span class="field-error" data-error-for="teamAccountPassword"></span>
+                        <p class="field-hint">
+                          At least 12 characters. Share it with them directly.
+                        </p>
+                      </div>
+                      <div class="field">
+                        <label for="teamAccountRole">Role</label>
+                        <select id="teamAccountRole">
+                          <option value="user">User</option>
+                          <option value="sales" selected>Sales</option>
+                          <option value="management">Management</option>
+                          <option value="admin">Administrator</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-primary"
+                        type="submit"
+                        id="saveTeamAccountButton"
+                      >
+                        Add login
                       </button>
                     </div>
                   </form>

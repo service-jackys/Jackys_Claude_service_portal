@@ -542,3 +542,47 @@ shipped). Both fixed as part of this same change.
 - Item 2: staff-facing "create appointment from email/request" intake page.
 - An admin page (or reuse of one) to add/deactivate salesmen and sales channels from the UI —
   still API-only (`POST /api/salesmen` / `POST /api/sales-channels`).
+
+## Modification #10 — Add teammate logins so your team can test
+
+- **Date:** 2026-09-29
+- **Status:** Complete.
+
+### What changed
+
+You asked: you only get one bootstrap token, so how do you create a second admin, or any other
+account, so your team can actually test the portal? Bootstrap is (deliberately) a one-time-only
+flow that creates exactly one administrator and then locks itself for the life of the running
+server — it was never meant to be the way you add teammates.
+
+- New admin-only endpoints: `POST /api/auth/users` (create another local-auth login — name,
+  email, password, role) and `GET /api/auth/users` (list the ones created so far). Both require
+  the `admin.users` permission, which only the `admin` role has — the same permission your
+  bootstrapped account already carries.
+- New **Team logins** page in the web UI's protected workspace (same place as Technicians),
+  visible only to admins. Add a teammate's name, email, a password you choose, and a role
+  (`user` / `sales` / `management` / `admin`); it appears in the list immediately. There's no
+  invite email — you share the email/password with them directly.
+- Every login created this way also gets a matching `profiles` row in Postgres with the chosen
+  role, the same way bootstrap already did for the first admin — so their real permissions come
+  from the same roles/permissions system every other account uses, not a shortcut.
+- `packages/db/src/profiles.ts`'s `ensureLocalAdminProfile` is now a thin wrapper around a new,
+  role-parameterized `ensureLocalProfile`, reused for every role instead of just `admin`.
+
+### Needs you
+
+- Restart `npm run dev` to pick this up.
+- Same caveat as the rest of local auth: this list lives in the running server's memory, not the
+  database. **Restarting the backend clears every teammate login** (their `profiles` row in
+  Postgres stays, but the password does not) — if you restart, sign back in as admin and re-add
+  them.
+- Sign in as your existing admin account, open **Team logins**, and add one login per teammate
+  who needs to test. Give each one a distinct password and the role that matches what you want
+  them testing (e.g. `sales` to test scheduling, `admin` if they need full access).
+
+### Known follow-up (tracked, not started)
+
+- No way to edit, deactivate, or remove a teammate login from the UI or API yet — only add and
+  list. If someone's role needs to change or an account needs to be revoked, that's still a gap.
+- Item 2: staff-facing "create appointment from email/request" intake page.
+- An admin page (or reuse of one) to add/deactivate salesmen and sales channels — still API-only.

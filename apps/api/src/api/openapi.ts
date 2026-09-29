@@ -41,6 +41,14 @@ const requestBodies = {
       },
     },
   },
+  staffUser: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/StaffUserRequest' },
+      },
+    },
+  },
   publicComplaint: {
     required: true,
     content: {
@@ -314,6 +322,17 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             email: { type: 'string', format: 'email', maxLength: 320 },
             password: { type: 'string', minLength: 1, maxLength: 200 },
+          },
+        },
+        StaffUserRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['email', 'name', 'password', 'role'],
+          properties: {
+            email: { type: 'string', format: 'email', maxLength: 320 },
+            name: { type: 'string', minLength: 1, maxLength: 120 },
+            password: { type: 'string', minLength: 12, maxLength: 200 },
+            role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
           },
         },
         PublicComplaintRequest: {

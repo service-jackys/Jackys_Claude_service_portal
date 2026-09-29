@@ -430,6 +430,38 @@ For a direct API check, send one `POST` request to `/api/auth/bootstrap` with th
 
 The `bootstrapToken` must be at least 32 characters and must exactly match `.env`. The password must be at least 12 characters. A successful response is HTTP `201 Created` and contains a temporary bearer token for local API checks. When `DATABASE_URL` is configured and migrations have run, bootstrap also creates the matching local PostgreSQL administrator profile and role assignment.
 
+### Adding teammate logins (so your team can test)
+
+The bootstrap token above can only ever be used once per running server -- it creates exactly
+one administrator and is then permanently consumed until the backend restarts. It is **not** how
+you add more people; it only exists to create the very first account.
+
+Once you are signed in as that administrator, use the **Team logins** page (in the web UI's
+protected workspace sidebar) to add one login per teammate: their name, email, a password you
+choose (12+ characters), and a role (`user`, `sales`, `management`, or `admin`). Give each
+teammate their own email and password directly -- there's no invitation email, since this is a
+local-only auth provider.
+
+For a direct API check instead of the UI, send a `POST` request to `/api/auth/users` with your
+own admin bearer token:
+
+```json
+{
+  "email": "colleague@example.com",
+  "name": "Colleague Name",
+  "password": "a-private-password-at-least-12-characters",
+  "role": "sales"
+}
+```
+
+```text
+Authorization: Bearer <your admin token from bootstrap or login>
+```
+
+Like everything else in this local auth provider, teammate logins live only in the running
+server's memory -- restarting the backend clears them, and whoever created the first admin will
+need to bootstrap again and re-add teammates afterward.
+
 Do not use this local authentication provider in production. Production authentication is reserved for Supabase Auth and has not been wired yet. See `testing_guide.md`, Section 9, for the full setup, sign-in, Swagger, and troubleshooting flow.
 
 ## Run the verification checks

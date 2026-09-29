@@ -512,6 +512,42 @@
           <li>Admin page for adding/deactivating salesmen / sales channels (still API-only).</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#10 &mdash; Add teammate logins so your team can test</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: auth backend, staff portal frontend, README</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; new admin-only <code>POST /api/auth/users</code> and
+            <code>GET /api/auth/users</code> endpoints, and a new <strong>Team logins</strong>
+            page in the web UI, so an admin can add a login (name, email, password, role) for each
+            teammate instead of everyone sharing the one bootstrap admin account.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; every login created this way also gets a real
+            <code>profiles</code> row with the chosen role, same as the bootstrap admin already got,
+            so permissions come from the normal roles/permissions system.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Restarting the backend clears every teammate login (it's in-memory, like the rest of
+            local auth) &mdash; re-add them after a restart.
+          </li>
+          <li>Sign in as admin, open Team logins, add one login per teammate.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>No edit/deactivate/remove for a teammate login yet &mdash; add and list only.</li>
+          <li>Staff-facing appointment intake page (item 2).</li>
+          <li>Admin page for salesmen / sales channels (still API-only).</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

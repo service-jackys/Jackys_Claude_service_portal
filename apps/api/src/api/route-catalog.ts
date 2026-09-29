@@ -1,6 +1,9 @@
 import type { Express, RequestHandler } from 'express';
 import { createDbPool } from '../../../../packages/db/src/client.js';
-import { ensureLocalAdminProfile } from '../../../../packages/db/src/profiles.js';
+import {
+  ensureLocalAdminProfile,
+  ensureLocalProfile,
+} from '../../../../packages/db/src/profiles.js';
 import { problem } from './problem.js';
 import type { AuthUser, LocalAuth } from '../auth/local-auth.js';
 import { createApplicationAuth } from '../auth/application-auth.js';
@@ -44,6 +47,7 @@ export type RouteDefinition = {
   requestBody?:
     | 'bootstrap'
     | 'login'
+    | 'staffUser'
     | 'publicComplaint'
     | 'complaintNotes'
     | 'complaintStatus'
@@ -573,6 +577,64 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
           } catch (error) {
             next(error);
           }
+        },
+      ],
+    },
+    {
+      method: 'post',
+      path: '/api/auth/users',
+      operationId: 'createStaffUser',
+      tags: ['Authentication'],
+      summary:
+        'Add another local-auth user (admin only, so a teammate can test with their own login)',
+      security: 'bearerAuth',
+      requestBody: 'staffUser',
+      responses: [201, 400, 401, 403, 409, 501],
+      handlers: [
+        requirePermission('admin.users'),
+        async (request, response, next) => {
+          if (!localAuth) {
+            providerUnavailable(response);
+            return;
+          }
+          try {
+            const result = await localAuth.createUser(request.body);
+            if (result.kind === 'email-taken') {
+              problem(
+                response,
+                409,
+                'email-taken',
+                'Email already in use',
+                'A local user with that email already exists.',
+              );
+              return;
+            }
+            if (pool) {
+              await ensureLocalProfile(pool, result.user.email, result.user.name, result.user.role);
+            }
+            response.status(201).json({ user: result.user });
+          } catch (error) {
+            next(error);
+          }
+        },
+      ],
+    },
+    {
+      method: 'get',
+      path: '/api/auth/users',
+      operationId: 'listStaffUsers',
+      tags: ['Authentication'],
+      summary: 'List the local-auth users created for this running server (admin only)',
+      security: 'bearerAuth',
+      responses: [200, 401, 403, 501],
+      handlers: [
+        requirePermission('admin.users'),
+        (_request, response) => {
+          if (!localAuth) {
+            providerUnavailable(response);
+            return;
+          }
+          response.json({ users: localAuth.listUsers() });
         },
       ],
     },

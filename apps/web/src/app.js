@@ -412,6 +412,7 @@
     $('#dashboardNav').hidden = !hasPermission('dashboard.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
     $('#techniciansNav').hidden = !hasPermission('technicians.read');
+    $('#teamAccountsNav').hidden = !hasPermission('admin.users');
   }
 
   function showNoWorkspaceAccess() {
@@ -445,6 +446,7 @@
     if (mode === 'warranty-approvals' && !hasPermission('warranty_approval.read')) return;
     if (mode === 'dashboard' && !hasPermission('dashboard.read')) return;
     if (mode === 'technicians' && !hasPermission('technicians.read')) return;
+    if (mode === 'team-accounts' && !hasPermission('admin.users')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
@@ -454,6 +456,7 @@
     const warrantyApprovals = mode === 'warranty-approvals';
     const dashboard = mode === 'dashboard';
     const technicians = mode === 'technicians';
+    const teamAccounts = mode === 'team-accounts';
     const anyOtherPanel =
       serviceRequests ||
       appointments ||
@@ -462,7 +465,8 @@
       inspections ||
       warrantyApprovals ||
       dashboard ||
-      technicians;
+      technicians ||
+      teamAccounts;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
@@ -472,6 +476,7 @@
     $('#dashboardNav').setAttribute('aria-current', dashboard ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
     $('#techniciansNav').setAttribute('aria-current', technicians ? 'page' : 'false');
+    $('#teamAccountsNav').setAttribute('aria-current', teamAccounts ? 'page' : 'false');
     $('#complaintWorkspace').hidden =
       appointments ||
       jobCards ||
@@ -479,7 +484,8 @@
       inspections ||
       warrantyApprovals ||
       dashboard ||
-      technicians;
+      technicians ||
+      teamAccounts;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
@@ -487,6 +493,7 @@
     $('#warrantyApprovalWorkspace').hidden = !warrantyApprovals;
     $('#dashboardWorkspace').hidden = !dashboard;
     $('#technicianWorkspace').hidden = !technicians;
+    $('#teamAccountWorkspace').hidden = !teamAccounts;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
@@ -495,6 +502,7 @@
     $('#refreshWarrantyApprovalsButton').hidden = !warrantyApprovals;
     $('#refreshDashboardButton').hidden = !dashboard;
     $('#refreshTechniciansButton').hidden = !technicians;
+    $('#refreshTeamAccountsButton').hidden = !teamAccounts;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
       : jobCards
@@ -509,9 +517,11 @@
                 ? 'Dashboard'
                 : technicians
                   ? 'Technicians'
-                  : serviceRequests
-                    ? 'Service requests'
-                    : 'Complaint inbox';
+                  : teamAccounts
+                    ? 'Team logins'
+                    : serviceRequests
+                      ? 'Service requests'
+                      : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -526,9 +536,11 @@
                 ? 'Operational summary across complaints, appointments, job cards, and approvals.'
                 : technicians
                   ? "Manage the technician roster and each technician's daily appointment cap."
-                  : serviceRequests
-                    ? 'Review complaints that are ready to be scheduled.'
-                    : 'Review incoming service requests and open their history.';
+                  : teamAccounts
+                    ? 'Add teammate logins so they can test the portal with their own accounts.'
+                    : serviceRequests
+                      ? 'Review complaints that are ready to be scheduled.'
+                      : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -545,6 +557,8 @@
       loadDashboard();
     } else if (technicians) {
       loadTechnicians();
+    } else if (teamAccounts) {
+      loadTeamAccounts();
     } else {
       loadComplaints();
     }
@@ -2041,6 +2055,103 @@ ${bodyHtml}
   });
 
   $('#cancelTechnicianEditButton').addEventListener('click', resetTechnicianForm);
+
+  // ---- Team logins (modification.md #10) -- admin-only: add another
+  // local-auth login so a teammate can test with their own account instead
+  // of sharing the bootstrap admin's credentials. There's no edit/deactivate
+  // here yet (local-auth has no such endpoint) -- see modification.md's
+  // follow-up list. This list is only ever additive and lives in the
+  // server's memory, same as every other local-auth session.
+  function resetTeamAccountForm() {
+    $('#teamAccountForm').reset();
+    clearErrors($('#teamAccountForm'));
+    $('#teamAccountRole').value = 'sales';
+  }
+
+  function renderTeamAccounts(users) {
+    const body = $('#teamAccountsBody');
+    body.innerHTML = users
+      .map(
+        (user) =>
+          `<tr><td>${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(user.role)}</td></tr>`,
+      )
+      .join('');
+    $('#teamAccountsEmpty').hidden = users.length > 0;
+  }
+
+  async function loadTeamAccounts() {
+    if (!hasPermission('admin.users')) return;
+    clearWorkspaceRecovery();
+    $('#teamAccountsBody').innerHTML =
+      '<tr><td colspan="3" class="empty-state">Loading team logins…</td></tr>';
+    try {
+      const result = await apiRequest('/api/auth/users');
+      renderTeamAccounts(result.users || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to manage team logins.', loadTeamAccounts);
+      } else {
+        setWorkspaceRecovery(error.message, loadTeamAccounts);
+      }
+      $('#teamAccountsBody').innerHTML = '';
+      $('#teamAccountsEmpty').hidden = false;
+    }
+  }
+
+  $('#teamAccountForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const name = $('#teamAccountName').value.trim();
+    const email = $('#teamAccountEmail').value.trim();
+    const password = $('#teamAccountPassword').value;
+    const role = $('#teamAccountRole').value;
+    let valid = true;
+    if (!name) {
+      showFieldError(form, 'teamAccountName', "Enter the teammate's name.");
+      valid = false;
+    }
+    if (!email || !/^\S+@\S+\.\S+$/.test(email)) {
+      showFieldError(form, 'teamAccountEmail', 'Enter a valid email address.');
+      valid = false;
+    }
+    if (!password || password.length < 12) {
+      showFieldError(form, 'teamAccountPassword', 'Use a password with at least 12 characters.');
+      valid = false;
+    }
+    if (!valid) return;
+    const button = $('#saveTeamAccountButton');
+    setBusy(button, true, 'Adding…');
+    try {
+      await apiRequest('/api/auth/users', {
+        method: 'POST',
+        body: JSON.stringify({ name, email, password, role }),
+      });
+      setMessage(
+        '#workspaceMessage',
+        `Login added for ${name}. Share the email and password with them directly.`,
+        true,
+      );
+      resetTeamAccountForm();
+      await loadTeamAccounts();
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage team logins.');
+      } else if (error.status === 409) {
+        showFieldError(form, 'teamAccountEmail', 'A login with that email already exists.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  });
 
   function renderWarrantyApprovals(approvals) {
     const body = $('#warrantyApprovalsBody');
@@ -3880,6 +3991,7 @@ ${bodyHtml}
   $('#refreshWarrantyApprovalsButton').addEventListener('click', loadWarrantyApprovals);
   $('#refreshDashboardButton').addEventListener('click', loadDashboard);
   $('#refreshTechniciansButton').addEventListener('click', loadTechnicians);
+  $('#refreshTeamAccountsButton').addEventListener('click', loadTeamAccounts);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
   $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
@@ -3990,6 +4102,7 @@ ${bodyHtml}
   $('#inspectionsNav').addEventListener('click', () => setWorkspaceMode('inspections'));
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
   $('#techniciansNav').addEventListener('click', () => setWorkspaceMode('technicians'));
+  $('#teamAccountsNav').addEventListener('click', () => setWorkspaceMode('team-accounts'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
   });
