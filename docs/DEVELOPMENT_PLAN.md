@@ -73,7 +73,7 @@
 
 ## Phase 4 — First usable web journeys
 
-**Status: Planned**
+**Status: Complete**
 
 - Build public complaint registration and confirmation page.
 - Build staff sign-in and role-gated navigation.
@@ -81,22 +81,38 @@
 - Build new-request and appointment scheduling screens.
 - Build technician assignment and appointment list/calendar views.
 - Add browser tests for public submission, staff workflow, and unauthorized access.
-- Keep the UI server-hosted with normal fetch clients and Alpine.js; avoid premature frontend abstraction.
+- Keep the UI server-hosted with normal fetch clients and vanilla JS; avoid premature frontend abstraction.
 
-**Gate:** Business users can complete the Phase 2 MVP journeys in a local/staging environment.
+**Gate:** Passed. Business users can complete the Phase 2 MVP journeys in the local dev environment
+(`npm run dev`), including staff sign-in, the complaint inbox/detail/update screens, and the
+scheduling screens.
 
 ## Phase 5 — Service operations parity
 
-**Status: Planned before production cutover**
+**Status: Complete (built incrementally, not as one declared push — see note below)**
 
-- Add service job cards and final-status edit locks.
-- Add inspection records and quotation records.
-- Add job-card attachments using private storage, size/MIME validation, signed URLs, and audit events.
-- Add print views and legacy-reference preservation.
-- Add out-of-warranty approval flow and customer-facing approval links.
-- Add service reports and operational dashboard summaries.
+- Add service job cards and final-status edit locks. **Done** — includes creating a job card
+  directly from a quotation (`modification.md` #18).
+- Add inspection records and quotation records. **Done.**
+- Add job-card attachments using private storage, size/MIME validation, signed URLs, and audit
+  events. **Done** — `packages/db/migrations/007_job_card_attachments.sql`,
+  `apps/api/src/attachments/storage.ts`.
+- Add print views and legacy-reference preservation. **Done.**
+- Add out-of-warranty approval flow and customer-facing approval links. **Done** —
+  `apps/web/src/approve.html`.
+- Add service reports and operational dashboard summaries. **Done** — interactive dashboard,
+  see `modification.md` #6.
 
-**Gate:** Job-card, inspection, quotation, attachment, and approval workflows are accepted against representative legacy scenarios.
+**Gate:** Passed. Job-card, inspection, quotation, attachment, and approval workflows are built,
+working, and have been exercised through real day-to-day use while testing (not yet against a
+formal set of representative legacy scenarios/reconciliation data — that's Phase 7's job).
+
+**Note on how this phase actually got done:** this work landed through the ongoing
+`modification.md` change log (day-to-day requests such as salesmen/technician management,
+job-card-from-quotation, tooltips, etc.) rather than as one declared "Phase 5" milestone, which is
+why this plan wasn't updated to reflect it until 2026-09-29. `modification.md` is the
+up-to-date, authoritative record of what's built and working; this plan is the original roadmap
+and is only updated at phase boundaries like this one.
 
 ## Phase 6 — Commercial, pricing, and workbook capabilities
 

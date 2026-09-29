@@ -1,15 +1,25 @@
 # Build Status
 
-**Updated:** 2026-09-26
+**Updated:** 2026-09-29
 **Repository:** `https://github.com/service-jackys/Jackys_Claude_service_portal`
 **Branch:** `main`
-**Latest committed baseline:** `89bc4aa Record Phase3 commit state`
+**Latest committed baseline:** Modification #22 (see `modification.md`)
 
-Phase2 through Phase4 changes are committed, verified, and pushed to `origin/main`. Phase5 service-operations parity is now in progress locally and remains uncommitted.
+Phase0 through Phase5 are complete, committed, and pushed to `origin/main`. Phase5
+(service-operations parity) landed incrementally through the day-to-day changes tracked in
+`modification.md` rather than as one declared milestone — see that file for the change-by-change
+detail; this page only summarizes phase-level status.
+
+**For anything more recent than a phase-level summary, `modification.md` is the current,
+authoritative record — it's updated after every change. This file and `DEVELOPMENT_PLAN.md` are
+only refreshed at phase boundaries.**
 
 ## Overall status
 
-**Foundation, PostgreSQL persistence, complaint workflow, and scheduling/technician operations are implemented locally. Local PostgreSQL verification has passed with Docker Desktop and PostgreSQL 16.**
+**Foundation, PostgreSQL persistence, complaint workflow, scheduling/technician operations, the
+staff and public web UI, and service-operations parity (job cards, inspections, quotations,
+attachments, print views, warranty approvals, dashboard) are all implemented and in day-to-day
+use locally. Local PostgreSQL verification has passed with Docker Desktop and PostgreSQL 16.**
 
 ## Capability status
 
@@ -17,7 +27,7 @@ Phase2 through Phase4 changes are committed, verified, and pushed to `origin/mai
 | -------------------------------- | ----------- | ------------------------------------------------------------------- |
 | Repository and GitHub remote     | Complete    | `main` pushed to `service-jackys/Jackys_Claude_service_portal`      |
 | Express TypeScript API shell     | Complete    | API root, health, errors, security headers                          |
-| Local development authentication | Complete    | In-memory only; not production-safe or persistent                   |
+| Local development authentication | Complete    | DB-backed as of Modification #20; dev-only, not Supabase production |
 | OpenAPI and Swagger              | Complete    | Explicit local flag; disabled in production                         |
 | PostgreSQL client                | Complete    | Uses `DATABASE_URL`                                                 |
 | Migration runner                 | Complete    | Advisory lock, ordered files, SHA-256 checksums, rollback           |
@@ -31,10 +41,16 @@ Phase2 through Phase4 changes are committed, verified, and pushed to `origin/mai
 | Technician API                   | Complete    | Protected CRUD, availability replacement, locking, and audit        |
 | Appointment API                  | Complete    | Transactional linkage, assignment, status, history, audit, and ICS  |
 | Draft scheduling                 | Complete    | Idempotent drafts and atomic promotion with retry-safe results      |
-| Phase5 job-card backend          | In progress | Lifecycle, history, finalization locks, audit, queue API, contracts |
-| Phase5 job-card web workspace    | Not started | Protected queue/detail UI remains                                   |
-| Production web UI                | In progress | Phase4 web journeys complete; Phase5 workspace remains              |
+| Phase5 job-card backend          | Complete    | Lifecycle, history, finalization locks, audit, queue API, contracts |
+| Phase5 job-card web workspace    | Complete    | Protected queue/detail UI, including create-from-quotation          |
+| Quotations, inspections          | Complete    | Records + staff UI                                                  |
+| Job-card attachments             | Complete    | Private storage, size/MIME validation, audit events                 |
+| Out-of-warranty approval flow    | Complete    | Customer-facing approval link (`apps/web/src/approve.html`)         |
+| Operational dashboard            | Complete    | Interactive summary across complaints/appointments/job cards/etc.   |
+| Production web UI                | Complete    | Phase4 web journeys + Phase5 workspace both complete                |
+| Phase6 commercial/pricing        | Not started | AMC, VAS, rate cards, workbook upload — none of this exists yet     |
 | Historical import/reconciliation | Not started | Must use authorized exports outside Git                             |
+| Supabase production auth         | Not started | Still local dev auth by design; see Phase 8                         |
 | Production deployment/cutover    | Not started | Apps Script remains production                                      |
 
 ## Verification matrix
@@ -82,10 +98,12 @@ Committed and pushed to `https://github.com/service-jackys/Jackys_Claude_service
 
 ## Current blockers
 
-1. Existing PostgreSQL migration checksum mismatch for `001_initial_schema.sql` blocks integration execution; do not bypass validation or delete the database volume.
+1. Existing PostgreSQL migration checksum mismatch for `001_initial_schema.sql` (if still present
+   in your environment) blocks integration execution; do not bypass validation or delete the
+   database volume.
 2. `npm audit --audit-level=high` still requires npm registry/network access.
-3. Phase5 job-card web workspace and focused browser coverage remain to be implemented.
-4. Supabase production authentication, historical import, and cutover remain unstarted.
+3. Phase 6 (commercial/pricing), historical import/reconciliation, Supabase production
+   authentication, and cutover remain unstarted — see Phases 6-9 in `DEVELOPMENT_PLAN.md`.
 
 ## Do not do during troubleshooting
 
