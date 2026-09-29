@@ -31,6 +31,20 @@ export async function insertSalesChannel(
   return result.rows[0];
 }
 
+export async function updateSalesChannel(
+  client: PoolClient,
+  id: string,
+  input: { name: string; active?: boolean },
+): Promise<SalesChannelRecord | null> {
+  const result = await client.query<SalesChannelRecord>(
+    `UPDATE sales_channels
+     SET name = $2, active = COALESCE($3, active), updated_at = now()
+     WHERE id = $1 RETURNING ${columns}`,
+    [id, input.name, input.active ?? null],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function listSalesChannels(
   client: PoolClient,
   query: { active?: 'true' | 'false'; search?: string; page: number; pageSize: number },

@@ -31,6 +31,20 @@ export async function insertSalesman(
   return result.rows[0];
 }
 
+export async function updateSalesman(
+  client: PoolClient,
+  id: string,
+  input: { name: string; active?: boolean },
+): Promise<SalesmanRecord | null> {
+  const result = await client.query<SalesmanRecord>(
+    `UPDATE salesmen
+     SET name = $2, active = COALESCE($3, active), updated_at = now()
+     WHERE id = $1 RETURNING ${columns}`,
+    [id, input.name, input.active ?? null],
+  );
+  return result.rows[0] ?? null;
+}
+
 export async function listSalesmen(
   client: PoolClient,
   query: { active?: 'true' | 'false'; search?: string; page: number; pageSize: number },

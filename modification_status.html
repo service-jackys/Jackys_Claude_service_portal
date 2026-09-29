@@ -645,13 +645,52 @@
             list, closing the last UI gap from modification #8.
           </li>
           <li>
-            <strong>Not done</strong> &mdash; edit/deactivate for an entry; the API only supports
-            list + create for either list today.
+            <strong>Superseded</strong> &mdash; edit/deactivate for an entry was added right after,
+            in #15.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>Restart <code>npm run dev</code> and try adding a salesman and a sales channel.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#15 &mdash; Edit/deactivate for salesmen &amp; sales channels</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: API backend, staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; new <code>PATCH /api/salesmen/{id}</code> and
+            <code>PATCH /api/sales-channels/{id}</code> endpoints, gated on the same
+            <code>salesmen.write</code> / <code>sales_channels.write</code> permissions as create,
+            with an audit log entry for every change.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; each row on the Salesmen &amp; channels page now has an
+            editable name field with a Save button, and a Deactivate/Reactivate button, matching the
+            pattern already used on Team logins.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; a deactivated salesman/sales channel drops out of the
+            dropdowns on the Schedule form and job card while staying in this list so it can be
+            reactivated later.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Rename and then deactivate/reactivate a salesman and a sales channel; confirm a
+            deactivated one disappears from the Schedule form / job card dropdown and comes back
+            after reactivating.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None &mdash; this closes the last open item from the original request list.</li>
         </ul>
       </div>
     </main>

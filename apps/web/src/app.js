@@ -2422,18 +2422,23 @@ ${bodyHtml}
     }
   });
 
-  // ---- Salesmen / Sales channels (modification.md #14) -- small
-  // add-only admin lists that feed the Salesman/Sales Channel dropdowns on
-  // the Schedule form and job cards (see modification.md #8). No
-  // edit/deactivate yet -- the backend only exposes list+create for either
-  // list, so this mirrors that rather than promising more than it does.
-  function renderMasterDataRows(bodySelector, emptySelector, items) {
+  // ---- Salesmen / Sales channels (modification.md #14, edit/deactivate
+  // added in modification.md #15) -- small admin lists that feed the
+  // Salesman/Sales Channel dropdowns on the Schedule form and job cards
+  // (see modification.md #8).
+  function renderMasterDataRows(bodySelector, emptySelector, items, writePermission) {
     const body = $(bodySelector);
+    const canWrite = hasPermission(writePermission);
     body.innerHTML = items
-      .map(
-        (item) =>
-          `<tr><td>${escapeHtml(item.name)}</td><td>${item.active ? 'Active' : 'Inactive'}</td></tr>`,
-      )
+      .map((item) => {
+        const nameCell = canWrite
+          ? `<input type="text" class="master-data-name-input" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.name)}" maxlength="200" />`
+          : escapeHtml(item.name);
+        const actionsCell = canWrite
+          ? `<button class="button-link" type="button" data-save-id="${escapeHtml(item.id)}">Save</button> <button class="button-link" type="button" data-toggle-id="${escapeHtml(item.id)}">${item.active ? 'Deactivate' : 'Reactivate'}</button>`
+          : '';
+        return `<tr data-id="${escapeHtml(item.id)}"><td>${nameCell}</td><td>${item.active ? 'Active' : 'Inactive'}</td><td>${actionsCell}</td></tr>`;
+      })
       .join('');
     $(emptySelector).hidden = items.length > 0;
   }
@@ -2442,10 +2447,15 @@ ${bodyHtml}
     if (!hasPermission('salesmen.read')) return;
     clearWorkspaceRecovery();
     $('#salesmenBody').innerHTML =
-      '<tr><td colspan="2" class="empty-state">Loading salesmen…</td></tr>';
+      '<tr><td colspan="3" class="empty-state">Loading salesmen…</td></tr>';
     try {
       const result = await apiRequest('/api/salesmen?page=1&pageSize=200');
-      renderMasterDataRows('#salesmenBody', '#salesmenEmpty', result.salesmen || []);
+      renderMasterDataRows(
+        '#salesmenBody',
+        '#salesmenEmpty',
+        result.salesmen || [],
+        'salesmen.write',
+      );
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -2464,10 +2474,15 @@ ${bodyHtml}
     if (!hasPermission('sales_channels.read')) return;
     clearWorkspaceRecovery();
     $('#salesChannelsBody').innerHTML =
-      '<tr><td colspan="2" class="empty-state">Loading sales channels…</td></tr>';
+      '<tr><td colspan="3" class="empty-state">Loading sales channels…</td></tr>';
     try {
       const result = await apiRequest('/api/sales-channels?page=1&pageSize=200');
-      renderMasterDataRows('#salesChannelsBody', '#salesChannelsEmpty', result.salesChannels || []);
+      renderMasterDataRows(
+        '#salesChannelsBody',
+        '#salesChannelsEmpty',
+        result.salesChannels || [],
+        'sales_channels.write',
+      );
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -2481,6 +2496,98 @@ ${bodyHtml}
       $('#salesChannelsEmpty').hidden = false;
     }
   }
+
+  async function updateSalesman(id, payload) {
+    try {
+      await apiRequest('/api/salesmen/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      await loadSalesmen();
+      setMessage('#workspaceMessage', 'Salesman updated.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage salesmen.');
+      } else if (error.status === 404) {
+        setMessage('#workspaceMessage', 'That salesman was not found.');
+        await loadSalesmen();
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
+  }
+
+  async function updateSalesChannel(id, payload) {
+    try {
+      await apiRequest('/api/sales-channels/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      await loadSalesChannels();
+      setMessage('#workspaceMessage', 'Sales channel updated.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage sales channels.');
+      } else if (error.status === 404) {
+        setMessage('#workspaceMessage', 'That sales channel was not found.');
+        await loadSalesChannels();
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
+  }
+
+  $('#salesmenBody').addEventListener('click', (event) => {
+    const saveButton = event.target.closest('button[data-save-id]');
+    if (saveButton) {
+      const id = saveButton.dataset.saveId;
+      const input = $(`input.master-data-name-input[data-id="${id}"]`);
+      const name = input ? input.value.trim() : '';
+      if (!name) {
+        setMessage('#workspaceMessage', "Enter the salesman's name.");
+        return;
+      }
+      updateSalesman(id, { name });
+      return;
+    }
+    const toggleButton = event.target.closest('button[data-toggle-id]');
+    if (toggleButton) {
+      const id = toggleButton.dataset.toggleId;
+      const input = $(`input.master-data-name-input[data-id="${id}"]`);
+      const name = input ? input.value.trim() : '';
+      const activatingNow = toggleButton.textContent.trim() === 'Reactivate';
+      updateSalesman(id, { name, active: activatingNow });
+    }
+  });
+
+  $('#salesChannelsBody').addEventListener('click', (event) => {
+    const saveButton = event.target.closest('button[data-save-id]');
+    if (saveButton) {
+      const id = saveButton.dataset.saveId;
+      const input = $(`input.master-data-name-input[data-id="${id}"]`);
+      const name = input ? input.value.trim() : '';
+      if (!name) {
+        setMessage('#workspaceMessage', 'Enter the sales channel name.');
+        return;
+      }
+      updateSalesChannel(id, { name });
+      return;
+    }
+    const toggleButton = event.target.closest('button[data-toggle-id]');
+    if (toggleButton) {
+      const id = toggleButton.dataset.toggleId;
+      const input = $(`input.master-data-name-input[data-id="${id}"]`);
+      const name = input ? input.value.trim() : '';
+      const activatingNow = toggleButton.textContent.trim() === 'Reactivate';
+      updateSalesChannel(id, { name, active: activatingNow });
+    }
+  });
 
   $('#salesmanForm').addEventListener('submit', async (event) => {
     event.preventDefault();

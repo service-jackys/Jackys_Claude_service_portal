@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import type { ApplicationAuth } from '../auth/application-auth.js';
-import type { SalesChannelService } from './service.js';
+import { problem } from '../api/problem.js';
+import { SalesChannelServiceError, type SalesChannelService } from './service.js';
 
 export function createSalesChannelHandlers(
   service: SalesChannelService,
@@ -41,6 +42,27 @@ export function createSalesChannelHandlers(
             ),
           });
         } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    update: [
+      requirePermission('sales_channels.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const salesChannel = await service.update(
+            String(request.params.id),
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.json({ salesChannel });
+        } catch (error) {
+          if (error instanceof SalesChannelServiceError) {
+            problem(response, 404, 'not-found', 'Not Found', error.message);
+            return;
+          }
           next(error);
         }
       },

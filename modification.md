@@ -698,18 +698,49 @@ dropdowns -- only the API (`POST /api/salesmen` / `POST /api/sales-channels`).
 - New **Salesmen & channels** page in the staff portal (admin-only, gated on `salesmen.write` --
   the same permission gate the backend already uses for writing either list). Two small
   sections, each with a table of existing entries and a one-field "Add" form.
-- This only covers what the backend already exposes -- list and create. There's still no
-  edit/deactivate for a salesman or sales channel entry (the API doesn't have that endpoint
-  either), so double-check spelling before adding one.
+- This only covered what the backend exposed at the time -- list and create. Edit/deactivate was
+  added right after in modification #15.
 
 ### Needs you
 
 - Restart `npm run dev` and try adding a salesman and a sales channel from the new page; confirm
   they show up in the Schedule form's Salesman dropdown and the job card's Sales channel dropdown.
 
-### Known follow-up (tracked, not started)
+### Known follow-up
 
-- Edit/deactivate for a salesman or sales channel entry (both DB and API would need a new update
-  endpoint first).
-- Item 2 is done (#12); the remaining open item from the very first request list is now just this
-  edit/deactivate gap, here and on Team logins.
+- Edit/deactivate for a salesman or sales channel entry -- done in modification #15.
+
+## Modification #15 — Edit/deactivate for salesmen & sales channels
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test.
+
+### What changed
+
+Closes the follow-up gap from modification #14: the Salesmen & channels page could only add and
+list entries. It can now edit and deactivate/reactivate them too, the same way Team logins
+already works.
+
+- **Backend:** `PATCH /api/salesmen/{id}` and `PATCH /api/sales-channels/{id}` -- update a name
+  and/or toggle `active`, gated on the same `salesmen.write` / `sales_channels.write` permissions
+  the create endpoints already use. A rename or deactivate is recorded in the audit log
+  (`salesman.updated` / `sales_channel.updated`), same as every other change in this app.
+- **Frontend:** each row in both the Salesmen and Sales channels tables now has an editable name
+  field, a **Save** button, and a **Deactivate**/**Reactivate** button. A deactivated entry stays
+  in the list (marked Inactive) rather than disappearing, so it can be brought back later; it also
+  drops out of the Salesman/Sales channel dropdowns on the Schedule form and job cards while
+  inactive, the same way an inactive technician already does.
+- Updated the README's "Managing salesmen and sales channels" section to describe the new edit
+  and deactivate controls instead of saying they don't exist yet.
+
+### Needs you
+
+- Restart `npm run dev`.
+- On the **Salesmen & channels** page, try renaming a salesman or sales channel and clicking
+  Save, then try Deactivate followed by Reactivate on each list.
+- Confirm a deactivated salesman/sales channel drops out of the dropdown on the Schedule form and
+  job card, and that reactivating it brings it back.
+
+### Known follow-up
+
+- None -- this closes the last open item from the original request list.

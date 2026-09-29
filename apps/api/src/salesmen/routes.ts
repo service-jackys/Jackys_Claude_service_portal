@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import type { ApplicationAuth } from '../auth/application-auth.js';
-import type { SalesmanService } from './service.js';
+import { problem } from '../api/problem.js';
+import { SalesmanServiceError, type SalesmanService } from './service.js';
 
 export function createSalesmanHandlers(
   service: SalesmanService,
@@ -41,6 +42,27 @@ export function createSalesmanHandlers(
             ),
           });
         } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    update: [
+      requirePermission('salesmen.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const salesman = await service.update(
+            String(request.params.id),
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.json({ salesman });
+        } catch (error) {
+          if (error instanceof SalesmanServiceError) {
+            problem(response, 404, 'not-found', 'Not Found', error.message);
+            return;
+          }
           next(error);
         }
       },

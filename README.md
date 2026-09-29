@@ -483,9 +483,10 @@ Complaint inbox and can be scheduled, notated, and turned into a job card exactl
 ## Managing salesmen and sales channels
 
 Admins can manage the Salesman and Sales Channel dropdowns (used on the Schedule appointment form
-and job cards) from **Salesmen & channels** in the sidebar -- a simple table plus a one-field
-"Add" form for each list. There's no edit or deactivate for an entry yet, only add and list, so
-double-check the spelling before adding one.
+and job cards) from **Salesmen & channels** in the sidebar. Each list has an "Add" form, and each
+row in the table lets you edit the name (type into the box and click Save) or click
+Deactivate/Reactivate to hide an entry from the dropdowns without deleting it -- a deactivated
+entry stays visible here so you can bring it back later.
 
 ## Run the verification checks
 

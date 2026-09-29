@@ -247,6 +247,10 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const salesChannelHandlers = pool
     ? createSalesChannelHandlers(createSalesChannelService(pool), requirePermission)
@@ -256,6 +260,10 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        update: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1038,6 +1046,18 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         handlers: salesmanHandlers.create,
       },
       {
+        method: 'patch' as const,
+        path: '/api/salesmen/{id}',
+        operationId: 'updateSalesman',
+        tags: ['Master data'],
+        summary: 'Update a salesman on the master list',
+        security: 'bearerAuth' as const,
+        requestBody: 'salesman' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: salesmanHandlers.update,
+      },
+      {
         method: 'get' as const,
         path: '/api/sales-channels',
         operationId: 'listSalesChannels',
@@ -1061,6 +1081,18 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         requestBody: 'salesChannel' as const,
         responses: [201, 400, 401, 403, 500],
         handlers: salesChannelHandlers.create,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/sales-channels/{id}',
+        operationId: 'updateSalesChannel',
+        tags: ['Master data'],
+        summary: 'Update a sales channel on the master list (super admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'salesChannel' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: salesChannelHandlers.update,
       },
       {
         method: 'get' as const,
