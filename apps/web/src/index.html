@@ -422,21 +422,73 @@
         color: var(--red);
         font-size: 0.78rem;
       }
-      /* A small hover/focus tooltip for field-level guidance that shouldn't
+      /* A hover/focus bubble tooltip for field-level guidance that shouldn't
          sit as permanently-visible text under the input (e.g. "at least 12
-         characters") -- see modification.md #11. Native `title` attribute
-         drives the tooltip; this just styles the trigger glyph. */
-      .field-tip {
-        display: inline-block;
-        margin-left: 0.35rem;
-        color: var(--muted);
-        font-size: 0.82rem;
-        cursor: help;
-        border-bottom: 1px dotted var(--muted);
+         characters") -- see modification.md #11. Ported from the public
+         complaint form (apps/web/src/assets/landing/brand.css), which this
+         page doesn't otherwise load, so the same tooltip look is used
+         everywhere in the app rather than two different patterns. */
+      .tooltip {
+        position: relative;
+        display: inline-flex;
+        vertical-align: middle;
+        margin-left: 0.3rem;
+        outline: none;
       }
-      .field-tip:hover,
-      .field-tip:focus-visible {
-        color: var(--ink);
+      .tooltip-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.05rem;
+        height: 1.05rem;
+        border-radius: 50%;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.68rem;
+        font-style: normal;
+        font-weight: 700;
+        font-family: Georgia, 'Times New Roman', serif;
+        cursor: help;
+        user-select: none;
+      }
+      .tooltip-bubble {
+        position: absolute;
+        z-index: 20;
+        left: 50%;
+        bottom: calc(100% + 0.5rem);
+        transform: translateX(-50%) translateY(4px);
+        width: max-content;
+        max-width: 260px;
+        background: var(--navy-deep);
+        color: #eaf1ff;
+        font-size: 0.78rem;
+        font-weight: 400;
+        line-height: 1.35;
+        padding: 0.55rem 0.75rem;
+        border-radius: 8px;
+        box-shadow: 0 8px 20px rgb(11 31 58 / 28%);
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        transition:
+          opacity 0.15s ease,
+          transform 0.15s ease;
+      }
+      .tooltip-bubble::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+        border: 6px solid transparent;
+        border-top-color: var(--navy-deep);
+      }
+      .tooltip:hover .tooltip-bubble,
+      .tooltip:focus .tooltip-bubble,
+      .tooltip:focus-within .tooltip-bubble {
+        opacity: 1;
+        visibility: visible;
+        transform: translateX(-50%) translateY(0);
       }
       .form-footer {
         display: flex;
@@ -3024,13 +3076,12 @@
                       <div class="field">
                         <label for="teamAccountPassword"
                           >Password
-                          <span
-                            class="field-tip"
-                            tabindex="0"
-                            title="At least 12 characters. Share it with them directly."
-                            aria-label="At least 12 characters. Share it with them directly."
-                            >ⓘ</span
-                          ></label
+                          <span class="tooltip" tabindex="0">
+                            <span class="tooltip-icon" aria-hidden="true">i</span>
+                            <span class="tooltip-bubble" role="tooltip"
+                              >At least 12 characters. Share it with them directly.</span
+                            >
+                          </span></label
                         >
                         <input
                           type="text"
