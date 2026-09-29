@@ -654,3 +654,62 @@ form.
 - An admin page (or reuse of one) to add/deactivate salesmen and sales channels -- still
   API-only.
 - No edit/deactivate/remove for a teammate login yet -- add and list only (modification.md #10).
+
+## Modification #13 — Edit and deactivate teammate logins
+
+- **Date:** 2026-09-29
+- **Status:** Complete.
+
+### What changed
+
+Modification #10 only let an admin add and list teammate logins. You flagged that not being able
+to edit or turn one off was a real gap, so:
+
+- New `PATCH /api/auth/users/{id}` (admin-only, `admin.users`), letting an admin change a
+  teammate's role and/or turn their login on or off. You can't modify your own account through
+  this endpoint (a 409 if you try) -- that's a guardrail against accidentally locking yourself
+  out.
+- Deactivating someone takes effect everywhere immediately: their bearer token stops working (the
+  local-auth session layer now checks `active`, on top of the existing database profile check),
+  and they can't log back in while deactivated.
+- Their real Postgres `profiles` row is updated too (active flag and/or role), the same record
+  every other permission check reads from -- not just an in-memory flag.
+- The **Team logins** table now shows each teammate's current status (Active/Inactive), a role
+  dropdown with a **Save role** button, and a **Deactivate**/**Reactivate** button per row. Your
+  own row shows "(you)" instead of these controls.
+
+### Needs you
+
+- Restart `npm run dev`.
+- Try changing a teammate's role and deactivating/reactivating a login; confirm a deactivated
+  teammate can no longer sign in or use their existing session.
+
+## Modification #14 — Salesmen & Sales channels admin page
+
+- **Date:** 2026-09-29
+- **Status:** Complete for what the backend already supports (add + list only).
+
+### What changed
+
+Closes the last "known follow-up" item carried since modification #8: there was no UI for
+managing the Salesman and Sales Channel master lists that feed the Schedule form and job card
+dropdowns -- only the API (`POST /api/salesmen` / `POST /api/sales-channels`).
+
+- New **Salesmen & channels** page in the staff portal (admin-only, gated on `salesmen.write` --
+  the same permission gate the backend already uses for writing either list). Two small
+  sections, each with a table of existing entries and a one-field "Add" form.
+- This only covers what the backend already exposes -- list and create. There's still no
+  edit/deactivate for a salesman or sales channel entry (the API doesn't have that endpoint
+  either), so double-check spelling before adding one.
+
+### Needs you
+
+- Restart `npm run dev` and try adding a salesman and a sales channel from the new page; confirm
+  they show up in the Schedule form's Salesman dropdown and the job card's Sales channel dropdown.
+
+### Known follow-up (tracked, not started)
+
+- Edit/deactivate for a salesman or sales channel entry (both DB and API would need a new update
+  endpoint first).
+- Item 2 is done (#12); the remaining open item from the very first request list is now just this
+  edit/deactivate gap, here and on Team logins.

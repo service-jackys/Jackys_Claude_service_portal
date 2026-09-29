@@ -414,6 +414,7 @@
     $('#techniciansNav').hidden = !hasPermission('technicians.read');
     $('#teamAccountsNav').hidden = !hasPermission('admin.users');
     $('#newRequestNav').hidden = !hasPermission('complaints.write');
+    $('#masterDataNav').hidden = !hasPermission('salesmen.write');
   }
 
   function showNoWorkspaceAccess() {
@@ -449,6 +450,7 @@
     if (mode === 'technicians' && !hasPermission('technicians.read')) return;
     if (mode === 'team-accounts' && !hasPermission('admin.users')) return;
     if (mode === 'new-request' && !hasPermission('complaints.write')) return;
+    if (mode === 'master-data' && !hasPermission('salesmen.write')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
@@ -460,6 +462,7 @@
     const technicians = mode === 'technicians';
     const teamAccounts = mode === 'team-accounts';
     const newRequest = mode === 'new-request';
+    const masterData = mode === 'master-data';
     const anyOtherPanel =
       serviceRequests ||
       appointments ||
@@ -470,7 +473,8 @@
       dashboard ||
       technicians ||
       teamAccounts ||
-      newRequest;
+      newRequest ||
+      masterData;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
@@ -482,6 +486,7 @@
     $('#techniciansNav').setAttribute('aria-current', technicians ? 'page' : 'false');
     $('#teamAccountsNav').setAttribute('aria-current', teamAccounts ? 'page' : 'false');
     $('#newRequestNav').setAttribute('aria-current', newRequest ? 'page' : 'false');
+    $('#masterDataNav').setAttribute('aria-current', masterData ? 'page' : 'false');
     $('#complaintWorkspace').hidden =
       appointments ||
       jobCards ||
@@ -491,7 +496,8 @@
       dashboard ||
       technicians ||
       teamAccounts ||
-      newRequest;
+      newRequest ||
+      masterData;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
@@ -501,6 +507,7 @@
     $('#technicianWorkspace').hidden = !technicians;
     $('#teamAccountWorkspace').hidden = !teamAccounts;
     $('#newComplaintWorkspace').hidden = !newRequest;
+    $('#masterDataWorkspace').hidden = !masterData;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
@@ -528,9 +535,11 @@
                     ? 'Team logins'
                     : newRequest
                       ? 'New request'
-                      : serviceRequests
-                        ? 'Service requests'
-                        : 'Complaint inbox';
+                      : masterData
+                        ? 'Salesmen & channels'
+                        : serviceRequests
+                          ? 'Service requests'
+                          : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -549,9 +558,11 @@
                     ? 'Add teammate logins so they can test the portal with their own accounts.'
                     : newRequest
                       ? 'Register a service request for a customer who called or emailed in.'
-                      : serviceRequests
-                        ? 'Review complaints that are ready to be scheduled.'
-                        : 'Review incoming service requests and open their history.';
+                      : masterData
+                        ? 'Manage the Salesman and Sales Channel dropdowns.'
+                        : serviceRequests
+                          ? 'Review complaints that are ready to be scheduled.'
+                          : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -572,6 +583,9 @@
       loadTeamAccounts();
     } else if (newRequest) {
       resetNewComplaintForm();
+    } else if (masterData) {
+      loadSalesmen();
+      loadSalesChannels();
     } else {
       loadComplaints();
     }
@@ -2081,13 +2095,25 @@ ${bodyHtml}
     $('#teamAccountRole').value = 'sales';
   }
 
+  const teamAccountRoleOptions = ['user', 'sales', 'management', 'admin'];
+
   function renderTeamAccounts(users) {
     const body = $('#teamAccountsBody');
     body.innerHTML = users
-      .map(
-        (user) =>
-          `<tr><td>${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td>${escapeHtml(user.role)}</td></tr>`,
-      )
+      .map((user) => {
+        const isSelf = user.id === currentUser?.id;
+        const roleOptions = teamAccountRoleOptions
+          .map(
+            (role) =>
+              `<option value="${role}" ${role === user.role ? 'selected' : ''}>${escapeHtml(role)}</option>`,
+          )
+          .join('');
+        return `<tr data-user-id="${escapeHtml(user.id)}"><td>${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td><select class="team-account-role-select" data-user-id="${escapeHtml(user.id)}" ${isSelf ? 'disabled' : ''}>${roleOptions}</select></td><td>${user.active ? 'Active' : 'Inactive'}</td><td>${
+          isSelf
+            ? '<span class="form-note-inline">(you)</span>'
+            : `<button class="button-link" type="button" data-save-role="${escapeHtml(user.id)}">Save role</button> <button class="button-link" type="button" data-toggle-active="${escapeHtml(user.id)}">${user.active ? 'Deactivate' : 'Reactivate'}</button>`
+        }</td></tr>`;
+      })
       .join('');
     $('#teamAccountsEmpty').hidden = users.length > 0;
   }
@@ -2096,7 +2122,7 @@ ${bodyHtml}
     if (!hasPermission('admin.users')) return;
     clearWorkspaceRecovery();
     $('#teamAccountsBody').innerHTML =
-      '<tr><td colspan="3" class="empty-state">Loading team logins…</td></tr>';
+      '<tr><td colspan="5" class="empty-state">Loading team logins…</td></tr>';
     try {
       const result = await apiRequest('/api/auth/users');
       renderTeamAccounts(result.users || []);
@@ -2113,6 +2139,44 @@ ${bodyHtml}
       $('#teamAccountsEmpty').hidden = false;
     }
   }
+
+  async function updateTeamAccount(userId, payload) {
+    try {
+      await apiRequest('/api/auth/users/' + encodeURIComponent(userId), {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      await loadTeamAccounts();
+      setMessage('#workspaceMessage', 'Team login updated.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage team logins.');
+      } else if (error.status === 409) {
+        setMessage('#workspaceMessage', 'You cannot change your own role or active status here.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
+  }
+
+  $('#teamAccountsBody').addEventListener('click', (event) => {
+    const saveRoleButton = event.target.closest('button[data-save-role]');
+    if (saveRoleButton) {
+      const userId = saveRoleButton.dataset.saveRole;
+      const select = $(`select.team-account-role-select[data-user-id="${userId}"]`);
+      if (select) updateTeamAccount(userId, { role: select.value });
+      return;
+    }
+    const toggleButton = event.target.closest('button[data-toggle-active]');
+    if (toggleButton) {
+      const userId = toggleButton.dataset.toggleActive;
+      const activatingNow = toggleButton.textContent.trim() === 'Reactivate';
+      updateTeamAccount(userId, { active: activatingNow });
+    }
+  });
 
   $('#teamAccountForm').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -2355,6 +2419,126 @@ ${bodyHtml}
     if (reference && reference !== 'Reference created') {
       $('#complaintSearch').value = reference;
       loadComplaints();
+    }
+  });
+
+  // ---- Salesmen / Sales channels (modification.md #14) -- small
+  // add-only admin lists that feed the Salesman/Sales Channel dropdowns on
+  // the Schedule form and job cards (see modification.md #8). No
+  // edit/deactivate yet -- the backend only exposes list+create for either
+  // list, so this mirrors that rather than promising more than it does.
+  function renderMasterDataRows(bodySelector, emptySelector, items) {
+    const body = $(bodySelector);
+    body.innerHTML = items
+      .map(
+        (item) =>
+          `<tr><td>${escapeHtml(item.name)}</td><td>${item.active ? 'Active' : 'Inactive'}</td></tr>`,
+      )
+      .join('');
+    $(emptySelector).hidden = items.length > 0;
+  }
+
+  async function loadSalesmen() {
+    if (!hasPermission('salesmen.read')) return;
+    clearWorkspaceRecovery();
+    $('#salesmenBody').innerHTML =
+      '<tr><td colspan="2" class="empty-state">Loading salesmen…</td></tr>';
+    try {
+      const result = await apiRequest('/api/salesmen?page=1&pageSize=200');
+      renderMasterDataRows('#salesmenBody', '#salesmenEmpty', result.salesmen || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view salesmen.', loadSalesmen);
+      } else {
+        setWorkspaceRecovery(error.message, loadSalesmen);
+      }
+      $('#salesmenBody').innerHTML = '';
+      $('#salesmenEmpty').hidden = false;
+    }
+  }
+
+  async function loadSalesChannels() {
+    if (!hasPermission('sales_channels.read')) return;
+    clearWorkspaceRecovery();
+    $('#salesChannelsBody').innerHTML =
+      '<tr><td colspan="2" class="empty-state">Loading sales channels…</td></tr>';
+    try {
+      const result = await apiRequest('/api/sales-channels?page=1&pageSize=200');
+      renderMasterDataRows('#salesChannelsBody', '#salesChannelsEmpty', result.salesChannels || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view sales channels.', loadSalesChannels);
+      } else {
+        setWorkspaceRecovery(error.message, loadSalesChannels);
+      }
+      $('#salesChannelsBody').innerHTML = '';
+      $('#salesChannelsEmpty').hidden = false;
+    }
+  }
+
+  $('#salesmanForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const name = $('#salesmanName').value.trim();
+    if (!name) {
+      showFieldError(form, 'salesmanName', "Enter the salesman's name.");
+      return;
+    }
+    const button = $('#saveSalesmanButton');
+    setBusy(button, true, 'Adding…');
+    try {
+      await apiRequest('/api/salesmen', { method: 'POST', body: JSON.stringify({ name }) });
+      $('#salesmanName').value = '';
+      setMessage('#workspaceMessage', 'Salesman added.', true);
+      await loadSalesmen();
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage salesmen.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  $('#salesChannelForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const name = $('#salesChannelName').value.trim();
+    if (!name) {
+      showFieldError(form, 'salesChannelName', 'Enter the sales channel name.');
+      return;
+    }
+    const button = $('#saveSalesChannelButton');
+    setBusy(button, true, 'Adding…');
+    try {
+      await apiRequest('/api/sales-channels', { method: 'POST', body: JSON.stringify({ name }) });
+      $('#salesChannelName').value = '';
+      setMessage('#workspaceMessage', 'Sales channel added.', true);
+      await loadSalesChannels();
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#workspaceMessage', 'You are not authorized to manage sales channels.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
     }
   });
 
@@ -4309,6 +4493,7 @@ ${bodyHtml}
   $('#techniciansNav').addEventListener('click', () => setWorkspaceMode('technicians'));
   $('#teamAccountsNav').addEventListener('click', () => setWorkspaceMode('team-accounts'));
   $('#newRequestNav').addEventListener('click', () => setWorkspaceMode('new-request'));
+  $('#masterDataNav').addEventListener('click', () => setWorkspaceMode('master-data'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
   });

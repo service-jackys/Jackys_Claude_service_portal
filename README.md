@@ -462,6 +462,10 @@ Like everything else in this local auth provider, teammate logins live only in t
 server's memory -- restarting the backend clears them, and whoever created the first admin will
 need to bootstrap again and re-add teammates afterward.
 
+From the same **Team logins** page you can also change a teammate's role or turn their login off
+(a **Deactivate**/**Reactivate** button per row) -- you can't do this to your own account, to
+avoid locking yourself out.
+
 Do not use this local authentication provider in production. Production authentication is reserved for Supabase Auth and has not been wired yet. See `testing_guide.md`, Section 9, for the full setup, sign-in, Swagger, and troubleshooting flow.
 
 ## Registering a service request as staff
@@ -475,6 +479,13 @@ sales order no. together.
 
 Submitting creates the same kind of complaint the public form creates -- it appears in the
 Complaint inbox and can be scheduled, notated, and turned into a job card exactly the same way.
+
+## Managing salesmen and sales channels
+
+Admins can manage the Salesman and Sales Channel dropdowns (used on the Schedule appointment form
+and job cards) from **Salesmen & channels** in the sidebar -- a simple table plus a one-field
+"Add" form for each list. There's no edit or deactivate for an entry yet, only add and list, so
+double-check the spelling before adding one.
 
 ## Run the verification checks
 

@@ -3,10 +3,11 @@ import { createDbPool } from '../../../../packages/db/src/client.js';
 import {
   ensureLocalAdminProfile,
   ensureLocalProfile,
+  updateProfileAccessByEmail,
 } from '../../../../packages/db/src/profiles.js';
 import { problem } from './problem.js';
 import type { AuthUser, LocalAuth } from '../auth/local-auth.js';
-import { createApplicationAuth } from '../auth/application-auth.js';
+import { createApplicationAuth, type ApplicationAuth } from '../auth/application-auth.js';
 import { createComplaintHandlers } from '../complaints/routes.js';
 import { createComplaintService } from '../complaints/service.js';
 import { createLocalComplaintRateLimiter } from '../complaints/rate-limit.js';
@@ -48,6 +49,7 @@ export type RouteDefinition = {
     | 'bootstrap'
     | 'login'
     | 'staffUser'
+    | 'updateStaffUser'
     | 'publicComplaint'
     | 'complaintNotes'
     | 'complaintStatus'
@@ -640,6 +642,62 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             return;
           }
           response.json({ users: localAuth.listUsers() });
+        },
+      ],
+    },
+    {
+      method: 'patch',
+      path: '/api/auth/users/{id}',
+      operationId: 'updateStaffUser',
+      tags: ['Authentication'],
+      summary:
+        "Change a teammate's role and/or turn their login on or off (admin only, see modification.md #13)",
+      security: 'bearerAuth',
+      requestBody: 'updateStaffUser',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: [200, 400, 401, 403, 404, 409, 501],
+      handlers: [
+        requirePermission('admin.users'),
+        async (request, response, next) => {
+          if (!localAuth) {
+            providerUnavailable(response);
+            return;
+          }
+          const auth = response.locals.auth as ApplicationAuth;
+          const targetId = String(request.params.id);
+          if (targetId === auth.subject) {
+            problem(
+              response,
+              409,
+              'cannot-modify-self',
+              'Conflict',
+              'You cannot change your own role or active status here.',
+            );
+            return;
+          }
+          try {
+            const result = localAuth.updateUser(targetId, request.body);
+            if (result.kind === 'not-found') {
+              problem(
+                response,
+                404,
+                'not-found',
+                'Not Found',
+                'That teammate login was not found.',
+              );
+              return;
+            }
+            if (pool) {
+              const parsedBody = request.body as { role?: string; active?: boolean };
+              await updateProfileAccessByEmail(pool, result.user.email, {
+                active: parsedBody.active,
+                roleCode: parsedBody.role,
+              });
+            }
+            response.json({ user: result.user });
+          } catch (error) {
+            next(error);
+          }
         },
       ],
     },

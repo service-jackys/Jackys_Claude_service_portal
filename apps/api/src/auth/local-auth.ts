@@ -15,6 +15,7 @@ export type AuthUser = {
   name: string;
   role: LocalRole;
   permissions: readonly string[];
+  active: boolean;
 };
 
 type LocalUser = AuthUser & {
@@ -63,6 +64,19 @@ export const createUserSchema = z
     role: z.enum(localRoles),
   })
   .strict();
+
+// A Team-logins edit (see modification.md #13) -- change a teammate's role
+// and/or turn their login on or off. At least one of the two, so an empty
+// PATCH isn't silently a no-op that still returns 200.
+export const updateUserSchema = z
+  .object({
+    role: z.enum(localRoles).optional(),
+    active: z.boolean().optional(),
+  })
+  .strict()
+  .refine((value) => value.role !== undefined || value.active !== undefined, {
+    message: 'Provide a role and/or active to update.',
+  });
 
 type LocalAuthOptions = {
   bootstrapToken?: string;
@@ -126,7 +140,7 @@ export function createLocalAuth(options: LocalAuthOptions) {
     }
 
     const user = users.get(session.userId);
-    return user ? publicUser(user) : null;
+    return user && user.active ? publicUser(user) : null;
   }
 
   function revokeToken(token: string): void {
@@ -149,10 +163,23 @@ export function createLocalAuth(options: LocalAuthOptions) {
       name: data.name,
       role: data.role,
       permissions: rolePermissions[data.role],
+      active: true,
       passwordHash: await hashPassword(data.password),
     };
     users.set(user.id, user);
     return { kind: 'created' as const, user: publicUser(user) };
+  }
+
+  function updateUser(id: string, input: unknown) {
+    const data = updateUserSchema.parse(input);
+    const user = users.get(id);
+    if (!user) return { kind: 'not-found' as const };
+    if (data.role !== undefined) {
+      user.role = data.role;
+      user.permissions = rolePermissions[data.role];
+    }
+    if (data.active !== undefined) user.active = data.active;
+    return { kind: 'updated' as const, user: publicUser(user) };
   }
 
   async function bootstrap(input: unknown) {
@@ -170,6 +197,7 @@ export function createLocalAuth(options: LocalAuthOptions) {
       name: data.name,
       role: 'admin',
       permissions: rolePermissions.admin,
+      active: true,
       passwordHash: await hashPassword(data.password),
     };
     users.set(user.id, user);
@@ -182,7 +210,7 @@ export function createLocalAuth(options: LocalAuthOptions) {
     const user = [...users.values()].find(
       (candidate) => candidate.email === normalizeEmail(data.email),
     );
-    if (!user || !(await verifyPassword(data.password, user.passwordHash))) {
+    if (!user || !user.active || !(await verifyPassword(data.password, user.passwordHash))) {
       return { kind: 'invalid-credentials' as const };
     }
     return { kind: 'authenticated' as const, ...createSession(user) };
@@ -231,6 +259,7 @@ export function createLocalAuth(options: LocalAuthOptions) {
     bootstrap,
     login,
     createUser,
+    updateUser,
     listUsers,
     requireAuth,
     requirePermission,

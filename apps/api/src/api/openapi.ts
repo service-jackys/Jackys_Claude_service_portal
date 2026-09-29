@@ -49,6 +49,14 @@ const requestBodies = {
       },
     },
   },
+  updateStaffUser: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/UpdateStaffUserRequest' },
+      },
+    },
+  },
   publicComplaint: {
     required: true,
     content: {
@@ -287,13 +295,14 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
         },
         AuthUser: {
           type: 'object',
-          required: ['id', 'email', 'name', 'role', 'permissions'],
+          required: ['id', 'email', 'name', 'role', 'permissions', 'active'],
           properties: {
             id: { type: 'string' },
             email: { type: 'string', format: 'email' },
             name: { type: 'string' },
             role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
             permissions: { type: 'array', items: { type: 'string' } },
+            active: { type: 'boolean' },
           },
         },
         AuthSession: {
@@ -333,6 +342,14 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             name: { type: 'string', minLength: 1, maxLength: 120 },
             password: { type: 'string', minLength: 12, maxLength: 200 },
             role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
+          },
+        },
+        UpdateStaffUserRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
+            active: { type: 'boolean' },
           },
         },
         PublicComplaintRequest: {

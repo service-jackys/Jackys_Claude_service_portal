@@ -606,6 +606,54 @@
           <li>No edit/deactivate/remove for a teammate login yet (see #10).</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#13 &mdash; Edit and deactivate teammate logins</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: auth backend, staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; new admin-only <code>PATCH /api/auth/users/{id}</code>
+            to change a teammate's role and/or turn their login on or off (blocked for your own
+            account, to avoid a self-lockout). Deactivation takes effect immediately, including for
+            an already-issued bearer token.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; the Team logins table now shows status, a role dropdown
+            with Save, and a Deactivate/Reactivate button per row.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>Change a teammate's role and deactivate/reactivate a login; confirm it takes.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#14 &mdash; Salesmen &amp; Sales channels admin page</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; new <strong>Salesmen &amp; channels</strong> admin page
+            (gated on <code>salesmen.write</code>) with a table and one-field add form for each
+            list, closing the last UI gap from modification #8.
+          </li>
+          <li>
+            <strong>Not done</strong> &mdash; edit/deactivate for an entry; the API only supports
+            list + create for either list today.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code> and try adding a salesman and a sales channel.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

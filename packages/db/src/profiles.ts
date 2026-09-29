@@ -71,3 +71,40 @@ export async function ensureLocalAdminProfile(
 ): Promise<void> {
   return ensureLocalProfile(pool, email, displayName, 'admin');
 }
+
+// Applies a Team-logins edit (see modification.md #13) to the matching
+// profile: deactivate/reactivate, and/or swap its role assignment for a
+// single new one (a profile is expected to carry exactly one role here,
+// so the old assignment is replaced rather than added to). No-ops
+// silently if the email has no profile yet (shouldn't happen -- every
+// local-auth user gets one via ensureLocalProfile at creation -- but this
+// endpoint shouldn't 500 over a stale/mismatched email either).
+export async function updateProfileAccessByEmail(
+  pool: Pool,
+  email: string,
+  input: { active?: boolean; roleCode?: string },
+): Promise<void> {
+  await withTransaction(pool, async (client) => {
+    const profile = await client.query<{ id: string }>(
+      `SELECT id FROM profiles WHERE lower(email) = lower($1)`,
+      [email],
+    );
+    const profileId = profile.rows[0]?.id;
+    if (!profileId) return;
+    if (input.active !== undefined) {
+      await client.query(`UPDATE profiles SET active = $2, updated_at = now() WHERE id = $1`, [
+        profileId,
+        input.active,
+      ]);
+    }
+    if (input.roleCode) {
+      await client.query(`DELETE FROM profile_roles WHERE profile_id = $1`, [profileId]);
+      await client.query(
+        `INSERT INTO profile_roles (profile_id, role_id)
+         SELECT $1, roles.id FROM roles WHERE roles.code = $2
+         ON CONFLICT DO NOTHING`,
+        [profileId, input.roleCode],
+      );
+    }
+  });
+}

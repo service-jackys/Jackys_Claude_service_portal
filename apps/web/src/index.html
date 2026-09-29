@@ -1833,6 +1833,15 @@
                 <button
                   class="dashboard-link"
                   type="button"
+                  id="masterDataNav"
+                  hidden
+                  aria-label="Salesmen and sales channels"
+                >
+                  Salesmen &amp; channels <span aria-hidden="true">→</span>
+                </button>
+                <button
+                  class="dashboard-link"
+                  type="button"
                   id="jobCardsNav"
                   hidden
                   aria-label="Service job cards"
@@ -3105,6 +3114,86 @@
               </div>
             </div>
 
+            <div class="card" id="masterDataWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Manage the Salesman and Sales Channel dropdowns used on the Schedule appointment
+                  form and job cards. Both lists are add-only here for now -- there's no
+                  edit/deactivate yet, so double-check the name before adding one.
+                </p>
+                <section class="detail-action-card" aria-labelledby="salesmenHeading">
+                  <h4 id="salesmenHeading">Salesmen</h4>
+                  <div class="table-wrap">
+                    <table>
+                      <caption class="visually-hidden">
+                        Salesmen
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Active</th>
+                        </tr>
+                      </thead>
+                      <tbody id="salesmenBody"></tbody>
+                    </table>
+                  </div>
+                  <p class="empty-state" id="salesmenEmpty" hidden>No salesmen on file yet.</p>
+                  <form id="salesmanForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field field-wide">
+                        <label for="salesmanName">Add a salesman</label>
+                        <input type="text" id="salesmanName" maxlength="200" required />
+                        <span class="field-error" data-error-for="salesmanName"></span>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button class="button button-primary" type="submit" id="saveSalesmanButton">
+                        Add salesman
+                      </button>
+                    </div>
+                  </form>
+                </section>
+                <section class="detail-action-card" aria-labelledby="salesChannelsHeading">
+                  <h4 id="salesChannelsHeading">Sales channels</h4>
+                  <div class="table-wrap">
+                    <table>
+                      <caption class="visually-hidden">
+                        Sales channels
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Active</th>
+                        </tr>
+                      </thead>
+                      <tbody id="salesChannelsBody"></tbody>
+                    </table>
+                  </div>
+                  <p class="empty-state" id="salesChannelsEmpty" hidden>
+                    No sales channels on file yet.
+                  </p>
+                  <form id="salesChannelForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field field-wide">
+                        <label for="salesChannelName">Add a sales channel</label>
+                        <input type="text" id="salesChannelName" maxlength="200" required />
+                        <span class="field-error" data-error-for="salesChannelName"></span>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-primary"
+                        type="submit"
+                        id="saveSalesChannelButton"
+                      >
+                        Add sales channel
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </div>
+            </div>
+
             <div class="card" id="technicianWorkspace" hidden>
               <div class="card-body">
                 <p class="form-note">
@@ -3208,9 +3297,10 @@
               <div class="card-body">
                 <p class="form-note">
                   Add a login for a teammate so they can test the portal with their own account
-                  instead of sharing the administrator login. This list lives in the running
-                  server's memory, not the database — restarting the backend clears it, so teammates
-                  will need to be re-added (with a new password) after a restart.
+                  instead of sharing the administrator login. Change a teammate's role or turn their
+                  login off from the table below (you can't change your own). This list lives in the
+                  running server's memory, not the database — restarting the backend clears it, so
+                  teammates will need to be re-added (with a new password) after a restart.
                 </p>
                 <div class="table-wrap">
                   <table>
@@ -3222,6 +3312,8 @@
                         <th>Name</th>
                         <th>Email</th>
                         <th>Role</th>
+                        <th>Status</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody id="teamAccountsBody"></tbody>
