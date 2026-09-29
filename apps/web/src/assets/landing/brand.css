@@ -192,6 +192,12 @@ img {
     box-shadow 0.16s ease,
     background-color 0.16s ease;
 }
+/* Author styles beat the browser's built-in [hidden] rule, so a class that
+   sets `display` (like .button above) needs its own [hidden] override --
+   see modification.md #7. */
+.button[hidden] {
+  display: none;
+}
 .button:hover:not(:disabled) {
   transform: translateY(-1px);
   box-shadow: 0 8px 18px rgb(16 43 78 / 12%);

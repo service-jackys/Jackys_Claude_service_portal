@@ -340,20 +340,29 @@ not guesses.
    confirmed they already mock `/api/technicians` — this was isolated to the one new test.
 
 3. **`tests/e2e/portal.spec.ts:1877` (`#unlinkB2bBranchButton` visible when it should be hidden) —
-   not reproduced.** I re-read `renderB2bBranchAction`/`renderComplaintActions`/`activateActionTab`
-   line by line and replayed the exact test flow (sign in, open the complaint, click the "B2B
-   Branch match" tab) in the same headless simulation used for the other two — the button came out
-   correctly hidden every time, and I found no code path that could leave it visible for this
-   complaint (status `New`, not yet matched). My best guess is this one was a casualty of the same
-   class of problem as #2 above: a full 59-test run with `fullyParallel: true` against one shared
-   live dev server can produce timing/session hiccups that a single isolated test run won't. If it
-   fails again on its own, that would point to a real bug I haven't found yet.
+   fixed, real (and previously unreported) CSS bug.** You re-ran the suite and this one failed
+   again, exactly the same way -- which ruled out my first guess (a flaky full-suite timing
+   issue). The error log was the giveaway: Playwright's own DOM snapshot showed
+   `<button hidden="" ... >` and _still_ reported it as visible. `.button` (in both
+   `index.html` and `assets/landing/brand.css`) sets `display: inline-flex`, and CSS's cascade
+   rule is that any normal author declaration beats the browser's built-in
+   `[hidden] { display: none }` rule, _regardless of specificity_. So setting
+   `element.hidden = true` on any button did nothing visually unless something else also hid it.
+   This codebase already knew about that exact trap and had fixed it, selectively, for
+   `.notice`, `.auth-panel`, `.dashboard-link`, `.detail-panel`, `.detail-actions` and
+   `.workflow-links` (each has its own `[class][hidden] { display: none; }` override) -- `.button`
+   was simply never added to that list. Added `.button[hidden] { display: none; }` in both
+   stylesheets. This is a systemic fix: it was silently affecting _every_ button anywhere in the
+   app that gets shown/hidden via `.hidden = true/false` (this one just happened to be the one a
+   test caught), so this closes a real, previously-invisible visual bug, not just the test.
 
 ### Needs you
 
 - `npx playwright test` — full re-run to confirm all 59 pass now.
-- If test #3 (`portal.spec.ts:1877`) still fails on its own (not just in the full run), tell me —
-  that would mean it's a real bug, not a flake, and I'll dig further.
+- Worth a quick visual skim of a few screens where buttons get shown/hidden (e.g. Unlink/Clear
+  match, Create job card, Download ICS) to confirm nothing looks different now that hiding
+  actually hides them -- the fix should make things _disappear_ that may have been sitting there
+  visibly doing nothing before.
 
 ### Known follow-up (tracked, not started)
 

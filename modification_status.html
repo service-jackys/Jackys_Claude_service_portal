@@ -353,10 +353,11 @@
       <div class="card">
         <div class="card-head">
           <h2>#7 — Fixes from your Playwright test run (56/59 &rarr; root-caused)</h2>
-          <span class="badge badge-code-complete">Two fixed &middot; one not reproduced</span>
+          <span class="badge badge-code-complete">All three fixed</span>
         </div>
         <p class="meta">
-          2026-09-29 &middot; Scope: public complaint form gating, workflow-links test coverage
+          2026-09-29 &middot; Scope: public complaint form gating, workflow-links test coverage,
+          app-wide button visibility CSS
         </p>
         <div class="section-label">What changed</div>
         <ul>
@@ -374,18 +375,22 @@
             missing mock.
           </li>
           <li>
-            <strong>Not reproduced</strong> &mdash; <code>portal.spec.ts:1877</code>
-            (<code>#unlinkB2bBranchButton</code>): replayed the exact test flow in a headless
-            simulation of the real app code and it came out correct every time. Likely a one-off
-            timing hiccup from running all 59 tests in parallel against one shared live server.
+            <strong>Fixed</strong> &mdash;
+            <code>portal.spec.ts:1877</code> (<code>#unlinkB2bBranchButton</code>), a real, systemic
+            CSS bug: <code>.button</code> sets <code>display: inline-flex</code>, which (per how CSS
+            cascades work) overrides the browser's built-in "hidden means invisible" behavior for
+            every button in the app, not just this one. Other elements in this codebase already had
+            a <code>[hidden] &#123; display: none; &#125;</code> override for exactly this reason
+            &mdash; <code>.button</code> was just missing it. Added it in both stylesheets.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li><code>npx playwright test</code> &mdash; full re-run to confirm all 59 pass.</li>
           <li>
-            If <code>portal.spec.ts:1877</code> fails again on its own (not just in the full run),
-            tell me &mdash; that would mean it's a real bug I haven't found yet.
+            Worth a quick look at a few screens with show/hide buttons (Clear match, Create job
+            card, Download ICS) &mdash; the fix may make things disappear that were previously
+            sitting there visibly doing nothing.
           </li>
         </ul>
         <div class="section-label">Follow-up</div>

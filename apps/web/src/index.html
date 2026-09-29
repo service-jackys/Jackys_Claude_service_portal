@@ -187,6 +187,15 @@
           box-shadow 0.16s ease,
           background-color 0.16s ease;
       }
+      /* Author styles always beat the browser's built-in [hidden] rule, so
+         any element with an author-set `display` (like .button's
+         inline-flex above) needs its own [hidden] override, or
+         `element.hidden = true` silently does nothing visually. This one
+         was missing -- see modification.md #7 (#unlinkB2bBranchButton
+         stayed visible while marked hidden). */
+      .button[hidden] {
+        display: none;
+      }
       .button:hover:not(:disabled) {
         transform: translateY(-1px);
         box-shadow: 0 8px 18px rgb(16 43 78 / 12%);
