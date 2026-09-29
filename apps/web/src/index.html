@@ -875,6 +875,50 @@
       .detail-action-card textarea {
         min-height: 110px;
       }
+      .detail-static-value {
+        margin: 0 0 0.6rem;
+        color: var(--navy);
+        font-weight: 600;
+        font-size: 0.92rem;
+      }
+      .b2b-branch-results {
+        list-style: none;
+        margin: 0 0 0.6rem;
+        padding: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        max-height: 220px;
+        overflow-y: auto;
+        background: #fff;
+      }
+      .b2b-branch-results li {
+        border-bottom: 1px solid var(--line);
+      }
+      .b2b-branch-results li:last-child {
+        border-bottom: none;
+      }
+      .b2b-branch-results button {
+        display: block;
+        width: 100%;
+        text-align: left;
+        padding: 0.5rem 0.7rem;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font: inherit;
+        color: var(--navy);
+      }
+      .b2b-branch-results button:hover,
+      .b2b-branch-results button:focus {
+        background: var(--surface-soft);
+      }
+      .b2b-branch-results .branch-name {
+        font-weight: 600;
+      }
+      .b2b-branch-results .branch-code {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
       .visually-hidden {
         position: absolute !important;
         width: 1px;
@@ -1687,6 +1731,44 @@
                           </button>
                         </div>
                       </form>
+                    </section>
+                    <section
+                      class="detail-action-card"
+                      id="b2bBranchAction"
+                      aria-labelledby="b2bBranchHeading"
+                    >
+                      <h4 id="b2bBranchHeading">B2B Branch / School match</h4>
+                      <p>
+                        Match the customer's typed branch or school name to our master list, or
+                        clear a match if it was linked in error (see modification.md #2).
+                      </p>
+                      <div class="field">
+                        <label for="b2bBranchCurrent">Currently on this complaint</label>
+                        <p id="b2bBranchCurrent" class="detail-static-value">—</p>
+                      </div>
+                      <div class="field">
+                        <label for="b2bBranchSearchInput">Search master list</label>
+                        <input
+                          id="b2bBranchSearchInput"
+                          type="text"
+                          autocomplete="off"
+                          placeholder="Start typing a branch or school name…"
+                        />
+                        <span class="field-error" data-error-for="b2bBranchSearchInput"></span>
+                      </div>
+                      <ul id="b2bBranchResults" class="b2b-branch-results" hidden></ul>
+                      <p id="b2bBranchSearchMessage" class="detail-static-value"></p>
+                      <div class="form-footer">
+                        <button
+                          class="button button-outline"
+                          type="button"
+                          id="unlinkB2bBranchButton"
+                          hidden
+                        >
+                          Clear match
+                        </button>
+                        <span></span>
+                      </div>
                     </section>
                     <section
                       class="detail-action-card"

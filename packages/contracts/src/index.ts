@@ -59,12 +59,11 @@ export const publicComplaintSchema = z
     // B2B/school workflow fields — see docs/PARITY_REVIEW_2026-09-28.md, gap #1.
     // Plain optional text, exactly like the live ComplaintRegistration_26.html
     // public form: never gated, no picker required, blank for a B2C submission.
+    // Plain free text (see modification.md #2 -- the public form never
+    // offers the master list itself, to avoid exposing the whole B2B
+    // customer roster publicly). Staff match it to the b2b_branches master
+    // list afterwards via PATCH /api/complaints/{id}/b2b-branch.
     b2bBranchSchool: optionalText(500),
-    // Matched Cust_Code from the B2B Branch / School master list (see
-    // modification.md #1) when the customer picked a known branch from the
-    // form's autocomplete. Left blank for free text the master list doesn't
-    // recognize -- staff identify and link the branch later.
-    b2bBranchCustCode: optionalText(40),
     schoolContactPerson: optionalText(500),
     schoolContactNumber: optionalText(100),
     customerNumber: optionalText(100),
@@ -121,6 +120,24 @@ export const complaintStatusUpdateSchema = z
   .strict();
 
 export type ComplaintStatusUpdateInput = z.infer<typeof complaintStatusUpdateSchema>;
+
+// Staff-only linking of a complaint's free-text "B2B Branch / School" to the
+// authenticated master list (see modification.md #2) -- the public form
+// never sees or picks from that list, only staff do, after the complaint is
+// registered. custCode: null unlinks (keeps the customer's original typed
+// text, just clears the link).
+export const b2bBranchLinkSchema = z
+  .object({
+    custCode: z
+      .string()
+      .trim()
+      .regex(/^\d+$/)
+      .max(40)
+      .nullable(),
+  })
+  .strict();
+
+export type B2bBranchLinkInput = z.infer<typeof b2bBranchLinkSchema>;
 
 export type ComplaintStatus = (typeof complaintStatuses)[number];
 export type CustomerType = (typeof customerTypes)[number];

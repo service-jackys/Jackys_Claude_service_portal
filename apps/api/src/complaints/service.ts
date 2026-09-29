@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  b2bBranchLinkSchema,
   complaintListQuerySchema,
   complaintNotesSchema,
   complaintSchedulingTransitions,
@@ -15,6 +16,7 @@ import {
   insertComplaintHistory,
   listComplaintHistory,
   listComplaints,
+  updateComplaintB2bBranchLink,
   updateComplaintNotes,
   updateComplaintStatus,
 } from '../../../../packages/db/src/complaints.js';
@@ -23,7 +25,10 @@ import {
   insertAppointmentHistory,
   updateAppointmentStatus,
 } from '../../../../packages/db/src/appointments.js';
-import { listB2bBranchesForPublicPicker } from '../../../../packages/db/src/b2b-branches.js';
+import {
+  findB2bBranchByCustCode,
+  searchB2bBranchesForStaff,
+} from '../../../../packages/db/src/b2b-branches.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { allocateComplaintReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
@@ -185,16 +190,65 @@ export function createComplaintService(pool: Pool) {
     });
   }
 
-  async function listB2bBranches() {
+  // Staff-only lookup for linking a complaint's typed B2B Branch / School to
+  // the master list (see modification.md #2) -- never called from the
+  // public complaint form.
+  async function searchB2bBranches(query: string | undefined) {
     const client = await pool.connect();
     try {
-      return await listB2bBranchesForPublicPicker(client);
+      return await searchB2bBranchesForStaff(client, query);
     } finally {
       client.release();
     }
   }
 
-  return { submit, list, detail, addNotes, changeStatus, listB2bBranches };
+  async function linkB2bBranch(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = b2bBranchLinkSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      let branchName: string | null = null;
+      if (data.custCode) {
+        const branch = await findB2bBranchByCustCode(client, data.custCode);
+        if (!branch)
+          throw new ComplaintServiceError(
+            'not-found',
+            'That branch was not found in the master list.',
+          );
+        branchName = branch.branchName;
+      }
+      const updated = await updateComplaintB2bBranchLink(
+        client,
+        id,
+        data.custCode,
+        branchName,
+        profileId,
+      );
+      if (!updated) throw new ComplaintServiceError('not-found', 'The complaint was not found.');
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: data.custCode ? 'complaint.b2b_branch_linked' : 'complaint.b2b_branch_unlinked',
+        targetType: 'complaint',
+        targetId: id,
+        metadata: { custCode: data.custCode },
+        requestId,
+      });
+      return updated;
+    });
+  }
+
+  return {
+    submit,
+    list,
+    detail,
+    addNotes,
+    changeStatus,
+    searchB2bBranches,
+    linkB2bBranch,
+  };
 }
 
 export type ComplaintService = ReturnType<typeof createComplaintService>;

@@ -22,16 +22,32 @@ const b2bBranchColumns = `
   b2b_branches.updated_at AS "updatedAt"
 `;
 
-// Public-facing: name + custCode only, never the salesman (that's an
-// internal detail, surfaced to staff later in appointments/job cards, not
-// to the customer submitting the complaint).
-export async function listB2bBranchesForPublicPicker(
+// Staff-only (see modification.md #2 -- the public complaint form never
+// calls this; it stays free text there and staff match it here afterwards).
+// With no query, returns a first page for browsing; with a query, returns
+// name matches. Capped at 20 either way -- this is a picker, not a full
+// export.
+export async function searchB2bBranchesForStaff(
   client: PoolClient,
-): Promise<Array<{ custCode: string; branchName: string }>> {
-  const result = await client.query<{ custCode: string; branchName: string }>(
-    `SELECT cust_code AS "custCode", branch_name AS "branchName"
-     FROM b2b_branches
-     ORDER BY branch_name`,
+  query: string | undefined,
+): Promise<Array<{ custCode: string; branchName: string; salesman: string | null }>> {
+  const trimmed = (query ?? '').trim();
+  const result = await client.query<{
+    custCode: string;
+    branchName: string;
+    salesman: string | null;
+  }>(
+    trimmed
+      ? `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman
+         FROM b2b_branches
+         WHERE branch_name ILIKE $1
+         ORDER BY branch_name
+         LIMIT 20`
+      : `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman
+         FROM b2b_branches
+         ORDER BY branch_name
+         LIMIT 20`,
+    trimmed ? [`%${trimmed}%`] : [],
   );
   return result.rows;
 }

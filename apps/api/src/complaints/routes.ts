@@ -42,12 +42,35 @@ export function createComplaintHandlers(
           .catch(next);
       },
     ],
-    listB2bBranches: [
+    searchB2bBranches: [
+      requirePermission('complaints.write'),
       (request, response, next) => {
+        const query = typeof request.query.query === 'string' ? request.query.query : undefined;
         Promise.resolve()
-          .then(() => service.listB2bBranches())
+          .then(() => service.searchB2bBranches(query))
           .then((branches) => response.json({ branches }))
           .catch(next);
+      },
+    ],
+    linkB2bBranch: [
+      requirePermission('complaints.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const complaint = await service.linkB2bBranch(
+            String(request.params.id),
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.json({ complaint });
+        } catch (error) {
+          if (error instanceof ComplaintServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
       },
     ],
     list: [

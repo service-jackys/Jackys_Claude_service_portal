@@ -57,7 +57,7 @@ test.describe('public complaint registration page', () => {
   });
 });
 
-test.describe('B2B Branch / School master list (modification.md #1)', () => {
+test.describe('B2B Branch / School free text + gating (modification.md #1, #2)', () => {
   test('offers only B2C and B2B customer types, not B2B Sales Channel', async ({ page }) => {
     await page.goto('/complaints');
     const options = await page.locator('#customerType option').allTextContents();
@@ -85,9 +85,6 @@ test.describe('B2B Branch / School master list (modification.md #1)', () => {
     page,
   }) => {
     let submittedBody: Record<string, unknown> | null = null;
-    await page.route('**/api/public/b2b-branches', async (route) => {
-      await route.fulfill({ json: { branches: [] } });
-    });
     await page.route('**/api/public/complaints', async (route) => {
       submittedBody = route.request().postDataJSON();
       await route.fulfill({
@@ -107,73 +104,5 @@ test.describe('B2B Branch / School master list (modification.md #1)', () => {
     await expect(page.locator('#successReference')).toHaveText('CMP-000000-001');
     expect(submittedBody).not.toBeNull();
     expect(submittedBody!.contactNumber).toBeUndefined();
-  });
-
-  test('resolves a typed branch name to its Cust_Code and submits it', async ({ page }) => {
-    let submittedBody: Record<string, unknown> | null = null;
-    await page.route('**/api/public/b2b-branches', async (route) => {
-      await route.fulfill({
-        json: {
-          branches: [
-            { custCode: '100599', branchName: 'AMERICAN SCHOOL OF DUBAI' },
-            { custCode: '104100', branchName: 'AJMAN HOTEL GROUP - F.Z.E' },
-          ],
-        },
-      });
-    });
-    await page.route('**/api/public/complaints', async (route) => {
-      submittedBody = route.request().postDataJSON();
-      await route.fulfill({
-        status: 201,
-        json: { complaint: { complaintReference: 'CMP-000000-002' } },
-      });
-    });
-    await page.goto('/complaints');
-    await page.selectOption('#customerType', 'B2B');
-    // Datalist options load asynchronously from the mocked endpoint above.
-    await expect(page.locator('#b2bBranchOptions option')).toHaveCount(2);
-
-    await page.fill('#customerName', 'American School of Dubai');
-    await page.fill('#description', 'Projector not powering on.');
-    await page.fill('#b2bBranchSchool', 'AMERICAN SCHOOL OF DUBAI');
-    await page.dispatchEvent('#b2bBranchSchool', 'input');
-    await expect(page.locator('#b2bBranchCustCode')).toHaveValue('100599');
-
-    await page.getByRole('button', { name: 'Submit service request' }).click();
-    await expect(page.locator('#successReference')).toHaveText('CMP-000000-002');
-    expect(submittedBody).not.toBeNull();
-    expect(submittedBody!.b2bBranchCustCode).toBe('100599');
-    expect(submittedBody!.b2bBranchSchool).toBe('AMERICAN SCHOOL OF DUBAI');
-  });
-
-  test('leaves Cust_Code blank for free text the master list does not recognize', async ({
-    page,
-  }) => {
-    let submittedBody: Record<string, unknown> | null = null;
-    await page.route('**/api/public/b2b-branches', async (route) => {
-      await route.fulfill({
-        json: { branches: [{ custCode: '100599', branchName: 'AMERICAN SCHOOL OF DUBAI' }] },
-      });
-    });
-    await page.route('**/api/public/complaints', async (route) => {
-      submittedBody = route.request().postDataJSON();
-      await route.fulfill({
-        status: 201,
-        json: { complaint: { complaintReference: 'CMP-000000-003' } },
-      });
-    });
-    await page.goto('/complaints');
-    await page.selectOption('#customerType', 'B2B');
-    await page.fill('#customerName', 'Some New School');
-    await page.fill('#description', 'Fridge leaking.');
-    await page.fill('#b2bBranchSchool', 'A School We Have Never Seen');
-    await page.dispatchEvent('#b2bBranchSchool', 'input');
-    await expect(page.locator('#b2bBranchCustCode')).toHaveValue('');
-
-    await page.getByRole('button', { name: 'Submit service request' }).click();
-    await expect(page.locator('#successReference')).toHaveText('CMP-000000-003');
-    expect(submittedBody).not.toBeNull();
-    expect(submittedBody!.b2bBranchCustCode).toBeUndefined();
-    expect(submittedBody!.b2bBranchSchool).toBe('A School We Have Never Seen');
   });
 });

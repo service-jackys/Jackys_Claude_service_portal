@@ -112,41 +112,6 @@
     $('#complaint-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // -- B2B Branch / School master list (see modification.md #1) --------
-  // A small (currently ~600-row), read-only, public list: fetched once and
-  // used both to power the autocomplete and to resolve the customer's typed
-  // text back to its Cust_Code (b2bBranchCustCode), so staff can later pull
-  // up the right branch (and its salesman) in appointments/job cards. Free
-  // text with no match is still accepted -- staff identify and link the
-  // branch later.
-  let b2bBranchesByName = new Map();
-
-  async function loadB2bBranches() {
-    try {
-      const result = await apiRequest('/api/public/b2b-branches');
-      const branches = result?.branches || [];
-      b2bBranchesByName = new Map(
-        branches.map((branch) => [branch.branchName.trim().toLowerCase(), branch.custCode]),
-      );
-      const datalist = $('#b2bBranchOptions');
-      datalist.innerHTML = branches
-        .map((branch) => `<option value="${escapeHtml(branch.branchName)}"></option>`)
-        .join('');
-    } catch {
-      // Non-fatal: the field still works as free text if this list can't be
-      // loaded (e.g. offline demo, API not reachable yet).
-    }
-  }
-
-  function syncB2bBranchCustCode() {
-    const typed = $('#b2bBranchSchool').value.trim().toLowerCase();
-    const custCode = typed ? b2bBranchesByName.get(typed) : undefined;
-    $('#b2bBranchCustCode').value = custCode || '';
-  }
-
-  $('#b2bBranchSchool').addEventListener('input', syncB2bBranchCustCode);
-  $('#b2bBranchSchool').addEventListener('change', syncB2bBranchCustCode);
-
   // -- Customer type field gating -----------------------------------------
   // B2C: B2B Branch / School and the site contact fields don't apply -- grey
   // them out (staff can fill them in later if needed). B2B: contact number
@@ -169,7 +134,6 @@
 
   $('#customerType').addEventListener('change', applyCustomerTypeGating);
   applyCustomerTypeGating();
-  loadB2bBranches();
 
   $('#publicComplaintForm').addEventListener('submit', async (event) => {
     event.preventDefault();

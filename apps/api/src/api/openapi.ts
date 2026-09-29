@@ -65,6 +65,14 @@ const requestBodies = {
       },
     },
   },
+  b2bBranchLink: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/B2bBranchLinkRequest' },
+      },
+    },
+  },
   customer: {
     required: true,
     content: {
@@ -314,11 +322,24 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             serialOrItemCode: { type: 'string', minLength: 1, maxLength: 120 },
             description: { type: 'string', minLength: 1, maxLength: 10000 },
             b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 500 },
-            b2bBranchCustCode: { type: 'string', minLength: 1, maxLength: 40 },
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
             salesOrderNumber: { type: 'string', minLength: 1, maxLength: 100 },
+          },
+        },
+        B2bBranchLinkRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['custCode'],
+          properties: {
+            custCode: {
+              type: 'string',
+              pattern: '^\\d+$',
+              maxLength: 40,
+              nullable: true,
+              description: 'Cust_Code from the b2b_branches master list, or null to unlink.',
+            },
           },
         },
         ComplaintNotesRequest: {

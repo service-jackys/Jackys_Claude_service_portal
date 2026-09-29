@@ -144,8 +144,8 @@
             365 days) — 567 unique branches, keyed by Cust_Code.
           </li>
           <li>
-            "B2B Branch / School" field is now an autocomplete against that list; a matched branch's
-            Cust_Code is stored on the complaint. Unmatched free text is still accepted.
+            <strong>Superseded by #2:</strong> the public autocomplete against that list was removed
+            for a privacy reason you raised — see #2 below. The rest of this entry still stands.
           </li>
           <li>Removed "B2B Sales Channel" from this form's Customer type dropdown only.</li>
           <li>
@@ -158,8 +158,60 @@
         <ul>
           <li><code>npm run db:migrate</code></li>
           <li><code>node scripts/import-b2b-branches.mjs</code></li>
-          <li><code>npx playwright test tests/e2e/complaints.spec.ts</code></li>
           <li>Manually try <code>/complaints</code> for both customer types.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>Carried forward to #2's follow-up list below.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#2 — Moved B2B Branch matching behind staff authentication (Option C)</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">
+          2026-09-29 · Scope: Customer complaint portal (<code>/complaints</code>) + internal staff
+          portal complaint detail
+        </p>
+        <div class="section-label">Why</div>
+        <ul>
+          <li>
+            The public autocomplete from #1 exposed the entire 567-branch B2B customer roster to
+            anyone visiting the public form, with no sign-in required — a business exposure you
+            flagged yourself.
+          </li>
+        </ul>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Public form: "B2B Branch / School" is plain free text again — no datalist, no public
+            branch-listing endpoint, no Cust_Code in the submitted payload.
+          </li>
+          <li>
+            New staff-only, authenticated endpoints:
+            <code>GET /api/b2b-branches?query=</code> (search) and
+            <code>PATCH /api/complaints/{id}/b2b-branch</code> (link/unlink).
+          </li>
+          <li>
+            New "B2B Branch / School match" card in the staff complaint detail view (B2B complaints
+            only, requires <code>complaints.write</code>): search-as-you-type, click a result to
+            link, "Clear match" to unlink.
+          </li>
+        </ul>
+        <div class="section-label">Database changes</div>
+        <ul>
+          <li>None new — reuses migration 010's <code>b2b_branches</code> table and column.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            <code>npx playwright test tests/e2e/complaints.spec.ts tests/e2e/portal.spec.ts</code>
+          </li>
+          <li>
+            Manually verify: public form submits free text with no branch-list request; staff portal
+            shows the match card, search finds a branch, link/unlink both work.
+          </li>
         </ul>
         <div class="section-label">Follow-up (next modification, not started)</div>
         <ul>

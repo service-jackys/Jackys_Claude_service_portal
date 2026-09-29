@@ -15,6 +15,9 @@
   let calendarAppointments = [];
   let calendarRequestSequence = 0;
   let workspaceRetryAction = null;
+  let currentComplaintB2bBranchCustCode = null;
+  let b2bBranchSearchSequence = 0;
+  let b2bBranchSearchDebounce = null;
 
   const complaintTransitions = {
     New: ['Under Review', 'Cancelled'],
@@ -2821,6 +2824,7 @@ ${bodyHtml}
     $('#statusAction').hidden = !canWrite;
     $('#scheduleAction').hidden = !canSchedule;
     resetScheduleForm();
+    renderB2bBranchAction(complaint, canWrite);
     if (!canWrite) return;
 
     $('#complaintNotes').value = complaint.cceNotes || '';
@@ -2833,6 +2837,104 @@ ${bodyHtml}
     $('#complaintNextStatus').disabled = nextStatuses.length === 0;
     $('#updateStatusButton').disabled = nextStatuses.length === 0;
   }
+
+  // Staff-only matching of a complaint's free-text B2B Branch / School to the
+  // authenticated master list (see modification.md #2). Only relevant for B2B
+  // complaints, and only for staff who can write complaints.
+  function renderB2bBranchAction(complaint, canWrite) {
+    const show = canWrite && complaint.customerType === 'B2B';
+    $('#b2bBranchAction').hidden = !show;
+    b2bBranchSearchSequence += 1;
+    if (b2bBranchSearchDebounce) {
+      clearTimeout(b2bBranchSearchDebounce);
+      b2bBranchSearchDebounce = null;
+    }
+    $('#b2bBranchSearchInput').value = '';
+    $('#b2bBranchResults').innerHTML = '';
+    $('#b2bBranchResults').hidden = true;
+    $('#b2bBranchSearchMessage').textContent = '';
+    if (!show) {
+      currentComplaintB2bBranchCustCode = null;
+      return;
+    }
+    currentComplaintB2bBranchCustCode = complaint.b2bBranchCustCode || null;
+    const typedText = complaint.b2bBranchSchool || '(not entered)';
+    $('#b2bBranchCurrent').textContent = currentComplaintB2bBranchCustCode
+      ? `${typedText} — matched (Cust_Code ${currentComplaintB2bBranchCustCode})`
+      : `${typedText} — not yet matched`;
+    $('#unlinkB2bBranchButton').hidden = !currentComplaintB2bBranchCustCode;
+  }
+
+  async function searchB2bBranches(query) {
+    const requestSequence = ++b2bBranchSearchSequence;
+    $('#b2bBranchSearchMessage').textContent = 'Searching…';
+    try {
+      const params = query ? '?query=' + encodeURIComponent(query) : '';
+      const result = await apiRequest('/api/b2b-branches' + params);
+      if (requestSequence !== b2bBranchSearchSequence) return;
+      const branches = result.branches || [];
+      $('#b2bBranchResults').innerHTML = branches
+        .map(
+          (branch) =>
+            `<li><button type="button" data-cust-code="${escapeHtml(branch.custCode)}" data-branch-name="${escapeHtml(branch.branchName)}"><span class="branch-name">${escapeHtml(branch.branchName)}</span><br><span class="branch-code">Cust_Code ${escapeHtml(branch.custCode)}${branch.salesman ? ' · ' + escapeHtml(branch.salesman) : ''}</span></button></li>`,
+        )
+        .join('');
+      $('#b2bBranchResults').hidden = branches.length === 0;
+      $('#b2bBranchSearchMessage').textContent = branches.length
+        ? ''
+        : 'No matches in the master list.';
+    } catch (error) {
+      if (requestSequence !== b2bBranchSearchSequence) return;
+      $('#b2bBranchResults').hidden = true;
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#b2bBranchAction').hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to search the branch master list.');
+      } else {
+        $('#b2bBranchSearchMessage').textContent = error.message;
+      }
+    }
+  }
+
+  async function linkB2bBranch(custCode) {
+    try {
+      await apiRequest(
+        '/api/complaints/' + encodeURIComponent(currentComplaintId) + '/b2b-branch',
+        {
+          method: 'PATCH',
+          body: JSON.stringify({ custCode }),
+        },
+      );
+      await loadComplaintDetail(currentComplaintId);
+      await loadComplaints();
+      setMessage('#workspaceMessage', custCode ? 'Branch matched.' : 'Match cleared.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
+  }
+
+  $('#b2bBranchSearchInput').addEventListener('input', (event) => {
+    const value = event.currentTarget.value.trim();
+    if (b2bBranchSearchDebounce) clearTimeout(b2bBranchSearchDebounce);
+    b2bBranchSearchDebounce = setTimeout(() => searchB2bBranches(value), 250);
+  });
+
+  $('#b2bBranchResults').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-cust-code]');
+    if (!button) return;
+    linkB2bBranch(button.getAttribute('data-cust-code'));
+  });
+
+  $('#unlinkB2bBranchButton').addEventListener('click', () => {
+    linkB2bBranch(null);
+  });
 
   async function loadAvailableTechnicians() {
     const form = $('#scheduleForm');

@@ -14,6 +14,10 @@ Status values used below: **Code complete** (built, typechecked, needs your DB/t
 - **Date:** 2026-09-29
 - **Status:** Code complete — needs you to run the migration, import script, and re-test
 - **Scope:** Customer complaint portal (`/complaints`)
+- **Superseded in part by Modification #2 below** — point 2 in "What changed" (the public
+  autocomplete) was removed for a business/privacy reason you raised yourself. Everything else in
+  this entry (the master table, the dropdown/field-gating/contact-number changes) still stands as
+  described.
 
 ### What changed
 
@@ -23,11 +27,9 @@ Status values used below: **Code complete** (built, typechecked, needs your DB/t
    number.
    - Seed data: `packages/db/seed/b2b_branches.json`
    - Import script (re-runnable, upserts by `Cust_Code`): `scripts/import-b2b-branches.mjs`
-2. The public form's "B2B Branch / School" field is now an autocomplete against that master
-   list, backed by a new public `GET /api/public/b2b-branches` endpoint (branch name + Cust_Code
-   only — salesman is never sent to the public form). If the customer picks a recognized branch,
-   its Cust_Code is stored on the complaint (`b2b_branch_cust_code`); free text that doesn't match
-   anything is still accepted as before, left blank for staff to identify and link later.
+2. ~~The public form's "B2B Branch / School" field is now an autocomplete against that master
+   list...~~ **Reverted in Modification #2** — see below. The field is plain free text on the
+   public form; matching against the master list moved to an authenticated staff tool instead.
 3. Removed "B2B Sales Channel" from the **public form's** Customer type dropdown only. The value
    still exists everywhere else in the system (contracts, DB, other flows) — it just can't be
    self-selected by a customer submitting this form.
@@ -57,10 +59,72 @@ Migration `010_b2b_branch_master_and_optional_contact.sql`:
 4. Manually try `/complaints`: pick B2B and confirm Contact number isn't required and the branch
    field autocompletes against real data; pick B2C and confirm the three fields grey out and clear.
 
-### Known follow-up (tracked, not started — will be its own modification)
+### Known follow-up
+
+See Modification #2's "Known follow-up" below — carried forward, still not started.
+
+---
+
+## Modification #2 — Moved B2B Branch matching behind staff authentication (Option C)
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs you to re-run the migration check (none new), re-test, and
+  manually verify against real data
+- **Scope:** Customer complaint portal (`/complaints`) and the internal staff portal's complaint
+  detail view
+
+### Why
+
+You raised this yourself right after Modification #1 shipped: the public `/complaints` form's
+autocomplete let anyone visiting the page browse the entire 567-branch B2B customer/branch
+roster (names, and indirectly which schools/companies are Jacky's customers) with no sign-in
+required. That's a real business exposure, not just a UX detail.
+
+You picked **Option C**: keep the public form as plain free text, and give staff an authenticated
+tool to match that free text to the master list after the complaint is registered.
+
+### What changed
+
+1. **Public form (`/complaints`)** — the "B2B Branch / School" field is plain free text again. No
+   datalist, no `GET /api/public/b2b-branches` call, no `b2bBranchCustCode` in the submitted
+   payload. The public `GET /api/public/b2b-branches` endpoint has been removed entirely. The
+   tooltip now reads: "Type it if you know it, or leave blank — our service team will confirm it
+   against our records."
+2. **New staff-only endpoints** (both require sign-in and the `complaints.write` permission):
+   - `GET /api/b2b-branches?query=...` — searches the master list by branch name (capped at 20
+     results; with no query, returns the first 20 for browsing). Includes the salesman name,
+     which is never sent to the public form.
+   - `PATCH /api/complaints/{id}/b2b-branch` — links a complaint's typed branch text to a
+     specific `Cust_Code` (overwrites the free text with the master list's canonical spelling) or
+     unlinks it (`custCode: null`, which only clears the link and leaves the customer's typed
+     text alone).
+3. **New staff UI** — the complaint detail view (internal portal) now has a "B2B Branch / School
+   match" card, visible only for B2B complaints and only to staff with `complaints.write`. It
+   shows what the customer typed and whether it's matched yet, a search-as-you-type box against
+   the master list, clickable results to link, and a "Clear match" button to unlink.
+
+### Database changes
+
+None new — this reuses the `b2b_branches` table and `complaints.b2b_branch_cust_code` column from
+migration 010. If you haven't run that migration and the import script yet (Modification #1's
+"Needs you" steps), do those first.
+
+### Needs you
+
+1. If you haven't already: `npm run db:migrate` and `node scripts/import-b2b-branches.mjs` (see
+   Modification #1).
+2. `npx playwright test tests/e2e/complaints.spec.ts tests/e2e/portal.spec.ts` — 3 new tests cover
+   the staff-side search/link/unlink/B2C-hidden behavior; the public-form tests were updated to
+   match the reverted free-text field.
+3. Manually verify: on `/complaints`, submit a B2B complaint with a typed branch name and confirm
+   no network request goes to any branch-listing endpoint. Then, signed in to the staff portal
+   with a user who has `complaints.write`, open that complaint and confirm the new "B2B Branch /
+   School match" card appears, search finds the branch, linking it updates the displayed text and
+   shows "Clear match", and clearing it removes the link but keeps the typed text.
+
+### Known follow-up (tracked, not started)
 
 - Surfacing a linked branch's **Salesman** in the staff Appointment and Service Job Card views
-  (you asked for this explicitly — needs the branch link carried from complaint → appointment →
-  job card, and a place in those screens to show it).
+  (carried over from Modification #1 — still not wired).
 - `appointments.b2b_branch_cust_code` carry-forward from the complaint when an appointment is
   created isn't wired yet (only the complaint stores the link so far).

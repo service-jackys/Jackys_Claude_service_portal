@@ -43,6 +43,7 @@ export type RouteDefinition = {
     | 'publicComplaint'
     | 'complaintNotes'
     | 'complaintStatus'
+    | 'b2bBranchLink'
     | 'customer'
     | 'branch'
     | 'technician'
@@ -620,12 +621,26 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
       },
       {
         method: 'get' as const,
-        path: '/api/public/b2b-branches',
-        operationId: 'listPublicB2bBranches',
+        path: '/api/b2b-branches',
+        operationId: 'searchB2bBranches',
         tags: ['Complaints'],
-        summary: 'List the B2B Branch / School master list for the public complaint form',
-        responses: [200, 500],
-        handlers: complaintHandlers.listB2bBranches,
+        summary: 'Search the B2B Branch / School master list (staff-only, see modification.md #2)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'query', in: 'query', required: false, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 500],
+        handlers: complaintHandlers.searchB2bBranches,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/complaints/{id}/b2b-branch',
+        operationId: 'linkComplaintB2bBranch',
+        tags: ['Complaints'],
+        summary: "Link (or unlink) a complaint's B2B Branch / School to the master list",
+        security: 'bearerAuth' as const,
+        requestBody: 'b2bBranchLink' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: complaintHandlers.linkB2bBranch,
       },
       {
         method: 'get' as const,

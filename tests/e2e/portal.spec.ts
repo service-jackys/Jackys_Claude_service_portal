@@ -1869,3 +1869,291 @@ test.describe('service job-card workspace', () => {
     await expect(page.locator('#retryWorkspaceButton')).toBeVisible();
   });
 });
+
+test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
+  test('lets an authorized staff member search the master list and link a match', async ({
+    page,
+  }) => {
+    let linkBody: unknown = null;
+    let searchQueries: string[] = [];
+    const complaint = {
+      id: '202',
+      complaintReference: 'JSC-20260929-0002',
+      customerType: 'B2B',
+      customerName: 'Acme School Group',
+      contactNumber: null,
+      description: 'AC unit not cooling.',
+      status: 'New',
+      cceNotes: '',
+      b2bBranchSchool: 'american school of dubai',
+      b2bBranchCustCode: null as string | null,
+      submittedAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+    let linkedComplaint = complaint;
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            token: 'test-token',
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaints: [linkedComplaint] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/202' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaint: linkedComplaint, history: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/b2b-branches' && request.method() === 'GET') {
+        searchQueries.push(url.searchParams.get('query') || '');
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            branches: [
+              { custCode: '100599', branchName: 'AMERICAN SCHOOL OF DUBAI', salesman: 'Rahul' },
+            ],
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/202/b2b-branch' && request.method() === 'PATCH') {
+        linkBody = request.postDataJSON();
+        linkedComplaint = { ...complaint, b2bBranchCustCode: '100599' };
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaint: linkedComplaint }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.getByRole('button', { name: 'JSC-20260929-0002' }).click();
+
+    await expect(page.locator('#b2bBranchAction')).toBeVisible();
+    await expect(page.locator('#b2bBranchCurrent')).toHaveText(
+      'american school of dubai — not yet matched',
+    );
+    await expect(page.locator('#unlinkB2bBranchButton')).toBeHidden();
+
+    await page.locator('#b2bBranchSearchInput').fill('american');
+    await expect(page.locator('#b2bBranchResults li')).toHaveCount(1);
+    await expect(page.locator('#b2bBranchResults')).toContainText('AMERICAN SCHOOL OF DUBAI');
+    await expect(page.locator('#b2bBranchResults')).toContainText('Cust_Code 100599');
+
+    await page.getByRole('button', { name: /AMERICAN SCHOOL OF DUBAI/ }).click();
+    await expect(page.locator('#workspaceMessage')).toHaveText('Branch matched.');
+    expect(linkBody).toEqual({ custCode: '100599' });
+    expect(searchQueries.at(-1)).toBe('american');
+    await expect(page.locator('#b2bBranchCurrent')).toHaveText(
+      'american school of dubai — matched (Cust_Code 100599)',
+    );
+    await expect(page.locator('#unlinkB2bBranchButton')).toBeVisible();
+  });
+
+  test('lets staff clear an existing match', async ({ page }) => {
+    let linkBody: unknown = null;
+    const complaint = {
+      id: '303',
+      complaintReference: 'JSC-20260929-0003',
+      customerType: 'B2B',
+      customerName: 'Acme School Group',
+      contactNumber: null,
+      description: 'Fridge leaking.',
+      status: 'New',
+      cceNotes: '',
+      b2bBranchSchool: 'american school of dubai',
+      b2bBranchCustCode: '100599' as string | null,
+      submittedAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+    let linkedComplaint = complaint;
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            token: 'test-token',
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaints: [linkedComplaint] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/303' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaint: linkedComplaint, history: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/303/b2b-branch' && request.method() === 'PATCH') {
+        linkBody = request.postDataJSON();
+        linkedComplaint = { ...complaint, b2bBranchCustCode: null };
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaint: linkedComplaint }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.getByRole('button', { name: 'JSC-20260929-0003' }).click();
+
+    await expect(page.locator('#b2bBranchCurrent')).toHaveText(
+      'american school of dubai — matched (Cust_Code 100599)',
+    );
+    await page.getByRole('button', { name: 'Clear match' }).click();
+    await expect(page.locator('#workspaceMessage')).toHaveText('Match cleared.');
+    expect(linkBody).toEqual({ custCode: null });
+    await expect(page.locator('#b2bBranchCurrent')).toHaveText(
+      'american school of dubai — not yet matched',
+    );
+  });
+
+  test('hides the match tool for a B2C complaint', async ({ page }) => {
+    const complaint = {
+      id: '404',
+      complaintReference: 'JSC-20260929-0004',
+      customerType: 'B2C',
+      customerName: 'Jane Doe',
+      contactNumber: '0500000000',
+      description: 'Oven not heating.',
+      status: 'New',
+      cceNotes: '',
+      submittedAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            token: 'test-token',
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaints: [complaint] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/404' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaint, history: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.getByRole('button', { name: 'JSC-20260929-0004' }).click();
+
+    await expect(page.locator('#b2bBranchAction')).toBeHidden();
+  });
+});

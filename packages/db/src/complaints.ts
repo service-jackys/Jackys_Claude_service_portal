@@ -84,13 +84,16 @@ export async function insertComplaint(
   reference: string,
   input: PublicComplaintInput,
 ): Promise<ComplaintRecord> {
+  // b2b_branch_cust_code is deliberately not settable here -- it's only
+  // ever written by staff via updateComplaintB2bBranchLink, after matching
+  // the free text below against the master list (see modification.md #2).
   const result = await client.query<ComplaintRecord>(
     `INSERT INTO complaints (
        complaint_reference, customer_type, customer_name, contact_number,
        customer_email, address, region, brand, model, serial_or_item_code, description,
-       sales_order_number, b2b_branch_school, b2b_branch_cust_code, school_contact_person,
+       sales_order_number, b2b_branch_school, school_contact_person,
        school_contact_number, customer_number
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      RETURNING ${complaintColumns}`,
     [
       reference,
@@ -106,7 +109,6 @@ export async function insertComplaint(
       input.description,
       input.salesOrderNumber ?? null,
       input.b2bBranchSchool ?? null,
-      input.b2bBranchCustCode ?? null,
       input.schoolContactPerson ?? null,
       input.schoolContactNumber ?? null,
       input.customerNumber ?? null,
@@ -184,6 +186,29 @@ export async function updateComplaintNotes(
      WHERE id = $1
      RETURNING ${complaintColumns}`,
     [id, notes.notes, profileId],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function updateComplaintB2bBranchLink(
+  client: PoolClient,
+  id: string,
+  custCode: string | null,
+  branchName: string | null,
+  profileId: string,
+): Promise<ComplaintRecord | null> {
+  // Linking (custCode set) overwrites the free-text branch name with the
+  // master list's canonical spelling; unlinking (custCode null) only clears
+  // the link and leaves whatever text is already on the complaint alone.
+  const result = await client.query<ComplaintRecord>(
+    `UPDATE complaints
+     SET b2b_branch_cust_code = $2,
+         b2b_branch_school = COALESCE($3, b2b_branch_school),
+         updated_by = $4,
+         updated_at = now()
+     WHERE id = $1
+     RETURNING ${complaintColumns}`,
+    [id, custCode, branchName, profileId],
   );
   return result.rows[0] ?? null;
 }
