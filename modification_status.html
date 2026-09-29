@@ -548,6 +548,26 @@
           <li>Admin page for salesmen / sales channels (still API-only).</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#11 &mdash; Field hints as tooltips, not permanent text</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; short field-level guidance (e.g. &ldquo;At least 12
+            characters&rdquo;) is now a hover/focus tooltip (a small &ldquo;&#9432;&rdquo; marker)
+            instead of permanently-visible text under the field. Applied to the Team logins password
+            field; noted as the standing convention for future field hints.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code> and check the tooltip on Team logins.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

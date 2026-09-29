@@ -422,6 +422,22 @@
         color: var(--red);
         font-size: 0.78rem;
       }
+      /* A small hover/focus tooltip for field-level guidance that shouldn't
+         sit as permanently-visible text under the input (e.g. "at least 12
+         characters") -- see modification.md #11. Native `title` attribute
+         drives the tooltip; this just styles the trigger glyph. */
+      .field-tip {
+        display: inline-block;
+        margin-left: 0.35rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+        cursor: help;
+        border-bottom: 1px dotted var(--muted);
+      }
+      .field-tip:hover,
+      .field-tip:focus-visible {
+        color: var(--ink);
+      }
       .form-footer {
         display: flex;
         flex-wrap: wrap;
@@ -3006,7 +3022,16 @@
                         <span class="field-error" data-error-for="teamAccountEmail"></span>
                       </div>
                       <div class="field">
-                        <label for="teamAccountPassword">Password</label>
+                        <label for="teamAccountPassword"
+                          >Password
+                          <span
+                            class="field-tip"
+                            tabindex="0"
+                            title="At least 12 characters. Share it with them directly."
+                            aria-label="At least 12 characters. Share it with them directly."
+                            >ⓘ</span
+                          ></label
+                        >
                         <input
                           type="text"
                           id="teamAccountPassword"
@@ -3015,9 +3040,6 @@
                           required
                         />
                         <span class="field-error" data-error-for="teamAccountPassword"></span>
-                        <p class="field-hint">
-                          At least 12 characters. Share it with them directly.
-                        </p>
                       </div>
                       <div class="field">
                         <label for="teamAccountRole">Role</label>

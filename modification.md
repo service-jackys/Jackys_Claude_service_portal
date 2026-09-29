@@ -586,3 +586,27 @@ server — it was never meant to be the way you add teammates.
   list. If someone's role needs to change or an account needs to be revoked, that's still a gap.
 - Item 2: staff-facing "create appointment from email/request" intake page.
 - An admin page (or reuse of one) to add/deactivate salesmen and sales channels — still API-only.
+
+## Modification #11 — Field hints as tooltips, not permanent text
+
+- **Date:** 2026-09-29
+- **Status:** Complete.
+
+### What changed
+
+You flagged that short field-level guidance (like "At least 12 characters. Share it with them
+directly." under the Team logins password field) should be a hover/focus tooltip, not text that
+sits permanently under the field — and that this should be the convention going forward, not a
+one-off fix.
+
+- Added a small reusable tooltip pattern: a "ⓘ" marker next to a field's label, using the native
+  `title` attribute (shows on hover, and on focus for keyboard users, via `tabindex="0"` +
+  `aria-label`). No new dependency — just a `.field-tip` CSS rule.
+- Replaced the Team logins password field's visible hint paragraph with this tooltip.
+- Noted as a standing UI convention so future field hints use this pattern instead of visible
+  helper text by default.
+
+### Needs you
+
+- Restart `npm run dev` and confirm the Team logins password field shows the "ⓘ" tooltip on
+  hover instead of the old text underneath it.
