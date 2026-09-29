@@ -126,7 +126,6 @@
       field.disabled = isB2c;
       if (isB2c) field.value = '';
     });
-    if (isB2c) $('#b2bBranchCustCode').value = '';
     const contactRequired = customerType !== 'B2B';
     $('#contactNumberRequiredMark').hidden = !contactRequired;
     $('#contactNumberHint').hidden = contactRequired;

@@ -2298,6 +2298,19 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
         });
         return;
       }
+      // Appointment detail loads the technician list in the background (to
+      // populate the reassignment dropdown). It's unrelated to the workflow
+      // links this test is checking, but if it's left unmocked it falls
+      // through to the real dev server, which rejects this test's fake
+      // bearer token with a 401 -- and that 401 handling signs the staff
+      // member out and hides the whole workspace mid-test.
+      if (url.pathname === '/api/technicians' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ technicians: [] }),
+        });
+        return;
+      }
       await route.continue();
     });
 

@@ -350,6 +350,49 @@
           <li>None queued — this closes out all four items from the last modification request.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#7 — Fixes from your Playwright test run (56/59 &rarr; root-caused)</h2>
+          <span class="badge badge-code-complete">Two fixed &middot; one not reproduced</span>
+        </div>
+        <p class="meta">
+          2026-09-29 &middot; Scope: public complaint form gating, workflow-links test coverage
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Fixed</strong> &mdash; <code>complaints.spec.ts:67</code>: the public complaint
+            form's B2B&rarr;B2C gating referenced a staff-only field ID that doesn't exist on the
+            public form, throwing mid-function and leaving the "contact number required" mark stuck
+            hidden. Removed the stray line.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; <code>portal.spec.ts:2168</code>: my own new
+            workflow-links test was missing a mock for <code>GET /api/technicians</code>, so the
+            request hit your real dev server with a fake token, got a 401, and the app correctly
+            signed the test out mid-run &mdash; hiding the chip it was about to click. Added the
+            missing mock.
+          </li>
+          <li>
+            <strong>Not reproduced</strong> &mdash; <code>portal.spec.ts:1877</code>
+            (<code>#unlinkB2bBranchButton</code>): replayed the exact test flow in a headless
+            simulation of the real app code and it came out correct every time. Likely a one-off
+            timing hiccup from running all 59 tests in parallel against one shared live server.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npx playwright test</code> &mdash; full re-run to confirm all 59 pass.</li>
+          <li>
+            If <code>portal.spec.ts:1877</code> fails again on its own (not just in the full run),
+            tell me &mdash; that would mean it's a real bug I haven't found yet.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None queued.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

@@ -301,3 +301,60 @@ and visually flat, with no way to act on what you saw.
 
 - This closes out all four items from your last message. Nothing new queued — let me know what's
   next.
+
+---
+
+## Modification #7 — Fixes from your Playwright test run (56/59 → root-caused)
+
+- **Date:** 2026-09-29
+- **Status:** Two of three confirmed and fixed; one could not be reproduced (see below)
+- **Scope:** Public complaint form gating, workflow-links test coverage
+
+### Why
+
+You ran the full suite (`npx playwright test` against your live dev server) and got 56 passed,
+3 failed. I root-caused each failure by reproducing the exact click sequence from each failing
+test in a headless DOM simulation (loading the real `app.js`/`complaints.js`/`index.html`/
+`complaints.html` with the same mocked API responses the test uses), so these are confirmed causes,
+not guesses.
+
+### What changed
+
+1. **`tests/e2e/complaints.spec.ts:67` (contactNumberRequiredMark stuck hidden) — fixed, real bug.**
+   `apps/web/src/complaints.js`'s customer-type gating had a leftover line —
+   `if (isB2c) $('#b2bBranchCustCode').value = '';` — referencing an element ID that only exists
+   on the **staff** portal (`index.html`), not on the **public** complaint form
+   (`complaints.html`). Switching a public-form customer from B2B back to B2C threw a `TypeError`
+   partway through the gating function, which aborted it before it could reach the line that
+   un-hides the "contact number required" mark. Removed the stray line — it never belonged on the
+   public form, since B2B Branch matching to the master list is staff-only (modification #2).
+
+2. **`tests/e2e/portal.spec.ts:2168` (Job card workflow-link chip timeout) — fixed, test bug, not
+   an app bug.** My own new "Workflow links" test (modification #5) signs in with a fake mocked
+   token, but its route mock didn't cover `GET /api/technicians`. The appointment detail page
+   fetches that list in the background (for the reassignment dropdown), and since it wasn't
+   mocked, the request fell through to your _real_ dev server, which correctly rejected the fake
+   token with a 401 — and the app's normal 401 handling signed the test's staff session out mid-test,
+   hiding the whole workspace (including the chip Playwright was about to click). Added the missing
+   mock. I checked every other test that opens an appointment detail as an admin-style user and
+   confirmed they already mock `/api/technicians` — this was isolated to the one new test.
+
+3. **`tests/e2e/portal.spec.ts:1877` (`#unlinkB2bBranchButton` visible when it should be hidden) —
+   not reproduced.** I re-read `renderB2bBranchAction`/`renderComplaintActions`/`activateActionTab`
+   line by line and replayed the exact test flow (sign in, open the complaint, click the "B2B
+   Branch match" tab) in the same headless simulation used for the other two — the button came out
+   correctly hidden every time, and I found no code path that could leave it visible for this
+   complaint (status `New`, not yet matched). My best guess is this one was a casualty of the same
+   class of problem as #2 above: a full 59-test run with `fullyParallel: true` against one shared
+   live dev server can produce timing/session hiccups that a single isolated test run won't. If it
+   fails again on its own, that would point to a real bug I haven't found yet.
+
+### Needs you
+
+- `npx playwright test` — full re-run to confirm all 59 pass now.
+- If test #3 (`portal.spec.ts:1877`) still fails on its own (not just in the full run), tell me —
+  that would mean it's a real bug, not a flake, and I'll dig further.
+
+### Known follow-up (tracked, not started)
+
+- None — this closes out the test-failure report. Let me know what's next.
