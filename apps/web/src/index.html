@@ -438,6 +438,55 @@
         background: #effaf4;
         color: var(--success);
       }
+      /* Floating toast presentation for staff-action feedback (modification.md #3) --
+         same elements, same text, just surfaced where staff can see it without
+         scrolling back up, and color-coded so success and error are distinguishable
+         at a glance. */
+      .notice-toast {
+        position: fixed;
+        top: 1rem;
+        right: 1rem;
+        z-index: 1000;
+        max-width: 400px;
+        margin: 0;
+        padding: 0.9rem 1rem 0.9rem 2.6rem;
+        box-shadow: 0 12px 30px rgba(11, 31, 58, 0.18);
+        font-weight: 500;
+      }
+      .notice-toast::before {
+        position: absolute;
+        left: 1rem;
+        top: 0.85rem;
+        font-weight: 800;
+      }
+      .notice-toast.notice-error::before {
+        content: '!';
+        color: #8c2020;
+      }
+      .notice-toast.notice-success::before {
+        content: '✓';
+        color: var(--success);
+      }
+      .notice-toast:not([hidden]) {
+        animation: toast-in 0.22s ease-out;
+      }
+      @keyframes toast-in {
+        from {
+          opacity: 0;
+          transform: translateY(-8px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+      @media (max-width: 640px) {
+        .notice-toast {
+          left: 1rem;
+          right: 1rem;
+          max-width: none;
+        }
+      }
       .success-reference {
         margin: 0.7rem 0 0;
         font-size: 1.6rem;
@@ -846,13 +895,76 @@
       .detail-actions[hidden] {
         display: none;
       }
+      /* Vertical-tab layout for the complaint's action cards (Notes, B2B Branch
+         match, Update status, Schedule appointment) -- see modification.md #4.
+         Only the active tab's card is shown, so staff don't have to scroll past
+         unrelated cards to reach Schedule appointment. */
       .detail-actions {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 1.25rem;
         margin-top: 1.5rem;
         border-top: 1px solid var(--line);
         padding-top: 1.3rem;
+      }
+      .action-tab-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        flex: 0 0 200px;
+        border-right: 1px solid var(--line);
+        padding-right: 0.9rem;
+      }
+      .action-tab {
+        text-align: left;
+        padding: 0.6rem 0.75rem;
+        border-radius: 8px;
+        border: 1px solid transparent;
+        background: none;
+        color: var(--muted);
+        font: inherit;
+        font-weight: 600;
+        font-size: 0.88rem;
+        cursor: pointer;
+      }
+      .action-tab:hover {
+        background: var(--surface-soft);
+        color: var(--navy);
+      }
+      .action-tab.active {
+        background: var(--navy);
+        color: #fff;
+      }
+      .action-tab-panels {
+        flex: 1 1 auto;
+        min-width: 0;
+        max-height: 560px;
+        overflow-y: auto;
+        padding-right: 0.3rem;
+      }
+      .form-note-inline {
+        color: var(--muted);
+        font-weight: 500;
+        font-size: 0.78rem;
+        text-transform: none;
+      }
+      @media (max-width: 780px) {
+        .detail-actions {
+          flex-direction: column;
+        }
+        .action-tab-nav {
+          flex-direction: row;
+          flex-wrap: wrap;
+          width: 100%;
+          border-right: none;
+          border-bottom: 1px solid var(--line);
+          padding-right: 0;
+          padding-bottom: 0.6rem;
+        }
+        .action-tab-panels {
+          max-height: none;
+          width: 100%;
+        }
       }
       .detail-action-card {
         border: 1px solid var(--line);
@@ -1339,7 +1451,12 @@
         </div>
         <div class="card auth-card" id="authCard">
           <div class="card-body">
-            <div id="authMessage" class="notice notice-error" role="alert" hidden></div>
+            <div
+              id="authMessage"
+              class="notice notice-toast notice-error"
+              role="alert"
+              hidden
+            ></div>
             <div class="auth-tabs" role="tablist" aria-label="Staff access options">
               <button
                 class="auth-tab"
@@ -1627,7 +1744,12 @@
                 </button>
               </div>
             </div>
-            <div id="workspaceMessage" class="notice notice-error" role="alert" hidden></div>
+            <div
+              id="workspaceMessage"
+              class="notice notice-toast notice-error"
+              role="alert"
+              hidden
+            ></div>
             <div id="workspaceRecovery" class="notice notice-error" role="alert" hidden>
               <p id="workspaceRecoveryMessage"></p>
               <div class="form-footer">
@@ -1709,196 +1831,262 @@
                   </div>
                   <div class="detail-grid" id="detailGrid"></div>
                   <div class="detail-actions" id="complaintActions" hidden>
-                    <section
-                      class="detail-action-card"
-                      id="notesAction"
-                      aria-labelledby="notesHeading"
+                    <div
+                      class="action-tab-nav"
+                      id="complaintActionTabs"
+                      role="tablist"
+                      aria-label="Complaint actions"
                     >
-                      <h4 id="notesHeading">CCE notes</h4>
-                      <p>Keep the internal service follow-up notes current.</p>
-                      <form id="notesForm" novalidate>
-                        <label for="complaintNotes">Notes</label>
-                        <textarea id="complaintNotes" name="notes" maxlength="10000"></textarea>
-                        <span class="field-error" data-error-for="complaintNotes"></span>
+                      <button
+                        type="button"
+                        class="action-tab"
+                        id="notesActionTab"
+                        data-panel="notesAction"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="notesAction"
+                      >
+                        Notes
+                      </button>
+                      <button
+                        type="button"
+                        class="action-tab"
+                        id="b2bBranchActionTab"
+                        data-panel="b2bBranchAction"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="b2bBranchAction"
+                        hidden
+                      >
+                        B2B Branch match
+                      </button>
+                      <button
+                        type="button"
+                        class="action-tab"
+                        id="statusActionTab"
+                        data-panel="statusAction"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="statusAction"
+                      >
+                        Update status
+                      </button>
+                      <button
+                        type="button"
+                        class="action-tab"
+                        id="scheduleActionTab"
+                        data-panel="scheduleAction"
+                        role="tab"
+                        aria-selected="false"
+                        aria-controls="scheduleAction"
+                        hidden
+                      >
+                        Schedule appointment
+                      </button>
+                    </div>
+                    <div class="action-tab-panels" id="complaintActionPanels">
+                      <section
+                        class="detail-action-card"
+                        id="notesAction"
+                        aria-labelledby="notesHeading"
+                        role="tabpanel"
+                      >
+                        <h4 id="notesHeading">CCE notes</h4>
+                        <p>Keep the internal service follow-up notes current.</p>
+                        <form id="notesForm" novalidate>
+                          <label for="complaintNotes">Notes</label>
+                          <textarea id="complaintNotes" name="notes" maxlength="10000"></textarea>
+                          <span class="field-error" data-error-for="complaintNotes"></span>
+                          <div class="form-footer">
+                            <span></span>
+                            <button
+                              class="button button-secondary"
+                              type="submit"
+                              id="saveNotesButton"
+                            >
+                              Save notes
+                            </button>
+                          </div>
+                        </form>
+                      </section>
+                      <section
+                        class="detail-action-card"
+                        id="b2bBranchAction"
+                        aria-labelledby="b2bBranchHeading"
+                        role="tabpanel"
+                      >
+                        <h4 id="b2bBranchHeading">B2B Branch / School match</h4>
+                        <p>
+                          Match the customer's typed branch or school name to our master list, or
+                          clear a match if it was linked in error (see modification.md #2).
+                        </p>
+                        <div class="field">
+                          <label for="b2bBranchCurrent">Currently on this complaint</label>
+                          <p id="b2bBranchCurrent" class="detail-static-value">—</p>
+                        </div>
+                        <div class="field">
+                          <label for="b2bBranchSearchInput">Search master list</label>
+                          <input
+                            id="b2bBranchSearchInput"
+                            type="text"
+                            autocomplete="off"
+                            placeholder="Start typing a branch or school name…"
+                          />
+                          <span class="field-error" data-error-for="b2bBranchSearchInput"></span>
+                        </div>
+                        <ul id="b2bBranchResults" class="b2b-branch-results" hidden></ul>
+                        <p id="b2bBranchSearchMessage" class="detail-static-value"></p>
                         <div class="form-footer">
-                          <span></span>
-                          <button
-                            class="button button-secondary"
-                            type="submit"
-                            id="saveNotesButton"
-                          >
-                            Save notes
-                          </button>
-                        </div>
-                      </form>
-                    </section>
-                    <section
-                      class="detail-action-card"
-                      id="b2bBranchAction"
-                      aria-labelledby="b2bBranchHeading"
-                    >
-                      <h4 id="b2bBranchHeading">B2B Branch / School match</h4>
-                      <p>
-                        Match the customer's typed branch or school name to our master list, or
-                        clear a match if it was linked in error (see modification.md #2).
-                      </p>
-                      <div class="field">
-                        <label for="b2bBranchCurrent">Currently on this complaint</label>
-                        <p id="b2bBranchCurrent" class="detail-static-value">—</p>
-                      </div>
-                      <div class="field">
-                        <label for="b2bBranchSearchInput">Search master list</label>
-                        <input
-                          id="b2bBranchSearchInput"
-                          type="text"
-                          autocomplete="off"
-                          placeholder="Start typing a branch or school name…"
-                        />
-                        <span class="field-error" data-error-for="b2bBranchSearchInput"></span>
-                      </div>
-                      <ul id="b2bBranchResults" class="b2b-branch-results" hidden></ul>
-                      <p id="b2bBranchSearchMessage" class="detail-static-value"></p>
-                      <div class="form-footer">
-                        <button
-                          class="button button-outline"
-                          type="button"
-                          id="unlinkB2bBranchButton"
-                          hidden
-                        >
-                          Clear match
-                        </button>
-                        <span></span>
-                      </div>
-                    </section>
-                    <section
-                      class="detail-action-card"
-                      id="statusAction"
-                      aria-labelledby="statusHeading"
-                    >
-                      <h4 id="statusHeading">Update status</h4>
-                      <p>Choose the next status allowed by the current workflow.</p>
-                      <form id="statusForm" novalidate>
-                        <div class="field">
-                          <label for="complaintNextStatus">Next status</label>
-                          <select id="complaintNextStatus" name="status"></select>
-                          <span class="field-error" data-error-for="complaintNextStatus"></span>
-                        </div>
-                        <div class="field">
-                          <label for="complaintStatusReason"
-                            >Reason <span class="visually-hidden">(optional)</span></label
-                          >
-                          <textarea
-                            id="complaintStatusReason"
-                            name="reason"
-                            maxlength="1000"
-                          ></textarea>
-                          <span class="field-error" data-error-for="complaintStatusReason"></span>
-                        </div>
-                        <div class="form-footer">
-                          <span></span>
-                          <button
-                            class="button button-secondary"
-                            type="submit"
-                            id="updateStatusButton"
-                          >
-                            Update status
-                          </button>
-                        </div>
-                      </form>
-                    </section>
-                    <section
-                      class="detail-action-card"
-                      id="scheduleAction"
-                      aria-labelledby="scheduleHeading"
-                      hidden
-                    >
-                      <h4 id="scheduleHeading">Schedule appointment</h4>
-                      <p>Choose a service time and an available technician.</p>
-                      <form id="scheduleForm" novalidate>
-                        <div class="field">
-                          <label for="appointmentDate">Appointment date</label>
-                          <input id="appointmentDate" name="appointmentDate" type="date" />
-                          <span class="field-error" data-error-for="appointmentDate"></span>
-                        </div>
-                        <div class="field">
-                          <label for="appointmentTime">Appointment time</label>
-                          <input id="appointmentTime" name="appointmentTime" type="time" />
-                          <span class="field-error" data-error-for="appointmentTime"></span>
-                        </div>
-                        <div class="field">
                           <button
                             class="button button-outline"
                             type="button"
-                            id="findTechniciansButton"
+                            id="unlinkB2bBranchButton"
+                            hidden
                           >
-                            Find available technicians
+                            Clear match
                           </button>
-                          <span class="field-error" data-error-for="technicianId"></span>
+                          <span></span>
                         </div>
-                        <div class="field">
-                          <label for="technicianId">Technician</label>
-                          <select id="technicianId" name="technicianId" disabled>
-                            <option value="">Select a date and time first</option>
-                          </select>
-                          <p class="form-note" id="scheduleAvailabilityMessage" role="status"></p>
-                        </div>
-                        <div class="field">
-                          <label for="scheduleSalesOrderNumber">Sales order no.</label>
-                          <input
-                            id="scheduleSalesOrderNumber"
-                            name="salesOrderNumber"
-                            placeholder="Leave blank to keep the complaint's value"
-                          />
-                        </div>
-                        <div class="field">
-                          <label for="scheduleB2bBranchSchool">B2B Branch / School</label>
-                          <input
-                            id="scheduleB2bBranchSchool"
-                            name="b2bBranchSchool"
-                            placeholder="Leave blank to keep the complaint's value"
-                          />
-                        </div>
-                        <div class="field">
-                          <label for="scheduleSchoolContactPerson">Site contact person</label>
-                          <input
-                            id="scheduleSchoolContactPerson"
-                            name="schoolContactPerson"
-                            placeholder="Leave blank to keep the complaint's value"
-                          />
-                        </div>
-                        <div class="field">
-                          <label for="scheduleSchoolContactNumber">Site contact number</label>
-                          <input
-                            id="scheduleSchoolContactNumber"
-                            name="schoolContactNumber"
-                            type="tel"
-                            placeholder="Leave blank to keep the complaint's value"
-                          />
-                        </div>
-                        <div class="field">
-                          <label for="scheduleCustomerNumber">Customer number</label>
-                          <input
-                            id="scheduleCustomerNumber"
-                            name="customerNumber"
-                            placeholder="Leave blank to keep the complaint's value"
-                          />
-                        </div>
-                        <div class="field">
-                          <label for="scheduleSubGroup">Sub group</label>
-                          <input id="scheduleSubGroup" name="subGroup" />
-                        </div>
-                        <div class="form-footer">
-                          <span class="form-note" id="scheduleResult" role="status"></span>
-                          <button
-                            class="button button-secondary"
-                            type="submit"
-                            id="scheduleAppointmentButton"
-                          >
-                            Schedule appointment
-                          </button>
-                        </div>
-                      </form>
-                    </section>
+                      </section>
+                      <section
+                        class="detail-action-card"
+                        id="statusAction"
+                        aria-labelledby="statusHeading"
+                        role="tabpanel"
+                      >
+                        <h4 id="statusHeading">Update status</h4>
+                        <p>Choose the next status allowed by the current workflow.</p>
+                        <form id="statusForm" novalidate>
+                          <div class="field">
+                            <label for="complaintNextStatus">Next status</label>
+                            <select id="complaintNextStatus" name="status"></select>
+                            <span class="field-error" data-error-for="complaintNextStatus"></span>
+                          </div>
+                          <div class="field">
+                            <label for="complaintStatusReason"
+                              >Reason <span class="visually-hidden">(optional)</span></label
+                            >
+                            <textarea
+                              id="complaintStatusReason"
+                              name="reason"
+                              maxlength="1000"
+                            ></textarea>
+                            <span class="field-error" data-error-for="complaintStatusReason"></span>
+                          </div>
+                          <div class="form-footer">
+                            <span></span>
+                            <button
+                              class="button button-secondary"
+                              type="submit"
+                              id="updateStatusButton"
+                            >
+                              Update status
+                            </button>
+                          </div>
+                        </form>
+                      </section>
+                      <section
+                        class="detail-action-card"
+                        id="scheduleAction"
+                        aria-labelledby="scheduleHeading"
+                        role="tabpanel"
+                        hidden
+                      >
+                        <h4 id="scheduleHeading">Schedule appointment</h4>
+                        <p>Choose a service time and an available technician.</p>
+                        <form id="scheduleForm" novalidate>
+                          <div class="field">
+                            <label for="appointmentDate">Appointment date</label>
+                            <input id="appointmentDate" name="appointmentDate" type="date" />
+                            <span class="field-error" data-error-for="appointmentDate"></span>
+                          </div>
+                          <div class="field">
+                            <label for="appointmentTime">Appointment time</label>
+                            <input id="appointmentTime" name="appointmentTime" type="time" />
+                            <span class="field-error" data-error-for="appointmentTime"></span>
+                          </div>
+                          <div class="field">
+                            <button
+                              class="button button-outline"
+                              type="button"
+                              id="findTechniciansButton"
+                            >
+                              Find available technicians
+                            </button>
+                            <span class="field-error" data-error-for="technicianId"></span>
+                          </div>
+                          <div class="field">
+                            <label for="technicianId">Technician</label>
+                            <select id="technicianId" name="technicianId" disabled>
+                              <option value="">Select a date and time first</option>
+                            </select>
+                            <p class="form-note" id="scheduleAvailabilityMessage" role="status"></p>
+                          </div>
+                          <div class="field">
+                            <label for="scheduleSalesOrderNumber"
+                              >Sales order no.
+                              <span class="form-note-inline">(from complaint)</span></label
+                            >
+                            <input
+                              id="scheduleSalesOrderNumber"
+                              name="salesOrderNumber"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="scheduleB2bBranchSchool"
+                              >B2B Branch / School
+                              <span class="form-note-inline">(from complaint)</span></label
+                            >
+                            <input
+                              id="scheduleB2bBranchSchool"
+                              name="b2bBranchSchool"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                            <p class="form-note" id="scheduleB2bBranchMatchNote"></p>
+                          </div>
+                          <div class="field">
+                            <label for="scheduleSchoolContactPerson">Site contact person</label>
+                            <input
+                              id="scheduleSchoolContactPerson"
+                              name="schoolContactPerson"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="scheduleSchoolContactNumber">Site contact number</label>
+                            <input
+                              id="scheduleSchoolContactNumber"
+                              name="schoolContactNumber"
+                              type="tel"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="scheduleCustomerNumber">Customer number</label>
+                            <input
+                              id="scheduleCustomerNumber"
+                              name="customerNumber"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="scheduleSubGroup">Sub group</label>
+                            <input id="scheduleSubGroup" name="subGroup" />
+                          </div>
+                          <div class="form-footer">
+                            <span class="form-note" id="scheduleResult" role="status"></span>
+                            <button
+                              class="button button-secondary"
+                              type="submit"
+                              id="scheduleAppointmentButton"
+                            >
+                              Schedule appointment
+                            </button>
+                          </div>
+                        </form>
+                      </section>
+                    </div>
                   </div>
                   <h4>History</h4>
                   <ol class="history" id="historyList"></ol>

@@ -128,3 +128,84 @@ migration 010. If you haven't run that migration and the import script yet (Modi
   (carried over from Modification #1 — still not wired).
 - `appointments.b2b_branch_cust_code` carry-forward from the complaint when an appointment is
   created isn't wired yet (only the complaint stores the link so far).
+
+---
+
+## Modification #3 — Toast-style notifications for every staff action
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your visual/manual check
+- **Scope:** Internal staff portal (all workspaces — complaints, appointments, job cards,
+  quotations, inspections, attachments, warranty approvals)
+
+### Why
+
+Every staff action (save notes, update status, schedule an appointment, etc.) reported success
+or failure through a single banner near the top of the page — and along the way we found it was
+hardcoded to the _error_ color even for success messages, so a successful save looked the same
+as a failure. On longer pages, staff had to scroll back up to see it at all.
+
+### What changed
+
+- The same feedback element now renders as a floating, colored toast (top-right corner) instead
+  of an inline banner — success is green with a check mark, errors are red with an exclamation
+  mark, and it's visible immediately without scrolling.
+- Success toasts auto-dismiss after 4 seconds; error toasts stay until replaced or the next
+  action, since those usually need to be read and acted on.
+- Fixed a related bug: appointment reschedule/technician-assignment/status-update **errors**
+  were silently swallowed (the message text was set but the element was immediately hidden again)
+  — they now display correctly, in red.
+- No new elements, no new endpoints — this only changes how the existing `#workspaceMessage` /
+  `#authMessage` feedback is presented, so it covers every action across the whole portal at once.
+
+### Needs you
+
+- `npx playwright test` (no test changes were needed for this one — same elements, same text).
+- Manually glance through a few actions (save notes, update a status, schedule an appointment)
+  and confirm the toast shows top-right, colored correctly, and success ones fade after a few
+  seconds.
+
+---
+
+## Modification #4 — Schedule appointment: shows existing data, vertical-tab layout
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your manual check
+- **Scope:** Internal staff portal, complaint detail view
+
+### Why
+
+Two issues you raised: (1) the Schedule appointment card sat at the bottom of a long, stacked
+list of action cards inside the complaint detail, so staff had to scroll past Notes / B2B Branch
+match / Update status to reach it; (2) its Sales order no. and B2B Branch / School fields always
+showed blank with only a placeholder hint, even when the complaint already had that data.
+
+### What changed
+
+- The complaint's action cards (Notes, B2B Branch match, Update status, Schedule appointment) are
+  now a vertical-tab layout — one card visible at a time, selected from a tab list on the left, so
+  no more scrolling past cards you're not using.
+- Opening a complaint that's **Ready for Scheduling** now lands directly on the Schedule
+  appointment tab (since that's the action staff came there to take); otherwise it lands on
+  Notes. Switching tabs to link/unlink a B2B branch or save notes no longer jumps you back to the
+  default tab afterwards — it keeps you where you were.
+- The Schedule appointment card's Sales order no., B2B Branch / School, Site contact
+  person/number, and Customer number fields are now pre-filled from the complaint's current data
+  (they were always blank before). B2B Branch / School also shows whether it's already matched to
+  the master list (Cust_Code) or still needs matching, right there on the Schedule tab.
+
+### Needs you
+
+- `npx playwright test tests/e2e/portal.spec.ts` — one existing test updated (a tab click added
+  before the status-update step) and two of the new B2B-linking tests from Modification #2
+  updated the same way; no behavior changes to those tests otherwise.
+- Manually open a Ready-for-Scheduling complaint that already has a Sales order no. / B2B Branch
+  on file and confirm those fields show the existing data, and try switching between the four
+  tabs.
+
+### Known follow-up (tracked, not started)
+
+- Item 1 from your last message (separate, non-mixed page views for Complaint inbox / Service
+  requests / Appointments / Job cards, with an end-to-end workflow link back from job card →
+  appointment → complaint) and item 4 (interactive, visually redesigned dashboard) are both large
+  enough to be their own modifications — see modification #5 and #6 (not started yet).

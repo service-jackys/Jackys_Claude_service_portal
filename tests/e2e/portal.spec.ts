@@ -101,6 +101,9 @@ test.describe('staff access boundary', () => {
     await expect(page.locator('#workspaceMessage')).toHaveText('Notes saved.');
     expect(notesBody).toEqual({ notes: 'Followed up with customer.' });
 
+    // The complaint's action cards are vertical tabs now (modification.md #4)
+    // -- switch to "Update status" before touching its fields.
+    await page.getByRole('tab', { name: 'Update status' }).click();
     await page.locator('#complaintNextStatus').selectOption('Under Review');
     await page.locator('#complaintStatusReason').fill('Initial review started.');
     await page.locator('#statusForm').getByRole('button', { name: 'Update status' }).click();
@@ -1969,6 +1972,8 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260929-0002' }).click();
 
+    // The complaint's action cards are vertical tabs now (modification.md #4).
+    await page.getByRole('tab', { name: 'B2B Branch match' }).click();
     await expect(page.locator('#b2bBranchAction')).toBeVisible();
     await expect(page.locator('#b2bBranchCurrent')).toHaveText(
       'american school of dubai — not yet matched',
@@ -2073,6 +2078,7 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260929-0003' }).click();
 
+    await page.getByRole('tab', { name: 'B2B Branch match' }).click();
     await expect(page.locator('#b2bBranchCurrent')).toHaveText(
       'american school of dubai — matched (Cust_Code 100599)',
     );

@@ -219,6 +219,71 @@
           <li>Carry <code>b2b_branch_cust_code</code> forward onto the created appointment.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#3 — Toast-style notifications for every staff action</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">2026-09-29 · Scope: whole internal staff portal</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Every save/update/schedule action now shows a colored, floating toast (top-right)
+            instead of a static banner you had to scroll up to see.
+          </li>
+          <li>
+            Fixed: success messages were hardcoded to the error color; now green with a check.
+          </li>
+          <li>
+            Fixed a bug where some appointment errors (reschedule / assign / status update) were
+            silently hidden instead of shown.
+          </li>
+          <li>Success toasts auto-dismiss after 4s; errors stay until replaced.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npx playwright test</code></li>
+          <li>Manually glance at a few actions to confirm the toast look and colors.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#4 — Schedule appointment: shows existing data, vertical-tab layout</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">2026-09-29 · Scope: staff portal complaint detail view</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Notes / B2B Branch match / Update status / Schedule appointment are now vertical tabs —
+            one at a time, no scrolling past cards you're not using.
+          </li>
+          <li>
+            A Ready-for-Scheduling complaint opens straight to the Schedule tab; switching tabs to
+            link a branch or save notes no longer resets you back to the default tab.
+          </li>
+          <li>
+            Sales order no., B2B Branch / School, site contact person/number, and customer number
+            are now pre-filled from the complaint instead of always showing blank; B2B Branch /
+            School also shows its master-list match status.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npx playwright test tests/e2e/portal.spec.ts</code></li>
+          <li>
+            Manually open a Ready-for-Scheduling B2B complaint and check the pre-filled fields.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up (next modifications, not started)</div>
+        <ul>
+          <li>
+            #5 — Separate, linked page views: Complaint inbox / Service requests / Appointments /
+            Job cards, with an end-to-end workflow link back to the originating complaint.
+          </li>
+          <li>#6 — Interactive, visually redesigned dashboard.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

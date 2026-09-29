@@ -51,10 +51,38 @@
     );
   }
 
-  function setMessage(selector, message, visible = true) {
+  // Toast-style feedback for every staff action (save notes, update status,
+  // schedule, etc. -- see modification.md #3). `kind` is one of:
+  //   true      -- success (green, auto-dismisses after a few seconds)
+  //   undefined -- error / neutral (red, stays until replaced or cleared)
+  //   false     -- hide/clear the toast now
+  // This keeps every existing call site's meaning: `setMessage(sel, msg)` was
+  // already "show an error-ish message", `setMessage(sel, msg, true)` was
+  // already "show a success message", and `setMessage(sel, '', false)` was
+  // already "clear it" -- only the visual presentation changes.
+  const messageDismissTimers = new Map();
+
+  function setMessage(selector, message, kind) {
     const element = $(selector);
+    if (messageDismissTimers.has(selector)) {
+      clearTimeout(messageDismissTimers.get(selector));
+      messageDismissTimers.delete(selector);
+    }
+    const isSuccess = kind === true;
+    const visible = kind !== false && Boolean(message);
     element.textContent = message || '';
-    element.hidden = !visible || !message;
+    element.hidden = !visible;
+    element.classList.toggle('notice-success', isSuccess);
+    element.classList.toggle('notice-error', !isSuccess);
+    if (visible && isSuccess) {
+      messageDismissTimers.set(
+        selector,
+        setTimeout(() => {
+          element.hidden = true;
+          messageDismissTimers.delete(selector);
+        }, 4000),
+      );
+    }
   }
 
   function clearErrors(scope) {
@@ -2655,7 +2683,7 @@ ${bodyHtml}
   async function refreshAppointmentView(message, success = false) {
     if (currentAppointmentId) await loadAppointmentDetail(currentAppointmentId);
     await loadAppointments();
-    setMessage('#workspaceMessage', message, success);
+    setMessage('#workspaceMessage', message, success ? true : undefined);
   }
 
   async function rescheduleAppointment(
@@ -2812,6 +2840,71 @@ ${bodyHtml}
     $('#scheduleResult').textContent = '';
   }
 
+  // Vertical-tab wiring for the complaint's action cards (Notes, B2B Branch
+  // match, Update status, Schedule appointment) -- see modification.md #4.
+  // Each entry's `available` flag is set by whichever render function owns
+  // that card (permission/context gating); `activateActionTab` is the only
+  // place that actually shows/hides a panel, so gating and tab-selection
+  // never fight each other.
+  const ACTION_TABS = [
+    { panel: 'notesAction', tab: 'notesActionTab' },
+    { panel: 'b2bBranchAction', tab: 'b2bBranchActionTab' },
+    { panel: 'statusAction', tab: 'statusActionTab' },
+    { panel: 'scheduleAction', tab: 'scheduleActionTab' },
+  ];
+
+  function setActionTabAvailability(panelId, available) {
+    const entry = ACTION_TABS.find((item) => item.panel === panelId);
+    if (!entry) return;
+    $('#' + entry.tab).hidden = !available;
+    $('#' + panelId).dataset.tabAvailable = available ? 'true' : 'false';
+  }
+
+  // Remembers which tab the staff member had open, per complaint, so
+  // linking/unlinking a B2B branch or saving notes (which both reload the
+  // complaint detail) doesn't yank them back to the default tab.
+  let activeActionTabId = null;
+  let activeActionTabComplaintId = null;
+
+  function activateActionTab(panelId) {
+    activeActionTabId = panelId;
+    ACTION_TABS.forEach(({ panel, tab }) => {
+      const panelEl = $('#' + panel);
+      const tabEl = $('#' + tab);
+      const isActive = panel === panelId;
+      panelEl.hidden = !(isActive && panelEl.dataset.tabAvailable === 'true');
+      tabEl.classList.toggle('active', isActive);
+      tabEl.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    });
+  }
+
+  $('#complaintActionTabs').addEventListener('click', (event) => {
+    const button = event.target.closest('.action-tab');
+    if (!button || button.hidden) return;
+    activateActionTab(button.dataset.panel);
+  });
+
+  // Pre-fills the Schedule appointment card with the complaint's current
+  // Sales order no. / B2B Branch / site-contact data, which previously always
+  // showed blank even when the complaint already had this data on file (see
+  // modification.md #4).
+  function populateScheduleFormFromComplaint(complaint) {
+    $('#scheduleSalesOrderNumber').value = complaint.salesOrderNumber || '';
+    $('#scheduleB2bBranchSchool').value = complaint.b2bBranchSchool || '';
+    $('#scheduleSchoolContactPerson').value = complaint.schoolContactPerson || '';
+    $('#scheduleSchoolContactNumber').value = complaint.schoolContactNumber || '';
+    $('#scheduleCustomerNumber').value = complaint.customerNumber || '';
+    const matchNote = $('#scheduleB2bBranchMatchNote');
+    if (complaint.b2bBranchCustCode) {
+      matchNote.textContent = `Matched to the master list (Cust_Code ${complaint.b2bBranchCustCode}).`;
+    } else if (complaint.b2bBranchSchool) {
+      matchNote.textContent =
+        'Not yet matched to the master list -- see the "B2B Branch match" tab.';
+    } else {
+      matchNote.textContent = '';
+    }
+  }
+
   function renderComplaintActions(complaint) {
     currentComplaintId = complaint.id;
     const canWrite = hasPermission('complaints.write');
@@ -2820,11 +2913,25 @@ ${bodyHtml}
       hasPermission('appointments.write') &&
       hasPermission('technicians.read');
     $('#complaintActions').hidden = !canWrite && !canSchedule;
-    $('#notesAction').hidden = !canWrite;
-    $('#statusAction').hidden = !canWrite;
-    $('#scheduleAction').hidden = !canSchedule;
+    setActionTabAvailability('notesAction', canWrite);
+    setActionTabAvailability('statusAction', canWrite);
+    setActionTabAvailability('scheduleAction', canSchedule);
     resetScheduleForm();
-    renderB2bBranchAction(complaint, canWrite);
+    populateScheduleFormFromComplaint(complaint);
+    const showB2bBranch = renderB2bBranchAction(complaint, canWrite);
+    setActionTabAvailability('b2bBranchAction', showB2bBranch);
+    // Default to the Schedule tab once a complaint is ready to schedule --
+    // that's the action staff came here to take -- otherwise Notes. If we're
+    // just reloading the SAME complaint (e.g. after linking a branch or
+    // saving notes) and the tab the staff was on is still available, stay on
+    // it instead of jumping back to the default.
+    const fallbackTab = canSchedule ? 'scheduleAction' : canWrite ? 'notesAction' : null;
+    const keepCurrentTab =
+      activeActionTabComplaintId === complaint.id &&
+      activeActionTabId &&
+      $('#' + activeActionTabId).dataset.tabAvailable === 'true';
+    activeActionTabComplaintId = complaint.id;
+    activateActionTab(keepCurrentTab ? activeActionTabId : fallbackTab);
     if (!canWrite) return;
 
     $('#complaintNotes').value = complaint.cceNotes || '';
@@ -2843,7 +2950,6 @@ ${bodyHtml}
   // complaints, and only for staff who can write complaints.
   function renderB2bBranchAction(complaint, canWrite) {
     const show = canWrite && complaint.customerType === 'B2B';
-    $('#b2bBranchAction').hidden = !show;
     b2bBranchSearchSequence += 1;
     if (b2bBranchSearchDebounce) {
       clearTimeout(b2bBranchSearchDebounce);
@@ -2855,7 +2961,7 @@ ${bodyHtml}
     $('#b2bBranchSearchMessage').textContent = '';
     if (!show) {
       currentComplaintB2bBranchCustCode = null;
-      return;
+      return show;
     }
     currentComplaintB2bBranchCustCode = complaint.b2bBranchCustCode || null;
     const typedText = complaint.b2bBranchSchool || '(not entered)';
@@ -2863,6 +2969,7 @@ ${bodyHtml}
       ? `${typedText} — matched (Cust_Code ${currentComplaintB2bBranchCustCode})`
       : `${typedText} — not yet matched`;
     $('#unlinkB2bBranchButton').hidden = !currentComplaintB2bBranchCustCode;
+    return show;
   }
 
   async function searchB2bBranches(query) {
