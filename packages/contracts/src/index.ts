@@ -128,12 +128,7 @@ export type ComplaintStatusUpdateInput = z.infer<typeof complaintStatusUpdateSch
 // text, just clears the link).
 export const b2bBranchLinkSchema = z
   .object({
-    custCode: z
-      .string()
-      .trim()
-      .regex(/^\d+$/)
-      .max(40)
-      .nullable(),
+    custCode: z.string().trim().regex(/^\d+$/).max(40).nullable(),
   })
   .strict();
 
@@ -230,7 +225,11 @@ export const masterDataListQuerySchema = z
     active: z.enum(['true', 'false']).optional(),
     search: z.string().trim().min(1).max(200).optional(),
     page: queryNumber(1, 1, 100000),
-    pageSize: queryNumber(25, 1, 100),
+    // Master data lists (salesmen, sales channels) have no pagination UI --
+    // the frontend fetches the whole list in one request (pageSize=200), so
+    // the cap here has to be at least that high or every such fetch fails
+    // Zod validation with a generic "request body is invalid" error.
+    pageSize: queryNumber(25, 1, 500),
   })
   .strict();
 
@@ -599,7 +598,10 @@ export const technicianListQuerySchema = z
     // any more (see modification.md #8).
     availableDate: dateSchema.optional(),
     page: queryNumber(1, 1, 100000),
-    pageSize: queryNumber(25, 1, 100),
+    // The Technicians tab has no pagination UI either -- it fetches the
+    // whole roster in one request (pageSize=200), so this cap must allow
+    // at least that (see masterDataListQuerySchema above for the same fix).
+    pageSize: queryNumber(25, 1, 500),
   })
   .strict();
 

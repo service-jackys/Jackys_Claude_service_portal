@@ -744,3 +744,27 @@ already works.
 ### Known follow-up
 
 - None -- this closes the last open item from the original request list.
+
+## Modification #16 — Fix "request body is invalid" on Technicians and Salesmen & channels tabs
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test.
+
+### What changed
+
+Found while you were testing #15: opening the **Technicians** or **Salesmen & channels** tab
+showed a "The request body is invalid." error with a Retry button.
+
+- **Root cause:** those two tabs load their full list in a single request
+  (`pageSize=200`, since neither has a pagination UI), but the server's validation only ever
+  allowed `pageSize` up to 100 -- so every one of those requests was rejected before it reached
+  the database.
+- **Fix:** raised the allowed `pageSize` for the technicians and salesmen/sales-channels list
+  endpoints to 500. Everywhere else (complaints, appointments, job cards, etc., which do have
+  real pagination controls) is unchanged.
+
+### Needs you
+
+- Restart `npm run dev`.
+- Open the **Technicians** tab and the **Salesmen & channels** tab and confirm both load their
+  lists normally now, with no error banner.

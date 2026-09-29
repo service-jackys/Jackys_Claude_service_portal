@@ -693,6 +693,38 @@
           <li>None &mdash; this closes the last open item from the original request list.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>
+            #16 &mdash; Fix "request body is invalid" on Technicians / Salesmen &amp; channels
+          </h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: API backend (validation only)</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Found while testing #15</strong> &mdash; the Technicians and Salesmen &amp;
+            channels tabs each load their full list in one request (<code>pageSize=200</code>, since
+            neither has a pagination UI), but the server only allowed <code>pageSize</code> up to
+            100, so every one of those requests was rejected with a generic "request body is
+            invalid" error before it reached the database.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; raised the allowed <code>pageSize</code> for those two
+            list endpoints to 500. Every other list (complaints, appointments, job cards, etc.,
+            which have real pagination controls) is unchanged.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Open the Technicians tab and the Salesmen &amp; channels tab and confirm both load
+            without an error banner.
+          </li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>
