@@ -107,7 +107,13 @@
                     <div class="field">
                       <label for="contactNumber"
                         >Contact number
-                        <span class="required" id="contactNumberRequiredMark">*</span></label
+                        <span class="required" id="contactNumberRequiredMark">*</span>
+                        <span class="tooltip" id="contactNumberHint" tabindex="0">
+                          <span class="tooltip-icon" aria-hidden="true">i</span>
+                          <span class="tooltip-bubble" role="tooltip"
+                            >Not required for a B2B corporate account.</span
+                          >
+                        </span></label
                       >
                       <input
                         id="contactNumber"
@@ -115,9 +121,6 @@
                         type="tel"
                         autocomplete="tel"
                       />
-                      <span class="field-hint" id="contactNumberHint"
-                        >Not required for a B2B corporate account.</span
-                      >
                       <span class="field-error" data-error-for="contactNumber"></span>
                     </div>
                     <div class="field">
@@ -151,7 +154,16 @@
                       <span class="field-error" data-error-for="region"></span>
                     </div>
                     <div class="field">
-                      <label for="b2bBranchSchool">B2B Branch / School</label>
+                      <label for="b2bBranchSchool"
+                        >B2B Branch / School
+                        <span class="tooltip" tabindex="0">
+                          <span class="tooltip-icon" aria-hidden="true">i</span>
+                          <span class="tooltip-bubble" role="tooltip"
+                            >Select your branch if you know it. If not, our service team will
+                            identify and fill this in.</span
+                          >
+                        </span></label
+                      >
                       <input
                         id="b2bBranchSchool"
                         name="b2bBranchSchool"
@@ -161,10 +173,6 @@
                       />
                       <datalist id="b2bBranchOptions"></datalist>
                       <input type="hidden" id="b2bBranchCustCode" name="b2bBranchCustCode" />
-                      <span class="field-hint"
-                        >Select your branch if you know it. If not, our service team will identify
-                        and fill this in.</span
-                      >
                       <span class="field-error" data-error-for="b2bBranchSchool"></span>
                     </div>
                     <div class="field">
