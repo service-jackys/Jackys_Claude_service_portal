@@ -364,6 +364,20 @@ not guesses.
   actually hides them -- the fix should make things _disappear_ that may have been sitting there
   visibly doing nothing before.
 
+### Addendum (2026-09-29, same day) — one more test failure after the CSS fix
+
+Your next full re-run passed all the previously-failing tests (the CSS fix above was correct and
+did fix `portal.spec.ts:1877`), but surfaced a _different_, pre-existing test:
+`portal.spec.ts:425` ("lists, filters, and opens appointment details with history") failed with a
+wrong `from` date. Not a new regression from anything in this session — `loadAppointments()`
+always fires a second background request afterward (`loadCalendar()`, for the month-view grid)
+against the same `/api/appointments` endpoint, using the padded start/end of the _current real
+calendar month_ rather than the filter dates you typed. The test grabbed "whichever request
+happened last" to check the filter, which only worked by coincidence when the calendar's computed
+grid start happened to match the filter's start date — and stopped lining up as the real date
+moved on. Fixed the test to find the request that actually carries the applied filter dates
+instead of assuming it's the last one. Not an app bug; no app code changed for this one.
+
 ### Known follow-up (tracked, not started)
 
 - None — this closes out the test-failure report. Let me know what's next.
