@@ -25,6 +25,13 @@
         --warning: #8a5a00;
         --shadow: 0 20px 55px rgb(16 43 78 / 10%);
         --radius: 18px;
+        /* Dashboard category accents (modification.md #6) -- distinct from
+           --red/--warning/--success, which keep their error/notice meaning. */
+        --accent-complaints: var(--blue);
+        --accent-appointments: #0f7d8c;
+        --accent-jobcards: #6b46c1;
+        --accent-quotations: #b5750a;
+        --accent-warranty: #a3405a;
       }
 
       * {
@@ -842,13 +849,40 @@
         margin: 0.15rem 0 0;
         overflow-wrap: anywhere;
       }
+      /* Interactive, color-coded dashboard (modification.md #6). Each
+         section carries a --group-accent custom property (set inline per
+         group) that its icon badge, tile left-border, and bar chart all key
+         off of, so adding a new status/category needs no new CSS. */
       .dashboard-tile-group {
-        margin-bottom: 1.6rem;
+        margin-bottom: 1.8rem;
       }
       .dashboard-tile-group h4 {
         margin: 0 0 0.7rem;
         font-size: 0.95rem;
         color: var(--navy);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .dashboard-group-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        border-radius: 8px;
+        background: var(--group-accent, var(--navy));
+        color: #fff;
+        flex: 0 0 auto;
+      }
+      .dashboard-group-icon svg {
+        width: 15px;
+        height: 15px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
       .dashboard-tiles {
         display: grid;
@@ -858,8 +892,21 @@
       .dashboard-tile {
         background: var(--surface-soft);
         border: 1px solid var(--line);
+        border-left: 4px solid var(--group-accent, var(--navy));
         border-radius: 12px;
         padding: 0.9rem 1rem;
+        transition:
+          transform 0.12s ease,
+          box-shadow 0.12s ease;
+      }
+      .dashboard-tile.is-clickable {
+        cursor: pointer;
+      }
+      .dashboard-tile.is-clickable:hover,
+      .dashboard-tile.is-clickable:focus-visible {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 24px rgb(16 43 78 / 12%);
+        outline: none;
       }
       .dashboard-tile .tile-value {
         display: block;
@@ -872,6 +919,44 @@
         margin-top: 0.2rem;
         font-size: 0.78rem;
         color: var(--muted);
+      }
+      /* Mini horizontal bar chart, one row per status, under each tile
+         group -- gives an at-a-glance breakdown without a charting library. */
+      .dashboard-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        margin-top: 0.9rem;
+      }
+      .dashboard-bar-row {
+        display: grid;
+        grid-template-columns: 130px 1fr 2.5rem;
+        align-items: center;
+        gap: 0.6rem;
+        font-size: 0.78rem;
+      }
+      .dashboard-bar-row .bar-label {
+        color: var(--muted);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dashboard-bar-track {
+        background: var(--line);
+        border-radius: 999px;
+        height: 8px;
+        overflow: hidden;
+      }
+      .dashboard-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--group-accent, var(--navy));
+        transition: width 0.4s ease;
+      }
+      .dashboard-bar-row .bar-count {
+        text-align: right;
+        font-weight: 700;
+        color: var(--navy);
       }
       .history {
         margin: 1.4rem 0 0;
@@ -2136,26 +2221,67 @@
             <div class="card" id="dashboardWorkspace" hidden>
               <div class="card-body">
                 <p class="empty-state" id="dashboardEmpty" hidden>Could not load dashboard data.</p>
+                <p class="form-note" id="dashboardUpdatedAt"></p>
                 <div id="dashboardTiles">
-                  <div class="dashboard-tile-group">
-                    <h4>Complaints</h4>
+                  <div
+                    class="dashboard-tile-group"
+                    style="--group-accent: var(--accent-complaints)"
+                  >
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="M7 3h8l4 4v14H7z M7 3v4h8 M9 12h6 M9 16h6" /></svg></span
+                      >Complaints
+                    </h4>
                     <div class="dashboard-tiles" id="dashComplaintTiles"></div>
+                    <div class="dashboard-bars" id="dashComplaintBars"></div>
                   </div>
-                  <div class="dashboard-tile-group">
-                    <h4>Appointments</h4>
+                  <div
+                    class="dashboard-tile-group"
+                    style="--group-accent: var(--accent-appointments)"
+                  >
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="M5 5h14v15H5z M5 9h14 M8 3v4 M16 3v4 M8 13h3" /></svg></span
+                      >Appointments
+                    </h4>
                     <div class="dashboard-tiles" id="dashAppointmentTiles"></div>
+                    <div class="dashboard-bars" id="dashAppointmentBars"></div>
                   </div>
-                  <div class="dashboard-tile-group">
-                    <h4>Service job cards</h4>
+                  <div class="dashboard-tile-group" style="--group-accent: var(--accent-jobcards)">
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path
+                            d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4L15 12l-2-2z"
+                          /></svg></span
+                      >Service job cards
+                    </h4>
                     <div class="dashboard-tiles" id="dashJobCardTiles"></div>
+                    <div class="dashboard-bars" id="dashJobCardBars"></div>
                   </div>
-                  <div class="dashboard-tile-group">
-                    <h4>Quotations &amp; inspections</h4>
+                  <div
+                    class="dashboard-tile-group"
+                    style="--group-accent: var(--accent-quotations)"
+                  >
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="M7 3h8l4 4v14H7z M7 3v4h8 M9 13l2 2 4-4" /></svg></span
+                      >Quotations &amp; inspections
+                    </h4>
                     <div class="dashboard-tiles" id="dashQuotationInspectionTiles"></div>
                   </div>
-                  <div class="dashboard-tile-group">
-                    <h4>Warranty approvals</h4>
+                  <div class="dashboard-tile-group" style="--group-accent: var(--accent-warranty)">
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z" /></svg></span
+                      >Warranty approvals
+                    </h4>
                     <div class="dashboard-tiles" id="dashWarrantyApprovalTiles"></div>
+                    <div class="dashboard-bars" id="dashWarrantyApprovalBars"></div>
                   </div>
                 </div>
               </div>

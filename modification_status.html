@@ -320,6 +320,36 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#6 — Interactive, visually redesigned dashboard</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">2026-09-29 · Scope: staff portal Dashboard workspace</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Color-accented sections with icon badges and a "Last updated" timestamp.</li>
+          <li>
+            Every status tile is now clickable and jumps to that record type's workspace,
+            pre-filtered to that status (keyboard-accessible too).
+          </li>
+          <li>
+            Each section with a status breakdown now shows a small horizontal bar chart under the
+            tiles — plain CSS, no charting library added.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npx playwright test tests/e2e/phase5-records.spec.ts</code></li>
+          <li>
+            Open the Dashboard and click a few tiles to confirm the drill-down lands correctly.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None queued — this closes out all four items from the last modification request.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

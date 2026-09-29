@@ -258,3 +258,46 @@ or job card.
 - The Complaint inbox / Service requests list views don't yet show the linked appointment
   reference in the table row itself (only in the detail panel) — could be added as a follow-up if
   useful.
+
+---
+
+## Modification #6 — Interactive, visually redesigned dashboard
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your manual check
+- **Scope:** Internal staff portal, Dashboard workspace
+
+### Why
+
+Your item 4: the dashboard was a flat grid of plain white number tiles — accurate, but static
+and visually flat, with no way to act on what you saw.
+
+### What changed
+
+- Each section (Complaints, Appointments, Service job cards, Quotations & inspections, Warranty
+  approvals) now has its own color accent and a small icon badge, and a "Last updated" timestamp
+  at the top.
+- Tiles now use that color as a left-edge accent, with a hover/focus lift so it's clear they're
+  interactive.
+- **Every status tile is now clickable** and jumps straight to that record type's workspace,
+  pre-filtered to that status — e.g. clicking "Ready for Scheduling" under Complaints opens the
+  Complaint inbox already filtered to that status. The Appointments "Today" tile jumps to the
+  appointments list filtered to today's date. Keyboard-accessible (Enter/Space work, not just
+  click).
+- Each section with a status breakdown now also shows a small horizontal bar chart underneath the
+  tiles, scaled to the largest count, for an at-a-glance read — built with plain CSS, no charting
+  library added.
+- No new API calls — everything uses the existing `/api/dashboard/summary` response; still
+  renders whatever statuses that endpoint returns rather than a hardcoded list.
+
+### Needs you
+
+- `npx playwright test tests/e2e/phase5-records.spec.ts` — one new test added confirming a status
+  tile click lands on the filtered list; the existing tile-rendering test needed no changes.
+- Manually open the Dashboard and click a few different status tiles to confirm they land on the
+  right filtered list, and glance at the colors/icons/bars.
+
+### Known follow-up (tracked, not started)
+
+- This closes out all four items from your last message. Nothing new queued — let me know what's
+  next.

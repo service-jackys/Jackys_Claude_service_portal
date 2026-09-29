@@ -1978,45 +1978,162 @@ ${bodyHtml}
   }
 
   // ---- Dashboard (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add service
-  // reports and operational dashboard summaries"). Deliberately covers the
-  // day-to-day service workflows only; revenue/pricing reporting is Phase 6
-  // scope. Renders whatever statuses /api/dashboard/summary returns rather
-  // than a hardcoded list, so a status this page doesn't otherwise track
-  // still shows up as a tile instead of silently vanishing.
-  function dashboardTilesHtml(byStatus, extra = []) {
-    const tiles = [...Object.entries(byStatus || {}), ...extra];
-    if (!tiles.length) {
-      return '<div class="dashboard-tile"><span class="tile-value">0</span><span class="tile-label">No records yet</span></div>';
-    }
-    return tiles
-      .map(
-        ([label, value]) =>
-          `<div class="dashboard-tile"><span class="tile-value">${escapeHtml(String(value))}</span><span class="tile-label">${escapeHtml(label)}</span></div>`,
-      )
+  // reports and operational dashboard summaries"; visual/interactive rework
+  // is modification.md #6). Deliberately covers the day-to-day service
+  // workflows only; revenue/pricing reporting is Phase 6 scope. Renders
+  // whatever statuses /api/dashboard/summary returns rather than a
+  // hardcoded list, so a status this page doesn't otherwise track still
+  // shows up as a tile instead of silently vanishing.
+  //
+  // Each tile can carry a `data-tile-key` that a click-delegation listener
+  // on its container turns into a jump to the filtered underlying list --
+  // e.g. clicking the "Ready for Scheduling" complaints tile opens the
+  // Complaint inbox pre-filtered to that status. Tiles built from `extra`
+  // (totals, "Today", the quotations/inspections tiles) don't get a
+  // clickable key unless the caller supplies one.
+  function dashboardTileHtml(label, value, tileKey) {
+    const attrs = tileKey
+      ? ` is-clickable" role="button" tabindex="0" data-tile-key="${escapeHtml(tileKey)}`
+      : '';
+    return `<div class="dashboard-tile${attrs}"><span class="tile-value">${escapeHtml(String(value))}</span><span class="tile-label">${escapeHtml(label)}</span></div>`;
+  }
+
+  function dashboardTilesHtml(byStatus, extra = [], statusTileKey) {
+    const statusTiles = Object.entries(byStatus || {}).map(([label, value]) =>
+      dashboardTileHtml(label, value, statusTileKey ? statusTileKey(label) : undefined),
+    );
+    const extraTiles = extra.map(([label, value, tileKey]) =>
+      dashboardTileHtml(label, value, tileKey),
+    );
+    const tiles = [...statusTiles, ...extraTiles];
+    return tiles.length
+      ? tiles.join('')
+      : '<div class="dashboard-tile"><span class="tile-value">0</span><span class="tile-label">No records yet</span></div>';
+  }
+
+  // Lightweight horizontal bar chart (no charting library) showing the same
+  // byStatus breakdown as the tiles above, scaled to the largest count.
+  function dashboardBarsHtml(byStatus) {
+    const entries = Object.entries(byStatus || {}).filter(([, value]) => Number(value) > 0);
+    if (!entries.length) return '';
+    const max = Math.max(1, ...entries.map(([, value]) => Number(value) || 0));
+    return entries
+      .map(([label, value]) => {
+        const percent = Math.max(4, Math.round((Number(value) / max) * 100));
+        return `<div class="dashboard-bar-row"><span class="bar-label">${escapeHtml(label)}</span><span class="dashboard-bar-track"><span class="dashboard-bar-fill" style="width:${percent}%"></span></span><span class="bar-count">${escapeHtml(String(value))}</span></div>`;
+      })
       .join('');
   }
 
+  function goToComplaintsFiltered(status) {
+    setWorkspaceMode('complaints');
+    $('#complaintStatusFilter').value = status || '';
+    loadComplaints();
+  }
+
+  function goToAppointmentsFiltered(status) {
+    setWorkspaceMode('appointments');
+    $('#appointmentStatusFilter').value = status || '';
+    $('#appointmentFrom').value = '';
+    $('#appointmentTo').value = '';
+    loadAppointments();
+  }
+
+  function goToAppointmentsToday() {
+    setWorkspaceMode('appointments');
+    const today = dateInputValue(new Date());
+    $('#appointmentStatusFilter').value = '';
+    $('#appointmentFrom').value = today;
+    $('#appointmentTo').value = today;
+    loadAppointments();
+  }
+
+  function goToJobCardsFiltered(status) {
+    setWorkspaceMode('job-cards');
+    $('#jobCardStatusFilter').value = status || '';
+    loadJobCards();
+  }
+
+  function goToWarrantyApprovalsFiltered(status) {
+    setWorkspaceMode('warranty-approvals');
+    $('#warrantyApprovalStatusFilter').value = status || '';
+    loadWarrantyApprovals();
+  }
+
+  const DASHBOARD_TILE_ACTIONS = {
+    complaints: goToComplaintsFiltered,
+    appointments: (key) =>
+      key === 'today' ? goToAppointmentsToday() : goToAppointmentsFiltered(key),
+    jobCards: goToJobCardsFiltered,
+    warrantyApprovals: goToWarrantyApprovalsFiltered,
+    quotations: () => setWorkspaceMode('quotations'),
+    inspections: () => setWorkspaceMode('inspections'),
+  };
+
+  // Delegated click handling survives each re-render (innerHTML swap) since
+  // the listener lives on the stable container, not the tiles themselves.
+  [
+    ['dashComplaintTiles', 'complaints'],
+    ['dashAppointmentTiles', 'appointments'],
+    ['dashJobCardTiles', 'jobCards'],
+    ['dashQuotationInspectionTiles', null],
+    ['dashWarrantyApprovalTiles', 'warrantyApprovals'],
+  ].forEach(([containerId, section]) => {
+    $('#' + containerId).addEventListener('click', (event) => {
+      const tile = event.target.closest('[data-tile-key]');
+      if (!tile) return;
+      const key = tile.dataset.tileKey;
+      const resolvedSection = section || key.split(':')[0];
+      const resolvedKey = section ? key : key.split(':')[1];
+      const action = DASHBOARD_TILE_ACTIONS[resolvedSection];
+      if (action) action(resolvedKey);
+    });
+    $('#' + containerId).addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      const tile = event.target.closest('[data-tile-key]');
+      if (!tile) return;
+      event.preventDefault();
+      tile.click();
+    });
+  });
+
   function renderDashboard(summary) {
-    $('#dashComplaintTiles').innerHTML = dashboardTilesHtml(summary.complaints.byStatus, [
-      ['Total', summary.complaints.total],
-    ]);
-    $('#dashAppointmentTiles').innerHTML = dashboardTilesHtml(summary.appointments.byStatus, [
-      ['Today', summary.appointments.today],
-      ['Total', summary.appointments.total],
-    ]);
-    $('#dashJobCardTiles').innerHTML = dashboardTilesHtml(summary.jobCards.byStatus, [
-      ['Total', summary.jobCards.total],
-    ]);
+    $('#dashComplaintTiles').innerHTML = dashboardTilesHtml(
+      summary.complaints.byStatus,
+      [['Total', summary.complaints.total]],
+      (status) => status,
+    );
+    $('#dashComplaintBars').innerHTML = dashboardBarsHtml(summary.complaints.byStatus);
+    $('#dashAppointmentTiles').innerHTML = dashboardTilesHtml(
+      summary.appointments.byStatus,
+      [
+        ['Today', summary.appointments.today, 'today'],
+        ['Total', summary.appointments.total],
+      ],
+      (status) => status,
+    );
+    $('#dashAppointmentBars').innerHTML = dashboardBarsHtml(summary.appointments.byStatus);
+    $('#dashJobCardTiles').innerHTML = dashboardTilesHtml(
+      summary.jobCards.byStatus,
+      [['Total', summary.jobCards.total]],
+      (status) => status,
+    );
+    $('#dashJobCardBars').innerHTML = dashboardBarsHtml(summary.jobCards.byStatus);
     $('#dashQuotationInspectionTiles').innerHTML = dashboardTilesHtml({}, [
-      ['Quotations (total)', summary.quotations.total],
-      ['Quotations (this month)', summary.quotations.thisMonth],
-      ['Inspections (total)', summary.inspections.total],
-      ['Inspections (this month)', summary.inspections.thisMonth],
+      ['Quotations (total)', summary.quotations.total, 'quotations:total'],
+      ['Quotations (this month)', summary.quotations.thisMonth, 'quotations:month'],
+      ['Inspections (total)', summary.inspections.total, 'inspections:total'],
+      ['Inspections (this month)', summary.inspections.thisMonth, 'inspections:month'],
     ]);
     $('#dashWarrantyApprovalTiles').innerHTML = dashboardTilesHtml(
       summary.warrantyApprovals.byStatus,
       [['Total', summary.warrantyApprovals.total]],
+      (status) => status,
     );
+    $('#dashWarrantyApprovalBars').innerHTML = dashboardBarsHtml(
+      summary.warrantyApprovals.byStatus,
+    );
+    $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
 
   async function loadDashboard() {

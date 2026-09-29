@@ -428,6 +428,58 @@ test.describe('operational dashboard', () => {
     await expect(page.locator('#dashQuotationInspectionTiles')).toContainText('Quotations (total)');
     await expect(page.locator('#dashWarrantyApprovalTiles')).toContainText('Pending');
   });
+
+  // modification.md #6: dashboard tiles are clickable and drill down into
+  // the filtered underlying list.
+  test('clicking a status tile jumps to the filtered list (modification.md #6)', async ({
+    page,
+  }) => {
+    const summary = {
+      complaints: { total: 12, byStatus: { New: 4, 'Under Review': 8 } },
+      appointments: { total: 6, today: 2, byStatus: { Scheduled: 6 } },
+      jobCards: { total: 3, byStatus: { Open: 2, Completed: 1 } },
+      quotations: { total: 5, thisMonth: 2 },
+      inspections: { total: 4, thisMonth: 1 },
+      warrantyApprovals: { total: 2, byStatus: { Pending: 1, Approved: 1 } },
+    };
+    const complaintListUrls: string[] = [];
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['dashboard.read', 'complaints.read'],
+          'Dashboard Viewer',
+          'dashboard@jackys.com',
+        )
+      )
+        return;
+      if (url.pathname === '/api/dashboard/summary' && request.method() === 'GET') {
+        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ summary }) });
+        return;
+      }
+      if (url.pathname === '/api/complaints' && request.method() === 'GET') {
+        complaintListUrls.push(request.url());
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaints: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await signIn(page, 'dashboard@jackys.com');
+    await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
+
+    await page.locator('#dashComplaintTiles').getByText('New', { exact: true }).click();
+    await expect(page.getByRole('heading', { name: 'Complaint inbox' })).toBeVisible();
+    await expect(page.locator('#complaintStatusFilter')).toHaveValue('New');
+    expect(complaintListUrls.at(-1)).toContain('status=New');
+  });
 });
 
 test.describe('service job-card attachments', () => {
