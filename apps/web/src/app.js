@@ -3968,8 +3968,11 @@ ${bodyHtml}
   // Pre-fills the Schedule appointment card with the complaint's current
   // Sales order no. / B2B Branch / site-contact data, which previously always
   // showed blank even when the complaint already had this data on file (see
-  // modification.md #4).
-  function populateScheduleFormFromComplaint(complaint) {
+  // modification.md #4). Also defaults the Salesman field from the matched
+  // B2B Branch / School's master-list record, the same way the Schedule
+  // form's own B2B Branch lookup already does -- the CCE can still change it
+  // (see modification.md #19).
+  async function populateScheduleFormFromComplaint(complaint) {
     $('#scheduleSalesOrderNumber').value = complaint.salesOrderNumber || '';
     $('#scheduleB2bBranchSchool').value = complaint.b2bBranchSchool || '';
     $('#scheduleSchoolContactPerson').value = complaint.schoolContactPerson || '';
@@ -3978,6 +3981,21 @@ ${bodyHtml}
     const matchNote = $('#scheduleB2bBranchMatchNote');
     if (complaint.b2bBranchCustCode) {
       matchNote.textContent = `Matched to the master list (Cust_Code ${complaint.b2bBranchCustCode}).`;
+      try {
+        const result = await apiRequest(
+          '/api/b2b-branches/' + encodeURIComponent(complaint.b2bBranchCustCode),
+        );
+        if (result.branch?.salesman) {
+          populateSelectOptions(
+            '#scheduleSalesman',
+            salesmenOptions,
+            'Select a salesman',
+            result.branch.salesman,
+          );
+        }
+      } catch {
+        // Non-fatal -- the CCE can still pick the salesman by hand.
+      }
     } else if (complaint.b2bBranchSchool) {
       matchNote.textContent =
         'Not yet matched to the master list -- see the "B2B Branch match" tab.';

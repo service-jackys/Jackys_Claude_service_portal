@@ -75,6 +75,21 @@ export function createComplaintHandlers(
           .catch(next);
       },
     ],
+    getB2bBranch: [
+      requirePermission('complaints.write'),
+      async (request, response, next) => {
+        try {
+          const branch = await service.getB2bBranchByCustCode(String(request.params.custCode));
+          response.json({ branch });
+        } catch (error) {
+          if (error instanceof ComplaintServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     linkB2bBranch: [
       requirePermission('complaints.write'),
       async (request, response, next) => {

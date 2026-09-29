@@ -834,6 +834,51 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>
+            #19 &mdash; Complaint inbox: reference font size, Schedule-form Salesman default, and
+            tooltips
+          </h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: API backend, staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Fixed</strong> &mdash; the Complaint inbox reference (e.g. "CMP-260929-002") was
+            wrapping onto a second line; the whole table is now a size smaller and the reference no
+            longer wraps.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; opening "Schedule appointment" on a complaint whose B2B
+            Branch / School is already matched to the master list now looks up that branch's
+            salesman and pre-selects it in the Salesman dropdown, the same data the B2B lookup box
+            already uses. Still changeable by hand.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; the Schedule appointment form's always-visible field hints
+            are now real hover/tap tooltips (the same "i" icon already used on the New Request and
+            Team account pages), on Salesman, Look up B2B Branch / School, Sales order no., B2B
+            Branch / School, Site contact person, and Site contact number.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>Confirm complaint references sit on one line in the Complaint inbox table.</li>
+          <li>
+            Open a "Ready for Scheduling" complaint with a matched B2B branch (e.g. CMP-260929-002)
+            and click "Schedule appointment"; confirm the Salesman dropdown is already set from that
+            branch, and that you can still change it.
+          </li>
+          <li>Check the new "i" tooltips on the Schedule appointment form.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

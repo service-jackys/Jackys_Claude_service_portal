@@ -884,6 +884,14 @@
         padding: 0;
         font-weight: 800;
         text-align: left;
+        white-space: nowrap;
+      }
+      /* The Complaint inbox reference (e.g. "CMP-260929-002") was wrapping
+         onto a second line at the base table font size, splitting the last
+         digits off awkwardly. Shrinking the whole table down a notch and
+         keeping the reference on one line fixes both. */
+      #complaintWorkspace .table-wrap table {
+        font-size: 0.8rem;
       }
       .status {
         display: inline-block;
@@ -2283,7 +2291,16 @@
                             <p class="form-note" id="scheduleAvailabilityMessage" role="status"></p>
                           </div>
                           <div class="field">
-                            <label for="scheduleSalesman">Salesman</label>
+                            <label for="scheduleSalesman"
+                              >Salesman
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >Defaults from the matched B2B Branch / School's master-list
+                                  record -- change it if it's wrong.</span
+                                >
+                              </span></label
+                            >
                             <select id="scheduleSalesman" name="salesman">
                               <option value="">Select a salesman</option>
                             </select>
@@ -2291,9 +2308,12 @@
                           <div class="field">
                             <label for="scheduleB2bBranchSearchInput"
                               >Look up B2B Branch / School
-                              <span class="form-note-inline"
-                                >(picks the branch, sales order no. and salesman together)</span
-                              ></label
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >Picks the branch, sales order no. and salesman together.</span
+                                >
+                              </span></label
                             >
                             <input
                               id="scheduleB2bBranchSearchInput"
@@ -2307,9 +2327,12 @@
                           <div class="field">
                             <label for="scheduleSalesOrderNumber"
                               >Sales order no.
-                              <span class="form-note-inline"
-                                >(from complaint, or the lookup above)</span
-                              ></label
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >From the complaint, or the lookup above.</span
+                                >
+                              </span></label
                             >
                             <input
                               id="scheduleSalesOrderNumber"
@@ -2320,9 +2343,12 @@
                           <div class="field">
                             <label for="scheduleB2bBranchSchool"
                               >B2B Branch / School
-                              <span class="form-note-inline"
-                                >(from complaint, or the lookup above)</span
-                              ></label
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >From the complaint, or the lookup above.</span
+                                >
+                              </span></label
                             >
                             <input
                               id="scheduleB2bBranchSchool"
@@ -2332,7 +2358,15 @@
                             <p class="form-note" id="scheduleB2bBranchMatchNote"></p>
                           </div>
                           <div class="field">
-                            <label for="scheduleSchoolContactPerson">Site contact person</label>
+                            <label for="scheduleSchoolContactPerson"
+                              >Site contact person
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >From the complaint, or leave blank to keep it as-is.</span
+                                >
+                              </span></label
+                            >
                             <input
                               id="scheduleSchoolContactPerson"
                               name="schoolContactPerson"
@@ -2340,7 +2374,15 @@
                             />
                           </div>
                           <div class="field">
-                            <label for="scheduleSchoolContactNumber">Site contact number</label>
+                            <label for="scheduleSchoolContactNumber"
+                              >Site contact number
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >From the complaint, or leave blank to keep it as-is.</span
+                                >
+                              </span></label
+                            >
                             <input
                               id="scheduleSchoolContactNumber"
                               name="schoolContactNumber"
@@ -2349,7 +2391,15 @@
                             />
                           </div>
                           <div class="field">
-                            <label for="scheduleCustomerNumber">Customer number</label>
+                            <label for="scheduleCustomerNumber"
+                              >Customer number
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >From the complaint, or leave blank to keep it as-is.</span
+                                >
+                              </span></label
+                            >
                             <input
                               id="scheduleCustomerNumber"
                               name="customerNumber"

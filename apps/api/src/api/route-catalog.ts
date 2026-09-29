@@ -806,6 +806,18 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         handlers: complaintHandlers.searchB2bBranches,
       },
       {
+        method: 'get' as const,
+        path: '/api/b2b-branches/{custCode}',
+        operationId: 'getB2bBranch',
+        tags: ['Complaints'],
+        summary:
+          'Look up a single B2B Branch / School by Cust_Code (staff-only, see modification.md #19)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'custCode', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: complaintHandlers.getB2bBranch,
+      },
+      {
         method: 'patch' as const,
         path: '/api/complaints/{id}/b2b-branch',
         operationId: 'linkComplaintB2bBranch',

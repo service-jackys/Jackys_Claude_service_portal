@@ -857,3 +857,42 @@ It's now built back in, matching the legacy behaviour:
 ### Known follow-up
 
 - None flagged.
+
+## Modification #19 — Complaint inbox: reference font size, Schedule-form Salesman default, and proper tooltips
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test.
+
+### What changed
+
+- **Fixed: complaint reference wrapping in the Complaint inbox table.** A reference like
+  `CMP-260929-002` was splitting onto two lines (e.g. "002" dropping to its own line) because the
+  column was too narrow for it at the table's normal font size. The whole Complaint inbox table is
+  now a size smaller, and the reference itself no longer wraps.
+- **Schedule appointment now defaults the Salesman from the matched B2B Branch / School.** If a
+  complaint's B2B Branch / School was already matched to the master list (e.g. GEMS Cambridge
+  International Private School Sharjah, Cust_Code 167247), opening **Schedule appointment** now
+  looks up that branch's salesman and pre-selects it in the Salesman dropdown automatically --
+  same master data the B2B lookup box already uses, just applied without you having to search
+  again. You can still change it by hand if it's wrong.
+- **Real tooltips instead of always-visible text.** The Schedule appointment form's field hints
+  (e.g. "Look up B2B Branch / School (picks the branch, sales order no. and salesman together)")
+  used to sit as permanent text next to the label, taking up space. They're now the same hover/tap
+  "i" tooltip already used on the New Request and Team account pages -- Salesman, Look up B2B
+  Branch / School, Sales order no., B2B Branch / School, Site contact person, and Site contact
+  number all got one.
+
+### Needs you
+
+- Restart `npm run dev`.
+- Open the Complaint inbox and confirm references like `CMP-260929-002` now sit on one line.
+- Open a "Ready for Scheduling" complaint that already has a matched B2B branch (e.g.
+  CMP-260929-002 / GEMS Cambridge International Private School Sharjah) and click **Schedule
+  appointment**; confirm the Salesman dropdown is already set to that branch's salesman, and that
+  you can still change it.
+- Hover (or tab to, then check) the "i" icons on the Schedule appointment form's fields and
+  confirm the tooltip text shows and the layout looks clean, matching the New Request page.
+
+### Known follow-up
+
+- None flagged.

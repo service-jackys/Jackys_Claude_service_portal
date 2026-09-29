@@ -227,6 +227,25 @@ export function createComplaintService(pool: Pool) {
     }
   }
 
+  // Looks up a single B2B Branch / School by its master-list Cust_Code --
+  // used by the Schedule appointment panel to default the Salesman field
+  // from the branch the complaint is already matched to (see
+  // modification.md #19), without making the staff re-search for it.
+  async function getB2bBranchByCustCode(custCode: string) {
+    const client = await pool.connect();
+    try {
+      const branch = await findB2bBranchByCustCode(client, custCode);
+      if (!branch)
+        throw new ComplaintServiceError(
+          'not-found',
+          'That branch was not found in the master list.',
+        );
+      return branch;
+    } finally {
+      client.release();
+    }
+  }
+
   async function linkB2bBranch(
     id: string,
     input: unknown,
@@ -272,6 +291,7 @@ export function createComplaintService(pool: Pool) {
     addNotes,
     changeStatus,
     searchB2bBranches,
+    getB2bBranchByCustCode,
     linkB2bBranch,
   };
 }
