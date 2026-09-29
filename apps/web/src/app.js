@@ -704,8 +704,10 @@
     populateSelectOptions('#scheduleSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jccSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jceSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#jcqSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jccSalesChannel', salesChannelOptions, 'Select a sales channel');
     populateSelectOptions('#jceSalesChannel', salesChannelOptions, 'Select a sales channel');
+    populateSelectOptions('#jcqSalesChannel', salesChannelOptions, 'Select a sales channel');
   }
 
   // ---- Service job card content form (create-prefill panel with prefix 'jcc',
@@ -714,7 +716,7 @@
   // ['service-job-card']), so one template and one set of handlers, parameterized
   // by prefix, drive both panels instead of duplicating the markup and logic.
   const jobFinalStatusOptions = ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'];
-  const jobCardPartsState = { jcc: [], jce: [] };
+  const jobCardPartsState = { jcc: [], jce: [], jcq: [] };
 
   function parseNumber(value) {
     const number = Number(value);
@@ -786,7 +788,8 @@
   function initJobCardForms() {
     $('#jobCardCreateFields').innerHTML = jobCardFieldsHtml('jcc');
     $('#jobCardContentFields').innerHTML = jobCardFieldsHtml('jce');
-    ['jcc', 'jce'].forEach((prefix) => {
+    $('#quotationJobCardCreateFields').innerHTML = jobCardFieldsHtml('jcq');
+    ['jcc', 'jce', 'jcq'].forEach((prefix) => {
       $(`#${prefix}AddPartButton`).addEventListener('click', () => {
         jobCardPartsState[prefix].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
         renderJobCardParts(prefix);
@@ -1724,6 +1727,30 @@ ${bodyHtml}
       $('#quotationDetailHeading').textContent = result.quotation.quotationReference;
       fillQuotationForm('qte', result.quotation);
       $('#saveQuotationButton').hidden = !hasPermission('quotation.write');
+      $('#quotationJobCardCreatePanel').hidden = true;
+      $('#quotationJobCardStatus').textContent = '';
+      $('#createJobCardFromQuotationButton').hidden = true;
+      if (hasPermission('service_job_card.read')) {
+        try {
+          const jobCardResult = await apiRequest(
+            '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card',
+          );
+          if (jobCardResult.jobCard) {
+            const jobCardId = jobCardResult.jobCard.id;
+            $('#quotationJobCardStatus').innerHTML =
+              `Service job card already created: <button class="table-link" type="button" id="viewQuotationJobCardButton">${escapeHtml(jobCardResult.jobCard.jobCardReference)}</button>`;
+            $('#viewQuotationJobCardButton').addEventListener('click', () => {
+              setWorkspaceMode('job-cards');
+              loadJobCardDetail(jobCardId);
+            });
+          } else {
+            $('#createJobCardFromQuotationButton').hidden =
+              !hasPermission('service_job_card.write');
+          }
+        } catch (jobCardError) {
+          if (jobCardError.status !== 403) throw jobCardError;
+        }
+      }
       $('#quotationDetail').hidden = false;
       $('#quotationDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
@@ -1800,6 +1827,7 @@ ${bodyHtml}
     currentQuotation = null;
     $('#quotationDetail').hidden = true;
     $('#quotationCreatePanel').hidden = true;
+    $('#quotationJobCardCreatePanel').hidden = true;
     $('#quotationsBody').innerHTML = '';
     $('#quotationsEmpty').hidden = true;
   }
@@ -3239,6 +3267,70 @@ ${bodyHtml}
     }
   }
 
+  // ---- Create a service job card from a Quotation (modification.md #18),
+  // matching the live system's "pull from Quotation" flow. Same two-step
+  // pattern as createJobCard()/submitJobCardCreate() above -- prefill into an
+  // editable form first, nothing is created until the form is submitted --
+  // reusing the same jobCardFieldsHtml/fillJobCardForm/collectJobCardForm
+  // machinery with its own 'jcq' field prefix.
+  async function createJobCardFromQuotation() {
+    if (!currentQuotationId || !hasPermission('service_job_card.write')) return;
+    const button = $('#createJobCardFromQuotationButton');
+    setBusy(button, true, 'Loading…');
+    try {
+      const result = await apiRequest(
+        '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card/prefill',
+      );
+      fillJobCardForm('jcq', result.content);
+      $('#quotationJobCardCreatePanel').hidden = false;
+      $('#quotationJobCardCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        button.hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to create service job cards.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
+  async function submitJobCardCreateFromQuotation() {
+    if (!currentQuotationId) return;
+    const button = $('#submitQuotationJobCardCreateButton');
+    setBusy(button, true, 'Creating…');
+    try {
+      const result = await apiRequest(
+        '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card',
+        { method: 'POST', body: JSON.stringify(collectJobCardForm('jcq')) },
+      );
+      $('#quotationJobCardCreatePanel').hidden = true;
+      setWorkspaceMode('job-cards');
+      await loadJobCardDetail(result.jobCard.id);
+      setMessage(
+        '#workspaceMessage',
+        `Service job card ${result.jobCard.jobCardReference} created.`,
+        true,
+      );
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#quotationJobCardCreatePanel').hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to create service job cards.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
   async function saveJobCardContent() {
     if (!currentJobCardId) return;
     const button = $('#saveJobCardContentButton');
@@ -4493,6 +4585,7 @@ ${bodyHtml}
   });
   $('#closeQuotationDetailButton').addEventListener('click', () => {
     $('#quotationDetail').hidden = true;
+    $('#quotationJobCardCreatePanel').hidden = true;
   });
   $('#printQuotationButton').addEventListener('click', () => printQuotation(currentQuotation));
   $('#createInspectionButton').addEventListener('click', () => {
@@ -4599,6 +4692,14 @@ ${bodyHtml}
   $('#jobCardCreateForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await submitJobCardCreate();
+  });
+  $('#createJobCardFromQuotationButton').addEventListener('click', createJobCardFromQuotation);
+  $('#cancelQuotationJobCardCreateButton').addEventListener('click', () => {
+    $('#quotationJobCardCreatePanel').hidden = true;
+  });
+  $('#quotationJobCardCreateForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    await submitJobCardCreateFromQuotation();
   });
   $('#jobCardContentForm').addEventListener('submit', async (event) => {
     event.preventDefault();

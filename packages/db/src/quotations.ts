@@ -196,7 +196,17 @@ export async function findQuotationById(
 
 export async function listQuotations(
   client: PoolClient,
-  query: { search?: string; appointmentId?: string; page: number; pageSize: number },
+  query: {
+    search?: string;
+    appointmentId?: string;
+    // "Unused" = no service job card has been created from this quotation
+    // yet -- see migrations/014_job_card_quotation_source.sql and
+    // modification.md #18. Used by the "create job card from Quotation"
+    // picker to exclude quotations already converted.
+    unused?: boolean;
+    page: number;
+    pageSize: number;
+  },
 ) {
   const values: unknown[] = [];
   const filters: string[] = [];
@@ -205,6 +215,11 @@ export async function listQuotations(
     return `$${values.length}`;
   };
   if (query.appointmentId) filters.push(`appointment_id = ${add(query.appointmentId)}`);
+  if (query.unused) {
+    filters.push(
+      `NOT EXISTS (SELECT 1 FROM service_job_cards WHERE service_job_cards.quotation_id = quotations.id)`,
+    );
+  }
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(

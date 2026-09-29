@@ -159,5 +159,55 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    prefillFromQuotation: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.prefillFromQuotation(String(request.params.quotationId)));
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    createFromQuotation: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.status(201).json({
+            jobCard: await service.createFromQuotation(
+              String(request.params.quotationId),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    byQuotation: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.byQuotation(String(request.params.quotationId)));
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
   };
 }

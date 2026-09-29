@@ -817,3 +817,43 @@ showed a "The request body is invalid." error with a Retry button.
 ### Known follow-up
 
 - None flagged.
+
+## Modification #18 — Create a service job card directly from a Quotation
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test and a one-time migration.
+
+### What changed
+
+You asked whether the live system's "quotations once created can be fetched and used to create a
+service job card" logic exists here. It didn't -- only the appointment-based ("Scheduler") path did.
+It's now built back in, matching the legacy behaviour:
+
+- A saved Quotation can now be turned into a service job card. Open **Quotations**, open a
+  quotation, and click **Create service job card**. This pulls in customer name, contact,
+  address, technician, item description, and the complaint from the quotation into an editable
+  job-card form -- nothing is created until you submit it, same as the existing appointment flow.
+- A quotation doesn't capture Site contact person/number, Customer number, Brand, Salesman, or
+  Sales channel, so those fields start blank on the pulled-up form -- fill them in by hand if you
+  know them, or leave them blank. They're never disabled, matching how the old system treated
+  them ("soft N/A").
+- A quotation can only be used once. Once it has a job card, its detail page shows a link to that
+  job card instead of the Create button, so you can't accidentally create a second one from the
+  same quotation.
+- Under the hood, a job card can now be linked to either a completed appointment or a quotation
+  (never neither, never both) -- the existing appointment-based flow is completely unchanged.
+
+### Needs you
+
+- Run `npm run db:migrate` (adds migration 014) -- one-time, safe to re-run.
+- Restart `npm run dev`.
+- Open a saved Quotation and click **Create service job card**; confirm the pulled-in fields
+  match the quotation, fill in the rest, and create it. Confirm it now shows up under **Job
+  cards** and that the Quotation's detail page now shows a link to it instead of the Create
+  button.
+- Confirm the existing appointment-based "Create service job card" flow still works exactly as
+  before.
+
+### Known follow-up
+
+- None flagged.

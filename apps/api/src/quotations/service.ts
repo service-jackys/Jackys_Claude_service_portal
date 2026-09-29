@@ -169,6 +169,7 @@ export function createQuotationService(pool: Pool) {
       return listQuotations(client, {
         search: data.search,
         appointmentId: data.appointmentId,
+        unused: data.unused === 'true',
         page: data.page,
         pageSize: data.pageSize,
       });

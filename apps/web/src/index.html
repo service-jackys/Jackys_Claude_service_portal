@@ -2672,6 +2672,7 @@
                   <div class="dashboard-header">
                     <div>
                       <h3 id="quotationDetailHeading">Quotation details</h3>
+                      <p id="quotationJobCardStatus"></p>
                     </div>
                     <div>
                       <button class="button button-outline" type="button" id="printQuotationButton">
@@ -2699,6 +2700,50 @@
                       </button>
                     </div>
                   </form>
+                  <div class="form-footer quotation-detail-footer">
+                    <span></span>
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="createJobCardFromQuotationButton"
+                      hidden
+                    >
+                      Create service job card
+                    </button>
+                  </div>
+                  <section
+                    class="detail-action-card"
+                    id="quotationJobCardCreatePanel"
+                    aria-labelledby="quotationJobCardCreateHeading"
+                    hidden
+                  >
+                    <h4 id="quotationJobCardCreateHeading">Create service job card</h4>
+                    <p>
+                      Details pulled from this quotation. A quotation doesn't capture site contact,
+                      customer number, salesman, or sales channel, so those are left blank below --
+                      fill them in if you know them. Review and edit anything before creating the
+                      job card.
+                    </p>
+                    <form id="quotationJobCardCreateForm" novalidate>
+                      <div id="quotationJobCardCreateFields"></div>
+                      <div class="form-footer">
+                        <button
+                          class="button button-outline"
+                          type="button"
+                          id="cancelQuotationJobCardCreateButton"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          class="button button-primary"
+                          type="submit"
+                          id="submitQuotationJobCardCreateButton"
+                        >
+                          Create job card
+                        </button>
+                      </div>
+                    </form>
+                  </section>
                 </div>
               </div>
             </div>

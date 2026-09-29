@@ -783,6 +783,57 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#18 &mdash; Create a service job card directly from a Quotation</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">
+          2026-09-29 &middot; Scope: DB migration, API backend, staff portal frontend
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            You asked whether the old system's "quotations once created can be fetched and used to
+            create a service job card" logic was implemented here &mdash; it wasn't, only the
+            appointment-based path was. It's now built back in.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; open a Quotation, click "Create service job card"; it
+            pulls in customer name, contact, address, technician, item description, and the
+            complaint from the quotation into an editable job-card form, same two-step
+            prefill-then-edit flow the appointment path already uses.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; a quotation doesn't capture Site contact person/number,
+            Customer number, Brand, Salesman, or Sales channel, so those fields start blank on the
+            pulled-up form and stay editable, matching the old system's treatment.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; a quotation can only be used once; once it has a job card,
+            its detail page shows a link to that job card instead of the Create button.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; the existing appointment-based "Create service job card"
+            flow is unchanged.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>One-time: run <code>npm run db:migrate</code> (adds migration 014).</li>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Open a saved Quotation, click "Create service job card", confirm the pulled-in fields,
+            fill in the rest, and create it; confirm it shows up under Job cards and that the
+            Quotation's page now links to it instead of showing the Create button.
+          </li>
+          <li>Confirm the existing appointment-based job-card creation still works as before.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

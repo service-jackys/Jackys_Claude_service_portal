@@ -24,6 +24,25 @@ The local system currently provides an Express TypeScript API, PostgreSQL migrat
 
 A running log of completed work, newest first, so you can see progress without digging through commits.
 
+**2026-09-29 — Create a service job card directly from a Quotation (modification #18).** The live
+Apps Script system's `pullJobCardFromQuotation` flow was still missing here (job cards could only be
+created from a completed appointment). Built it back in, matching the legacy behaviour:
+
+- Migration `014_job_card_quotation_source.sql` makes `service_job_cards.appointment_id` nullable,
+  adds a nullable+unique `quotation_id` column, and a check constraint requiring exactly one of the
+  two to be set — a job card is still always tied to exactly one source, appointment or quotation.
+- New API: `GET /api/quotations/{id}/job-card/prefill`, `POST /api/quotations/{id}/job-card`, and
+  `GET /api/quotations/{id}/job-card` (mirrors the existing appointment-sourced endpoints), plus a
+  `?unused=true` filter on `GET /api/quotations` so a picker can exclude quotations already used.
+- New web UI: on a Quotation's detail view, a **Create service job card** button (hidden once that
+  quotation already has one, showing a link to it instead) opens the same kind of prefill-then-edit
+  panel the appointment flow uses, with its own field prefix (`jcq`). Site contact person/number and
+  Customer number aren't captured by a quotation, so they're left blank and editable — never
+  disabled — matching the legacy "soft N/A" treatment; the same is true for Brand, Salesman, and
+  Sales channel, which a quotation also doesn't capture.
+- `npm run typecheck`, `node --check`, and `prettier --write` all pass. **Run `npm run db:migrate`**
+  to pick up migration 014 before using this.
+
 **2026-09-28 — Front-end split into landing / customer / staff portal, with an enterprise-CRM style
 redesign.** The public complaint form and the internal staff SPA used to live in one page
 (`apps/web/src/index.html`), which mixed customer- and staff-facing UI. Split into three:
@@ -479,6 +498,21 @@ sales order no. together.
 
 Submitting creates the same kind of complaint the public form creates -- it appears in the
 Complaint inbox and can be scheduled, notated, and turned into a job card exactly the same way.
+
+## Creating a service job card from a Quotation
+
+Besides pulling a job card from a completed appointment, staff with `service_job_card.write` can
+now create one straight from a saved Quotation (matching the old system):
+
+1. Open **Quotations** in the sidebar and open the quotation.
+2. If it doesn't already have a job card, click **Create service job card**. This pulls in the
+   customer name, contact, address, technician, item description, and complaint from the quotation.
+3. A quotation doesn't capture Site contact person/number, Customer number, Brand, Salesman, or
+   Sales channel, so those fields start blank — fill them in if you know them, or leave them blank.
+4. Review the parts, service charge, and everything else, then click **Create job card**.
+
+A quotation can only be used once — once it has a job card, the button is replaced with a link to
+that job card.
 
 ## Managing salesmen and sales channels
 

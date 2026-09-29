@@ -356,6 +356,9 @@ export const quotationListQuerySchema = z
   .object({
     search: z.string().trim().min(1).max(200).optional(),
     appointmentId: z.string().regex(/^\d+$/).optional(),
+    // "true" excludes quotations that already have a service job card --
+    // used by the "create job card from Quotation" picker (modification.md #18).
+    unused: z.enum(['true', 'false']).optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })

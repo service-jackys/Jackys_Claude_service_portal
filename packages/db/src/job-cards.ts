@@ -9,15 +9,19 @@ import type {
 export type ServiceJobCardRecord = {
   id: string;
   jobCardReference: string;
-  appointmentId: string;
-  appointmentReference: string;
+  // Exactly one of appointmentId / quotationId is set -- see
+  // migrations/014_job_card_quotation_source.sql and modification.md #18.
+  appointmentId: string | null;
+  appointmentReference: string | null;
+  quotationId: string | null;
+  quotationReference: string | null;
   // The complaint that led to this job card's appointment, if any -- an
   // appointment can be created without a complaint, so both can be null.
   // Carried through for the workflow link (see modification.md #5).
   complaintId: string | null;
   complaintReference: string | null;
-  appointmentDate: string;
-  faultDescription: string;
+  appointmentDate: string | null;
+  faultDescription: string | null;
   status: ServiceJobCardStatus;
   finalizedAt: Date | null;
   finalizedBy: string | null;
@@ -106,6 +110,8 @@ const columns = `
   service_job_cards.job_card_reference AS "jobCardReference",
   service_job_cards.appointment_id AS "appointmentId",
   appointments.appointment_reference AS "appointmentReference",
+  service_job_cards.quotation_id AS "quotationId",
+  quotations.quotation_reference AS "quotationReference",
   appointments.complaint_id AS "complaintId",
   complaints.complaint_reference AS "complaintReference",
   appointments.appointment_date::text AS "appointmentDate",
@@ -152,7 +158,10 @@ export async function insertServiceJobCard(
   client: PoolClient,
   input: {
     jobCardReference: string;
-    appointmentId: string;
+    // Exactly one of these is set -- see migrations/014_job_card_quotation_source.sql.
+    appointmentId: string | null;
+    quotationId: string | null;
+    sourceType: string;
     createdBy: string;
     content: ServiceJobCardContent;
   },
@@ -160,7 +169,7 @@ export async function insertServiceJobCard(
   const c = input.content;
   const result = await client.query<{ id: string }>(
     `INSERT INTO service_job_cards (
-       job_card_reference, appointment_id, created_by, updated_by,
+       job_card_reference, appointment_id, quotation_id, created_by, updated_by,
        source_type, job_card_date, customer_name, customer_contact, customer_address,
        item_description, model_no, warranty_status, complaint, service_rendered,
        period_from, period_to, time_consumed_hours, parts,
@@ -168,19 +177,21 @@ export async function insertServiceJobCard(
        invoice_no, delivery_date, technician_name, brand, salesman, sales_channel, job_final_status,
        school_contact_person, school_contact_number, customer_number, legacy_reference
      ) VALUES (
-       $1, $2, $3, $3,
-       'Scheduler', $4, $5, $6, $7,
-       $8, $9, $10, $11, $12,
-       $13, $14, $15, $16,
-       $17, $18, $19, $20,
-       $21, $22, $23, $24, $25, $26, $27,
-       $28, $29, $30, $31
+       $1, $2, $3, $4, $4,
+       $5, $6, $7, $8, $9,
+       $10, $11, $12, $13, $14,
+       $15, $16, $17, $18,
+       $19, $20, $21, $22,
+       $23, $24, $25, $26, $27, $28, $29,
+       $30, $31, $32, $33
      )
      RETURNING id`,
     [
       input.jobCardReference,
       input.appointmentId,
+      input.quotationId,
       input.createdBy,
+      input.sourceType,
       c.jobCardDate,
       c.customerName,
       c.customerContact,
@@ -271,6 +282,12 @@ export async function updateServiceJobCardContent(
   return findServiceJobCardById(client, result.rows[0].id);
 }
 
+const joins = `
+     LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
+     LEFT JOIN quotations ON quotations.id = service_job_cards.quotation_id
+     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
+`;
+
 export async function findServiceJobCardById(
   client: PoolClient,
   id: string,
@@ -279,8 +296,7 @@ export async function findServiceJobCardById(
   const result = await client.query<ServiceJobCardRecord>(
     `SELECT ${columns}
      FROM service_job_cards
-     JOIN appointments ON appointments.id = service_job_cards.appointment_id
-     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
+     ${joins}
      WHERE service_job_cards.id = $1
      ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
     [id],
@@ -296,11 +312,30 @@ export async function findServiceJobCardByAppointmentId(
   const result = await client.query<ServiceJobCardRecord>(
     `SELECT ${columns}
      FROM service_job_cards
-     JOIN appointments ON appointments.id = service_job_cards.appointment_id
-     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
+     ${joins}
      WHERE service_job_cards.appointment_id = $1
      ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
     [appointmentId],
+  );
+  return result.rows[0] ?? null;
+}
+
+// Mirrors findServiceJobCardByAppointmentId, for the quotation-sourced path
+// (see modification.md #18) -- used both to enforce "one job card per
+// quotation" on create and to let the UI show whether a given quotation
+// already has a job card.
+export async function findServiceJobCardByQuotationId(
+  client: PoolClient,
+  quotationId: string,
+  forUpdate = false,
+): Promise<ServiceJobCardRecord | null> {
+  const result = await client.query<ServiceJobCardRecord>(
+    `SELECT ${columns}
+     FROM service_job_cards
+     ${joins}
+     WHERE service_job_cards.quotation_id = $1
+     ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
+    [quotationId],
   );
   return result.rows[0] ?? null;
 }
@@ -319,12 +354,11 @@ export async function listServiceJobCards(
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(
-      `(service_job_cards.job_card_reference ILIKE ${parameter} OR appointments.appointment_reference ILIKE ${parameter} OR service_job_cards.customer_name ILIKE ${parameter} OR service_job_cards.customer_contact ILIKE ${parameter})`,
+      `(service_job_cards.job_card_reference ILIKE ${parameter} OR appointments.appointment_reference ILIKE ${parameter} OR quotations.quotation_reference ILIKE ${parameter} OR service_job_cards.customer_name ILIKE ${parameter} OR service_job_cards.customer_contact ILIKE ${parameter})`,
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-  const from = `FROM service_job_cards JOIN appointments ON appointments.id = service_job_cards.appointment_id
-     LEFT JOIN complaints ON complaints.id = appointments.complaint_id`;
+  const from = `FROM service_job_cards ${joins}`;
   const count = await client.query<{ total: string }>(
     `SELECT count(*)::text AS total ${from} ${where}`,
     values,

@@ -11,6 +11,7 @@ import {
 } from '../../../../packages/contracts/src/index.js';
 import {
   findServiceJobCardByAppointmentId,
+  findServiceJobCardByQuotationId,
   findServiceJobCardById,
   insertServiceJobCard,
   insertServiceJobCardHistory,
@@ -25,6 +26,7 @@ import {
   findAppointmentById,
   type AppointmentRecord,
 } from '../../../../packages/db/src/appointments.js';
+import { findQuotationById, type QuotationRecord } from '../../../../packages/db/src/quotations.js';
 import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
 import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
 import { allocateJobCardReference } from '../../../../packages/db/src/references.js';
@@ -35,6 +37,7 @@ export class ServiceJobCardError extends Error {
     public readonly code:
       | 'not-found'
       | 'appointment-ineligible'
+      | 'quotation-ineligible'
       | 'duplicate'
       | 'invalid-transition'
       | 'terminal-job-card',
@@ -130,6 +133,48 @@ function defaultsFromAppointment(
   };
 }
 
+/** Default job-card content pulled from a saved Quotation, matching the live
+ *  system's pullJobCardFromQuotation(). A quotation never captures the B2B
+ *  fields (site contact person/number, customer number) or a salesman/sales
+ *  channel, so those are left blank here -- a "soft N/A" the CCE can still
+ *  fill in by hand, never disabled (see modification.md #18). */
+function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardContent {
+  return {
+    jobCardDate: new Date().toISOString().slice(0, 10),
+    customerName: quotation.customerName,
+    customerContact: quotation.contactNumber,
+    customerAddress: quotation.siteLocation,
+    itemDescription:
+      quotation.products
+        .map((product) => product.description)
+        .filter(Boolean)
+        .join(', ') || null,
+    modelNo: null,
+    warrantyStatus: null,
+    complaint: quotation.customerComplaint,
+    serviceRendered: null,
+    periodFrom: null,
+    periodTo: null,
+    timeConsumedHours: null,
+    parts: [],
+    totalCost: 0,
+    serviceCharge: 0,
+    grandTotal: 0,
+    amountChargeable: null,
+    invoiceNo: null,
+    deliveryDate: null,
+    technicianName: quotation.technicianName,
+    brand: null,
+    salesman: null,
+    salesChannel: null,
+    jobFinalStatus: 'WIP',
+    schoolContactPerson: null,
+    schoolContactNumber: null,
+    customerNumber: null,
+    legacyReference: quotation.legacyReference,
+  };
+}
+
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
@@ -183,6 +228,105 @@ export function createServiceJobCardService(pool: Pool) {
     }
   }
 
+  // ---- Quotation-sourced job cards (modification.md #18) ----
+
+  async function prefillFromQuotation(quotationId: string) {
+    const client = await pool.connect();
+    try {
+      const quotation = await findQuotationById(client, quotationId);
+      if (!quotation) {
+        throw new ServiceJobCardError('not-found', 'The quotation was not found.');
+      }
+      if (await findServiceJobCardByQuotationId(client, quotationId)) {
+        throw new ServiceJobCardError(
+          'duplicate',
+          'This quotation already has a service job card.',
+        );
+      }
+      return { quotation, content: defaultsFromQuotation(quotation) };
+    } finally {
+      client.release();
+    }
+  }
+
+  async function createFromQuotation(
+    quotationId: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const overrides = serviceJobCardCreateSchema.parse(input ?? {});
+    return withTransaction(pool, async (client) => {
+      const quotation = await findQuotationById(client, quotationId, true);
+      if (!quotation) {
+        throw new ServiceJobCardError('not-found', 'The quotation was not found.');
+      }
+      if (await findServiceJobCardByQuotationId(client, quotationId, true)) {
+        throw new ServiceJobCardError(
+          'duplicate',
+          'This quotation already has a service job card.',
+        );
+      }
+
+      const content = mergeContent(defaultsFromQuotation(quotation), overrides);
+      const scopeDate = quotation.quotationDate ?? new Date().toISOString().slice(0, 10);
+      const jobCardReference = await allocateJobCardReference(client, scopeDate);
+      let jobCard;
+      try {
+        jobCard = await insertServiceJobCard(client, {
+          jobCardReference,
+          appointmentId: null,
+          quotationId,
+          sourceType: 'Quotation',
+          createdBy: profileId,
+          content,
+        });
+      } catch (error) {
+        if (isUniqueViolation(error)) {
+          throw new ServiceJobCardError(
+            'duplicate',
+            'This quotation already has a service job card.',
+          );
+        }
+        throw error;
+      }
+      await insertServiceJobCardHistory(
+        client,
+        jobCard.id,
+        null,
+        'Open',
+        profileId,
+        'Created',
+        requestId,
+      );
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'job_card.created',
+        targetType: 'service_job_card',
+        targetId: jobCard.id,
+        metadata: {
+          jobCardReference: jobCard.jobCardReference,
+          quotationId,
+          quotationReference: quotation.quotationReference,
+        },
+        requestId,
+      });
+      return jobCard;
+    });
+  }
+
+  async function byQuotation(quotationId: string) {
+    const client = await pool.connect();
+    try {
+      const quotation = await findQuotationById(client, quotationId);
+      if (!quotation) throw new ServiceJobCardError('not-found', 'The quotation was not found.');
+      const jobCard = await findServiceJobCardByQuotationId(client, quotationId);
+      return { jobCard };
+    } finally {
+      client.release();
+    }
+  }
+
   async function create(
     appointmentId: string,
     input: unknown,
@@ -221,6 +365,8 @@ export function createServiceJobCardService(pool: Pool) {
         jobCard = await insertServiceJobCard(client, {
           jobCardReference,
           appointmentId,
+          quotationId: null,
+          sourceType: 'Scheduler',
           createdBy: profileId,
           content,
         });
@@ -425,7 +571,19 @@ export function createServiceJobCardService(pool: Pool) {
     });
   }
 
-  return { list, create, prefill, updateContent, detail, byAppointment, history, changeStatus };
+  return {
+    list,
+    create,
+    prefill,
+    updateContent,
+    detail,
+    byAppointment,
+    history,
+    changeStatus,
+    prefillFromQuotation,
+    createFromQuotation,
+    byQuotation,
+  };
 }
 
 export type ServiceJobCardService = ReturnType<typeof createServiceJobCardService>;
