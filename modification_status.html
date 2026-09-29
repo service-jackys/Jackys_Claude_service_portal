@@ -284,6 +284,42 @@
           <li>#6 — Interactive, visually redesigned dashboard.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#5 — End-to-end workflow links: Complaint ↔ Appointment ↔ Job card</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">
+          2026-09-29 · Scope: complaint / appointment / job card detail views, job card list
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Complaint detail now links forward to its Appointment and Job card (once they exist).
+          </li>
+          <li>
+            Appointment detail now links back to its Complaint and forward to its Job card; fixed a
+            bug where it showed the complaint's raw internal ID instead of its reference.
+          </li>
+          <li>Job card detail now links back to both its Complaint and its Appointment.</li>
+          <li>Job card list: the Appointment column is now clickable.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npx playwright test tests/e2e/portal.spec.ts</code></li>
+          <li>
+            Manually open a scheduled complaint with a job card and click through the whole chain.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up (next modification, not started)</div>
+        <ul>
+          <li>#6 — Interactive, visually redesigned dashboard.</li>
+          <li>
+            Complaint inbox / Service requests list rows could also show the linked appointment
+            reference directly in the table.
+          </li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

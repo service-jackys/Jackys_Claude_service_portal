@@ -11,6 +11,11 @@ export type ServiceJobCardRecord = {
   jobCardReference: string;
   appointmentId: string;
   appointmentReference: string;
+  // The complaint that led to this job card's appointment, if any -- an
+  // appointment can be created without a complaint, so both can be null.
+  // Carried through for the workflow link (see modification.md #5).
+  complaintId: string | null;
+  complaintReference: string | null;
   appointmentDate: string;
   appointmentTime: string;
   faultDescription: string;
@@ -98,6 +103,8 @@ const columns = `
   service_job_cards.job_card_reference AS "jobCardReference",
   service_job_cards.appointment_id AS "appointmentId",
   appointments.appointment_reference AS "appointmentReference",
+  appointments.complaint_id AS "complaintId",
+  complaints.complaint_reference AS "complaintReference",
   appointments.appointment_date::text AS "appointmentDate",
   to_char(appointments.appointment_time, 'HH24:MI') AS "appointmentTime",
   appointments.fault_description AS "faultDescription",
@@ -265,6 +272,7 @@ export async function findServiceJobCardById(
     `SELECT ${columns}
      FROM service_job_cards
      JOIN appointments ON appointments.id = service_job_cards.appointment_id
+     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
      WHERE service_job_cards.id = $1
      ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
     [id],
@@ -281,6 +289,7 @@ export async function findServiceJobCardByAppointmentId(
     `SELECT ${columns}
      FROM service_job_cards
      JOIN appointments ON appointments.id = service_job_cards.appointment_id
+     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
      WHERE service_job_cards.appointment_id = $1
      ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
     [appointmentId],
@@ -306,7 +315,8 @@ export async function listServiceJobCards(
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-  const from = `FROM service_job_cards JOIN appointments ON appointments.id = service_job_cards.appointment_id`;
+  const from = `FROM service_job_cards JOIN appointments ON appointments.id = service_job_cards.appointment_id
+     LEFT JOIN complaints ON complaints.id = appointments.complaint_id`;
   const count = await client.query<{ total: string }>(
     `SELECT count(*)::text AS total ${from} ${where}`,
     values,

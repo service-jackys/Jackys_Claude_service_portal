@@ -7,6 +7,7 @@ const appointment: AppointmentRecord = {
   id: '42',
   appointmentReference: 'APT-2026-00042',
   complaintId: '7',
+  complaintReference: 'CMP-20260101-0001',
   customerId: '8',
   branchId: '9',
   technicianId: '10',

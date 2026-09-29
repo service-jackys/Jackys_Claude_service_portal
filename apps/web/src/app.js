@@ -260,6 +260,30 @@
     }).join('');
   }
 
+  // Clickable Complaint -> Appointment -> Job card trail (and back) -- see
+  // modification.md #5. `links` is an ordered array of
+  // { label, onClick } -- onClick should switch workspace mode and open the
+  // target record's detail.
+  function renderWorkflowLinks(elementId, links) {
+    const container = $('#' + elementId);
+    if (!container) return;
+    if (!links.length) {
+      container.hidden = true;
+      container.innerHTML = '';
+      return;
+    }
+    container.hidden = false;
+    container.innerHTML = links
+      .map(
+        (link, index) =>
+          `<button type="button" class="workflow-link-chip" data-link-index="${index}">${escapeHtml(link.label)}</button>`,
+      )
+      .join('<span class="workflow-link-sep" aria-hidden="true">→</span>');
+    container.querySelectorAll('[data-link-index]').forEach((button) => {
+      button.addEventListener('click', () => links[Number(button.dataset.linkIndex)].onClick());
+    });
+  }
+
   function selectAuthTab(tab) {
     const login = tab === 'login';
     $('#loginTab').setAttribute('aria-selected', String(login));
@@ -1430,7 +1454,7 @@ ${bodyHtml}
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td>${escapeHtml(jobCard.appointmentReference)}</td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span></td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span></td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').hidden = jobCards.length > 0;
@@ -1439,6 +1463,15 @@ ${bodyHtml}
       .forEach((button) =>
         button.addEventListener('click', () => loadJobCardDetail(button.dataset.jobCardId)),
       );
+    // Workflow link (see modification.md #5): jump straight to the
+    // appointment this job card came from.
+    body.querySelectorAll('[data-appointment-id]').forEach((button) =>
+      button.addEventListener('click', (event) => {
+        event.stopPropagation();
+        setWorkspaceMode('appointments');
+        loadAppointmentDetail(button.dataset.appointmentId);
+      }),
+    );
   }
 
   // ---- Service report (Phase 5 -- docs/DEVELOPMENT_PLAN.md: "Add service
@@ -2050,6 +2083,30 @@ ${bodyHtml}
         'jobCardWorkflowStepper',
         workflowStageForJobCardStatus(jobCard.status),
       );
+      // Breadcrumb order matches the chain's direction: Complaint ->
+      // Appointment -> (this job card).
+      const jobCardWorkflowLinks = [];
+      if (jobCard.complaintId && jobCard.complaintReference) {
+        const complaintId = jobCard.complaintId;
+        jobCardWorkflowLinks.push({
+          label: `Complaint ${jobCard.complaintReference}`,
+          onClick: () => {
+            setWorkspaceMode('complaints');
+            loadComplaintDetail(complaintId);
+          },
+        });
+      }
+      if (jobCard.appointmentId) {
+        const appointmentId = jobCard.appointmentId;
+        jobCardWorkflowLinks.push({
+          label: `Appointment ${jobCard.appointmentReference}`,
+          onClick: () => {
+            setWorkspaceMode('appointments');
+            loadAppointmentDetail(appointmentId);
+          },
+        });
+      }
+      renderWorkflowLinks('jobCardWorkflowLinks', jobCardWorkflowLinks);
       const details = [
         ['Appointment', jobCard.appointmentReference],
         ['Customer', jobCard.customerName],
@@ -2604,7 +2661,7 @@ ${bodyHtml}
         ['Customer', appointment.customerName],
         ['Contact', appointment.contactNumber],
         ['Email', appointment.customerEmail],
-        ['Complaint', appointment.complaintId],
+        ['Complaint', appointment.complaintReference],
         ['Appointment', appointmentDateTime(appointment)],
         ['Technician', appointment.technicianId || 'Unassigned'],
         ['Region', appointment.region],
@@ -2637,6 +2694,17 @@ ${bodyHtml}
           )
           .join('') || '<li><span>No history recorded.</span></li>';
       $('#appointmentDetail').hidden = false;
+      const appointmentWorkflowLinks = [];
+      if (appointment.complaintId && appointment.complaintReference) {
+        const complaintId = appointment.complaintId;
+        appointmentWorkflowLinks.push({
+          label: `Complaint ${appointment.complaintReference}`,
+          onClick: () => {
+            setWorkspaceMode('complaints');
+            loadComplaintDetail(complaintId);
+          },
+        });
+      }
       if (hasPermission('service_job_card.read')) {
         try {
           const jobCardResult = await apiRequest(
@@ -2644,12 +2712,23 @@ ${bodyHtml}
           );
           $('#createJobCardButton').hidden =
             Boolean(jobCardResult.jobCard) || !hasPermission('service_job_card.write');
+          if (jobCardResult.jobCard) {
+            const jobCardId = jobCardResult.jobCard.id;
+            appointmentWorkflowLinks.push({
+              label: `Job card ${jobCardResult.jobCard.jobCardReference}`,
+              onClick: () => {
+                setWorkspaceMode('job-cards');
+                loadJobCardDetail(jobCardId);
+              },
+            });
+          }
         } catch (jobCardError) {
           if (jobCardError.status === 403) $('#createJobCardButton').hidden = true;
         }
       } else {
         $('#createJobCardButton').hidden = true;
       }
+      renderWorkflowLinks('appointmentWorkflowLinks', appointmentWorkflowLinks);
       if (hasPermission('appointments.write') && hasPermission('technicians.read')) {
         await loadAppointmentTechnicians(appointment);
       }
@@ -3112,6 +3191,28 @@ ${bodyHtml}
       $('#detailStatus').innerHTML =
         `<span class="status ${statusClass(complaint.status)}">${escapeHtml(complaint.status)}</span>`;
       renderWorkflowStepper('workflowStepper', workflowStageForComplaintStatus(complaint.status));
+      const complaintWorkflowLinks = [];
+      if (result.appointment) {
+        const appointmentId = result.appointment.id;
+        complaintWorkflowLinks.push({
+          label: `Appointment ${result.appointment.appointmentReference}`,
+          onClick: () => {
+            setWorkspaceMode('appointments');
+            loadAppointmentDetail(appointmentId);
+          },
+        });
+      }
+      if (result.jobCard) {
+        const jobCardId = result.jobCard.id;
+        complaintWorkflowLinks.push({
+          label: `Job card ${result.jobCard.jobCardReference}`,
+          onClick: () => {
+            setWorkspaceMode('job-cards');
+            loadJobCardDetail(jobCardId);
+          },
+        });
+      }
+      renderWorkflowLinks('complaintWorkflowLinks', complaintWorkflowLinks);
       const details = [
         ['Customer', complaint.customerName],
         ['Type', complaint.customerType],

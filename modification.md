@@ -209,3 +209,52 @@ showed blank with only a placeholder hint, even when the complaint already had t
   requests / Appointments / Job cards, with an end-to-end workflow link back from job card →
   appointment → complaint) and item 4 (interactive, visually redesigned dashboard) are both large
   enough to be their own modifications — see modification #5 and #6 (not started yet).
+
+---
+
+## Modification #5 — End-to-end workflow links: Complaint ↔ Appointment ↔ Job card
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your manual check
+- **Scope:** Internal staff portal — complaint detail, appointment detail, job card detail, job
+  card list
+
+### Why
+
+Your item 1: Complaint inbox, Service requests, Appointments, and Job cards were already
+separate, non-mixed page views (each is its own workspace panel) — but once a complaint was
+scheduled and a job card created, there was no way to trace the chain. The job card list showed
+the appointment reference as plain text (not clickable), and there was no way at all to jump from
+an appointment back to the complaint it came from, or from a complaint forward to its appointment
+or job card.
+
+### What changed
+
+- **Complaint detail** now shows a clickable trail under the status line — "Appointment
+  APT-xxxxx" and, once a job card exists, "Job card JBC-xxxxx" — that jumps straight to that
+  record's detail in its own workspace.
+- **Appointment detail** now shows "Complaint CMP-xxxxx" (linking back) and "Job card JBC-xxxxx"
+  (linking forward, once one exists). Also fixed: the detail grid's "Complaint" row was showing
+  the complaint's raw internal ID instead of its reference — it now shows the actual reference.
+- **Job card detail** now shows both "Complaint CMP-xxxxx" and "Appointment APT-xxxxx" links.
+- **Job card list**: the Appointment column is now clickable and jumps to that appointment.
+- Backend: appointment records now carry the originating complaint's reference (previously only
+  the internal ID), and job card records now carry both the complaint's ID and reference —
+  fetched via joins on read, with appointment/job-card summaries also returned alongside a
+  complaint's own detail response.
+
+### Needs you
+
+- `npx playwright test tests/e2e/portal.spec.ts` — one new test added
+  ("Workflow links across Complaint / Appointment / Job card") that clicks through the whole
+  chain and back.
+- Manually open a complaint that's been scheduled and has a job card, and click through
+  Complaint → Appointment → Job card and back to confirm the links land on the right record.
+
+### Known follow-up (tracked, not started)
+
+- Item 4 from your message — an interactive, visually redesigned dashboard — is modification #6,
+  not started yet.
+- The Complaint inbox / Service requests list views don't yet show the linked appointment
+  reference in the table row itself (only in the detail panel) — could be added as a follow-up if
+  useful.

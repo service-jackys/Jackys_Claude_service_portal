@@ -25,6 +25,7 @@ import {
   insertAppointmentHistory,
   updateAppointmentStatus,
 } from '../../../../packages/db/src/appointments.js';
+import { findServiceJobCardByAppointmentId } from '../../../../packages/db/src/job-cards.js';
 import {
   findB2bBranchByCustCode,
   searchB2bBranchesForStaff,
@@ -88,7 +89,27 @@ export function createComplaintService(pool: Pool) {
       const complaint = await findComplaintById(client, id);
       if (!complaint) throw new ComplaintServiceError('not-found', 'The complaint was not found.');
       const history = await listComplaintHistory(client, id);
-      return { complaint, history };
+      // Workflow link (see modification.md #5): surface the complaint's
+      // current appointment, and that appointment's job card if one exists,
+      // so staff can navigate Complaint -> Appointment -> Job card from here.
+      const appointment = await findActiveAppointmentForComplaint(client, id);
+      const jobCard = appointment
+        ? await findServiceJobCardByAppointmentId(client, appointment.id)
+        : null;
+      return {
+        complaint,
+        history,
+        appointment: appointment
+          ? {
+              id: appointment.id,
+              appointmentReference: appointment.appointmentReference,
+              status: appointment.status,
+            }
+          : null,
+        jobCard: jobCard
+          ? { id: jobCard.id, jobCardReference: jobCard.jobCardReference, status: jobCard.status }
+          : null,
+      };
     } finally {
       client.release();
     }

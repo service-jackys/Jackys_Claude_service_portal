@@ -2163,3 +2163,181 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await expect(page.locator('#b2bBranchAction')).toBeHidden();
   });
 });
+
+test.describe('Workflow links across Complaint / Appointment / Job card (modification.md #5)', () => {
+  test('lets staff click through Complaint -> Appointment -> Job card and back', async ({
+    page,
+  }) => {
+    const complaint = {
+      id: '101',
+      complaintReference: 'JSC-20260929-0010',
+      customerType: 'B2C',
+      customerName: 'Chain Test Customer',
+      contactNumber: '0500000000',
+      description: 'Test complaint',
+      status: 'Scheduled',
+      cceNotes: '',
+      submittedAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+    const appointment = {
+      id: '501',
+      appointmentReference: 'APT-2026-00099',
+      complaintId: '101',
+      complaintReference: 'JSC-20260929-0010',
+      customerName: 'Chain Test Customer',
+      contactNumber: '0500000000',
+      appointmentDate: '2026-10-05',
+      appointmentTime: '09:00',
+      status: 'Scheduled',
+      createdAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+    const jobCard = {
+      id: '701',
+      jobCardReference: 'JBC-2026-00099',
+      appointmentId: '501',
+      appointmentReference: 'APT-2026-00099',
+      complaintId: '101',
+      complaintReference: 'JSC-20260929-0010',
+      appointmentDate: '2026-10-05',
+      appointmentTime: '09:00',
+      customerName: 'Chain Test Customer',
+      contactNumber: '0500000000',
+      faultDescription: 'Test complaint',
+      status: 'Open',
+      finalizedAt: null,
+      finalizedBy: null,
+      createdAt: '2026-09-29T08:00:00.000Z',
+      updatedAt: '2026-09-29T08:00:00.000Z',
+    };
+
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (url.pathname === '/api/auth/login') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ token: 'test-token' }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/auth/me') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            user: {
+              name: 'Vysakh',
+              email: 'vysakh.raju@jackys.com',
+              role: 'admin',
+              permissions: ['*'],
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ complaints: [complaint] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/complaints/101' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            complaint,
+            history: [],
+            appointment: {
+              id: appointment.id,
+              appointmentReference: appointment.appointmentReference,
+              status: appointment.status,
+            },
+            jobCard: {
+              id: jobCard.id,
+              jobCardReference: jobCard.jobCardReference,
+              status: jobCard.status,
+            },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointments: [appointment] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ appointment, history: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/appointments/501/job-card' && request.method() === 'GET') {
+        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ jobCard }) });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            jobCards: [jobCard],
+            pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ jobCard, history: [] }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await page.goto('/portal/');
+    await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
+    await page.locator('#loginPassword').fill('local-password-1234');
+    await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+
+    // Complaint detail -> click through to the Appointment.
+    await page.getByRole('button', { name: 'JSC-20260929-0010' }).click();
+    await expect(page.locator('#complaintWorkflowLinks')).toContainText(
+      'Appointment APT-2026-00099',
+    );
+    await expect(page.locator('#complaintWorkflowLinks')).toContainText('Job card JBC-2026-00099');
+    await page.locator('#complaintWorkflowLinks').getByText('Appointment APT-2026-00099').click();
+
+    // Appointment detail -> links back to the Complaint and forward to the
+    // Job card.
+    await expect(page.locator('#appointmentDetail')).toBeVisible();
+    await expect(page.locator('#appointmentDetailGrid')).toContainText('JSC-20260929-0010');
+    await expect(page.locator('#appointmentWorkflowLinks')).toContainText(
+      'Complaint JSC-20260929-0010',
+    );
+    await expect(page.locator('#appointmentWorkflowLinks')).toContainText(
+      'Job card JBC-2026-00099',
+    );
+    await page.locator('#appointmentWorkflowLinks').getByText('Job card JBC-2026-00099').click();
+
+    // Job card detail -> links back to both the Complaint and the
+    // Appointment.
+    await expect(page.locator('#jobCardDetail')).toBeVisible();
+    await expect(page.locator('#jobCardWorkflowLinks')).toContainText(
+      'Complaint JSC-20260929-0010',
+    );
+    await expect(page.locator('#jobCardWorkflowLinks')).toContainText('Appointment APT-2026-00099');
+
+    // The job-card list also links straight to its appointment.
+    await page.getByRole('button', { name: 'Service job cards' }).click();
+    await page.getByRole('button', { name: 'APT-2026-00099' }).click();
+    await expect(page.locator('#appointmentDetail')).toBeVisible();
+  });
+});

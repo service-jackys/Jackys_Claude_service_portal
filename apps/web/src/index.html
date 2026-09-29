@@ -1290,6 +1290,40 @@
         background: var(--surface-soft);
         overflow-x: auto;
       }
+      /* Clickable trail linking a complaint to its appointment and job card
+         (and back) -- see modification.md #5. */
+      .workflow-links {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0 0 1.1rem;
+      }
+      .workflow-links[hidden] {
+        display: none;
+      }
+      .workflow-link-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+        padding: 0.35rem 0.75rem;
+        border-radius: 999px;
+        border: 1px solid var(--navy);
+        background: #fff;
+        color: var(--navy);
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .workflow-link-chip:hover {
+        background: var(--navy);
+        color: #fff;
+      }
+      .workflow-link-sep {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
       .workflow-stepper .stepper-item {
         display: flex;
         align-items: center;
@@ -1824,6 +1858,12 @@
                         aria-label="Complaint workflow stage"
                         hidden
                       ></div>
+                      <div
+                        class="workflow-links"
+                        id="complaintWorkflowLinks"
+                        aria-label="Related records"
+                        hidden
+                      ></div>
                     </div>
                     <button class="button button-outline" type="button" id="closeDetailButton">
                       Close details
@@ -2173,6 +2213,12 @@
                         class="workflow-stepper"
                         id="jobCardWorkflowStepper"
                         aria-label="Job card workflow stage"
+                        hidden
+                      ></div>
+                      <div
+                        class="workflow-links"
+                        id="jobCardWorkflowLinks"
+                        aria-label="Related records"
                         hidden
                       ></div>
                     </div>
@@ -2719,6 +2765,12 @@
                         class="workflow-stepper"
                         id="appointmentWorkflowStepper"
                         aria-label="Appointment workflow stage"
+                        hidden
+                      ></div>
+                      <div
+                        class="workflow-links"
+                        id="appointmentWorkflowLinks"
+                        aria-label="Related records"
                         hidden
                       ></div>
                     </div>

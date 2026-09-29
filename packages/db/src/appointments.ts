@@ -5,6 +5,12 @@ export type AppointmentRecord = {
   id: string;
   appointmentReference: string;
   complaintId: string | null;
+  // The originating complaint's reference, if this appointment came from one
+  // -- populated only by read paths that join complaints (findAppointmentById);
+  // insert/update RETURNING paths set it to null since RETURNING can't join
+  // (see modification.md #5). Re-fetch with findAppointmentById if you need it
+  // right after a write.
+  complaintReference: string | null;
   customerId: string | null;
   branchId: string | null;
   technicianId: string | null;
@@ -78,6 +84,12 @@ const columns = `
   appointments.updated_by AS "updatedBy"
 `;
 
+// Adds the originating complaint's reference via a join -- only usable in a
+// plain SELECT (not INSERT/UPDATE ... RETURNING, which can't join another
+// table), and only where the query below actually joins complaints.
+const columnsWithComplaint = `${columns},
+  complaints.complaint_reference AS "complaintReference"`;
+
 export async function insertAppointment(
   client: PoolClient,
   input: Record<string, unknown>,
@@ -90,7 +102,7 @@ export async function insertAppointment(
       b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
       appointment_date, appointment_time, created_by
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
-    RETURNING ${columns}`,
+    RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [
       input.appointmentReference,
       input.complaintId ?? null,
@@ -128,7 +140,10 @@ export async function findAppointmentById(
   forUpdate = false,
 ): Promise<AppointmentRecord | null> {
   const result = await client.query<AppointmentRecord>(
-    `SELECT ${columns} FROM appointments WHERE appointments.id = $1 ${forUpdate ? 'FOR UPDATE' : ''}`,
+    `SELECT ${columnsWithComplaint}
+     FROM appointments
+     LEFT JOIN complaints ON complaints.id = appointments.complaint_id
+     WHERE appointments.id = $1 ${forUpdate ? 'FOR UPDATE OF appointments' : ''}`,
     [id],
   );
   return result.rows[0] ?? null;
@@ -170,7 +185,7 @@ export async function updateAppointmentAssignment(
   profileId: string,
 ): Promise<AppointmentRecord | null> {
   const result = await client.query<AppointmentRecord>(
-    `UPDATE appointments SET technician_id = $2, updated_by = $3, updated_at = now() WHERE id = $1 RETURNING ${columns}`,
+    `UPDATE appointments SET technician_id = $2, updated_by = $3, updated_at = now() WHERE id = $1 RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [id, technicianId, profileId],
   );
   return result.rows[0] ?? null;
@@ -184,7 +199,7 @@ export async function updateAppointmentSchedule(
   profileId: string,
 ): Promise<AppointmentRecord | null> {
   const result = await client.query<AppointmentRecord>(
-    `UPDATE appointments SET appointment_date = $2, appointment_time = $3, updated_by = $4, updated_at = now() WHERE id = $1 RETURNING ${columns}`,
+    `UPDATE appointments SET appointment_date = $2, appointment_time = $3, updated_by = $4, updated_at = now() WHERE id = $1 RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [id, appointmentDate, appointmentTime, profileId],
   );
   return result.rows[0] ?? null;
@@ -204,7 +219,7 @@ export async function updateAppointmentStatus(
   if (!previousStatus) return null;
   const closedAt = input.status === 'Completed' || input.status === 'Cancelled' ? new Date() : null;
   const result = await client.query<AppointmentRecord>(
-    `UPDATE appointments SET status = $2, closed_at = $3, updated_by = $4, updated_at = now() WHERE id = $1 RETURNING ${columns}`,
+    `UPDATE appointments SET status = $2, closed_at = $3, updated_by = $4, updated_at = now() WHERE id = $1 RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [id, input.status, closedAt, profileId],
   );
   return { appointment: result.rows[0], previousStatus };
