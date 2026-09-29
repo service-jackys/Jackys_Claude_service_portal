@@ -30,20 +30,30 @@ const b2bBranchColumns = `
 export async function searchB2bBranchesForStaff(
   client: PoolClient,
   query: string | undefined,
-): Promise<Array<{ custCode: string; branchName: string; salesman: string | null }>> {
+): Promise<
+  Array<{
+    custCode: string;
+    branchName: string;
+    salesman: string | null;
+    lastSalesOrderNumber: string | null;
+  }>
+> {
   const trimmed = (query ?? '').trim();
   const result = await client.query<{
     custCode: string;
     branchName: string;
     salesman: string | null;
+    lastSalesOrderNumber: string | null;
   }>(
     trimmed
-      ? `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman
+      ? `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
+                last_sales_order_number AS "lastSalesOrderNumber"
          FROM b2b_branches
          WHERE branch_name ILIKE $1
          ORDER BY branch_name
          LIMIT 20`
-      : `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman
+      : `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
+                last_sales_order_number AS "lastSalesOrderNumber"
          FROM b2b_branches
          ORDER BY branch_name
          LIMIT 20`,

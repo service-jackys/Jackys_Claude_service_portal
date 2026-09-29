@@ -400,7 +400,10 @@
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#8 &mdash; Daily technician cap, Salesmen / Sales Channel master data, fresh-test DB wipe</h2>
+          <h2>
+            #8 &mdash; Daily technician cap, Salesmen / Sales Channel master data, fresh-test DB
+            wipe
+          </h2>
           <span class="badge badge-code-complete">Partially complete &mdash; see follow-up</span>
         </div>
         <p class="meta">
@@ -410,8 +413,8 @@
         <ul>
           <li>
             <strong>Done</strong> &mdash; appointment time is gone everywhere (DB column, API,
-            calendar file, every screen). Technicians now have an admin-changeable daily
-            appointment cap (default 10); hitting it shows &ldquo;Assignment limit for the day
+            calendar file, every screen). Technicians now have an admin-changeable daily appointment
+            cap (default 10); hitting it shows &ldquo;Assignment limit for the day
             reached&hellip;&rdquo; wherever scheduling errors already surface.
           </li>
           <li>
@@ -423,21 +426,21 @@
           <li>
             <strong>Done</strong> &mdash; one-time migration wipes all transactional data
             (complaints, appointments, job cards, quotations, inspections, warranty approvals,
-            customers, branches, audit log) and keeps technicians / B2B branches / the new
-            salesmen &amp; sales channels.
+            customers, branches, audit log) and keeps technicians / B2B branches / the new salesmen
+            &amp; sales channels.
           </li>
           <li>
-            <strong>Found and fixed along the way</strong> &mdash; a job-card query still
-            referenced the dropped <code>appointment_time</code> column (would have crashed
-            every job-card fetch), and the job-card service was missing the new salesman/sales
-            channel fields (a compile error caught before shipping).
+            <strong>Found and fixed along the way</strong> &mdash; a job-card query still referenced
+            the dropped <code>appointment_time</code> column (would have crashed every job-card
+            fetch), and the job-card service was missing the new salesman/sales channel fields (a
+            compile error caught before shipping).
           </li>
           <li>
             <strong>Not started</strong> &mdash; a staff-facing &ldquo;create appointment from an
             email/request&rdquo; page; a technician management page (create/edit, incl. the
-            daily-cap field); an admin page to add salesmen/sales channels from the UI; turning
-            the Schedule form's Sales order no. / B2B Branch fields into real pickers against the
-            master data.
+            daily-cap field); an admin page to add salesmen/sales channels from the UI; turning the
+            Schedule form's Sales order no. / B2B Branch fields into real pickers against the master
+            data.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
@@ -449,8 +452,8 @@
           <li>Add your Sales Channel entries (the table starts empty on purpose).</li>
           <li>
             Restart <code>npm run dev</code> and re-run <code>npx playwright test</code> &mdash;
-            every test file referencing appointment time has been updated, but I could not run
-            the suite myself from this side, so this is the real check.
+            every test file referencing appointment time has been updated, but I could not run the
+            suite myself from this side, so this is the real check.
           </li>
         </ul>
         <div class="section-label">Follow-up</div>
@@ -459,6 +462,54 @@
           <li>Technician management page, incl. the daily-cap field.</li>
           <li>Admin page for salesmen / sales channels.</li>
           <li>Schedule form: real pickers for Sales order no. / B2B Branch / School.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>
+            #9 &mdash; Technician management page, B2B branch / Sales order picker, LAN-access fix
+          </h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">
+          2026-09-29 &middot; Scope: staff portal frontend, DB query, server config
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; a Technician management page: list, create, and edit
+            technicians (name, region, phone, email, active flag, and the daily appointment cap from
+            #8) without calling the API by hand.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; the Schedule form's Sales order no. / B2B Branch / School
+            fields are no longer free text. A search box (reusing the same staff B2B-branch search
+            from the complaint detail page) lets you pick a real branch, which fills Branch/School,
+            Sales order no. (from that branch's last known one, if any), and Salesman.
+          </li>
+          <li>
+            <strong>Found and fixed along the way</strong> &mdash; <code>helmet()</code>'s default
+            security headers (CSP <code>upgrade-insecure-requests</code> + HSTS) were silently
+            forcing every request to HTTPS, which broke LAN testing over plain HTTP (portal logo,
+            public site, and <code>/complaints</code> all failed to load). Relaxed in non-production
+            only; production behavior is unchanged.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code> to pick up all three changes.</li>
+          <li>
+            Re-test the LAN URLs with <code>http://</code>, not <code>https://</code>, on port 3100.
+            A browser still forcing https afterward is likely cached HSTS &mdash; clear site data or
+            use a private window.
+          </li>
+          <li>Try the Technician management page: add one, edit a daily cap.</li>
+          <li>Try the Schedule form's new branch/sales-order picker end to end.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>Staff-facing appointment intake page (item 2).</li>
+          <li>Admin page for adding/deactivating salesmen / sales channels (still API-only).</li>
         </ul>
       </div>
     </main>

@@ -20,6 +20,8 @@
   let b2bBranchSearchDebounce = null;
   let salesmenOptions = [];
   let salesChannelOptions = [];
+  let scheduleB2bBranchSearchSequence = 0;
+  let scheduleB2bBranchSearchDebounce = null;
 
   const complaintTransitions = {
     New: ['Under Review', 'Cancelled'],
@@ -409,6 +411,7 @@
     $('#warrantyApprovalsNav').hidden = !hasPermission('warranty_approval.read');
     $('#dashboardNav').hidden = !hasPermission('dashboard.read');
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
+    $('#techniciansNav').hidden = !hasPermission('technicians.read');
   }
 
   function showNoWorkspaceAccess() {
@@ -441,6 +444,7 @@
     if (mode === 'inspections' && !hasPermission('inspection.read')) return;
     if (mode === 'warranty-approvals' && !hasPermission('warranty_approval.read')) return;
     if (mode === 'dashboard' && !hasPermission('dashboard.read')) return;
+    if (mode === 'technicians' && !hasPermission('technicians.read')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
@@ -449,6 +453,7 @@
     const inspections = mode === 'inspections';
     const warrantyApprovals = mode === 'warranty-approvals';
     const dashboard = mode === 'dashboard';
+    const technicians = mode === 'technicians';
     const anyOtherPanel =
       serviceRequests ||
       appointments ||
@@ -456,7 +461,8 @@
       quotations ||
       inspections ||
       warrantyApprovals ||
-      dashboard;
+      dashboard ||
+      technicians;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
@@ -465,14 +471,22 @@
     $('#warrantyApprovalsNav').setAttribute('aria-current', warrantyApprovals ? 'page' : 'false');
     $('#dashboardNav').setAttribute('aria-current', dashboard ? 'page' : 'false');
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
+    $('#techniciansNav').setAttribute('aria-current', technicians ? 'page' : 'false');
     $('#complaintWorkspace').hidden =
-      appointments || jobCards || quotations || inspections || warrantyApprovals || dashboard;
+      appointments ||
+      jobCards ||
+      quotations ||
+      inspections ||
+      warrantyApprovals ||
+      dashboard ||
+      technicians;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
     $('#inspectionWorkspace').hidden = !inspections;
     $('#warrantyApprovalWorkspace').hidden = !warrantyApprovals;
     $('#dashboardWorkspace').hidden = !dashboard;
+    $('#technicianWorkspace').hidden = !technicians;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
@@ -480,6 +494,7 @@
     $('#refreshInspectionsButton').hidden = !inspections;
     $('#refreshWarrantyApprovalsButton').hidden = !warrantyApprovals;
     $('#refreshDashboardButton').hidden = !dashboard;
+    $('#refreshTechniciansButton').hidden = !technicians;
     $('#workspace-heading').textContent = appointments
       ? 'Appointments'
       : jobCards
@@ -492,9 +507,11 @@
               ? 'Warranty approvals'
               : dashboard
                 ? 'Dashboard'
-                : serviceRequests
-                  ? 'Service requests'
-                  : 'Complaint inbox';
+                : technicians
+                  ? 'Technicians'
+                  : serviceRequests
+                    ? 'Service requests'
+                    : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -507,9 +524,11 @@
               ? 'Raise out-of-warranty approval requests and share the customer-facing approval link.'
               : dashboard
                 ? 'Operational summary across complaints, appointments, job cards, and approvals.'
-                : serviceRequests
-                  ? 'Review complaints that are ready to be scheduled.'
-                  : 'Review incoming service requests and open their history.';
+                : technicians
+                  ? "Manage the technician roster and each technician's daily appointment cap."
+                  : serviceRequests
+                    ? 'Review complaints that are ready to be scheduled.'
+                    : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -524,6 +543,8 @@
       loadWarrantyApprovals();
     } else if (dashboard) {
       loadDashboard();
+    } else if (technicians) {
+      loadTechnicians();
     } else {
       loadComplaints();
     }
@@ -1881,6 +1902,146 @@ ${bodyHtml}
   // request's opaque access token.
   let currentWarrantyApprovalId = null;
 
+  // ---- Technician management (modification.md #8) -- admin-only roster
+  // page: list, add, and edit technicians, including each one's daily
+  // appointment cap. There's no per-technician detail view; the same form
+  // panel is reused for both "add" and "edit" (editingTechnicianId tracks
+  // which mode it's in), matching the light-weight master-data pattern used
+  // elsewhere in this app rather than the full list/detail split appointments
+  // and job cards use.
+  let editingTechnicianId = null;
+
+  function resetTechnicianForm() {
+    editingTechnicianId = null;
+    $('#technicianForm').reset();
+    clearErrors($('#technicianForm'));
+    $('#technicianMaxAppointmentsPerDay').value = '10';
+    $('#technicianActive').checked = true;
+    $('#technicianFormHeading').textContent = 'Add a technician';
+    $('#saveTechnicianButton').textContent = 'Add technician';
+    $('#cancelTechnicianEditButton').hidden = true;
+  }
+
+  function startEditTechnician(technician) {
+    editingTechnicianId = technician.id;
+    $('#technicianName').value = technician.name || '';
+    $('#technicianRegion').value = technician.region || '';
+    $('#technicianPhone').value = technician.phone || '';
+    $('#technicianEmail').value = technician.email || '';
+    $('#technicianMaxAppointmentsPerDay').value = String(technician.maxAppointmentsPerDay ?? 10);
+    $('#technicianActive').checked = technician.active !== false;
+    $('#technicianFormHeading').textContent = `Edit ${technician.name}`;
+    $('#saveTechnicianButton').textContent = 'Save changes';
+    $('#cancelTechnicianEditButton').hidden = false;
+    clearErrors($('#technicianForm'));
+    $('#technicianFormPanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  function renderTechnicians(technicians) {
+    const body = $('#techniciansBody');
+    const canWrite = hasPermission('technicians.write');
+    body.innerHTML = technicians
+      .map(
+        (technician) =>
+          `<tr><td>${escapeHtml(technician.name)}</td><td>${escapeHtml(technician.region || '—')}</td><td>${escapeHtml(technician.phone || '—')}</td><td>${escapeHtml(technician.email || '—')}</td><td>${escapeHtml(String(technician.maxAppointmentsPerDay))}</td><td>${technician.active ? 'Active' : 'Inactive'}</td><td>${canWrite ? `<button class="button-link" type="button" data-edit-technician-id="${escapeHtml(technician.id)}">Edit</button>` : ''}</td></tr>`,
+      )
+      .join('');
+    $('#techniciansEmpty').hidden = technicians.length > 0;
+    $$('#techniciansBody [data-edit-technician-id]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const technician = technicians.find((item) => item.id === button.dataset.editTechnicianId);
+        if (technician) startEditTechnician(technician);
+      });
+    });
+  }
+
+  async function loadTechnicians() {
+    if (!hasPermission('technicians.read')) return;
+    clearWorkspaceRecovery();
+    $('#technicianFormPanel').hidden = !hasPermission('technicians.write');
+    $('#techniciansBody').innerHTML =
+      '<tr><td colspan="7" class="empty-state">Loading technicians…</td></tr>';
+    try {
+      const result = await apiRequest('/api/technicians?page=1&pageSize=200');
+      renderTechnicians(result.technicians || []);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setWorkspaceRecovery('You are not authorized to view technicians.', loadTechnicians);
+      } else {
+        setWorkspaceRecovery(error.message, loadTechnicians);
+      }
+      $('#techniciansBody').innerHTML = '';
+      $('#techniciansEmpty').hidden = false;
+    }
+  }
+
+  $('#technicianForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const name = $('#technicianName').value.trim();
+    const email = $('#technicianEmail').value.trim();
+    const maxAppointmentsPerDay = Number($('#technicianMaxAppointmentsPerDay').value);
+    let valid = true;
+    if (!name) {
+      showFieldError(form, 'technicianName', "Enter the technician's name.");
+      valid = false;
+    }
+    if (email && !/^\S+@\S+\.\S+$/.test(email)) {
+      showFieldError(form, 'technicianEmail', 'Enter a valid email address.');
+      valid = false;
+    }
+    if (!Number.isInteger(maxAppointmentsPerDay) || maxAppointmentsPerDay < 1) {
+      showFieldError(form, 'technicianMaxAppointmentsPerDay', 'Enter a whole number of 1 or more.');
+      valid = false;
+    }
+    if (!valid) return;
+    const button = $('#saveTechnicianButton');
+    setBusy(button, true, editingTechnicianId ? 'Saving…' : 'Adding…');
+    try {
+      const payload = {
+        name,
+        region: $('#technicianRegion').value.trim() || undefined,
+        phone: $('#technicianPhone').value.trim() || undefined,
+        email: email || undefined,
+        active: $('#technicianActive').checked,
+        maxAppointmentsPerDay,
+      };
+      if (editingTechnicianId) {
+        await apiRequest('/api/technicians/' + encodeURIComponent(editingTechnicianId), {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await apiRequest('/api/technicians', { method: 'POST', body: JSON.stringify(payload) });
+      }
+      setMessage(
+        '#workspaceMessage',
+        editingTechnicianId ? 'Technician updated.' : 'Technician added.',
+        true,
+      );
+      resetTechnicianForm();
+      await loadTechnicians();
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        $('#technicianFormPanel').hidden = true;
+        setMessage('#workspaceMessage', 'You are not authorized to manage technicians.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  $('#cancelTechnicianEditButton').addEventListener('click', resetTechnicianForm);
+
   function renderWarrantyApprovals(approvals) {
     const body = $('#warrantyApprovalsBody');
     body.innerHTML = approvals
@@ -3079,6 +3240,8 @@ ${bodyHtml}
 
   function resetScheduleForm() {
     availabilityRequestSequence += 1;
+    scheduleB2bBranchSearchSequence += 1;
+    if (scheduleB2bBranchSearchDebounce) clearTimeout(scheduleB2bBranchSearchDebounce);
     $('#scheduleForm').reset();
     clearErrors($('#scheduleForm'));
     $('#technicianId').innerHTML = '<option value="">Select a date first</option>';
@@ -3086,6 +3249,11 @@ ${bodyHtml}
     $('#findTechniciansButton').disabled = false;
     $('#scheduleAvailabilityMessage').textContent = '';
     $('#scheduleResult').textContent = '';
+    $('#scheduleB2bBranchSearchInput').value = '';
+    $('#scheduleB2bBranchResults').innerHTML = '';
+    $('#scheduleB2bBranchResults').hidden = true;
+    delete $('#scheduleB2bBranchResults').dataset.branches;
+    $('#scheduleB2bBranchSearchMessage').textContent = '';
   }
 
   // Vertical-tab wiring for the complaint's action cards (Notes, B2B Branch
@@ -3252,6 +3420,70 @@ ${bodyHtml}
       }
     }
   }
+
+  // Same master-list search as the B2B Branch match tab above, reused on the
+  // Schedule appointment form so staff can pick a branch (and its sales
+  // order no. / salesman) instead of retyping them -- see modification.md
+  // #8. Picking a result fills the plain-text Sales order no. / B2B Branch
+  // fields (and the Salesman dropdown, if it's a recognized name); those
+  // fields stay editable afterwards, this is just a shortcut.
+  async function searchScheduleB2bBranches(query) {
+    const requestSequence = ++scheduleB2bBranchSearchSequence;
+    $('#scheduleB2bBranchSearchMessage').textContent = 'Searching…';
+    try {
+      const params = query ? '?query=' + encodeURIComponent(query) : '';
+      const result = await apiRequest('/api/b2b-branches' + params);
+      if (requestSequence !== scheduleB2bBranchSearchSequence) return;
+      const branches = result.branches || [];
+      $('#scheduleB2bBranchResults').innerHTML = branches
+        .map(
+          (branch, index) =>
+            `<li><button type="button" data-branch-index="${index}"><span class="branch-name">${escapeHtml(branch.branchName)}</span><br><span class="branch-code">Cust_Code ${escapeHtml(branch.custCode)}${branch.salesman ? ' · ' + escapeHtml(branch.salesman) : ''}${branch.lastSalesOrderNumber ? ' · SO ' + escapeHtml(branch.lastSalesOrderNumber) : ''}</span></button></li>`,
+        )
+        .join('');
+      $('#scheduleB2bBranchResults').hidden = branches.length === 0;
+      $('#scheduleB2bBranchSearchMessage').textContent = branches.length
+        ? ''
+        : 'No matches in the master list.';
+      $('#scheduleB2bBranchResults').dataset.branches = JSON.stringify(branches);
+    } catch (error) {
+      if (requestSequence !== scheduleB2bBranchSearchSequence) return;
+      $('#scheduleB2bBranchResults').hidden = true;
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status !== 403) {
+        $('#scheduleB2bBranchSearchMessage').textContent = error.message;
+      }
+    }
+  }
+
+  $('#scheduleB2bBranchSearchInput').addEventListener('input', (event) => {
+    const value = event.currentTarget.value.trim();
+    if (scheduleB2bBranchSearchDebounce) clearTimeout(scheduleB2bBranchSearchDebounce);
+    scheduleB2bBranchSearchDebounce = setTimeout(() => searchScheduleB2bBranches(value), 250);
+  });
+
+  $('#scheduleB2bBranchResults').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-branch-index]');
+    if (!button) return;
+    const branches = JSON.parse($('#scheduleB2bBranchResults').dataset.branches || '[]');
+    const branch = branches[Number(button.dataset.branchIndex)];
+    if (!branch) return;
+    $('#scheduleB2bBranchSchool').value = branch.branchName;
+    if (branch.lastSalesOrderNumber)
+      $('#scheduleSalesOrderNumber').value = branch.lastSalesOrderNumber;
+    populateSelectOptions(
+      '#scheduleSalesman',
+      salesmenOptions,
+      'Select a salesman',
+      branch.salesman || $('#scheduleSalesman').value,
+    );
+    $('#scheduleB2bBranchResults').hidden = true;
+    $('#scheduleB2bBranchSearchInput').value = '';
+    $('#scheduleB2bBranchSearchMessage').textContent =
+      `Filled from the master list (Cust_Code ${branch.custCode}).`;
+  });
 
   async function linkB2bBranch(custCode) {
     try {
@@ -3647,6 +3879,7 @@ ${bodyHtml}
   $('#refreshInspectionsButton').addEventListener('click', loadInspections);
   $('#refreshWarrantyApprovalsButton').addEventListener('click', loadWarrantyApprovals);
   $('#refreshDashboardButton').addEventListener('click', loadDashboard);
+  $('#refreshTechniciansButton').addEventListener('click', loadTechnicians);
   $('#applyComplaintFilters').addEventListener('click', loadComplaints);
   $('#applyJobCardFilters').addEventListener('click', loadJobCards);
   $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
@@ -3756,6 +3989,7 @@ ${bodyHtml}
   $('#quotationsNav').addEventListener('click', () => setWorkspaceMode('quotations'));
   $('#inspectionsNav').addEventListener('click', () => setWorkspaceMode('inspections'));
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
+  $('#techniciansNav').addEventListener('click', () => setWorkspaceMode('technicians'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
   });

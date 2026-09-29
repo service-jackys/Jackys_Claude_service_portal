@@ -30,7 +30,15 @@ export function createApp() {
   const routes = createRouteCatalog(localAuth);
 
   app.disable('x-powered-by');
-  app.use(helmet());
+  // helmet()'s defaults include a Content-Security-Policy with
+  // upgrade-insecure-requests and an HSTS header -- both tell the browser to
+  // silently retry every request (including plain <img> subresources and
+  // navigation) over https. That's correct once this is deployed behind
+  // TLS, but it silently breaks local/LAN testing over plain HTTP (e.g.
+  // http://192.168.x.x:3100/), where the browser's upgraded https request
+  // just fails with nothing served on that port. Keep the full policy in
+  // production; relax just those two directives everywhere else.
+  app.use(isProduction() ? helmet() : helmet({ contentSecurityPolicy: false, hsts: false }));
   app.use(express.json({ limit: '1mb' }));
 
   if (docsEnabled()) {

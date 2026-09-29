@@ -1792,6 +1792,15 @@
                 <button
                   class="dashboard-link"
                   type="button"
+                  id="techniciansNav"
+                  hidden
+                  aria-label="Technicians"
+                >
+                  Technicians <span aria-hidden="true">→</span>
+                </button>
+                <button
+                  class="dashboard-link"
+                  type="button"
                   id="appointmentsNav"
                   hidden
                   aria-label="Appointments"
@@ -1861,6 +1870,14 @@
                   hidden
                 >
                   Refresh warranty approvals
+                </button>
+                <button
+                  class="button button-outline"
+                  type="button"
+                  id="refreshTechniciansButton"
+                  hidden
+                >
+                  Refresh technicians
                 </button>
                 <button
                   class="button button-outline"
@@ -2158,9 +2175,27 @@
                             </select>
                           </div>
                           <div class="field">
+                            <label for="scheduleB2bBranchSearchInput"
+                              >Look up B2B Branch / School
+                              <span class="form-note-inline"
+                                >(picks the branch, sales order no. and salesman together)</span
+                              ></label
+                            >
+                            <input
+                              id="scheduleB2bBranchSearchInput"
+                              type="text"
+                              autocomplete="off"
+                              placeholder="Start typing a branch or school name…"
+                            />
+                          </div>
+                          <ul id="scheduleB2bBranchResults" class="b2b-branch-results" hidden></ul>
+                          <p id="scheduleB2bBranchSearchMessage" class="form-note"></p>
+                          <div class="field">
                             <label for="scheduleSalesOrderNumber"
                               >Sales order no.
-                              <span class="form-note-inline">(from complaint)</span></label
+                              <span class="form-note-inline"
+                                >(from complaint, or the lookup above)</span
+                              ></label
                             >
                             <input
                               id="scheduleSalesOrderNumber"
@@ -2171,7 +2206,9 @@
                           <div class="field">
                             <label for="scheduleB2bBranchSchool"
                               >B2B Branch / School
-                              <span class="form-note-inline">(from complaint)</span></label
+                              <span class="form-note-inline"
+                                >(from complaint, or the lookup above)</span
+                              ></label
                             >
                             <input
                               id="scheduleB2bBranchSchool"
@@ -2808,6 +2845,105 @@
                 </div>
               </div>
             </div>
+            <div class="card" id="technicianWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Manage the technician roster and each technician's daily appointment cap (the
+                  maximum number of appointments they can be assigned on any one day).
+                </p>
+                <div class="table-wrap">
+                  <table>
+                    <caption class="visually-hidden">
+                      Technicians
+                    </caption>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Region</th>
+                        <th>Phone</th>
+                        <th>Email</th>
+                        <th>Daily cap</th>
+                        <th>Active</th>
+                        <th></th>
+                      </tr>
+                    </thead>
+                    <tbody id="techniciansBody"></tbody>
+                  </table>
+                </div>
+                <p class="empty-state" id="techniciansEmpty" hidden>No technicians on file yet.</p>
+                <section
+                  class="detail-action-card"
+                  id="technicianFormPanel"
+                  aria-labelledby="technicianFormHeading"
+                >
+                  <h4 id="technicianFormHeading">Add a technician</h4>
+                  <form id="technicianForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field">
+                        <label for="technicianName">Name</label>
+                        <input type="text" id="technicianName" maxlength="120" required />
+                        <span class="field-error" data-error-for="technicianName"></span>
+                      </div>
+                      <div class="field">
+                        <label for="technicianRegion"
+                          >Region <span class="visually-hidden">(optional)</span></label
+                        >
+                        <input type="text" id="technicianRegion" maxlength="120" />
+                      </div>
+                      <div class="field">
+                        <label for="technicianPhone"
+                          >Phone <span class="visually-hidden">(optional)</span></label
+                        >
+                        <input type="text" id="technicianPhone" maxlength="50" />
+                      </div>
+                      <div class="field">
+                        <label for="technicianEmail"
+                          >Email <span class="visually-hidden">(optional)</span></label
+                        >
+                        <input type="email" id="technicianEmail" maxlength="320" />
+                        <span class="field-error" data-error-for="technicianEmail"></span>
+                      </div>
+                      <div class="field">
+                        <label for="technicianMaxAppointmentsPerDay"
+                          >Max appointments per day</label
+                        >
+                        <input
+                          type="number"
+                          id="technicianMaxAppointmentsPerDay"
+                          min="1"
+                          max="999"
+                          value="10"
+                        />
+                        <span
+                          class="field-error"
+                          data-error-for="technicianMaxAppointmentsPerDay"
+                        ></span>
+                      </div>
+                      <div class="field field-checkbox">
+                        <label for="technicianActive">
+                          <input type="checkbox" id="technicianActive" checked />
+                          Active
+                        </label>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="cancelTechnicianEditButton"
+                        hidden
+                      >
+                        Cancel edit
+                      </button>
+                      <button class="button button-primary" type="submit" id="saveTechnicianButton">
+                        Add technician
+                      </button>
+                    </div>
+                  </form>
+                </section>
+              </div>
+            </div>
+
             <div class="card" id="appointmentWorkspace" hidden>
               <div class="card-body">
                 <div class="inbox-tools">

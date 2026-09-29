@@ -404,6 +404,7 @@ build a technician management page.
 ### What changed
 
 **Item 1 — daily cap, no time (done, backend + frontend):**
+
 - `technicians` gained `max_appointments_per_day` (default 10, admin-changeable via
   `PATCH /api/technicians/{id}`). `appointments.appointment_time` is dropped entirely — the
   column, its indexes, and every place that read or wrote it (contracts, DB queries, the ICS
@@ -412,8 +413,8 @@ build a technician management page.
 - Scheduling and rescheduling now check "has this technician already got
   `max_appointments_per_day` appointments on this date" instead of a time-window/exact-time
   conflict. Hitting the cap surfaces as a clear message wherever a 409 already shows up (the
-  Schedule appointment card and the Reschedule card): *"Assignment limit for the day reached:
-  <name> already has X of Y appointments on <date>."*
+  Schedule appointment card and the Reschedule card): _"Assignment limit for the day reached:
+  <name> already has X of Y appointments on <date>."_
 - The appointment calendar file download (`.ics`) now produces an all-day event instead of a
   timed one.
 - **Not done:** an admin-facing technician management page (create/edit technicians, including
@@ -421,6 +422,7 @@ build a technician management page.
   (`PATCH /api/technicians/{id}` with `maxAppointmentsPerDay`) — there's no screen for it yet.
 
 **Items 3 & 4 — Salesmen / Sales Channel master data (done, backend; partial, frontend):**
+
 - New `salesmen` and `sales_channels` tables (`name`, `active`), each with its own
   read/write permission pair — write is admin-only for both, matching how Sales Channel was
   asked for ("super admin option"). `salesmen` is seeded from the salesman names already on file
@@ -458,7 +460,7 @@ shipped). Both fixed as part of this same change.
 
 ### Needs you
 
-- **Run the migration** (`npm run db:migrate`) — this applies the schema changes *and* the
+- **Run the migration** (`npm run db:migrate`) — this applies the schema changes _and_ the
   one-time data wipe, so make sure that's really what you want before running it.
 - **Add your Sales Channel entries** before testing job-card creation with that dropdown (it
   starts empty on purpose).
@@ -477,3 +479,66 @@ shipped). Both fixed as part of this same change.
 - An admin page (or reuse of one) to add/deactivate salesmen and sales channels from the UI.
 - Schedule appointment form: turn Sales order no. / B2B Branch / School into real
   pickers against the master data (B2B branch part can reuse modification #2's search).
+
+## Modification #9 — Technician management page, B2B branch / Sales order picker, LAN-access fix
+
+- **Date:** 2026-09-29
+- **Status:** Complete for the three items below. Closes out the "technician management page"
+  and "Schedule form branch/sales-order picker" follow-ups from Modification #8.
+
+### What changed
+
+**Technician management page (new):**
+
+- New nav item and workspace panel where an admin/management user can list, create, and edit
+  technicians — name, region, phone, email, active flag, and the **daily appointment cap**
+  (`maxAppointmentsPerDay`) that Modification #8 added to the schema but left API-only. This was
+  the last piece needed to actually change a technician's cap without calling the API by hand.
+- Same list/create/edit pattern as the other master-data workspaces already in the app: a table
+  of existing technicians with an edit action, and a form underneath that switches between
+  "create" and "edit" mode.
+
+**Schedule appointment form — B2B Branch / School + Sales order no. picker (new):**
+
+- The Schedule form's "Sales order no." and "B2B Branch / School" fields were still plain free
+  text (flagged as a known gap in #8). They now sit behind a search box that queries the same
+  staff B2B-branch master-list search already used on the complaint detail page's "B2B Branch
+  match" tab (see Modification #2) — type a few letters of a school/branch name or cust code, pick
+  a result, and it fills in the Branch/School name, the Sales order no. (from that branch's last
+  known sales order number, when one is on file), and the Salesman dropdown, all from real master
+  data instead of typed-in text.
+- `packages/db/src/b2b-branches.ts`'s staff search now also returns `lastSalesOrderNumber` so the
+  picker has something to prefill.
+- Resetting the Schedule form (after submitting, or cancelling) now also clears this search box,
+  its results list, and its status message, so a stale search doesn't linger into the next
+  appointment you schedule.
+
+**LAN/local-network access fix:**
+
+- While testing over the LAN (`http://192.168.60.154:3100/...`), the portal logo, the public
+  site, and `/complaints` all failed to load. Root cause: `helmet()`'s default security headers
+  include a Content-Security-Policy with `upgrade-insecure-requests` and an HSTS header — both
+  tell the browser to silently retry every request on the page over HTTPS. That's correct once
+  this is deployed behind real TLS, but on a plain-HTTP dev/LAN server there's nothing listening
+  on HTTPS, so the browser's silently-upgraded requests just fail with nothing served.
+- Fixed by keeping the full `helmet()` policy in production, and relaxing just those two
+  directives (`contentSecurityPolicy: false, hsts: false`) everywhere else, using the existing
+  `isProduction()` check — no behavior change in production.
+
+### Needs you
+
+- Restart `npm run dev` to pick up the LAN-access fix and the new frontend code.
+- After restarting, re-test over the LAN using **`http://`, not `https://`**, on port 3100 for
+  all three entry points (`/`, `/portal/`, `/complaints`). If a browser still forces `https://`
+  after that, it's likely a cached HSTS setting from before the fix — clear site data for that
+  address or try a private window.
+- Try the new Technician management page: add a technician, edit one's daily cap, confirm it's
+  enforced the same way `maxAppointmentsPerDay` already was via the API.
+- Try the new Schedule form branch picker: search for a known B2B branch/school, confirm it fills
+  Branch/School, Sales order no. (where one exists), and Salesman correctly.
+
+### Known follow-up (tracked, not started)
+
+- Item 2: staff-facing "create appointment from email/request" intake page.
+- An admin page (or reuse of one) to add/deactivate salesmen and sales channels from the UI —
+  still API-only (`POST /api/salesmen` / `POST /api/sales-channels`).
