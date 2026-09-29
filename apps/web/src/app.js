@@ -4006,12 +4006,21 @@ ${bodyHtml}
 
   function renderComplaintActions(complaint) {
     currentComplaintId = complaint.id;
-    const canWrite = hasPermission('complaints.write');
+    // A Cancelled complaint has no further status transitions
+    // (complaintTransitions.Cancelled = []) and shouldn't be touched at all
+    // from here -- no new notes, no status change, and no re-linking (or
+    // unlinking) its B2B Branch / School match. The complaint stays fully
+    // visible (detail grid + History), it's only these edit actions that
+    // lock, the same way a Completed/Cancelled job card or appointment
+    // already locks its own action panels (see modification.md #21).
+    const locked = complaint.status === 'Cancelled';
+    const canWrite = hasPermission('complaints.write') && !locked;
     const canSchedule =
+      !locked &&
       complaint.status === 'Ready for Scheduling' &&
       hasPermission('appointments.write') &&
       hasPermission('technicians.read');
-    $('#complaintActions').hidden = !canWrite && !canSchedule;
+    $('#complaintActions').hidden = locked || (!canWrite && !canSchedule);
     setActionTabAvailability('notesAction', canWrite);
     setActionTabAvailability('statusAction', canWrite);
     setActionTabAvailability('scheduleAction', canSchedule);

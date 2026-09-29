@@ -935,3 +935,34 @@ to recreate the account or its role.
 ### Known follow-up
 
 - None flagged.
+
+## Modification #21 — Lock a Cancelled complaint's actions (Notes, Update status, B2B Branch match)
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test.
+
+### What changed
+
+You flagged that a Cancelled complaint still let staff search and (re)link its B2B Branch /
+School match from the master list. Confirmed, and also checked the other two edit actions on a
+complaint's detail page:
+
+- **Fixed** — a Cancelled complaint's detail page now hides all three edit actions (Notes,
+  Update status, and B2B Branch match) entirely. It stays fully visible and read-only -- the
+  detail grid and History timeline are unaffected -- staff just can't add a note, change the
+  status, or link/unlink a B2B branch match any more once it's Cancelled.
+- Cancelled already had no further status transitions defined, so Update status was already
+  effectively a dead end -- it's now hidden outright instead of showing a disabled dropdown.
+- Matches the same "lock everything once terminal" pattern service job cards and appointments
+  already use.
+
+### Needs you
+
+- Restart `npm run dev`.
+- Open a Cancelled complaint and confirm the Notes, Update status, and B2B Branch match tabs are
+  gone (no way to edit), while the detail grid and History are still visible.
+- Open a non-cancelled complaint and confirm all the usual actions still work as before.
+
+### Known follow-up
+
+- None flagged.

@@ -921,6 +921,42 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#21 &mdash; Lock a Cancelled complaint's actions</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            You flagged that a Cancelled complaint still let staff search and (re)link its B2B
+            Branch / School match from the master list.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; a Cancelled complaint's detail page now hides all three
+            edit actions (Notes, Update status, B2B Branch match) entirely. It stays fully visible
+            and read-only &mdash; the detail grid and History are unaffected.
+          </li>
+          <li>
+            Matches the same "lock everything once terminal" pattern service job cards and
+            appointments already use.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Open a Cancelled complaint and confirm Notes, Update status, and B2B Branch match are
+            gone, while the detail grid and History still show.
+          </li>
+          <li>Open a non-cancelled complaint and confirm all the usual actions still work.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>
