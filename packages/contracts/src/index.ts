@@ -199,6 +199,38 @@ export const technicianWriteSchema = z
     phone: optionalText(50),
     email: z.string().trim().email().max(320).optional(),
     active: z.boolean().optional(),
+    // Max appointments this technician can be assigned on a single calendar
+    // day; admin-changeable (see modification.md #8). Defaults to 10 at the
+    // database level when omitted on create.
+    maxAppointmentsPerDay: z.number().int().min(1).max(999).optional(),
+  })
+  .strict();
+
+// Salesmen and Sales Channels: small admin-managed master lists (see
+// modification.md #8). Sales Channel write is deliberately restricted to
+// the admin role only at the permission-grant level (super-admin option).
+export const salesmanWriteSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    active: z.boolean().optional(),
+  })
+  .strict();
+export type SalesmanWriteInput = z.infer<typeof salesmanWriteSchema>;
+
+export const salesChannelWriteSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    active: z.boolean().optional(),
+  })
+  .strict();
+export type SalesChannelWriteInput = z.infer<typeof salesChannelWriteSchema>;
+
+export const masterDataListQuerySchema = z
+  .object({
+    active: z.enum(['true', 'false']).optional(),
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
   })
   .strict();
 
@@ -271,6 +303,10 @@ const jobCardContentFields = {
   schoolContactPerson: optionalText(500),
   schoolContactNumber: optionalText(100),
   customerNumber: optionalText(100),
+  // Picked from the salesmen / sales_channels master lists on the UI, both
+  // stored as plain text -- see modification.md #8.
+  salesman: optionalText(200),
+  salesChannel: optionalText(200),
   // Optional free-text reference to a corresponding document in the legacy
   // Google Sheets/Apps Script system, printed alongside this record's own
   // reference (see "Add print views and legacy-reference preservation",
@@ -464,8 +500,11 @@ export const appointmentCreateSchema = z
     schoolContactNumber: optionalText(100),
     customerNumber: optionalText(100),
     subGroup: optionalText(120),
+    // Free text, picked from the salesmen master list on the UI but stored
+    // as plain text (matches how b2bBranchSchool works) -- see
+    // modification.md #8.
+    salesman: optionalText(200),
     appointmentDate: dateSchema,
-    appointmentTime: timeSchema,
   })
   .strict()
   .superRefine((value, context) => {
@@ -496,9 +535,7 @@ export const appointmentAssignmentSchema = z
     technicianId: z.string().regex(/^\d+$/).nullable(),
   })
   .strict();
-export const appointmentScheduleUpdateSchema = z
-  .object({ appointmentDate: dateSchema, appointmentTime: timeSchema })
-  .strict();
+export const appointmentScheduleUpdateSchema = z.object({ appointmentDate: dateSchema }).strict();
 export type AppointmentScheduleUpdateInput = z.infer<typeof appointmentScheduleUpdateSchema>;
 export const appointmentStatusUpdateSchema = z
   .object({ status: appointmentStatusSchema, reason: z.string().trim().max(1000).optional() })
@@ -557,8 +594,10 @@ export const technicianListQuerySchema = z
     active: z.enum(['true', 'false']).optional(),
     region: z.string().trim().min(1).max(120).optional(),
     search: z.string().trim().min(1).max(200).optional(),
+    // "Available" now means "hasn't hit their daily appointment cap for
+    // this date yet" -- there's no time-of-day component to check against
+    // any more (see modification.md #8).
     availableDate: dateSchema.optional(),
-    availableTime: timeSchema.optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })

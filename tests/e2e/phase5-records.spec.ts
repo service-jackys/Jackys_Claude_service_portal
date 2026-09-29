@@ -488,7 +488,6 @@ test.describe('service job-card attachments', () => {
     jobCardReference: 'JBC-2026-00001',
     appointmentReference: 'APT-2026-00001',
     appointmentDate: '2026-10-05',
-    appointmentTime: '09:00',
     customerName: 'Job Card Customer',
     contactNumber: '0500000000',
     faultDescription: 'The appliance does not start.',

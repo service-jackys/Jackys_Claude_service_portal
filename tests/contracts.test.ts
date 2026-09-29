@@ -8,21 +8,29 @@ import {
   serviceJobCardStatusUpdateSchema,
 } from '../packages/contracts/src/index.js';
 
-test('appointment schedule contract accepts only a valid date and time', () => {
+test('appointment schedule contract accepts only a valid date', () => {
   assert.deepEqual(
     appointmentScheduleUpdateSchema.parse({
       appointmentDate: '2026-09-28',
-      appointmentTime: '09:30',
     }),
-    { appointmentDate: '2026-09-28', appointmentTime: '09:30' },
+    { appointmentDate: '2026-09-28' },
   );
 });
 
 test('appointment schedule contract rejects extra fields and invalid values', () => {
+  // Scheduling is day-only now (see modification.md #8) -- appointmentTime
+  // is no longer a recognized field, and the schema is .strict(), so
+  // including it is itself a rejection case.
   assert.equal(
     appointmentScheduleUpdateSchema.safeParse({
       appointmentDate: '2026-09-28',
       appointmentTime: '09:30',
+    }).success,
+    false,
+  );
+  assert.equal(
+    appointmentScheduleUpdateSchema.safeParse({
+      appointmentDate: '2026-09-28',
       technicianId: '7',
     }).success,
     false,
@@ -30,14 +38,6 @@ test('appointment schedule contract rejects extra fields and invalid values', ()
   assert.equal(
     appointmentScheduleUpdateSchema.safeParse({
       appointmentDate: '2026-02-31',
-      appointmentTime: '09:30',
-    }).success,
-    false,
-  );
-  assert.equal(
-    appointmentScheduleUpdateSchema.safeParse({
-      appointmentDate: '2026-09-28',
-      appointmentTime: '24:00',
     }).success,
     false,
   );

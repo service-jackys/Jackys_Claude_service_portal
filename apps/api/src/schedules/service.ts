@@ -14,8 +14,8 @@ import {
 } from '../../../../packages/db/src/complaints.js';
 import { allocateAppointmentReference } from '../../../../packages/db/src/references.js';
 import {
+  countTechnicianAppointmentsOnDate,
   findTechnicianById,
-  hasTechnicianAvailability,
 } from '../../../../packages/db/src/technicians.js';
 import {
   findDraftById,
@@ -191,29 +191,26 @@ export function createScheduleService(pool: Pool) {
           const technician = await findTechnicianById(client, item.technicianId, true);
           if (!technician)
             throw new ScheduleServiceError('not-found', 'A draft technician was not found.');
-          if (
-            !technician.active ||
-            !(await hasTechnicianAvailability(
-              client,
-              item.technicianId,
-              item.appointmentDate,
-              item.appointmentTime,
-            ))
-          ) {
+          if (!technician.active) {
             throw new ScheduleServiceError(
               'technician-unavailable',
-              'A draft technician is not available at the requested time.',
+              'A draft technician is inactive.',
             );
           }
-          const conflict = await client.query(
-            "SELECT 1 FROM appointments WHERE technician_id = $1 AND appointment_date = $2 AND appointment_time = $3 AND status <> 'Cancelled' LIMIT 1",
-            [item.technicianId, item.appointmentDate, item.appointmentTime],
+          // Day-only cap check (see modification.md #8) -- this unused
+          // legacy draft-schedule path never had a frontend route, but is
+          // kept compiling and consistent with the live scheduling flow.
+          const dailyCount = await countTechnicianAppointmentsOnDate(
+            client,
+            item.technicianId,
+            item.appointmentDate,
           );
-          if (conflict.rowCount)
+          if (dailyCount >= technician.maxAppointmentsPerDay) {
             throw new ScheduleServiceError(
               'technician-conflict',
-              'A draft technician has a conflicting appointment.',
+              `A draft technician already has ${dailyCount} of ${technician.maxAppointmentsPerDay} appointments for that day.`,
             );
+          }
         }
         const active = await client.query(
           "SELECT 1 FROM appointments WHERE complaint_id = $1 AND status <> 'Cancelled' LIMIT 1",

@@ -31,8 +31,8 @@ export type AppointmentRecord = {
   schoolContactNumber: string | null;
   customerNumber: string | null;
   subGroup: string | null;
+  salesman: string | null;
   appointmentDate: string;
-  appointmentTime: string;
   status: AppointmentStatus;
   closedAt: Date | null;
   createdAt: Date;
@@ -74,8 +74,8 @@ const columns = `
   appointments.school_contact_number AS "schoolContactNumber",
   appointments.customer_number AS "customerNumber",
   appointments.sub_group AS "subGroup",
+  appointments.salesman,
   appointments.appointment_date::text AS "appointmentDate",
-  to_char(appointments.appointment_time, 'HH24:MI') AS "appointmentTime",
   appointments.status,
   appointments.closed_at AS "closedAt",
   appointments.created_at AS "createdAt",
@@ -100,7 +100,7 @@ export async function insertAppointment(
       customer_type, customer_name, contact_number, customer_email, address, region,
       brand, model, item_code, fault_description, job_warranty, sales_order_number,
       b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
-      appointment_date, appointment_time, created_by
+      salesman, appointment_date, created_by
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
     RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [
@@ -126,8 +126,8 @@ export async function insertAppointment(
       input.schoolContactNumber ?? null,
       input.customerNumber ?? null,
       input.subGroup ?? null,
+      input.salesman ?? null,
       input.appointmentDate,
-      input.appointmentTime,
       input.createdBy ?? null,
     ],
   );
@@ -161,23 +161,6 @@ export async function findActiveAppointmentForComplaint(
   return result.rows[0] ?? null;
 }
 
-export async function findTechnicianConflict(
-  client: PoolClient,
-  technicianId: string,
-  date: string,
-  time: string,
-  excludeId?: string,
-): Promise<AppointmentRecord | null> {
-  const values: unknown[] = [technicianId, date, time];
-  const exclusion = excludeId ? `AND id <> $4` : '';
-  if (excludeId) values.push(excludeId);
-  const result = await client.query<AppointmentRecord>(
-    `SELECT ${columns} FROM appointments WHERE technician_id = $1 AND appointment_date = $2 AND appointment_time = $3 AND status <> 'Cancelled' ${exclusion} LIMIT 1`,
-    values,
-  );
-  return result.rows[0] ?? null;
-}
-
 export async function updateAppointmentAssignment(
   client: PoolClient,
   id: string,
@@ -195,12 +178,11 @@ export async function updateAppointmentSchedule(
   client: PoolClient,
   id: string,
   appointmentDate: string,
-  appointmentTime: string,
   profileId: string,
 ): Promise<AppointmentRecord | null> {
   const result = await client.query<AppointmentRecord>(
-    `UPDATE appointments SET appointment_date = $2, appointment_time = $3, updated_by = $4, updated_at = now() WHERE id = $1 RETURNING ${columns}, NULL::text AS "complaintReference"`,
-    [id, appointmentDate, appointmentTime, profileId],
+    `UPDATE appointments SET appointment_date = $2, updated_by = $3, updated_at = now() WHERE id = $1 RETURNING ${columns}, NULL::text AS "complaintReference"`,
+    [id, appointmentDate, profileId],
   );
   return result.rows[0] ?? null;
 }
@@ -278,7 +260,7 @@ export async function listAppointments(client: PoolClient, query: Record<string,
   const limit = add(query.pageSize);
   const offset = add((Number(query.page) - 1) * Number(query.pageSize));
   const result = await client.query<AppointmentRecord>(
-    `SELECT ${columns} FROM appointments ${where} ORDER BY appointment_date ASC, appointment_time ASC, id ASC LIMIT ${limit} OFFSET ${offset}`,
+    `SELECT ${columns} FROM appointments ${where} ORDER BY appointment_date ASC, id ASC LIMIT ${limit} OFFSET ${offset}`,
     values,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };

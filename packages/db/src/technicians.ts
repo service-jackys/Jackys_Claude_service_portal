@@ -7,6 +7,7 @@ export type TechnicianRecord = {
   phone: string | null;
   email: string | null;
   active: boolean;
+  maxAppointmentsPerDay: number;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -27,6 +28,7 @@ const columns = `
   technicians.phone,
   technicians.email,
   technicians.active,
+  technicians.max_appointments_per_day AS "maxAppointmentsPerDay",
   technicians.created_at AS "createdAt",
   technicians.updated_at AS "updatedAt"
 `;
@@ -36,8 +38,8 @@ export async function insertTechnician(
   input: Record<string, unknown>,
 ): Promise<TechnicianRecord> {
   const result = await client.query<TechnicianRecord>(
-    `INSERT INTO technicians (name, region, phone, email, active)
-     VALUES ($1, $2, $3, $4, COALESCE($5, true))
+    `INSERT INTO technicians (name, region, phone, email, active, max_appointments_per_day)
+     VALUES ($1, $2, $3, $4, COALESCE($5, true), COALESCE($6, 10))
      RETURNING ${columns}`,
     [
       input.name,
@@ -45,6 +47,7 @@ export async function insertTechnician(
       input.phone ?? null,
       input.email ?? null,
       input.active ?? null,
+      input.maxAppointmentsPerDay ?? null,
     ],
   );
   return result.rows[0];
@@ -68,7 +71,9 @@ export async function updateTechnician(
   input: Record<string, unknown>,
 ): Promise<TechnicianRecord | null> {
   const result = await client.query<TechnicianRecord>(
-    `UPDATE technicians SET name = $2, region = $3, phone = $4, email = $5, active = $6, updated_at = now()
+    `UPDATE technicians
+     SET name = $2, region = $3, phone = $4, email = $5, active = $6,
+         max_appointments_per_day = COALESCE($7, max_appointments_per_day), updated_at = now()
      WHERE id = $1 RETURNING ${columns}`,
     [
       id,
@@ -77,6 +82,7 @@ export async function updateTechnician(
       input.phone ?? null,
       input.email ?? null,
       input.active ?? true,
+      input.maxAppointmentsPerDay ?? null,
     ],
   );
   return result.rows[0] ?? null;
@@ -89,7 +95,6 @@ export async function listTechnicians(
     region?: string;
     search?: string;
     availableDate?: string;
-    availableTime?: string;
     page: number;
     pageSize: number;
   },
@@ -108,9 +113,14 @@ export async function listTechnicians(
       `(technicians.name ILIKE ${parameter} OR technicians.email ILIKE ${parameter} OR technicians.phone ILIKE ${parameter})`,
     );
   }
-  if (query.availableDate && query.availableTime) {
+  // "Available" on a given date now means "hasn't hit their daily
+  // appointment cap yet", not a time-of-day window (see modification.md
+  // #8 -- appointments no longer carry a time, so overlapping-window
+  // availability no longer applies).
+  if (query.availableDate) {
+    const datePlaceholder = add(query.availableDate);
     filters.push(
-      `EXISTS (SELECT 1 FROM technician_availability available WHERE available.technician_id = technicians.id AND available.weekday = EXTRACT(DOW FROM ${add(query.availableDate)}::date) AND ${add(query.availableTime)}::time >= available.starts_at AND ${add(query.availableTime)}::time < available.ends_at)`,
+      `(SELECT count(*) FROM appointments WHERE appointments.technician_id = technicians.id AND appointments.appointment_date = ${datePlaceholder} AND appointments.status <> 'Cancelled') < technicians.max_appointments_per_day`,
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
@@ -155,15 +165,27 @@ export async function listTechnicianAvailability(
   return result.rows;
 }
 
-export async function hasTechnicianAvailability(
+// Replaces the old time-window hasTechnicianAvailability check now that
+// appointments are day-only (see modification.md #8): a technician is
+// "available" on a date as long as they haven't hit their per-day cap yet.
+// excludeAppointmentId lets a reschedule/reassignment check the cap without
+// counting the appointment being moved against itself.
+export async function countTechnicianAppointmentsOnDate(
   client: PoolClient,
   technicianId: string,
   date: string,
-  time: string,
-): Promise<boolean> {
-  const result = await client.query(
-    `SELECT 1 FROM technician_availability WHERE technician_id = $1 AND weekday = EXTRACT(DOW FROM $2::date) AND $3::time >= starts_at AND $3::time < ends_at`,
-    [technicianId, date, time],
+  excludeAppointmentId?: string,
+): Promise<number> {
+  const values: unknown[] = [technicianId, date];
+  let exclusion = '';
+  if (excludeAppointmentId) {
+    values.push(excludeAppointmentId);
+    exclusion = `AND id <> $${values.length}`;
+  }
+  const result = await client.query<{ count: string }>(
+    `SELECT count(*)::text AS count FROM appointments
+     WHERE technician_id = $1 AND appointment_date = $2 AND status <> 'Cancelled' ${exclusion}`,
+    values,
   );
-  return result.rowCount === 1;
+  return Number(result.rows[0].count);
 }

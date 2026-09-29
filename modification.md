@@ -381,3 +381,99 @@ instead of assuming it's the last one. Not an app bug; no app code changed for t
 ### Known follow-up (tracked, not started)
 
 - None — this closes out the test-failure report. Let me know what's next.
+
+## Modification #8 — Daily technician cap (no more appointment time), Salesmen / Sales Channel master data, fresh-test DB wipe
+
+- **Date:** 2026-09-29
+- **Status:** Partially complete — backend/DB/contracts/frontend for items 1, 3 (salesman only)
+  and 4 done; two large pieces (item 2, item 3's branch/sales-order picker, and a technician
+  management page) are explicitly **not started** — see "Known follow-up" below.
+- **Scope:** DB schema, contracts, API, staff portal frontend
+
+### Why
+
+Your message asked for four things in one batch: (1) replace appointment scheduling with a
+per-technician daily cap (admin-changeable, default 10) instead of a specific time, and remove
+appointment time everywhere; (2) let staff create appointments directly from an email/request,
+the same way the public complaint form works; (3) fix the Schedule appointment form so Sales
+order no. / B2B Branch fields (and a new Salesman field) pick from real master-list data instead
+of free text; (4) let job cards record a Salesman and a new super-admin-managed Sales Channel.
+You confirmed: wipe all transactional data now, build a dedicated Salesmen master table, and
+build a technician management page.
+
+### What changed
+
+**Item 1 — daily cap, no time (done, backend + frontend):**
+- `technicians` gained `max_appointments_per_day` (default 10, admin-changeable via
+  `PATCH /api/technicians/{id}`). `appointments.appointment_time` is dropped entirely — the
+  column, its indexes, and every place that read or wrote it (contracts, DB queries, the ICS
+  calendar-file generator, the Schedule appointment form, the reschedule form, the calendar grid,
+  appointment/job-card detail views, and the whole test suite).
+- Scheduling and rescheduling now check "has this technician already got
+  `max_appointments_per_day` appointments on this date" instead of a time-window/exact-time
+  conflict. Hitting the cap surfaces as a clear message wherever a 409 already shows up (the
+  Schedule appointment card and the Reschedule card): *"Assignment limit for the day reached:
+  <name> already has X of Y appointments on <date>."*
+- The appointment calendar file download (`.ics`) now produces an all-day event instead of a
+  timed one.
+- **Not done:** an admin-facing technician management page (create/edit technicians, including
+  the daily-cap field, from the UI). Today that field can only be set via the API directly
+  (`PATCH /api/technicians/{id}` with `maxAppointmentsPerDay`) — there's no screen for it yet.
+
+**Items 3 & 4 — Salesmen / Sales Channel master data (done, backend; partial, frontend):**
+- New `salesmen` and `sales_channels` tables (`name`, `active`), each with its own
+  read/write permission pair — write is admin-only for both, matching how Sales Channel was
+  asked for ("super admin option"). `salesmen` is seeded from the salesman names already on file
+  in the B2B branch master list, so the dropdown isn't empty on day one; `sales_channels` starts
+  empty — you add entries yourself before end-to-end testing, as you said you would.
+- New `GET/POST /api/salesmen` and `GET/POST /api/sales-channels` endpoints.
+- The Schedule appointment form gained a **Salesman** dropdown (feeds `appointments.salesman`).
+  Both job-card panels (create-from-appointment and edit) gained **Salesman** and **Sales
+  channel** dropdowns (feed `service_job_cards.salesman` / `sales_channel`); creating a job card
+  from a completed appointment now pre-fills Salesman from the appointment automatically.
+- **Not done:** the Schedule form's Sales order no. / B2B Branch / School fields are still plain
+  text — you asked for these to show and pick from the real table data too (the B2B branch part
+  is very achievable, reusing the same master-list search already built for staff to match a
+  complaint's branch — see modification #2). Ran out of scope for this pass.
+- No admin screen to add/deactivate salesmen or sales channels either — same gap as technicians
+  above; use the API directly for now (`POST /api/salesmen` / `POST /api/sales-channels`).
+
+**Item 2 — staff-created appointments from an email/request — not started at all.** This needs
+its own staff-facing intake form (like the public complaint form, but internal) that also links
+to the branch/invoice master data and flows into job-card creation the way an appointment
+scheduled from a complaint already does. Flagging it clearly rather than rushing a half version.
+
+**Fresh-test DB wipe:** a one-time migration truncates every transactional table (complaints,
+appointments, job cards, quotations, inspections, warranty approvals, customers, branches, audit
+log, draft schedules, reference counters, legacy references, import batches) and leaves your
+master data alone (profiles/roles/permissions, technicians, B2B branches, the new salesmen/sales
+channels). This only runs once, the next time you run the migrator.
+
+**Along the way, found and fixed two real bugs this change would otherwise have introduced:**
+`packages/db/src/job-cards.ts` was still selecting `appointments.appointment_time` in its main
+query (would have crashed every job-card list/detail fetch with a Postgres "column does not
+exist" error the moment the migration ran), and the job-card create/update service was missing
+the new `salesman`/`salesChannel` fields entirely (a TypeScript compile error I caught before it
+shipped). Both fixed as part of this same change.
+
+### Needs you
+
+- **Run the migration** (`npm run db:migrate`) — this applies the schema changes *and* the
+  one-time data wipe, so make sure that's really what you want before running it.
+- **Add your Sales Channel entries** before testing job-card creation with that dropdown (it
+  starts empty on purpose).
+- Restart `npm run dev` and re-run `npx playwright test` — I've updated every test file that
+  referenced appointment time (`portal.spec.ts`, `phase4-scheduling.spec.ts`,
+  `phase5-records.spec.ts`, `contracts.test.ts`, `tests/integration/*.test.ts`) to match, but I
+  could not actually run the suite myself from this side (same `esbuild`/Windows-binary
+  limitation as before), so this first real run is the actual check.
+- A technician's daily cap and new salesmen/sales channels can only be managed via direct API
+  calls until the admin screens below are built.
+
+### Known follow-up (tracked, not started)
+
+- Item 2: staff-facing "create appointment from email/request" intake page.
+- A technician management page (create/edit, including the daily-cap field).
+- An admin page (or reuse of one) to add/deactivate salesmen and sales channels from the UI.
+- Schedule appointment form: turn Sales order no. / B2B Branch / School into real
+  pickers against the master data (B2B branch part can reuse modification #2's search).

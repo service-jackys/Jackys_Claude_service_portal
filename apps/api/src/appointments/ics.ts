@@ -8,17 +8,18 @@ function escapeText(value: string): string {
     .replaceAll(/\r?\n/g, '\\n');
 }
 
-function compactLocalDateTime(date: string, time: string): string {
-  return `${date.replaceAll('-', '')}T${time.slice(0, 5).replace(':', '')}00`;
+function compactDate(date: string): string {
+  return date.replaceAll('-', '');
 }
 
-function addOneHour(date: string, time: string): { date: string; time: string } {
-  const value = new Date(`${date}T${time.slice(0, 5)}:00Z`);
-  value.setUTCHours(value.getUTCHours() + 1);
-  return {
-    date: value.toISOString().slice(0, 10),
-    time: value.toISOString().slice(11, 16),
-  };
+// RFC 5545 all-day events use an exclusive DTEND, so a one-day appointment
+// on 2026-10-05 needs DTEND on 2026-10-06 -- see modification.md #8
+// (appointments no longer carry a time, so this is now a whole-day event
+// rather than a one-hour slot).
+function nextDate(date: string): string {
+  const value = new Date(`${date}T00:00:00Z`);
+  value.setUTCDate(value.getUTCDate() + 1);
+  return value.toISOString().slice(0, 10);
 }
 
 function formatTimestamp(value: Date): string {
@@ -28,11 +29,7 @@ function formatTimestamp(value: Date): string {
     .replace(/\.\d{3}Z$/, 'Z');
 }
 
-export function createAppointmentIcs(
-  appointment: AppointmentRecord,
-  timezone = process.env.BUSINESS_TIMEZONE || 'Asia/Dubai',
-): string {
-  const end = addOneHour(appointment.appointmentDate, appointment.appointmentTime);
+export function createAppointmentIcs(appointment: AppointmentRecord): string {
   const description = [
     `Customer: ${appointment.customerName}`,
     `Contact: ${appointment.contactNumber}`,
@@ -47,8 +44,8 @@ export function createAppointmentIcs(
     'BEGIN:VEVENT',
     `UID:${escapeText(`${appointment.appointmentReference}@jackys-service-portal`)}`,
     `DTSTAMP:${formatTimestamp(appointment.createdAt)}`,
-    `DTSTART;TZID=${escapeText(timezone)}:${compactLocalDateTime(appointment.appointmentDate, appointment.appointmentTime)}`,
-    `DTEND;TZID=${escapeText(timezone)}:${compactLocalDateTime(end.date, end.time)}`,
+    `DTSTART;VALUE=DATE:${compactDate(appointment.appointmentDate)}`,
+    `DTEND;VALUE=DATE:${compactDate(nextDate(appointment.appointmentDate))}`,
     `SUMMARY:${escapeText(`Service appointment ${appointment.appointmentReference}`)}`,
     `DESCRIPTION:${escapeText(description)}`,
     `LOCATION:${escapeText(appointment.address ?? '')}`,

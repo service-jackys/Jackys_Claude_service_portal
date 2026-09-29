@@ -14,7 +14,6 @@ import {
 import {
   findActiveAppointmentForComplaint,
   findAppointmentById,
-  findTechnicianConflict,
   insertAppointment,
   insertAppointmentHistory,
   listAppointmentHistory,
@@ -31,8 +30,8 @@ import {
 } from '../../../../packages/db/src/complaints.js';
 import { allocateAppointmentReference } from '../../../../packages/db/src/references.js';
 import {
+  countTechnicianAppointmentsOnDate,
   findTechnicianById,
-  hasTechnicianAvailability,
 } from '../../../../packages/db/src/technicians.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
@@ -43,6 +42,7 @@ export class AppointmentServiceError extends Error {
       | 'invalid-transition'
       | 'technician-unavailable'
       | 'technician-conflict'
+      | 'technician-daily-cap-reached'
       | 'active-appointment-conflict'
       | 'complaint-not-schedulable'
       | 'terminal-appointment',
@@ -96,30 +96,15 @@ export function createAppointmentService(pool: Pool) {
             'technician-unavailable',
             'The technician is inactive.',
           );
-        if (
-          !(await hasTechnicianAvailability(
-            client,
-            data.technicianId,
-            data.appointmentDate,
-            data.appointmentTime,
-          ))
-        ) {
+        const dailyCount = await countTechnicianAppointmentsOnDate(
+          client,
+          data.technicianId,
+          data.appointmentDate,
+        );
+        if (dailyCount >= technician.maxAppointmentsPerDay) {
           throw new AppointmentServiceError(
-            'technician-unavailable',
-            'The technician is not available at the requested time.',
-          );
-        }
-        if (
-          await findTechnicianConflict(
-            client,
-            data.technicianId,
-            data.appointmentDate,
-            data.appointmentTime,
-          )
-        ) {
-          throw new AppointmentServiceError(
-            'technician-conflict',
-            'The technician already has an appointment at the requested time.',
+            'technician-daily-cap-reached',
+            `Assignment limit for the day reached: ${technician.name} already has ${dailyCount} of ${technician.maxAppointmentsPerDay} appointments on ${data.appointmentDate}.`,
           );
         }
       }
@@ -292,31 +277,16 @@ export function createAppointmentService(pool: Pool) {
             'technician-unavailable',
             'The technician is inactive.',
           );
-        if (
-          !(await hasTechnicianAvailability(
-            client,
-            data.technicianId,
-            current.appointmentDate,
-            current.appointmentTime,
-          ))
-        ) {
+        const dailyCount = await countTechnicianAppointmentsOnDate(
+          client,
+          data.technicianId,
+          current.appointmentDate,
+          id,
+        );
+        if (dailyCount >= technician.maxAppointmentsPerDay) {
           throw new AppointmentServiceError(
-            'technician-unavailable',
-            'The technician is not available at the appointment time.',
-          );
-        }
-        if (
-          await findTechnicianConflict(
-            client,
-            data.technicianId,
-            current.appointmentDate,
-            current.appointmentTime,
-            id,
-          )
-        ) {
-          throw new AppointmentServiceError(
-            'technician-conflict',
-            'The technician already has an appointment at the requested time.',
+            'technician-daily-cap-reached',
+            `Assignment limit for the day reached: ${technician.name} already has ${dailyCount} of ${technician.maxAppointmentsPerDay} appointments on ${current.appointmentDate}.`,
           );
         }
       }
@@ -367,31 +337,16 @@ export function createAppointmentService(pool: Pool) {
             'The assigned technician is inactive.',
           );
         }
-        if (
-          !(await hasTechnicianAvailability(
-            client,
-            current.technicianId,
-            data.appointmentDate,
-            data.appointmentTime,
-          ))
-        ) {
+        const dailyCount = await countTechnicianAppointmentsOnDate(
+          client,
+          current.technicianId,
+          data.appointmentDate,
+          id,
+        );
+        if (dailyCount >= technician.maxAppointmentsPerDay) {
           throw new AppointmentServiceError(
-            'technician-unavailable',
-            'The assigned technician is not available at the requested time.',
-          );
-        }
-        if (
-          await findTechnicianConflict(
-            client,
-            current.technicianId,
-            data.appointmentDate,
-            data.appointmentTime,
-            id,
-          )
-        ) {
-          throw new AppointmentServiceError(
-            'technician-conflict',
-            'The assigned technician already has an appointment at the requested time.',
+            'technician-daily-cap-reached',
+            `Assignment limit for the day reached: ${technician.name} already has ${dailyCount} of ${technician.maxAppointmentsPerDay} appointments on ${data.appointmentDate}.`,
           );
         }
       }
@@ -399,7 +354,6 @@ export function createAppointmentService(pool: Pool) {
         client,
         id,
         data.appointmentDate,
-        data.appointmentTime,
         profileId,
       );
       if (!appointment)
@@ -411,9 +365,7 @@ export function createAppointmentService(pool: Pool) {
         targetId: id,
         metadata: {
           fromDate: current.appointmentDate,
-          fromTime: current.appointmentTime,
           toDate: data.appointmentDate,
-          toTime: data.appointmentTime,
           technicianId: current.technicianId,
         },
         requestId,

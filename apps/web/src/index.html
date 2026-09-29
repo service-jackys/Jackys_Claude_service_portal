@@ -2135,11 +2135,6 @@
                             <span class="field-error" data-error-for="appointmentDate"></span>
                           </div>
                           <div class="field">
-                            <label for="appointmentTime">Appointment time</label>
-                            <input id="appointmentTime" name="appointmentTime" type="time" />
-                            <span class="field-error" data-error-for="appointmentTime"></span>
-                          </div>
-                          <div class="field">
                             <button
                               class="button button-outline"
                               type="button"
@@ -2152,9 +2147,15 @@
                           <div class="field">
                             <label for="technicianId">Technician</label>
                             <select id="technicianId" name="technicianId" disabled>
-                              <option value="">Select a date and time first</option>
+                              <option value="">Select a date first</option>
                             </select>
                             <p class="form-note" id="scheduleAvailabilityMessage" role="status"></p>
+                          </div>
+                          <div class="field">
+                            <label for="scheduleSalesman">Salesman</label>
+                            <select id="scheduleSalesman" name="salesman">
+                              <option value="">Select a salesman</option>
+                            </select>
                           </div>
                           <div class="field">
                             <label for="scheduleSalesOrderNumber"
@@ -2961,8 +2962,8 @@
                     >
                       <h4 id="appointmentScheduleHeading">Reschedule appointment</h4>
                       <p>
-                        Choose a new date and time. The server will check technician availability
-                        before saving.
+                        Choose a new date. The server will check the technician's daily appointment
+                        cap before saving.
                       </p>
                       <form id="appointmentScheduleForm" novalidate>
                         <div class="field">
@@ -2976,19 +2977,6 @@
                           <span
                             class="field-error"
                             data-error-for="appointmentRescheduleDate"
-                          ></span>
-                        </div>
-                        <div class="field">
-                          <label for="appointmentRescheduleTime">Time</label>
-                          <input
-                            id="appointmentRescheduleTime"
-                            name="appointmentTime"
-                            type="time"
-                            required
-                          />
-                          <span
-                            class="field-error"
-                            data-error-for="appointmentRescheduleTime"
                           ></span>
                         </div>
                         <div class="form-footer">

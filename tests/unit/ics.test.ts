@@ -28,8 +28,8 @@ const appointment: AppointmentRecord = {
   schoolContactNumber: null,
   customerNumber: null,
   subGroup: null,
+  salesman: null,
   appointmentDate: '2026-09-25',
-  appointmentTime: '23:30',
   status: 'Scheduled',
   closedAt: null,
   createdAt: new Date('2026-09-24T12:34:56.000Z'),
@@ -52,8 +52,8 @@ test('renders deterministic RFC5545 output with CRLF and escaped text', () => {
       'BEGIN:VEVENT',
       'UID:APT-2026-00042@jackys-service-portal',
       'DTSTAMP:20260924T123456Z',
-      'DTSTART;TZID=Asia/Dubai:20260925T233000',
-      'DTEND;TZID=Asia/Dubai:20260926T003000',
+      'DTSTART;VALUE=DATE:20260925',
+      'DTEND;VALUE=DATE:20260926',
       'SUMMARY:Service appointment APT-2026-00042',
       'DESCRIPTION:Customer: A\\; Customer\\, Name\\nContact: +971 50 123 4567\\nFirst line\\nSecond line',
       'LOCATION:Line 1\\, Building\\; 2',
@@ -68,9 +68,9 @@ test('renders deterministic RFC5545 output with CRLF and escaped text', () => {
   assert.equal(ics.replaceAll('\r\n', '').includes('\n'), false);
 });
 
-test('maps cancelled appointments to CANCELLED and accepts a configured timezone', () => {
-  const ics = createAppointmentIcs({ ...appointment, status: 'Cancelled' }, 'UTC');
+test('maps cancelled appointments to CANCELLED', () => {
+  const ics = createAppointmentIcs({ ...appointment, status: 'Cancelled' });
 
-  assert.match(ics, /DTSTART;TZID=UTC:20260925T233000/);
+  assert.match(ics, /DTSTART;VALUE=DATE:20260925/);
   assert.match(ics, /STATUS:CANCELLED/);
 });

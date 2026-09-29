@@ -90,7 +90,7 @@ test(
       branchIds.push(branch.id);
 
       const technician = await technicianService.create(
-        { name: 'Phase3 Integration Technician', region: 'Dubai' },
+        { name: 'Phase3 Integration Technician', region: 'Dubai', maxAppointmentsPerDay: 1 },
         profileId,
         'phase3-technician',
       );
@@ -125,7 +125,6 @@ test(
           complaintId: complaint.id,
           technicianId: technician.id,
           appointmentDate: date,
-          appointmentTime: '09:00',
         },
         profileId,
         'phase3-appointment',
@@ -137,24 +136,17 @@ test(
       const rescheduledDate = addDays(date, 7);
       const rescheduled = await appointmentService.reschedule(
         appointment.id,
-        { appointmentDate: rescheduledDate, appointmentTime: '11:00' },
+        { appointmentDate: rescheduledDate },
         profileId,
         'phase4-reschedule-success',
       );
       assert.equal(rescheduled.appointmentDate, rescheduledDate);
-      assert.equal(rescheduled.appointmentTime, '11:00');
       assert.equal(rescheduled.technicianId, technician.id);
 
       const audit = await pool.query<{
         action: string;
         requestId: string;
-        metadata: {
-          fromDate: string;
-          fromTime: string;
-          toDate: string;
-          toTime: string;
-          technicianId: string;
-        };
+        metadata: { fromDate: string; toDate: string; technicianId: string };
       }>(
         `SELECT action, request_id AS "requestId", metadata
          FROM audit_events
@@ -166,27 +158,16 @@ test(
         requestId: 'phase4-reschedule-success',
         metadata: {
           fromDate: date,
-          fromTime: '09:00',
           toDate: rescheduledDate,
-          toTime: '11:00',
           technicianId: technician.id,
         },
       });
 
-      await assert.rejects(
-        appointmentService.reschedule(
-          appointment.id,
-          { appointmentDate: addDays(rescheduledDate, 1), appointmentTime: '12:00' },
-          profileId,
-          'phase4-reschedule-unavailable',
-        ),
-        (error: unknown) =>
-          error instanceof AppointmentServiceError && error.code === 'technician-unavailable',
-      );
-      const unchangedAfterUnavailable = await appointmentService.detail(appointment.id);
-      assert.equal(unchangedAfterUnavailable.appointment.appointmentDate, rescheduledDate);
-      assert.equal(unchangedAfterUnavailable.appointment.appointmentTime, '11:00');
-
+      // Technician's cap is 1/day (set above): filling that technician's
+      // only slot on another date, then trying to reschedule onto it, must
+      // be rejected -- see modification.md #8 (this replaces the old
+      // weekday-availability-window and exact-time-conflict checks, which
+      // no longer make sense once appointments have no time component).
       const conflictComplaint = await complaintService.submit(
         {
           customerType: 'individual',
@@ -208,12 +189,12 @@ test(
         { status: 'Ready for Scheduling' },
         profileId,
       );
+      const cappedDate = addDays(rescheduledDate, 7);
       const conflictAppointment = await appointmentService.create(
         {
           complaintId: conflictComplaint.id,
           technicianId: technician.id,
-          appointmentDate: addDays(rescheduledDate, 7),
-          appointmentTime: '11:00',
+          appointmentDate: cappedDate,
         },
         profileId,
         'phase4-conflict-create',
@@ -223,21 +204,20 @@ test(
       await assert.rejects(
         appointmentService.reschedule(
           appointment.id,
-          { appointmentDate: addDays(rescheduledDate, 7), appointmentTime: '11:00' },
+          { appointmentDate: cappedDate },
           profileId,
-          'phase4-reschedule-conflict',
+          'phase4-reschedule-cap-reached',
         ),
         (error: unknown) =>
-          error instanceof AppointmentServiceError && error.code === 'technician-conflict',
+          error instanceof AppointmentServiceError && error.code === 'technician-daily-cap-reached',
       );
-      const unchangedAfterConflict = await appointmentService.detail(appointment.id);
-      assert.equal(unchangedAfterConflict.appointment.appointmentDate, rescheduledDate);
-      assert.equal(unchangedAfterConflict.appointment.appointmentTime, '11:00');
+      const unchangedAfterCap = await appointmentService.detail(appointment.id);
+      assert.equal(unchangedAfterCap.appointment.appointmentDate, rescheduledDate);
 
       await assert.rejects(
         appointmentService.reschedule(
           '999999999',
-          { appointmentDate: rescheduledDate, appointmentTime: '11:00' },
+          { appointmentDate: rescheduledDate },
           profileId,
           'phase4-reschedule-missing',
         ),
@@ -260,7 +240,6 @@ test(
             complaintId: complaint.id,
             technicianId: technician.id,
             appointmentDate: date,
-            appointmentTime: '09:00',
           },
           profileId,
           'phase3-active-conflict',
@@ -275,7 +254,6 @@ test(
             complaintId: '999999999',
             technicianId: technician.id,
             appointmentDate: date,
-            appointmentTime: '09:00',
           },
           profileId,
           'phase3-technician-conflict',
@@ -298,7 +276,7 @@ test(
       await assert.rejects(
         appointmentService.reschedule(
           appointment.id,
-          { appointmentDate: addDays(date, 14), appointmentTime: '09:00' },
+          { appointmentDate: addDays(date, 14) },
           profileId,
           'phase4-reschedule-cancelled',
         ),
@@ -311,7 +289,6 @@ test(
           complaintId: complaint.id,
           technicianId: technician.id,
           appointmentDate: date,
-          appointmentTime: '09:00',
         },
         profileId,
         'phase3-rebook',
@@ -335,7 +312,7 @@ test(
       await assert.rejects(
         appointmentService.reschedule(
           rebooked.id,
-          { appointmentDate: addDays(date, 21), appointmentTime: '09:00' },
+          { appointmentDate: addDays(date, 21) },
           profileId,
           'phase4-reschedule-completed',
         ),
@@ -519,7 +496,6 @@ test(
           complaintId: complaint.id,
           technicianId: technician.id,
           appointmentDate: date,
-          appointmentTime: '09:00',
         },
         profileId,
         'reopen-appointment-1',
@@ -552,7 +528,6 @@ test(
           complaintId: complaint.id,
           technicianId: technician.id,
           appointmentDate: date,
-          appointmentTime: '10:00',
         },
         profileId,
         'reopen-appointment-2',

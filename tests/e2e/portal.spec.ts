@@ -201,7 +201,6 @@ test.describe('staff access boundary', () => {
               id: '501',
               appointmentReference: 'APT-2026-00001',
               appointmentDate: '2026-10-05',
-              appointmentTime: '09:00',
               status: 'Scheduled',
             },
           }),
@@ -220,13 +219,11 @@ test.describe('staff access boundary', () => {
 
     await expect(page.locator('#scheduleAction')).toBeVisible();
     await page.locator('#appointmentDate').fill('2026-10-05');
-    await page.locator('#appointmentTime').fill('09:00');
     await page.getByRole('button', { name: 'Find available technicians' }).click();
     await expect(page.locator('#technicianId')).toBeEnabled();
     await expect(page.locator('#technicianId')).toContainText('Aisha Technician');
     expect(technicianUrls.at(-1)).toContain('active=true');
     expect(technicianUrls.at(-1)).toContain('availableDate=2026-10-05');
-    expect(technicianUrls.at(-1)).toContain('availableTime=09%3A00');
 
     await page.locator('#technicianId').selectOption('7');
     await page.getByRole('button', { name: 'Schedule appointment' }).click();
@@ -237,7 +234,6 @@ test.describe('staff access boundary', () => {
       complaintId: '101',
       technicianId: '7',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
     });
     await expect(page.locator('#detailStatus')).toContainText('Scheduled');
     await expect(page.locator('#scheduleAction')).toBeHidden();
@@ -392,16 +388,12 @@ test.describe('staff access boundary', () => {
     await expect(page.locator('[data-error-for="appointmentDate"]')).toHaveText(
       'Select an appointment date.',
     );
-    await expect(page.locator('[data-error-for="appointmentTime"]')).toHaveText(
-      'Select an appointment time.',
-    );
     await expect(page.locator('[data-error-for="technicianId"]')).toHaveText(
       'Select an available technician.',
     );
     expect(appointmentRequests).toBe(0);
 
     await page.locator('#appointmentDate').fill('2026-10-05');
-    await page.locator('#appointmentTime').fill('09:00');
     await page.getByRole('button', { name: 'Find available technicians' }).click();
     await page.locator('#technicianId').selectOption('7');
     await page.getByRole('button', { name: 'Schedule appointment' }).click();
@@ -432,7 +424,6 @@ test.describe('staff access boundary', () => {
       customerEmail: 'customer@example.com',
       complaintId: '101',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       technicianId: '7',
       region: 'Dubai',
       address: 'Test address',
@@ -570,7 +561,6 @@ test.describe('staff access boundary', () => {
       customerName: 'Local Test Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       region: 'Dubai',
       status,
     };
@@ -700,7 +690,6 @@ test.describe('staff access boundary', () => {
       customerName: 'Completed Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       status: 'Completed',
     };
 
@@ -774,7 +763,6 @@ test.describe('staff access boundary', () => {
       customerName: 'Calendar Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       status: 'Scheduled',
     };
 
@@ -857,7 +845,6 @@ test.describe('staff access boundary', () => {
       customerName: 'Read Only Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       technicianId: '7',
       status: 'Scheduled',
     };
@@ -970,7 +957,6 @@ test.describe('staff access boundary', () => {
       customerName: 'Conflict Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       technicianId: '7',
       status: 'Scheduled',
     };
@@ -1276,7 +1262,6 @@ test.describe('service job-card workspace', () => {
     jobCardReference: 'JBC-2026-00001',
     appointmentReference: 'APT-2026-00001',
     appointmentDate: '2026-10-05',
-    appointmentTime: '09:00',
     customerName: 'Job Card Customer',
     contactNumber: '0500000000',
     faultDescription: 'The appliance does not start.',
@@ -1483,7 +1468,6 @@ test.describe('service job-card workspace', () => {
       customerName: 'Appointment Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       faultDescription: 'The appliance does not start.',
       status: 'Scheduled',
     };
@@ -1719,7 +1703,6 @@ test.describe('service job-card workspace', () => {
       customerName: 'Appointment Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       faultDescription: 'The appliance does not start.',
       status: 'Scheduled',
     };
@@ -2200,7 +2183,6 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
       customerName: 'Chain Test Customer',
       contactNumber: '0500000000',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       status: 'Scheduled',
       createdAt: '2026-09-29T08:00:00.000Z',
       updatedAt: '2026-09-29T08:00:00.000Z',
@@ -2213,7 +2195,6 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
       complaintId: '101',
       complaintReference: 'JSC-20260929-0010',
       appointmentDate: '2026-10-05',
-      appointmentTime: '09:00',
       customerName: 'Chain Test Customer',
       contactNumber: '0500000000',
       faultDescription: 'Test complaint',

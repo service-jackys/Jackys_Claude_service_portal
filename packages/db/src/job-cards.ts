@@ -17,7 +17,6 @@ export type ServiceJobCardRecord = {
   complaintId: string | null;
   complaintReference: string | null;
   appointmentDate: string;
-  appointmentTime: string;
   faultDescription: string;
   status: ServiceJobCardStatus;
   finalizedAt: Date | null;
@@ -44,6 +43,8 @@ export type ServiceJobCardRecord = {
   deliveryDate: string | null;
   technicianName: string | null;
   brand: string | null;
+  salesman: string | null;
+  salesChannel: string | null;
   jobFinalStatus: JobFinalStatus;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
@@ -91,6 +92,8 @@ export type ServiceJobCardContent = {
   deliveryDate: string | null;
   technicianName: string | null;
   brand: string | null;
+  salesman: string | null;
+  salesChannel: string | null;
   jobFinalStatus: JobFinalStatus;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
@@ -106,7 +109,6 @@ const columns = `
   appointments.complaint_id AS "complaintId",
   complaints.complaint_reference AS "complaintReference",
   appointments.appointment_date::text AS "appointmentDate",
-  to_char(appointments.appointment_time, 'HH24:MI') AS "appointmentTime",
   appointments.fault_description AS "faultDescription",
   service_job_cards.status,
   service_job_cards.finalized_at AS "finalizedAt",
@@ -133,6 +135,8 @@ const columns = `
   service_job_cards.delivery_date::text AS "deliveryDate",
   service_job_cards.technician_name AS "technicianName",
   service_job_cards.brand,
+  service_job_cards.salesman,
+  service_job_cards.sales_channel AS "salesChannel",
   service_job_cards.job_final_status AS "jobFinalStatus",
   service_job_cards.school_contact_person AS "schoolContactPerson",
   service_job_cards.school_contact_number AS "schoolContactNumber",
@@ -161,7 +165,7 @@ export async function insertServiceJobCard(
        item_description, model_no, warranty_status, complaint, service_rendered,
        period_from, period_to, time_consumed_hours, parts,
        total_cost, service_charge, grand_total, amount_chargeable,
-       invoice_no, delivery_date, technician_name, brand, job_final_status,
+       invoice_no, delivery_date, technician_name, brand, salesman, sales_channel, job_final_status,
        school_contact_person, school_contact_number, customer_number, legacy_reference
      ) VALUES (
        $1, $2, $3, $3,
@@ -169,8 +173,8 @@ export async function insertServiceJobCard(
        $8, $9, $10, $11, $12,
        $13, $14, $15, $16,
        $17, $18, $19, $20,
-       $21, $22, $23, $24, $25,
-       $26, $27, $28, $29
+       $21, $22, $23, $24, $25, $26, $27,
+       $28, $29, $30, $31
      )
      RETURNING id`,
     [
@@ -198,6 +202,8 @@ export async function insertServiceJobCard(
       c.deliveryDate,
       c.technicianName,
       c.brand,
+      c.salesman,
+      c.salesChannel,
       c.jobFinalStatus,
       c.schoolContactPerson,
       c.schoolContactNumber,
@@ -223,9 +229,9 @@ export async function updateServiceJobCardContent(
          service_rendered = $10, period_from = $11, period_to = $12, time_consumed_hours = $13,
          parts = $14, total_cost = $15, service_charge = $16, grand_total = $17,
          amount_chargeable = $18, invoice_no = $19, delivery_date = $20, technician_name = $21,
-         brand = $22, job_final_status = $23, school_contact_person = $24,
-         school_contact_number = $25, customer_number = $26, legacy_reference = $27,
-         updated_by = $28, updated_at = now()
+         brand = $22, salesman = $23, sales_channel = $24, job_final_status = $25,
+         school_contact_person = $26, school_contact_number = $27, customer_number = $28,
+         legacy_reference = $29, updated_by = $30, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -251,6 +257,8 @@ export async function updateServiceJobCardContent(
       content.deliveryDate,
       content.technicianName,
       content.brand,
+      content.salesman,
+      content.salesChannel,
       content.jobFinalStatus,
       content.schoolContactPerson,
       content.schoolContactNumber,

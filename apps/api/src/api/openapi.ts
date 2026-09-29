@@ -97,6 +97,22 @@ const requestBodies = {
       },
     },
   },
+  salesman: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/SalesmanRequest' },
+      },
+    },
+  },
+  salesChannel: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/SalesChannelRequest' },
+      },
+    },
+  },
   availability: {
     required: true,
     content: {
@@ -405,6 +421,25 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             phone: { type: 'string', minLength: 1, maxLength: 50 },
             email: { type: 'string', format: 'email', maxLength: 320 },
             active: { type: 'boolean' },
+            maxAppointmentsPerDay: { type: 'integer', minimum: 1, maximum: 999 },
+          },
+        },
+        SalesmanRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 200 },
+            active: { type: 'boolean' },
+          },
+        },
+        SalesChannelRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name'],
+          properties: {
+            name: { type: 'string', minLength: 1, maxLength: 200 },
+            active: { type: 'boolean' },
           },
         },
         AvailabilityRequest: {
@@ -431,7 +466,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
         AppointmentRequest: {
           type: 'object',
           additionalProperties: false,
-          required: ['appointmentDate', 'appointmentTime'],
+          required: ['appointmentDate'],
           properties: {
             complaintId: { type: 'string', pattern: '^\\d+$' },
             customerId: { type: 'string', pattern: '^\\d+$' },
@@ -454,8 +489,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
             subGroup: { type: 'string', minLength: 1, maxLength: 120 },
+            salesman: { type: 'string', minLength: 1, maxLength: 200 },
             appointmentDate: { type: 'string', format: 'date' },
-            appointmentTime: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
           },
         },
         AppointmentAssignmentRequest: {
@@ -467,10 +502,9 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
         AppointmentScheduleRequest: {
           type: 'object',
           additionalProperties: false,
-          required: ['appointmentDate', 'appointmentTime'],
+          required: ['appointmentDate'],
           properties: {
             appointmentDate: { type: 'string', format: 'date' },
-            appointmentTime: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
           },
         },
         AppointmentStatusRequest: {
@@ -520,6 +554,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             deliveryDate: { type: 'string', format: 'date' },
             technicianName: { type: 'string', minLength: 1, maxLength: 120 },
             brand: { type: 'string', minLength: 1, maxLength: 120 },
+            salesman: { type: 'string', minLength: 1, maxLength: 200 },
+            salesChannel: { type: 'string', minLength: 1, maxLength: 200 },
             jobFinalStatus: {
               type: 'string',
               enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],
@@ -565,6 +601,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             deliveryDate: { type: 'string', format: 'date' },
             technicianName: { type: 'string', minLength: 1, maxLength: 120 },
             brand: { type: 'string', minLength: 1, maxLength: 120 },
+            salesman: { type: 'string', minLength: 1, maxLength: 200 },
+            salesChannel: { type: 'string', minLength: 1, maxLength: 200 },
             jobFinalStatus: {
               type: 'string',
               enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],

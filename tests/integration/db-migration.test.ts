@@ -111,18 +111,18 @@ test(
       await client.query(
         `INSERT INTO appointments (
          appointment_reference, complaint_id, customer_type, customer_name,
-         contact_number, fault_description, appointment_date, appointment_time
+         contact_number, fault_description, appointment_date
        ) VALUES ('APT-2026-90001', $1, 'individual', 'Migration Customer',
-         '0500000000', 'Migration test fault', '2026-09-25', '09:00')`,
+         '0500000000', 'Migration test fault', '2026-09-25')`,
         [complaintId],
       );
       await assert.rejects(
         client.query(
           `INSERT INTO appointments (
            appointment_reference, complaint_id, customer_type, customer_name,
-           contact_number, fault_description, appointment_date, appointment_time
+           contact_number, fault_description, appointment_date
          ) VALUES ('APT-2026-90002', $1, 'individual', 'Migration Customer',
-           '0500000000', 'Second active appointment', '2026-09-26', '10:00')`,
+           '0500000000', 'Second active appointment', '2026-09-26')`,
           [complaintId],
         ),
         /appointments_active_complaint_unique/i,
@@ -137,9 +137,9 @@ test(
       await client.query(
         `INSERT INTO appointments (
          appointment_reference, complaint_id, customer_type, customer_name,
-         contact_number, fault_description, appointment_date, appointment_time
+         contact_number, fault_description, appointment_date
        ) VALUES ('APT-2026-90002', $1, 'individual', 'Migration Customer',
-         '0500000000', 'Rebooked test fault', '2026-09-26', '10:00')`,
+         '0500000000', 'Rebooked test fault', '2026-09-26')`,
         [complaintId],
       );
 

@@ -6,7 +6,6 @@ const appointment = {
   customerName: 'Calendar Customer',
   contactNumber: '0500000000',
   appointmentDate: '2026-10-05',
-  appointmentTime: '09:00',
   technicianId: '7',
   region: 'Dubai',
   status: 'Scheduled',
@@ -172,13 +171,10 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
 
     await page.locator('#appointmentRescheduleDate').fill('2026-10-12');
-    await page.locator('#appointmentRescheduleTime').fill('11:00');
     await page.getByRole('button', { name: 'Save schedule' }).click();
 
     await expect(page.locator('#workspaceMessage')).toHaveText('Appointment schedule updated.');
-    expect(api.scheduleBodies).toEqual([
-      { appointmentDate: '2026-10-12', appointmentTime: '11:00' },
-    ]);
+    expect(api.scheduleBodies).toEqual([{ appointmentDate: '2026-10-12' }]);
     expect(api.detailRequests).toBeGreaterThanOrEqual(2);
   });
 
@@ -190,7 +186,6 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await signInAndOpenAppointments(page);
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.locator('#appointmentRescheduleDate').fill('2026-10-12');
-    await page.locator('#appointmentRescheduleTime').fill('11:00');
     await page.getByRole('button', { name: 'Save schedule' }).click();
 
     await expect(page.locator('#workspaceMessage')).toHaveText(

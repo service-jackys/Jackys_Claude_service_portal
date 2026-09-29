@@ -13,6 +13,10 @@ import { createBranchHandlers } from '../branches/routes.js';
 import { createBranchService } from '../branches/service.js';
 import { createTechnicianHandlers } from '../technicians/routes.js';
 import { createTechnicianService } from '../technicians/service.js';
+import { createSalesmanHandlers } from '../salesmen/routes.js';
+import { createSalesmanService } from '../salesmen/service.js';
+import { createSalesChannelHandlers } from '../sales-channels/routes.js';
+import { createSalesChannelService } from '../sales-channels/service.js';
 import { createAppointmentHandlers } from '../appointments/routes.js';
 import { createAppointmentService } from '../appointments/service.js';
 import { createScheduleHandlers } from '../schedules/routes.js';
@@ -48,6 +52,8 @@ export type RouteDefinition = {
     | 'branch'
     | 'technician'
     | 'availability'
+    | 'salesman'
+    | 'salesChannel'
     | 'appointment'
     | 'appointmentAssignment'
     | 'appointmentSchedule'
@@ -215,6 +221,30 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response),
         ],
         availability: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const salesmanHandlers = pool
+    ? createSalesmanHandlers(createSalesmanService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const salesChannelHandlers = pool
+    ? createSalesChannelHandlers(createSalesChannelService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -795,11 +825,6 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
           { name: 'region', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 120 } },
           { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
           { name: 'availableDate', in: 'query', schema: { type: 'string', format: 'date' } },
-          {
-            name: 'availableTime',
-            in: 'query',
-            schema: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
-          },
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: technicianHandlers.list,
@@ -849,6 +874,56 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: technicianHandlers.availability,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/salesmen',
+        operationId: 'listSalesmen',
+        tags: ['Master data'],
+        summary: 'List the salesmen master list (modification.md #8)',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'active', in: 'query', schema: { type: 'boolean' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: salesmanHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/salesmen',
+        operationId: 'createSalesman',
+        tags: ['Master data'],
+        summary: 'Add a salesman to the master list',
+        security: 'bearerAuth' as const,
+        requestBody: 'salesman' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: salesmanHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/sales-channels',
+        operationId: 'listSalesChannels',
+        tags: ['Master data'],
+        summary: 'List the sales channels master list (modification.md #8, super admin managed)',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'active', in: 'query', schema: { type: 'boolean' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: salesChannelHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/sales-channels',
+        operationId: 'createSalesChannel',
+        tags: ['Master data'],
+        summary: 'Add a sales channel to the master list (super admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'salesChannel' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: salesChannelHandlers.create,
       },
       {
         method: 'get' as const,

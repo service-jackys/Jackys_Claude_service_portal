@@ -53,7 +53,6 @@ test(
           contactNumber: '0500000500',
           faultDescription: 'Phase5 job-card integration appointment',
           appointmentDate: futureDate(),
-          appointmentTime: '10:00',
         },
         profileId,
         'phase5-appointment-create',
@@ -128,15 +127,17 @@ test(
       ]);
     } finally {
       if (jobCardId) {
-        await pool.query(`DELETE FROM audit_events WHERE target_type = 'service_job_card' AND target_id = $1`, [
-          jobCardId,
-        ]);
+        await pool.query(
+          `DELETE FROM audit_events WHERE target_type = 'service_job_card' AND target_id = $1`,
+          [jobCardId],
+        );
         await pool.query(`DELETE FROM service_job_cards WHERE id = $1`, [jobCardId]);
       }
       if (appointmentId) {
-        await pool.query(`DELETE FROM audit_events WHERE target_type = 'appointment' AND target_id = $1`, [
-          appointmentId,
-        ]);
+        await pool.query(
+          `DELETE FROM audit_events WHERE target_type = 'appointment' AND target_id = $1`,
+          [appointmentId],
+        );
         await pool.query(`DELETE FROM appointments WHERE id = $1`, [appointmentId]);
       }
       if (profileId) await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);

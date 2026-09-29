@@ -18,6 +18,8 @@
   let currentComplaintB2bBranchCustCode = null;
   let b2bBranchSearchSequence = 0;
   let b2bBranchSearchDebounce = null;
+  let salesmenOptions = [];
+  let salesChannelOptions = [];
 
   const complaintTransitions = {
     New: ['Under Review', 'Cancelled'],
@@ -315,6 +317,7 @@
     $('#staff-access').hidden = true;
     $('#staff-workspace').hidden = false;
     renderUser();
+    loadMasterDataOptions();
     if (hasPermission('appointments.read') && !hasPermission('complaints.read')) {
       setWorkspaceMode('appointments');
     } else if (hasPermission('complaints.read')) {
@@ -598,6 +601,52 @@
       : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
   }
 
+  // Populates a <select> with the given master-data options (each an object
+  // with a `name`), preserving/re-adding the currently selected value even if
+  // it isn't (or is no longer) in the active list -- e.g. an existing job
+  // card recorded against a salesman who was since deactivated (see
+  // modification.md #8).
+  function populateSelectOptions(selector, options, placeholder, selectedValue) {
+    const select = $(selector);
+    if (!select) return;
+    const current = selectedValue !== undefined ? selectedValue : select.value;
+    const names = options.map((option) => option.name);
+    if (current && !names.includes(current)) names.push(current);
+    select.innerHTML =
+      `<option value="">${escapeHtml(placeholder)}</option>` +
+      names
+        .map((name) => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+        .join('');
+    select.value = current || '';
+  }
+
+  // Loads the salesmen / sales channels master lists once per session (see
+  // modification.md #8) and fills every dropdown that offers them: the
+  // Schedule appointment form and both job-card content panels.
+  async function loadMasterDataOptions() {
+    if (hasPermission('salesmen.read')) {
+      try {
+        const result = await apiRequest('/api/salesmen?active=true&page=1&pageSize=200');
+        salesmenOptions = result.salesmen || [];
+      } catch {
+        salesmenOptions = [];
+      }
+    }
+    if (hasPermission('sales_channels.read')) {
+      try {
+        const result = await apiRequest('/api/sales-channels?active=true&page=1&pageSize=200');
+        salesChannelOptions = result.salesChannels || [];
+      } catch {
+        salesChannelOptions = [];
+      }
+    }
+    populateSelectOptions('#scheduleSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#jccSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#jceSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#jccSalesChannel', salesChannelOptions, 'Select a sales channel');
+    populateSelectOptions('#jceSalesChannel', salesChannelOptions, 'Select a sales channel');
+  }
+
   // ---- Service job card content form (create-prefill panel with prefix 'jcc',
   // existing-job-card edit panel with prefix 'jce'). Both share the same field
   // set (packages/contracts jobCardContentFields / docs/code.gs HEADERS_BY_TYPE
@@ -635,6 +684,8 @@
         <div class="field"><label for="${prefix}Brand">Brand</label><input type="text" id="${prefix}Brand" maxlength="120"></div>
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+        <div class="field"><label for="${prefix}Salesman">Salesman</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
+        <div class="field"><label for="${prefix}SalesChannel">Sales channel</label><select id="${prefix}SalesChannel"><option value="">Select a sales channel</option></select></div>
       </div>
       <div class="field"><label for="${prefix}Complaint">Complaint</label><textarea id="${prefix}Complaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}ServiceRendered">Service rendered</label><textarea id="${prefix}ServiceRendered" maxlength="10000"></textarea></div>
@@ -781,6 +832,18 @@
     $(`#${prefix}Brand`).value = content.brand || '';
     $(`#${prefix}WarrantyStatus`).value = content.warrantyStatus || '';
     $(`#${prefix}TechnicianName`).value = content.technicianName || '';
+    populateSelectOptions(
+      `#${prefix}Salesman`,
+      salesmenOptions,
+      'Select a salesman',
+      content.salesman || '',
+    );
+    populateSelectOptions(
+      `#${prefix}SalesChannel`,
+      salesChannelOptions,
+      'Select a sales channel',
+      content.salesChannel || '',
+    );
     $(`#${prefix}Complaint`).value = content.complaint || '';
     $(`#${prefix}ServiceRendered`).value = content.serviceRendered || '';
     $(`#${prefix}PeriodFrom`).value = toDateTimeLocal(content.periodFrom);
@@ -817,6 +880,8 @@
       brand: $(`#${prefix}Brand`).value.trim() || undefined,
       warrantyStatus: $(`#${prefix}WarrantyStatus`).value.trim() || undefined,
       technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
+      salesman: $(`#${prefix}Salesman`).value.trim() || undefined,
+      salesChannel: $(`#${prefix}SalesChannel`).value.trim() || undefined,
       complaint: $(`#${prefix}Complaint`).value.trim() || undefined,
       serviceRendered: $(`#${prefix}ServiceRendered`).value.trim() || undefined,
       periodFrom: $(`#${prefix}PeriodFrom`).value || undefined,
@@ -1289,6 +1354,8 @@ ${bodyHtml}
         ['Brand', jobCard.brand],
         ['Warranty status', jobCard.warrantyStatus],
         ['Technician', jobCard.technicianName],
+        ['Salesman', jobCard.salesman],
+        ['Sales channel', jobCard.salesChannel],
         ['Job final status', jobCard.jobFinalStatus],
         ['Status', jobCard.status],
       ])}
@@ -2229,7 +2296,6 @@ ${bodyHtml}
         ['Customer', jobCard.customerName],
         ['Contact', jobCard.customerContact],
         ['Appointment date', jobCard.appointmentDate],
-        ['Appointment time', jobCard.appointmentTime],
         ['Fault description', jobCard.faultDescription],
         ['Complaint', jobCard.complaint],
         ['Service rendered', jobCard.serviceRendered],
@@ -2518,9 +2584,10 @@ ${bodyHtml}
 
   function appointmentDateTime(appointment) {
     if (!appointment?.appointmentDate) return '—';
-    return formatDate(
-      `${appointment.appointmentDate}T${appointment.appointmentTime || '00:00'}:00`,
-    );
+    const date = localDate(appointment.appointmentDate);
+    return Number.isNaN(date.valueOf())
+      ? appointment.appointmentDate
+      : date.toLocaleDateString(undefined, { dateStyle: 'medium' });
   }
 
   function renderAppointments(appointments) {
@@ -2557,12 +2624,10 @@ ${bodyHtml}
       const date = shiftDate(range.start, index);
       const key = dateInputValue(date);
       const events = (byDate.get(key) || [])
-        .sort((left, right) =>
-          String(left.appointmentTime).localeCompare(String(right.appointmentTime)),
-        )
+        .sort((left, right) => String(left.customerName).localeCompare(String(right.customerName)))
         .map(
           (appointment) =>
-            `<button class="calendar-event" type="button" data-calendar-appointment-id="${escapeHtml(appointment.id)}" draggable="${canWrite && appointment.status !== 'Completed' && appointment.status !== 'Cancelled'}" title="${escapeHtml(appointment.appointmentReference)}${canWrite ? '. Drag to reschedule.' : ''}"><strong>${escapeHtml(appointment.appointmentTime || '—')} · ${escapeHtml(appointment.customerName)}</strong><span class="calendar-event-status">${escapeHtml(appointment.status)}</span></button>`,
+            `<button class="calendar-event" type="button" data-calendar-appointment-id="${escapeHtml(appointment.id)}" draggable="${canWrite && appointment.status !== 'Completed' && appointment.status !== 'Cancelled'}" title="${escapeHtml(appointment.appointmentReference)}${canWrite ? '. Drag to reschedule.' : ''}"><strong>${escapeHtml(appointment.customerName)}</strong><span class="calendar-event-status">${escapeHtml(appointment.status)}</span></button>`,
         )
         .join('');
       const today = dateInputValue(new Date()) === key;
@@ -2597,8 +2662,7 @@ ${bodyHtml}
         event.preventDefault();
         const id = event.dataTransfer.getData('text/plain');
         const appointment = calendarAppointments.find((item) => item.id === id);
-        if (appointment && canWrite)
-          await rescheduleAppointment(id, cell.dataset.calendarDate, appointment.appointmentTime);
+        if (appointment && canWrite) await rescheduleAppointment(id, cell.dataset.calendarDate);
       });
     });
   }
@@ -2700,7 +2764,6 @@ ${bodyHtml}
     $('#appointmentStatusAction').hidden = !canWrite;
     $('#downloadAppointmentIcsButton').hidden = !hasPermission('appointments.read');
     $('#appointmentRescheduleDate').value = appointment.appointmentDate || '';
-    $('#appointmentRescheduleTime').value = appointment.appointmentTime || '';
 
     const nextStatuses = appointmentTransitions[appointment.status] || [];
     $('#appointmentNextStatus').innerHTML = nextStatuses.length
@@ -2788,6 +2851,7 @@ ${bodyHtml}
         ['Item code', appointment.itemCode],
         ['Warranty', appointment.jobWarranty],
         ['Sales order', appointment.salesOrderNumber],
+        ['Salesman', appointment.salesman],
         ['B2B Branch / School', appointment.b2bBranchSchool],
         ['Site contact person', appointment.schoolContactPerson],
         ['Site contact number', appointment.schoolContactNumber],
@@ -2882,33 +2946,21 @@ ${bodyHtml}
     setMessage('#workspaceMessage', message, success ? true : undefined);
   }
 
-  async function rescheduleAppointment(
-    id,
-    appointmentDate,
-    appointmentTime,
-    initiatingButton = null,
-  ) {
+  async function rescheduleAppointment(id, appointmentDate, initiatingButton = null) {
     const button = initiatingButton || $('#saveAppointmentScheduleButton');
     const form = $('#appointmentScheduleForm');
     clearErrors(form);
     const date = String(appointmentDate || '').trim();
-    const time = String(appointmentTime || '').trim();
-    let valid = true;
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(localDate(date).valueOf())) {
       showFieldError(form, 'appointmentRescheduleDate', 'Enter a valid appointment date.');
-      valid = false;
+      return;
     }
-    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) {
-      showFieldError(form, 'appointmentRescheduleTime', 'Enter a valid time in HH:mm format.');
-      valid = false;
-    }
-    if (!valid) return;
     setBusy(button, true, 'Saving…');
-    setMessage('#calendarMessage', 'Saving the new appointment time…');
+    setMessage('#calendarMessage', 'Saving the new appointment date…');
     try {
       await apiRequest('/api/appointments/' + encodeURIComponent(id) + '/schedule', {
         method: 'PATCH',
-        body: JSON.stringify({ appointmentDate: date, appointmentTime: time }),
+        body: JSON.stringify({ appointmentDate: date }),
       });
       await refreshAppointmentView('Appointment schedule updated.', true);
       setMessage('#calendarMessage', '', false);
@@ -2934,7 +2986,7 @@ ${bodyHtml}
       }
     } finally {
       setBusy(button, false);
-      if ($('#calendarMessage').textContent === 'Saving the new appointment time…') {
+      if ($('#calendarMessage').textContent === 'Saving the new appointment date…') {
         setMessage('#calendarMessage', '', false);
       }
     }
@@ -3029,7 +3081,7 @@ ${bodyHtml}
     availabilityRequestSequence += 1;
     $('#scheduleForm').reset();
     clearErrors($('#scheduleForm'));
-    $('#technicianId').innerHTML = '<option value="">Select a date and time first</option>';
+    $('#technicianId').innerHTML = '<option value="">Select a date first</option>';
     $('#technicianId').disabled = true;
     $('#findTechniciansButton').disabled = false;
     $('#scheduleAvailabilityMessage').textContent = '';
@@ -3243,10 +3295,10 @@ ${bodyHtml}
     const form = $('#scheduleForm');
     clearErrors(form);
     const date = $('#appointmentDate').value;
-    const time = $('#appointmentTime').value;
-    if (!date) showFieldError(form, 'appointmentDate', 'Select an appointment date.');
-    if (!time) showFieldError(form, 'appointmentTime', 'Select an appointment time.');
-    if (!date || !time) return;
+    if (!date) {
+      showFieldError(form, 'appointmentDate', 'Select an appointment date.');
+      return;
+    }
 
     const requestSequence = ++availabilityRequestSequence;
     const button = $('#findTechniciansButton');
@@ -3260,7 +3312,6 @@ ${bodyHtml}
       const params = new URLSearchParams({
         active: 'true',
         availableDate: date,
-        availableTime: time,
         page: '1',
         pageSize: '100',
       });
@@ -3465,15 +3516,10 @@ ${bodyHtml}
     clearErrors(form);
     setMessage('#workspaceMessage', '', false);
     const date = $('#appointmentDate').value;
-    const time = $('#appointmentTime').value;
     const technicianId = $('#technicianId').value;
     let valid = true;
     if (!date) {
       showFieldError(form, 'appointmentDate', 'Select an appointment date.');
-      valid = false;
-    }
-    if (!time) {
-      showFieldError(form, 'appointmentTime', 'Select an appointment time.');
       valid = false;
     }
     if (!technicianId) {
@@ -3493,8 +3539,7 @@ ${bodyHtml}
         [...new FormData(form)]
           .map(([key, value]) => [key, String(value).trim()])
           .filter(
-            ([key, value]) =>
-              value !== '' && !['appointmentDate', 'appointmentTime', 'technicianId'].includes(key),
+            ([key, value]) => value !== '' && !['appointmentDate', 'technicianId'].includes(key),
           ),
       );
       const result = await apiRequest('/api/appointments', {
@@ -3503,7 +3548,6 @@ ${bodyHtml}
           complaintId: currentComplaintId,
           technicianId,
           appointmentDate: date,
-          appointmentTime: time,
           ...overrides,
         }),
       });
@@ -3702,13 +3746,7 @@ ${bodyHtml}
   });
   $('#appointmentDate').addEventListener('change', () => {
     $('#technicianId').disabled = true;
-    $('#technicianId').innerHTML = '<option value="">Select a date and time first</option>';
-    $('#scheduleAppointmentButton').disabled = true;
-    availabilityRequestSequence += 1;
-  });
-  $('#appointmentTime').addEventListener('change', () => {
-    $('#technicianId').disabled = true;
-    $('#technicianId').innerHTML = '<option value="">Select a date and time first</option>';
+    $('#technicianId').innerHTML = '<option value="">Select a date first</option>';
     $('#scheduleAppointmentButton').disabled = true;
     availabilityRequestSequence += 1;
   });
@@ -3768,7 +3806,6 @@ ${bodyHtml}
     await rescheduleAppointment(
       currentAppointmentId,
       $('#appointmentRescheduleDate').value,
-      $('#appointmentRescheduleTime').value,
       $('#saveAppointmentScheduleButton'),
     );
   });
