@@ -1,5 +1,20 @@
 import type { PoolClient } from 'pg';
 
+// These five reference formats (appointment/job-card/quotation/inspection/
+// warranty-approval) all encode only the YEAR, e.g. "APT-2026-00001" -- but
+// each counter used to be keyed by the *exact* scope date it was called
+// with (the appointment date, job date, etc.). Two different calendar
+// dates in the same year each counted from 1 independently, so their
+// formatted references collided as soon as both reached the same sequence
+// number (see migration 016 / modification.md #22). Normalizing every
+// lookup here to 1 January of that year means all allocations within a
+// year now share one counter, matching what the format actually encodes.
+// (Complaint references are exempt: CMP-YYMMDD-NNN encodes the full date,
+// so allocateComplaintReference below still scopes by the exact date.)
+function yearScope(scopeDate: string): string {
+  return `${scopeDate.slice(0, 4)}-01-01`;
+}
+
 export async function allocateAppointmentReference(
   client: PoolClient,
   scopeDate: string,
@@ -10,7 +25,7 @@ export async function allocateAppointmentReference(
      ON CONFLICT (namespace, scope_date)
      DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
      RETURNING next_value - 1 AS "nextValue"`,
-    [scopeDate],
+    [yearScope(scopeDate)],
   );
   const nextValue = Number(result.rows[0].nextValue);
   if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {
@@ -29,7 +44,7 @@ export async function allocateJobCardReference(
      ON CONFLICT (namespace, scope_date)
      DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
      RETURNING next_value - 1 AS "nextValue"`,
-    [scopeDate],
+    [yearScope(scopeDate)],
   );
   const nextValue = Number(result.rows[0].nextValue);
   if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {
@@ -48,7 +63,7 @@ export async function allocateQuotationReference(
      ON CONFLICT (namespace, scope_date)
      DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
      RETURNING next_value - 1 AS "nextValue"`,
-    [scopeDate],
+    [yearScope(scopeDate)],
   );
   const nextValue = Number(result.rows[0].nextValue);
   if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {
@@ -67,7 +82,7 @@ export async function allocateInspectionReference(
      ON CONFLICT (namespace, scope_date)
      DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
      RETURNING next_value - 1 AS "nextValue"`,
-    [scopeDate],
+    [yearScope(scopeDate)],
   );
   const nextValue = Number(result.rows[0].nextValue);
   if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {
@@ -86,7 +101,7 @@ export async function allocateWarrantyApprovalReference(
      ON CONFLICT (namespace, scope_date)
      DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
      RETURNING next_value - 1 AS "nextValue"`,
-    [scopeDate],
+    [yearScope(scopeDate)],
   );
   const nextValue = Number(result.rows[0].nextValue);
   if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {

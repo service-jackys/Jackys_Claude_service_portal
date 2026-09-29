@@ -957,6 +957,60 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#22 &mdash; Fixed false "active appointment" conflicts (reference-numbering bug)</h2>
+          <span class="badge badge-code-complete">Verified working</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: backend (references, appointments) + bootstrap message + frontend race guard</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            You hit "The complaint already has an active appointment" while scheduling
+            CMP-260929-003, even though it had never been scheduled before.
+          </li>
+          <li>
+            <strong>Root cause</strong> &mdash; appointment references are formatted
+            <code>APT-YYYY-00001</code> (year only), but the counter handing out the next number
+            was keyed by the exact appointment date. Two appointments on different dates in the
+            same year each counted from 1 independently, so their references collided (both
+            became <code>APT-2026-00001</code>). The resulting database duplicate-key error was
+            mislabeled as "already has an active appointment" &mdash; an unrelated, misleading
+            explanation. There was never a real scheduling conflict.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; the appointment / job-card / quotation / inspection /
+            warranty-approval counters now key by 1 January of the year (matching what the
+            reference format encodes). Migration 016 seeds the new counters from what's already
+            been issued. Complaint references were unaffected (they already encode the full
+            date).
+          </li>
+          <li>
+            Even if a reference collision were ever to recur, it's no longer mislabeled as an
+            appointment conflict &mdash; it now reports the real problem.
+          </li>
+          <li>
+            Also fixed the stale bootstrap error wording ("consumed for this process") left over
+            from before Modification #20 made bootstrap DB-backed and permanent &mdash; it now
+            says an admin account already exists and to sign in with it.
+          </li>
+          <li>
+            Also fixed a UI race in the Schedule-appointment form: navigating to a different
+            complaint while an earlier schedule request was still in flight could stamp that
+            request's result onto the complaint you'd since moved to. The handler now only
+            updates the screen if you're still viewing the complaint the request was for.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Ran <code>npm run db:migrate</code>, restarted the server.</li>
+          <li>Confirmed: scheduling CMP-260929-003 now succeeds.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

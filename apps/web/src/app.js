@@ -4454,6 +4454,18 @@ ${bodyHtml}
 
     const button = $('#scheduleAppointmentButton');
     setBusy(button, true, 'Scheduling…');
+    // Capture which complaint this particular submission is for. The user
+    // can navigate to a different complaint (or Cancel/reload) while this
+    // request is still in flight -- by the time it resolves, the shared
+    // `currentComplaintId` may already point at whatever they're looking
+    // at now. Without this guard, a slow/failed response for complaint A
+    // would reload complaint B's detail and stamp complaint A's error
+    // message onto complaint B's page, making an unrelated old failure
+    // look like it just happened on the complaint the user is currently
+    // viewing (e.g. a stale "already has an active appointment" appearing
+    // on a fresh complaint that was never actually scheduled).
+    const requestedComplaintId = currentComplaintId;
+    const stillOnSameComplaint = () => currentComplaintId === requestedComplaintId;
     try {
       // Optional overrides: send only what the staff actually typed here.
       // Left blank, the created appointment falls back to whatever the
@@ -4469,18 +4481,24 @@ ${bodyHtml}
       const result = await apiRequest('/api/appointments', {
         method: 'POST',
         body: JSON.stringify({
-          complaintId: currentComplaintId,
+          complaintId: requestedComplaintId,
           technicianId,
           appointmentDate: date,
           ...overrides,
         }),
       });
       const appointment = result.appointment;
+      await loadComplaints();
+      if (!stillOnSameComplaint()) {
+        // The user has moved on to a different complaint -- the list
+        // refresh above already reflects the new appointment; leave their
+        // current screen alone rather than overwriting it.
+        return;
+      }
       $('#scheduleResult').textContent = appointment?.appointmentReference
         ? `Appointment ${appointment.appointmentReference} created.`
         : 'Appointment created.';
-      await loadComplaintDetail(currentComplaintId);
-      await loadComplaints();
+      await loadComplaintDetail(requestedComplaintId);
       setMessage(
         '#workspaceMessage',
         appointment?.appointmentReference
@@ -4493,13 +4511,14 @@ ${bodyHtml}
         await signOut(false);
         setMessage('#authMessage', 'Your session has expired. Please sign in again.');
       } else if (error.status === 404 || error.status === 409) {
-        await loadComplaintDetail(currentComplaintId);
         await loadComplaints();
+        if (!stillOnSameComplaint()) return;
+        await loadComplaintDetail(requestedComplaintId);
         setMessage('#workspaceMessage', error.message);
       } else if (error.status === 403) {
-        $('#scheduleAction').hidden = true;
+        if (stillOnSameComplaint()) $('#scheduleAction').hidden = true;
         setMessage('#workspaceMessage', 'You are not authorized to schedule appointments.');
-      } else {
+      } else if (stillOnSameComplaint()) {
         setMessage('#workspaceMessage', error.message);
       }
     } finally {

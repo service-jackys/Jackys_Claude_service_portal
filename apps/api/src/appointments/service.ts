@@ -56,6 +56,24 @@ function isUniqueViolation(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && error.code === '23505';
 }
 
+// A unique violation on the appointment_reference column is a reference
+// *numbering* collision (two allocations landing on the same formatted
+// reference -- see migration 016 / modification.md #22), not a scheduling
+// conflict. Only treat the insert failure as "already has an active
+// appointment" when we can positively tell it came from that constraint;
+// otherwise surface the real underlying error so a numbering bug can never
+// be mistaken for a business rule again.
+function isAppointmentReferenceViolation(error: unknown): boolean {
+  return (
+    isUniqueViolation(error) &&
+    typeof error === 'object' &&
+    error !== null &&
+    'constraint' in error &&
+    typeof (error as { constraint?: unknown }).constraint === 'string' &&
+    (error as { constraint: string }).constraint.includes('appointment_reference')
+  );
+}
+
 function complaintStatusForAppointment(
   status: AppointmentStatus,
 ): 'Scheduled' | 'Ready for Scheduling' | 'Closed' {
@@ -150,10 +168,13 @@ export function createAppointmentService(pool: Pool) {
           createdBy: profileId,
         });
       } catch (error) {
-        if (isUniqueViolation(error) && data.complaintId) {
-          throw new AppointmentServiceError(
-            'active-appointment-conflict',
-            'The complaint already has an active appointment.',
+        if (isAppointmentReferenceViolation(error)) {
+          // Extremely unlikely after migration 016, but if it ever
+          // recurs (e.g. concurrent allocations), this is a data problem
+          // with the reference counter, not a scheduling conflict -- don't
+          // relabel it as one.
+          throw new Error(
+            'Could not allocate a unique appointment reference. Please try again; if this keeps happening, the reference counter needs attention.',
           );
         }
         throw error;

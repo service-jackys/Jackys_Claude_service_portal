@@ -966,3 +966,47 @@ complaint's detail page:
 ### Known follow-up
 
 - None flagged.
+
+## Modification #22 — Fixed false "active appointment" conflicts (reference-numbering bug) + clearer bootstrap message
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — verified working by you.
+
+### What changed
+
+You hit "The complaint already has an active appointment" while scheduling CMP-260929-003, even
+though it had never been scheduled before. Traced it down to a real bug, not a scheduling
+conflict:
+
+- Appointment references are formatted `APT-YYYY-00001` — year only — but the counter that hands
+  out the next number was keyed by the **exact appointment date**, not the year. Two appointments
+  booked on different calendar dates in the same year each started counting from 1
+  independently, so their formatted references collided (both became `APT-2026-00001`). The
+  resulting database duplicate-key error was then mislabeled by the code as "already has an
+  active appointment" — a misleading, unrelated explanation.
+- **Fixed** — `packages/db/src/references.ts` now keys the appointment / job-card / quotation /
+  inspection / warranty-approval counters by the 1st of January of the relevant year (matching
+  what the reference format actually encodes). Complaint references were already fine (they
+  encode the full date).
+- Migration `016_fix_reference_counter_scope.sql` seeds the new year-keyed counters from whatever
+  had already been issued, so numbering continues correctly instead of colliding.
+- `apps/api/src/appointments/service.ts` — even if a reference collision were ever to recur, it's
+  no longer mislabeled as "active appointment" conflict; it now reports the real problem instead.
+- Also fixed the stale bootstrap error message ("Local bootstrap has already been consumed for
+  this process") — it was leftover wording from the old in-memory bootstrap (Modification #20
+  made it DB-backed and permanent, not per-process). It now says an administrator account already
+  exists for this installation and to sign in with it instead.
+- Also fixed a UI race: the Schedule-appointment form used a shared "current complaint" variable
+  both to send the request and to decide which complaint's screen to update afterwards. If you
+  navigated to a different complaint while an earlier request was still in flight, its
+  success/error message could land on whatever complaint you were now viewing. The handler now
+  only updates the screen if you're still looking at the complaint the request was actually for.
+
+### Needs you
+
+- Run `npm run db:migrate`, then restart `npm run dev`.
+- Confirmed working: scheduling CMP-260929-003 now succeeds.
+
+### Known follow-up
+
+- None flagged.

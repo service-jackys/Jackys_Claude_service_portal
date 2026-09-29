@@ -556,7 +556,7 @@ export function createRouteCatalog(
                 409,
                 'bootstrap-unavailable',
                 'Bootstrap unavailable',
-                'Local bootstrap has already been consumed for this process.',
+                'An administrator account already exists for this installation. Bootstrap can only be used once, ever -- sign in with that account instead.',
               );
               return;
             }
