@@ -1,7 +1,17 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 import type { NextFunction, Request, Response } from 'express';
+import type { Pool } from 'pg';
 import { z } from 'zod';
+import {
+  countLocalAuthUsers,
+  findLocalAuthUserByEmail,
+  findLocalAuthUserById,
+  insertLocalAuthUser,
+  listLocalAuthUsers,
+  updateLocalAuthUser,
+  type LocalAuthUserRecord,
+} from '../../../../packages/db/src/local-auth-users.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
@@ -16,10 +26,6 @@ export type AuthUser = {
   role: LocalRole;
   permissions: readonly string[];
   active: boolean;
-};
-
-type LocalUser = AuthUser & {
-  passwordHash: string;
 };
 
 type Session = {
@@ -111,26 +117,38 @@ async function verifyPassword(password: string, storedHash: string): Promise<boo
   return expected.length === actual.length && timingSafeEqual(expected, actual);
 }
 
-function publicUser(user: LocalUser): AuthUser {
-  const { passwordHash: _passwordHash, ...safeUser } = user;
-  return safeUser;
+function publicUser(user: LocalAuthUserRecord): AuthUser {
+  const role = user.role as LocalRole;
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role,
+    permissions: rolePermissions[role],
+    active: user.active,
+  };
 }
 
-export function createLocalAuth(options: LocalAuthOptions) {
-  const users = new Map<string, LocalUser>();
+// Team logins (see modification.md #20) are stored in the local_auth_users
+// table, not in process memory -- until this, they were a plain JS Map that
+// reset to empty on every `npm run dev` restart, which is why a teammate
+// login (and any role/active change saved for it) kept disappearing. Only
+// the sign-in session itself (the `sessions` map below) stays in-memory on
+// purpose: signing out on every restart is normal, losing your whole
+// teammate list and its roles is not.
+export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
   const sessions = new Map<string, Session>();
-  let bootstrapConsumed = false;
 
-  function createSession(user: LocalUser): { token: string; user: AuthUser } {
+  function createSession(user: AuthUser): { token: string; user: AuthUser } {
     const token = randomBytes(32).toString('base64url');
     sessions.set(hashToken(token).toString('hex'), {
       userId: user.id,
       expiresAt: Date.now() + SESSION_TTL_MS,
     });
-    return { token, user: publicUser(user) };
+    return { token, user };
   }
 
-  function getUserFromToken(token: string): AuthUser | null {
+  async function getUserFromToken(token: string): Promise<AuthUser | null> {
     const sessionKey = hashToken(token).toString('hex');
     const session = sessions.get(sessionKey);
     if (!session) return null;
@@ -139,89 +157,107 @@ export function createLocalAuth(options: LocalAuthOptions) {
       return null;
     }
 
-    const user = users.get(session.userId);
-    return user && user.active ? publicUser(user) : null;
+    const client = await pool.connect();
+    try {
+      const user = await findLocalAuthUserById(client, session.userId);
+      return user && user.active ? publicUser(user) : null;
+    } finally {
+      client.release();
+    }
   }
 
   function revokeToken(token: string): void {
     sessions.delete(hashToken(token).toString('hex'));
   }
 
-  function listUsers(): AuthUser[] {
-    return [...users.values()].map(publicUser);
+  async function listUsers(): Promise<AuthUser[]> {
+    const client = await pool.connect();
+    try {
+      return (await listLocalAuthUsers(client)).map(publicUser);
+    } finally {
+      client.release();
+    }
   }
 
   async function createUser(input: unknown) {
     const data = createUserSchema.parse(input);
     const email = normalizeEmail(data.email);
-    if ([...users.values()].some((candidate) => candidate.email === email)) {
-      return { kind: 'email-taken' as const };
+    const client = await pool.connect();
+    try {
+      if (await findLocalAuthUserByEmail(client, email)) {
+        return { kind: 'email-taken' as const };
+      }
+      const user = await insertLocalAuthUser(client, {
+        email,
+        name: data.name,
+        role: data.role,
+        passwordHash: await hashPassword(data.password),
+      });
+      return { kind: 'created' as const, user: publicUser(user) };
+    } finally {
+      client.release();
     }
-    const user: LocalUser = {
-      id: randomBytes(16).toString('hex'),
-      email,
-      name: data.name,
-      role: data.role,
-      permissions: rolePermissions[data.role],
-      active: true,
-      passwordHash: await hashPassword(data.password),
-    };
-    users.set(user.id, user);
-    return { kind: 'created' as const, user: publicUser(user) };
   }
 
-  function updateUser(id: string, input: unknown) {
+  async function updateUser(id: string, input: unknown) {
     const data = updateUserSchema.parse(input);
-    const user = users.get(id);
-    if (!user) return { kind: 'not-found' as const };
-    if (data.role !== undefined) {
-      user.role = data.role;
-      user.permissions = rolePermissions[data.role];
+    const client = await pool.connect();
+    try {
+      const user = await updateLocalAuthUser(client, id, data);
+      if (!user) return { kind: 'not-found' as const };
+      return { kind: 'updated' as const, user: publicUser(user) };
+    } finally {
+      client.release();
     }
-    if (data.active !== undefined) user.active = data.active;
-    return { kind: 'updated' as const, user: publicUser(user) };
   }
 
   async function bootstrap(input: unknown) {
     const data = bootstrapSchema.parse(input);
-    if (bootstrapConsumed || users.size > 0) {
-      return { kind: 'unavailable' as const };
-    }
-    if (!options.bootstrapToken || !tokensMatch(data.bootstrapToken, options.bootstrapToken)) {
-      return { kind: 'invalid-token' as const };
-    }
+    const client = await pool.connect();
+    try {
+      if ((await countLocalAuthUsers(client)) > 0) {
+        return { kind: 'unavailable' as const };
+      }
+      if (!options.bootstrapToken || !tokensMatch(data.bootstrapToken, options.bootstrapToken)) {
+        return { kind: 'invalid-token' as const };
+      }
 
-    const user: LocalUser = {
-      id: randomBytes(16).toString('hex'),
-      email: normalizeEmail(data.email),
-      name: data.name,
-      role: 'admin',
-      permissions: rolePermissions.admin,
-      active: true,
-      passwordHash: await hashPassword(data.password),
-    };
-    users.set(user.id, user);
-    bootstrapConsumed = true;
-    return { kind: 'created' as const, ...createSession(user) };
+      const user = await insertLocalAuthUser(client, {
+        email: normalizeEmail(data.email),
+        name: data.name,
+        role: 'admin',
+        passwordHash: await hashPassword(data.password),
+      });
+      return { kind: 'created' as const, ...createSession(publicUser(user)) };
+    } finally {
+      client.release();
+    }
   }
 
   async function login(input: unknown) {
     const data = loginSchema.parse(input);
-    const user = [...users.values()].find(
-      (candidate) => candidate.email === normalizeEmail(data.email),
-    );
-    if (!user || !user.active || !(await verifyPassword(data.password, user.passwordHash))) {
-      return { kind: 'invalid-credentials' as const };
+    const client = await pool.connect();
+    try {
+      const user = await findLocalAuthUserByEmail(client, normalizeEmail(data.email));
+      if (!user || !user.active || !(await verifyPassword(data.password, user.passwordHash))) {
+        return { kind: 'invalid-credentials' as const };
+      }
+      return { kind: 'authenticated' as const, ...createSession(publicUser(user)) };
+    } finally {
+      client.release();
     }
-    return { kind: 'authenticated' as const, ...createSession(user) };
   }
 
-  function requireAuth(request: Request, response: Response, next: NextFunction): void {
+  async function requireAuth(
+    request: Request,
+    response: Response,
+    next: NextFunction,
+  ): Promise<void> {
     const authorization = request.header('authorization');
     const token = authorization?.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length).trim()
       : undefined;
-    const user = token ? getUserFromToken(token) : null;
+    const user = token ? await getUserFromToken(token) : null;
 
     if (!user) {
       response.status(401).type('application/problem+json').json({
@@ -238,8 +274,8 @@ export function createLocalAuth(options: LocalAuthOptions) {
   }
 
   function requirePermission(permission: string) {
-    return (request: Request, response: Response, next: NextFunction): void => {
-      requireAuth(request, response, () => {
+    return async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+      await requireAuth(request, response, () => {
         const user = response.locals.auth.user as AuthUser;
         if (!user.permissions.includes('*') && !user.permissions.includes(permission)) {
           response.status(403).type('application/problem+json').json({

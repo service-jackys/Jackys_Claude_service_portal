@@ -896,3 +896,42 @@ It's now built back in, matching the legacy behaviour:
 ### Known follow-up
 
 - None flagged.
+
+## Modification #20 — Team logins now persist across a backend restart
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test and a one-time migration.
+
+### What changed
+
+You reported that every time you restart the server, teammate logins you created disappear, and
+saving a role change doesn't stick either. Confirmed the cause: Team logins (email, password,
+role, active/inactive) were stored only in the running server's memory — a plain list that resets
+to empty every time `npm run dev` restarts. The permission side of this was already safe (it's
+stored in the database and was never lost), but the login credential itself wasn't, so:
+
+- Every teammate login you added had to be re-created after a restart.
+- A role/active change you saved for a teammate was lost the same way — and if the server had
+  restarted since you added them, saving it would even fail outright, since that teammate no
+  longer existed anywhere to update.
+- The one-time bootstrap admin setup could be run again after every restart (itself a symptom of
+  the same bug), instead of only ever once.
+
+**Fixed:** Team logins now live in a real database table (`local_auth_users`, migration 015) and
+survive a restart. Only the signed-in _session_ itself stays temporary and ends on restart, which
+is normal and expected — you just sign back in with the same email and password; you don't need
+to recreate the account or its role.
+
+### Needs you
+
+- Run `npm run db:migrate` (adds migration 015) — one-time, safe to re-run.
+- Restart `npm run dev`.
+- Add a teammate login (or use one you already had before this fix — you'll need to add it once
+  more since the old one only ever existed in memory), then restart the server again and confirm
+  the teammate still shows up on **Team logins** and can still sign in.
+- Change a teammate's role or active status, restart the server, and confirm the change is still
+  there.
+
+### Known follow-up
+
+- None flagged.

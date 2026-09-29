@@ -879,6 +879,48 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#20 &mdash; Team logins now persist across a backend restart</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: DB migration, API backend (authentication)</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            You reported that teammate logins vanish after a server restart, and saving a role
+            change doesn't stick. Confirmed the cause: Team logins were stored only in the running
+            server's memory, not the database.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; Team logins (email, password, role, active/inactive) now
+            live in a new database table and survive a restart. Only the signed-in session itself
+            stays temporary, which is normal &mdash; you sign back in with the same email and
+            password, no need to recreate the account.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; the one-time bootstrap admin setup can now only ever run
+            once, instead of being able to run again after every restart.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>One-time: run <code>npm run db:migrate</code> (adds migration 015).</li>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Add a teammate login (you'll need to re-add any you created before this fix), restart
+            the server again, and confirm they're still on Team logins and can still sign in.
+          </li>
+          <li>
+            Change a teammate's role or active status, restart the server, and confirm it's still
+            saved.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

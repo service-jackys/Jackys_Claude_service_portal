@@ -1,4 +1,5 @@
 import type { Express, RequestHandler } from 'express';
+import type { Pool } from 'pg';
 import { createDbPool } from '../../../../packages/db/src/client.js';
 import {
   ensureLocalAdminProfile,
@@ -125,9 +126,16 @@ function localBootstrapUnavailable(response: Parameters<RequestHandler>[1]): voi
   );
 }
 
-export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition[] {
-  const databaseUrl = process.env.DATABASE_URL;
-  const pool = databaseUrl ? createDbPool(databaseUrl) : null;
+// pool defaults to a fresh connection built from DATABASE_URL when the
+// caller doesn't already have one to share (see tests/openapi.test.ts,
+// which only needs the route shapes, not a live database) -- apps/api/src
+// /app.ts passes its own shared pool explicitly so Team logins
+// (auth/local-auth.ts) and every other pool-backed service here reuse the
+// same connection pool instead of opening a second one.
+export function createRouteCatalog(
+  localAuth: LocalAuth | null,
+  pool: Pool | null = process.env.DATABASE_URL ? createDbPool(process.env.DATABASE_URL) : null,
+): RouteDefinition[] {
   const requirePermission = pool
     ? createApplicationAuth(pool, localAuth).requirePermission
     : (_permission: string) =>
@@ -644,12 +652,16 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
       responses: [200, 401, 403, 501],
       handlers: [
         requirePermission('admin.users'),
-        (_request, response) => {
+        async (_request, response, next) => {
           if (!localAuth) {
             providerUnavailable(response);
             return;
           }
-          response.json({ users: localAuth.listUsers() });
+          try {
+            response.json({ users: await localAuth.listUsers() });
+          } catch (error) {
+            next(error);
+          }
         },
       ],
     },
@@ -684,7 +696,7 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             return;
           }
           try {
-            const result = localAuth.updateUser(targetId, request.body);
+            const result = await localAuth.updateUser(targetId, request.body);
             if (result.kind === 'not-found') {
               problem(
                 response,
@@ -718,12 +730,12 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
       security: 'bearerAuth',
       responses: [200, 401, 501],
       handlers: [
-        (request, response, next) => {
+        async (request, response, next) => {
           if (!localAuth) {
             providerUnavailable(response);
             return;
           }
-          localAuth.requireAuth(request, response, next);
+          await localAuth.requireAuth(request, response, next);
         },
         (_request, response) => {
           response.json({ user: response.locals.auth.user as AuthUser });

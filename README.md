@@ -24,6 +24,22 @@ The local system currently provides an Express TypeScript API, PostgreSQL migrat
 
 A running log of completed work, newest first, so you can see progress without digging through commits.
 
+**2026-09-29 — Team logins now persist across a backend restart (modification #20).** Team
+logins (who can sign in, their role, whether their login is active) used to live only in the
+running server's memory -- a plain JS Map that reset to empty on every `npm run dev` restart, so
+every teammate login you added, and any role change you saved, disappeared and had to be redone.
+
+- New migration `015_local_auth_users.sql` adds a `local_auth_users` table; Team logins now read
+  and write there instead of an in-memory list. The permission side of this (the `profiles` /
+  `profile_roles` tables) was already persisted correctly -- only the login credential itself
+  wasn't.
+- Signed-in **sessions** stay in-memory and still end on restart, which is normal -- you just sign
+  back in with the same email and password, you don't need to recreate the account.
+- The one-time bootstrap admin account now also survives a restart (it used to allow
+  re-bootstrapping after every restart, which was itself a side effect of the same bug).
+- `npm run typecheck` and `npm run build` pass. **Run `npm run db:migrate`** to pick up migration
+  015 before this takes effect.
+
 **2026-09-29 — Create a service job card directly from a Quotation (modification #18).** The live
 Apps Script system's `pullJobCardFromQuotation` flow was still missing here (job cards could only be
 created from a completed appointment). Built it back in, matching the legacy behaviour:
@@ -423,7 +439,10 @@ Restart `npm run dev` after changing `.env`. Documentation must not be exposed o
 
 ## Local authentication check
 
-Authentication is currently for local development only. It uses in-memory users and sessions, so users and sessions disappear when the backend restarts.
+Authentication is currently for local development only. Team logins (who can sign in, their role,
+and whether their login is active) are stored in PostgreSQL and survive a backend restart --
+signed-in **sessions** are still in-memory and end on restart, same as before, so everyone just
+signs back in with their existing email and password (see modification.md #20).
 
 For the current local testing cycle, use this local administrator profile:
 
@@ -451,9 +470,9 @@ The `bootstrapToken` must be at least 32 characters and must exactly match `.env
 
 ### Adding teammate logins (so your team can test)
 
-The bootstrap token above can only ever be used once per running server -- it creates exactly
-one administrator and is then permanently consumed until the backend restarts. It is **not** how
-you add more people; it only exists to create the very first account.
+The bootstrap token above can only ever be used once, ever -- it creates exactly one administrator
+and is then permanently consumed (this now persists across restarts too, see modification.md #20).
+It is **not** how you add more people; it only exists to create the very first account.
 
 Once you are signed in as that administrator, use the **Team logins** page (in the web UI's
 protected workspace sidebar) to add one login per teammate: their name, email, a password you

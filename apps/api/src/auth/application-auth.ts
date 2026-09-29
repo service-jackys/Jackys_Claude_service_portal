@@ -42,7 +42,7 @@ export function createApplicationAuth(pool: Pool, localAuth: LocalAuth | null) {
     const token = authorization?.startsWith('Bearer ')
       ? authorization.slice('Bearer '.length).trim()
       : undefined;
-    const source = token && localAuth ? getLocalSource(token, localAuth) : null;
+    const source = token && localAuth ? await getLocalSource(token, localAuth) : null;
     if (!source) {
       unauthorized(response);
       return null;
@@ -88,7 +88,7 @@ export function createApplicationAuth(pool: Pool, localAuth: LocalAuth | null) {
   return { requirePermission, resolve };
 }
 
-function getLocalSource(token: string, localAuth: LocalAuth): AuthSource | null {
-  const user = localAuth.getUserFromToken(token);
+async function getLocalSource(token: string, localAuth: LocalAuth): Promise<AuthSource | null> {
+  const user = await localAuth.getUserFromToken(token);
   return user ? { user, token } : null;
 }

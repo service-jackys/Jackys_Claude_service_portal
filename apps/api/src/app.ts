@@ -7,6 +7,7 @@ import { createOpenApiDocument } from './api/openapi.js';
 import { problem } from './api/problem.js';
 import { createRouteCatalog, registerRoutes } from './api/route-catalog.js';
 import { createLocalAuth } from './auth/local-auth.js';
+import { createDbPool } from '../../../packages/db/src/client.js';
 
 function isProduction(): boolean {
   return process.env.NODE_ENV === 'production';
@@ -23,11 +24,17 @@ function webRoot(): string {
 export function createApp() {
   const app = express();
   const authProvider = process.env.AUTH_PROVIDER || 'local';
+  const databaseUrl = process.env.DATABASE_URL;
+  // Shared by both Team logins (local-auth.ts) and every pool-backed service
+  // created inside the route catalog below, so they all read/write the same
+  // database rather than each opening its own connection pool (see
+  // modification.md #20).
+  const pool = databaseUrl ? createDbPool(databaseUrl) : null;
   const localAuth =
-    authProvider === 'local' && !isProduction()
-      ? createLocalAuth({ bootstrapToken: process.env.LOCAL_BOOTSTRAP_TOKEN })
+    authProvider === 'local' && !isProduction() && pool
+      ? createLocalAuth({ bootstrapToken: process.env.LOCAL_BOOTSTRAP_TOKEN }, pool)
       : null;
-  const routes = createRouteCatalog(localAuth);
+  const routes = createRouteCatalog(localAuth, pool);
 
   app.disable('x-powered-by');
   // helmet()'s defaults include a Content-Security-Policy with
