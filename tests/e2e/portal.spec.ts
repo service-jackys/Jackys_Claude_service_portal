@@ -530,8 +530,20 @@ test.describe('staff access boundary', () => {
     await page.locator('#appointmentFrom').fill('2026-10-01');
     await page.locator('#appointmentTo').fill('2026-10-31');
     await page.getByRole('button', { name: 'Apply filters' }).click();
-    await expect.poll(() => appointmentListUrls.at(-1)).toContain('search=APT-2026');
-    const filteredUrl = new URL(appointmentListUrls.at(-1)!);
+    // Applying filters fires two requests: the filtered appointment list
+    // itself, and (right after, inside loadAppointments()) a background
+    // refetch for the calendar month-view grid, which uses its own
+    // unrelated from/to range (the padded start/end of the *current* real
+    // month, not the filter dates) but happens to share the same search
+    // term. Find the filtered-list one specifically by its "from" value
+    // instead of assuming it's whichever request happened last.
+    await expect
+      .poll(() => appointmentListUrls.some((url) => url.includes('from=2026-10-01')))
+      .toBe(true);
+    const filteredUrl = new URL(
+      appointmentListUrls.find((url) => url.includes('from=2026-10-01'))!,
+    );
+    expect(filteredUrl.searchParams.get('search')).toBe('APT-2026');
     expect(filteredUrl.searchParams.get('status')).toBe('Scheduled');
     expect(filteredUrl.searchParams.get('from')).toBe('2026-10-01');
     expect(filteredUrl.searchParams.get('to')).toBe('2026-10-31');
