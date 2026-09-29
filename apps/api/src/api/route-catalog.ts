@@ -620,6 +620,15 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
       },
       {
         method: 'get' as const,
+        path: '/api/public/b2b-branches',
+        operationId: 'listPublicB2bBranches',
+        tags: ['Complaints'],
+        summary: 'List the B2B Branch / School master list for the public complaint form',
+        responses: [200, 500],
+        handlers: complaintHandlers.listB2bBranches,
+      },
+      {
+        method: 'get' as const,
         path: '/api/complaints',
         operationId: 'listComplaints',
         tags: ['Complaints'],

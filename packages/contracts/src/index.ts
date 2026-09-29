@@ -44,7 +44,11 @@ export const publicComplaintSchema = z
   .object({
     customerType: customerTypeSchema,
     customerName: z.string().trim().min(1).max(200),
-    contactNumber: z.string().trim().min(1).max(50),
+    // Required by default (B2C and B2B-SalesChannel); optional only for a
+    // B2B corporate account, which rarely has one relevant mobile number to
+    // collect on a public form -- enforced conditionally below, see
+    // modification.md #1.
+    contactNumber: optionalText(50),
     customerEmail: z.string().trim().email().max(320).optional(),
     address: optionalText(500),
     region: optionalText(120),
@@ -56,12 +60,30 @@ export const publicComplaintSchema = z
     // Plain optional text, exactly like the live ComplaintRegistration_26.html
     // public form: never gated, no picker required, blank for a B2C submission.
     b2bBranchSchool: optionalText(500),
+    // Matched Cust_Code from the B2B Branch / School master list (see
+    // modification.md #1) when the customer picked a known branch from the
+    // form's autocomplete. Left blank for free text the master list doesn't
+    // recognize -- staff identify and link the branch later.
+    b2bBranchCustCode: optionalText(40),
     schoolContactPerson: optionalText(500),
     schoolContactNumber: optionalText(100),
     customerNumber: optionalText(100),
     salesOrderNumber: optionalText(100),
   })
-  .strict();
+  .strict()
+  .superRefine((value, ctx) => {
+    // Required by default (including a B2C submission); only a B2B
+    // corporate account skips it, since the site contact person/number
+    // already cover that case and a corporate account rarely has one
+    // relevant mobile number to collect here. See modification.md #1.
+    if (value.customerType !== 'B2B' && !value.contactNumber) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['contactNumber'],
+        message: 'Contact number is required for this customer type.',
+      });
+    }
+  });
 
 export type PublicComplaintInput = z.infer<typeof publicComplaintSchema>;
 

@@ -10,7 +10,7 @@ export type AppointmentRecord = {
   technicianId: string | null;
   customerType: string;
   customerName: string;
-  contactNumber: string;
+  contactNumber: string | null;
   customerEmail: string | null;
   address: string | null;
   region: string | null;
@@ -99,7 +99,7 @@ export async function insertAppointment(
       input.technicianId ?? null,
       input.customerType,
       input.customerName,
-      input.contactNumber,
+      input.contactNumber ?? null,
       input.customerEmail ?? null,
       input.address ?? null,
       input.region ?? null,

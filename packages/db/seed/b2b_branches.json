@@ -1,0 +1,3971 @@
+[
+  {
+    "custCode": "149817",
+    "branchName": "3M GULF LTD",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140745",
+    "lastInvoiceDate": "2025-12-24"
+  },
+  {
+    "custCode": "100869",
+    "branchName": "A S V HOTEL L.L.C.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140543",
+    "lastInvoiceDate": "2025-12-05"
+  },
+  {
+    "custCode": "101087",
+    "branchName": "ABU DHABI COMMERCIAL BANK  PJSC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143983",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "101260",
+    "branchName": "ABU DHABI FUTURE ENERGY COMPANY-PJSC-MASDAR",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142573",
+    "lastInvoiceDate": "2026-05-13"
+  },
+  {
+    "custCode": "101156",
+    "branchName": "ABU DHABI ISLAMIC BANK (ADIB)",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143717",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "104337",
+    "branchName": "ABU DHABI NATIONAL HOTELS COMPANY",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142356",
+    "lastInvoiceDate": "2026-04-24"
+  },
+  {
+    "custCode": "104211",
+    "branchName": "ABU DHABI PENSION FUND",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16139497",
+    "lastInvoiceDate": "2025-09-30"
+  },
+  {
+    "custCode": "101157",
+    "branchName": "ABU DHABI SHIP BUILDING PJSC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143313",
+    "lastInvoiceDate": "2026-07-27"
+  },
+  {
+    "custCode": "104188",
+    "branchName": "ACWA POWER GLOBAL SERVICES L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143752",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "182200",
+    "branchName": "ADDRESS DUBAI MALL L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141477",
+    "lastInvoiceDate": "2026-02-12"
+  },
+  {
+    "custCode": "104121",
+    "branchName": "ADNH CATERING L.L.C -OPC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140314",
+    "lastInvoiceDate": "2025-11-20"
+  },
+  {
+    "custCode": "110120",
+    "branchName": "AFE CONTRACTING L.L.C.",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143694",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "101122",
+    "branchName": "AFRICAN & EASTERN (NEAR EAST) (BVI) LIMITED (DUBAI BRANCH)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142789",
+    "lastInvoiceDate": "2026-05-31"
+  },
+  {
+    "custCode": "104100",
+    "branchName": "AJMAN HOTEL GROUP - F.Z.E",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144077",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "104070",
+    "branchName": "AJMAN SARAY HOTEL - FZE",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144035",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "104410",
+    "branchName": "AL ABBAR ALUMINUM (BR OF AL ABBAR INVESTMENT CO LLC)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143518",
+    "lastInvoiceDate": "2026-08-03"
+  },
+  {
+    "custCode": "104132",
+    "branchName": "AL BAHIYA TRADING AND SERVICES-SOLE PROPRIETORSHIP",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16139527",
+    "lastInvoiceDate": "2025-10-02"
+  },
+  {
+    "custCode": "100412",
+    "branchName": "AL BAIT AL RAQI PREFAB HOUSES IND LLC",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16140854",
+    "lastInvoiceDate": "2026-01-02"
+  },
+  {
+    "custCode": "100101",
+    "branchName": "AL BAJA AL THAHBI GENERAL TR. L.L.C SP",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141858",
+    "lastInvoiceDate": "2026-02-18"
+  },
+  {
+    "custCode": "100038",
+    "branchName": "AL BARSHA ELECTRONICS-HAA",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142080",
+    "lastInvoiceDate": "2026-03-28"
+  },
+  {
+    "custCode": "100652",
+    "branchName": "AL DHAFRA BEACH HOTEL - SOLE PROPRIETORSHIP LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142997",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "100039",
+    "branchName": "AL ETIHAD PAYMENTS COMPANY - SOLE PROPRIETORSHIP LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143660",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "101263",
+    "branchName": "Al GHURAIR CONSTRUCTION MASONRY L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142902",
+    "lastInvoiceDate": "2026-06-13"
+  },
+  {
+    "custCode": "101262",
+    "branchName": "AL GHURAIR CONSTRUCTION READYMIX LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143527",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "104406",
+    "branchName": "AL GHURAIR FOODS LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16139578",
+    "lastInvoiceDate": "2025-10-07"
+  },
+  {
+    "custCode": "100970",
+    "branchName": "AL GURG UNILEVER LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143257",
+    "lastInvoiceDate": "2026-07-16"
+  },
+  {
+    "custCode": "104407",
+    "branchName": "AL HABTOOR GROUP (L.L.C)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143765",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "110175",
+    "branchName": "AL HATIMI TRADING LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16144008",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "104409",
+    "branchName": "AL HOLLA CONCRETE TECHNOLOGY CO. CONTECH (L.L.C)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16141950",
+    "lastInvoiceDate": "2026-03-10"
+  },
+  {
+    "custCode": "104213",
+    "branchName": "AL MAJAN MOBILE PHONES L.L.C.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141902",
+    "lastInvoiceDate": "2026-03-05"
+  },
+  {
+    "custCode": "100036",
+    "branchName": "AL MASAR ELECTRONICS TRADING LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16144016",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "100070",
+    "branchName": "AL MASHKA ELECTRONICS TRADING (L.L.C) (BR)",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141755",
+    "lastInvoiceDate": "2026-02-27"
+  },
+  {
+    "custCode": "100581",
+    "branchName": "AL MAZHAR ELECTRONIC APPLIANCES COMPANY - L.L.C - O.P.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141384",
+    "lastInvoiceDate": "2026-02-05"
+  },
+  {
+    "custCode": "100420",
+    "branchName": "AL NABOODA AUTOMOBILES LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143532",
+    "lastInvoiceDate": "2026-08-08"
+  },
+  {
+    "custCode": "100231",
+    "branchName": "AL NABOODAH CONTRACTING CO. LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143878",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "100945",
+    "branchName": "AL NABOODAH CONTRACTING CO. LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143698",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "110140",
+    "branchName": "AL NADA INVESTMENT L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141988",
+    "lastInvoiceDate": "2026-03-17"
+  },
+  {
+    "custCode": "177568",
+    "branchName": "AL NAKHLA CRUSHER LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144076",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "182998",
+    "branchName": "AL QANA PROPERTY MANAGEMENT LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143885",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "100743",
+    "branchName": "AL RAHA VILLAGE PROPERTIES L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143374",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "104417",
+    "branchName": "AL RAMS BAZAAR DEPARTMENT STORE LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141629",
+    "lastInvoiceDate": "2026-02-17"
+  },
+  {
+    "custCode": "104399",
+    "branchName": "AL RAMS TRADING CO LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16140297",
+    "lastInvoiceDate": "2025-11-01"
+  },
+  {
+    "custCode": "104051",
+    "branchName": "AL RASHIDEEN DISTRIBUTION L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141381",
+    "lastInvoiceDate": "2026-02-05"
+  },
+  {
+    "custCode": "100092",
+    "branchName": "AL RAWABI DAIRY COMPANY LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140569",
+    "lastInvoiceDate": "2025-12-09"
+  },
+  {
+    "custCode": "101106",
+    "branchName": "AL REYAMI TECHNOLOGIES (L.L.C)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143857",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "100097",
+    "branchName": "AL SAIF GRAPHICS",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16143452",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "104063",
+    "branchName": "AL SALAM COMMUNITY SCHOOL LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16139912",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "104212",
+    "branchName": "AL SALAM SATWA",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141808",
+    "lastInvoiceDate": "2026-03-03"
+  },
+  {
+    "custCode": "110401",
+    "branchName": "AL SEEB TRADING LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16143916",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "100099",
+    "branchName": "AL SULTAN INTERNATIONAL REAL ESTATE LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16141270",
+    "lastInvoiceDate": "2026-01-27"
+  },
+  {
+    "custCode": "104085",
+    "branchName": "AL WASL FOOTBALL COMPANY LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144054",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "104072",
+    "branchName": "AL WASL SPORTS CLUB",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143279",
+    "lastInvoiceDate": "2026-07-22"
+  },
+  {
+    "custCode": "182962",
+    "branchName": "AL ZORAH BEACH RESORT - F.Z.E",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142830",
+    "lastInvoiceDate": "2026-06-11"
+  },
+  {
+    "custCode": "104190",
+    "branchName": "ALDAR ACADEMIES -  YASMINA BRITISH ACADEMY - L.L.C - O.P.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141301",
+    "lastInvoiceDate": "2026-02-02"
+  },
+  {
+    "custCode": "110150",
+    "branchName": "ALFA ROYAL TRADING",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142067",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "104335",
+    "branchName": "ALI & SONS COMPANY OWNED BY ALI & SONS HOLDING COMPANY - SOLE PROPRIETORSHIP L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143499",
+    "lastInvoiceDate": "2026-08-11"
+  },
+  {
+    "custCode": "101243",
+    "branchName": "ALI AL SAEEDI TRADING (L.L.C)",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141909",
+    "lastInvoiceDate": "2026-03-02"
+  },
+  {
+    "custCode": "100090",
+    "branchName": "ALL IN ONE HOTEL SUPPLIES L.L.C - S.P.C",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16142593",
+    "lastInvoiceDate": "2026-05-11"
+  },
+  {
+    "custCode": "104130",
+    "branchName": "ALMANSOORI PETROLEUM SERVICES LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143424",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "104131",
+    "branchName": "ALMANSOORI PRODUCTION SERVICES COMPANY LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140914",
+    "lastInvoiceDate": "2025-12-24"
+  },
+  {
+    "custCode": "104088",
+    "branchName": "ALPHA FLIGHT SERVICES UAE LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143431",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "101026",
+    "branchName": "ALPHAMED GENERAL TRADING LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143238",
+    "lastInvoiceDate": "2026-07-18"
+  },
+  {
+    "custCode": "100215",
+    "branchName": "AMERICAN HOSPITAL DUBAI LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143996",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "104420",
+    "branchName": "AMERICAN HOSPITAL DUBAI SCIENCE PARK FZ - LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142970",
+    "lastInvoiceDate": "2026-06-25"
+  },
+  {
+    "custCode": "100599",
+    "branchName": "AMERICAN SCHOOL OF DUBAI",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144078",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "101108",
+    "branchName": "AMITY UNIVERSITY DUBAI",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143869",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "104403",
+    "branchName": "AMNA AL MEHAIRI PHONES LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141689",
+    "lastInvoiceDate": "2026-02-01"
+  },
+  {
+    "custCode": "182922",
+    "branchName": "ANANTARA DOWNTOWN HOTEL L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141729",
+    "lastInvoiceDate": "2026-02-25"
+  },
+  {
+    "custCode": "101229",
+    "branchName": "ANANTARA HOTEL PALM JUMEIRAH L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143345",
+    "lastInvoiceDate": "2026-07-29"
+  },
+  {
+    "custCode": "104429",
+    "branchName": "ANDAZ DUBAI THE PALM",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143884",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "133319",
+    "branchName": "ANUVU MIDDLE EAST OPERATIONS FZ - LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143147",
+    "lastInvoiceDate": "2026-07-10"
+  },
+  {
+    "custCode": "115738",
+    "branchName": "AQUA CURE TRADING FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143631",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "100768",
+    "branchName": "ARABIAN AUTOMOBILES CO. (L.L.C.)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141641",
+    "lastInvoiceDate": "2026-02-19"
+  },
+  {
+    "custCode": "137330",
+    "branchName": "ARABIAN COMPANY LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16142953",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "100032",
+    "branchName": "ARABIAN GULF MECHANICAL CENTRE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142474",
+    "lastInvoiceDate": "2026-05-05"
+  },
+  {
+    "custCode": "104404",
+    "branchName": "ARABIAN HOSPITALITY FACILITY SUPPLY LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16140699",
+    "lastInvoiceDate": "2025-12-18"
+  },
+  {
+    "custCode": "104119",
+    "branchName": "ARABIAN PACKAGING CO (LLC)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143861",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "104431",
+    "branchName": "ARADY DEVELOPMENTS L.L.C.",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140172",
+    "lastInvoiceDate": "2025-11-11"
+  },
+  {
+    "custCode": "101010",
+    "branchName": "ARMANI HOTEL DUBAI",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140528",
+    "lastInvoiceDate": "2025-11-29"
+  },
+  {
+    "custCode": "104095",
+    "branchName": "AROMA INTERNATIONAL BUILDING CONTRACTING LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143530",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "104107",
+    "branchName": "ASHWIN INTERNATIONAL FZCO",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16143702",
+    "lastInvoiceDate": "2026-09-01"
+  },
+  {
+    "custCode": "100555",
+    "branchName": "ASMARA ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141795",
+    "lastInvoiceDate": "2026-02-26"
+  },
+  {
+    "custCode": "104439",
+    "branchName": "AURA INN HOTEL APARTMENT L.L.C. S.O.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143432",
+    "lastInvoiceDate": "2026-08-04"
+  },
+  {
+    "custCode": "104427",
+    "branchName": "AVOLON ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141899",
+    "lastInvoiceDate": "2026-03-10"
+  },
+  {
+    "custCode": "110086",
+    "branchName": "BAB AL QASR HOTEL",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141479",
+    "lastInvoiceDate": "2026-02-13"
+  },
+  {
+    "custCode": "110237",
+    "branchName": "BAIT AL BATTERJEE HOSPITALS MANAGEMENT LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143433",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "110288",
+    "branchName": "BALMER LAWRIE UAE LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16141872",
+    "lastInvoiceDate": "2026-03-03"
+  },
+  {
+    "custCode": "110272",
+    "branchName": "BASF FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143958",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "110110",
+    "branchName": "BASIL AND LIME RESTAURANT LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16143227",
+    "lastInvoiceDate": "2026-07-17"
+  },
+  {
+    "custCode": "110230",
+    "branchName": "BECTON DICKINSON B.V. (DUBAI BRANCH)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144055",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "110400",
+    "branchName": "BELCO CONTRACTING L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141652",
+    "lastInvoiceDate": "2026-02-13"
+  },
+  {
+    "custCode": "110404",
+    "branchName": "BKG MODULAR SYSTEM L.L.C.",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142225",
+    "lastInvoiceDate": "2026-04-10"
+  },
+  {
+    "custCode": "110343",
+    "branchName": "BLUE OCEAN HEALTH FZ - LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143094",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "110344",
+    "branchName": "BLUEWATERS RESORTS L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143951",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "110397",
+    "branchName": "BNW REAL ESTATE DEVELOPMENT L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143997",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "110336",
+    "branchName": "BOEING INTERNATIONAL CORPORATION",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143957",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "172351",
+    "branchName": "BOSCH HOME COMFORT LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143877",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "191007",
+    "branchName": "BOURN HALL LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144068",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "110273",
+    "branchName": "BRINKS GLOBAL SERVICES FZE",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143082",
+    "lastInvoiceDate": "2026-07-06"
+  },
+  {
+    "custCode": "110383",
+    "branchName": "BRINKS GLOBAL SERVICES LTD. (DUBAI BR)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143746",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "110303",
+    "branchName": "BUKHATIR INVESTMENTS LTD",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142903",
+    "lastInvoiceDate": "2026-06-11"
+  },
+  {
+    "custCode": "115715",
+    "branchName": "C.G.R. FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143517",
+    "lastInvoiceDate": "2026-08-11"
+  },
+  {
+    "custCode": "116826",
+    "branchName": "CACTI MEDIA LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16140674",
+    "lastInvoiceDate": "2025-12-16"
+  },
+  {
+    "custCode": "155175",
+    "branchName": "CAMBRIDGE HIGH SCHOOL LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143968",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "182007",
+    "branchName": "CAMBRIDGE INTERNATIONAL SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143711",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "116837",
+    "branchName": "CANDO RESTAURANT LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142429",
+    "lastInvoiceDate": "2026-05-01"
+  },
+  {
+    "custCode": "115723",
+    "branchName": "CANON MIDDLE EAST FZ LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142956",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "116798",
+    "branchName": "CANRIG DRILLING TECHNOLOGY FZE",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142486",
+    "lastInvoiceDate": "2026-05-06"
+  },
+  {
+    "custCode": "116836",
+    "branchName": "CAPITAL CATERING AND SERVICES - SOLE PROPRIETORSHIP L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143555",
+    "lastInvoiceDate": "2026-08-15"
+  },
+  {
+    "custCode": "115718",
+    "branchName": "CAPITAL MEDICAL CENTRE FOR HEALTH SCREENING - L.L.C",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142820",
+    "lastInvoiceDate": "2026-06-10"
+  },
+  {
+    "custCode": "155079",
+    "branchName": "CARLTON DOWN TOWN HOTEL LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143665",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "115714",
+    "branchName": "CARLTON TOWER HOTEL",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140852",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "115159",
+    "branchName": "CARRARA MID-EAST INDUSTRIAL CO. LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142635",
+    "lastInvoiceDate": "2026-05-15"
+  },
+  {
+    "custCode": "116828",
+    "branchName": "CASINETTO TRADING LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16143584",
+    "lastInvoiceDate": "2026-08-08"
+  },
+  {
+    "custCode": "116778",
+    "branchName": "CATALOGUE FOR EXHIBITION STANDS MANUFACTURING CO L.L.C",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16140750",
+    "lastInvoiceDate": "2025-12-17"
+  },
+  {
+    "custCode": "155116",
+    "branchName": "CENTRAL BANK OF THE UAE",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140919",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "116795",
+    "branchName": "CENTRO SHARJAH HOTEL LLC SP",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143744",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "116822",
+    "branchName": "CLOUD IT SOLUTIONS FZE LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140023",
+    "lastInvoiceDate": "2025-11-03"
+  },
+  {
+    "custCode": "116787",
+    "branchName": "COLLECTIVE SPEND TECHNOLOGY",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143587",
+    "lastInvoiceDate": "2026-08-19"
+  },
+  {
+    "custCode": "116838",
+    "branchName": "COLOURS PRINTING CENTRE",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142808",
+    "lastInvoiceDate": "2026-06-08"
+  },
+  {
+    "custCode": "116839",
+    "branchName": "COMFORA L.LC.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143828",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "116835",
+    "branchName": "CONSTRUCTION WORKERS RESIDENTIAL CITY L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143689",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "116801",
+    "branchName": "COPTHORNE HOTEL",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143906",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "116791",
+    "branchName": "CREATIVE HUB EXHIBITION ORGANIZING L.L.C.",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142771",
+    "lastInvoiceDate": "2026-06-01"
+  },
+  {
+    "custCode": "115180",
+    "branchName": "CROWN HOUSE TECHNOLOGY UAE LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141580",
+    "lastInvoiceDate": "2026-02-05"
+  },
+  {
+    "custCode": "116830",
+    "branchName": "CROWNE PLAZA HOTEL - DUBAI DEIRA (BR OF MOHD & OBAID AL MULLA CO) LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142556",
+    "lastInvoiceDate": "2026-05-01"
+  },
+  {
+    "custCode": "116802",
+    "branchName": "CROWNE PLAZA HOTEL, DUBAI JUMEIRAH",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141940",
+    "lastInvoiceDate": "2026-03-13"
+  },
+  {
+    "custCode": "116807",
+    "branchName": "CROWNE PLAZA HOTEL, DUBAI JUMEIRAH (BR OF MOHAMED & OBAID AL MULLA L.L.C.)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143779",
+    "lastInvoiceDate": "2026-09-05"
+  },
+  {
+    "custCode": "115751",
+    "branchName": "CSP ABU DHABI CFS LTD",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16141481",
+    "lastInvoiceDate": "2026-02-13"
+  },
+  {
+    "custCode": "115739",
+    "branchName": "CULLIGAN INTERNATIONAL EMIRATES (L.L.C)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143979",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "155193",
+    "branchName": "CUTTING EDGE SOLUTIONS FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140220",
+    "lastInvoiceDate": "2025-11-01"
+  },
+  {
+    "custCode": "122284",
+    "branchName": "DAMAC PROPERTIES CO. LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140726",
+    "lastInvoiceDate": "2025-12-01"
+  },
+  {
+    "custCode": "122445",
+    "branchName": "DAMAN INVESTMENTS (PSC)",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140283",
+    "lastInvoiceDate": "2025-11-18"
+  },
+  {
+    "custCode": "122367",
+    "branchName": "DANAT JABAL AL DHANNA RESORT - SOLE PROPRIETORSHIP LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142998",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "122424",
+    "branchName": "DANWAY ELECTRICAL & MECHANICAL ENGINEERING L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143821",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "125191",
+    "branchName": "DAR GLOBAL PROPERTIES LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16139577",
+    "lastInvoiceDate": "2025-10-06"
+  },
+  {
+    "custCode": "125143",
+    "branchName": "DEIRA INTERNATIONAL SCHOOL ( Br. Of Al Futtaim Education Foundation L.L.C.)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142980",
+    "lastInvoiceDate": "2026-06-26"
+  },
+  {
+    "custCode": "122622",
+    "branchName": "DELIVERIX SHIPPING AND LOGISTIC L.LC.",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16140168",
+    "lastInvoiceDate": "2025-11-11"
+  },
+  {
+    "custCode": "122388",
+    "branchName": "DEPA INTERIORS  (L.L.C)",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140367",
+    "lastInvoiceDate": "2025-11-24"
+  },
+  {
+    "custCode": "125207",
+    "branchName": "DEPA UNITED GROUP (PJSC)",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140911",
+    "lastInvoiceDate": "2026-01-05"
+  },
+  {
+    "custCode": "122413",
+    "branchName": "DEPARTMENT OF AJMAN TOURISM",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143808",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "122109",
+    "branchName": "DESERT LANDSCAPE COMPANY(LLC)",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143845",
+    "lastInvoiceDate": "2026-09-09"
+  },
+  {
+    "custCode": "120011",
+    "branchName": "DESERT TURFCARE GARDENS MAINTENANCE LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143498",
+    "lastInvoiceDate": "2026-08-11"
+  },
+  {
+    "custCode": "120079",
+    "branchName": "DHL LOGISTICS LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16144017",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "122438",
+    "branchName": "DIFC INVESTMENTS LTD",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142220",
+    "lastInvoiceDate": "2026-04-13"
+  },
+  {
+    "custCode": "122444",
+    "branchName": "DNV AS ( DUBAI BRANCH)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144021",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "122456",
+    "branchName": "DREAM CITY HOTEL APARTMENTS L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140444",
+    "lastInvoiceDate": "2025-11-27"
+  },
+  {
+    "custCode": "120025",
+    "branchName": "DRYDOCKS WORLD - DUBAI FZCO",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143367",
+    "lastInvoiceDate": "2026-07-30"
+  },
+  {
+    "custCode": "120010",
+    "branchName": "DUBAI AIRPORT CORPORATION",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16144059",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "120022",
+    "branchName": "DUBAI AMERICAN ACADEMY",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143855",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "122374",
+    "branchName": "DUBAI CABLE CO.(PVT,.)LTD",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143160",
+    "lastInvoiceDate": "2026-07-13"
+  },
+  {
+    "custCode": "122344",
+    "branchName": "DUBAI CUSTOMS",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143630",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "122427",
+    "branchName": "DUBAI ECONOMY AND TOURISM",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142256",
+    "lastInvoiceDate": "2026-04-16"
+  },
+  {
+    "custCode": "122618",
+    "branchName": "DUBAI EQUESTRIAN CLUB",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142809",
+    "lastInvoiceDate": "2026-06-08"
+  },
+  {
+    "custCode": "122339",
+    "branchName": "DUBAI INTERNATIONAL FINANCIAL CENTRE AUTHORITY",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142212",
+    "lastInvoiceDate": "2026-04-10"
+  },
+  {
+    "custCode": "120028",
+    "branchName": "DUBAI ISLAMIC BANK PJSC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143987",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "122360",
+    "branchName": "DUBAI MARITIME CITY FZE",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16139908",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "122399",
+    "branchName": "DUBAI MEDIA INCORPORATED",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143842",
+    "lastInvoiceDate": "2026-09-09"
+  },
+  {
+    "custCode": "122625",
+    "branchName": "DUBAI NATIONAL INVESTMENT L.L.C.",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16140622",
+    "lastInvoiceDate": "2025-12-06"
+  },
+  {
+    "custCode": "122465",
+    "branchName": "DUBAI PARKS HOTEL L.L.C",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143534",
+    "lastInvoiceDate": "2026-08-12"
+  },
+  {
+    "custCode": "120033",
+    "branchName": "DUBAI PETROLEUM ESTABLISHMENT",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16144057",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "120034",
+    "branchName": "DUBAI POLICE GENERAL H.Q-INS",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143561",
+    "lastInvoiceDate": "2026-08-18"
+  },
+  {
+    "custCode": "122626",
+    "branchName": "DUBAI RACING CLUB",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142156",
+    "lastInvoiceDate": "2026-03-27"
+  },
+  {
+    "custCode": "122402",
+    "branchName": "DUBAI SPORTS COUNCIL",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143221",
+    "lastInvoiceDate": "2026-07-17"
+  },
+  {
+    "custCode": "122241",
+    "branchName": "DUBAI WORLD TRADE CENTER",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143299",
+    "lastInvoiceDate": "2026-07-22"
+  },
+  {
+    "custCode": "122229",
+    "branchName": "DUKES DUBAI HOTEL",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142798",
+    "lastInvoiceDate": "2026-06-06"
+  },
+  {
+    "custCode": "120029",
+    "branchName": "DULSCO LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143899",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "122343",
+    "branchName": "DUSIT THANI DUBAI",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141184",
+    "lastInvoiceDate": "2026-01-22"
+  },
+  {
+    "custCode": "125441",
+    "branchName": "e& enterprise iot & ai DWC LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141745",
+    "lastInvoiceDate": "2026-02-23"
+  },
+  {
+    "custCode": "125460",
+    "branchName": "EDITION HOTEL LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143914",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "125420",
+    "branchName": "ELECTRA EXHIBITIONS FZ - LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140448",
+    "lastInvoiceDate": "2025-11-25"
+  },
+  {
+    "custCode": "125025",
+    "branchName": "ELLINGTON PROPERTIES DEVELOPMENT L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143632",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "125008",
+    "branchName": "Emaar Community Management LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142663",
+    "lastInvoiceDate": "2026-05-14"
+  },
+  {
+    "custCode": "125371",
+    "branchName": "EMAAR ENTERTAINMENT LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141994",
+    "lastInvoiceDate": "2026-03-18"
+  },
+  {
+    "custCode": "125117",
+    "branchName": "EMIRATES                               DNATA",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16144065",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "125363",
+    "branchName": "EMIRATES DRIVING INSTITUTE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143163",
+    "lastInvoiceDate": "2026-07-13"
+  },
+  {
+    "custCode": "125113",
+    "branchName": "EMIRATES FLIGHT CATERING CO (L.L.C)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142387",
+    "lastInvoiceDate": "2026-04-28"
+  },
+  {
+    "custCode": "125330",
+    "branchName": "EMIRATES GENERAL PETROLEUM CORPORATION - EMARAT",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142664",
+    "lastInvoiceDate": "2026-05-20"
+  },
+  {
+    "custCode": "120038",
+    "branchName": "Emirates Global Aluminium PJSC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143980",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "125471",
+    "branchName": "EMIRATES ICON ELECTROMECHANICAL CO LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16141249",
+    "lastInvoiceDate": "2026-01-30"
+  },
+  {
+    "custCode": "125275",
+    "branchName": "EMIRATES INTERNATIONAL SCHOOL LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142642",
+    "lastInvoiceDate": "2026-05-18"
+  },
+  {
+    "custCode": "125378",
+    "branchName": "EMIRATES ISLAMIC BANK (PJSC)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143134",
+    "lastInvoiceDate": "2026-07-06"
+  },
+  {
+    "custCode": "125274",
+    "branchName": "EMIRATES NATIONAL OIL COMPANY LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16144033",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "125288",
+    "branchName": "EMIRATES NBD",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143741",
+    "lastInvoiceDate": "2026-09-01"
+  },
+  {
+    "custCode": "125452",
+    "branchName": "EMIRATES PALACE HOTEL",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16139842",
+    "lastInvoiceDate": "2025-10-29"
+  },
+  {
+    "custCode": "125016",
+    "branchName": "EMIRATES REFINING CO.LTD.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143604",
+    "lastInvoiceDate": "2026-08-04"
+  },
+  {
+    "custCode": "125472",
+    "branchName": "Emirates Speciality Hospital FZ-LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16144069",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "125395",
+    "branchName": "ENGIE COFELY ENERGY SERVICES LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143210",
+    "lastInvoiceDate": "2026-07-16"
+  },
+  {
+    "custCode": "125022",
+    "branchName": "ENGINEERING CONNECTIONS-INS",
+    "salesman": "SHIVA",
+    "lastSalesOrderNumber": "16141884",
+    "lastInvoiceDate": "2026-03-09"
+  },
+  {
+    "custCode": "125021",
+    "branchName": "ENGINEERING OFFICE",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143932",
+    "lastInvoiceDate": "2026-09-15"
+  },
+  {
+    "custCode": "125467",
+    "branchName": "ENGINEERING OFFICE ESTATES LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141275",
+    "lastInvoiceDate": "2026-01-30"
+  },
+  {
+    "custCode": "125479",
+    "branchName": "ESG AGRO - L.L.C. - S.P.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144028",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "101168",
+    "branchName": "ETIHAD AIRWAYS ENGINEERING LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143411",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "125397",
+    "branchName": "ETIHAD RAIL COMPANY - P J S C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143225",
+    "lastInvoiceDate": "2026-07-17"
+  },
+  {
+    "custCode": "125352",
+    "branchName": "ETISALAT ACADEMY",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143443",
+    "lastInvoiceDate": "2026-08-06"
+  },
+  {
+    "custCode": "125468",
+    "branchName": "EXEED ASWAR - SOLE PROPRIETORSHIP L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142407",
+    "lastInvoiceDate": "2026-04-29"
+  },
+  {
+    "custCode": "125469",
+    "branchName": "EXEED PRECAST SOLE PROPRIETORSHIP LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142537",
+    "lastInvoiceDate": "2026-05-11"
+  },
+  {
+    "custCode": "128197",
+    "branchName": "FARNEK SERVICES (L.L.C)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143835",
+    "lastInvoiceDate": "2026-09-08"
+  },
+  {
+    "custCode": "128623",
+    "branchName": "FEDERAL AUTHORITY FOR NUCLEAR REGULATION (FANR)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142900",
+    "lastInvoiceDate": "2026-06-18"
+  },
+  {
+    "custCode": "128679",
+    "branchName": "FERTIGLOBE PLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143162",
+    "lastInvoiceDate": "2026-07-10"
+  },
+  {
+    "custCode": "128621",
+    "branchName": "FIBER MATRIX CONTROL SYSTEMS L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143856",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "128667",
+    "branchName": "FIRST AVENUE HOTEL",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16139877",
+    "lastInvoiceDate": "2025-10-30"
+  },
+  {
+    "custCode": "128692",
+    "branchName": "FIRST CENTRAL HOTEL APARTMENTS FZ LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141786",
+    "lastInvoiceDate": "2026-02-28"
+  },
+  {
+    "custCode": "128199",
+    "branchName": "FIRST HOMES WORLDWIDE (L.L.C)",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141102",
+    "lastInvoiceDate": "2026-01-22"
+  },
+  {
+    "custCode": "128688",
+    "branchName": "FIT N GLAM LADIES GYM LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140014",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "146162",
+    "branchName": "FITNESS FIRST L.L.C",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143366",
+    "lastInvoiceDate": "2026-07-30"
+  },
+  {
+    "custCode": "128695",
+    "branchName": "FOL MANAGEMENT LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142323",
+    "lastInvoiceDate": "2026-04-14"
+  },
+  {
+    "custCode": "128653",
+    "branchName": "FOOD MARK (L.L.C.)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142898",
+    "lastInvoiceDate": "2026-06-17"
+  },
+  {
+    "custCode": "128693",
+    "branchName": "FOUR COLORS TECHNICAL SERVICES LLC",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141724",
+    "lastInvoiceDate": "2026-02-24"
+  },
+  {
+    "custCode": "128616",
+    "branchName": "FUJAIRAH NATIONAL GROUP LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16139484",
+    "lastInvoiceDate": "2025-09-30"
+  },
+  {
+    "custCode": "128697",
+    "branchName": "FULTON ELECTRONICS LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142773",
+    "lastInvoiceDate": "2026-06-02"
+  },
+  {
+    "custCode": "133342",
+    "branchName": "G4S SECURE SOLUTIONS LLC - DUBAI BRANCH",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143653",
+    "lastInvoiceDate": "2026-08-15"
+  },
+  {
+    "custCode": "133379",
+    "branchName": "GARGASH CORPORATE MANAGEMENT OFFICE",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16139882",
+    "lastInvoiceDate": "2025-10-30"
+  },
+  {
+    "custCode": "131004",
+    "branchName": "GARGASH ENTERPRISES L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143905",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "133320",
+    "branchName": "Gargash Motors & General Trading LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141096",
+    "lastInvoiceDate": "2026-01-21"
+  },
+  {
+    "custCode": "133315",
+    "branchName": "GEMBOX GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141775",
+    "lastInvoiceDate": "2026-02-26"
+  },
+  {
+    "custCode": "100067",
+    "branchName": "GEMS AL KHALEEJ INTERNATIONAL SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143967",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "133186",
+    "branchName": "GEMS AMERICAN ACADEMY  LLC - ABU DHABI",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143774",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "167247",
+    "branchName": "GEMS Cambridge International Private School Sharjah",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144038",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133254",
+    "branchName": "GEMS CAMBRIDGE INTERNATIONAL SCHOOL- ABU DHABI",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143776",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "133305",
+    "branchName": "GEMS FIRST POINT SCHOOL L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143731",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "182015",
+    "branchName": "GEMS Group Holdings Limited - Dubai Branch",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143315",
+    "lastInvoiceDate": "2026-07-27"
+  },
+  {
+    "custCode": "133294",
+    "branchName": "GEMS INTERNATIONAL SCHOOL - DUBAI HILLS",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143830",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "182012",
+    "branchName": "GEMS LEGACY SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143924",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "133303",
+    "branchName": "GEMS METROPOLE SCHOOL (BR OF PREMIER SCHOOLS INTERNATINAL (L.L.C)",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143732",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "133225",
+    "branchName": "GEMS MILLENIUM SCHOOL - INS",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143074",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "133255",
+    "branchName": "GEMS MODERN ACADEMY",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144044",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133253",
+    "branchName": "GEMS NEW MILLENNIUM SCHOOL L.L.C. - AL KHAIL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143966",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "133259",
+    "branchName": "GEMS OUR OWN ENGLISH HIGH SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143742",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "189004",
+    "branchName": "GEMS OUR OWN INDIAN SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143708",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "172106",
+    "branchName": "GEMS ROYAL DUBAI SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144051",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133223",
+    "branchName": "GEMS WELLINGTON ACADEMY BRANCH",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143757",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "191065",
+    "branchName": "GEMS Wellington International School",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143995",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "133262",
+    "branchName": "GEMS WESTMINISTER SCHOOL RAK LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143824",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "133246",
+    "branchName": "GEMS WESTMINSTER SCHOOL  SHARJAH LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143751",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "133325",
+    "branchName": "GEMS WINCHESTER PRIVATE SCHOOL FUJAIRAH LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143792",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "133239",
+    "branchName": "GEMS WINCHESTER SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144036",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133192",
+    "branchName": "GEMS WORLD ACADEMY",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143468",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "133304",
+    "branchName": "GEMS WORLD ACADEMY L.L.C - ABU DHABI",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143668",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "133309",
+    "branchName": "GINCO GENERAL CONTRACTING LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143673",
+    "lastInvoiceDate": "2026-08-20"
+  },
+  {
+    "custCode": "133252",
+    "branchName": "GLOBAL CREATIVE VIDEO - FZCO",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16141117",
+    "lastInvoiceDate": "2026-01-23"
+  },
+  {
+    "custCode": "131013",
+    "branchName": "GOV.OF DUBAI HH.THE RULERS COURT",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143161",
+    "lastInvoiceDate": "2026-07-13"
+  },
+  {
+    "custCode": "149985",
+    "branchName": "GOVT OF AJMAN - DEPARTMENT OF ECONOMIC DEVELOPMENT",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142992",
+    "lastInvoiceDate": "2026-06-26"
+  },
+  {
+    "custCode": "131061",
+    "branchName": "GOVT. OF DUBAI - COURTS DEPARTMENT",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140892",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "172292",
+    "branchName": "GOVT. RAK ECONOMIC ZONE AUTHORITY",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144025",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133429",
+    "branchName": "GRAND HYATT DUBAI HOTEL",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143900",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "133415",
+    "branchName": "GRAND MILLENIUM AL WAHDA HOTEL",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16141250",
+    "lastInvoiceDate": "2026-01-30"
+  },
+  {
+    "custCode": "133430",
+    "branchName": "GROOMY PET CARE - L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142083",
+    "lastInvoiceDate": "2026-03-30"
+  },
+  {
+    "custCode": "133423",
+    "branchName": "GULF ASIA CONTRACTING CO LLC (SOLE PROPIETORSHIP)",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142047",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "133389",
+    "branchName": "GULF CONTRACTING & LANDSCAPING L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140587",
+    "lastInvoiceDate": "2025-12-10"
+  },
+  {
+    "custCode": "100971",
+    "branchName": "GULF INSURANCE GROUP (GULF) B.S.C (C) DUBAI BRANCH",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144037",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "133432",
+    "branchName": "GULF MARINE SERVICES COMPANY W L L",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16144029",
+    "lastInvoiceDate": "2026-09-15"
+  },
+  {
+    "custCode": "134371",
+    "branchName": "H & H DEVELOPMENT LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143582",
+    "lastInvoiceDate": "2026-08-19"
+  },
+  {
+    "custCode": "134336",
+    "branchName": "H.H. SHAIKH MANSOUR BIN ZAYED AL NAHYAN PRIVATE AFFAIRS OFFICE",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143867",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "134312",
+    "branchName": "H.H.SHEIKH AHMED  BIN RASHID AL MAKTOUM",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141009",
+    "lastInvoiceDate": "2026-01-15"
+  },
+  {
+    "custCode": "134324",
+    "branchName": "HARTLAND INTERNATIONAL SCHOOL L.L.C - FZ",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144052",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "134242",
+    "branchName": "HATTA LODGES L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142061",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "134320",
+    "branchName": "HERIOT WATT UNIVERSITY",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142115",
+    "lastInvoiceDate": "2026-04-04"
+  },
+  {
+    "custCode": "134141",
+    "branchName": "HIGH LIGHT ELECTRONICS LLC.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141758",
+    "lastInvoiceDate": "2026-02-27"
+  },
+  {
+    "custCode": "122436",
+    "branchName": "HIGH POWER SIGNATURE L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143398",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "134237",
+    "branchName": "HILAL BIL BADI & PARTNERS CONTRACTING COMPANY - W L L - HILALCO",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142975",
+    "lastInvoiceDate": "2026-06-26"
+  },
+  {
+    "custCode": "134329",
+    "branchName": "HILTON DUBAI JUMEIRAH (BRANCH - GOLDEN SANDS HOTEL LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143832",
+    "lastInvoiceDate": "2026-09-08"
+  },
+  {
+    "custCode": "133403",
+    "branchName": "HILTON DUBAI PALM JUMEIRAH HOTEL",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143558",
+    "lastInvoiceDate": "2026-08-18"
+  },
+  {
+    "custCode": "134330",
+    "branchName": "HILTON DUBAI THE WALK HOTEL (BR OF GOLDEN SANDS HOTEL LLC)",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16141871",
+    "lastInvoiceDate": "2026-03-06"
+  },
+  {
+    "custCode": "134361",
+    "branchName": "HILTON GARDEN INN HOTEL MALL AVENUE (BR OF ARENCO GOLDEN SANDS INVESTMENT LLC)",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143548",
+    "lastInvoiceDate": "2026-08-13"
+  },
+  {
+    "custCode": "182945",
+    "branchName": "HIRUX INTERNATIONAL S.P.A",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16139933",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "134323",
+    "branchName": "HOCHIKI MIDDLE EAST FZE",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140710",
+    "lastInvoiceDate": "2025-12-01"
+  },
+  {
+    "custCode": "134380",
+    "branchName": "HOLIDAY INN ABU DHABI - L.L.C. - S.P.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143619",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "134354",
+    "branchName": "HOLIDAY INN AND SUITES SCIENCE PARK LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16141785",
+    "lastInvoiceDate": "2026-02-28"
+  },
+  {
+    "custCode": "134369",
+    "branchName": "HOMEDEVO TRADING SOLE PROPRIETORSHIP LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16140902",
+    "lastInvoiceDate": "2026-01-05"
+  },
+  {
+    "custCode": "134367",
+    "branchName": "HORECA GENERAL TRADING LLC SOC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16144031",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "134236",
+    "branchName": "HORIZONS ENGLISH SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143671",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "134363",
+    "branchName": "HYATT REGENCY DUBAI  HOTEL",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143749",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "137309",
+    "branchName": "I F M FACILITIES MANAGEMENT L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16139529",
+    "lastInvoiceDate": "2025-10-02"
+  },
+  {
+    "custCode": "137295",
+    "branchName": "IFZA  PROPERTY - FZCO",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142239",
+    "lastInvoiceDate": "2026-04-14"
+  },
+  {
+    "custCode": "128668",
+    "branchName": "IFZA FIT OUT - FZCO",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142741",
+    "lastInvoiceDate": "2026-06-01"
+  },
+  {
+    "custCode": "137329",
+    "branchName": "IN CRAFT DECORATION WORKS LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16141445",
+    "lastInvoiceDate": "2026-02-05"
+  },
+  {
+    "custCode": "155160",
+    "branchName": "INITIATIVE ABU DHABI SP LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16144070",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "115121",
+    "branchName": "INITIATIVE ABU DHABI SP LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16142626",
+    "lastInvoiceDate": "2026-05-05"
+  },
+  {
+    "custCode": "137291",
+    "branchName": "INTER EMIRATES MOTORS-SOLE PROPRIETORSHIP LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143560",
+    "lastInvoiceDate": "2026-08-18"
+  },
+  {
+    "custCode": "137267",
+    "branchName": "INTERNATIONAL CENTER FOR BIOSALINE AGRICULTURE",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143255",
+    "lastInvoiceDate": "2026-07-20"
+  },
+  {
+    "custCode": "137252",
+    "branchName": "INTERNATIONAL PACKAGING COMPANY LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143283",
+    "lastInvoiceDate": "2026-07-21"
+  },
+  {
+    "custCode": "125435",
+    "branchName": "INTERNATIONAL SCHOOL OF CREATIVE SCIENCE NAD AL SHIBA L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144071",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "137301",
+    "branchName": "INTERNATIONAL SCHOOL OF CREATIVE SCIENCE, MUWEILAH",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141055",
+    "lastInvoiceDate": "2026-01-15"
+  },
+  {
+    "custCode": "183026",
+    "branchName": "INTERNATIONAL TUBULAR SERVICES MIDDLE EAST - WLL",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143590",
+    "lastInvoiceDate": "2026-08-14"
+  },
+  {
+    "custCode": "134302",
+    "branchName": "ISHRAQ DUBAI LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143439",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "134374",
+    "branchName": "ISHRAQ DUBAI LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142979",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "134331",
+    "branchName": "ISHRAQ DUBAI LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142699",
+    "lastInvoiceDate": "2026-05-21"
+  },
+  {
+    "custCode": "137262",
+    "branchName": "ITHRA DUBAI LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142351",
+    "lastInvoiceDate": "2026-04-24"
+  },
+  {
+    "custCode": "403121",
+    "branchName": "JACKYS BUSINESS SOLUTIONS LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141166",
+    "lastInvoiceDate": "2026-01-27"
+  },
+  {
+    "custCode": "403231",
+    "branchName": "JACKYS DISTRIBUTION INNOVATION GENERAL TRADING L.L.C",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16143487",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "403101",
+    "branchName": "JACKYS ELECTRONICS RETAIL DIVN - TRADE A/C",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143929",
+    "lastInvoiceDate": "2026-09-15"
+  },
+  {
+    "custCode": "140210",
+    "branchName": "JACKYS GEMBOX GENERAL TRADING  L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142133",
+    "lastInvoiceDate": "2026-04-01"
+  },
+  {
+    "custCode": "403106",
+    "branchName": "JACKYS GULF FZE - TRADE A/C",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142230",
+    "lastInvoiceDate": "2026-04-14"
+  },
+  {
+    "custCode": "403123",
+    "branchName": "JACKYS GULF FZE. (JGE/GNE) TRADE ACCOUNT",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140240",
+    "lastInvoiceDate": "2025-11-01"
+  },
+  {
+    "custCode": "403117",
+    "branchName": "JACKYS LOGISTICS WORLDWIDE - TRADE A/C",
+    "salesman": "SALES TO GROUP COMPANIES",
+    "lastSalesOrderNumber": "16139626",
+    "lastInvoiceDate": "2025-09-30"
+  },
+  {
+    "custCode": "403124",
+    "branchName": "JACKYS RETAIL LLC  -JRL-TRADE ACCOUNT",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141845",
+    "lastInvoiceDate": "2026-03-05"
+  },
+  {
+    "custCode": "140218",
+    "branchName": "JAMAL JOHAR M. AL JOHAR",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141103",
+    "lastInvoiceDate": "2026-01-22"
+  },
+  {
+    "custCode": "140177",
+    "branchName": "JAMES L. WILLIAMS MIDDLE EAST",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143988",
+    "lastInvoiceDate": "2026-09-21"
+  },
+  {
+    "custCode": "140187",
+    "branchName": "JBI PROPERTIES SERVICES COMPANY LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16139676",
+    "lastInvoiceDate": "2025-10-13"
+  },
+  {
+    "custCode": "140219",
+    "branchName": "JEBEL ALI TERMINAL FZE",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142787",
+    "lastInvoiceDate": "2026-06-04"
+  },
+  {
+    "custCode": "140199",
+    "branchName": "JOHNSON ARABIA LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143944",
+    "lastInvoiceDate": "2026-09-16"
+  },
+  {
+    "custCode": "140217",
+    "branchName": "JOHNSON CONTROLS AIR CONDITIONING AND REFRIGERATION LLC (ABU DHABI BR)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144072",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "140178",
+    "branchName": "JOHNSON CONTROLS AIR CONDITIONING AND REFRIGERATION LLC (DUBAI BR)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144075",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "140215",
+    "branchName": "JOHNSON CONTROLS AIRCONDITIONING AND REFRIGERATION FZE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143185",
+    "lastInvoiceDate": "2026-07-10"
+  },
+  {
+    "custCode": "140216",
+    "branchName": "JOHNSON CONTROLS INTERNATIONAL L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143728",
+    "lastInvoiceDate": "2026-08-25"
+  },
+  {
+    "custCode": "101098",
+    "branchName": "Jotun MEIA FZ-LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143263",
+    "lastInvoiceDate": "2026-07-20"
+  },
+  {
+    "custCode": "140184",
+    "branchName": "JOTUN MENA L.L.C",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143692",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "140059",
+    "branchName": "JOTUN U.A.E. LTD (L.L.C)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143489",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "140192",
+    "branchName": "JTRS COMPUTER TRADING & REPAIRING LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141597",
+    "lastInvoiceDate": "2026-02-17"
+  },
+  {
+    "custCode": "140196",
+    "branchName": "JUMAIRA BEACH BUILDING CONTRACTING LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143991",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "140012",
+    "branchName": "JUMEIRAH COLLEGE",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143802",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "140013",
+    "branchName": "JUMEIRAH PRIMARY SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143762",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "140194",
+    "branchName": "JW MARRIOT MARQUIS HOTEL",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143946",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "143136",
+    "branchName": "KADEEJA TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142173",
+    "lastInvoiceDate": "2026-03-23"
+  },
+  {
+    "custCode": "143002",
+    "branchName": "KAMLESH ELECTRONICS TRADING-HAA",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141893",
+    "lastInvoiceDate": "2026-03-02"
+  },
+  {
+    "custCode": "143157",
+    "branchName": "KCI MEDICAL MIDDLE EAST AND AFRICA FZE",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16140414",
+    "lastInvoiceDate": "2025-11-25"
+  },
+  {
+    "custCode": "143255",
+    "branchName": "KEOLIS M H I RAIL MANAGEMENT AND OPERATIONS LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143154",
+    "lastInvoiceDate": "2026-07-10"
+  },
+  {
+    "custCode": "143094",
+    "branchName": "KHADAMAT FACILITIES MANAGEMENT LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140513",
+    "lastInvoiceDate": "2025-11-29"
+  },
+  {
+    "custCode": "143010",
+    "branchName": "KHALIFA OBAID KHALIFA TRDG.-HAA",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141809",
+    "lastInvoiceDate": "2026-03-03"
+  },
+  {
+    "custCode": "143263",
+    "branchName": "KHAMMAS GROUP OF INVESTMENT COMPANIES ONE PERSON COMPANY L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141404",
+    "lastInvoiceDate": "2026-01-31"
+  },
+  {
+    "custCode": "143039",
+    "branchName": "KHANSAHEB CIVIL ENGINEERING L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143819",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "143271",
+    "branchName": "KHANSAHEB FMS L.L.C.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143801",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "143242",
+    "branchName": "KINGS HOLDING LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143849",
+    "lastInvoiceDate": "2026-08-30"
+  },
+  {
+    "custCode": "406994",
+    "branchName": "KINGSGATE CLOCK TOWER HOTEL LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142649",
+    "lastInvoiceDate": "2026-05-19"
+  },
+  {
+    "custCode": "143241",
+    "branchName": "KLUDI RAK LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142813",
+    "lastInvoiceDate": "2026-05-01"
+  },
+  {
+    "custCode": "100077",
+    "branchName": "LAING OROURKE MIDDLE EAST HOLDINGS LIMITED-DUBAI BR",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142292",
+    "lastInvoiceDate": "2026-04-14"
+  },
+  {
+    "custCode": "146143",
+    "branchName": "LANDMARK LEISURE LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16140094",
+    "lastInvoiceDate": "2025-11-07"
+  },
+  {
+    "custCode": "146177",
+    "branchName": "LANDMARK TWO INVESTMENT IN TOURIST LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142071",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "146176",
+    "branchName": "LE MERIDIEN DUBAI HOTEL & CONFERENCE CENTRE",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142959",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "146171",
+    "branchName": "LE MERIDIEN MINA SEYAHI BEACH & WATER PARK",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143579",
+    "lastInvoiceDate": "2026-08-19"
+  },
+  {
+    "custCode": "146159",
+    "branchName": "LEVA HOTEL L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142111",
+    "lastInvoiceDate": "2026-03-31"
+  },
+  {
+    "custCode": "125446",
+    "branchName": "LIPTON TEA AND INFUSIONS GULF FZE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143346",
+    "lastInvoiceDate": "2026-07-29"
+  },
+  {
+    "custCode": "149190",
+    "branchName": "MADINAT JUMEIRAH LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143298",
+    "lastInvoiceDate": "2026-07-23"
+  },
+  {
+    "custCode": "149962",
+    "branchName": "MAI DUBAI LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140806",
+    "lastInvoiceDate": "2025-12-30"
+  },
+  {
+    "custCode": "150148",
+    "branchName": "MAJESTIC PROPERTIES LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16142882",
+    "lastInvoiceDate": "2026-06-13"
+  },
+  {
+    "custCode": "149981",
+    "branchName": "MAJID AL FUTTAIM CINEMAS LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142144",
+    "lastInvoiceDate": "2026-03-31"
+  },
+  {
+    "custCode": "149988",
+    "branchName": "MAJID AL FUTTAIM LEISURE & ENTERTAINMENT CO. LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141533",
+    "lastInvoiceDate": "2026-02-16"
+  },
+  {
+    "custCode": "149980",
+    "branchName": "MAJID AL FUTTAIM PROPERTIES LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143434",
+    "lastInvoiceDate": "2026-07-16"
+  },
+  {
+    "custCode": "172335",
+    "branchName": "MAMMOET FZE",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140537",
+    "lastInvoiceDate": "2025-12-04"
+  },
+  {
+    "custCode": "155212",
+    "branchName": "MANDARIN ORIENTAL DOWN TOWN LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143919",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "149963",
+    "branchName": "MANDARIN ORIENTAL JUMEIRA DUBAI",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141847",
+    "lastInvoiceDate": "2026-03-06"
+  },
+  {
+    "custCode": "150146",
+    "branchName": "MARJAN L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143070",
+    "lastInvoiceDate": "2026-07-03"
+  },
+  {
+    "custCode": "150100",
+    "branchName": "MARRIOT MARQUIS HOTEL (BR OF WEST F5 INVESTMENT L.L.C.)",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143062",
+    "lastInvoiceDate": "2026-07-03"
+  },
+  {
+    "custCode": "149922",
+    "branchName": "MARRIOTT HARBOUR HOTEL & SUITES-DUBAI",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143643",
+    "lastInvoiceDate": "2026-08-24"
+  },
+  {
+    "custCode": "150070",
+    "branchName": "MAYSAN REAL ESTATE INVESTMENT LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16141376",
+    "lastInvoiceDate": "2026-02-05"
+  },
+  {
+    "custCode": "149775",
+    "branchName": "MBC FZ-LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142955",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "140002",
+    "branchName": "MCDERMOTT MIDDLE EAST INC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143817",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "155214",
+    "branchName": "MDC GENERAL SERVICES HOLDING COMPANY LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16141642",
+    "lastInvoiceDate": "2026-02-19"
+  },
+  {
+    "custCode": "149342",
+    "branchName": "MED GATE TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16140435",
+    "lastInvoiceDate": "2025-11-26"
+  },
+  {
+    "custCode": "149996",
+    "branchName": "MEHARI MERETSE GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16140624",
+    "lastInvoiceDate": "2025-12-10"
+  },
+  {
+    "custCode": "149028",
+    "branchName": "METRO DELUX GENERAL TRADING L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142081",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "150115",
+    "branchName": "METRO DELUX GENERAL TRADING L.L.C (BR)",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141715",
+    "lastInvoiceDate": "2026-02-24"
+  },
+  {
+    "custCode": "150129",
+    "branchName": "METRO DELUX GENERAL TRADING LLC (HOTEL BR)",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141690",
+    "lastInvoiceDate": "2026-02-20"
+  },
+  {
+    "custCode": "177795",
+    "branchName": "METRO DIGITAL TRADING L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141903",
+    "lastInvoiceDate": "2026-03-09"
+  },
+  {
+    "custCode": "150143",
+    "branchName": "MINDLABS TECHNOLOGIES L.L.C.",
+    "salesman": "DHEERAJ",
+    "lastSalesOrderNumber": "16141764",
+    "lastInvoiceDate": "2026-02-27"
+  },
+  {
+    "custCode": "128175",
+    "branchName": "MIRAL EXPERIENCES LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144004",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "150104",
+    "branchName": "MLEIHA DAIRY CO. L.LC. SP",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143007",
+    "lastInvoiceDate": "2026-06-25"
+  },
+  {
+    "custCode": "150142",
+    "branchName": "MOALAJAH - F.Z.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143941",
+    "lastInvoiceDate": "2026-09-16"
+  },
+  {
+    "custCode": "150153",
+    "branchName": "MOGLI LABS GENERAL TRADING LTD - ABU DHABI",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144050",
+    "lastInvoiceDate": "2026-09-26"
+  },
+  {
+    "custCode": "149116",
+    "branchName": "MOHAMED & OBAID AL MULLA LLC.INS",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142513",
+    "lastInvoiceDate": "2026-05-08"
+  },
+  {
+    "custCode": "149931",
+    "branchName": "MOHAMED ABDULRAHMAN AL BAHAR LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143295",
+    "lastInvoiceDate": "2026-07-23"
+  },
+  {
+    "custCode": "150136",
+    "branchName": "MOON BRIDGE TECHNICAL SERVICES",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16140673",
+    "lastInvoiceDate": "2025-12-16"
+  },
+  {
+    "custCode": "150017",
+    "branchName": "MOVENPICK HOTEL APARTMENTS DOWN TOWN DUBAI L.L.C",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141698",
+    "lastInvoiceDate": "2026-02-23"
+  },
+  {
+    "custCode": "150112",
+    "branchName": "MUSABBEH ALFATTAN CHARITY EST.",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16139993",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "104168",
+    "branchName": "MUSABBEH RASHID MUSABBEH ALFATTAN ALFALASI",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142714",
+    "lastInvoiceDate": "2026-05-21"
+  },
+  {
+    "custCode": "149375",
+    "branchName": "MY WHOOSH TECHNOLOGY SERVICES LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16140187",
+    "lastInvoiceDate": "2025-11-19"
+  },
+  {
+    "custCode": "164112",
+    "branchName": "NABORS ARABIA COMPANY LTD",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142788",
+    "lastInvoiceDate": "2026-06-01"
+  },
+  {
+    "custCode": "164020",
+    "branchName": "NABORS DRILLING INTERNATIONAL GULF FZE",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143602",
+    "lastInvoiceDate": "2026-08-20"
+  },
+  {
+    "custCode": "159297",
+    "branchName": "NABORS DRILLING INTERNATIONAL GULF FZE",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143438",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "164111",
+    "branchName": "NABORS DRILLING INTERNATIONAL LIMITED (DUBAI BR)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143369",
+    "lastInvoiceDate": "2026-07-30"
+  },
+  {
+    "custCode": "159303",
+    "branchName": "NABORS DRILLING SERVICES B V (OMAN BRANCH)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142190",
+    "lastInvoiceDate": "2026-04-03"
+  },
+  {
+    "custCode": "172263",
+    "branchName": "NAD AL SHIBA, RASHID AND LATIFA SCHOOL ESTABLISHMENTS",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144067",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "159160",
+    "branchName": "NATIONAL TRADING AND DEVELOPING ENTERPRISES L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143908",
+    "lastInvoiceDate": "2026-09-04"
+  },
+  {
+    "custCode": "159133",
+    "branchName": "NESPRESSO NUL LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141309",
+    "lastInvoiceDate": "2026-01-31"
+  },
+  {
+    "custCode": "159241",
+    "branchName": "NESTLE UAE L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16141946",
+    "lastInvoiceDate": "2026-03-12"
+  },
+  {
+    "custCode": "134343",
+    "branchName": "NH COLLECTION HOTEL & HOTEL APARTMENT RENTAL - DUBAI THE PALM L.L.C",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140050",
+    "lastInvoiceDate": "2025-11-05"
+  },
+  {
+    "custCode": "159261",
+    "branchName": "NMDC GROUP - P.J.S.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143110",
+    "lastInvoiceDate": "2026-06-26"
+  },
+  {
+    "custCode": "159239",
+    "branchName": "NOMAC GULF COAL ENERGY LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142217",
+    "lastInvoiceDate": "2026-04-10"
+  },
+  {
+    "custCode": "159271",
+    "branchName": "NOMAC GULF CSP TOWER ENERGY LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142246",
+    "lastInvoiceDate": "2026-04-15"
+  },
+  {
+    "custCode": "149014",
+    "branchName": "NOMAC GULF OPERATION & MAINTENANCE LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143721",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "159058",
+    "branchName": "NOMAC HASSYAN WATER DESALINATION L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142213",
+    "lastInvoiceDate": "2026-04-10"
+  },
+  {
+    "custCode": "159280",
+    "branchName": "NOMAC MAINTENANCE ENERGY SERVICES OWNED BY NOMAC ONE PERSON COMPANY LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16139700",
+    "lastInvoiceDate": "2025-10-17"
+  },
+  {
+    "custCode": "159276",
+    "branchName": "NOMAC PV PHASE V L.L.C",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142179",
+    "lastInvoiceDate": "2026-04-06"
+  },
+  {
+    "custCode": "159272",
+    "branchName": "NOMAC TAWEELAH WATER DESALINATION SERVICES L.L.C",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143301",
+    "lastInvoiceDate": "2026-07-24"
+  },
+  {
+    "custCode": "159270",
+    "branchName": "NOMAC WATER DESALINATION SERVICES LLC",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141290",
+    "lastInvoiceDate": "2026-01-31"
+  },
+  {
+    "custCode": "159235",
+    "branchName": "NORTH LONDON COLLEGIATE SCHOOL MIDDLE EAST L.L.C-FZ",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143512",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "159213",
+    "branchName": "NOTIONS TRADING L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143097",
+    "lastInvoiceDate": "2026-07-08"
+  },
+  {
+    "custCode": "159309",
+    "branchName": "NOUR ARJAAN BY ROTANA - FUJAIRAH - L.L.C. - S.P.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143807",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "159204",
+    "branchName": "NOVARTIS MIDDLE EAST FZE",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144034",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "159274",
+    "branchName": "NOVARTIS PHARMA SERVICES AG (Representative Office)",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143192",
+    "lastInvoiceDate": "2026-07-07"
+  },
+  {
+    "custCode": "159246",
+    "branchName": "NOVOTEL HOTEL AL BUSTAN",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16140676",
+    "lastInvoiceDate": "2025-12-17"
+  },
+  {
+    "custCode": "159300",
+    "branchName": "NUMU NURSERY L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140663",
+    "lastInvoiceDate": "2025-12-10"
+  },
+  {
+    "custCode": "165548",
+    "branchName": "OCCIDENTAL SHARJAH GRAND L.L.C SP",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141519",
+    "lastInvoiceDate": "2026-02-13"
+  },
+  {
+    "custCode": "165556",
+    "branchName": "OCEAN DISTRIBUTION GENERAL TRADING LLC S.P.C",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143978",
+    "lastInvoiceDate": "2026-09-21"
+  },
+  {
+    "custCode": "164523",
+    "branchName": "OMEGA 1 LIMITED",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142126",
+    "lastInvoiceDate": "2026-04-01"
+  },
+  {
+    "custCode": "164527",
+    "branchName": "ONE AND ONLY PALM DUBAI HOTEL",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143942",
+    "lastInvoiceDate": "2026-09-16"
+  },
+  {
+    "custCode": "165557",
+    "branchName": "ORIX GENERAL TRADING",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16143569",
+    "lastInvoiceDate": "2026-08-17"
+  },
+  {
+    "custCode": "164011",
+    "branchName": "OUR OWN ENGLISH HIGH SCHOOL - AL AIN",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143743",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "164088",
+    "branchName": "OUR OWN ENGLISH HIGH SCHOOL SHARJAH BOYS BRANCH",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142527",
+    "lastInvoiceDate": "2026-05-07"
+  },
+  {
+    "custCode": "164087",
+    "branchName": "OUR OWN ENGLISH HIGH SCHOOL-SHARJHA-GIRLS",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142926",
+    "lastInvoiceDate": "2026-06-22"
+  },
+  {
+    "custCode": "164086",
+    "branchName": "OUR OWN HIGH SCHOOL-AL WARQAA",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143971",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "167333",
+    "branchName": "PARK HOSPITALITY INVESTMENT LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142646",
+    "lastInvoiceDate": "2026-05-19"
+  },
+  {
+    "custCode": "167260",
+    "branchName": "PARSONS INTERNATIONAL LIMITED (ABU DHABI - UAE)",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143926",
+    "lastInvoiceDate": "2026-09-15"
+  },
+  {
+    "custCode": "167291",
+    "branchName": "PARSONS OVERSEAS LIMITED (DUBAI BRANCH)",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143888",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "167290",
+    "branchName": "PHILIP MORRIS INTERNATIONAL SERVICES S.A.R.L.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140983",
+    "lastInvoiceDate": "2026-01-14"
+  },
+  {
+    "custCode": "167245",
+    "branchName": "PHILIP MORRIS MANAGEMENT SERVICES (MIDDLE EAST) LIMITED",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143477",
+    "lastInvoiceDate": "2026-08-09"
+  },
+  {
+    "custCode": "167214",
+    "branchName": "PLANET FIRST GENERAL TRADING LLC.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141567",
+    "lastInvoiceDate": "2026-02-16"
+  },
+  {
+    "custCode": "167309",
+    "branchName": "PLANET TAX FREE L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143204",
+    "lastInvoiceDate": "2026-07-16"
+  },
+  {
+    "custCode": "167337",
+    "branchName": "PNC ARCHITECTS",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143870",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "167236",
+    "branchName": "PREMIER INN HOTELS (L.L.C)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144053",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "167329",
+    "branchName": "PRESCOTT REAL ESTATE DEVELOPMENT L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144039",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "110236",
+    "branchName": "PRIMERA ADVERTISING L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142940",
+    "lastInvoiceDate": "2026-06-23"
+  },
+  {
+    "custCode": "167342",
+    "branchName": "PRIVATE DEPARTMENT OF H.H. SHEIK SAUD BIN SAQR AL QASMI",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16144013",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "167039",
+    "branchName": "PROJEX EVENT SERVICES (LLC)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140357",
+    "lastInvoiceDate": "2025-11-17"
+  },
+  {
+    "custCode": "128687",
+    "branchName": "Q-EST Club",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140015",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "172261",
+    "branchName": "R I B ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141901",
+    "lastInvoiceDate": "2026-03-05"
+  },
+  {
+    "custCode": "172301",
+    "branchName": "RADISSON BLU HOTEL (WESTWOOD)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140046",
+    "lastInvoiceDate": "2025-11-05"
+  },
+  {
+    "custCode": "172333",
+    "branchName": "RADISSON BLU HOTEL - MEDIA CITY FZ LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140441",
+    "lastInvoiceDate": "2025-11-27"
+  },
+  {
+    "custCode": "172360",
+    "branchName": "RAG TOWER BUSINESS CENTRE",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140268",
+    "lastInvoiceDate": "2025-11-15"
+  },
+  {
+    "custCode": "172194",
+    "branchName": "RAK CERAMICS P.J.S.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143100",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "172361",
+    "branchName": "RAK DIGITAL ASSETS OASIS",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142069",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "172355",
+    "branchName": "RAK HOSPITALITY BEACH LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143917",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "172362",
+    "branchName": "RAK INTERNATIONAL CORPORATE CENTRE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143522",
+    "lastInvoiceDate": "2026-08-04"
+  },
+  {
+    "custCode": "172359",
+    "branchName": "RAK STAFF HOUSING LLC (One Person)",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142440",
+    "lastInvoiceDate": "2026-05-01"
+  },
+  {
+    "custCode": "172319",
+    "branchName": "Ras Al Khaimah Al Wadi LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143982",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "172273",
+    "branchName": "RAS AL KHAIMAH INTERNATIONAL AIRPORT LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143940",
+    "lastInvoiceDate": "2026-09-16"
+  },
+  {
+    "custCode": "172270",
+    "branchName": "RAY INTERNATIONAL ELECTRICAL CONTRACTING & MAINTENANCE LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143977",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "172271",
+    "branchName": "RAY INTERNATIONAL ELECTRICAL CONTRACTING & MAINTENANCE LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143623",
+    "lastInvoiceDate": "2026-08-14"
+  },
+  {
+    "custCode": "172272",
+    "branchName": "RAY INTERNATIONAL POWER LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143881",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "172365",
+    "branchName": "RAYDEN TECHNICAL SERVICES LLC",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141577",
+    "lastInvoiceDate": "2026-02-17"
+  },
+  {
+    "custCode": "122234",
+    "branchName": "RED SEA HOUSING SERVICES COMPANY FZE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140169",
+    "lastInvoiceDate": "2025-11-11"
+  },
+  {
+    "custCode": "172303",
+    "branchName": "REMUS HOTEL LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141878",
+    "lastInvoiceDate": "2026-03-07"
+  },
+  {
+    "custCode": "172341",
+    "branchName": "RENUTERRA WASTE COLLECTION SERVICES L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143553",
+    "lastInvoiceDate": "2026-08-14"
+  },
+  {
+    "custCode": "172323",
+    "branchName": "RIXOS MARINA ABU DHABI LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16141907",
+    "lastInvoiceDate": "2026-03-10"
+  },
+  {
+    "custCode": "172363",
+    "branchName": "RKN COMPUTERS LLC",
+    "salesman": "Clearnce price from Mgmt",
+    "lastSalesOrderNumber": "16140879",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "406685",
+    "branchName": "ROSE HOTELS FZ-LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140862",
+    "lastInvoiceDate": "2026-01-02"
+  },
+  {
+    "custCode": "172324",
+    "branchName": "ROSEWOOD HOTEL ABU DHABI",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143621",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "172366",
+    "branchName": "ROVE EXPO CITY DUBAI L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143353",
+    "lastInvoiceDate": "2026-07-29"
+  },
+  {
+    "custCode": "172307",
+    "branchName": "ROVE LA MER HOTEL L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143675",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "172293",
+    "branchName": "ROYAL ASCOT HOTEL",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142008",
+    "lastInvoiceDate": "2026-03-23"
+  },
+  {
+    "custCode": "172260",
+    "branchName": "ROYAL CATERING SERVICES LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140199",
+    "lastInvoiceDate": "2025-11-13"
+  },
+  {
+    "custCode": "172235",
+    "branchName": "ROYAL MIRAGE HOTEL",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143501",
+    "lastInvoiceDate": "2026-08-11"
+  },
+  {
+    "custCode": "177248",
+    "branchName": "Ruskin Titus Gulf Manufacturing L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141050",
+    "lastInvoiceDate": "2026-01-15"
+  },
+  {
+    "custCode": "177849",
+    "branchName": "S L S HOTEL AND RESIDENCES DUBAI L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142000",
+    "lastInvoiceDate": "2026-03-09"
+  },
+  {
+    "custCode": "177899",
+    "branchName": "SAAD TRADING & CONSULTANTS FZC L.L.C.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142971",
+    "lastInvoiceDate": "2026-06-25"
+  },
+  {
+    "custCode": "177810",
+    "branchName": "SAADIYAT ROTANA RESORT & VILLAS - SOLE PROPRIETORSHIP L.L.C.",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143618",
+    "lastInvoiceDate": "2026-08-21"
+  },
+  {
+    "custCode": "177597",
+    "branchName": "SAFECOR SECURITY",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143116",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "177881",
+    "branchName": "SALAMATEQ L.L.C SP",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141075",
+    "lastInvoiceDate": "2026-01-20"
+  },
+  {
+    "custCode": "177781",
+    "branchName": "SANDOZ MIDDLE EAST L.L.C",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143429",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "110131",
+    "branchName": "SANED FACILITY MANAGEMENT L.L.C. (SANED)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144030",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "177637",
+    "branchName": "SCHNEIDER ELECTRIC FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143827",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "177702",
+    "branchName": "SCHNEIDER ELECTRIC INDUSTRIES - SA",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143902",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "177731",
+    "branchName": "SCHNEIDER ELECTRIC SYSTEM MIDDLE EAST FZE",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143197",
+    "lastInvoiceDate": "2026-07-15"
+  },
+  {
+    "custCode": "174482",
+    "branchName": "SCHOOL TRANSPORT SERVICES LLC - INS",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143124",
+    "lastInvoiceDate": "2026-06-30"
+  },
+  {
+    "custCode": "177018",
+    "branchName": "SEA VIEW HOTEL",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140203",
+    "lastInvoiceDate": "2025-11-14"
+  },
+  {
+    "custCode": "174499",
+    "branchName": "SERCO - IAL LIMTED",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16140747",
+    "lastInvoiceDate": "2025-12-25"
+  },
+  {
+    "custCode": "174489",
+    "branchName": "SERCO LIMITED - DUBAI BRANCH",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143193",
+    "lastInvoiceDate": "2026-07-09"
+  },
+  {
+    "custCode": "177525",
+    "branchName": "SERVEU (L.L.C)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143936",
+    "lastInvoiceDate": "2026-09-04"
+  },
+  {
+    "custCode": "177371",
+    "branchName": "SEVILLE PRODUCTS L.L.C (BR)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143686",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "187167",
+    "branchName": "SHAMA FOOD INDUSTRIES LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142796",
+    "lastInvoiceDate": "2026-06-04"
+  },
+  {
+    "custCode": "177778",
+    "branchName": "SHAMS AL MAYAS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141904",
+    "lastInvoiceDate": "2026-03-09"
+  },
+  {
+    "custCode": "177179",
+    "branchName": "SHANGRILA DUBAI HOTEL L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16141848",
+    "lastInvoiceDate": "2026-03-06"
+  },
+  {
+    "custCode": "177819",
+    "branchName": "SHARJAH AGRICULTURAL AND LIVESTOCK PRODUCTION EST. EKTIFA. L.L.C. SP",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143006",
+    "lastInvoiceDate": "2026-06-25"
+  },
+  {
+    "custCode": "177827",
+    "branchName": "SHARJAH ASSET MANAGEMENT (HOLDING) PER PERSON COMPANY LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142043",
+    "lastInvoiceDate": "2026-03-24"
+  },
+  {
+    "custCode": "100304",
+    "branchName": "SHARJAH ISLAMIC BANK PJSC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143939",
+    "lastInvoiceDate": "2026-09-12"
+  },
+  {
+    "custCode": "177512",
+    "branchName": "SHARJAH LADIES CLUB",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143271",
+    "lastInvoiceDate": "2026-07-21"
+  },
+  {
+    "custCode": "177110",
+    "branchName": "SHARJAH MUNICIPALITY-INS",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140390",
+    "lastInvoiceDate": "2025-11-25"
+  },
+  {
+    "custCode": "177886",
+    "branchName": "SHARJAH MUSEUMS  AUTHORITY",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143440",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "104412",
+    "branchName": "SHERATON DUBAI CREEK HOTEL & TOWERS (BR OF AL MULLA ENTERPRISES LLC)",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143598",
+    "lastInvoiceDate": "2026-09-01"
+  },
+  {
+    "custCode": "174504",
+    "branchName": "SHIFT LEASING & CAR RENTAL LLC - INS",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143550",
+    "lastInvoiceDate": "2026-08-13"
+  },
+  {
+    "custCode": "177665",
+    "branchName": "SHJ. ENVIRONMENT CO. LLC-BEEAH",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143954",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "177777",
+    "branchName": "SIGMA I LIMITED",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141979",
+    "lastInvoiceDate": "2026-03-17"
+  },
+  {
+    "custCode": "177661",
+    "branchName": "SIGNATURE CG HOSPITALITY MANAGEMENT DMCC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143300",
+    "lastInvoiceDate": "2026-07-24"
+  },
+  {
+    "custCode": "177867",
+    "branchName": "SILKHAUS VACATIONS HOMES L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16144012",
+    "lastInvoiceDate": "2026-09-24"
+  },
+  {
+    "custCode": "177703",
+    "branchName": "SILVER TOUCH ELECTRONICS TRADING L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142056",
+    "lastInvoiceDate": "2026-03-25"
+  },
+  {
+    "custCode": "177038",
+    "branchName": "SIMBA  ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142175",
+    "lastInvoiceDate": "2026-03-31"
+  },
+  {
+    "custCode": "177893",
+    "branchName": "SITECH GULF GLOBAL POSITIONING SYSTEMS L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142352",
+    "lastInvoiceDate": "2026-04-24"
+  },
+  {
+    "custCode": "177882",
+    "branchName": "SKIN INSTITUTE DERMATOLOGY MEDICAL CENTER - SOLE PROPRIETORSHIP LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16143474",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "177851",
+    "branchName": "SOBHA ADVANCED INDUSTRIES LLC OPC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143649",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "177884",
+    "branchName": "SOBHA CONCRETE INDUSTRIES L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142836",
+    "lastInvoiceDate": "2026-06-11"
+  },
+  {
+    "custCode": "177599",
+    "branchName": "SOBHA CONSTRUCTIONS LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143667",
+    "lastInvoiceDate": "2026-08-23"
+  },
+  {
+    "custCode": "177871",
+    "branchName": "SOBHA FURNITURE INDUSTRIES LLC - OPC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16142916",
+    "lastInvoiceDate": "2026-06-20"
+  },
+  {
+    "custCode": "177582",
+    "branchName": "SOBHA LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144000",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "177836",
+    "branchName": "SOBHA UAQ CONSTRUCTIONS  L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144027",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "177874",
+    "branchName": "SOBHA UAQP CONSTRUCTIONS LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143542",
+    "lastInvoiceDate": "2026-08-13"
+  },
+  {
+    "custCode": "177900",
+    "branchName": "SOUQ AL JUBAIL FISH TR LLC - SOLE PROPRIETORSHIP",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143205",
+    "lastInvoiceDate": "2026-07-16"
+  },
+  {
+    "custCode": "177804",
+    "branchName": "SPARK SECURITY SERVICES - SOLE PROPRIETORSHIP L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143676",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "177345",
+    "branchName": "SPECIAL APPROVAL CUSTOMER",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143444",
+    "lastInvoiceDate": "2026-08-06"
+  },
+  {
+    "custCode": "177890",
+    "branchName": "SRG PROPERTIES L.L.C",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142193",
+    "lastInvoiceDate": "2026-04-08"
+  },
+  {
+    "custCode": "177826",
+    "branchName": "SSP ENTERPRISE L.L.C-FZ",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16139932",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "177887",
+    "branchName": "ST3ALTH PRODUCTION L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16141734",
+    "lastInvoiceDate": "2026-02-25"
+  },
+  {
+    "custCode": "177443",
+    "branchName": "STANDARD CHARTERED BANK",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143230",
+    "lastInvoiceDate": "2026-07-11"
+  },
+  {
+    "custCode": "177494",
+    "branchName": "STANDARD CHARTERED BANK",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142332",
+    "lastInvoiceDate": "2026-04-21"
+  },
+  {
+    "custCode": "177885",
+    "branchName": "STAYBRIDGE SUITES AL MAKTOUM AIRPORT DWC LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141579",
+    "lastInvoiceDate": "2026-02-14"
+  },
+  {
+    "custCode": "177888",
+    "branchName": "STRENGTH ELECTRIC AND SANIT TRADING S.P.S LLC",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141851",
+    "lastInvoiceDate": "2026-03-06"
+  },
+  {
+    "custCode": "177664",
+    "branchName": "STSS AUTO REPAIRING LLC",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16143862",
+    "lastInvoiceDate": "2026-09-10"
+  },
+  {
+    "custCode": "177897",
+    "branchName": "STUDITALIA DECOR LLC",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16142828",
+    "lastInvoiceDate": "2026-06-10"
+  },
+  {
+    "custCode": "177894",
+    "branchName": "SUNRISE INTERNATIONAL SCHOOL SOLE PROPRIETORSHIP LLC",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16142313",
+    "lastInvoiceDate": "2026-04-20"
+  },
+  {
+    "custCode": "177811",
+    "branchName": "SUPERYACHT INTERIORS FZ - LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140880",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "177850",
+    "branchName": "SURF ABU DHABI LLC - OPC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142776",
+    "lastInvoiceDate": "2026-06-02"
+  },
+  {
+    "custCode": "177113",
+    "branchName": "SWAIDAN TRADING CO. LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16139987",
+    "lastInvoiceDate": "2025-10-31"
+  },
+  {
+    "custCode": "182947",
+    "branchName": "T F G Property Management L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16143993",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "183027",
+    "branchName": "TABLE AND BEYOND GENERAL TRADING CO. L.L.C",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16140236",
+    "lastInvoiceDate": "2025-11-17"
+  },
+  {
+    "custCode": "183007",
+    "branchName": "TECH FIRST GULF FZ - LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16140935",
+    "lastInvoiceDate": "2025-12-31"
+  },
+  {
+    "custCode": "182956",
+    "branchName": "TECHNO TRONICS",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141801",
+    "lastInvoiceDate": "2026-02-27"
+  },
+  {
+    "custCode": "122110",
+    "branchName": "TECOM Investments FZ LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142821",
+    "lastInvoiceDate": "2026-06-05"
+  },
+  {
+    "custCode": "182975",
+    "branchName": "TELESTYLE LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141163",
+    "lastInvoiceDate": "2026-01-27"
+  },
+  {
+    "custCode": "182946",
+    "branchName": "THE AQUILA SCHOOL OWNED BY SHAIKH MOHAMMED MAKTOUM JUMA AL MAKTOUM ONE PERSON COMPANY L.L.C.",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143794",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "116814",
+    "branchName": "THE CANVAS HOTEL ONE PERSON COMPANY L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143655",
+    "lastInvoiceDate": "2026-08-20"
+  },
+  {
+    "custCode": "183023",
+    "branchName": "THE FIRST COLLECTION HOTEL WATERFRONT L.L.C.",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16141373",
+    "lastInvoiceDate": "2026-02-04"
+  },
+  {
+    "custCode": "182040",
+    "branchName": "THE FIRST CREATIVE STUDIO L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16139514",
+    "lastInvoiceDate": "2025-09-30"
+  },
+  {
+    "custCode": "182959",
+    "branchName": "THE FIRST INVESTOR (L.L.C.)",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141185",
+    "lastInvoiceDate": "2026-01-19"
+  },
+  {
+    "custCode": "183000",
+    "branchName": "THE INDIAN INTERNATIONAL SCHOOL",
+    "salesman": "JAYARAM P",
+    "lastSalesOrderNumber": "16142994",
+    "lastInvoiceDate": "2026-06-29"
+  },
+  {
+    "custCode": "183015",
+    "branchName": "THE LANA HOTEL LLC",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16142389",
+    "lastInvoiceDate": "2026-04-28"
+  },
+  {
+    "custCode": "182013",
+    "branchName": "THE MILLENIUM SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16144042",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "172204",
+    "branchName": "THE RITZ - CARLTON DUBAI MOHD SAEED AL MULLA & SONS LLC",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16142885",
+    "lastInvoiceDate": "2026-06-16"
+  },
+  {
+    "custCode": "182240",
+    "branchName": "THE RITZ-CARLTON ABU DHABI-GRAND CANAL",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141465",
+    "lastInvoiceDate": "2026-02-11"
+  },
+  {
+    "custCode": "183041",
+    "branchName": "THE SHEIKH ZAYED PRIVATE ACADEMY FOR GIRLS - L.L.C - S.P.C",
+    "salesman": "PRASANTH KALAPURAKAL PAUL",
+    "lastSalesOrderNumber": "16143948",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "191008",
+    "branchName": "THE WESTMINSTER SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143964",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "191054",
+    "branchName": "THE WINCHESTER SCHOOL",
+    "salesman": "RENEESH JOSE",
+    "lastSalesOrderNumber": "16143972",
+    "lastInvoiceDate": "2026-09-19"
+  },
+  {
+    "custCode": "403230",
+    "branchName": "THOMSON GULF ELECTRONICS L.L.C",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16141896",
+    "lastInvoiceDate": "2026-02-28"
+  },
+  {
+    "custCode": "182264",
+    "branchName": "THURAYA TURNKEY PROJECTS LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142348",
+    "lastInvoiceDate": "2026-04-23"
+  },
+  {
+    "custCode": "183001",
+    "branchName": "TK ELEVATOR UAE L.L.C.",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143525",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "183035",
+    "branchName": "TOMORROW FILM AGENCY FZ LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142395",
+    "lastInvoiceDate": "2026-04-29"
+  },
+  {
+    "custCode": "182236",
+    "branchName": "TRANSGUARD GROUP (L.L.C)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16141731",
+    "lastInvoiceDate": "2026-02-23"
+  },
+  {
+    "custCode": "182188",
+    "branchName": "TRIGON LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141403",
+    "lastInvoiceDate": "2026-02-06"
+  },
+  {
+    "custCode": "182222",
+    "branchName": "TRUFOCUZ TECHNOLOGIES LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143323",
+    "lastInvoiceDate": "2026-07-28"
+  },
+  {
+    "custCode": "183032",
+    "branchName": "TWIN GOLF REAL ESTATE L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143540",
+    "lastInvoiceDate": "2026-08-12"
+  },
+  {
+    "custCode": "183042",
+    "branchName": "TWOMANCREW FZE L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16144032",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "182948",
+    "branchName": "TYCO FIRE & SECURITY UAE - LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144074",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "187282",
+    "branchName": "UDMAN FLORAL TRADING LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16139697",
+    "lastInvoiceDate": "2025-10-17"
+  },
+  {
+    "custCode": "187004",
+    "branchName": "UNILEVER GULF FZE",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143380",
+    "lastInvoiceDate": "2026-07-31"
+  },
+  {
+    "custCode": "187255",
+    "branchName": "UNILEVER HOME & PERSONAL CARE PRODUCTS MANUFACTURING LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143984",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "187288",
+    "branchName": "UNION OFFICE SUPPLIES EST",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16143596",
+    "lastInvoiceDate": "2026-08-12"
+  },
+  {
+    "custCode": "187280",
+    "branchName": "UNIQUE WONDERS ELECTRONICS TRADING L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16141719",
+    "lastInvoiceDate": "2026-02-19"
+  },
+  {
+    "custCode": "187284",
+    "branchName": "UNITED PAPER INDUSTRIES COMPANY FZCO",
+    "salesman": "YUSUF SHAIKH",
+    "lastSalesOrderNumber": "16143108",
+    "lastInvoiceDate": "2026-07-03"
+  },
+  {
+    "custCode": "187267",
+    "branchName": "UNIVERSAL AMERICAN SCHOOL (Br. Of Al Futtaim Education Foundation L.L.C.)",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143672",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "187264",
+    "branchName": "UNIVERSITY HOSPITAL SHARJAH",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16144024",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "187163",
+    "branchName": "UNIVERSITY OF SHARJAH",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16144022",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "187283",
+    "branchName": "UNIVEST BUSINESS MACHINES - SOLE PROPRIETORSHIP L.L.C",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16140592",
+    "lastInvoiceDate": "2025-12-11"
+  },
+  {
+    "custCode": "189111",
+    "branchName": "VEECHEM PACKAGING L.L.C.",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16143539",
+    "lastInvoiceDate": "2026-08-12"
+  },
+  {
+    "custCode": "406846",
+    "branchName": "VENCO IMTIAZ CONTRACTING CO L.L.C",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144048",
+    "lastInvoiceDate": "2026-09-26"
+  },
+  {
+    "custCode": "189086",
+    "branchName": "VERNE HOTEL LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16141111",
+    "lastInvoiceDate": "2026-01-22"
+  },
+  {
+    "custCode": "189113",
+    "branchName": "VIDA ALJADA HOTEL LLC S.P",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142969",
+    "lastInvoiceDate": "2026-06-25"
+  },
+  {
+    "custCode": "189112",
+    "branchName": "VISION CONSTRUCTIONS L.L.C.",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143637",
+    "lastInvoiceDate": "2026-08-24"
+  },
+  {
+    "custCode": "189089",
+    "branchName": "VOCO HOTEL",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16139731",
+    "lastInvoiceDate": "2025-10-18"
+  },
+  {
+    "custCode": "406891",
+    "branchName": "W DUBAI MINA SEYAHI HOTEL",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140645",
+    "lastInvoiceDate": "2025-12-13"
+  },
+  {
+    "custCode": "195035",
+    "branchName": "W YAS ISLAND HOTEL -SOLE PROPRIETORSHIP L.L.C.",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16139753",
+    "lastInvoiceDate": "2025-10-21"
+  },
+  {
+    "custCode": "191130",
+    "branchName": "WAAGNER BIRO BRIDGE GULF LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16142574",
+    "lastInvoiceDate": "2026-05-11"
+  },
+  {
+    "custCode": "191002",
+    "branchName": "WADE ADAMS CONTRACTING LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16144006",
+    "lastInvoiceDate": "2026-09-23"
+  },
+  {
+    "custCode": "191148",
+    "branchName": "WAHAT AL SAHRAA SEEDS AND AGRICULTURAL EQUIPMENT LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16144023",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "191138",
+    "branchName": "WALDORF ASTORIA DUBAI INTERNATIONAL FINANCIAL CENTER HOTEL LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16143755",
+    "lastInvoiceDate": "2026-09-03"
+  },
+  {
+    "custCode": "191126",
+    "branchName": "Wartsila Ships Repairing & Maintenance LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143661",
+    "lastInvoiceDate": "2026-08-19"
+  },
+  {
+    "custCode": "293020",
+    "branchName": "WASL PROPERTIES LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143883",
+    "lastInvoiceDate": "2026-09-07"
+  },
+  {
+    "custCode": "191132",
+    "branchName": "WATERFRONT MARKET LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16142792",
+    "lastInvoiceDate": "2026-06-05"
+  },
+  {
+    "custCode": "406902",
+    "branchName": "WAVIN MIDDLE EAST FZE",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142104",
+    "lastInvoiceDate": "2026-03-30"
+  },
+  {
+    "custCode": "191147",
+    "branchName": "WELLFIT MIND AND BODY L.L.C",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16139999",
+    "lastInvoiceDate": "2025-10-30"
+  },
+  {
+    "custCode": "191114",
+    "branchName": "WORLD TRADE CENTRE RESIDENCE (L.L.C)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16142386",
+    "lastInvoiceDate": "2026-04-26"
+  },
+  {
+    "custCode": "191151",
+    "branchName": "WYNN AL MARJAN ISLAND FZ - LLC",
+    "salesman": "ALTHAF NAZAR",
+    "lastSalesOrderNumber": "16140719",
+    "lastInvoiceDate": "2025-12-01"
+  },
+  {
+    "custCode": "195038",
+    "branchName": "YELLOW DIAMOND GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16142174",
+    "lastInvoiceDate": "2026-03-18"
+  },
+  {
+    "custCode": "195034",
+    "branchName": "YOSH HOSPITALITY LLC",
+    "salesman": "HILTON JOSEPH",
+    "lastSalesOrderNumber": "16143714",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "197054",
+    "branchName": "ZA'ABEEL OFFICE - HIS HIGHNESS THE RULER'S COURT",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16141138",
+    "lastInvoiceDate": "2026-01-07"
+  },
+  {
+    "custCode": "149928",
+    "branchName": "ZABEEL FEEDMILL LLC",
+    "salesman": "ABDULBASITH",
+    "lastSalesOrderNumber": "16142284",
+    "lastInvoiceDate": "2026-04-17"
+  },
+  {
+    "custCode": "197072",
+    "branchName": "ZABEEL SARAY HOTEL (FZE)",
+    "salesman": "KISHOR THOOMAT",
+    "lastSalesOrderNumber": "16140588",
+    "lastInvoiceDate": "2025-12-06"
+  },
+  {
+    "custCode": "406990",
+    "branchName": "ZENITH RUBBER INDUSTRIES MIDDLE EAST LLC",
+    "salesman": "SANU 0502011675",
+    "lastSalesOrderNumber": "16143516",
+    "lastInvoiceDate": "2026-08-11"
+  },
+  {
+    "custCode": "197082",
+    "branchName": "ZNZ GENERAL TRADING TRADING",
+    "salesman": "AMRITA MANHARLAL",
+    "lastSalesOrderNumber": "16142198",
+    "lastInvoiceDate": "2026-04-09"
+  }
+]

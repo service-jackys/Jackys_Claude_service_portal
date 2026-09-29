@@ -23,6 +23,7 @@ import {
   insertAppointmentHistory,
   updateAppointmentStatus,
 } from '../../../../packages/db/src/appointments.js';
+import { listB2bBranchesForPublicPicker } from '../../../../packages/db/src/b2b-branches.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { allocateComplaintReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
@@ -184,7 +185,16 @@ export function createComplaintService(pool: Pool) {
     });
   }
 
-  return { submit, list, detail, addNotes, changeStatus };
+  async function listB2bBranches() {
+    const client = await pool.connect();
+    try {
+      return await listB2bBranchesForPublicPicker(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  return { submit, list, detail, addNotes, changeStatus, listB2bBranches };
 }
 
 export type ComplaintService = ReturnType<typeof createComplaintService>;

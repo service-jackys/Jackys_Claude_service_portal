@@ -340,6 +340,19 @@ h3 {
   color: var(--red);
   font-size: 0.82rem;
 }
+.field-hint {
+  display: block;
+  color: var(--muted, #6b7a90);
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+.field input:disabled,
+.field select:disabled,
+.field textarea:disabled {
+  background: #f1f3f6;
+  color: var(--muted, #6b7a90);
+  cursor: not-allowed;
+}
 .form-footer {
   display: flex;
   align-items: center;

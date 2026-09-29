@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Modification status — Jacky's Service Portal</title>
+    <style>
+      :root {
+        --navy-deep: #0b1f3a;
+        --navy: #123a66;
+        --ink: #1c2733;
+        --muted: #5b6b7d;
+        --line: #e1e6ec;
+        --green: #1c7a4d;
+        --amber: #b5750a;
+        --red: #b3261e;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        background: #f6f8fb;
+        color: var(--ink);
+      }
+      header {
+        background: linear-gradient(120deg, var(--navy-deep), var(--navy));
+        color: #fff;
+        padding: 2rem 1.5rem;
+      }
+      header h1 {
+        margin: 0 0 0.3rem;
+        font-size: 1.6rem;
+      }
+      header p {
+        margin: 0;
+        color: #dceaff;
+        max-width: 640px;
+      }
+      main {
+        max-width: 960px;
+        margin: 0 auto;
+        padding: 1.5rem;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1.2rem 1.4rem;
+        margin-bottom: 1rem;
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .card-head h2 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 0.85rem;
+        margin: 0.2rem 0 0.8rem;
+      }
+      .badge {
+        display: inline-block;
+        padding: 0.25rem 0.65rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .badge-code-complete {
+        background: #fdf1de;
+        color: var(--amber);
+      }
+      .badge-verified {
+        background: #e3f3e9;
+        color: var(--green);
+      }
+      .badge-blocked {
+        background: #fbe4e2;
+        color: var(--red);
+      }
+      ul {
+        margin: 0.4rem 0;
+        padding-left: 1.2rem;
+      }
+      li {
+        margin: 0.2rem 0;
+      }
+      .section-label {
+        font-weight: 600;
+        font-size: 0.82rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+        color: var(--muted);
+        margin: 0.8rem 0 0.2rem;
+      }
+      code {
+        background: #f1f3f6;
+        padding: 0.1rem 0.35rem;
+        border-radius: 4px;
+        font-size: 0.88em;
+      }
+      footer {
+        text-align: center;
+        color: var(--muted);
+        font-size: 0.8rem;
+        padding: 1.5rem;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Modification status</h1>
+      <p>
+        One-by-one tracker of changes to Jacky's Distribution Service Portal, up through Phase 5.
+        Full detail for each entry lives in <code>modification.md</code> next to this file — this
+        page is the quick-glance view. Update both when a modification is added or its status
+        changes.
+      </p>
+    </header>
+    <main>
+      <div class="card">
+        <div class="card-head">
+          <h2>#1 — B2B Branch / School master list on the public complaint form</h2>
+          <span class="badge badge-code-complete">Code complete — needs you</span>
+        </div>
+        <p class="meta">2026-09-29 · Scope: Customer complaint portal (<code>/complaints</code>)</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New <code>b2b_branches</code> master table, seeded from the sales invoice export (last
+            365 days) — 567 unique branches, keyed by Cust_Code.
+          </li>
+          <li>
+            "B2B Branch / School" field is now an autocomplete against that list; a matched branch's
+            Cust_Code is stored on the complaint. Unmatched free text is still accepted.
+          </li>
+          <li>Removed "B2B Sales Channel" from this form's Customer type dropdown only.</li>
+          <li>
+            B2C customer: "B2B Branch / School", "Site contact person", "Site contact number" are
+            greyed out and cleared.
+          </li>
+          <li>B2B customer: "Contact number" is no longer required.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npm run db:migrate</code></li>
+          <li><code>node scripts/import-b2b-branches.mjs</code></li>
+          <li><code>npx playwright test tests/e2e/complaints.spec.ts</code></li>
+          <li>Manually try <code>/complaints</code> for both customer types.</li>
+        </ul>
+        <div class="section-label">Follow-up (next modification, not started)</div>
+        <ul>
+          <li>Surface the linked branch's Salesman in Appointment / Job Card views.</li>
+          <li>Carry <code>b2b_branch_cust_code</code> forward onto the created appointment.</li>
+        </ul>
+      </div>
+    </main>
+    <footer>Jacky's Distribution — Service Portal migration project</footer>
+  </body>
+</html>

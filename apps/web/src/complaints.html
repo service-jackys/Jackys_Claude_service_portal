@@ -94,7 +94,6 @@
                         <option value="">Select a type</option>
                         <option value="B2C">B2C (Direct customer)</option>
                         <option value="B2B">B2B (Corporate client)</option>
-                        <option value="B2B-SalesChannel">B2B Sales Channel</option>
                       </select>
                       <span class="field-error" data-error-for="customerType"></span>
                     </div>
@@ -107,15 +106,18 @@
                     </div>
                     <div class="field">
                       <label for="contactNumber"
-                        >Contact number <span class="required">*</span></label
+                        >Contact number
+                        <span class="required" id="contactNumberRequiredMark">*</span></label
                       >
                       <input
                         id="contactNumber"
                         name="contactNumber"
                         type="tel"
                         autocomplete="tel"
-                        required
                       />
+                      <span class="field-hint" id="contactNumberHint"
+                        >Not required for a B2B corporate account.</span
+                      >
                       <span class="field-error" data-error-for="contactNumber"></span>
                     </div>
                     <div class="field">
@@ -150,7 +152,19 @@
                     </div>
                     <div class="field">
                       <label for="b2bBranchSchool">B2B Branch / School</label>
-                      <input id="b2bBranchSchool" name="b2bBranchSchool" />
+                      <input
+                        id="b2bBranchSchool"
+                        name="b2bBranchSchool"
+                        list="b2bBranchOptions"
+                        autocomplete="off"
+                        placeholder="Start typing to search, or leave blank"
+                      />
+                      <datalist id="b2bBranchOptions"></datalist>
+                      <input type="hidden" id="b2bBranchCustCode" name="b2bBranchCustCode" />
+                      <span class="field-hint"
+                        >Select your branch if you know it. If not, our service team will identify
+                        and fill this in.</span
+                      >
                       <span class="field-error" data-error-for="b2bBranchSchool"></span>
                     </div>
                     <div class="field">

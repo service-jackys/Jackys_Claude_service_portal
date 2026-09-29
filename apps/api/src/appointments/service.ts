@@ -132,7 +132,7 @@ export function createAppointmentService(pool: Pool) {
           branchId: complaint.branchId,
           customerType: complaint.customerType,
           customerName: complaint.customerName,
-          contactNumber: complaint.contactNumber,
+          contactNumber: data.contactNumber ?? complaint.contactNumber,
           customerEmail: complaint.customerEmail,
           address: complaint.address,
           region: complaint.region,

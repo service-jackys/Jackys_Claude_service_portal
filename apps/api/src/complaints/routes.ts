@@ -42,6 +42,14 @@ export function createComplaintHandlers(
           .catch(next);
       },
     ],
+    listB2bBranches: [
+      (request, response, next) => {
+        Promise.resolve()
+          .then(() => service.listB2bBranches())
+          .then((branches) => response.json({ branches }))
+          .catch(next);
+      },
+    ],
     list: [
       requirePermission('complaints.read'),
       async (request, response, next) => {

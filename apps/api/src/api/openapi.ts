@@ -295,7 +295,13 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
         PublicComplaintRequest: {
           type: 'object',
           additionalProperties: false,
-          required: ['customerType', 'customerName', 'contactNumber', 'description'],
+          // contactNumber is required by default, optional only for a B2B
+          // submission -- see
+          // publicComplaintSchema's superRefine in packages/contracts
+          // (modification.md #1). Not expressible as a plain top-level
+          // `required` entry, so it's left optional here and enforced by
+          // the Zod schema at request time.
+          required: ['customerType', 'customerName', 'description'],
           properties: {
             customerType: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
             customerName: { type: 'string', minLength: 1, maxLength: 200 },
@@ -308,6 +314,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             serialOrItemCode: { type: 'string', minLength: 1, maxLength: 120 },
             description: { type: 'string', minLength: 1, maxLength: 10000 },
             b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 500 },
+            b2bBranchCustCode: { type: 'string', minLength: 1, maxLength: 40 },
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
