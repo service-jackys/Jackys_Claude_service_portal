@@ -413,6 +413,7 @@
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
     $('#techniciansNav').hidden = !hasPermission('technicians.read');
     $('#teamAccountsNav').hidden = !hasPermission('admin.users');
+    $('#newRequestNav').hidden = !hasPermission('complaints.write');
   }
 
   function showNoWorkspaceAccess() {
@@ -447,6 +448,7 @@
     if (mode === 'dashboard' && !hasPermission('dashboard.read')) return;
     if (mode === 'technicians' && !hasPermission('technicians.read')) return;
     if (mode === 'team-accounts' && !hasPermission('admin.users')) return;
+    if (mode === 'new-request' && !hasPermission('complaints.write')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
     const appointments = mode === 'appointments';
@@ -457,6 +459,7 @@
     const dashboard = mode === 'dashboard';
     const technicians = mode === 'technicians';
     const teamAccounts = mode === 'team-accounts';
+    const newRequest = mode === 'new-request';
     const anyOtherPanel =
       serviceRequests ||
       appointments ||
@@ -466,7 +469,8 @@
       warrantyApprovals ||
       dashboard ||
       technicians ||
-      teamAccounts;
+      teamAccounts ||
+      newRequest;
     $('#complaintsNav').setAttribute('aria-current', anyOtherPanel ? 'false' : 'page');
     $('#serviceRequestsNav').setAttribute('aria-current', serviceRequests ? 'page' : 'false');
     $('#jobCardsNav').setAttribute('aria-current', jobCards ? 'page' : 'false');
@@ -477,6 +481,7 @@
     $('#appointmentsNav').setAttribute('aria-current', appointments ? 'page' : 'false');
     $('#techniciansNav').setAttribute('aria-current', technicians ? 'page' : 'false');
     $('#teamAccountsNav').setAttribute('aria-current', teamAccounts ? 'page' : 'false');
+    $('#newRequestNav').setAttribute('aria-current', newRequest ? 'page' : 'false');
     $('#complaintWorkspace').hidden =
       appointments ||
       jobCards ||
@@ -485,7 +490,8 @@
       warrantyApprovals ||
       dashboard ||
       technicians ||
-      teamAccounts;
+      teamAccounts ||
+      newRequest;
     $('#appointmentWorkspace').hidden = !appointments;
     $('#jobCardWorkspace').hidden = !jobCards;
     $('#quotationWorkspace').hidden = !quotations;
@@ -494,6 +500,7 @@
     $('#dashboardWorkspace').hidden = !dashboard;
     $('#technicianWorkspace').hidden = !technicians;
     $('#teamAccountWorkspace').hidden = !teamAccounts;
+    $('#newComplaintWorkspace').hidden = !newRequest;
     $('#refreshComplaintsButton').hidden = anyOtherPanel;
     $('#refreshAppointmentsButton').hidden = !appointments;
     $('#refreshJobCardsButton').hidden = !jobCards;
@@ -519,9 +526,11 @@
                   ? 'Technicians'
                   : teamAccounts
                     ? 'Team logins'
-                    : serviceRequests
-                      ? 'Service requests'
-                      : 'Complaint inbox';
+                    : newRequest
+                      ? 'New request'
+                      : serviceRequests
+                        ? 'Service requests'
+                        : 'Complaint inbox';
     $('#workspaceDescription').textContent = appointments
       ? 'Review scheduled service visits and update their operations status.'
       : jobCards
@@ -538,9 +547,11 @@
                   ? "Manage the technician roster and each technician's daily appointment cap."
                   : teamAccounts
                     ? 'Add teammate logins so they can test the portal with their own accounts.'
-                    : serviceRequests
-                      ? 'Review complaints that are ready to be scheduled.'
-                      : 'Review incoming service requests and open their history.';
+                    : newRequest
+                      ? 'Register a service request for a customer who called or emailed in.'
+                      : serviceRequests
+                        ? 'Review complaints that are ready to be scheduled.'
+                        : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
     if (appointments) {
@@ -559,6 +570,8 @@
       loadTechnicians();
     } else if (teamAccounts) {
       loadTeamAccounts();
+    } else if (newRequest) {
+      resetNewComplaintForm();
     } else {
       loadComplaints();
     }
@@ -2150,6 +2163,198 @@ ${bodyHtml}
       }
     } finally {
       setBusy(button, false);
+    }
+  });
+
+  // ---- New service request (modification.md #12) -- staff-only equivalent
+  // of the public complaint form, for a CCE registering a request that came
+  // in by phone or email instead of directing the customer to fill in the
+  // public form themselves. Same fields and validation as
+  // apps/web/src/complaints.js's public form, plus a B2B branch/school
+  // lookup against the authenticated master list (the public form can only
+  // ever offer free text for that -- see modification.md #2) that fills
+  // branch, customer number and sales order no. together.
+  const newComplaintB2bOnlyFieldIds = [
+    'newComplaintB2bBranchSchool',
+    'newComplaintSchoolContactPerson',
+    'newComplaintSchoolContactNumber',
+  ];
+  let newComplaintB2bBranchSearchSequence = 0;
+  let newComplaintB2bBranchSearchDebounce = null;
+
+  function applyNewComplaintCustomerTypeGating() {
+    const customerType = $('#newComplaintCustomerType').value;
+    const isB2c = customerType === 'B2C';
+    newComplaintB2bOnlyFieldIds.forEach((id) => {
+      $('#' + id).disabled = isB2c;
+      if (isB2c) $('#' + id).value = '';
+    });
+    const contactRequired = customerType !== 'B2B';
+    $('#newComplaintContactNumberRequiredMark').hidden = !contactRequired;
+    $('#newComplaintContactNumberHint').hidden = contactRequired;
+  }
+
+  $('#newComplaintCustomerType').addEventListener('change', applyNewComplaintCustomerTypeGating);
+
+  function resetNewComplaintForm() {
+    $('#newComplaintForm').reset();
+    clearErrors($('#newComplaintForm'));
+    applyNewComplaintCustomerTypeGating();
+    $('#newComplaintB2bBranchSearchInput').value = '';
+    $('#newComplaintB2bBranchResults').innerHTML = '';
+    $('#newComplaintB2bBranchResults').hidden = true;
+    delete $('#newComplaintB2bBranchResults').dataset.branches;
+    $('#newComplaintB2bBranchSearchMessage').textContent = '';
+    $('#newComplaintSuccess').hidden = true;
+    $('#newComplaintFields').hidden = false;
+    setMessage('#newComplaintMessage', '', false);
+  }
+
+  async function searchNewComplaintB2bBranches(query) {
+    const requestSequence = ++newComplaintB2bBranchSearchSequence;
+    $('#newComplaintB2bBranchSearchMessage').textContent = 'Searching…';
+    try {
+      const params = query ? '?query=' + encodeURIComponent(query) : '';
+      const result = await apiRequest('/api/b2b-branches' + params);
+      if (requestSequence !== newComplaintB2bBranchSearchSequence) return;
+      const branches = result.branches || [];
+      $('#newComplaintB2bBranchResults').innerHTML = branches
+        .map(
+          (branch, index) =>
+            `<li><button type="button" data-branch-index="${index}"><span class="branch-name">${escapeHtml(branch.branchName)}</span><br><span class="branch-code">Cust_Code ${escapeHtml(branch.custCode)}${branch.lastSalesOrderNumber ? ' · SO ' + escapeHtml(branch.lastSalesOrderNumber) : ''}</span></button></li>`,
+        )
+        .join('');
+      $('#newComplaintB2bBranchResults').hidden = branches.length === 0;
+      $('#newComplaintB2bBranchSearchMessage').textContent = branches.length
+        ? ''
+        : 'No matches in the master list.';
+      $('#newComplaintB2bBranchResults').dataset.branches = JSON.stringify(branches);
+    } catch (error) {
+      if (requestSequence !== newComplaintB2bBranchSearchSequence) return;
+      $('#newComplaintB2bBranchResults').hidden = true;
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status !== 403) {
+        $('#newComplaintB2bBranchSearchMessage').textContent = error.message;
+      }
+    }
+  }
+
+  $('#newComplaintB2bBranchSearchInput').addEventListener('input', (event) => {
+    const value = event.currentTarget.value.trim();
+    if (newComplaintB2bBranchSearchDebounce) clearTimeout(newComplaintB2bBranchSearchDebounce);
+    newComplaintB2bBranchSearchDebounce = setTimeout(
+      () => searchNewComplaintB2bBranches(value),
+      250,
+    );
+  });
+
+  $('#newComplaintB2bBranchResults').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-branch-index]');
+    if (!button) return;
+    const branches = JSON.parse($('#newComplaintB2bBranchResults').dataset.branches || '[]');
+    const branch = branches[Number(button.dataset.branchIndex)];
+    if (!branch) return;
+    $('#newComplaintB2bBranchSchool').value = branch.branchName;
+    $('#newComplaintCustomerNumber').value = branch.custCode;
+    if (branch.lastSalesOrderNumber)
+      $('#newComplaintSalesOrderNumber').value = branch.lastSalesOrderNumber;
+    $('#newComplaintB2bBranchResults').hidden = true;
+    $('#newComplaintB2bBranchSearchInput').value = '';
+    $('#newComplaintB2bBranchSearchMessage').textContent =
+      `Filled from the master list (Cust_Code ${branch.custCode}).`;
+  });
+
+  function newComplaintFormData() {
+    const fields = {
+      customerType: $('#newComplaintCustomerType').value,
+      customerName: $('#newComplaintCustomerName').value.trim(),
+      contactNumber: $('#newComplaintContactNumber').value.trim(),
+      customerEmail: $('#newComplaintCustomerEmail').value.trim(),
+      address: $('#newComplaintAddress').value.trim(),
+      region: $('#newComplaintRegion').value,
+      brand: $('#newComplaintBrand').value.trim(),
+      model: $('#newComplaintModel').value.trim(),
+      serialOrItemCode: $('#newComplaintSerialOrItemCode').value.trim(),
+      description: $('#newComplaintDescription').value.trim(),
+      b2bBranchSchool: $('#newComplaintB2bBranchSchool').value.trim(),
+      schoolContactPerson: $('#newComplaintSchoolContactPerson').value.trim(),
+      schoolContactNumber: $('#newComplaintSchoolContactNumber').value.trim(),
+      customerNumber: $('#newComplaintCustomerNumber').value.trim(),
+      salesOrderNumber: $('#newComplaintSalesOrderNumber').value.trim(),
+    };
+    // Optional fields left blank must be OMITTED, not sent as "" -- the
+    // server's Zod schema treats each as .optional() but still .min(1)
+    // when present (matches apps/web/src/complaints.js's public form).
+    return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== ''));
+  }
+
+  function validateNewComplaintForm(data, form) {
+    clearErrors(form);
+    let valid = true;
+    if (!data.customerType) {
+      showFieldError(form, 'newComplaintCustomerType', 'Select a customer type.');
+      valid = false;
+    }
+    if (!data.customerName) {
+      showFieldError(form, 'newComplaintCustomerName', 'Enter the customer name.');
+      valid = false;
+    }
+    if (!data.description) {
+      showFieldError(form, 'newComplaintDescription', 'Describe the issue.');
+      valid = false;
+    }
+    if (data.customerType !== 'B2B' && !data.contactNumber) {
+      showFieldError(form, 'newComplaintContactNumber', 'Enter a contact number.');
+      valid = false;
+    }
+    if (data.customerEmail && !/^\S+@\S+\.\S+$/.test(data.customerEmail)) {
+      showFieldError(form, 'newComplaintCustomerEmail', 'Enter a valid email address.');
+      valid = false;
+    }
+    return valid;
+  }
+
+  $('#newComplaintForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const data = newComplaintFormData();
+    setMessage('#newComplaintMessage', '', false);
+    if (!validateNewComplaintForm(data, form)) return;
+    const button = $('#submitNewComplaintButton');
+    setBusy(button, true, 'Registering…');
+    try {
+      const result = await apiRequest('/api/complaints', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      });
+      $('#newComplaintReference').textContent =
+        result.complaint?.complaintReference || 'Reference created';
+      $('#newComplaintSuccess').hidden = false;
+      $('#newComplaintFields').hidden = true;
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else if (error.status === 403) {
+        setMessage('#newComplaintMessage', 'You are not authorized to register service requests.');
+      } else {
+        setMessage('#newComplaintMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  $('#registerAnotherButton').addEventListener('click', resetNewComplaintForm);
+
+  $('#openNewComplaintInInboxButton').addEventListener('click', () => {
+    const reference = $('#newComplaintReference').textContent.trim();
+    setWorkspaceMode('complaints');
+    if (reference && reference !== 'Reference created') {
+      $('#complaintSearch').value = reference;
+      loadComplaints();
     }
   });
 
@@ -4103,6 +4308,7 @@ ${bodyHtml}
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
   $('#techniciansNav').addEventListener('click', () => setWorkspaceMode('technicians'));
   $('#teamAccountsNav').addEventListener('click', () => setWorkspaceMode('team-accounts'));
+  $('#newRequestNav').addEventListener('click', () => setWorkspaceMode('new-request'));
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
   });

@@ -37,9 +37,32 @@ export function createComplaintHandlers(
           return;
         }
         Promise.resolve()
-          .then(() => service.submit(request.body, request.header('x-request-id') ?? undefined))
+          .then(() =>
+            service.submit(request.body, undefined, request.header('x-request-id') ?? undefined),
+          )
           .then((complaint) => response.status(201).json({ complaint }))
           .catch(next);
+      },
+    ],
+    // Staff-only equivalent of the public submission above (see
+    // modification.md #12) -- same schema and service function, but
+    // authenticated, not rate-limited, and records who registered it so a
+    // CCE can call/email in a request instead of directing the customer to
+    // the public form.
+    submitStaff: [
+      requirePermission('complaints.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const complaint = await service.submit(
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.status(201).json({ complaint });
+        } catch (error) {
+          next(error);
+        }
       },
     ],
     searchB2bBranches: [

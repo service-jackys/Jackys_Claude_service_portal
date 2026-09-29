@@ -144,6 +144,11 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
             providerUnavailable(response);
           },
         ],
+        submitStaff: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
+            providerUnavailable(response);
+          },
+        ],
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
             providerUnavailable(response);
@@ -710,6 +715,18 @@ export function createRouteCatalog(localAuth: LocalAuth | null): RouteDefinition
         requestBody: 'publicComplaint' as const,
         responses: [201, 400, 429, 500],
         handlers: complaintHandlers.submit,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/complaints',
+        operationId: 'submitStaffComplaint',
+        tags: ['Complaints'],
+        summary:
+          "Register a service request on a customer's behalf, e.g. from a phone call or email (staff-only, see modification.md #12)",
+        security: 'bearerAuth' as const,
+        requestBody: 'publicComplaint' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: complaintHandlers.submitStaff,
       },
       {
         method: 'get' as const,

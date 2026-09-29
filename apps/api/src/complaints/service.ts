@@ -56,17 +56,21 @@ function businessDate(): string {
 }
 
 export function createComplaintService(pool: Pool) {
-  async function submit(input: unknown, requestId: string = randomUUID()) {
+  async function submit(input: unknown, profileId?: string, requestId: string = randomUUID()) {
     const data = publicComplaintSchema.parse(input);
     return withTransaction(pool, async (client) => {
       const reference = await allocateComplaintReference(client, businessDate());
       const complaint = await insertComplaint(client, reference, data);
       await insertComplaintHistory(client, complaint.id, null, 'New', null, 'Submitted');
       await insertAuditEvent(client, {
+        actorProfileId: profileId,
         action: 'complaint.submitted',
         targetType: 'complaint',
         targetId: complaint.id,
-        metadata: { complaintReference: complaint.complaintReference },
+        metadata: {
+          complaintReference: complaint.complaintReference,
+          source: profileId ? 'staff' : 'public',
+        },
         requestId,
       });
       return complaint;

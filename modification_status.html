@@ -568,6 +568,44 @@
           <li>Restart <code>npm run dev</code> and check the tooltip on Team logins.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#12 &mdash; Staff-facing &ldquo;New request&rdquo; page (item 2)</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-29 &middot; Scope: complaints backend, staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; new <code>complaints.write</code>-gated
+            <code>POST /api/complaints</code>, and a new <strong>New request</strong> page in the
+            staff portal, so a CCE can register a service request from a phone call or email instead
+            of only having the public form available.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; same fields and validation as the public form, plus a B2B
+            Branch / School lookup against the real master list (fills branch, customer number, and
+            sales order no. together) that the public, unauthenticated form can never offer.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; a request registered this way flows through the rest of
+            the app exactly like a public one: inbox, scheduling, job card creation.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Register a test request as a management/sales/admin user, try the branch lookup, and
+            confirm it schedules through to a job card normally.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>Admin page for salesmen / sales channels (still API-only).</li>
+          <li>No edit/deactivate/remove for a teammate login yet (see #10).</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

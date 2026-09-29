@@ -464,6 +464,18 @@ need to bootstrap again and re-add teammates afterward.
 
 Do not use this local authentication provider in production. Production authentication is reserved for Supabase Auth and has not been wired yet. See `testing_guide.md`, Section 9, for the full setup, sign-in, Swagger, and troubleshooting flow.
 
+## Registering a service request as staff
+
+When a customer calls or emails in instead of using the public request form, staff with the
+`complaints.write` permission (management, sales, or admin) can register it directly from the
+protected workspace: sign in, open **New request** in the sidebar, and fill in the same fields
+the public form collects. Unlike the public form, the B2B Branch / School field can look up the
+real master list (type a few letters and pick a match) and fills the branch, customer number, and
+sales order no. together.
+
+Submitting creates the same kind of complaint the public form creates -- it appears in the
+Complaint inbox and can be scheduled, notated, and turned into a job card exactly the same way.
+
 ## Run the verification checks
 
 Stop the backend with `Ctrl+C` only if you need to, then run these commands from the project folder:

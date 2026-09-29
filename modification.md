@@ -610,3 +610,47 @@ one-off fix.
 
 - Restart `npm run dev` and confirm the Team logins password field shows the "ⓘ" tooltip on
   hover instead of the old text underneath it.
+
+## Modification #12 — Staff-facing "New request" page (item 2)
+
+- **Date:** 2026-09-29
+- **Status:** Complete.
+
+### What changed
+
+This closes out item 2 from the original request: a staff-facing way to register a service
+request when a customer calls or emails in, instead of the only option being the public request
+form.
+
+- New authenticated endpoint `POST /api/complaints` (gated on `complaints.write` -- management,
+  sales, and admin already have it). Same validation and the same service function as the public
+  `POST /api/public/complaints`, but not rate-limited, and it records which staff profile
+  registered the request (`complaint.submitted` audit event now carries `actorProfileId` and a
+  `source: 'staff'` vs `'public'` marker).
+- New **New request** page in the staff portal (sidebar, same visibility rule as the rest of the
+  complaint workflow: `complaints.write`). Same fields as the public form -- customer type, name,
+  contact details, address/region, B2B branch/school and site contact fields, product details,
+  and the issue description -- with the same conditional rule (contact number not required for a
+  B2B corporate account).
+- Unlike the public form, staff get a **B2B Branch / School lookup** against the real master list
+  (the same search used on the Schedule form and the complaint detail page's B2B match tab) --
+  type a few letters, pick a result, and it fills the branch name, customer number, and sales
+  order no. together. The public form can only ever offer free text there (see modification.md
+  #2), since it isn't authenticated.
+- On success, the page shows the new complaint's reference with two actions: **Open in inbox**
+  (jumps to the Complaint inbox pre-filtered to that reference) or **Register another**.
+- A request registered this way flows through the rest of the app exactly like one submitted
+  publicly -- it appears in the inbox, can be scheduled, notated, and turned into a job card the
+  same way.
+
+### Needs you
+
+- Restart `npm run dev` and confirm **New request** appears for management/sales/admin logins.
+- Register a test request, try the B2B branch lookup, and confirm it appears correctly in the
+  Complaint inbox and can be scheduled through to a job card.
+
+### Known follow-up (tracked, not started)
+
+- An admin page (or reuse of one) to add/deactivate salesmen and sales channels -- still
+  API-only.
+- No edit/deactivate/remove for a teammate login yet -- add and list only (modification.md #10).

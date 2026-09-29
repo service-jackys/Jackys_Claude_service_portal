@@ -1824,6 +1824,15 @@
                 <button
                   class="dashboard-link"
                   type="button"
+                  id="newRequestNav"
+                  hidden
+                  aria-label="New service request"
+                >
+                  New request <span aria-hidden="true">→</span>
+                </button>
+                <button
+                  class="dashboard-link"
+                  type="button"
                   id="jobCardsNav"
                   hidden
                   aria-label="Service job cards"
@@ -2930,6 +2939,172 @@
                 </div>
               </div>
             </div>
+
+            <div class="card" id="newComplaintWorkspace" hidden>
+              <div class="card-body">
+                <div id="newComplaintMessage" class="notice notice-error" role="alert" hidden></div>
+                <div id="newComplaintSuccess" class="notice notice-success" role="status" hidden>
+                  <strong>Service request registered.</strong>
+                  <p class="success-reference" id="newComplaintReference"></p>
+                  <div class="form-footer">
+                    <button
+                      class="button button-outline"
+                      type="button"
+                      id="openNewComplaintInInboxButton"
+                    >
+                      Open in inbox
+                    </button>
+                    <button class="button button-primary" type="button" id="registerAnotherButton">
+                      Register another
+                    </button>
+                  </div>
+                </div>
+                <div id="newComplaintFields">
+                  <p class="form-note">
+                    Use this when a customer calls or emails in, instead of directing them to the
+                    public request form. Fields marked with <span class="required">*</span> are
+                    required.
+                  </p>
+                  <form id="newComplaintForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field">
+                        <label for="newComplaintCustomerType"
+                          >Customer type <span class="required">*</span></label
+                        >
+                        <select id="newComplaintCustomerType" required>
+                          <option value="">Select a type</option>
+                          <option value="B2C">B2C (Direct customer)</option>
+                          <option value="B2B">B2B (Corporate client)</option>
+                        </select>
+                        <span class="field-error" data-error-for="newComplaintCustomerType"></span>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintCustomerName"
+                          >Customer / Company name <span class="required">*</span></label
+                        >
+                        <input
+                          id="newComplaintCustomerName"
+                          maxlength="200"
+                          autocomplete="name"
+                          required
+                        />
+                        <span class="field-error" data-error-for="newComplaintCustomerName"></span>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintContactNumber"
+                          >Contact number
+                          <span class="required" id="newComplaintContactNumberRequiredMark">*</span>
+                          <span class="tooltip" id="newComplaintContactNumberHint" tabindex="0">
+                            <span class="tooltip-icon" aria-hidden="true">i</span>
+                            <span class="tooltip-bubble" role="tooltip"
+                              >Not required for a B2B corporate account.</span
+                            >
+                          </span></label
+                        >
+                        <input id="newComplaintContactNumber" type="tel" maxlength="50" />
+                        <span class="field-error" data-error-for="newComplaintContactNumber"></span>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintCustomerEmail">Email address</label>
+                        <input id="newComplaintCustomerEmail" type="email" maxlength="320" />
+                        <span class="field-error" data-error-for="newComplaintCustomerEmail"></span>
+                      </div>
+                      <div class="field field-wide">
+                        <label for="newComplaintAddress">Address</label>
+                        <input id="newComplaintAddress" maxlength="500" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintRegion">Region</label>
+                        <select id="newComplaintRegion">
+                          <option value="">— Select region —</option>
+                          <option>Dubai</option>
+                          <option>Sharjah</option>
+                          <option>Ajman</option>
+                          <option>Ras Al Khaimah</option>
+                          <option>Fujairah</option>
+                          <option>Umm Al Quwain</option>
+                          <option>Abu Dhabi</option>
+                          <option>Al Ain</option>
+                        </select>
+                      </div>
+                      <div class="field field-wide">
+                        <label for="newComplaintB2bBranchSearchInput"
+                          >Look up B2B Branch / School
+                          <span class="form-note-inline"
+                            >(picks the branch, customer number and sales order no. together)</span
+                          ></label
+                        >
+                        <input
+                          id="newComplaintB2bBranchSearchInput"
+                          type="text"
+                          autocomplete="off"
+                          placeholder="Start typing a branch or school name…"
+                        />
+                      </div>
+                      <ul
+                        id="newComplaintB2bBranchResults"
+                        class="b2b-branch-results field-wide"
+                        hidden
+                      ></ul>
+                      <p id="newComplaintB2bBranchSearchMessage" class="form-note field-wide"></p>
+                      <div class="field">
+                        <label for="newComplaintB2bBranchSchool">B2B Branch / School</label>
+                        <input id="newComplaintB2bBranchSchool" placeholder="Or type it directly" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintSchoolContactPerson">Site contact person</label>
+                        <input id="newComplaintSchoolContactPerson" maxlength="500" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintSchoolContactNumber">Site contact number</label>
+                        <input id="newComplaintSchoolContactNumber" type="tel" maxlength="100" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintCustomerNumber">Customer number</label>
+                        <input id="newComplaintCustomerNumber" maxlength="100" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintSalesOrderNumber">Sales order no.</label>
+                        <input id="newComplaintSalesOrderNumber" maxlength="100" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintBrand">Brand</label>
+                        <input id="newComplaintBrand" maxlength="120" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintModel">Model</label>
+                        <input id="newComplaintModel" maxlength="120" />
+                      </div>
+                      <div class="field field-wide">
+                        <label for="newComplaintSerialOrItemCode">Serial number or item code</label>
+                        <input id="newComplaintSerialOrItemCode" maxlength="120" />
+                      </div>
+                      <div class="field field-wide">
+                        <label for="newComplaintDescription"
+                          >Describe the issue <span class="required">*</span></label
+                        >
+                        <textarea
+                          id="newComplaintDescription"
+                          maxlength="10000"
+                          required
+                        ></textarea>
+                        <span class="field-error" data-error-for="newComplaintDescription"></span>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button
+                        class="button button-primary"
+                        type="submit"
+                        id="submitNewComplaintButton"
+                      >
+                        Register request
+                      </button>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+
             <div class="card" id="technicianWorkspace" hidden>
               <div class="card-body">
                 <p class="form-note">
