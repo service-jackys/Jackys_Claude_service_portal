@@ -511,3 +511,24 @@ much more specific and useful signal than the earlier timeout.
 - Do not import live customer data into local development.
 - Do not commit passwords, API keys, bootstrap tokens, `.env` files, customer exports, deployment URLs, Drive IDs, Supabase service-role keys, or other secrets.
 - Do not push or deploy this local migration project without reviewing the environment, authentication, data, and rollback implications.
+
+#### Investigation — 2026-09-29: CMP-260928-004 "already has an active appointment" false alarm
+
+While manually testing, scheduling a brand-new complaint (CMP-260928-004, status "Ready for
+Scheduling", zero appointment rows in the DB) failed with "The complaint already has an active
+appointment." This looked like a second instance of the stale-appointment bug fixed above, but it
+wasn't.
+
+- [x] Read-only diagnostic script queried the live DB directly (`complaints`, `appointments`,
+      `complaint_status_history`) for both CMP-260928-002 and CMP-260928-004: no active appointment
+      existed anywhere for either complaint, and only one appointment ever existed in the whole
+      database (`APT-2026-00001`, tied to the already-`Closed` CMP-260928-001).
+- [x] Since the client always displays the server's own `error.message` verbatim (never a hardcoded
+      string), the error had to be coming from the live server process, not from stale front-end JS.
+- [x] Root cause: the running `npm run dev` process was stale/holding old state (most likely started in
+      a terminal session or against a DB connection from before the test complaints were reset) --
+      **not a code bug.** A full stop + fresh terminal + `npm run dev` restart resolved it immediately;
+      scheduling CMP-260928-004 then worked.
+- [x] No code change needed. Lesson for future manual testing sessions: if a scheduling/appointment
+      error looks inconsistent with what a direct DB check shows, restart the dev server from a clean
+      terminal before assuming it's a data or logic bug.
