@@ -482,11 +482,29 @@ Complaint inbox and can be scheduled, notated, and turned into a job card exactl
 
 ## Managing salesmen and sales channels
 
-Admins can manage the Salesman and Sales Channel dropdowns (used on the Schedule appointment form
-and job cards) from **Salesmen & channels** in the sidebar. Each list has an "Add" form, and each
-row in the table lets you edit the name (type into the box and click Save) or click
-Deactivate/Reactivate to hide an entry from the dropdowns without deleting it -- a deactivated
-entry stays visible here so you can bring it back later.
+Admins manage the Salesman list (used on the Schedule appointment form and job cards) from
+**Salesmen & channels** in the sidebar. Each salesman row has a Sales channel dropdown, so each
+salesman links to one channel -- pick a channel, click Save, or click Deactivate/Reactivate to
+hide an entry from the dropdowns without deleting it (a deactivated entry stays visible here so
+you can bring it back later). Sales channels don't have their own table any more; there's a small
+"Add a new sales channel name" box under the salesmen table for adding a new channel name, which
+then shows up as an option in every salesman's dropdown.
+
+A job card's Sales channel field defaults from whichever salesman is on the appointment (looked
+up against this list), and can always be changed on the job card itself if it's wrong.
+
+## Loading the new JDI sales channel data (one-time, do this once)
+
+A second sales channel, JDI, was added alongside the original JER-C/INS data. To load it:
+
+1. Run `npm run db:migrate` -- this applies migration 013, which adds the Sales channel column
+   to the salesmen and B2B branch lists, tags everything already on file as JER-C/INS, and adds
+   the JDI salesmen (AFAQUE KHAN, JAMES T. PAUL, and SHIVA move to JDI since they sell for both
+   but a salesman can only link to one channel; DANISH ALAM, SAI RAVIKANTH, and VYSAKH are new).
+2. Run `node scripts/import-b2b-branches.mjs b2b_branches_jdi.json JDI` to load the 45 JDI B2B
+   branches into the same master list the JER-C/INS branches are already in.
+
+Both steps are safe to re-run if anything goes wrong.
 
 ## Run the verification checks
 

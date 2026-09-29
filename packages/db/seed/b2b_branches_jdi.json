@@ -1,0 +1,317 @@
+[
+  {
+    "custCode": "J100032",
+    "branchName": "AL BARSHA ELECTRONICS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100478",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "J100049",
+    "branchName": "AL IHSAN ELECTRONICS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100362",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "J100053",
+    "branchName": "AL INARA BUILDING MATERIALS TRADING",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100421",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "J100055",
+    "branchName": "AL MAJAN MOBILE PHONES LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100469",
+    "lastInvoiceDate": "2026-09-21"
+  },
+  {
+    "custCode": "J100051",
+    "branchName": "AL MASHKA CORNER TRADING CO LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100399",
+    "lastInvoiceDate": "2026-09-04"
+  },
+  {
+    "custCode": "J100014",
+    "branchName": "ALFA ROYAL TRADING",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100374",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "J100024",
+    "branchName": "ALI AL SAEEDI TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100413",
+    "lastInvoiceDate": "2026-09-09"
+  },
+  {
+    "custCode": "J100038",
+    "branchName": "ALRAMS HYPERMARKET LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100436",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "403224",
+    "branchName": "ANISUMA TRADERS LTD.  TANZANIA",
+    "salesman": "JAMES T. PAUL",
+    "lastSalesOrderNumber": "16100393",
+    "lastInvoiceDate": "2026-08-27"
+  },
+  {
+    "custCode": "J100013",
+    "branchName": "ANISUMA TRADERS LTD. UGANDA",
+    "salesman": "Sales to JDI",
+    "lastSalesOrderNumber": "16100387",
+    "lastInvoiceDate": "2026-08-24"
+  },
+  {
+    "custCode": "J100022",
+    "branchName": "ASMARA ELECTRONICS L.L.C.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100465",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "J100001",
+    "branchName": "AVOLON ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100466",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "J100034",
+    "branchName": "CHEE FATT TOOLS & HARDWARE TRADING LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100481",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "J100006",
+    "branchName": "DREAM HOME INNOVATION FZE",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100474",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "J100054",
+    "branchName": "EURO BRAND BUILDING MATERIALS LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100453",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "J100031",
+    "branchName": "GOLDEN BRIDGE BUILDING MATERIALS TRADING LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100420",
+    "lastInvoiceDate": "2026-09-11"
+  },
+  {
+    "custCode": "J100030",
+    "branchName": "HIGH LIGHT ELECTRONICS (L.L.C.)",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100428",
+    "lastInvoiceDate": "2026-09-08"
+  },
+  {
+    "custCode": "J100009",
+    "branchName": "JACKY'S GEMBOX GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100479",
+    "lastInvoiceDate": "2026-09-26"
+  },
+  {
+    "custCode": "403105",
+    "branchName": "JACKYS ELECTRONICS LLC-CORPORATE",
+    "salesman": "SALES TO JERC",
+    "lastSalesOrderNumber": "16100021",
+    "lastInvoiceDate": "2026-04-06"
+  },
+  {
+    "custCode": "403106",
+    "branchName": "JACKYS GULF FZE - TRADE A/C",
+    "salesman": "SALES TO (JGF) JACKYS GULF FZE",
+    "lastSalesOrderNumber": "16100325",
+    "lastInvoiceDate": "2026-08-07"
+  },
+  {
+    "custCode": "403117",
+    "branchName": "JACKYS LOGISTICS WORLDWIDE - TRADE A/C",
+    "salesman": "Sales to JDI",
+    "lastSalesOrderNumber": "16100154",
+    "lastInvoiceDate": "2026-06-12"
+  },
+  {
+    "custCode": "J100039",
+    "branchName": "JAMAL AHMED ELECTROMECHANICAL WORKS LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100161",
+    "lastInvoiceDate": "2026-06-16"
+  },
+  {
+    "custCode": "J100005",
+    "branchName": "JAMAL JOHAR M. AL JOHAR",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100262",
+    "lastInvoiceDate": "2026-07-21"
+  },
+  {
+    "custCode": "J100007",
+    "branchName": "KADEEJA TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100477",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "J100015",
+    "branchName": "KAMLESH ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100358",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "J100003",
+    "branchName": "KHALIFA OBAID KHALIFA TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100360",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "J100041",
+    "branchName": "METRO DELUX GENERAL TRADING (L.L.C.) - HOTEL BR.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100355",
+    "lastInvoiceDate": "2026-08-24"
+  },
+  {
+    "custCode": "J100018",
+    "branchName": "METRO DELUX GENERAL TRADING L.L.C.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100456",
+    "lastInvoiceDate": "2026-09-21"
+  },
+  {
+    "custCode": "J100011",
+    "branchName": "PEAK PLANET FZE",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100028",
+    "lastInvoiceDate": "2026-04-01"
+  },
+  {
+    "custCode": "J100033",
+    "branchName": "PLANET FIRST GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100462",
+    "lastInvoiceDate": "2026-09-17"
+  },
+  {
+    "custCode": "J100020",
+    "branchName": "R I B ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100451",
+    "lastInvoiceDate": "2026-09-18"
+  },
+  {
+    "custCode": "J100052",
+    "branchName": "RIAZ & TARIQ TR. CO. LLC",
+    "salesman": "DANISH ALAM",
+    "lastSalesOrderNumber": "16100467",
+    "lastInvoiceDate": "2026-09-22"
+  },
+  {
+    "custCode": "J100037",
+    "branchName": "S & S GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100191",
+    "lastInvoiceDate": "2026-06-24"
+  },
+  {
+    "custCode": "J100010",
+    "branchName": "SAFE LINE ELECTRICAL & MECHANICAL L.L.C",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100480",
+    "lastInvoiceDate": "2026-09-28"
+  },
+  {
+    "custCode": "J100050",
+    "branchName": "SAIF AL ARAB HARD & ELECT WARE TR LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100370",
+    "lastInvoiceDate": "2026-08-26"
+  },
+  {
+    "custCode": "J100046",
+    "branchName": "SEVEN WONDERS ELECTRONICS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100304",
+    "lastInvoiceDate": "2026-08-05"
+  },
+  {
+    "custCode": "J100045",
+    "branchName": "SHAMS AL MAYAS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100442",
+    "lastInvoiceDate": "2026-09-15"
+  },
+  {
+    "custCode": "J100026",
+    "branchName": "SILVER TOUCH ELECTRONICS TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100363",
+    "lastInvoiceDate": "2026-08-22"
+  },
+  {
+    "custCode": "J100012",
+    "branchName": "SIMBA ELECTRONICS L.LC.",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100237",
+    "lastInvoiceDate": "2026-07-09"
+  },
+  {
+    "custCode": "J100042",
+    "branchName": "SOFT TOUCH ELECTRONICS LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100475",
+    "lastInvoiceDate": "2026-09-25"
+  },
+  {
+    "custCode": "J100036",
+    "branchName": "STRENGTH ELECTRIC AND SANIT TRADING SPS - LLC",
+    "salesman": "SAI RAVIKANTH",
+    "lastSalesOrderNumber": "16100434",
+    "lastInvoiceDate": "2026-09-14"
+  },
+  {
+    "custCode": "J100035",
+    "branchName": "TECHNO TRONICS",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100213",
+    "lastInvoiceDate": "2026-07-02"
+  },
+  {
+    "custCode": "J100047",
+    "branchName": "VOLT VISION ELECTRONICS LLC S.O.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100326",
+    "lastInvoiceDate": "2026-08-14"
+  },
+  {
+    "custCode": "J100004",
+    "branchName": "YELLOW DIAMOND GENERAL TRADING  L.L.C",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100389",
+    "lastInvoiceDate": "2026-08-31"
+  },
+  {
+    "custCode": "J100008",
+    "branchName": "YELLOW DIAMOND GENERAL TRADING LLC",
+    "salesman": "AFAQUE KHAN",
+    "lastSalesOrderNumber": "16100047",
+    "lastInvoiceDate": "2026-04-24"
+  }
+]

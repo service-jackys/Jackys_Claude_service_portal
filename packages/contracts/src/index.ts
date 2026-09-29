@@ -208,6 +208,7 @@ export const salesmanWriteSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     active: z.boolean().optional(),
+    salesChannel: z.string().trim().min(1).max(200).optional(),
   })
   .strict();
 export type SalesmanWriteInput = z.infer<typeof salesmanWriteSchema>;

@@ -26,6 +26,7 @@ import {
   type AppointmentRecord,
 } from '../../../../packages/db/src/appointments.js';
 import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
+import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
 import { allocateJobCardReference } from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
@@ -75,12 +76,27 @@ async function resolveTechnicianName(
   return technician?.name ?? null;
 }
 
+// The job card's Sales channel defaults from the salesman already on the
+// appointment (see modification.md #17) -- the same salesman a staff member
+// picked or confirmed on the Schedule form. Falls back to null (e.g. free
+// text name that isn't in the salesmen master, or no salesman at all) --
+// staff can always fill it in on the job card's own Sales channel field.
+async function resolveSalesChannelForSalesman(
+  client: Parameters<typeof findSalesmanByName>[0],
+  salesman: string | null,
+) {
+  if (!salesman) return null;
+  const record = await findSalesmanByName(client, salesman);
+  return record?.salesChannel ?? null;
+}
+
 /** Default job-card content pulled from a completed appointment, matching the live
  *  system's pullJobCardFromScheduler(). The CCE can edit anything from here before
  *  saving; nothing here is final until the job card is created. */
 function defaultsFromAppointment(
   appointment: AppointmentRecord,
   technicianName: string | null,
+  salesChannel: string | null,
 ): ServiceJobCardContent {
   return {
     jobCardDate: new Date().toISOString().slice(0, 10),
@@ -105,7 +121,7 @@ function defaultsFromAppointment(
     technicianName,
     brand: appointment.brand,
     salesman: appointment.salesman,
-    salesChannel: null,
+    salesChannel,
     jobFinalStatus: 'WIP',
     schoolContactPerson: appointment.b2bBranchSchool ? appointment.schoolContactPerson : null,
     schoolContactNumber: appointment.b2bBranchSchool ? appointment.schoolContactNumber : null,
@@ -157,9 +173,10 @@ export function createServiceJobCardService(pool: Pool) {
         );
       }
       const technicianName = await resolveTechnicianName(client, appointment.technicianId);
+      const salesChannel = await resolveSalesChannelForSalesman(client, appointment.salesman);
       return {
         appointment,
-        content: defaultsFromAppointment(appointment, technicianName),
+        content: defaultsFromAppointment(appointment, technicianName, salesChannel),
       };
     } finally {
       client.release();
@@ -192,7 +209,11 @@ export function createServiceJobCardService(pool: Pool) {
       }
 
       const technicianName = await resolveTechnicianName(client, appointment.technicianId);
-      const content = mergeContent(defaultsFromAppointment(appointment, technicianName), overrides);
+      const salesChannel = await resolveSalesChannelForSalesman(client, appointment.salesman);
+      const content = mergeContent(
+        defaultsFromAppointment(appointment, technicianName, salesChannel),
+        overrides,
+      );
 
       const jobCardReference = await allocateJobCardReference(client, appointment.appointmentDate);
       let jobCard;

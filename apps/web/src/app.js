@@ -585,7 +585,6 @@
       resetNewComplaintForm();
     } else if (masterData) {
       loadSalesmen();
-      loadSalesChannels();
     } else {
       loadComplaints();
     }
@@ -2239,6 +2238,7 @@ ${bodyHtml}
   // ever offer free text for that -- see modification.md #2) that fills
   // branch, customer number and sales order no. together.
   const newComplaintB2bOnlyFieldIds = [
+    'newComplaintB2bBranchSearchInput',
     'newComplaintB2bBranchSchool',
     'newComplaintSchoolContactPerson',
     'newComplaintSchoolContactNumber',
@@ -2253,6 +2253,12 @@ ${bodyHtml}
       $('#' + id).disabled = isB2c;
       if (isB2c) $('#' + id).value = '';
     });
+    if (isB2c) {
+      $('#newComplaintB2bBranchResults').innerHTML = '';
+      $('#newComplaintB2bBranchResults').hidden = true;
+      delete $('#newComplaintB2bBranchResults').dataset.branches;
+      $('#newComplaintB2bBranchSearchMessage').textContent = '';
+    }
     const contactRequired = customerType !== 'B2B';
     $('#newComplaintContactNumberRequiredMark').hidden = !contactRequired;
     $('#newComplaintContactNumberHint').hidden = contactRequired;
@@ -2321,7 +2327,6 @@ ${bodyHtml}
     const branch = branches[Number(button.dataset.branchIndex)];
     if (!branch) return;
     $('#newComplaintB2bBranchSchool').value = branch.branchName;
-    $('#newComplaintCustomerNumber').value = branch.custCode;
     if (branch.lastSalesOrderNumber)
       $('#newComplaintSalesOrderNumber').value = branch.lastSalesOrderNumber;
     $('#newComplaintB2bBranchResults').hidden = true;
@@ -2423,39 +2428,67 @@ ${bodyHtml}
   });
 
   // ---- Salesmen / Sales channels (modification.md #14, edit/deactivate
-  // added in modification.md #15) -- small admin lists that feed the
-  // Salesman/Sales Channel dropdowns on the Schedule form and job cards
-  // (see modification.md #8).
-  function renderMasterDataRows(bodySelector, emptySelector, items, writePermission) {
-    const body = $(bodySelector);
-    const canWrite = hasPermission(writePermission);
+  // added in #15, merged into one table with Sales channel as a column
+  // instead of its own section in #17). The salesmen table feeds the
+  // Salesman dropdown on the Schedule form and job cards; the Sales
+  // channel column feeds the Sales channel dropdown on job cards (see
+  // modification.md #8, #17). Sales channels themselves stay a small
+  // master list under the hood (so the dropdown has real, reusable
+  // values), but the admin page only shows a one-line "add a new channel
+  // name" control for it now, not a separate table.
+  let salesChannelDropdownOptions = [];
+
+  function renderSalesmenRows(items) {
+    const body = $('#salesmenBody');
+    const canWrite = hasPermission('salesmen.write');
+    const channelOptionsHtml = (selected) =>
+      `<option value="">Select a channel</option>` +
+      salesChannelDropdownOptions
+        .map(
+          (channel) =>
+            `<option value="${escapeHtml(channel.name)}" ${channel.name === selected ? 'selected' : ''}>${escapeHtml(channel.name)}</option>`,
+        )
+        .join('');
     body.innerHTML = items
       .map((item) => {
         const nameCell = canWrite
           ? `<input type="text" class="master-data-name-input" data-id="${escapeHtml(item.id)}" value="${escapeHtml(item.name)}" maxlength="200" />`
           : escapeHtml(item.name);
+        const channelCell = canWrite
+          ? `<select class="master-data-channel-select" data-id="${escapeHtml(item.id)}">${channelOptionsHtml(item.salesChannel)}</select>`
+          : escapeHtml(item.salesChannel || '—');
         const actionsCell = canWrite
           ? `<button class="button-link" type="button" data-save-id="${escapeHtml(item.id)}">Save</button> <button class="button-link" type="button" data-toggle-id="${escapeHtml(item.id)}">${item.active ? 'Deactivate' : 'Reactivate'}</button>`
           : '';
-        return `<tr data-id="${escapeHtml(item.id)}"><td>${nameCell}</td><td>${item.active ? 'Active' : 'Inactive'}</td><td>${actionsCell}</td></tr>`;
+        return `<tr data-id="${escapeHtml(item.id)}"><td>${nameCell}</td><td>${channelCell}</td><td>${item.active ? 'Active' : 'Inactive'}</td><td>${actionsCell}</td></tr>`;
       })
       .join('');
-    $(emptySelector).hidden = items.length > 0;
+    $('#salesmenEmpty').hidden = items.length > 0;
+  }
+
+  async function loadSalesChannelDropdownOptions() {
+    if (!hasPermission('sales_channels.read')) {
+      salesChannelDropdownOptions = [];
+      return;
+    }
+    try {
+      const result = await apiRequest('/api/sales-channels?active=true&page=1&pageSize=200');
+      salesChannelDropdownOptions = result.salesChannels || [];
+    } catch {
+      salesChannelDropdownOptions = [];
+    }
+    populateSelectOptions('#salesmanSalesChannel', salesChannelDropdownOptions, 'Select a channel');
   }
 
   async function loadSalesmen() {
     if (!hasPermission('salesmen.read')) return;
     clearWorkspaceRecovery();
     $('#salesmenBody').innerHTML =
-      '<tr><td colspan="3" class="empty-state">Loading salesmen…</td></tr>';
+      '<tr><td colspan="4" class="empty-state">Loading salesmen…</td></tr>';
     try {
+      await loadSalesChannelDropdownOptions();
       const result = await apiRequest('/api/salesmen?page=1&pageSize=200');
-      renderMasterDataRows(
-        '#salesmenBody',
-        '#salesmenEmpty',
-        result.salesmen || [],
-        'salesmen.write',
-      );
+      renderSalesmenRows(result.salesmen || []);
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -2467,33 +2500,6 @@ ${bodyHtml}
       }
       $('#salesmenBody').innerHTML = '';
       $('#salesmenEmpty').hidden = false;
-    }
-  }
-
-  async function loadSalesChannels() {
-    if (!hasPermission('sales_channels.read')) return;
-    clearWorkspaceRecovery();
-    $('#salesChannelsBody').innerHTML =
-      '<tr><td colspan="3" class="empty-state">Loading sales channels…</td></tr>';
-    try {
-      const result = await apiRequest('/api/sales-channels?page=1&pageSize=200');
-      renderMasterDataRows(
-        '#salesChannelsBody',
-        '#salesChannelsEmpty',
-        result.salesChannels || [],
-        'sales_channels.write',
-      );
-    } catch (error) {
-      if (error.status === 401) {
-        await signOut(false);
-        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
-      } else if (error.status === 403) {
-        setWorkspaceRecovery('You are not authorized to view sales channels.', loadSalesChannels);
-      } else {
-        setWorkspaceRecovery(error.message, loadSalesChannels);
-      }
-      $('#salesChannelsBody').innerHTML = '';
-      $('#salesChannelsEmpty').hidden = false;
     }
   }
 
@@ -2520,40 +2526,18 @@ ${bodyHtml}
     }
   }
 
-  async function updateSalesChannel(id, payload) {
-    try {
-      await apiRequest('/api/sales-channels/' + encodeURIComponent(id), {
-        method: 'PATCH',
-        body: JSON.stringify(payload),
-      });
-      await loadSalesChannels();
-      setMessage('#workspaceMessage', 'Sales channel updated.', true);
-    } catch (error) {
-      if (error.status === 401) {
-        await signOut(false);
-        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
-      } else if (error.status === 403) {
-        setMessage('#workspaceMessage', 'You are not authorized to manage sales channels.');
-      } else if (error.status === 404) {
-        setMessage('#workspaceMessage', 'That sales channel was not found.');
-        await loadSalesChannels();
-      } else {
-        setMessage('#workspaceMessage', error.message);
-      }
-    }
-  }
-
   $('#salesmenBody').addEventListener('click', (event) => {
     const saveButton = event.target.closest('button[data-save-id]');
     if (saveButton) {
       const id = saveButton.dataset.saveId;
       const input = $(`input.master-data-name-input[data-id="${id}"]`);
+      const select = $(`select.master-data-channel-select[data-id="${id}"]`);
       const name = input ? input.value.trim() : '';
       if (!name) {
         setMessage('#workspaceMessage', "Enter the salesman's name.");
         return;
       }
-      updateSalesman(id, { name });
+      updateSalesman(id, { name, salesChannel: select && select.value ? select.value : undefined });
       return;
     }
     const toggleButton = event.target.closest('button[data-toggle-id]');
@@ -2566,34 +2550,12 @@ ${bodyHtml}
     }
   });
 
-  $('#salesChannelsBody').addEventListener('click', (event) => {
-    const saveButton = event.target.closest('button[data-save-id]');
-    if (saveButton) {
-      const id = saveButton.dataset.saveId;
-      const input = $(`input.master-data-name-input[data-id="${id}"]`);
-      const name = input ? input.value.trim() : '';
-      if (!name) {
-        setMessage('#workspaceMessage', 'Enter the sales channel name.');
-        return;
-      }
-      updateSalesChannel(id, { name });
-      return;
-    }
-    const toggleButton = event.target.closest('button[data-toggle-id]');
-    if (toggleButton) {
-      const id = toggleButton.dataset.toggleId;
-      const input = $(`input.master-data-name-input[data-id="${id}"]`);
-      const name = input ? input.value.trim() : '';
-      const activatingNow = toggleButton.textContent.trim() === 'Reactivate';
-      updateSalesChannel(id, { name, active: activatingNow });
-    }
-  });
-
   $('#salesmanForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     clearErrors(form);
     const name = $('#salesmanName').value.trim();
+    const salesChannel = $('#salesmanSalesChannel').value;
     if (!name) {
       showFieldError(form, 'salesmanName', "Enter the salesman's name.");
       return;
@@ -2601,7 +2563,10 @@ ${bodyHtml}
     const button = $('#saveSalesmanButton');
     setBusy(button, true, 'Adding…');
     try {
-      await apiRequest('/api/salesmen', { method: 'POST', body: JSON.stringify({ name }) });
+      await apiRequest('/api/salesmen', {
+        method: 'POST',
+        body: JSON.stringify({ name, ...(salesChannel ? { salesChannel } : {}) }),
+      });
       $('#salesmanName').value = '';
       setMessage('#workspaceMessage', 'Salesman added.', true);
       await loadSalesmen();
@@ -2634,7 +2599,8 @@ ${bodyHtml}
       await apiRequest('/api/sales-channels', { method: 'POST', body: JSON.stringify({ name }) });
       $('#salesChannelName').value = '';
       setMessage('#workspaceMessage', 'Sales channel added.', true);
-      await loadSalesChannels();
+      await loadSalesChannelDropdownOptions();
+      await loadSalesmen();
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);

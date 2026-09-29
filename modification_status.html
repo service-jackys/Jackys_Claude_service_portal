@@ -725,6 +725,64 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#17 &mdash; Second sales channel (JDI), salesman/channel linking, two bugs</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">
+          2026-09-29 &middot; Scope: DB migration + one-time import script, API backend, staff
+          portal frontend
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Done</strong> &mdash; a second sales channel, JDI, alongside the original
+            JER-C/INS. All existing salesmen/branches tagged JER-C/INS; 45 new JDI branches ready to
+            import via a one-time script.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; AFAQUE KHAN, JAMES T. PAUL and SHIVA move to JDI (sell
+            under both channels, but one channel per salesman); DANISH ALAM and SAI RAVIKANTH added
+            from the JDI data; VYSAKH added manually.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; Salesmen &amp; channels page merged: Sales channel is now
+            an editable column on the Salesmen table instead of its own section, with a small "add a
+            new channel name" box replacing the old Sales channels table.
+          </li>
+          <li>
+            <strong>Done</strong> &mdash; a job card's Sales channel now defaults from its
+            appointment's salesman (previously always blank), still editable on the job card.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; New Request's "Customer number" was being filled with the
+            branch's account code, not a real phone number (there isn't one in the data); it's left
+            blank now for staff to fill in.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; New Request's B2C/B2B gating now also greys out the "Look
+            up B2B Branch / School" search box, which it previously missed.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            One-time: run <code>npm run db:migrate</code>, then
+            <code>node scripts/import-b2b-branches.mjs b2b_branches_jdi.json JDI</code> (see the
+            README).
+          </li>
+          <li>Restart <code>npm run dev</code>.</li>
+          <li>
+            Check the Salesmen &amp; channels page, the New Request B2B lookup, and a completed
+            appointment's job card Sales channel field.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

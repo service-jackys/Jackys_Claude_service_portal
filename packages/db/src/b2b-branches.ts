@@ -5,6 +5,7 @@ export type B2bBranchRecord = {
   custCode: string;
   branchName: string;
   salesman: string | null;
+  salesChannel: string | null;
   lastSalesOrderNumber: string | null;
   lastInvoiceDate: string | null;
   createdAt: Date;
@@ -16,6 +17,7 @@ const b2bBranchColumns = `
   b2b_branches.cust_code AS "custCode",
   b2b_branches.branch_name AS "branchName",
   b2b_branches.salesman,
+  b2b_branches.sales_channel AS "salesChannel",
   b2b_branches.last_sales_order_number AS "lastSalesOrderNumber",
   b2b_branches.last_invoice_date AS "lastInvoiceDate",
   b2b_branches.created_at AS "createdAt",
@@ -35,6 +37,7 @@ export async function searchB2bBranchesForStaff(
     custCode: string;
     branchName: string;
     salesman: string | null;
+    salesChannel: string | null;
     lastSalesOrderNumber: string | null;
   }>
 > {
@@ -43,16 +46,19 @@ export async function searchB2bBranchesForStaff(
     custCode: string;
     branchName: string;
     salesman: string | null;
+    salesChannel: string | null;
     lastSalesOrderNumber: string | null;
   }>(
     trimmed
       ? `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
+                sales_channel AS "salesChannel",
                 last_sales_order_number AS "lastSalesOrderNumber"
          FROM b2b_branches
          WHERE branch_name ILIKE $1
          ORDER BY branch_name
          LIMIT 20`
       : `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
+                sales_channel AS "salesChannel",
                 last_sales_order_number AS "lastSalesOrderNumber"
          FROM b2b_branches
          ORDER BY branch_name
@@ -79,16 +85,18 @@ export async function upsertB2bBranch(
     custCode: string;
     branchName: string;
     salesman: string | null;
+    salesChannel: string | null;
     lastSalesOrderNumber: string | null;
     lastInvoiceDate: string | null;
   },
 ): Promise<B2bBranchRecord> {
   const result = await client.query<B2bBranchRecord>(
-    `INSERT INTO b2b_branches (cust_code, branch_name, salesman, last_sales_order_number, last_invoice_date)
-     VALUES ($1, $2, $3, $4, $5)
+    `INSERT INTO b2b_branches (cust_code, branch_name, salesman, sales_channel, last_sales_order_number, last_invoice_date)
+     VALUES ($1, $2, $3, $4, $5, $6)
      ON CONFLICT (cust_code) DO UPDATE SET
        branch_name = EXCLUDED.branch_name,
        salesman = EXCLUDED.salesman,
+       sales_channel = EXCLUDED.sales_channel,
        last_sales_order_number = EXCLUDED.last_sales_order_number,
        last_invoice_date = EXCLUDED.last_invoice_date,
        updated_at = now()
@@ -97,6 +105,7 @@ export async function upsertB2bBranch(
       input.custCode,
       input.branchName,
       input.salesman,
+      input.salesChannel,
       input.lastSalesOrderNumber,
       input.lastInvoiceDate,
     ],

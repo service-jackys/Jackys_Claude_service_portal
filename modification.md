@@ -768,3 +768,52 @@ showed a "The request body is invalid." error with a Retry button.
 - Restart `npm run dev`.
 - Open the **Technicians** tab and the **Salesmen & channels** tab and confirm both load their
   lists normally now, with no error banner.
+
+## Modification #17 — Second sales channel (JDI), salesman/channel linking, and two bugs from testing
+
+- **Date:** 2026-09-29
+- **Status:** Code complete — needs your test and the two one-time commands below.
+
+### What changed
+
+- **Second sales channel loaded.** All existing salesmen and B2B branches (from the original
+  CSIISI invoice data) are tagged `JER-C/INS`. A new batch of 45 B2B branches from the JDI
+  invoice data you shared is ready to import as `JDI` (see "Loading the new JDI sales channel
+  data" in the README — one migration + one import command, both one-time).
+- **Salesmen updated for JDI:** DANISH ALAM and SAI RAVIKANTH are new (from the JDI invoice
+  data), and VYSAKH is added manually (not in the invoice data, but sells for JDI). AFAQUE KHAN,
+  JAMES T. PAUL, and SHIVA already existed from JER-C/INS and now move to JDI, since they sell
+  under both channels but the data model links one channel per salesman.
+- **Salesmen & channels page merged**, per your request — Sales channel is now a column on the
+  Salesmen table (an editable dropdown + Save, same row as the name and Deactivate/Reactivate)
+  instead of its own separate list. A small "Add a new sales channel name" box under the table
+  still lets you add a brand-new channel name for that dropdown to offer.
+- **Sales channel now flows to job cards automatically.** A job card's Sales channel field used
+  to always be blank; it now defaults from whichever salesman is on the appointment (looked up
+  against the Salesmen list), the same way Salesman already defaults. Still editable on the job
+  card itself if it's wrong.
+- **Fixed: "Customer number" was being filled with the wrong thing.** Picking a B2B branch on
+  the New Request page was filling "Customer number" with the branch's internal account code
+  (Cust_Code) — there's no actual mobile/phone number anywhere in the sales data, so that field
+  is now left blank for staff to fill in by hand if they have it.
+- **Fixed: New Request's B2C/B2B gating was incomplete.** Selecting B2C correctly greyed out
+  "B2B Branch / School", "Site contact person", and "Site contact number", but left the "Look up
+  B2B Branch / School" search box active. It's now included in the same gating.
+
+### Needs you
+
+- Run `npm run db:migrate`, then `node scripts/import-b2b-branches.mjs b2b_branches_jdi.json JDI`
+  (see the README section for details) -- this only needs to be done once.
+- Restart `npm run dev`.
+- On **Salesmen & channels**, confirm AFAQUE KHAN, JAMES T. PAUL, and SHIVA show Sales channel =
+  JDI, and that DANISH ALAM, SAI RAVIKANTH, and VYSAKH exist with Sales channel = JDI too. Try
+  changing a salesman's channel and adding a brand-new channel name.
+- On the New Request page, search the B2B branch lookup for a JDI branch (e.g. "AL BARSHA
+  ELECTRONICS") to confirm it comes back; confirm Customer number stays blank after picking a
+  branch; confirm selecting B2C now greys out the branch lookup box too.
+- Complete an appointment and create its job card; confirm Sales channel is pre-filled from the
+  appointment's salesman, and that you can still change it.
+
+### Known follow-up
+
+- None flagged.

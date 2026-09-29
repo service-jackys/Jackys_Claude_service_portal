@@ -8,6 +8,7 @@ export type SalesmanRecord = {
   id: string;
   name: string;
   active: boolean;
+  salesChannel: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -16,17 +17,19 @@ const columns = `
   salesmen.id,
   salesmen.name,
   salesmen.active,
+  salesmen.sales_channel AS "salesChannel",
   salesmen.created_at AS "createdAt",
   salesmen.updated_at AS "updatedAt"
 `;
 
 export async function insertSalesman(
   client: PoolClient,
-  input: { name: string; active?: boolean },
+  input: { name: string; active?: boolean; salesChannel?: string | null },
 ): Promise<SalesmanRecord> {
   const result = await client.query<SalesmanRecord>(
-    `INSERT INTO salesmen (name, active) VALUES ($1, COALESCE($2, true)) RETURNING ${columns}`,
-    [input.name, input.active ?? null],
+    `INSERT INTO salesmen (name, active, sales_channel)
+     VALUES ($1, COALESCE($2, true), $3) RETURNING ${columns}`,
+    [input.name, input.active ?? null, input.salesChannel ?? null],
   );
   return result.rows[0];
 }
@@ -34,13 +37,26 @@ export async function insertSalesman(
 export async function updateSalesman(
   client: PoolClient,
   id: string,
-  input: { name: string; active?: boolean },
+  input: { name: string; active?: boolean; salesChannel?: string | null },
 ): Promise<SalesmanRecord | null> {
   const result = await client.query<SalesmanRecord>(
     `UPDATE salesmen
-     SET name = $2, active = COALESCE($3, active), updated_at = now()
+     SET name = $2, active = COALESCE($3, active),
+         sales_channel = COALESCE($4, sales_channel),
+         updated_at = now()
      WHERE id = $1 RETURNING ${columns}`,
-    [id, input.name, input.active ?? null],
+    [id, input.name, input.active ?? null, input.salesChannel ?? null],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function findSalesmanByName(
+  client: PoolClient,
+  name: string,
+): Promise<SalesmanRecord | null> {
+  const result = await client.query<SalesmanRecord>(
+    `SELECT ${columns} FROM salesmen WHERE lower(salesmen.name) = lower($1) LIMIT 1`,
+    [name],
   );
   return result.rows[0] ?? null;
 }

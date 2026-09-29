@@ -385,6 +385,17 @@
         gap: 1rem;
         margin-bottom: 0.75rem;
       }
+      .form-inline-add {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+        padding-top: 0.75rem;
+        border-top: 1px dashed #cbd7e2;
+      }
+      .form-inline-add .field {
+        flex: 1 1 260px;
+      }
       label {
         color: var(--ink);
         font-size: 0.88rem;
@@ -3117,9 +3128,10 @@
             <div class="card" id="masterDataWorkspace" hidden>
               <div class="card-body">
                 <p class="form-note">
-                  Manage the Salesman and Sales Channel dropdowns used on the Schedule appointment
-                  form and job cards. Edit a name inline or use Deactivate/Reactivate to hide an
-                  entry from the dropdowns without deleting it.
+                  Manage the Salesmen dropdown used on the Schedule appointment form and job cards,
+                  and the Sales Channel each salesman belongs to. Edit a name or channel inline and
+                  click Save, or use Deactivate/Reactivate to hide an entry from the dropdowns
+                  without deleting it.
                 </p>
                 <section class="detail-action-card" aria-labelledby="salesmenHeading">
                   <h4 id="salesmenHeading">Salesmen</h4>
@@ -3131,6 +3143,7 @@
                       <thead>
                         <tr>
                           <th>Name</th>
+                          <th>Sales channel</th>
                           <th>Active</th>
                           <th>Actions</th>
                         </tr>
@@ -3146,6 +3159,10 @@
                         <input type="text" id="salesmanName" maxlength="200" required />
                         <span class="field-error" data-error-for="salesmanName"></span>
                       </div>
+                      <div class="field">
+                        <label for="salesmanSalesChannel">Sales channel</label>
+                        <select id="salesmanSalesChannel"></select>
+                      </div>
                     </div>
                     <div class="form-footer">
                       <button class="button button-primary" type="submit" id="saveSalesmanButton">
@@ -3153,44 +3170,24 @@
                       </button>
                     </div>
                   </form>
-                </section>
-                <section class="detail-action-card" aria-labelledby="salesChannelsHeading">
-                  <h4 id="salesChannelsHeading">Sales channels</h4>
-                  <div class="table-wrap">
-                    <table>
-                      <caption class="visually-hidden">
-                        Sales channels
-                      </caption>
-                      <thead>
-                        <tr>
-                          <th>Name</th>
-                          <th>Active</th>
-                          <th>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody id="salesChannelsBody"></tbody>
-                    </table>
-                  </div>
-                  <p class="empty-state" id="salesChannelsEmpty" hidden>
-                    No sales channels on file yet.
-                  </p>
-                  <form id="salesChannelForm" novalidate>
-                    <div class="field-grid">
-                      <div class="field field-wide">
-                        <label for="salesChannelName">Add a sales channel</label>
-                        <input type="text" id="salesChannelName" maxlength="200" required />
-                        <span class="field-error" data-error-for="salesChannelName"></span>
-                      </div>
-                    </div>
-                    <div class="form-footer">
-                      <button
-                        class="button button-primary"
-                        type="submit"
-                        id="saveSalesChannelButton"
+                  <form id="salesChannelForm" novalidate class="form-inline-add">
+                    <div class="field">
+                      <label for="salesChannelName"
+                        >Add a new sales channel name
+                        <span class="tooltip" tabindex="0">
+                          <span class="tooltip-icon" aria-hidden="true">i</span>
+                          <span class="tooltip-bubble" role="tooltip"
+                            >Adds a new option to the Sales channel dropdown above -- it isn't a
+                            separate list, just the source for that dropdown.</span
+                          >
+                        </span></label
                       >
-                        Add sales channel
-                      </button>
+                      <input type="text" id="salesChannelName" maxlength="200" required />
+                      <span class="field-error" data-error-for="salesChannelName"></span>
                     </div>
+                    <button class="button button-outline" type="submit" id="saveSalesChannelButton">
+                      Add channel
+                    </button>
                   </form>
                 </section>
               </div>
