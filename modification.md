@@ -1202,6 +1202,16 @@ Three more things you flagged, all fixed:
   change if it doesn't read well in practice -- say the word and I'll put the cards back to plain
   white.
 
+### Third follow-up (same day)
+
+- **Header and footer now match the sidebar's own navy fill**, not just a light tint of it, so
+  the three read as one continuous colored frame around the page. Since all three share the same
+  underlying color tokens, switching palettes recolors the header and footer right along with the
+  sidebar. (They stay this color in both light and dark theme -- only the content area's own
+  background changes with that toggle, same as before.)
+- Gave the logo a small white plate of its own in the header, since the artwork was designed for
+  a light bar and would have been hard to read directly on the new navy background.
+
 ### Known follow-up
 
 - Dark mode is applied broadly but not exhaustively verified against every screen in the app

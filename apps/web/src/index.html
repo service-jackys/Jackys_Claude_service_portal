@@ -1875,9 +1875,6 @@
       html:not([data-theme='dark']) body.is-authenticated {
         background: var(--blue-soft);
       }
-      html:not([data-theme='dark']) body.is-authenticated .nav {
-        background: var(--blue-soft);
-      }
       /* Experimental, per your request: extend the tint into the workspace
          cards themselves (not just the page background around them), so
          picking a palette recolors the working area you actually look at,
@@ -1885,8 +1882,31 @@
       html:not([data-theme='dark']) body.is-authenticated .dashboard-content .card {
         background: var(--blue-soft);
       }
-      [data-theme='dark'] body.is-authenticated .nav {
-        background: rgb(16 26 44 / 92%);
+      /* Header and footer now match the sidebar's own navy fill (rather than
+         a light tint of it), so all three read as one continuous colored
+         frame around the page -- and since they share the sidebar's exact
+         --navy/--navy-deep tokens, switching palettes recolors all three
+         together. Unlike the sidebar, they stay this color in both light
+         and dark theme (dark theme only changes the *content* surfaces). */
+      body.is-authenticated .nav {
+        background: linear-gradient(90deg, var(--navy), var(--navy-deep));
+        border-bottom-color: transparent;
+        backdrop-filter: none;
+      }
+      body.is-authenticated footer {
+        background: var(--navy-deep);
+        border-top-color: rgb(255 255 255 / 12%);
+        color: rgb(255 255 255 / 68%);
+      }
+      body.is-authenticated .icon-button {
+        border-color: rgb(255 255 255 / 18%);
+        background: rgb(255 255 255 / 10%);
+        color: #fff;
+      }
+      body.is-authenticated .icon-button:hover {
+        border-color: #fff;
+        background: rgb(255 255 255 / 18%);
+        color: #fff;
       }
       body.is-authenticated .dashboard-nav .user-card {
         color: #fff;
@@ -1956,8 +1976,15 @@
         min-height: var(--nav-height);
       }
       body.is-authenticated .brand {
-        padding-left: 0.9rem;
         margin-right: 0;
+        margin-left: 0.9rem;
+        padding: 0.35rem 0.7rem;
+        border-radius: 8px;
+        /* The logo artwork assumes a light background (it's used elsewhere
+           on white/near-white bars); now that the header is the same navy
+           as the sidebar, give it a small white plate of its own so it stays
+           legible instead of guessing at the PNG's own colors. */
+        background: #fff;
       }
       body.is-authenticated .nav-controls {
         justify-self: end;
@@ -1968,7 +1995,7 @@
           grid-template-columns: 1fr auto;
         }
         body.is-authenticated .brand {
-          padding-left: 0;
+          margin-left: 0;
         }
       }
 
