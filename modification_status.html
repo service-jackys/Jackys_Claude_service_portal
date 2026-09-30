@@ -1164,6 +1164,30 @@
             look, not only the sidebar and buttons.
           </li>
         </ul>
+        <div class="section-label">Second follow-up (same day)</div>
+        <ul>
+          <li>
+            <strong>Fixed sidebar broke the workspace layout</strong> -- pinning it to the viewport
+            took it out of the grid's automatic column assignment, squeezing the content area into
+            the sidebar's own narrow column. Fixed by explicitly assigning the content area's
+            column.
+          </li>
+          <li>
+            <strong>Header/logo alignment</strong> -- the top bar now splits into the same
+            sidebar-width / content-width columns as the page below it, so the logo lines up with
+            the sidebar's flush-left edge and the top-bar controls line up with the content area.
+          </li>
+          <li>
+            <strong>Profile + sign-out moved to the top bar</strong> -- now behind a small avatar
+            button on the right (matching the reference screenshot), opening a card with name,
+            email, role, and sign-out. The sidebar is now purely navigation.
+          </li>
+          <li>
+            <strong>Experimental: accent tint extended into the workspace cards</strong> -- the
+            white card holding page content now carries a light wash of the chosen palette too, not
+            just the page's edges. Easy to revert to plain white if it doesn't read well.
+          </li>
+        </ul>
         <div class="section-label">Follow-up</div>
         <ul>
           <li>

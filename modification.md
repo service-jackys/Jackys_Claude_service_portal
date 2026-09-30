@@ -1176,6 +1176,32 @@ You reported two more things after trying it:
   palette now recolors the whole page's look, not only the sidebar and buttons. (Dark mode keeps
   its own neutral dark background instead of a pastel tint, which would look washed-out there.)
 
+### Second follow-up (same day)
+
+Three more things you flagged, all fixed:
+
+- **Sidebar's fixed positioning broke the workspace layout** — turning the sidebar into a
+  viewport-pinned panel took it out of the grid's automatic layout, which made the content next
+  to it get squeezed into the sidebar's own narrow column instead of the wide column meant for
+  it. **Fixed** — the content area is now explicitly told which column it belongs in, regardless
+  of what the sidebar is doing.
+- **Header didn't line up with the sidebar, and the logo was indented compared to it** — the top
+  bar was still using the old centered, width-capped layout from before the app-shell redesign,
+  so the logo started well to the right of the sidebar's flush-left edge. **Fixed** — once
+  signed in, the top bar now uses the same two-column split as the page below it (a
+  sidebar-width zone on the left, holding the logo, and a content-width zone on the right, holding
+  the palette/theme/account controls), so everything lines up top to bottom.
+- **Moved the profile card and sign-out link out of the sidebar and into the top bar** — they now
+  live behind a small avatar button on the right, matching where most admin dashboards put
+  account controls (and the reference screenshot). Clicking it opens a small card with your name,
+  email, role, and a sign-out button. The sidebar is now purely navigation.
+- **Tried extending the accent tint into the workspace cards themselves** (not just the page's
+  edges/gutters), per your ask — the white card holding the Complaint inbox table, for instance,
+  now picks up a very light wash of the chosen palette too, so the whole visible working area
+  reflects the color choice, not just the margins around it. This is a one-line, easily reversible
+  change if it doesn't read well in practice -- say the word and I'll put the cards back to plain
+  white.
+
 ### Known follow-up
 
 - Dark mode is applied broadly but not exhaustively verified against every screen in the app

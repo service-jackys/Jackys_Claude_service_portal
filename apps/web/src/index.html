@@ -1452,17 +1452,6 @@
       .dashboard-link[aria-current='page']::before {
         color: #f6bd4b;
       }
-      #signOutButton {
-        margin-top: 0.5rem;
-        border-top: 1px solid var(--line);
-        padding-top: 0.75rem;
-        color: var(--red);
-      }
-      #signOutButton::before {
-        content: '\21B7';
-        color: var(--red);
-      }
-
       .dashboard-content {
         min-width: 0;
       }
@@ -1684,6 +1673,14 @@
         padding: 0.4rem 0.3rem 1rem;
       }
       body.is-authenticated .dashboard-content {
+        /* .dashboard-nav is position: fixed, so it no longer participates in
+           the grid's auto-placement (out-of-flow items are skipped) --
+           without this, .dashboard-content, now the grid's only in-flow
+           child, gets auto-placed into column 1 (the 252px column meant for
+           the fixed sidebar) instead of column 2, squeezing all of the
+           workspace into a narrow strip and leaving the rest of the page
+           blank. */
+        grid-column: 2;
         padding: 1.6rem clamp(1.25rem, 2.4vw, 2.5rem) 3rem;
         max-width: 1680px;
       }
@@ -1704,6 +1701,9 @@
         body.is-authenticated .dashboard {
           grid-template-columns: 1fr;
           min-height: 0;
+        }
+        body.is-authenticated .dashboard-content {
+          grid-column: 1;
         }
         body.is-authenticated footer {
           padding-left: 0;
@@ -1878,6 +1878,13 @@
       html:not([data-theme='dark']) body.is-authenticated .nav {
         background: var(--blue-soft);
       }
+      /* Experimental, per your request: extend the tint into the workspace
+         cards themselves (not just the page background around them), so
+         picking a palette recolors the working area you actually look at,
+         not only its edges. Easy to revert -- it's this one rule. */
+      html:not([data-theme='dark']) body.is-authenticated .dashboard-content .card {
+        background: var(--blue-soft);
+      }
       [data-theme='dark'] body.is-authenticated .nav {
         background: rgb(16 26 44 / 92%);
       }
@@ -1932,10 +1939,123 @@
       body.is-authenticated .dashboard-link[aria-current='page'] {
         box-shadow: inset 3px 0 0 var(--blue);
       }
-      body.is-authenticated #signOutButton {
-        margin-top: auto;
-        border-top: 1px solid rgb(255 255 255 / 14%);
-        padding-top: 0.9rem;
+      /* Header aligned to the sidebar's own 252px column, so the brand
+         logo sits directly above it (same left edge, same width) instead of
+         indented into a centered container while the sidebar starts flush
+         left -- and the top-bar controls line up above where the workspace
+         content starts, instead of floating at the page's old centered
+         width. */
+      body.is-authenticated .nav-inner {
+        display: grid;
+        grid-template-columns: 252px minmax(0, 1fr);
+        align-items: center;
+        width: 100%;
+        max-width: none;
+        margin: 0;
+        padding: 0;
+        min-height: var(--nav-height);
+      }
+      body.is-authenticated .brand {
+        padding-left: 0.9rem;
+        margin-right: 0;
+      }
+      body.is-authenticated .nav-controls {
+        justify-self: end;
+        padding-right: clamp(1.25rem, 2.4vw, 2.5rem);
+      }
+      @media (max-width: 900px) {
+        body.is-authenticated .nav-inner {
+          grid-template-columns: 1fr auto;
+        }
+        body.is-authenticated .brand {
+          padding-left: 0;
+        }
+      }
+
+      /* User account menu (Modification #25 follow-up): the profile card and
+         sign-out link used to live at the top/bottom of the sidebar. Moved
+         into the top bar as a single avatar button + popover, the way most
+         admin dashboards place account controls, freeing the sidebar to be
+         just navigation. Same element IDs as before (#userAvatar,
+         #userName, #userEmail, #userRole, #signOutButton) so app.js's
+         renderUser()/signOut() need no changes -- only their markup moved. */
+      .user-menu-wrap {
+        position: relative;
+      }
+      .user-menu-trigger {
+        padding: 0;
+        overflow: hidden;
+      }
+      .header-user-avatar {
+        display: grid;
+        width: 100%;
+        height: 100%;
+        place-items: center;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 0.85rem;
+        font-weight: 800;
+      }
+      .user-menu-popover {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        z-index: 20;
+        width: 220px;
+        padding: 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+      .user-menu-popover[hidden] {
+        display: none;
+      }
+      .user-menu-info {
+        display: grid;
+        gap: 0.15rem;
+        margin-bottom: 0.6rem;
+        padding-bottom: 0.6rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .user-menu-info strong {
+        color: var(--ink);
+        font-size: 0.9rem;
+      }
+      .user-menu-info small {
+        color: var(--muted);
+        font-size: 0.78rem;
+        overflow-wrap: anywhere;
+      }
+      .header-role {
+        display: inline-block;
+        justify-self: start;
+        margin-top: 0.25rem;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        padding: 0.15rem 0.5rem;
+        font-size: 0.66rem;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .user-menu-signout {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: space-between;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--red);
+        padding: 0.5rem 0.6rem;
+        text-align: left;
+        font-size: 0.86rem;
+        font-weight: 700;
+      }
+      .user-menu-signout:hover {
+        background: var(--surface-soft);
       }
     </style>
   </head>
@@ -2020,6 +2140,33 @@
                 aria-label="Amber palette"
                 role="menuitemradio"
               ></button>
+            </div>
+          </div>
+          <div class="user-menu-wrap">
+            <button
+              class="icon-button user-menu-trigger"
+              type="button"
+              id="userMenuButton"
+              aria-haspopup="true"
+              aria-expanded="false"
+              aria-label="Account menu"
+            >
+              <span class="header-user-avatar" id="userAvatar" aria-hidden="true">S</span>
+            </button>
+            <div class="user-menu-popover" id="userMenuPopover" role="menu" hidden>
+              <div class="user-menu-info">
+                <strong id="userName">Staff user</strong>
+                <small id="userEmail"></small>
+                <span class="header-role" id="userRole">Staff</span>
+              </div>
+              <button
+                class="user-menu-signout"
+                type="button"
+                id="signOutButton"
+                aria-label="Sign out"
+              >
+                Sign out <span aria-hidden="true">&#8599;</span>
+              </button>
             </div>
           </div>
         </div>
@@ -2213,133 +2360,119 @@
       >
         <div class="dashboard">
           <aside class="dashboard-nav">
-            <div class="card user-card">
-              <div class="user-avatar" id="userAvatar" aria-hidden="true">S</div>
-              <strong id="userName">Staff user</strong>
-              <small id="userEmail"></small>
-              <span class="role" id="userRole">Staff</span>
-              <div class="dashboard-links">
-                <p class="nav-group-label">Overview</p>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="dashboardNav"
-                  hidden
-                  aria-label="Dashboard"
-                >
-                  Dashboard <span aria-hidden="true">→</span>
-                </button>
-                <p class="nav-group-label">Service desk</p>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  aria-current="page"
-                  id="complaintsNav"
-                  aria-label="Complaint inbox"
-                >
-                  Complaint inbox <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="serviceRequestsNav"
-                  hidden
-                  aria-label="Service requests"
-                >
-                  Service requests <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="newRequestNav"
-                  hidden
-                  aria-label="New service request"
-                >
-                  New request <span aria-hidden="true">→</span>
-                </button>
-                <p class="nav-group-label">Records</p>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="masterDataNav"
-                  hidden
-                  aria-label="Salesmen and sales channels"
-                >
-                  Salesmen &amp; channels <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="jobCardsNav"
-                  hidden
-                  aria-label="Service job cards"
-                >
-                  Service job cards <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="quotationsNav"
-                  hidden
-                  aria-label="Quotations"
-                >
-                  Quotations <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="inspectionsNav"
-                  hidden
-                  aria-label="Inspections"
-                >
-                  Inspections <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="warrantyApprovalsNav"
-                  hidden
-                  aria-label="Warranty approvals"
-                >
-                  Warranty approvals <span aria-hidden="true">→</span>
-                </button>
-                <p class="nav-group-label">Admin</p>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="techniciansNav"
-                  hidden
-                  aria-label="Technicians"
-                >
-                  Technicians <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="teamAccountsNav"
-                  hidden
-                  aria-label="Team logins"
-                >
-                  Team logins <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="appointmentsNav"
-                  hidden
-                  aria-label="Appointments"
-                >
-                  Appointments <span aria-hidden="true">→</span>
-                </button>
-                <button
-                  class="dashboard-link"
-                  type="button"
-                  id="signOutButton"
-                  aria-label="Sign out"
-                >
-                  Sign out <span aria-hidden="true">↗</span>
-                </button>
-              </div>
+            <div class="dashboard-links">
+              <p class="nav-group-label">Overview</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="dashboardNav"
+                hidden
+                aria-label="Dashboard"
+              >
+                Dashboard <span aria-hidden="true">→</span>
+              </button>
+              <p class="nav-group-label">Service desk</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                aria-current="page"
+                id="complaintsNav"
+                aria-label="Complaint inbox"
+              >
+                Complaint inbox <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="serviceRequestsNav"
+                hidden
+                aria-label="Service requests"
+              >
+                Service requests <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="newRequestNav"
+                hidden
+                aria-label="New service request"
+              >
+                New request <span aria-hidden="true">→</span>
+              </button>
+              <p class="nav-group-label">Records</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="masterDataNav"
+                hidden
+                aria-label="Salesmen and sales channels"
+              >
+                Salesmen &amp; channels <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="jobCardsNav"
+                hidden
+                aria-label="Service job cards"
+              >
+                Service job cards <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="quotationsNav"
+                hidden
+                aria-label="Quotations"
+              >
+                Quotations <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="inspectionsNav"
+                hidden
+                aria-label="Inspections"
+              >
+                Inspections <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="warrantyApprovalsNav"
+                hidden
+                aria-label="Warranty approvals"
+              >
+                Warranty approvals <span aria-hidden="true">→</span>
+              </button>
+              <p class="nav-group-label">Admin</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="techniciansNav"
+                hidden
+                aria-label="Technicians"
+              >
+                Technicians <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="teamAccountsNav"
+                hidden
+                aria-label="Team logins"
+              >
+                Team logins <span aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="appointmentsNav"
+                hidden
+                aria-label="Appointments"
+              >
+                Appointments <span aria-hidden="true">→</span>
+              </button>
             </div>
           </aside>
           <div class="dashboard-content">

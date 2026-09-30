@@ -135,6 +135,38 @@
     }
   }
 
+  // Account menu in the top bar (Modification #25 follow-up) -- the same
+  // open/close-on-outside-click/Escape pattern as the palette popover above,
+  // for the avatar button that now holds the profile info and sign-out link
+  // that used to live in the sidebar.
+  function initUserMenu() {
+    const menuButton = document.getElementById('userMenuButton');
+    const menuPopover = document.getElementById('userMenuPopover');
+    if (!menuButton || !menuPopover) return;
+    menuButton.addEventListener('click', (event) => {
+      event.stopPropagation();
+      const isHidden = menuPopover.hidden;
+      menuPopover.hidden = !isHidden;
+      menuButton.setAttribute('aria-expanded', String(isHidden));
+    });
+    document.addEventListener('click', (event) => {
+      if (
+        !menuPopover.hidden &&
+        !menuPopover.contains(event.target) &&
+        event.target !== menuButton
+      ) {
+        menuPopover.hidden = true;
+        menuButton.setAttribute('aria-expanded', 'false');
+      }
+    });
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && !menuPopover.hidden) {
+        menuPopover.hidden = true;
+        menuButton.setAttribute('aria-expanded', 'false');
+      }
+    });
+  }
+
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentJobCardId = null;
@@ -4981,5 +5013,6 @@ ${bodyHtml}
   initQuotationForms();
   initInspectionForms();
   initThemeAndPaletteControls();
+  initUserMenu();
   restoreSession();
 })();
