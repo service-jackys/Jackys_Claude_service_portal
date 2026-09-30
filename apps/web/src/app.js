@@ -3,6 +3,37 @@
 
   let authToken = null;
   let currentUser = null;
+  // The staff session token is kept in sessionStorage (not localStorage) so
+  // a page refresh doesn't force a fresh sign-in, while still clearing
+  // automatically when the tab/browser is closed -- matching what "session"
+  // implies. The server independently expires the underlying session after
+  // a fixed window regardless of activity (see SESSION_TTL_MS in
+  // apps/api/src/auth/local-auth.ts, currently 8 hours), so a stale token
+  // left over from a closed tab/private window can't be replayed forever
+  // even if a copy of it somehow persisted. Wrapped in try/catch because
+  // storage access can throw in some private-browsing contexts.
+  const SESSION_STORAGE_KEY = 'jackys-service-portal:authToken';
+  function getStoredToken() {
+    try {
+      return sessionStorage.getItem(SESSION_STORAGE_KEY);
+    } catch {
+      return null;
+    }
+  }
+  function saveStoredToken(token) {
+    try {
+      sessionStorage.setItem(SESSION_STORAGE_KEY, token);
+    } catch {
+      // Non-fatal -- the user just won't survive a refresh this session.
+    }
+  }
+  function clearStoredToken() {
+    try {
+      sessionStorage.removeItem(SESSION_STORAGE_KEY);
+    } catch {
+      // Non-fatal.
+    }
+  }
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentJobCardId = null;
@@ -311,10 +342,7 @@
     return valid;
   }
 
-  async function establishSession(result) {
-    authToken = result.token;
-    const session = await apiRequest('/api/auth/me');
-    currentUser = session.user;
+  function showWorkspaceForCurrentUser(scrollIntoView) {
     $('#authCard').hidden = true;
     $('#staff-access').hidden = true;
     $('#staff-workspace').hidden = false;
@@ -329,7 +357,43 @@
     } else {
       showNoWorkspaceAccess();
     }
-    $('#staff-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (scrollIntoView) {
+      $('#staff-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  async function establishSession(result) {
+    authToken = result.token;
+    saveStoredToken(authToken);
+    const session = await apiRequest('/api/auth/me');
+    currentUser = session.user;
+    showWorkspaceForCurrentUser(true);
+  }
+
+  // Runs once at page load. If a session token survived from before this
+  // refresh (see SESSION_STORAGE_KEY above), try to resume it instead of
+  // showing the sign-in form. A token that's since expired or been revoked
+  // (server restart, logout elsewhere, past the session's fixed lifetime)
+  // just falls through to the ordinary sign-in screen -- no error shown,
+  // since "please sign in again" is the expected, unremarkable outcome
+  // here, not a failure.
+  async function restoreSession() {
+    const token = getStoredToken();
+    if (!token) return;
+    authToken = token;
+    // Hide the sign-in form immediately rather than flashing it before the
+    // session check comes back -- most refreshes resolve this in one quick
+    // round trip.
+    $('#staff-access').hidden = true;
+    try {
+      const session = await apiRequest('/api/auth/me');
+      currentUser = session.user;
+      showWorkspaceForCurrentUser(false);
+    } catch {
+      authToken = null;
+      clearStoredToken();
+      $('#staff-access').hidden = false;
+    }
   }
 
   $('#loginForm').addEventListener('submit', async (event) => {
@@ -4533,6 +4597,7 @@ ${bodyHtml}
       } catch {}
     }
     authToken = null;
+    clearStoredToken();
     currentUser = null;
     workspaceMode = 'complaints';
     resetAppointmentWorkspace();
@@ -4809,4 +4874,5 @@ ${bodyHtml}
   initJobCardForms();
   initQuotationForms();
   initInspectionForms();
+  restoreSession();
 })();

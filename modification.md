@@ -1010,3 +1010,45 @@ conflict:
 ### Known follow-up
 
 - None flagged.
+
+## Modification #23 — Stop logging staff out on a browser refresh
+
+- **Date:** 2026-09-30
+- **Status:** Code complete — needs your test.
+
+### What changed
+
+You flagged that refreshing the browser (as admin or any user) always logged you out, forcing a
+fresh sign-in every time.
+
+- **Root cause** — the session token was only ever kept in a plain JavaScript variable in memory.
+  A refresh reloads the page and re-runs the script from scratch, wiping that variable, so the
+  app always started back at the sign-in screen even though the underlying server-side session
+  (see below) was often still perfectly valid.
+- **Fixed** — the token is now also kept in the browser's `sessionStorage` for that tab. On page
+  load, the app checks for it and silently re-validates it against `/api/auth/me`; if it's still
+  good, you land straight back in the workspace instead of the sign-in form. If it's no longer
+  valid (expired, revoked, or the server restarted since), it falls through to the ordinary
+  sign-in screen -- no error shown, since that's the expected outcome, not a failure.
+- Deliberately `sessionStorage`, not `localStorage` -- it survives a refresh but still clears
+  automatically when the tab/browser window is closed, matching what "session" should mean,
+  rather than leaving a login token sitting around indefinitely.
+- **On the auto-logout / timeout question** -- this already exists server-side and needed no
+  change: every session already expires exactly 8 hours after signing in
+  (`SESSION_TTL_MS` in `apps/api/src/auth/local-auth.ts`), regardless of activity. After that
+  window, the next request naturally lands you back on the sign-in screen. Let me know if you'd
+  rather this be shorter, longer, or based on idle time instead of a fixed 8 hours from login.
+
+### Needs you
+
+- Restart `npm run dev`, sign in, then refresh the browser and confirm you stay signed in instead
+  of being sent back to the sign-in form.
+- Sign out and confirm you land back on the sign-in form (and that refreshing afterward doesn't
+  restore the old session).
+
+### Known follow-up
+
+- None flagged. (Separately, a *server* restart still ends every active session immediately,
+  since sessions themselves are still stored in memory, not the database -- only the login
+  credentials were made persistent in Modification #20. Not something you've asked to change, but
+  flagging it since it's the other way a "logout" can still happen.)

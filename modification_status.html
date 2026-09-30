@@ -1011,6 +1011,44 @@
           <li>None flagged.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#23 &mdash; Stop logging staff out on a browser refresh</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your test</span>
+        </div>
+        <p class="meta">2026-09-30 &middot; Scope: staff portal frontend</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Refreshing the browser always logged staff out, even mid-session, because the login
+            token only ever lived in a JavaScript variable that a page reload wipes.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; the token is now also kept in the browser's
+            <code>sessionStorage</code> for that tab. On page load, it's silently re-validated
+            against the server; if still good, you land back in the workspace instead of the
+            sign-in screen. <code>sessionStorage</code> (not <code>localStorage</code>) so it
+            still clears automatically when the tab/browser closes.
+          </li>
+          <li>
+            Auto-logout already existed server-side and needed no change: every session already
+            expires 8 hours after sign-in regardless of activity.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>, sign in, refresh, and confirm you stay signed in.</li>
+          <li>Sign out and confirm refreshing afterward does not restore the old session.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>
+            None flagged. A <em>server</em> restart still ends every active session immediately
+            (sessions themselves are still in-memory, not the database) -- only login credentials
+            were made persistent in Modification #20.
+          </li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>
