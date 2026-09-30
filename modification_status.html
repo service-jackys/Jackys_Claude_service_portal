@@ -1280,6 +1280,12 @@
         <div class="section-label">Needs you</div>
         <ul>
           <li>
+            <strong>Run <code>npm run db:migrate</code> first</strong> to pick up migration 017 (the
+            new <code>pricing_configs</code> table) &mdash; without it every page shows "Could not
+            load current values for this section" since the table doesn't exist yet.
+            <code>npm run dev</code> already has the new routes loaded, so no restart is needed.
+          </li>
+          <li>
             Sign in as an admin/management user, open each of the 5 new Management pages, and check
             the default values against the workbook before relying on this for real quotes.
           </li>

@@ -1292,6 +1292,7 @@ built yet.
 
 ### Needs you
 
+- **Run `npm run db:migrate` first** to pick up migration 017 (the new `pricing_configs` table) -- without it every page shows "Could not load current values for this section" since the table doesn't exist yet. Your `npm run dev` (tsx watch) already has the new API routes loaded, so no restart is needed -- just run the migration and refresh the browser.
 - Sign in as an admin/management user, open each of the 5 new "Management" pages, and check the
   default values against the workbook for anything that looks off before relying on this for
   real quotes.
