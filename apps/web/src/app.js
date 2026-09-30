@@ -6557,46 +6557,83 @@ ${bodyHtml}
   const VAS_CALC_PLANS = [
     {
       key: 'ew1',
-      label: '1-Year EW',
+      label: '1-Year Extended Warranty',
       rateKey: 'ew1Rate',
       minFeeKey: 'ew1MinFee',
       deductibleKey: 'deductibleEw1',
+      serviceFeeKey: 'ew1ServiceFee',
+      claimsKey: 'ew1Claims',
+      coverageKey: 'ew1Coverage',
     },
     {
       key: 'ew2',
-      label: '2-Year EW',
+      label: '2-Year Extended Warranty',
       rateKey: 'ew2Rate',
       minFeeKey: 'ew2MinFee',
       deductibleKey: 'deductibleEw2',
+      serviceFeeKey: 'ew2ServiceFee',
+      claimsKey: 'ew2Claims',
+      coverageKey: 'ew2Coverage',
     },
     {
       key: 'di1',
-      label: 'Damage Insurance',
+      label: '1-Year Damage Insurance',
       rateKey: 'di1Rate',
       minFeeKey: 'di1MinFee',
       deductibleKey: 'deductibleDi1',
+      serviceFeeKey: 'di1ServiceFee',
+      claimsKey: 'di1Claims',
+      coverageKey: 'di1Coverage',
     },
     {
       key: 'premium',
-      label: 'Premium',
+      label: 'Premium Service (24hr SLA)',
       rateKey: 'premiumRate',
       minFeeKey: 'premiumMinFee',
       deductibleKey: 'deductiblePremium',
+      serviceFeeKey: 'premiumServiceFee',
+      claimsKey: 'premiumClaims',
+      coverageKey: 'premiumCoverage',
     },
   ];
+
+  // 1-Year Damage Insurance is the one plan whose displayed service fee is
+  // never the stored text -- it's always computed from the selling price
+  // against the claim-fee threshold, exactly like the legacy calculator
+  // (modification.md #34).
+  function vasCalcServiceFeeText(plan, params, orderValue) {
+    if (plan.key === 'di1') {
+      return orderValue < params.claimFeeThreshold
+        ? money(params.claimFeeLow) +
+            ' AED per claim (items below ' +
+            money(params.claimFeeThreshold) +
+            ' AED)'
+        : money(params.claimFeeHigh) +
+            ' AED per claim (items at/above ' +
+            money(params.claimFeeThreshold) +
+            ' AED)';
+    }
+    return params[plan.serviceFeeKey];
+  }
+
+  function vasCalcFee(plan, params, band) {
+    const midpoint = (band.start + band.end) / 2;
+    const rate = params[plan.rateKey];
+    const minFee = params[plan.minFeeKey];
+    const roundingStep = params.roundingStep || 1;
+    const rawFee = Math.round((midpoint * rate) / roundingStep) * roundingStep;
+    return Math.max(rawFee, minFee);
+  }
 
   function renderVasCalc(container, data) {
     const bands = data.vas_price_bands;
     const params = data.vas_pricing_params;
     container.innerHTML =
       '<h4>VAS Quote Calculator</h4>' +
-      '<p class="form-note">Enter the order value and pick a plan. The fee is looked up by price band -- using the band midpoint, matching the workbook -- then the plan’s rate is applied and rounded to the nearest rounding step, never below the plan’s minimum fee.</p>' +
-      '<div class="pc-split-grid">' +
-      '<div class="detail-action-card">' +
-      '<h4>Inputs</h4>' +
+      '<p class="form-note">Enter the appliance selling price and pick a plan to see the customer-facing quote.</p>' +
       '<div class="field-grid">' +
       calcField(
-        'Order value (AED)',
+        'Appliance selling price (AED)',
         '<input type="number" min="0" step="0.01" value="1000" data-vc-order-value />',
       ) +
       calcField(
@@ -6608,48 +6645,81 @@ ${bodyHtml}
           '</select>',
       ) +
       '</div>' +
-      '</div>' +
-      '<div class="detail-action-card">' +
-      '<h4>Quote</h4>' +
       '<div data-vc-output></div>' +
-      '</div>' +
-      '</div>';
+      '<h4 style="margin-top: 1.5rem">Quick Price — All 4 Plans at Once</h4>' +
+      '<p class="form-note">Same selling price above, every plan’s fee side by side.</p>' +
+      '<div data-vc-quick></div>';
 
     const orderValueInput = container.querySelector('[data-vc-order-value]');
     const planSelect = container.querySelector('[data-vc-plan]');
     const output = container.querySelector('[data-vc-output]');
+    const quickHost = container.querySelector('[data-vc-quick]');
 
     function recompute() {
       const orderValue = parseNumber(orderValueInput.value);
       const plan = VAS_CALC_PLANS.find((p) => p.key === planSelect.value) || VAS_CALC_PLANS[0];
       const band =
         bands.find((b) => orderValue >= b.start && orderValue <= b.end) || bands[bands.length - 1];
-      const midpoint = (band.start + band.end) / 2;
-      const rate = params[plan.rateKey];
-      const minFee = params[plan.minFeeKey];
-      const roundingStep = params.roundingStep || 1;
-      const rawFee = Math.round((midpoint * rate) / roundingStep) * roundingStep;
-      const fee = Math.max(rawFee, minFee);
-      const claimFee =
-        orderValue < params.claimFeeThreshold ? params.claimFeeLow : params.claimFeeHigh;
+      const fee = vasCalcFee(plan, params, band);
+      const serviceFee = vasCalcServiceFeeText(plan, params, orderValue);
+      const claims = params[plan.claimsKey];
+      const coverage = params[plan.coverageKey];
       const deductible = params[plan.deductibleKey] || 0;
+
       output.innerHTML =
-        '<div class="table-wrap"><table><tbody>' +
-        '<tr><th>Matched band</th><td>' +
-        escapeHtml(band.label) +
-        ' (midpoint ' +
-        money(midpoint) +
-        ' AED)</td></tr>' +
-        '<tr><th>Plan fee</th><td><strong>' +
+        '<div class="vas-quote-card">' +
+        '<div class="vas-quote-head">' +
+        '<div class="fee">' +
         money(fee) +
-        ' AED</strong></td></tr>' +
-        '<tr><th>Claim fee</th><td>' +
-        money(claimFee) +
-        ' AED</td></tr>' +
-        '<tr><th>Deductible</th><td>' +
+        ' AED</div>' +
+        '<div class="sub">' +
+        escapeHtml(plan.label) +
+        ' — band ' +
+        escapeHtml(band.label) +
+        '</div>' +
+        '</div>' +
+        '<div class="vas-quote-body">' +
+        '<div class="vas-quote-row"><span class="k">Selling price</span><span class="v">' +
+        money(orderValue) +
+        ' AED</span></div>' +
+        '<div class="vas-quote-row"><span class="k">Deductible per claim</span><span class="v">' +
         money(deductible) +
-        ' AED</td></tr>' +
-        '</tbody></table></div>';
+        ' AED</span></div>' +
+        '<div class="vas-quote-row"><span class="k">Service fee per claim</span><span class="v">' +
+        escapeHtml(String(serviceFee)) +
+        '</span></div>' +
+        '<div class="vas-quote-row"><span class="k">Claims allowed</span><span class="v">' +
+        escapeHtml(claims) +
+        '</span></div>' +
+        '<div class="vas-quote-row"><span class="k">Coverage &amp; terms</span><span class="v">' +
+        escapeHtml(coverage) +
+        '</span></div>' +
+        '</div>' +
+        '</div>';
+
+      quickHost.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Plan</th><th>Plan fee</th><th>Service fee</th><th>Claims allowed</th>' +
+        '</tr></thead><tbody>' +
+        VAS_CALC_PLANS.map((p) => {
+          const planFee = vasCalcFee(p, params, band);
+          const planServiceFee = vasCalcServiceFeeText(p, params, orderValue);
+          return (
+            '<tr><td>' +
+            escapeHtml(p.label) +
+            '</td><td><strong>' +
+            money(planFee) +
+            ' AED</strong></td><td>' +
+            escapeHtml(String(planServiceFee)) +
+            '</td><td>' +
+            escapeHtml(params[p.claimsKey]) +
+            '</td></tr>'
+          );
+        }).join('') +
+        '</tbody></table></div>' +
+        '<p class="form-note">Value band: ' +
+        escapeHtml(band.label) +
+        '</p>';
     }
     orderValueInput.addEventListener('input', recompute);
     planSelect.addEventListener('change', recompute);

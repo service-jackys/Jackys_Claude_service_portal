@@ -1330,6 +1330,56 @@
           box-shadow: 0 0 10px 2px var(--blue-soft);
         }
       }
+      /* Customer-facing VAS Quote Calculator result card (modification.md
+         #34) -- a large plan-fee header over a plain-language quote, no
+         admin/internal detail (e.g. no separate "matched band" row). */
+      .vas-quote-card {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+        margin-bottom: 1rem;
+        background: var(--surface);
+      }
+      .vas-quote-head {
+        background: var(--navy);
+        color: #fff;
+        padding: 1.1rem 1.4rem;
+      }
+      .vas-quote-head .fee {
+        font-size: 1.9rem;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+      }
+      .vas-quote-head .sub {
+        font-size: 0.85rem;
+        opacity: 0.88;
+        margin-top: 0.2rem;
+      }
+      .vas-quote-body {
+        padding: 0.2rem 0;
+      }
+      .vas-quote-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 0.7rem 1.4rem;
+        border-bottom: 1px solid var(--line);
+        font-size: 0.88rem;
+      }
+      .vas-quote-row:last-child {
+        border-bottom: none;
+      }
+      .vas-quote-row .k {
+        color: var(--muted);
+        flex: 0 0 auto;
+      }
+      .vas-quote-row .v {
+        text-align: right;
+        font-weight: 600;
+        color: var(--ink);
+        max-width: 65%;
+      }
       .detail-action-card textarea {
         min-height: 110px;
       }

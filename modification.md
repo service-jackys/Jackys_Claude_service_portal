@@ -1557,3 +1557,36 @@ entirely client-side.
 - Next up (per your list): the VAS Quote Calculator redesign (drop the matched-band line,
   show these same fields, add Quick Price for all 4 plans at once), then VAS Sale issuance +
   printable certificate.
+
+## Modification #34 — VAS Quote Calculator: customer-facing redesign + Quick Price
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+Redesigned the VAS Quote Calculator's result to match the legacy VAS Pricing / VAS Sales
+pages' customer-facing card, using the new plan fields added in #33:
+
+- Removed the internal "Matched band" detail row — this page is for front-line/customer use,
+  not admin. The plan and value band still appear as a plain-language subtitle under the fee
+  (e.g. "Premium Service (24hr SLA) — band 1,500 - 1,999.99"), same as the legacy page.
+- The quote card now shows exactly the 5 fields you asked for: **Selling price, Deductible per
+  claim, Service fee per claim, Claims allowed, Coverage & terms** — pulled from both what was
+  "VAS Pricing" and "VAS Sales" in the old index.html (now unified into one VAS Pricing Master
+  admin table).
+- 1-Year Damage Insurance is the one plan whose Service fee is never the stored text — it's
+  always computed live from the selling price against the claim-fee threshold (≤ AED 1,499 →
+  AED 100/claim, ≥ AED 1,500 → AED 200/claim), exactly like the legacy calculator.
+- Added **"Quick Price — All 4 Plans at Once"**: same selling price, one table showing every
+  plan's fee, service fee and claims allowed side by side — ported from the legacy "QUICK PRICE
+  — ALL 4 PLANS AT ONCE" feature.
+- New styling for the quote card (dark header with the fee, plain rows below) to read like a
+  customer quote rather than an admin form.
+
+### Needs you
+
+- Try a few selling prices across different bands and plans, and compare the numbers to the
+  legacy VAS Pricing/VAS Sales pages.
+- Next up: VAS Sale issuance + printable certificate (per plan), with the JDI logo in the print
+  header.

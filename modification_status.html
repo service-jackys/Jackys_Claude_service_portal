@@ -1639,6 +1639,43 @@
           <li>Next up: the VAS Quote Calculator redesign, then VAS Sale + certificate.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#34 &mdash; VAS Quote Calculator: customer-facing redesign + Quick Price</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: VAS Quote Calculator page only, no backend changes
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Removed the internal "Matched band" row &mdash; the plan and band now appear as a
+            plain-language subtitle under the fee, matching the legacy customer-facing page.
+          </li>
+          <li>
+            Quote card now shows exactly: <strong>Selling price, Deductible per claim, Service
+            fee per claim, Claims allowed, Coverage &amp; terms</strong> &mdash; sourced from the
+            new VAS Pricing Master fields (#33).
+          </li>
+          <li>
+            1-Year Damage Insurance's service fee is computed live from the selling price
+            against the claim-fee threshold, exactly like the legacy calculator.
+          </li>
+          <li>
+            Added <strong>"Quick Price &mdash; All 4 Plans at Once"</strong> &mdash; one table,
+            every plan's fee/service fee/claims side by side, for the same selling price.
+          </li>
+          <li>New card styling (dark fee header + plain rows) for a customer-facing look.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Try a few prices/plans and compare against the legacy VAS pages.</li>
+          <li>Next up: VAS Sale issuance + printable certificate.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
