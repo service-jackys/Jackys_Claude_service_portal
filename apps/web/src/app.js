@@ -680,6 +680,15 @@
       activatePricingAdminMode(mode);
       return;
     }
+    // Leaving a Management admin page for any other workspace: none of the
+    // per-mode branches below know about the 5 pricing-admin panels, so they
+    // never got hidden on their own -- clear them here, once, for every mode.
+    Object.values(PRICING_ADMIN_PAGES).forEach((page) => {
+      const nav = document.getElementById(page.navId);
+      const workspace = document.getElementById(page.workspaceId);
+      if (nav) nav.setAttribute('aria-current', 'false');
+      if (workspace) workspace.hidden = true;
+    });
     if (mode === 'complaints' && !hasPermission('complaints.read')) return;
     if (mode === 'service-requests' && !hasPermission('complaints.read')) return;
     if (mode === 'appointments' && !hasPermission('appointments.read')) return;
