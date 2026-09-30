@@ -6043,8 +6043,11 @@ ${bodyHtml}
           },
         );
       rerenderRegions();
+      // Appliance Rates spans the full row (like AMC's Appliance Catalog
+      // and D+I's Common Master Inputs) so the Appliance name column has
+      // room to actually read (modification.md #31).
       const appliancesHost = document.createElement('div');
-      appliancesHost.className = 'detail-action-card';
+      appliancesHost.className = 'detail-action-card pc-span-full';
       appliancesHost.innerHTML =
         '<h4>Appliance Rates</h4><p class="form-note">Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.</p>';
       grid.appendChild(appliancesHost);
@@ -6055,11 +6058,12 @@ ${bodyHtml}
           appliancesTable,
           data.appliances,
           [
-            { key: 'name', label: 'Appliance', type: 'text' },
+            { key: 'name', label: 'Appliance', type: 'text', width: '38%' },
             {
               key: 'rates.Base',
               label: 'Base rate',
               type: 'number',
+              width: '18%',
               tooltip:
                 'Every volume-tier rate for this appliance is automatically derived from this value.',
             },
@@ -6068,9 +6072,10 @@ ${bodyHtml}
               label: 'Avg install minutes',
               type: 'number',
               step: '0.5',
+              width: '20%',
               tooltip: 'Average technician minutes to install one unit of this appliance.',
             },
-            { key: 'active', label: 'Active', type: 'checkbox' },
+            { key: 'active', label: 'Active', type: 'checkbox', width: '12%' },
           ],
           {
             minRows: 1,

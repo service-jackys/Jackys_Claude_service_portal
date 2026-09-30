@@ -1455,3 +1455,19 @@ extended to the other 4 pages only after you confirm this one looks right.
 
 - Refresh AMC Admin Rate Section and confirm the Appliance Catalog table is now full-width and
   the appliance names are legible without needing to click into each field.
+
+## Modification #31 — Thomson Pricing Admin: same full-width fix for Appliance Rates
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+- Same fix as #30 (AMC Appliance Catalog), applied to Thomson Pricing Admin's **Appliance
+  Rates** card: it now spans the full row instead of sharing a half-width column with
+  Additional Services, and the Appliance name column is explicitly wider (38% of the table, vs.
+  18% Base rate / 20% Avg install minutes / 12% Active) so appliance names are readable.
+
+### Needs you
+
+- Refresh Thomson Pricing Admin and confirm Appliance Rates is now full-width and legible.
