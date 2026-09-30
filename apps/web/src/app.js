@@ -5101,7 +5101,7 @@ ${bodyHtml}
             '<div class="field"><label for="pc-' +
             field.path +
             '">' +
-            esc(field.label) +
+            escapeHtml(field.label) +
             (field.type === 'percent' ? ' (%)' : '') +
             '</label><input type="number" step="' +
             step +
@@ -5139,7 +5139,7 @@ ${bodyHtml}
     const table = document.createElement('table');
     table.innerHTML =
       '<thead><tr>' +
-      columns.map((c) => '<th>' + esc(c.label) + '</th>').join('') +
+      columns.map((c) => '<th>' + escapeHtml(c.label) + '</th>').join('') +
       (opts.noRemove ? '' : '<th></th>') +
       '</tr></thead><tbody></tbody>';
     const tbody = table.querySelector('tbody');
@@ -5149,7 +5149,7 @@ ${bodyHtml}
         columns
           .map((c) => {
             const value = pcGet(row, c.key);
-            if (c.type === 'readonly') return '<td>' + esc(String(value ?? '')) + '</td>';
+            if (c.type === 'readonly') return '<td>' + escapeHtml(String(value ?? '')) + '</td>';
             if (c.type === 'checkbox') {
               return (
                 '<td><input type="checkbox" data-pc-row="' +
@@ -5191,7 +5191,7 @@ ${bodyHtml}
               '" data-pc-col="' +
               c.key +
               '" value="' +
-              esc(String(value ?? '')) +
+              escapeHtml(String(value ?? '')) +
               '"></td>'
             );
           })
@@ -5358,7 +5358,7 @@ ${bodyHtml}
             '<div class="field field-wide"><label>Section label</label><input type="text" data-pc-section-label="' +
             sectionIndex +
             '" value="' +
-            esc(section.label) +
+            escapeHtml(section.label) +
             '"></div>';
           card.appendChild(head);
           const tableHost = document.createElement('div');
@@ -5528,7 +5528,7 @@ ${bodyHtml}
             '<div class="field field-wide"><input type="text" data-pc-grouping="' +
             index +
             '" value="' +
-            esc(value) +
+            escapeHtml(value) +
             '"></div>';
           list.appendChild(row);
         });
@@ -5582,7 +5582,7 @@ ${bodyHtml}
         const modeHost = document.createElement('div');
         modeHost.className = 'detail-action-card';
         modeHost.style.marginTop = '14px';
-        modeHost.innerHTML = '<h4>' + esc(mode.label) + ' rates</h4>';
+        modeHost.innerHTML = '<h4>' + escapeHtml(mode.label) + ' rates</h4>';
         container.appendChild(modeHost);
         const ratesTable = document.createElement('div');
         modeHost.appendChild(ratesTable);
@@ -5987,14 +5987,14 @@ ${bodyHtml}
                 ? 'Reverted to Excel default'
                 : entry.action === 'pricing_config.restored'
                   ? 'Restored'
-                  : esc(entry.action);
+                  : escapeHtml(entry.action);
           return (
             '<tr><td>' +
-            esc(pcFormatWhen(entry.occurredAt)) +
+            escapeHtml(pcFormatWhen(entry.occurredAt)) +
             '</td><td>' +
             actionLabel +
             '</td><td>' +
-            esc(entry.actorProfileId != null ? String(entry.actorProfileId) : '—') +
+            escapeHtml(entry.actorProfileId != null ? String(entry.actorProfileId) : '—') +
             '</td><td><button type="button" class="button button-outline" data-pc-restore="' +
             entry.id +
             '">Load this entry</button></td></tr>'
