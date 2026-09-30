@@ -625,3 +625,327 @@ export const appointmentTransitions: Record<AppointmentStatus, readonly Appointm
   Completed: [],
   Cancelled: [],
 };
+
+// ---------------------------------------------------------------------
+// Phase 6 (Commercial/pricing -- see modification.md #26): admin entry for
+// VAS price banding & split, Rate Card, D+I, AMC and Thomson pricing.
+// Ported from the legacy Apps Script prototype's "Management" tab
+// (code.gs / index_sep_15.html, attached for reference), ranked faithful
+// to that business logic but not to its exact field names -- this is a
+// standalone rebuild, not a port of the Apps Script data shapes.
+// Defaults load from the master Excel workbook once; after that the admin
+// can freely change and always revert to that Excel default, with every
+// save/reset/restore versioned via audit_events (see packages/db's
+// pricing-configs module).
+// ---------------------------------------------------------------------
+
+export const pricingConfigDomainSchema = z.enum([
+  'vas_price_bands',
+  'vas_pricing_params',
+  'vas_profit_split',
+  'rate_card',
+  'dandi_pricing',
+  'amc_pricing',
+  'thomson_pricing',
+]);
+export type PricingConfigDomain = z.infer<typeof pricingConfigDomainSchema>;
+
+const percentSchema = z.number().min(0).max(1);
+const nonNegSchema = z.number().min(0);
+const positiveSchema = z.number().gt(0);
+
+// --- VAS: price banding -------------------------------------------------
+export const vasPriceBandSchema = z
+  .object({
+    start: nonNegSchema,
+    end: z.number(),
+    label: z.string().trim().max(60).optional(),
+  })
+  .strict()
+  .refine((band) => band.end > band.start, {
+    message: 'A band’s end must be greater than its start.',
+  });
+
+export const vasPriceBandsSchema = z
+  .array(vasPriceBandSchema)
+  .min(1)
+  .superRefine((bands, ctx) => {
+    for (let i = 1; i < bands.length; i += 1) {
+      if (bands[i].start < bands[i - 1].end) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'Value bands must be sorted and must not overlap.',
+        });
+        break;
+      }
+    }
+  });
+export type VasPriceBandsInput = z.infer<typeof vasPriceBandsSchema>;
+
+// --- VAS: pricing parameters (rates, minimum fees, claim fees) ---------
+export const vasPricingParamsSchema = z
+  .object({
+    ew1Rate: percentSchema,
+    ew2Rate: percentSchema,
+    di1Rate: percentSchema,
+    premiumRate: percentSchema,
+    ew1MinFee: nonNegSchema,
+    ew2MinFee: nonNegSchema,
+    di1MinFee: nonNegSchema,
+    premiumMinFee: nonNegSchema,
+    roundingStep: positiveSchema,
+    claimFeeLow: nonNegSchema,
+    claimFeeHigh: nonNegSchema,
+    claimFeeThreshold: nonNegSchema,
+    deductibleEw1: nonNegSchema,
+    deductibleEw2: nonNegSchema,
+    deductibleDi1: nonNegSchema,
+    deductiblePremium: nonNegSchema,
+  })
+  .strict();
+export type VasPricingParamsInput = z.infer<typeof vasPricingParamsSchema>;
+
+// --- VAS: sales/service GP split ----------------------------------------
+export const vasProfitSplitPlanSchema = z
+  .object({
+    plan: z.enum([
+      '1-Year Extended Warranty',
+      '2-Year Extended Warranty',
+      '1-Year Damage Insurance',
+      'Premium Service (24hr SLA)',
+    ]),
+    claimFrequency: percentSchema,
+    partsCostPct: percentSchema,
+    marginBuffer: percentSchema,
+    appliedServicePct: percentSchema,
+  })
+  .strict();
+
+export const vasProfitSplitSchema = z
+  .object({
+    technicianVisitCost: nonNegSchema,
+    referenceSellingPrice: nonNegSchema,
+    plans: z.array(vasProfitSplitPlanSchema).min(1),
+  })
+  .strict();
+export type VasProfitSplitInput = z.infer<typeof vasProfitSplitSchema>;
+
+// --- Rate Card ------------------------------------------------------------
+export const rateCardActivitySchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    rate: nonNegSchema,
+  })
+  .strict();
+
+export const rateCardSectionSchema = z
+  .object({
+    key: z.string().trim().min(1).max(60),
+    label: z.string().trim().min(1).max(120),
+    activities: z.array(rateCardActivitySchema).min(1),
+  })
+  .strict();
+
+export const rateCardSchema = z.array(rateCardSectionSchema).min(1);
+export type RateCardInput = z.infer<typeof rateCardSchema>;
+
+// --- D+I (Delivery + Install) ---------------------------------------------
+export const dandiRegionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60),
+    km: nonNegSchema,
+    costPerKm: nonNegSchema,
+    roundTripCost: nonNegSchema,
+  })
+  .strict();
+
+export const dandiDiscountTierSchema = z
+  .object({
+    min: z.number().int().min(1),
+    max: z.number().int(),
+    label: z.string().trim().min(1).max(60),
+    rate: percentSchema,
+  })
+  .strict()
+  .refine((tier) => tier.max >= tier.min, {
+    message: 'A discount tier’s max must be at least its min.',
+  });
+
+export const dandiApplianceRatesSchema = z
+  .object({ batch: nonNegSchema, standard: nonNegSchema })
+  .strict();
+
+export const dandiModeSchema = z
+  .object({
+    label: z.string().trim().min(1).max(60),
+    transportAlways: z.boolean(),
+    rates: z
+      .object({
+        fridge: dandiApplianceRatesSchema,
+        washer: dandiApplianceRatesSchema,
+        cooker: dandiApplianceRatesSchema,
+      })
+      .strict(),
+    discounts: z.array(dandiDiscountTierSchema).min(1),
+  })
+  .strict();
+
+export const dandiPricingSchema = z
+  .object({
+    maxUnits: z.union([z.literal(50), z.literal(60), z.literal(100)]),
+    minUnitRate: nonNegSchema,
+    regions: z.array(dandiRegionSchema).min(1),
+    groupings: z.array(z.string().trim().min(1).max(120)).min(1),
+    crewFactors: z
+      .object({ '1': positiveSchema, '2': positiveSchema, '3': positiveSchema })
+      .strict(),
+    capacities: z
+      .object({ fridge: positiveSchema, washer: positiveSchema, cooker: positiveSchema })
+      .strict(),
+    laborMinutes: z
+      .object({ fridge: nonNegSchema, washer: nonNegSchema, cooker: nonNegSchema })
+      .strict(),
+    laborCostPerHour: nonNegSchema,
+    modes: z.object({ dandi: dandiModeSchema, install: dandiModeSchema }).strict(),
+  })
+  .strict();
+export type DandiPricingInput = z.infer<typeof dandiPricingSchema>;
+
+// --- AMC ------------------------------------------------------------------
+export const amcVisitTierSchema = z.tuple([z.number().int().min(1), z.number().int().min(0)]);
+
+export const amcApplianceSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    qty: z.number().int().min(0),
+    price: nonNegSchema,
+    active: z.boolean(),
+  })
+  .strict();
+
+export const amcPricingSchema = z
+  .object({
+    basicPct: percentSchema,
+    standardPct: percentSchema,
+    premiumPct: percentSchema,
+    riskUplift: percentSchema,
+    overhead: percentSchema,
+    profitMarkup: percentSchema,
+    standardPartsReserve: percentSchema,
+    premiumPartsReserve: percentSchema,
+    handledPerVisit: nonNegSchema,
+    transportPerVisit: nonNegSchema,
+    salary: nonNegSchema,
+    technicians: nonNegSchema,
+    workingDays: nonNegSchema,
+    hoursPerDay: nonNegSchema,
+    visitHours: nonNegSchema,
+    standardVisits: nonNegSchema,
+    premiumVisits: nonNegSchema,
+    basicVisitTiers: z.array(amcVisitTierSchema).min(1),
+    appliances: z.array(amcApplianceSchema).min(1),
+  })
+  .strict();
+export type AmcPricingInput = z.infer<typeof amcPricingSchema>;
+
+// --- Thomson ----------------------------------------------------------------
+export const thomsonRegionSchema = z
+  .object({
+    name: z.string().trim().min(1).max(60),
+    km: nonNegSchema,
+    roundTripCost: nonNegSchema,
+    active: z.boolean().optional(),
+  })
+  .strict();
+
+export const thomsonApplianceRatesSchema = z
+  .object({
+    Base: nonNegSchema,
+    '50+': nonNegSchema,
+    '150+': nonNegSchema,
+    '300+': nonNegSchema,
+    '500+': nonNegSchema,
+  })
+  .strict();
+
+export const thomsonApplianceSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    rates: thomsonApplianceRatesSchema,
+    avgMin: positiveSchema,
+    active: z.boolean().optional(),
+  })
+  .strict();
+
+export const thomsonAddonSchema = z
+  .object({
+    rate: nonNegSchema,
+    hours: nonNegSchema,
+    note: z.string().trim().max(200).optional(),
+  })
+  .strict();
+
+export const thomsonPricingSchema = z
+  .object({
+    techCount: positiveSchema,
+    hoursDay: positiveSchema,
+    techRate: nonNegSchema,
+    costPerKm: nonNegSchema,
+    regions: z.array(thomsonRegionSchema).min(1),
+    appliances: z.array(thomsonApplianceSchema).min(1),
+    addons: z
+      .object({
+        'Project Management Fee': thomsonAddonSchema,
+        'Site Survey': thomsonAddonSchema,
+        'Testing & Commissioning': thomsonAddonSchema,
+        'Training (End User)': thomsonAddonSchema,
+      })
+      .strict(),
+  })
+  .strict();
+export type ThomsonPricingInput = z.infer<typeof thomsonPricingSchema>;
+
+// Only Built-in Hob (30cm) rounds down (floor) at the 50+ tier -- every
+// other appliance and every other tier rounds up (ceil). This mirrors the
+// legacy thomsonDerivedRatesFromBase_ formula exactly (code.gs / index
+// Sep 15 prototype): the 4 non-Base tiers are always derived from Base and
+// are never independently stored or edited.
+export function deriveThomsonTierRates(
+  base: number,
+  applianceName: string,
+): {
+  Base: number;
+  '50+': number;
+  '150+': number;
+  '300+': number;
+  '500+': number;
+} {
+  const isHob = applianceName.trim().toLowerCase().startsWith('built-in hob');
+  const round50 = isHob ? Math.floor : Math.ceil;
+  return {
+    Base: base,
+    '50+': round50(base * 0.95),
+    '150+': Math.ceil(base * 0.9),
+    '300+': Math.ceil(base * 0.88),
+    '500+': Math.ceil(base * 0.85),
+  };
+}
+
+const pricingConfigPayloadSchemas: Record<PricingConfigDomain, z.ZodTypeAny> = {
+  vas_price_bands: vasPriceBandsSchema,
+  vas_pricing_params: vasPricingParamsSchema,
+  vas_profit_split: vasProfitSplitSchema,
+  rate_card: rateCardSchema,
+  dandi_pricing: dandiPricingSchema,
+  amc_pricing: amcPricingSchema,
+  thomson_pricing: thomsonPricingSchema,
+};
+
+export function pricingConfigSchemaFor(domain: PricingConfigDomain): z.ZodTypeAny {
+  return pricingConfigPayloadSchemas[domain];
+}
+
+export const pricingConfigRestoreSchema = z
+  .object({ auditEventId: z.number().int().positive() })
+  .strict();
+export type PricingConfigRestoreInput = z.infer<typeof pricingConfigRestoreSchema>;

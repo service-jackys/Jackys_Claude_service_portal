@@ -2326,6 +2326,70 @@
         <path d="M3 9h18M8 3v4M16 3v4" />
       </symbol>
       <symbol
+        id="icon-tag"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M20.59 13.41L12 22 2 12V4a2 2 0 0 1 2-2h8l8.59 8.59a2 2 0 0 1 0 2.82z" />
+        <circle cx="7.5" cy="7.5" r="1.5" />
+      </symbol>
+      <symbol
+        id="icon-list"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M8 6h13M8 12h13M8 18h13" />
+        <path d="M3 6h.01M3 12h.01M3 18h.01" stroke-width="2.6" />
+      </symbol>
+      <symbol
+        id="icon-truck"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="1" y="7" width="13" height="10" rx="1" />
+        <path d="M14 10h4l3 3v4h-7z" />
+        <circle cx="6" cy="19" r="1.7" />
+        <circle cx="17" cy="19" r="1.7" />
+      </symbol>
+      <symbol
+        id="icon-briefcase"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+        <path d="M3 12h18" />
+      </symbol>
+      <symbol
+        id="icon-cash"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M6 9v.01M18 15v.01" stroke-width="2.6" />
+      </symbol>
+      <symbol
         id="icon-collapse"
         viewBox="0 0 24 24"
         fill="none"
@@ -2797,6 +2861,67 @@
               >
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
                 <span class="nav-label">Appointments</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <p class="nav-group-label">Management</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="vasAdminNav"
+                hidden
+                aria-label="VAS Price Banding &amp; Split"
+                title="VAS Price Banding &amp; Split"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-tag"></use></svg>
+                <span class="nav-label">VAS Price Banding &amp; Split</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="rateCardAdminNav"
+                hidden
+                aria-label="Rate Card Admin"
+                title="Rate Card Admin"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                <span class="nav-label">Rate Card Admin</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="dandiAdminNav"
+                hidden
+                aria-label="D&#43;I Admin Entry"
+                title="D&#43;I Admin Entry"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-truck"></use></svg>
+                <span class="nav-label">D&#43;I Admin Entry</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="amcAdminNav"
+                hidden
+                aria-label="AMC Admin Rate Section"
+                title="AMC Admin Rate Section"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
+                <span class="nav-label">AMC Admin Rate Section</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="thomsonAdminNav"
+                hidden
+                aria-label="Thomson Pricing Admin"
+                title="Thomson Pricing Admin"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                <span class="nav-label">Thomson Pricing Admin</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
             </div>
@@ -4153,6 +4278,348 @@
                       Add channel
                     </button>
                   </form>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="vasAdminWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Admin entry for VAS price banding &amp; split. Values load from the Excel workbook
+                  by default; save your own values here, or revert to the Excel default at any time.
+                  Every change is logged and can be restored later.
+                </p>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="vas_price_bands"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>VAS Price Bands</h4>
+                  <p class="form-note">
+                    Order value bands used to look up the base VAS fee percentage.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="vas_pricing_params"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>VAS Pricing Parameters</h4>
+                  <p class="form-note">
+                    Rates, minimum fees, deductibles and claim fees for each VAS plan type.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="vas_profit_split"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>VAS Sales / Service GP Split</h4>
+                  <p class="form-note">
+                    Technician visit cost, reference selling price and per-plan claim assumptions
+                    used to split gross profit between Sales and Service.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="rateCardAdminWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Admin entry for the Rate Card. Values load from the Excel workbook by default;
+                  save your own values here, or revert to the Excel default at any time. Every
+                  change is logged and can be restored later.
+                </p>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="rate_card"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>Rate Card Sections</h4>
+                  <p class="form-note">
+                    Warranty, non-warranty, delivery, installation and inspection activity rates.
+                    Add or remove sections and activities as needed.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="dandiAdminWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Admin entry for Delivery &amp; Installation pricing. Values load from the Excel
+                  workbook by default; save your own values here, or revert to the Excel default at
+                  any time. Every change is logged and can be restored later.
+                </p>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="dandi_pricing"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>Delivery &amp; Installation Pricing</h4>
+                  <p class="form-note">
+                    Crew loading factors, per-appliance load capacities and labor minutes, and
+                    per-region D+I / Install rates and discount tiers.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="amcAdminWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Admin entry for the AMC rate section. Values load from the Excel workbook by
+                  default; save your own values here, or revert to the Excel default at any time.
+                  Every change is logged and can be restored later.
+                </p>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="amc_pricing"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>AMC Rate Configuration</h4>
+                  <p class="form-note">
+                    AMC plan percentages, risk uplift, technician cost assumptions, visit tiers and
+                    the appliance list used to size AMC contracts.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="thomsonAdminWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Admin entry for Thomson pricing. Values load from the Excel workbook by default;
+                  save your own values here, or revert to the Excel default at any time. Every
+                  change is logged and can be restored later.
+                </p>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="thomson_pricing"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>Thomson Pricing Configuration</h4>
+                  <p class="form-note">
+                    Region round-trip costs, per-appliance Base rates (the 50+/150+/300+/500+ tiers
+                    are always derived from Base) and add-on pricing.
+                  </p>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
                 </section>
               </div>
             </div>

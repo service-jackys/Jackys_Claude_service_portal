@@ -646,6 +646,12 @@
     $('#teamAccountsNav').hidden = !hasPermission('admin.users');
     $('#newRequestNav').hidden = !hasPermission('complaints.write');
     $('#masterDataNav').hidden = !hasPermission('salesmen.write');
+    const canReadPricingConfig = hasPermission('pricing_config.read');
+    $('#vasAdminNav').hidden = !canReadPricingConfig;
+    $('#rateCardAdminNav').hidden = !canReadPricingConfig;
+    $('#dandiAdminNav').hidden = !canReadPricingConfig;
+    $('#amcAdminNav').hidden = !canReadPricingConfig;
+    $('#thomsonAdminNav').hidden = !canReadPricingConfig;
   }
 
   function showNoWorkspaceAccess() {
@@ -670,6 +676,10 @@
   }
 
   function setWorkspaceMode(mode) {
+    if (PRICING_ADMIN_PAGES[mode]) {
+      activatePricingAdminMode(mode);
+      return;
+    }
     if (mode === 'complaints' && !hasPermission('complaints.read')) return;
     if (mode === 'service-requests' && !hasPermission('complaints.read')) return;
     if (mode === 'appointments' && !hasPermission('appointments.read')) return;
@@ -5039,6 +5049,1033 @@ ${bodyHtml}
     $('#complaintDetail').hidden = true;
   });
   $('#signOutButton').addEventListener('click', () => signOut());
+
+  // ---------- Phase 6 (see modification.md #26): admin pricing config ----------
+  // Generic engine for the 5 "Management" admin pages (VAS price banding &
+  // split, Rate Card, D+I, AMC, Thomson). Each page is 1 or 3 "domain
+  // cards" -- one card per pricing_config domain on the server -- built
+  // from two shared primitives (a scalar field grid, and an editable
+  // add/remove-row table) so the 7 domains' very different shapes don't
+  // need 7 bespoke save/reset/history implementations, only 7 bespoke
+  // render() functions describing their fields.
+
+  function pcGet(object, path) {
+    return path.split('.').reduce((value, key) => (value == null ? value : value[key]), object);
+  }
+  function pcSet(object, path, value) {
+    const parts = path.split('.');
+    let target = object;
+    for (let i = 0; i < parts.length - 1; i += 1) {
+      if (target[parts[i]] == null) target[parts[i]] = {};
+      target = target[parts[i]];
+    }
+    target[parts[parts.length - 1]] = value;
+  }
+
+  // Only Built-in Hob (30cm) rounds down at the 50+ tier -- mirrors
+  // deriveThomsonTierRates in packages/contracts/src/index.ts exactly.
+  function pcDeriveThomsonRates(base, applianceName) {
+    const isHob = String(applianceName || '')
+      .trim()
+      .toLowerCase()
+      .startsWith('built-in hob');
+    const round50 = isHob ? Math.floor : Math.ceil;
+    return {
+      Base: base,
+      '50+': round50(base * 0.95),
+      '150+': Math.ceil(base * 0.9),
+      '300+': Math.ceil(base * 0.88),
+      '500+': Math.ceil(base * 0.85),
+    };
+  }
+
+  function pcRenderScalarFields(container, fields, data, markDirty) {
+    container.innerHTML =
+      '<div class="field-grid">' +
+      fields
+        .map((field) => {
+          const raw = pcGet(data, field.path);
+          const value = field.type === 'percent' ? Number(raw || 0) * 100 : Number(raw || 0);
+          const step = field.step || (field.type === 'percent' ? '0.1' : '0.01');
+          return (
+            '<div class="field"><label for="pc-' +
+            field.path +
+            '">' +
+            esc(field.label) +
+            (field.type === 'percent' ? ' (%)' : '') +
+            '</label><input type="number" step="' +
+            step +
+            '" min="0" id="pc-' +
+            field.path +
+            '" data-pc-path="' +
+            field.path +
+            '" data-pc-type="' +
+            field.type +
+            '" value="' +
+            value +
+            '"></div>'
+          );
+        })
+        .join('') +
+      '</div>';
+    container.querySelectorAll('[data-pc-path]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const raw = Number(input.value || 0);
+        const value = input.dataset.pcType === 'percent' ? raw / 100 : raw;
+        pcSet(data, input.dataset.pcPath, value);
+        markDirty();
+      });
+    });
+  }
+
+  // columns: [{key,label,type:'text'|'number'|'percent'|'checkbox'|'readonly'}]
+  // rows live directly in `rows` (the array from `data`, or a sub-array) --
+  // inputs mutate row objects in place, so no separate "collect" step is
+  // needed before Save.
+  function pcRenderTable(container, rows, columns, options) {
+    const opts = options || {};
+    const minRows = opts.minRows ?? 1;
+    const canRemove = rows.length > minRows;
+    const table = document.createElement('table');
+    table.innerHTML =
+      '<thead><tr>' +
+      columns.map((c) => '<th>' + esc(c.label) + '</th>').join('') +
+      (opts.noRemove ? '' : '<th></th>') +
+      '</tr></thead><tbody></tbody>';
+    const tbody = table.querySelector('tbody');
+    rows.forEach((row, index) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        columns
+          .map((c) => {
+            const value = pcGet(row, c.key);
+            if (c.type === 'readonly') return '<td>' + esc(String(value ?? '')) + '</td>';
+            if (c.type === 'checkbox') {
+              return (
+                '<td><input type="checkbox" data-pc-row="' +
+                index +
+                '" data-pc-col="' +
+                c.key +
+                '" ' +
+                (value !== false ? 'checked' : '') +
+                '></td>'
+              );
+            }
+            if (c.type === 'percent') {
+              return (
+                '<td><input type="number" step="0.1" min="0" data-pc-row="' +
+                index +
+                '" data-pc-col="' +
+                c.key +
+                '" data-pc-percent="1" value="' +
+                Number(value || 0) * 100 +
+                '"></td>'
+              );
+            }
+            if (c.type === 'number') {
+              return (
+                '<td><input type="number" step="' +
+                (c.step || '0.01') +
+                '" data-pc-row="' +
+                index +
+                '" data-pc-col="' +
+                c.key +
+                '" value="' +
+                Number(value || 0) +
+                '"></td>'
+              );
+            }
+            return (
+              '<td><input type="text" data-pc-row="' +
+              index +
+              '" data-pc-col="' +
+              c.key +
+              '" value="' +
+              esc(String(value ?? '')) +
+              '"></td>'
+            );
+          })
+          .join('') +
+        (opts.noRemove
+          ? ''
+          : '<td>' +
+            (canRemove
+              ? '<button type="button" class="btn-remove" data-pc-remove-row="' +
+                index +
+                '">✕</button>'
+              : '') +
+            '</td>');
+      tbody.appendChild(tr);
+    });
+    container.innerHTML = '';
+    const wrap = document.createElement('div');
+    wrap.className = 'table-wrap';
+    wrap.appendChild(table);
+    container.appendChild(wrap);
+    if (opts.onAdd) {
+      const addButton = document.createElement('button');
+      addButton.type = 'button';
+      addButton.className = 'button button-outline';
+      addButton.textContent = opts.addLabel || 'Add row';
+      addButton.style.marginTop = '10px';
+      addButton.addEventListener('click', () => {
+        rows.push(opts.onAdd());
+        opts.rerender();
+      });
+      container.appendChild(addButton);
+    }
+    table.querySelectorAll('[data-pc-row]').forEach((input) => {
+      const handler = () => {
+        const rowIndex = Number(input.dataset.pcRow);
+        const key = input.dataset.pcCol;
+        let value;
+        if (input.type === 'checkbox') value = input.checked;
+        else if (input.dataset.pcPercent) value = Number(input.value || 0) / 100;
+        else if (input.type === 'number') value = Number(input.value || 0);
+        else value = input.value;
+        pcSet(rows[rowIndex], key, value);
+        if (opts.onCellChange) opts.onCellChange(rows[rowIndex], key);
+        if (opts.markDirty) opts.markDirty();
+      };
+      input.addEventListener('input', handler);
+      input.addEventListener('change', handler);
+    });
+    table.querySelectorAll('[data-pc-remove-row]').forEach((button) => {
+      button.addEventListener('click', () => {
+        rows.splice(Number(button.dataset.pcRemoveRow), 1);
+        if (opts.markDirty) opts.markDirty();
+        opts.rerender();
+      });
+    });
+  }
+
+  function pcSourceNoteText(meta) {
+    if (!meta) return '';
+    if (!meta.isOverride) return 'Active source: initial workbook (Excel) defaults.';
+    const when = meta.updatedAt ? new Date(meta.updatedAt).toLocaleString() : '';
+    return 'Active source: admin override' + (when ? ' — last saved ' + when + '.' : '.');
+  }
+
+  // ---- Domain card render functions -- one per pricing_config domain ----
+  const PRICING_DOMAIN_RENDERERS = {
+    vas_price_bands(container, data, ctx) {
+      const rerender = () =>
+        pcRenderTable(
+          container,
+          data,
+          [
+            { key: 'start', label: 'Band start (AED)', type: 'number' },
+            { key: 'end', label: 'Band end (AED)', type: 'number' },
+            { key: 'label', label: 'Label', type: 'text' },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender,
+            onAdd: () => ({ start: 0, end: 0, label: '' }),
+            addLabel: 'Add value band',
+          },
+        );
+      rerender();
+    },
+    vas_pricing_params(container, data, ctx) {
+      pcRenderScalarFields(
+        container,
+        [
+          { path: 'ew1Rate', label: '1-Year Extended Warranty rate', type: 'percent' },
+          { path: 'ew2Rate', label: '2-Year Extended Warranty rate', type: 'percent' },
+          { path: 'di1Rate', label: '1-Year Damage Insurance rate', type: 'percent' },
+          { path: 'premiumRate', label: 'Premium Service (24hr SLA) rate', type: 'percent' },
+          { path: 'ew1MinFee', label: 'Minimum fee — 1-Yr EW (AED)', type: 'number' },
+          { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW (AED)', type: 'number' },
+          { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI (AED)', type: 'number' },
+          { path: 'premiumMinFee', label: 'Minimum fee — Premium (AED)', type: 'number' },
+          { path: 'roundingStep', label: 'Rounding step (AED)', type: 'number' },
+          { path: 'claimFeeLow', label: 'Claim fee — items below threshold (AED)', type: 'number' },
+          {
+            path: 'claimFeeHigh',
+            label: 'Claim fee — items at/above threshold (AED)',
+            type: 'number',
+          },
+          { path: 'claimFeeThreshold', label: 'Claim fee threshold (AED)', type: 'number' },
+          { path: 'deductibleEw1', label: 'Deductible — 1-Yr EW (AED)', type: 'number' },
+          { path: 'deductibleEw2', label: 'Deductible — 2-Yr EW (AED)', type: 'number' },
+          { path: 'deductibleDi1', label: 'Deductible — 1-Yr DI (AED)', type: 'number' },
+          { path: 'deductiblePremium', label: 'Deductible — Premium (AED)', type: 'number' },
+        ],
+        data,
+        ctx.markDirty,
+      );
+    },
+    vas_profit_split(container, data, ctx) {
+      const scalarHost = document.createElement('div');
+      const tableHost = document.createElement('div');
+      tableHost.style.marginTop = '14px';
+      container.innerHTML = '';
+      container.appendChild(scalarHost);
+      container.appendChild(tableHost);
+      pcRenderScalarFields(
+        scalarHost,
+        [
+          {
+            path: 'technicianVisitCost',
+            label: 'Technician visit cost — labor + transport (AED)',
+            type: 'number',
+          },
+          { path: 'referenceSellingPrice', label: 'Reference selling price (AED)', type: 'number' },
+        ],
+        data,
+        ctx.markDirty,
+      );
+      pcRenderTable(
+        tableHost,
+        data.plans,
+        [
+          { key: 'plan', label: 'Plan', type: 'readonly' },
+          { key: 'claimFrequency', label: 'Claim frequency', type: 'percent' },
+          { key: 'partsCostPct', label: 'Parts cost %', type: 'percent' },
+          { key: 'marginBuffer', label: 'Margin buffer', type: 'percent' },
+          { key: 'appliedServicePct', label: 'Applied service %', type: 'percent' },
+        ],
+        {
+          minRows: data.plans.length,
+          noRemove: true,
+          markDirty: ctx.markDirty,
+          rerender: () => {},
+        },
+      );
+    },
+    rate_card(container, data, ctx) {
+      function rerenderAll() {
+        container.innerHTML = '';
+        data.forEach((section, sectionIndex) => {
+          const card = document.createElement('div');
+          card.className = 'detail-action-card';
+          card.style.marginBottom = '14px';
+          const head = document.createElement('div');
+          head.className = 'field-grid';
+          head.innerHTML =
+            '<div class="field field-wide"><label>Section label</label><input type="text" data-pc-section-label="' +
+            sectionIndex +
+            '" value="' +
+            esc(section.label) +
+            '"></div>';
+          card.appendChild(head);
+          const tableHost = document.createElement('div');
+          card.appendChild(tableHost);
+          const removeSectionButton = document.createElement('button');
+          removeSectionButton.type = 'button';
+          removeSectionButton.className = 'button button-outline';
+          removeSectionButton.textContent = 'Remove section';
+          removeSectionButton.style.marginTop = '10px';
+          removeSectionButton.disabled = data.length <= 1;
+          removeSectionButton.addEventListener('click', () => {
+            data.splice(sectionIndex, 1);
+            ctx.markDirty();
+            rerenderAll();
+          });
+          card.appendChild(removeSectionButton);
+          container.appendChild(card);
+          const rerenderTable = () =>
+            pcRenderTable(
+              tableHost,
+              section.activities,
+              [
+                { key: 'name', label: 'Activity', type: 'text' },
+                { key: 'rate', label: 'Rate (AED)', type: 'number' },
+              ],
+              {
+                minRows: 1,
+                markDirty: ctx.markDirty,
+                rerender: rerenderTable,
+                onAdd: () => ({ name: 'New activity', rate: 0 }),
+                addLabel: 'Add activity',
+              },
+            );
+          rerenderTable();
+          head.querySelector('[data-pc-section-label]').addEventListener('input', (event) => {
+            section.label = event.target.value;
+            section.key =
+              section.label
+                .trim()
+                .toLowerCase()
+                .replace(/[^a-z0-9]+/g, '_')
+                .replace(/^_+|_+$/g, '') || section.key;
+            ctx.markDirty();
+          });
+        });
+        const addSectionButton = document.createElement('button');
+        addSectionButton.type = 'button';
+        addSectionButton.className = 'button button-primary';
+        addSectionButton.textContent = 'Add section';
+        addSectionButton.addEventListener('click', () => {
+          data.push({
+            key: 'new_section_' + (data.length + 1),
+            label: 'New section',
+            activities: [{ name: 'New activity', rate: 0 }],
+          });
+          ctx.markDirty();
+          rerenderAll();
+        });
+        container.appendChild(addSectionButton);
+      }
+      rerenderAll();
+    },
+    dandi_pricing(container, data, ctx) {
+      container.innerHTML = '';
+      const scalarHost = document.createElement('div');
+      container.appendChild(scalarHost);
+      const maxUnitsField = document.createElement('div');
+      maxUnitsField.className = 'field-grid';
+      maxUnitsField.innerHTML =
+        '<div class="field"><label>Maximum units per quote</label><select data-pc-maxunits>' +
+        [50, 60, 100]
+          .map(
+            (n) =>
+              '<option value="' +
+              n +
+              '"' +
+              (data.maxUnits === n ? ' selected' : '') +
+              '>' +
+              n +
+              ' units</option>',
+          )
+          .join('') +
+        '</select></div>';
+      container.appendChild(maxUnitsField);
+      maxUnitsField.querySelector('[data-pc-maxunits]').addEventListener('change', (event) => {
+        data.maxUnits = Number(event.target.value);
+        ctx.markDirty();
+      });
+      pcRenderScalarFields(
+        scalarHost,
+        [
+          { path: 'minUnitRate', label: 'Minimum charge per unit (AED)', type: 'number' },
+          {
+            path: 'laborCostPerHour',
+            label: 'Labor cost per technician hour (AED)',
+            type: 'number',
+          },
+          {
+            path: 'crewFactors.1',
+            label: 'Crew size 1 loading factor',
+            type: 'number',
+            step: '0.05',
+          },
+          {
+            path: 'crewFactors.2',
+            label: 'Crew size 2 loading factor',
+            type: 'number',
+            step: '0.05',
+          },
+          {
+            path: 'crewFactors.3',
+            label: 'Crew size 3 loading factor',
+            type: 'number',
+            step: '0.05',
+          },
+          {
+            path: 'capacities.fridge',
+            label: 'Refrigerator load capacity / trip',
+            type: 'number',
+            step: '1',
+          },
+          {
+            path: 'capacities.washer',
+            label: 'Washer load capacity / trip',
+            type: 'number',
+            step: '1',
+          },
+          {
+            path: 'capacities.cooker',
+            label: 'Cooker load capacity / trip',
+            type: 'number',
+            step: '1',
+          },
+          {
+            path: 'laborMinutes.fridge',
+            label: 'Refrigerator technician minutes',
+            type: 'number',
+            step: '1',
+          },
+          {
+            path: 'laborMinutes.washer',
+            label: 'Washer technician minutes',
+            type: 'number',
+            step: '1',
+          },
+          {
+            path: 'laborMinutes.cooker',
+            label: 'Cooker technician minutes',
+            type: 'number',
+            step: '1',
+          },
+        ],
+        data,
+        ctx.markDirty,
+      );
+      const groupingsHost = document.createElement('div');
+      groupingsHost.className = 'detail-action-card';
+      groupingsHost.style.marginTop = '14px';
+      container.appendChild(groupingsHost);
+      const rerenderGroupings = () => {
+        groupingsHost.innerHTML = '<h4>Customer groupings</h4>';
+        const list = document.createElement('div');
+        data.groupings.forEach((value, index) => {
+          const row = document.createElement('div');
+          row.className = 'field-grid';
+          row.innerHTML =
+            '<div class="field field-wide"><input type="text" data-pc-grouping="' +
+            index +
+            '" value="' +
+            esc(value) +
+            '"></div>';
+          list.appendChild(row);
+        });
+        groupingsHost.appendChild(list);
+        const addButton = document.createElement('button');
+        addButton.type = 'button';
+        addButton.className = 'button button-outline';
+        addButton.textContent = 'Add grouping';
+        addButton.addEventListener('click', () => {
+          data.groupings.push('New grouping');
+          ctx.markDirty();
+          rerenderGroupings();
+        });
+        groupingsHost.appendChild(addButton);
+        groupingsHost.querySelectorAll('[data-pc-grouping]').forEach((input) => {
+          input.addEventListener('input', () => {
+            data.groupings[Number(input.dataset.pcGrouping)] = input.value;
+            ctx.markDirty();
+          });
+        });
+      };
+      rerenderGroupings();
+      const regionsHost = document.createElement('div');
+      regionsHost.className = 'detail-action-card';
+      regionsHost.style.marginTop = '14px';
+      regionsHost.innerHTML = '<h4>Regional transport</h4>';
+      container.appendChild(regionsHost);
+      const regionsTable = document.createElement('div');
+      regionsHost.appendChild(regionsTable);
+      const rerenderRegions = () =>
+        pcRenderTable(
+          regionsTable,
+          data.regions,
+          [
+            { key: 'name', label: 'Region', type: 'text' },
+            { key: 'km', label: 'One-way km', type: 'number' },
+            { key: 'costPerKm', label: 'Cost / km (AED)', type: 'number' },
+            { key: 'roundTripCost', label: 'Round-trip cost (AED)', type: 'number' },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender: rerenderRegions,
+            onAdd: () => ({ name: 'New region', km: 0, costPerKm: 1.5, roundTripCost: 0 }),
+            addLabel: 'Add region',
+          },
+        );
+      rerenderRegions();
+      ['dandi', 'install'].forEach((modeKey) => {
+        const mode = data.modes[modeKey];
+        const modeHost = document.createElement('div');
+        modeHost.className = 'detail-action-card';
+        modeHost.style.marginTop = '14px';
+        modeHost.innerHTML = '<h4>' + esc(mode.label) + ' rates</h4>';
+        container.appendChild(modeHost);
+        const ratesTable = document.createElement('div');
+        modeHost.appendChild(ratesTable);
+        pcRenderTable(
+          ratesTable,
+          [
+            { name: 'Refrigerator', rates: mode.rates.fridge },
+            { name: 'Washing machine', rates: mode.rates.washer },
+            { name: 'Cooker', rates: mode.rates.cooker },
+          ],
+          [
+            { key: 'name', label: 'Appliance', type: 'readonly' },
+            { key: 'rates.batch', label: 'Batch rate (AED)', type: 'number' },
+            { key: 'rates.standard', label: 'Standard rate (AED)', type: 'number' },
+          ],
+          { minRows: 3, noRemove: true, markDirty: ctx.markDirty, rerender: () => {} },
+        );
+        const discountsHost = document.createElement('div');
+        discountsHost.style.marginTop = '10px';
+        modeHost.appendChild(discountsHost);
+        const rerenderDiscounts = () =>
+          pcRenderTable(
+            discountsHost,
+            mode.discounts,
+            [
+              { key: 'min', label: 'Min units', type: 'number', step: '1' },
+              { key: 'max', label: 'Max units', type: 'number', step: '1' },
+              { key: 'label', label: 'Tier label', type: 'text' },
+              { key: 'rate', label: 'Discount %', type: 'percent' },
+            ],
+            {
+              minRows: 1,
+              markDirty: ctx.markDirty,
+              rerender: rerenderDiscounts,
+              onAdd: () => ({ min: 1, max: 1, label: '', rate: 0 }),
+              addLabel: 'Add discount tier',
+            },
+          );
+        rerenderDiscounts();
+      });
+    },
+    amc_pricing(container, data, ctx) {
+      container.innerHTML = '';
+      const scalarHost = document.createElement('div');
+      container.appendChild(scalarHost);
+      pcRenderScalarFields(
+        scalarHost,
+        [
+          { path: 'basicPct', label: 'Basic RM percentage', type: 'percent' },
+          { path: 'standardPct', label: 'Standard PMC percentage', type: 'percent' },
+          { path: 'premiumPct', label: 'Premium PMC percentage', type: 'percent' },
+          { path: 'riskUplift', label: 'Risk uplift', type: 'percent' },
+          { path: 'overhead', label: 'Overhead / contingency', type: 'percent' },
+          { path: 'profitMarkup', label: 'Profit markup', type: 'percent' },
+          { path: 'standardPartsReserve', label: 'Standard parts reserve', type: 'percent' },
+          { path: 'premiumPartsReserve', label: 'Premium parts reserve', type: 'percent' },
+          {
+            path: 'handledPerVisit',
+            label: 'Appliances handled per visit',
+            type: 'number',
+            step: '1',
+          },
+          { path: 'transportPerVisit', label: 'Transport cost per visit (AED)', type: 'number' },
+          { path: 'salary', label: 'Technician monthly salary (AED)', type: 'number' },
+          { path: 'technicians', label: 'Number of technicians', type: 'number', step: '1' },
+          { path: 'workingDays', label: 'Working days per month', type: 'number', step: '1' },
+          { path: 'hoursPerDay', label: 'Working hours per day', type: 'number', step: '0.5' },
+          {
+            path: 'visitHours',
+            label: 'Average visit duration (hours)',
+            type: 'number',
+            step: '0.5',
+          },
+          { path: 'standardVisits', label: 'Standard visits per year', type: 'number', step: '1' },
+          { path: 'premiumVisits', label: 'Premium visits per year', type: 'number', step: '1' },
+        ],
+        data,
+        ctx.markDirty,
+      );
+      const tiersHost = document.createElement('div');
+      tiersHost.className = 'detail-action-card';
+      tiersHost.style.marginTop = '14px';
+      tiersHost.innerHTML = '<h4>Basic RM reactive-visit tiers</h4>';
+      container.appendChild(tiersHost);
+      const tiersTable = document.createElement('div');
+      tiersHost.appendChild(tiersTable);
+      const tierRows = data.basicVisitTiers.map((tier) => ({ min: tier[0], visits: tier[1] }));
+      const syncTiers = () => {
+        data.basicVisitTiers = tierRows.map((row) => [
+          Number(row.min) || 1,
+          Number(row.visits) || 0,
+        ]);
+      };
+      const rerenderTiers = () =>
+        pcRenderTable(
+          tiersTable,
+          tierRows,
+          [
+            { key: 'min', label: 'Minimum appliance qty', type: 'number', step: '1' },
+            { key: 'visits', label: 'Annual reactive visits', type: 'number', step: '1' },
+          ],
+          {
+            minRows: 1,
+            markDirty: () => {
+              syncTiers();
+              ctx.markDirty();
+            },
+            rerender: () => {
+              syncTiers();
+              rerenderTiers();
+            },
+            onAdd: () => ({ min: 1, visits: 0 }),
+            addLabel: 'Add tier',
+          },
+        );
+      rerenderTiers();
+      const appliancesHost = document.createElement('div');
+      appliancesHost.className = 'detail-action-card';
+      appliancesHost.style.marginTop = '14px';
+      appliancesHost.innerHTML = '<h4>Appliance catalog</h4>';
+      container.appendChild(appliancesHost);
+      const appliancesTable = document.createElement('div');
+      appliancesHost.appendChild(appliancesTable);
+      const rerenderAppliances = () =>
+        pcRenderTable(
+          appliancesTable,
+          data.appliances,
+          [
+            { key: 'name', label: 'Appliance', type: 'text' },
+            { key: 'qty', label: 'Qty under contract', type: 'number', step: '1' },
+            { key: 'price', label: 'Unit price (AED)', type: 'number' },
+            { key: 'active', label: 'Active', type: 'checkbox' },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender: rerenderAppliances,
+            onAdd: () => ({ name: 'New appliance', qty: 0, price: 0, active: true }),
+            addLabel: 'Add appliance',
+          },
+        );
+      rerenderAppliances();
+    },
+    thomson_pricing(container, data, ctx) {
+      container.innerHTML = '';
+      const scalarHost = document.createElement('div');
+      container.appendChild(scalarHost);
+      pcRenderScalarFields(
+        scalarHost,
+        [
+          {
+            path: 'techCount',
+            label: 'Technicians deployed per project',
+            type: 'number',
+            step: '1',
+          },
+          { path: 'hoursDay', label: 'Working hours per day', type: 'number', step: '0.5' },
+          { path: 'techRate', label: 'Technician cost / hour (AED)', type: 'number' },
+          { path: 'costPerKm', label: 'Cost per km (AED, round-trip)', type: 'number' },
+        ],
+        data,
+        ctx.markDirty,
+      );
+      const regionsHost = document.createElement('div');
+      regionsHost.className = 'detail-action-card';
+      regionsHost.style.marginTop = '14px';
+      regionsHost.innerHTML = '<h4>Regions</h4>';
+      container.appendChild(regionsHost);
+      const regionsTable = document.createElement('div');
+      regionsHost.appendChild(regionsTable);
+      const rerenderRegions = () =>
+        pcRenderTable(
+          regionsTable,
+          data.regions,
+          [
+            { key: 'name', label: 'Region', type: 'text' },
+            { key: 'km', label: 'One-way km', type: 'number' },
+            { key: 'roundTripCost', label: 'Round-trip cost (AED)', type: 'number' },
+            { key: 'active', label: 'Active', type: 'checkbox' },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender: rerenderRegions,
+            onAdd: () => ({ name: 'New region', km: 0, roundTripCost: 0, active: true }),
+            addLabel: 'Add region',
+          },
+        );
+      rerenderRegions();
+      const appliancesHost = document.createElement('div');
+      appliancesHost.className = 'detail-action-card';
+      appliancesHost.style.marginTop = '14px';
+      appliancesHost.innerHTML =
+        '<h4>Appliance rates</h4><p class="form-note">Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.</p>';
+      container.appendChild(appliancesHost);
+      const appliancesTable = document.createElement('div');
+      appliancesHost.appendChild(appliancesTable);
+      const rerenderAppliances = () =>
+        pcRenderTable(
+          appliancesTable,
+          data.appliances,
+          [
+            { key: 'name', label: 'Appliance', type: 'text' },
+            { key: 'rates.Base', label: 'Base rate (AED)', type: 'number' },
+            { key: 'avgMin', label: 'Avg install minutes', type: 'number', step: '0.5' },
+            { key: 'active', label: 'Active', type: 'checkbox' },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender: rerenderAppliances,
+            onCellChange: (row, key) => {
+              if (key === 'rates.Base')
+                row.rates = pcDeriveThomsonRates(Number(row.rates.Base) || 0, row.name);
+            },
+            onAdd: () => ({
+              name: 'New appliance',
+              rates: pcDeriveThomsonRates(0, ''),
+              avgMin: 30,
+              active: true,
+            }),
+            addLabel: 'Add appliance',
+          },
+        );
+      rerenderAppliances();
+      const addonsHost = document.createElement('div');
+      addonsHost.className = 'detail-action-card';
+      addonsHost.style.marginTop = '14px';
+      addonsHost.innerHTML = '<h4>Additional services</h4>';
+      container.appendChild(addonsHost);
+      const addonsTable = document.createElement('div');
+      addonsHost.appendChild(addonsTable);
+      const addonNames = [
+        'Project Management Fee',
+        'Site Survey',
+        'Testing & Commissioning',
+        'Training (End User)',
+      ];
+      const addonRows = addonNames.map((name) => ({ name, entry: data.addons[name] }));
+      pcRenderTable(
+        addonsTable,
+        addonRows,
+        [
+          { key: 'name', label: 'Service', type: 'readonly' },
+          { key: 'entry.rate', label: 'Rate (AED, or % for PM fee)', type: 'number' },
+          { key: 'entry.hours', label: 'Technician hours', type: 'number', step: '0.25' },
+          { key: 'entry.note', label: 'Note', type: 'text' },
+        ],
+        { minRows: 4, noRemove: true, markDirty: ctx.markDirty, rerender: () => {} },
+      );
+    },
+  };
+
+  // ---- Phase 6 (modification.md #26): "Management" admin pages wiring ----
+  // Maps each of the 5 sidebar admin pages to its nav id, workspace panel id,
+  // heading/description and the pricing_config domain(s) shown on it (VAS is
+  // 3 domain cards; the rest are 1 each).
+  const PRICING_ADMIN_PAGES = {
+    'vas-admin': {
+      navId: 'vasAdminNav',
+      workspaceId: 'vasAdminWorkspace',
+      heading: 'VAS Price Banding & Split',
+      description:
+        'Admin entry for VAS price banding, pricing parameters and the sales/service GP split.',
+      domains: ['vas_price_bands', 'vas_pricing_params', 'vas_profit_split'],
+    },
+    'rate-card-admin': {
+      navId: 'rateCardAdminNav',
+      workspaceId: 'rateCardAdminWorkspace',
+      heading: 'Rate Card Admin',
+      description: 'Admin entry for the Rate Card sections and activity rates.',
+      domains: ['rate_card'],
+    },
+    'dandi-admin': {
+      navId: 'dandiAdminNav',
+      workspaceId: 'dandiAdminWorkspace',
+      heading: 'D+I Admin Entry',
+      description: 'Admin entry for Delivery & Installation pricing.',
+      domains: ['dandi_pricing'],
+    },
+    'amc-admin': {
+      navId: 'amcAdminNav',
+      workspaceId: 'amcAdminWorkspace',
+      heading: 'AMC Admin Rate Section',
+      description: 'Admin entry for the AMC rate configuration.',
+      domains: ['amc_pricing'],
+    },
+    'thomson-admin': {
+      navId: 'thomsonAdminNav',
+      workspaceId: 'thomsonAdminWorkspace',
+      heading: 'Thomson Pricing Admin',
+      description: 'Admin entry for Thomson pricing.',
+      domains: ['thomson_pricing'],
+    },
+  };
+
+  const pricingCardState = new Map(); // domain -> { data, meta }
+
+  function pcFormatWhen(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleString();
+    } catch (error) {
+      return iso;
+    }
+  }
+
+  async function pcLoadCard(domain) {
+    const card = document.querySelector('[data-pc-domain="' + domain + '"]');
+    if (!card) return;
+    const fields = card.querySelector('[data-pc-fields]');
+    const sourceNote = card.querySelector('[data-pc-source-note]');
+    const saveButton = card.querySelector('[data-pc-save]');
+    sourceNote.textContent = 'Loading current values…';
+    try {
+      const result = await apiRequest('/api/pricing-config/' + domain, { method: 'GET' });
+      pricingCardState.set(domain, { data: result.payload, dirty: false });
+      const ctx = {
+        markDirty: () => {
+          const state = pricingCardState.get(domain);
+          if (state) state.dirty = true;
+          if (saveButton) saveButton.textContent = 'Save*';
+        },
+      };
+      const renderer = PRICING_DOMAIN_RENDERERS[domain];
+      if (renderer) renderer(fields, pricingCardState.get(domain).data, ctx);
+      sourceNote.textContent = pcSourceNoteText(result);
+      if (saveButton) saveButton.textContent = 'Save';
+    } catch (error) {
+      sourceNote.textContent = 'Could not load current values for this section.';
+    }
+  }
+
+  async function pcSaveCard(domain) {
+    const card = document.querySelector('[data-pc-domain="' + domain + '"]');
+    if (!card) return;
+    const state = pricingCardState.get(domain);
+    if (!state) return;
+    const saveButton = card.querySelector('[data-pc-save]');
+    const sourceNote = card.querySelector('[data-pc-source-note]');
+    setBusy(saveButton, true, 'Saving…');
+    try {
+      const result = await apiRequest('/api/pricing-config/' + domain, {
+        method: 'PUT',
+        body: JSON.stringify(state.data),
+      });
+      state.dirty = false;
+      if (saveButton) saveButton.textContent = 'Save';
+      sourceNote.textContent = pcSourceNoteText(result);
+      setMessage('#workspaceMessage', 'Saved.', true);
+    } catch (error) {
+      setMessage('#workspaceMessage', error?.message || 'Could not save changes.', false);
+    } finally {
+      setBusy(saveButton, false);
+    }
+  }
+
+  async function pcResetCard(domain) {
+    const card = document.querySelector('[data-pc-domain="' + domain + '"]');
+    if (!card) return;
+    const resetButton = card.querySelector('[data-pc-reset]');
+    setBusy(resetButton, true, 'Reverting…');
+    try {
+      await apiRequest('/api/pricing-config/' + domain + '/reset', { method: 'POST' });
+      await pcLoadCard(domain);
+      setMessage('#workspaceMessage', 'Reverted to the Excel default.', true);
+    } catch (error) {
+      setMessage(
+        '#workspaceMessage',
+        error?.message || 'Could not revert to the Excel default.',
+        false,
+      );
+    } finally {
+      setBusy(resetButton, false);
+    }
+  }
+
+  async function pcToggleHistory(domain) {
+    const card = document.querySelector('[data-pc-domain="' + domain + '"]');
+    if (!card) return;
+    const historyPanel = card.querySelector('[data-pc-history]');
+    const historyBody = card.querySelector('[data-pc-history-body]');
+    const historyEmpty = card.querySelector('[data-pc-history-empty]');
+    if (!historyPanel.hidden) {
+      historyPanel.hidden = true;
+      return;
+    }
+    historyPanel.hidden = false;
+    historyBody.innerHTML = '<tr><td colspan="4">Loading…</td></tr>';
+    try {
+      const result = await apiRequest('/api/pricing-config/' + domain + '/history?limit=20', {
+        method: 'GET',
+      });
+      const entries = result.history || [];
+      historyEmpty.hidden = entries.length > 0;
+      historyBody.innerHTML = entries
+        .map((entry) => {
+          const actionLabel =
+            entry.action === 'pricing_config.saved'
+              ? 'Saved'
+              : entry.action === 'pricing_config.reset'
+                ? 'Reverted to Excel default'
+                : entry.action === 'pricing_config.restored'
+                  ? 'Restored'
+                  : esc(entry.action);
+          return (
+            '<tr><td>' +
+            esc(pcFormatWhen(entry.occurredAt)) +
+            '</td><td>' +
+            actionLabel +
+            '</td><td>' +
+            esc(entry.actorProfileId != null ? String(entry.actorProfileId) : '—') +
+            '</td><td><button type="button" class="button button-outline" data-pc-restore="' +
+            entry.id +
+            '">Load this entry</button></td></tr>'
+          );
+        })
+        .join('');
+      historyBody.querySelectorAll('[data-pc-restore]').forEach((button) => {
+        button.addEventListener('click', () => pcRestoreCard(domain, button.dataset.pcRestore));
+      });
+    } catch (error) {
+      historyBody.innerHTML = '<tr><td colspan="4">Could not load history.</td></tr>';
+    }
+  }
+
+  async function pcRestoreCard(domain, auditEventId) {
+    try {
+      await apiRequest('/api/pricing-config/' + domain + '/restore', {
+        method: 'POST',
+        body: JSON.stringify({ auditEventId }),
+      });
+      await pcLoadCard(domain);
+      await pcToggleHistory(domain); // close
+      setMessage('#workspaceMessage', 'Loaded that saved entry as the current value.', true);
+    } catch (error) {
+      setMessage('#workspaceMessage', error?.message || 'Could not load that saved entry.', false);
+    }
+  }
+
+  const pricingCardsWired = new Set();
+
+  function pcWireCard(domain) {
+    if (pricingCardsWired.has(domain)) return;
+    pricingCardsWired.add(domain);
+    const card = document.querySelector('[data-pc-domain="' + domain + '"]');
+    if (!card) return;
+    card.querySelector('[data-pc-save]')?.addEventListener('click', () => pcSaveCard(domain));
+    card.querySelector('[data-pc-reset]')?.addEventListener('click', () => pcResetCard(domain));
+    card
+      .querySelector('[data-pc-toggle-history]')
+      ?.addEventListener('click', () => pcToggleHistory(domain));
+  }
+
+  function activatePricingAdminMode(mode) {
+    const page = PRICING_ADMIN_PAGES[mode];
+    if (!page) return;
+    if (!hasPermission('pricing_config.read')) return;
+    workspaceMode = mode;
+    Object.values(PRICING_ADMIN_PAGES).forEach((other) => {
+      $('#' + other.navId).setAttribute('aria-current', other === page ? 'page' : 'false');
+      $('#' + other.workspaceId).hidden = other !== page;
+    });
+    // Also hide every other workspace panel outside the Management group.
+    [
+      'complaintWorkspace',
+      'appointmentWorkspace',
+      'jobCardWorkspace',
+      'quotationWorkspace',
+      'inspectionWorkspace',
+      'warrantyApprovalWorkspace',
+      'dashboardWorkspace',
+      'technicianWorkspace',
+      'teamAccountWorkspace',
+      'masterDataWorkspace',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = true;
+    });
+    $('#workspace-heading').textContent = page.heading;
+    $('#workspaceDescription').textContent = page.description;
+    page.domains.forEach((domain) => {
+      pcWireCard(domain);
+      pcLoadCard(domain);
+    });
+  }
+
+  $('#vasAdminNav')?.addEventListener('click', () => setWorkspaceMode('vas-admin'));
+  $('#rateCardAdminNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-admin'));
+  $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
+  $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
+  $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
+
   initJobCardForms();
   initQuotationForms();
   initInspectionForms();

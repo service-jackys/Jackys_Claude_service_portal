@@ -1238,3 +1238,65 @@ Three more things you flagged, all fixed:
   (there are dozens of forms/detail views) — flag any page where it looks off and I'll patch it.
 - `appointments.b2b_branch_cust_code` carry-forward (tracked since Modification #2) — still
   unaddressed, unrelated to this change.
+
+## Modification #26 — Phase 6: Commercial/pricing admin backend + Management admin pages
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you rely on it
+day-to-day.
+
+### What changed
+
+This starts Phase 6 (Commercial/pricing: AMC, VAS, rate cards, Thomson proposals, workbook
+upload), scoped exactly as you asked: admin entry first, standalone (no Google Apps Script
+dependency), and only the admin side for now — Thomson Proposal and Revenue Dashboard, and all
+the user-facing quote calculators that would sit on top of this admin data, are intentionally not
+built yet.
+
+- **New "Management" section in the sidebar** with 5 admin pages: VAS Price Banding & Split,
+  Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, and Thomson Pricing Admin — visible
+  to anyone with the new `pricing_config.read` permission (admin and management roles).
+- **A single generic pricing-config system backs all 5 pages** (7 domains total — VAS is 3
+  domain cards: price bands, pricing parameters, and the sales/service GP split). Every domain
+  works the same way:
+  - **Loads from the Excel workbook by default** — the current master workbook
+    (`Service_Budget_2027_AUG_13_TG_CAL_VAS_PROFIT_CENTERv4_thomson_pricing_change.xlsx`) was
+    read directly and its values (VAS price bands and pricing params, the Sales/Service GP split
+    assumptions, Rate Card activity rates, AMC plan percentages and visit tiers, D+I/Thomson
+    region and appliance rates) became the built-in defaults, so there is no ongoing dependency
+    on the spreadsheet once this is running.
+  - **Admin can change any value and Save** — every field is editable inline; nothing is
+    read-only except the 4 derived Thomson volume-tier rates (50+/150+/300+/500+), which are
+    always calculated from the Base rate you enter, exactly the way the workbook derives them
+    (matches its own formula, including the one exception: Built-in Hob rounds down at the 50+
+    tier, everything else rounds up).
+  - **Admin can always revert to the Excel default** with one click, per domain.
+  - **Every Save and Revert is logged** (who, when, and the full values at that point), and the
+    "History" button on each admin card lists past entries with a "Load this entry" action, so
+    an admin can go back to any earlier saved version, not just the most recent one or the
+    original default.
+- **Backend**: a new `pricing_configs` table (current value per domain) plus reuse of the
+  existing audit-log table for full version history — a new `pricing_config.read` /
+  `pricing_config.write` permission pair, gated the same way as every other admin action in this
+  app — and REST endpoints (`GET/PUT /api/pricing-config/{domain}`,
+  `POST .../reset`, `GET .../history`, `POST .../restore`).
+- **Frontend**: a small reusable rendering engine (scalar-field grids and editable add/remove-row
+  tables) drives all 7 domain cards from one set of primitives, so each admin page is a
+  description of its fields rather than a hand-built form; this keeps the 5 pages visually and
+  behaviorally consistent and makes a future 6th pricing domain a small addition rather than a
+  new page from scratch.
+- One data correction was made along the way: the workbook's "Built-in Microwave Oven" appliance
+  is new since the legacy reference file (12 appliances now, not 11) and Thomson Base rates in
+  the current workbook are lower across the board than the old reference numbers — the new
+  defaults reflect the current workbook, not the older file.
+
+### Needs you
+
+- Sign in as an admin/management user, open each of the 5 new "Management" pages, and check the
+  default values against the workbook for anything that looks off before relying on this for
+  real quotes.
+- Try Save, Revert to Excel default, and History → "Load this entry" on at least one page to
+  confirm the change-tracking behaves the way you expect.
+- Still pending, on purpose, per your original scope: Thomson Proposal, Revenue Dashboard, and
+  the user-facing AMC/VAS/rate-card/Thomson quote calculators that will read from this admin data
+  — say the word when you want those started.

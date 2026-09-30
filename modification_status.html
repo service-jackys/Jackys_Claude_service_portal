@@ -1223,6 +1223,80 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#26 &mdash; Phase 6: Commercial/pricing admin backend + Management admin pages</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: standalone pricing-config backend (migration, contracts,
+          service, routes) + 5 new "Management" admin pages in the staff portal frontend
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Starts Phase 6 (Commercial/pricing: AMC, VAS, rate cards, Thomson proposals, workbook
+            upload), scoped exactly as requested: admin entry first, standalone (no Google Apps
+            Script dependency). Thomson Proposal, Revenue Dashboard, and the user-facing quote
+            calculators are intentionally not built yet.
+          </li>
+          <li>
+            <strong>New "Management" sidebar section</strong> with 5 admin pages: VAS Price Banding
+            &amp; Split, Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, and Thomson
+            Pricing Admin &mdash; gated by a new <code>pricing_config.read</code> /
+            <code>pricing_config.write</code> permission pair.
+          </li>
+          <li>
+            <strong>One generic pricing-config system</strong> backs all 5 pages (7 domains total
+            &mdash; VAS is 3 domain cards). Every domain: loads its defaults from the current master
+            workbook on first use, lets the admin edit and Save any value, lets the admin Revert to
+            the Excel default at any time, and logs every Save/Revert to the existing audit table
+            with a "History &rarr; Load this entry" action to restore any past version.
+          </li>
+          <li>
+            The 4 Thomson volume-tier rates (50+/150+/300+/500+) are always derived from the Base
+            rate the admin enters, matching the workbook's own formula exactly &mdash; they are
+            never independently editable.
+          </li>
+          <li>
+            Backend: new <code>pricing_configs</code> table, Zod contracts for all 7 domain shapes,
+            a service/route layer following the app's existing service-factory/handler-factory
+            patterns, and REST endpoints under <code>/api/pricing-config/{domain}</code> (get, save,
+            reset, history, restore).
+          </li>
+          <li>
+            Frontend: a small reusable rendering engine (scalar-field grids + editable
+            add/remove-row tables) drives all 7 domain cards from shared primitives, so a future
+            pricing domain is a field description, not a new hand-built page.
+          </li>
+          <li>
+            Data correction along the way: the current workbook has a 12th appliance ("Built-in
+            Microwave Oven") not present in the older reference file, and lower Thomson Base rates
+            across the board &mdash; the new defaults reflect the current workbook.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Sign in as an admin/management user, open each of the 5 new Management pages, and check
+            the default values against the workbook before relying on this for real quotes.
+          </li>
+          <li>
+            Try Save, Revert to Excel default, and History &rarr; "Load this entry" on at least one
+            page to confirm the change-tracking behaves as expected.
+          </li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>
+            Thomson Proposal, Revenue Dashboard, and the user-facing AMC/VAS/rate-card/Thomson quote
+            calculators that read from this admin data are pending, on purpose, per the original
+            Phase 6 scope.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

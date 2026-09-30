@@ -38,6 +38,8 @@ import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js'
 import { createWarrantyApprovalService } from '../warranty-approvals/service.js';
 import { createDashboardHandlers } from '../dashboard/routes.js';
 import { createDashboardService } from '../dashboard/service.js';
+import { createPricingConfigHandlers } from '../pricing-config/routes.js';
+import { createPricingConfigService } from '../pricing-config/service.js';
 
 export type RouteDefinition = {
   method: 'get' | 'post' | 'patch' | 'put' | 'delete';
@@ -464,6 +466,30 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         cancel: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const pricingConfigHandlers = pool
+    ? createPricingConfigHandlers(createPricingConfigService(pool), requirePermission)
+    : {
+        get: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        save: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        reset: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        history: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        restore: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1080,6 +1106,68 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: salesmanHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/pricing-config/{domain}',
+        operationId: 'getPricingConfig',
+        tags: ['Pricing config'],
+        summary:
+          'Phase 6 (modification.md #26): current admin pricing config for one domain, or its Excel default if never saved',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'domain', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: pricingConfigHandlers.get,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/pricing-config/{domain}',
+        operationId: 'savePricingConfig',
+        tags: ['Pricing config'],
+        summary:
+          'Save an admin override for one pricing config domain (versioned via audit_events)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'domain', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: pricingConfigHandlers.save,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/pricing-config/{domain}/reset',
+        operationId: 'resetPricingConfig',
+        tags: ['Pricing config'],
+        summary: 'Reset one pricing config domain back to its Excel default',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'domain', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: pricingConfigHandlers.reset,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/pricing-config/{domain}/history',
+        operationId: 'listPricingConfigHistory',
+        tags: ['Pricing config'],
+        summary:
+          'List past saved/reset/restored versions of one pricing config domain, newest first',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'domain', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'limit', in: 'query', schema: { type: 'integer' } },
+        ],
+        responses: [200, 401, 403, 404, 500],
+        handlers: pricingConfigHandlers.history,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/pricing-config/{domain}/restore',
+        operationId: 'restorePricingConfig',
+        tags: ['Pricing config'],
+        summary:
+          'Restore one pricing config domain to a past saved version by its history entry id',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'domain', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: pricingConfigHandlers.restore,
       },
       {
         method: 'get' as const,
