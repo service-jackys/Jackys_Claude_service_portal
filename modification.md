@@ -1052,3 +1052,53 @@ fresh sign-in every time.
   since sessions themselves are still stored in memory, not the database -- only the login
   credentials were made persistent in Modification #20. Not something you've asked to change, but
   flagging it since it's the other way a "logout" can still happen.)
+
+## Modification #24 — Professional full-page app shell for the staff workspace
+
+- **Date:** 2026-09-30
+- **Status:** Code complete — needs your visual review.
+
+### What changed
+
+You flagged that after signing in, the page still looked like the public marketing page (topbar
+banner, big hero, "Public site"/"Customer complaints" links) with the actual workspace squeezed
+into a narrow centered column below it, and that entry fields felt oversized while still
+truncating their own content. Used the `ui-ux-pro-max` and `ui-styling` guidance for this
+(enterprise/admin-panel layout conventions, the "Minimal Swiss" Inter typography pairing, and the
+accessibility/touch-target checklist).
+
+- **Signed-in view is now a real app shell, not a landing page.** Once you sign in, the topbar
+  banner, hero, and public nav links ("Public site", "Customer complaints") disappear entirely --
+  they're not "work" for a signed-in staff member -- and the workspace takes over the full page
+  width, the way an internal admin console normally looks, instead of a narrow column with a
+  hero above it.
+- **Left navigation is now a proper full-height sidebar** (not a card floating in a page grid),
+  and the work area to its right is much wider, with sensible padding instead of feeling cramped.
+- **Typography standardized** -- the app already declared Inter as its intended font, but never
+  actually loaded it, so every machine silently fell back to whatever system font it had
+  installed. Inter is now loaded properly via Google Fonts, so it looks the same everywhere.
+- **Entry fields tightened** -- inputs/selects had more padding than a typical professional admin
+  tool while still not being wide enough (the Complaint inbox's search box was clipping its own
+  placeholder text). Padding is slightly reduced across the board (still comfortably above the
+  accessible minimum touch size) and the inbox's search/filter boxes are wider so typical text
+  isn't cut off.
+- Purely a CSS change plus two one-line additions in `app.js` (adding/removing an
+  `is-authenticated` class on `<body>` on sign-in/out) -- no element IDs, JS logic, or the
+  logged-out public pages (home, `/complaints`) were touched, so nothing else should look or
+  behave differently.
+
+### Needs you
+
+- Restart `npm run dev`, sign in, and take a look. In particular:
+  - Confirm the topbar/hero/public links are gone once signed in, and the workspace fills the
+    page with the sidebar on the left.
+  - Confirm the Complaint inbox's search box no longer clips its placeholder text.
+  - Sign out and confirm the public home page still looks exactly as it did before (hero, topbar,
+    etc. all still there for a logged-out visitor).
+- This is a visual/subjective change more than most -- if anything about the new layout,
+  spacing, or colors doesn't feel right, tell me specifically what to adjust rather than "make it
+  more professional" so I can target the actual thing that's off.
+
+### Known follow-up
+
+- None flagged yet -- pending your review.

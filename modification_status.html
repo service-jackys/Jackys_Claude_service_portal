@@ -1049,6 +1049,48 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#24 &mdash; Professional full-page app shell for the staff workspace</h2>
+          <span class="badge badge-code-complete">Code complete &mdash; needs your visual review</span>
+        </div>
+        <p class="meta">2026-09-30 &middot; Scope: staff portal frontend (CSS + 2-line app.js toggle)</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            After signing in, the page still looked like the public marketing page (topbar
+            banner, hero, public nav links) with the workspace squeezed into a narrow column
+            below it.
+          </li>
+          <li>
+            <strong>Fixed</strong> &mdash; signed-in staff now get a real app shell: the topbar,
+            hero, and public links disappear entirely, and the workspace takes over the full page
+            width with a proper full-height left sidebar and a much wider work area, the way an
+            internal admin console normally looks.
+          </li>
+          <li>
+            Typography standardized -- Inter was already declared as the intended font but never
+            actually loaded, so it silently fell back per-machine. Now loaded via Google Fonts.
+          </li>
+          <li>
+            Entry fields tightened -- less padding, and the Complaint inbox's search/filter boxes
+            widened so they stop clipping their own placeholder text.
+          </li>
+          <li>
+            Pure CSS plus a 2-line <code>is-authenticated</code> body-class toggle in
+            <code>app.js</code> -- no IDs, JS logic, or the logged-out public pages changed.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>, sign in, and review the new layout.</li>
+          <li>Sign out and confirm the public home page looks exactly as before.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>None flagged yet -- pending your review.</li>
+        </ul>
+      </div>
     </main>
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>

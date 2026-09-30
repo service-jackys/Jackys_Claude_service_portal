@@ -346,6 +346,10 @@
     $('#authCard').hidden = true;
     $('#staff-access').hidden = true;
     $('#staff-workspace').hidden = false;
+    // Signed-in staff get the full-page app-shell layout (see the
+    // "Modification #24" CSS block in index.html) instead of the public
+    // marketing page it's the reverse of on sign-out.
+    document.body.classList.add('is-authenticated');
     renderUser();
     loadMasterDataOptions();
     if (hasPermission('appointments.read') && !hasPermission('complaints.read')) {
@@ -4598,6 +4602,7 @@ ${bodyHtml}
     }
     authToken = null;
     clearStoredToken();
+    document.body.classList.remove('is-authenticated');
     currentUser = null;
     workspaceMode = 'complaints';
     resetAppointmentWorkspace();

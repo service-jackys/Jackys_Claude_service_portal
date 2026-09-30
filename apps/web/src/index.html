@@ -8,6 +8,12 @@
       content="Jacky's Service Portal for customer support and service operations."
     />
     <title>Jacky's Service Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
     <style>
       :root {
         color-scheme: light;
@@ -32,6 +38,7 @@
         --accent-jobcards: #6b46c1;
         --accent-quotations: #b5750a;
         --accent-warranty: #a3405a;
+        --nav-height: 76px;
       }
 
       * {
@@ -409,10 +416,11 @@
       textarea {
         width: 100%;
         border: 1px solid #cbd7e2;
-        border-radius: 9px;
+        border-radius: 8px;
         background: #fff;
         color: var(--ink);
-        padding: 0.72rem 0.8rem;
+        font-size: 0.92rem;
+        padding: 0.58rem 0.75rem;
         transition:
           border-color 0.16s ease,
           box-shadow 0.16s ease;
@@ -769,8 +777,7 @@
       }
       .inbox-tools input,
       .inbox-tools select {
-        max-width: 220px;
-        min-height: 42px;
+        max-width: 260px;
       }
       .table-wrap {
         overflow-x: auto;
@@ -1258,6 +1265,9 @@
         .nav-inner {
           min-height: 68px;
         }
+        :root {
+          --nav-height: 68px;
+        }
         .brand-copy span {
           display: none;
         }
@@ -1593,6 +1603,73 @@
       }
       tbody tr {
         transition: background-color 0.14s ease;
+      }
+
+      /* ---------- Modification #24: professional authenticated app shell ----------
+         Before sign-in, this page is a marketing/landing page (topbar banner, hero,
+         public nav links) -- appropriate for an anonymous visitor deciding whether to
+         sign in. Once signed in, none of that is "work" for the service team, so it's
+         hidden outright and the workspace takes over the full page like a normal
+         internal admin console: a full-height left sidebar for navigation and a wide
+         content area, instead of a narrow centered column with a hero above it.
+         Toggled by a single `is-authenticated` class on <body> (see app.js:
+         showWorkspaceForCurrentUser / restoreSession add it, signOut removes it) --
+         no other markup or IDs changed, so none of the existing JS selectors move. */
+      body.is-authenticated .topbar,
+      body.is-authenticated .hero {
+        display: none;
+      }
+      body.is-authenticated .nav-actions {
+        display: none;
+      }
+      body.is-authenticated #staff-access {
+        display: none;
+      }
+      /* #staff-workspace normally inherits `.container` (a centered, width-capped
+         column) via its class list in the HTML. The ID selector below wins on
+         specificity alone, so the workspace becomes full-width without touching
+         that markup or any class other pages still rely on. */
+      body.is-authenticated #staff-workspace {
+        width: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body.is-authenticated .dashboard {
+        grid-template-columns: 252px minmax(0, 1fr);
+        gap: 0;
+        align-items: stretch;
+        min-height: calc(100vh - var(--nav-height));
+      }
+      body.is-authenticated .dashboard-nav {
+        position: sticky;
+        top: var(--nav-height);
+        align-self: stretch;
+        height: calc(100vh - var(--nav-height));
+        overflow-y: auto;
+        border-right: 1px solid var(--line);
+        background: var(--surface);
+        padding: 1.1rem 0.9rem;
+      }
+      body.is-authenticated .dashboard-nav .user-card {
+        border: 0;
+        box-shadow: none;
+        background: transparent;
+        padding: 0.4rem 0.3rem 1rem;
+      }
+      body.is-authenticated .dashboard-content {
+        padding: 1.6rem clamp(1.25rem, 2.4vw, 2.5rem) 3rem;
+        max-width: 1680px;
+      }
+      @media (max-width: 900px) {
+        body.is-authenticated .dashboard-nav {
+          position: static;
+          height: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        body.is-authenticated .dashboard {
+          min-height: 0;
+        }
       }
     </style>
   </head>
