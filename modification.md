@@ -1522,3 +1522,38 @@ entirely client-side.
 - Try all 4 calculators and sanity-check a few numbers against the workbook yourself.
 - Say the word when you want Thomson Proposal or the Revenue Dashboard (live from the database,
   per your answer) started next.
+
+## Modification #33 — VAS Pricing Master: rename, per-plan pricing table, missing fields
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+- Renamed **VAS Price Banding & Split** to **VAS Pricing Master** in the Management sidebar
+  and page heading — same page, same domains (`vas_price_bands` + `vas_pricing_params`), only
+  the name changed.
+- **VAS Plan Pricing Table**, replacing the old "Rates & Minimum Fees" / "Claim & Deductible
+  Rules" field boxes (which were individual inputs, never an actual table — the gap you
+  flagged). It's now one real table, one row per plan (1-Year EW / 2-Year EW / 1-Year DI /
+  Premium), with columns Rate, Min fee, Deductible, Service fee, Claims allowed, and Coverage &
+  terms.
+- **3 fields were missing from the admin data entirely** — Service fee, Claims allowed, and
+  Coverage & terms per plan — which the legacy VAS Pricing/VAS Sales pages showed but this
+  portal never captured. Added all 12 (3 fields × 4 plans) as new admin-editable text fields,
+  sourced verbatim from the workbook's "VAS Pricing" sheet PLAN DEFINITIONS table, e.g.:
+  - 1-Year EW: "No service fee - parts & labour covered" / "Unlimited"
+  - 1-Year DI: "AED 100 (items ≤ 1,499) / AED 200 (items ≥ 1,500) per claim" / "1 claim"
+  - Premium: "No claim limit - priority service visits" / "-"
+- Also added the workbook's **depreciation schedule** (Year 1/2/3, % of purchase price
+  deducted on a total-loss settlement) as 3 new shared admin fields — needed for the upcoming
+  VAS Sale certificate (next modification), grouped with the claim-fee rules below the table.
+
+### Needs you
+
+- Refresh VAS Pricing Master and confirm the plan table shows all 4 plans with the right
+  numbers, and that the new Service fee / Claims allowed / Coverage & terms / Depreciation
+  fields read correctly before you edit anything.
+- Next up (per your list): the VAS Quote Calculator redesign (drop the matched-band line,
+  show these same fields, add Quick Price for all 4 plans at once), then VAS Sale issuance +
+  printable certificate.

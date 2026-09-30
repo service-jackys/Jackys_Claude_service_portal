@@ -1603,6 +1603,42 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#33 &mdash; VAS Pricing Master: rename, per-plan pricing table, missing fields</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: rename + new table + 15 new admin fields, VAS Pricing
+          Master only
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Renamed <strong>VAS Price Banding &amp; Split</strong> to
+            <strong>VAS Pricing Master</strong> in the sidebar and page heading &mdash; same
+            page, same data.
+          </li>
+          <li>
+            New <strong>VAS Plan Pricing Table</strong> &mdash; one real table, one row per
+            plan, replacing two field-grid boxes that never actually rendered as a table.
+          </li>
+          <li>
+            Added 12 missing fields (Service fee, Claims allowed, Coverage &amp; terms &times; 4
+            plans), sourced verbatim from the workbook's PLAN DEFINITIONS table, plus a 3-field
+            depreciation schedule (Year 1/2/3) needed for the upcoming VAS Sale certificate.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Refresh VAS Pricing Master and confirm the table and new fields read correctly.
+          </li>
+          <li>Next up: the VAS Quote Calculator redesign, then VAS Sale + certificate.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -682,6 +682,17 @@ export const vasPriceBandsSchema = z
 export type VasPriceBandsInput = z.infer<typeof vasPriceBandsSchema>;
 
 // --- VAS: pricing parameters (rates, minimum fees, claim fees) ---------
+// Service fee / claims-allowed / coverage & terms text -- one of each per
+// plan, sourced verbatim from the workbook's "VAS Pricing" sheet PLAN
+// DEFINITIONS table (modification.md #33). Kept as free text because the
+// sheet's own values are prose ("No service fee - parts & labour covered",
+// "Unlimited", a coverage paragraph), not numbers -- the 1-Year Damage
+// Insurance service fee is the one exception: its *displayed* value is
+// always computed from claimFeeLow/claimFeeHigh/claimFeeThreshold instead
+// of this stored text (see deriveVasServiceFeeText in app.js), matching the
+// legacy calculator's dynamic override for that plan only.
+const vasPlanTextSchema = z.string().trim().min(1).max(500);
+
 export const vasPricingParamsSchema = z
   .object({
     ew1Rate: percentSchema,
@@ -700,6 +711,24 @@ export const vasPricingParamsSchema = z
     deductibleEw2: nonNegSchema,
     deductibleDi1: nonNegSchema,
     deductiblePremium: nonNegSchema,
+    ew1ServiceFee: vasPlanTextSchema,
+    ew2ServiceFee: vasPlanTextSchema,
+    di1ServiceFee: vasPlanTextSchema,
+    premiumServiceFee: vasPlanTextSchema,
+    ew1Claims: vasPlanTextSchema,
+    ew2Claims: vasPlanTextSchema,
+    di1Claims: vasPlanTextSchema,
+    premiumClaims: vasPlanTextSchema,
+    ew1Coverage: vasPlanTextSchema,
+    ew2Coverage: vasPlanTextSchema,
+    di1Coverage: vasPlanTextSchema,
+    premiumCoverage: vasPlanTextSchema,
+    // Depreciation schedule for total-loss claim settlement (workbook's
+    // "DEPRECIATION SCHEDULE" box, K4:L8) -- % of purchase price deducted
+    // by claim year, shared across all 4 plans.
+    depreciationYear1: percentSchema,
+    depreciationYear2: percentSchema,
+    depreciationYear3: percentSchema,
   })
   .strict();
 export type VasPricingParamsInput = z.infer<typeof vasPricingParamsSchema>;

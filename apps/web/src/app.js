@@ -5343,43 +5343,141 @@ ${bodyHtml}
       rerender();
     },
     vas_pricing_params(container, data, ctx) {
-      const ratesHost = document.createElement('div');
-      ratesHost.className = 'detail-action-card';
-      ratesHost.innerHTML = '<h4>Rates &amp; Minimum Fees</h4>';
-      const ratesFields = document.createElement('div');
-      ratesHost.appendChild(ratesFields);
+      // One row per VAS plan -- Rate / Min fee / Deductible / Service fee /
+      // Claims allowed / Coverage & terms -- matching the workbook's own
+      // "PLAN DEFINITIONS" table row for row (modification.md #33). This
+      // replaced two field-grid boxes of individual inputs that never
+      // actually rendered as a table.
+      const VAS_PLAN_ROWS = [
+        {
+          label: '1-Year Extended Warranty',
+          ratePath: 'ew1Rate',
+          minFeePath: 'ew1MinFee',
+          deductiblePath: 'deductibleEw1',
+          serviceFeePath: 'ew1ServiceFee',
+          claimsPath: 'ew1Claims',
+          coveragePath: 'ew1Coverage',
+        },
+        {
+          label: '2-Year Extended Warranty',
+          ratePath: 'ew2Rate',
+          minFeePath: 'ew2MinFee',
+          deductiblePath: 'deductibleEw2',
+          serviceFeePath: 'ew2ServiceFee',
+          claimsPath: 'ew2Claims',
+          coveragePath: 'ew2Coverage',
+        },
+        {
+          label: '1-Year Damage Insurance',
+          ratePath: 'di1Rate',
+          minFeePath: 'di1MinFee',
+          deductiblePath: 'deductibleDi1',
+          serviceFeePath: 'di1ServiceFee',
+          claimsPath: 'di1Claims',
+          coveragePath: 'di1Coverage',
+        },
+        {
+          label: 'Premium Service (24hr SLA)',
+          ratePath: 'premiumRate',
+          minFeePath: 'premiumMinFee',
+          deductiblePath: 'deductiblePremium',
+          serviceFeePath: 'premiumServiceFee',
+          claimsPath: 'premiumClaims',
+          coveragePath: 'premiumCoverage',
+        },
+      ];
 
-      const claimsHost = document.createElement('div');
-      claimsHost.className = 'detail-action-card';
-      claimsHost.innerHTML = '<h4>Claim &amp; Deductible Rules</h4>';
-      const claimsFields = document.createElement('div');
-      claimsHost.appendChild(claimsFields);
+      const tableHost = document.createElement('div');
+      tableHost.className = 'detail-action-card';
+      tableHost.innerHTML =
+        '<h4>VAS Plan Pricing Table</h4>' +
+        '<p class="form-note">Every plan’s rate, minimum fee, deductible, service fee, claims allowed and coverage &amp; terms &mdash; one row per plan, matching the workbook exactly. The 1-Year Damage Insurance service fee shown to customers is always computed from the claim-fee rule below instead of the text stored here.</p>';
+      const tableFields = document.createElement('div');
+      tableHost.appendChild(tableFields);
 
-      const grid = document.createElement('div');
-      grid.className = 'pc-split-grid';
-      grid.appendChild(ratesHost);
-      grid.appendChild(claimsHost);
+      const sharedHost = document.createElement('div');
+      sharedHost.className = 'detail-action-card';
+      sharedHost.innerHTML = '<h4>Shared Claim Fee &amp; Depreciation Rules</h4>';
+      const sharedFields = document.createElement('div');
+      sharedHost.appendChild(sharedFields);
 
       container.innerHTML = '';
-      container.appendChild(grid);
+      container.appendChild(tableHost);
+      container.appendChild(sharedHost);
+
+      function renderPlanTable() {
+        tableFields.innerHTML =
+          '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+          '<th style="width: 15%">Plan</th>' +
+          '<th style="width: 8%">Rate (%)</th>' +
+          '<th style="width: 9%">Min fee</th>' +
+          '<th style="width: 9%">Deductible</th>' +
+          '<th style="width: 17%">Service fee</th>' +
+          '<th style="width: 12%">Claims allowed</th>' +
+          '<th style="width: 30%">Coverage &amp; terms</th>' +
+          '</tr></thead><tbody>' +
+          VAS_PLAN_ROWS.map(
+            (p) =>
+              '<tr>' +
+              '<td>' +
+              escapeHtml(p.label) +
+              '</td>' +
+              '<td><input type="number" step="0.01" min="0" value="' +
+              Number(data[p.ratePath] || 0) * 100 +
+              '" data-vpp-percent="' +
+              p.ratePath +
+              '" /></td>' +
+              '<td><input type="number" step="0.01" min="0" value="' +
+              Number(data[p.minFeePath] || 0) +
+              '" data-vpp-field="' +
+              p.minFeePath +
+              '" /></td>' +
+              '<td><input type="number" step="0.01" min="0" value="' +
+              Number(data[p.deductiblePath] || 0) +
+              '" data-vpp-field="' +
+              p.deductiblePath +
+              '" /></td>' +
+              '<td><input type="text" value="' +
+              escapeHtml(data[p.serviceFeePath] || '') +
+              '" data-vpp-text="' +
+              p.serviceFeePath +
+              '" /></td>' +
+              '<td><input type="text" value="' +
+              escapeHtml(data[p.claimsPath] || '') +
+              '" data-vpp-text="' +
+              p.claimsPath +
+              '" /></td>' +
+              '<td><textarea rows="2" data-vpp-text="' +
+              p.coveragePath +
+              '">' +
+              escapeHtml(data[p.coveragePath] || '') +
+              '</textarea></td>' +
+              '</tr>',
+          ).join('') +
+          '</tbody></table></div>';
+        tableFields.querySelectorAll('[data-vpp-percent]').forEach((input) => {
+          input.addEventListener('input', () => {
+            data[input.getAttribute('data-vpp-percent')] = parseNumber(input.value) / 100;
+            ctx.markDirty();
+          });
+        });
+        tableFields.querySelectorAll('[data-vpp-field]').forEach((input) => {
+          input.addEventListener('input', () => {
+            data[input.getAttribute('data-vpp-field')] = parseNumber(input.value);
+            ctx.markDirty();
+          });
+        });
+        tableFields.querySelectorAll('[data-vpp-text]').forEach((input) => {
+          input.addEventListener('input', () => {
+            data[input.getAttribute('data-vpp-text')] = input.value;
+            ctx.markDirty();
+          });
+        });
+      }
+      renderPlanTable();
 
       pcRenderScalarFields(
-        ratesFields,
-        [
-          { path: 'ew1Rate', label: '1-Year Extended Warranty rate', type: 'percent' },
-          { path: 'ew2Rate', label: '2-Year Extended Warranty rate', type: 'percent' },
-          { path: 'di1Rate', label: '1-Year Damage Insurance rate', type: 'percent' },
-          { path: 'premiumRate', label: 'Premium Service (24hr SLA) rate', type: 'percent' },
-          { path: 'ew1MinFee', label: 'Minimum fee — 1-Yr EW', type: 'number' },
-          { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW', type: 'number' },
-          { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI', type: 'number' },
-          { path: 'premiumMinFee', label: 'Minimum fee — Premium', type: 'number' },
-        ],
-        data,
-        ctx.markDirty,
-      );
-      pcRenderScalarFields(
-        claimsFields,
+        sharedFields,
         [
           {
             path: 'roundingStep',
@@ -5407,28 +5505,22 @@ ${bodyHtml}
             tooltip: 'Item value that decides which of the two claim fees applies.',
           },
           {
-            path: 'deductibleEw1',
-            label: 'Deductible — 1-Yr EW',
-            type: 'number',
-            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+            path: 'depreciationYear1',
+            label: 'Depreciation — Year 1',
+            type: 'percent',
+            tooltip: '% of purchase price deducted from a total-loss settlement in claim year 1.',
           },
           {
-            path: 'deductibleEw2',
-            label: 'Deductible — 2-Yr EW',
-            type: 'number',
-            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+            path: 'depreciationYear2',
+            label: 'Depreciation — Year 2',
+            type: 'percent',
+            tooltip: '% of purchase price deducted from a total-loss settlement in claim year 2.',
           },
           {
-            path: 'deductibleDi1',
-            label: 'Deductible — 1-Yr DI',
-            type: 'number',
-            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
-          },
-          {
-            path: 'deductiblePremium',
-            label: 'Deductible — Premium',
-            type: 'number',
-            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+            path: 'depreciationYear3',
+            label: 'Depreciation — Year 3',
+            type: 'percent',
+            tooltip: '% of purchase price deducted from a total-loss settlement in claim year 3.',
           },
         ],
         data,
@@ -6164,9 +6256,9 @@ ${bodyHtml}
     'vas-admin': {
       navId: 'vasAdminNav',
       workspaceId: 'vasAdminWorkspace',
-      heading: 'VAS Price Banding & Split',
+      heading: 'VAS Pricing Master',
       description:
-        'Admin entry for VAS price banding and pricing parameters, sourced entirely from the VAS Pricing sheet.',
+        'Admin entry for VAS price banding and the VAS plan pricing master table, sourced entirely from the VAS Pricing sheet.',
       domains: ['vas_price_bands', 'vas_pricing_params'],
     },
     'rate-card-admin': {

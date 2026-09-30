@@ -71,6 +71,27 @@ export const vasPricingParamsDefault: VasPricingParamsInput = {
   deductibleEw2: 0,
   deductibleDi1: 0,
   deductiblePremium: 0,
+  // Verbatim from the workbook's "VAS Pricing" sheet PLAN DEFINITIONS table
+  // (rows 17-20, columns SERVICE FEE / CLAIMS / COVERAGE & TERMS).
+  ew1ServiceFee: 'No service fee - parts & labour covered',
+  ew2ServiceFee: 'No service fee - parts & labour covered',
+  di1ServiceFee: 'AED 100 (items <= 1,499) / AED 200 (items >= 1,500) per claim',
+  premiumServiceFee: 'No claim limit - priority service visits',
+  ew1Claims: 'Unlimited',
+  ew2Claims: 'Unlimited',
+  di1Claims: '1 claim',
+  premiumClaims: '-',
+  ew1Coverage:
+    'Year 1 = manufacturer warranty; year 2 = Service covers parts & labour for mechanical / electrical failure.',
+  ew2Coverage:
+    'Year 1 = manufacturer warranty; years 2-3 = Service covers parts & labour for mechanical / electrical failure.',
+  di1Coverage:
+    'Accidental damage incl. liquid damage - repaired free of cost (service fee applies); if uneconomic to repair, reimbursed up to purchase price less depreciation.',
+  premiumCoverage:
+    'Manufacturer warranty retained + guaranteed service visit within 24 hours of reporting; priority repair & parts.',
+  depreciationYear1: 0.25,
+  depreciationYear2: 0.4,
+  depreciationYear3: 0.55,
 };
 
 // Proposed (going-forward) rates from the workbook's "Service Price List"
