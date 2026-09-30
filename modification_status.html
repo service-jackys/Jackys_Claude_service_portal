@@ -1303,6 +1303,68 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#27 &mdash; Management admin pages: bug fixes + VAS split-wise layout</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: three bug fixes on the new Management pages (#26), plus the
+          first pass of the denser/tooltip/split-wise redesign on VAS Price Banding &amp; Split
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Fixed: pages loading with wrong values / blank cards.</strong> Two independent
+            causes: the browser was caching the pricing-config API responses and mishandling the
+            resulting "no change" (304) response as a failure &mdash; every pricing-config
+            endpoint now sends <code>Cache-Control: no-store</code>; and the new rendering engine
+            called an undefined <code>esc(...)</code> helper instead of the app's real
+            <code>escapeHtml(...)</code> &mdash; fixed at all 10 call sites.
+          </li>
+          <li>
+            <strong>Fixed: Management panel stayed visible after switching to another sidebar
+            section.</strong> Leaving a Management page for Dashboard, Appointments, etc. now
+            correctly hides it.
+          </li>
+          <li>
+            <strong>Fixed: entering a Management page from another section left that section's
+            selection and "Refresh" button showing.</strong> Coming from Appointments (or any
+            other section) into a Management page had left the previous section's sidebar
+            highlight and its header "Refresh" button still showing on top of the Management
+            page. <code>activatePricingAdminMode()</code> now resets every other section's nav
+            highlight and hides every other section's header "Refresh" button on entry.
+          </li>
+          <li>
+            <strong>VAS Price Banding &amp; Split: denser layout, tooltips, side-by-side
+            sub-sections.</strong> Smaller type and tighter spacing scoped to the Management pages
+            only; a hover/focus tooltip on every field and table column that isn't
+            self-explanatory (rounding, claim fees, deductibles, plan-split parameters, band
+            boundaries); and a "split-wise" layout applied where VAS actually has more than one
+            logical sub-section &mdash; Pricing Parameters is now two side-by-side boxed groups
+            ("Rates &amp; Minimum Fees" and "Claim &amp; Deductible Rules"), and the Sales/Service
+            GP Split card is now two side-by-side boxed groups ("Plan Economics Inputs" and
+            "Plan-Level Split Parameters"). Value Bands stayed a single section &mdash; it's just
+            the one table, so there was nothing to split.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Refresh the Management &rarr; VAS Price Banding &amp; Split page and check the new
+            tighter/split-wise layout, and the two other bug fixes (switch between Appointments
+            and Management, and between Management pages, a few times) look right on your screen
+            sizes.
+          </li>
+          <li>
+            Once VAS looks right, say so and the same tooltip + split-wise treatment will be
+            applied to Rate Card Admin &rarr; D+I Admin Entry &rarr; AMC Admin Rate Section
+            &rarr; Thomson Pricing Admin, in that order, one at a time.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

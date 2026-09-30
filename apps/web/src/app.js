@@ -5317,8 +5317,28 @@ ${bodyHtml}
       rerender();
     },
     vas_pricing_params(container, data, ctx) {
+      const ratesHost = document.createElement('div');
+      ratesHost.className = 'detail-action-card';
+      ratesHost.innerHTML = '<h4>Rates &amp; Minimum Fees</h4>';
+      const ratesFields = document.createElement('div');
+      ratesHost.appendChild(ratesFields);
+
+      const claimsHost = document.createElement('div');
+      claimsHost.className = 'detail-action-card';
+      claimsHost.innerHTML = '<h4>Claim &amp; Deductible Rules</h4>';
+      const claimsFields = document.createElement('div');
+      claimsHost.appendChild(claimsFields);
+
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid';
+      grid.appendChild(ratesHost);
+      grid.appendChild(claimsHost);
+
+      container.innerHTML = '';
+      container.appendChild(grid);
+
       pcRenderScalarFields(
-        container,
+        ratesFields,
         [
           { path: 'ew1Rate', label: '1-Year Extended Warranty rate', type: 'percent' },
           { path: 'ew2Rate', label: '2-Year Extended Warranty rate', type: 'percent' },
@@ -5328,6 +5348,13 @@ ${bodyHtml}
           { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW (AED)', type: 'number' },
           { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI (AED)', type: 'number' },
           { path: 'premiumMinFee', label: 'Minimum fee — Premium (AED)', type: 'number' },
+        ],
+        data,
+        ctx.markDirty,
+      );
+      pcRenderScalarFields(
+        claimsFields,
+        [
           {
             path: 'roundingStep',
             label: 'Rounding step (AED)',
@@ -5384,13 +5411,26 @@ ${bodyHtml}
     },
     vas_profit_split(container, data, ctx) {
       const scalarHost = document.createElement('div');
+      scalarHost.className = 'detail-action-card';
+      scalarHost.innerHTML = '<h4>Plan Economics Inputs</h4>';
+      const scalarFields = document.createElement('div');
+      scalarHost.appendChild(scalarFields);
+
       const tableHost = document.createElement('div');
-      tableHost.style.marginTop = '14px';
+      tableHost.className = 'detail-action-card';
+      tableHost.innerHTML = '<h4>Plan-Level Split Parameters</h4>';
+      const tableFields = document.createElement('div');
+      tableHost.appendChild(tableFields);
+
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid pc-split-grid--asym';
+      grid.appendChild(scalarHost);
+      grid.appendChild(tableHost);
+
       container.innerHTML = '';
-      container.appendChild(scalarHost);
-      container.appendChild(tableHost);
+      container.appendChild(grid);
       pcRenderScalarFields(
-        scalarHost,
+        scalarFields,
         [
           {
             path: 'technicianVisitCost',
@@ -5411,7 +5451,7 @@ ${bodyHtml}
         ctx.markDirty,
       );
       pcRenderTable(
-        tableHost,
+        tableFields,
         data.plans,
         [
           { key: 'plan', label: 'Plan', type: 'readonly' },
@@ -6161,6 +6201,41 @@ ${bodyHtml}
       'technicianWorkspace',
       'teamAccountWorkspace',
       'masterDataWorkspace',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = true;
+    });
+    // Also release every legacy nav item's "current" state and hide its
+    // per-mode header "Refresh" button -- otherwise navigating here from,
+    // say, Appointments leaves that selection and its Refresh button
+    // showing on top of every Management page (modification.md #27 fix).
+    [
+      'complaintsNav',
+      'serviceRequestsNav',
+      'jobCardsNav',
+      'quotationsNav',
+      'inspectionsNav',
+      'warrantyApprovalsNav',
+      'dashboardNav',
+      'appointmentsNav',
+      'techniciansNav',
+      'teamAccountsNav',
+      'newRequestNav',
+      'masterDataNav',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('aria-current', 'false');
+    });
+    [
+      'refreshComplaintsButton',
+      'refreshAppointmentsButton',
+      'refreshJobCardsButton',
+      'refreshQuotationsButton',
+      'refreshInspectionsButton',
+      'refreshWarrantyApprovalsButton',
+      'refreshDashboardButton',
+      'refreshTechniciansButton',
+      'refreshTeamAccountsButton',
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.hidden = true;

@@ -1301,3 +1301,47 @@ built yet.
 - Still pending, on purpose, per your original scope: Thomson Proposal, Revenue Dashboard, and
   the user-facing AMC/VAS/rate-card/Thomson quote calculators that will read from this admin data
   — say the word when you want those started.
+
+## Modification #27 — Management admin pages: bug fixes + VAS split-wise layout
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review.
+
+### What changed
+
+Three bugs you reported against the new Management pages (#26), plus the first pass of the
+denser/tooltip/split-wise redesign, scoped to VAS Price Banding & Split as you asked, to be
+extended to the other 4 pages only after you confirm this one looks right.
+
+- **Fixed: pages loading with wrong values / blank cards.** Two independent causes, both
+  fixed: (1) the browser was caching the pricing-config API responses and mis-handling the
+  resulting "no change" (304) response as a failure; every pricing-config endpoint now sends
+  `Cache-Control: no-store`. (2) the new rendering engine called an undefined `esc(...)` helper
+  instead of the app's real `escapeHtml(...)` — fixed at all 10 call sites.
+- **Fixed: Management panel stayed visible after switching to another sidebar section.**
+  Leaving a Management page for Dashboard, Appointments, etc. now correctly hides it.
+- **Fixed: entering a Management page from another section left that section's selection and
+  "Refresh" button showing.** Coming from Appointments (or any other section) into a
+  Management page had left the previous section's sidebar highlight and its header "Refresh"
+  button still showing on top of the Management page. `activatePricingAdminMode()` now resets
+  every other section's nav highlight and hides every other section's header "Refresh" button
+  on entry.
+- **VAS Price Banding & Split: denser layout, tooltips, side-by-side sub-sections.**
+  - Smaller type and tighter spacing scoped to the Management pages only (nothing else in the
+    app is affected).
+  - Every field and table column that isn't self-explanatory now has a hover/focus tooltip
+    (rounding, claim fees, deductibles, plan-split parameters, band boundaries).
+  - "Split-wise" layout applied where VAS actually has more than one logical sub-section:
+    Pricing Parameters is now two side-by-side boxed groups ("Rates & Minimum Fees" and "Claim &
+    Deductible Rules"), and the Sales/Service GP Split card is now two side-by-side boxed groups
+    ("Plan Economics Inputs" and "Plan-Level Split Parameters"). Value Bands stayed a single
+    section — it's just the one table, so there was nothing to split.
+
+### Needs you
+
+- Refresh the Management → VAS Price Banding & Split page and check the new tighter/split-wise
+  layout, and the two other bug fixes (switch between Appointments and Management, and between
+  Management pages, a few times) look right on your screen sizes.
+- Once VAS looks right, say so and the same tooltip + split-wise treatment will be applied to
+  Rate Card Admin → D+I Admin Entry → AMC Admin Rate Section → Thomson Pricing Admin, in that
+  order, one at a time.
