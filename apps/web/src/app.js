@@ -5153,6 +5153,12 @@ ${bodyHtml}
     const minRows = opts.minRows ?? 1;
     const canRemove = rows.length > minRows;
     const table = document.createElement('table');
+    // A column can request extra width (e.g. a free-text "name" column
+    // that needs more room than the numeric columns beside it) via
+    // `column.width` (any CSS width value, typically a %). Setting
+    // table-layout: fixed makes the browser actually honor it instead of
+    // auto-sizing every column by content (modification.md #30).
+    if (columns.some((c) => c.width)) table.style.tableLayout = 'fixed';
     table.innerHTML =
       '<thead><tr>' +
       columns
@@ -5160,6 +5166,7 @@ ${bodyHtml}
           (c) =>
             '<th' +
             (c.tooltip ? ' title="' + escapeHtml(c.tooltip) + '"' : '') +
+            (c.width ? ' style="width: ' + c.width + '"' : '') +
             '>' +
             escapeHtml(c.label) +
             '</th>',
@@ -5869,6 +5876,56 @@ ${bodyHtml}
         ctx.markDirty,
       );
 
+      // Appliance Catalog goes first and spans the full row (like D+I's
+      // "Common Master Inputs") so the Appliance name column has enough
+      // room to actually read, instead of being squeezed into a
+      // half-width column (modification.md #30). The tiers card follows,
+      // taking whatever half-width slot is left.
+      const appliancesHost = document.createElement('div');
+      appliancesHost.className = 'detail-action-card pc-span-full';
+      appliancesHost.innerHTML = '<h4>Appliance Catalog</h4>';
+      grid.appendChild(appliancesHost);
+      const appliancesTable = document.createElement('div');
+      appliancesHost.appendChild(appliancesTable);
+      const rerenderAppliances = () =>
+        pcRenderTable(
+          appliancesTable,
+          data.appliances,
+          [
+            { key: 'name', label: 'Appliance', type: 'text', width: '42%' },
+            {
+              key: 'qty',
+              label: 'Qty under contract',
+              type: 'number',
+              step: '1',
+              width: '18%',
+              tooltip: 'Number of this appliance currently under contract.',
+            },
+            {
+              key: 'price',
+              label: 'Unit price',
+              type: 'number',
+              width: '18%',
+              tooltip: 'Reference/replacement price used to size the plan percentage.',
+            },
+            {
+              key: 'active',
+              label: 'Active',
+              type: 'checkbox',
+              width: '12%',
+              tooltip: 'Whether this appliance is included in current AMC pricing.',
+            },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender: rerenderAppliances,
+            onAdd: () => ({ name: 'New appliance', qty: 0, price: 0, active: true }),
+            addLabel: 'Add appliance',
+          },
+        );
+      rerenderAppliances();
+
       const tiersHost = document.createElement('div');
       tiersHost.className = 'detail-action-card';
       tiersHost.innerHTML = '<h4>Basic RM Reactive-Visit Tiers</h4>';
@@ -5917,47 +5974,6 @@ ${bodyHtml}
           },
         );
       rerenderTiers();
-      const appliancesHost = document.createElement('div');
-      appliancesHost.className = 'detail-action-card';
-      appliancesHost.innerHTML = '<h4>Appliance Catalog</h4>';
-      grid.appendChild(appliancesHost);
-      const appliancesTable = document.createElement('div');
-      appliancesHost.appendChild(appliancesTable);
-      const rerenderAppliances = () =>
-        pcRenderTable(
-          appliancesTable,
-          data.appliances,
-          [
-            { key: 'name', label: 'Appliance', type: 'text' },
-            {
-              key: 'qty',
-              label: 'Qty under contract',
-              type: 'number',
-              step: '1',
-              tooltip: 'Number of this appliance currently under contract.',
-            },
-            {
-              key: 'price',
-              label: 'Unit price',
-              type: 'number',
-              tooltip: 'Reference/replacement price used to size the plan percentage.',
-            },
-            {
-              key: 'active',
-              label: 'Active',
-              type: 'checkbox',
-              tooltip: 'Whether this appliance is included in current AMC pricing.',
-            },
-          ],
-          {
-            minRows: 1,
-            markDirty: ctx.markDirty,
-            rerender: rerenderAppliances,
-            onAdd: () => ({ name: 'New appliance', qty: 0, price: 0, active: true }),
-            addLabel: 'Add appliance',
-          },
-        );
-      rerenderAppliances();
     },
     thomson_pricing(container, data, ctx) {
       container.innerHTML = '';

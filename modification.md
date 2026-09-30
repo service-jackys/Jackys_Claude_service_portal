@@ -1433,3 +1433,25 @@ extended to the other 4 pages only after you confirm this one looks right.
   check the new 2-per-row layout, especially D+I's full-width "Common Master Inputs" box.
 - **Run `npm run db:migrate`** to apply migration 018 (drops the `vas_profit_split` domain from
   the database) before relying on the pricing-config admin pages again.
+
+## Modification #30 — AMC Appliance Catalog: full-width card + wider Appliance column
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+- **Appliance Catalog now gets its own full-width row** on AMC Admin Rate Section, the same
+  treatment D+I's "Common Master Inputs" got — instead of being squeezed into a half-width
+  column alongside the reactive-visit tiers card. It now renders first, with the tiers card
+  following in whatever half-width slot is left.
+- **The Appliance name column is now explicitly wider** (42% of the table width, vs. Qty 18% /
+  Unit price 18% / Active 12%) so the appliance name is actually readable instead of being
+  squeezed as narrow as the numeric columns beside it. This is a small new capability in the
+  shared table renderer (`pcRenderTable`) — a column can now request `width` (used only where a
+  renderer opts in; every other table on every other page is unaffected).
+
+### Needs you
+
+- Refresh AMC Admin Rate Section and confirm the Appliance Catalog table is now full-width and
+  the appliance names are legible without needing to click into each field.

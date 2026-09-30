@@ -1487,6 +1487,39 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#30 &mdash; AMC Appliance Catalog: full-width card + wider Appliance column</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: layout fix on one card, AMC Admin Rate Section
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Appliance Catalog now gets its own full-width row</strong>, the same
+            treatment D+I's "Common Master Inputs" got &mdash; instead of being squeezed into a
+            half-width column alongside the reactive-visit tiers card. It renders first, with
+            the tiers card following in whatever half-width slot is left.
+          </li>
+          <li>
+            <strong>The Appliance name column is now explicitly wider</strong> (42% of the table
+            vs. 18% / 18% / 12% for Qty / Unit price / Active) so appliance names are readable
+            without clicking into each field. This is a small new capability in the shared table
+            renderer &mdash; a column can request extra width, used only where a page opts in.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Refresh AMC Admin Rate Section and confirm the Appliance Catalog table is full-width
+            and legible.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
