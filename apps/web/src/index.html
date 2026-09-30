@@ -1293,6 +1293,31 @@
       .pricing-config-card .pc-split-grid--asym {
         grid-template-columns: minmax(220px, 1fr) minmax(340px, 2fr);
       }
+      /* Small glowing "All Prices in AED" tip shown next to the page
+         heading on every Management admin page (modification.md #28). */
+      .pc-currency-note {
+        display: inline-block;
+        margin: 0.15rem 0 0.5rem;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--blue);
+        background: var(--blue-soft);
+        border: 1px solid var(--blue);
+        border-radius: 999px;
+        animation: pc-currency-glow 2.2s ease-in-out infinite;
+      }
+      @keyframes pc-currency-glow {
+        0%,
+        100% {
+          box-shadow: 0 0 0 2px var(--blue-soft);
+        }
+        50% {
+          box-shadow: 0 0 10px 2px var(--blue-soft);
+        }
+      }
       .detail-action-card textarea {
         min-height: 110px;
       }
@@ -3029,6 +3054,9 @@
               <div>
                 <p class="eyebrow">Protected workspace</p>
                 <h2 id="workspace-heading">Complaint inbox</h2>
+                <span id="pricingCurrencyNote" class="pc-currency-note" hidden
+                  >All Prices in AED</span
+                >
                 <p id="workspaceDescription">
                   Review incoming service requests and open their history.
                 </p>

@@ -1365,6 +1365,80 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#28 &mdash; Extend split-wise layout to all Management pages, drop "(AED)" from labels</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: label cleanup + a page-level currency tip on all 5
+          Management pages, plus the tooltip/split-wise treatment extended from VAS to the
+          remaining 4 pages
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Removed "(AED)" from every field/column label</strong> on all 5 Management
+            pages (VAS, Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, Thomson Pricing
+            Admin) &mdash; the currency is now stated once per page instead of repeated on every
+            field. Two labels using "(AED, ...)" for an extra qualifier kept the qualifier and
+            just dropped "AED" (e.g. "Cost per km (AED, round-trip)" &rarr; "Cost per km
+            (round-trip)").
+          </li>
+          <li>
+            <strong>Added a small glowing "All Prices in AED" tip next to the page heading</strong>,
+            shown only while a Management page is open.
+          </li>
+          <li>
+            <strong>Applied the tooltip + "split-wise" side-by-side layout to the remaining 4
+            pages</strong>, matching the treatment already confirmed on VAS Price Banding &amp;
+            Split:
+            <ul>
+              <li>
+                <strong>Rate Card Admin</strong>: each rate section's boxed card now lays out
+                side by side instead of stacked, with tooltips on the Activity/Rate columns.
+              </li>
+              <li>
+                <strong>D+I Admin Entry</strong>: now 5 side-by-side boxed groups &mdash;
+                "Common Master Inputs," "Customer Groupings," "Regional Transport," and the D&amp;I
+                / Install rate cards &mdash; with tooltips on crew factors, load capacities, labor
+                minutes, transport costs, batch/standard rates, and discount tiers. This matches
+                the layout from the old D+I screenshot originally referenced.
+              </li>
+              <li>
+                <strong>AMC Admin Rate Section</strong>: the 17 flat fields are now two boxed
+                groups ("Plan Percentages &amp; Markups" and "Visit &amp; Staffing Economics")
+                side by side with the reactive-visit-tier and appliance-catalog cards, plus
+                tooltips throughout.
+              </li>
+              <li>
+                <strong>Thomson Pricing Admin</strong>: deployment-economics fields are now their
+                own boxed card alongside Regions, Appliance Rates, and Additional Services, with
+                tooltips on region distance/cost, the Base-rate-derives-everything relationship,
+                and the Project Management Fee rate row.
+              </li>
+            </ul>
+          </li>
+          <li>
+            Every page uses the same responsive <code>.pc-split-grid</code> CSS added for VAS
+            &mdash; cards wrap to a single column automatically on narrow screens.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Refresh each of the 5 Management pages and confirm the "(AED)" removal, the "All
+            Prices in AED" tip, and the new side-by-side layout look right &mdash; D+I Admin
+            Entry in particular, since it has the most sub-sections now.
+          </li>
+          <li>
+            If anything reads awkwardly at your screen width, say which page/section and it can
+            be adjusted.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -689,6 +689,8 @@
       if (nav) nav.setAttribute('aria-current', 'false');
       if (workspace) workspace.hidden = true;
     });
+    const currencyNote = document.getElementById('pricingCurrencyNote');
+    if (currencyNote) currencyNote.hidden = true;
     if (mode === 'complaints' && !hasPermission('complaints.read')) return;
     if (mode === 'service-requests' && !hasPermission('complaints.read')) return;
     if (mode === 'appointments' && !hasPermission('appointments.read')) return;
@@ -5289,13 +5291,13 @@ ${bodyHtml}
           [
             {
               key: 'start',
-              label: 'Band start (AED)',
+              label: 'Band start',
               type: 'number',
               tooltip: 'Inclusive lower bound of this order-value band.',
             },
             {
               key: 'end',
-              label: 'Band end (AED)',
+              label: 'Band end',
               type: 'number',
               tooltip: 'Inclusive upper bound of this order-value band.',
             },
@@ -5344,10 +5346,10 @@ ${bodyHtml}
           { path: 'ew2Rate', label: '2-Year Extended Warranty rate', type: 'percent' },
           { path: 'di1Rate', label: '1-Year Damage Insurance rate', type: 'percent' },
           { path: 'premiumRate', label: 'Premium Service (24hr SLA) rate', type: 'percent' },
-          { path: 'ew1MinFee', label: 'Minimum fee — 1-Yr EW (AED)', type: 'number' },
-          { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW (AED)', type: 'number' },
-          { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI (AED)', type: 'number' },
-          { path: 'premiumMinFee', label: 'Minimum fee — Premium (AED)', type: 'number' },
+          { path: 'ew1MinFee', label: 'Minimum fee — 1-Yr EW', type: 'number' },
+          { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW', type: 'number' },
+          { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI', type: 'number' },
+          { path: 'premiumMinFee', label: 'Minimum fee — Premium', type: 'number' },
         ],
         data,
         ctx.markDirty,
@@ -5357,50 +5359,50 @@ ${bodyHtml}
         [
           {
             path: 'roundingStep',
-            label: 'Rounding step (AED)',
+            label: 'Rounding step',
             type: 'number',
             tooltip: 'The computed fee is rounded to the nearest multiple of this amount.',
           },
           {
             path: 'claimFeeLow',
-            label: 'Claim fee — items below threshold (AED)',
+            label: 'Claim fee — items below threshold',
             type: 'number',
             tooltip: 'Flat fee charged per claim when the item value is below the threshold.',
           },
           {
             path: 'claimFeeHigh',
-            label: 'Claim fee — items at/above threshold (AED)',
+            label: 'Claim fee — items at/above threshold',
             type: 'number',
             tooltip:
               'Flat fee charged per claim when the item value meets or exceeds the threshold.',
           },
           {
             path: 'claimFeeThreshold',
-            label: 'Claim fee threshold (AED)',
+            label: 'Claim fee threshold',
             type: 'number',
             tooltip: 'Item value that decides which of the two claim fees applies.',
           },
           {
             path: 'deductibleEw1',
-            label: 'Deductible — 1-Yr EW (AED)',
+            label: 'Deductible — 1-Yr EW',
             type: 'number',
             tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
           },
           {
             path: 'deductibleEw2',
-            label: 'Deductible — 2-Yr EW (AED)',
+            label: 'Deductible — 2-Yr EW',
             type: 'number',
             tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
           },
           {
             path: 'deductibleDi1',
-            label: 'Deductible — 1-Yr DI (AED)',
+            label: 'Deductible — 1-Yr DI',
             type: 'number',
             tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
           },
           {
             path: 'deductiblePremium',
-            label: 'Deductible — Premium (AED)',
+            label: 'Deductible — Premium',
             type: 'number',
             tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
           },
@@ -5434,14 +5436,14 @@ ${bodyHtml}
         [
           {
             path: 'technicianVisitCost',
-            label: 'Technician visit cost — labor + transport (AED)',
+            label: 'Technician visit cost — labor + transport',
             type: 'number',
             tooltip:
               'Fully-loaded cost of one technician visit, used to size the Service side of the split.',
           },
           {
             path: 'referenceSellingPrice',
-            label: 'Reference selling price (AED)',
+            label: 'Reference selling price',
             type: 'number',
             tooltip:
               'Typical appliance selling price the plan percentages are benchmarked against.',
@@ -5491,10 +5493,12 @@ ${bodyHtml}
     rate_card(container, data, ctx) {
       function rerenderAll() {
         container.innerHTML = '';
+        const grid = document.createElement('div');
+        grid.className = 'pc-split-grid';
+        container.appendChild(grid);
         data.forEach((section, sectionIndex) => {
           const card = document.createElement('div');
           card.className = 'detail-action-card';
-          card.style.marginBottom = '14px';
           const head = document.createElement('div');
           head.className = 'field-grid';
           head.innerHTML =
@@ -5518,14 +5522,24 @@ ${bodyHtml}
             rerenderAll();
           });
           card.appendChild(removeSectionButton);
-          container.appendChild(card);
+          grid.appendChild(card);
           const rerenderTable = () =>
             pcRenderTable(
               tableHost,
               section.activities,
               [
-                { key: 'name', label: 'Activity', type: 'text' },
-                { key: 'rate', label: 'Rate (AED)', type: 'number' },
+                {
+                  key: 'name',
+                  label: 'Activity',
+                  type: 'text',
+                  tooltip: 'Name of the billable activity shown on the job card / quote.',
+                },
+                {
+                  key: 'rate',
+                  label: 'Rate',
+                  type: 'number',
+                  tooltip: 'Amount charged for one instance of this activity.',
+                },
               ],
               {
                 minRows: 1,
@@ -5550,6 +5564,7 @@ ${bodyHtml}
         const addSectionButton = document.createElement('button');
         addSectionButton.type = 'button';
         addSectionButton.className = 'button button-primary';
+        addSectionButton.style.marginTop = '10px';
         addSectionButton.textContent = 'Add section';
         addSectionButton.addEventListener('click', () => {
           data.push({
@@ -5566,12 +5581,21 @@ ${bodyHtml}
     },
     dandi_pricing(container, data, ctx) {
       container.innerHTML = '';
-      const scalarHost = document.createElement('div');
-      container.appendChild(scalarHost);
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid';
+      container.appendChild(grid);
+
+      const commonInputsHost = document.createElement('div');
+      commonInputsHost.className = 'detail-action-card';
+      commonInputsHost.innerHTML = '<h4>Common Master Inputs</h4>';
+      grid.appendChild(commonInputsHost);
       const maxUnitsField = document.createElement('div');
       maxUnitsField.className = 'field-grid';
       maxUnitsField.innerHTML =
-        '<div class="field"><label>Maximum units per quote</label><select data-pc-maxunits>' +
+        '<div class="field"><label>Maximum units per quote ' +
+        '<span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span>' +
+        '<span class="tooltip-bubble" role="tooltip">Caps how many appliance units a single D&amp;I quote can cover.</span>' +
+        '</span></label><select data-pc-maxunits>' +
         [50, 60, 100]
           .map(
             (n) =>
@@ -5585,18 +5609,20 @@ ${bodyHtml}
           )
           .join('') +
         '</select></div>';
-      container.appendChild(maxUnitsField);
+      commonInputsHost.appendChild(maxUnitsField);
       maxUnitsField.querySelector('[data-pc-maxunits]').addEventListener('change', (event) => {
         data.maxUnits = Number(event.target.value);
         ctx.markDirty();
       });
+      const scalarHost = document.createElement('div');
+      commonInputsHost.appendChild(scalarHost);
       pcRenderScalarFields(
         scalarHost,
         [
-          { path: 'minUnitRate', label: 'Minimum charge per unit (AED)', type: 'number' },
+          { path: 'minUnitRate', label: 'Minimum charge per unit', type: 'number' },
           {
             path: 'laborCostPerHour',
-            label: 'Labor cost per technician hour (AED)',
+            label: 'Labor cost per technician hour',
             type: 'number',
           },
           {
@@ -5604,54 +5630,63 @@ ${bodyHtml}
             label: 'Crew size 1 loading factor',
             type: 'number',
             step: '0.05',
+            tooltip: 'Multiplier applied to labor cost when a 1-person crew is dispatched.',
           },
           {
             path: 'crewFactors.2',
             label: 'Crew size 2 loading factor',
             type: 'number',
             step: '0.05',
+            tooltip: 'Multiplier applied to labor cost when a 2-person crew is dispatched.',
           },
           {
             path: 'crewFactors.3',
             label: 'Crew size 3 loading factor',
             type: 'number',
             step: '0.05',
+            tooltip: 'Multiplier applied to labor cost when a 3-person crew is dispatched.',
           },
           {
             path: 'capacities.fridge',
             label: 'Refrigerator load capacity / trip',
             type: 'number',
             step: '1',
+            tooltip: 'Maximum number of refrigerators that fit in one transport trip.',
           },
           {
             path: 'capacities.washer',
             label: 'Washer load capacity / trip',
             type: 'number',
             step: '1',
+            tooltip: 'Maximum number of washing machines that fit in one transport trip.',
           },
           {
             path: 'capacities.cooker',
             label: 'Cooker load capacity / trip',
             type: 'number',
             step: '1',
+            tooltip: 'Maximum number of cookers that fit in one transport trip.',
           },
           {
             path: 'laborMinutes.fridge',
             label: 'Refrigerator technician minutes',
             type: 'number',
             step: '1',
+            tooltip: 'Standard technician time budgeted to install/dismantle one refrigerator.',
           },
           {
             path: 'laborMinutes.washer',
             label: 'Washer technician minutes',
             type: 'number',
             step: '1',
+            tooltip: 'Standard technician time budgeted to install/dismantle one washing machine.',
           },
           {
             path: 'laborMinutes.cooker',
             label: 'Cooker technician minutes',
             type: 'number',
             step: '1',
+            tooltip: 'Standard technician time budgeted to install/dismantle one cooker.',
           },
         ],
         data,
@@ -5659,8 +5694,7 @@ ${bodyHtml}
       );
       const groupingsHost = document.createElement('div');
       groupingsHost.className = 'detail-action-card';
-      groupingsHost.style.marginTop = '14px';
-      container.appendChild(groupingsHost);
+      grid.appendChild(groupingsHost);
       const rerenderGroupings = () => {
         groupingsHost.innerHTML = '<h4>Customer groupings</h4>';
         const list = document.createElement('div');
@@ -5696,9 +5730,8 @@ ${bodyHtml}
       rerenderGroupings();
       const regionsHost = document.createElement('div');
       regionsHost.className = 'detail-action-card';
-      regionsHost.style.marginTop = '14px';
-      regionsHost.innerHTML = '<h4>Regional transport</h4>';
-      container.appendChild(regionsHost);
+      regionsHost.innerHTML = '<h4>Regional Transport</h4>';
+      grid.appendChild(regionsHost);
       const regionsTable = document.createElement('div');
       regionsHost.appendChild(regionsTable);
       const rerenderRegions = () =>
@@ -5708,8 +5741,18 @@ ${bodyHtml}
           [
             { key: 'name', label: 'Region', type: 'text' },
             { key: 'km', label: 'One-way km', type: 'number' },
-            { key: 'costPerKm', label: 'Cost / km (AED)', type: 'number' },
-            { key: 'roundTripCost', label: 'Round-trip cost (AED)', type: 'number' },
+            {
+              key: 'costPerKm',
+              label: 'Cost / km',
+              type: 'number',
+              tooltip: 'Transport cost per kilometer used to price the round trip.',
+            },
+            {
+              key: 'roundTripCost',
+              label: 'Round-trip cost',
+              type: 'number',
+              tooltip: 'Total transport cost for a round trip to this region.',
+            },
           ],
           {
             minRows: 1,
@@ -5724,9 +5767,8 @@ ${bodyHtml}
         const mode = data.modes[modeKey];
         const modeHost = document.createElement('div');
         modeHost.className = 'detail-action-card';
-        modeHost.style.marginTop = '14px';
-        modeHost.innerHTML = '<h4>' + escapeHtml(mode.label) + ' rates</h4>';
-        container.appendChild(modeHost);
+        modeHost.innerHTML = '<h4>' + escapeHtml(mode.label) + ' Rates</h4>';
+        grid.appendChild(modeHost);
         const ratesTable = document.createElement('div');
         modeHost.appendChild(ratesTable);
         pcRenderTable(
@@ -5738,8 +5780,18 @@ ${bodyHtml}
           ],
           [
             { key: 'name', label: 'Appliance', type: 'readonly' },
-            { key: 'rates.batch', label: 'Batch rate (AED)', type: 'number' },
-            { key: 'rates.standard', label: 'Standard rate (AED)', type: 'number' },
+            {
+              key: 'rates.batch',
+              label: 'Batch rate',
+              type: 'number',
+              tooltip: 'Per-unit rate when this appliance is done as part of a multi-unit batch.',
+            },
+            {
+              key: 'rates.standard',
+              label: 'Standard rate',
+              type: 'number',
+              tooltip: 'Per-unit rate for a single, non-batched job.',
+            },
           ],
           { minRows: 3, noRemove: true, markDirty: ctx.markDirty, rerender: () => {} },
         );
@@ -5754,7 +5806,13 @@ ${bodyHtml}
               { key: 'min', label: 'Min units', type: 'number', step: '1' },
               { key: 'max', label: 'Max units', type: 'number', step: '1' },
               { key: 'label', label: 'Tier label', type: 'text' },
-              { key: 'rate', label: 'Discount %', type: 'percent' },
+              {
+                key: 'rate',
+                label: 'Discount %',
+                type: 'percent',
+                tooltip:
+                  'Discount applied to the standard rate once a quote falls in this unit range.',
+              },
             ],
             {
               minRows: 1,
@@ -5769,27 +5827,98 @@ ${bodyHtml}
     },
     amc_pricing(container, data, ctx) {
       container.innerHTML = '';
-      const scalarHost = document.createElement('div');
-      container.appendChild(scalarHost);
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid';
+      container.appendChild(grid);
+
+      const plansHost = document.createElement('div');
+      plansHost.className = 'detail-action-card';
+      plansHost.innerHTML = '<h4>Plan Percentages &amp; Markups</h4>';
+      grid.appendChild(plansHost);
+      const plansFields = document.createElement('div');
+      plansHost.appendChild(plansFields);
       pcRenderScalarFields(
-        scalarHost,
+        plansFields,
         [
-          { path: 'basicPct', label: 'Basic RM percentage', type: 'percent' },
-          { path: 'standardPct', label: 'Standard PMC percentage', type: 'percent' },
-          { path: 'premiumPct', label: 'Premium PMC percentage', type: 'percent' },
-          { path: 'riskUplift', label: 'Risk uplift', type: 'percent' },
-          { path: 'overhead', label: 'Overhead / contingency', type: 'percent' },
-          { path: 'profitMarkup', label: 'Profit markup', type: 'percent' },
-          { path: 'standardPartsReserve', label: 'Standard parts reserve', type: 'percent' },
-          { path: 'premiumPartsReserve', label: 'Premium parts reserve', type: 'percent' },
+          {
+            path: 'basicPct',
+            label: 'Basic RM percentage',
+            type: 'percent',
+            tooltip:
+              'Percentage of appliance value charged for the Basic (reactive-maintenance) plan.',
+          },
+          {
+            path: 'standardPct',
+            label: 'Standard PMC percentage',
+            type: 'percent',
+            tooltip:
+              'Percentage of appliance value charged for the Standard planned-maintenance plan.',
+          },
+          {
+            path: 'premiumPct',
+            label: 'Premium PMC percentage',
+            type: 'percent',
+            tooltip:
+              'Percentage of appliance value charged for the Premium planned-maintenance plan.',
+          },
+          {
+            path: 'riskUplift',
+            label: 'Risk uplift',
+            type: 'percent',
+            tooltip: 'Extra margin added to cover unplanned repairs during the contract period.',
+          },
+          {
+            path: 'overhead',
+            label: 'Overhead / contingency',
+            type: 'percent',
+            tooltip: 'Share of the contract price reserved for indirect/operating costs.',
+          },
+          {
+            path: 'profitMarkup',
+            label: 'Profit markup',
+            type: 'percent',
+            tooltip: 'Target profit margin built into the contract price.',
+          },
+          {
+            path: 'standardPartsReserve',
+            label: 'Standard parts reserve',
+            type: 'percent',
+            tooltip: 'Share of the Standard plan price reserved to cover spare parts.',
+          },
+          {
+            path: 'premiumPartsReserve',
+            label: 'Premium parts reserve',
+            type: 'percent',
+            tooltip: 'Share of the Premium plan price reserved to cover spare parts.',
+          },
+        ],
+        data,
+        ctx.markDirty,
+      );
+
+      const staffingHost = document.createElement('div');
+      staffingHost.className = 'detail-action-card';
+      staffingHost.innerHTML = '<h4>Visit &amp; Staffing Economics</h4>';
+      grid.appendChild(staffingHost);
+      const staffingFields = document.createElement('div');
+      staffingHost.appendChild(staffingFields);
+      pcRenderScalarFields(
+        staffingFields,
+        [
           {
             path: 'handledPerVisit',
             label: 'Appliances handled per visit',
             type: 'number',
             step: '1',
+            tooltip: 'Average number of appliances a technician services in one visit.',
           },
-          { path: 'transportPerVisit', label: 'Transport cost per visit (AED)', type: 'number' },
-          { path: 'salary', label: 'Technician monthly salary (AED)', type: 'number' },
+          {
+            path: 'transportPerVisit',
+            label: 'Transport cost per visit',
+            type: 'number',
+            tooltip: 'Transport cost allocated to a single technician visit.',
+          },
+          { path: 'salary', label: 'Technician monthly salary', type: 'number' },
           { path: 'technicians', label: 'Number of technicians', type: 'number', step: '1' },
           { path: 'workingDays', label: 'Working days per month', type: 'number', step: '1' },
           { path: 'hoursPerDay', label: 'Working hours per day', type: 'number', step: '0.5' },
@@ -5798,18 +5927,31 @@ ${bodyHtml}
             label: 'Average visit duration (hours)',
             type: 'number',
             step: '0.5',
+            tooltip: 'Average technician time per visit, used to size visit capacity.',
           },
-          { path: 'standardVisits', label: 'Standard visits per year', type: 'number', step: '1' },
-          { path: 'premiumVisits', label: 'Premium visits per year', type: 'number', step: '1' },
+          {
+            path: 'standardVisits',
+            label: 'Standard visits per year',
+            type: 'number',
+            step: '1',
+            tooltip: 'Routine maintenance visits included per year on the Standard plan.',
+          },
+          {
+            path: 'premiumVisits',
+            label: 'Premium visits per year',
+            type: 'number',
+            step: '1',
+            tooltip: 'Routine maintenance visits included per year on the Premium plan.',
+          },
         ],
         data,
         ctx.markDirty,
       );
+
       const tiersHost = document.createElement('div');
       tiersHost.className = 'detail-action-card';
-      tiersHost.style.marginTop = '14px';
-      tiersHost.innerHTML = '<h4>Basic RM reactive-visit tiers</h4>';
-      container.appendChild(tiersHost);
+      tiersHost.innerHTML = '<h4>Basic RM Reactive-Visit Tiers</h4>';
+      grid.appendChild(tiersHost);
       const tiersTable = document.createElement('div');
       tiersHost.appendChild(tiersTable);
       const tierRows = data.basicVisitTiers.map((tier) => ({ min: tier[0], visits: tier[1] }));
@@ -5824,8 +5966,20 @@ ${bodyHtml}
           tiersTable,
           tierRows,
           [
-            { key: 'min', label: 'Minimum appliance qty', type: 'number', step: '1' },
-            { key: 'visits', label: 'Annual reactive visits', type: 'number', step: '1' },
+            {
+              key: 'min',
+              label: 'Minimum appliance qty',
+              type: 'number',
+              step: '1',
+              tooltip: 'Contract must cover at least this many appliances to unlock this tier.',
+            },
+            {
+              key: 'visits',
+              label: 'Annual reactive visits',
+              type: 'number',
+              step: '1',
+              tooltip: 'Reactive-visit allowance per year included at this tier.',
+            },
           ],
           {
             minRows: 1,
@@ -5844,9 +5998,8 @@ ${bodyHtml}
       rerenderTiers();
       const appliancesHost = document.createElement('div');
       appliancesHost.className = 'detail-action-card';
-      appliancesHost.style.marginTop = '14px';
-      appliancesHost.innerHTML = '<h4>Appliance catalog</h4>';
-      container.appendChild(appliancesHost);
+      appliancesHost.innerHTML = '<h4>Appliance Catalog</h4>';
+      grid.appendChild(appliancesHost);
       const appliancesTable = document.createElement('div');
       appliancesHost.appendChild(appliancesTable);
       const rerenderAppliances = () =>
@@ -5855,9 +6008,25 @@ ${bodyHtml}
           data.appliances,
           [
             { key: 'name', label: 'Appliance', type: 'text' },
-            { key: 'qty', label: 'Qty under contract', type: 'number', step: '1' },
-            { key: 'price', label: 'Unit price (AED)', type: 'number' },
-            { key: 'active', label: 'Active', type: 'checkbox' },
+            {
+              key: 'qty',
+              label: 'Qty under contract',
+              type: 'number',
+              step: '1',
+              tooltip: 'Number of this appliance currently under contract.',
+            },
+            {
+              key: 'price',
+              label: 'Unit price',
+              type: 'number',
+              tooltip: 'Reference/replacement price used to size the plan percentage.',
+            },
+            {
+              key: 'active',
+              label: 'Active',
+              type: 'checkbox',
+              tooltip: 'Whether this appliance is included in current AMC pricing.',
+            },
           ],
           {
             minRows: 1,
@@ -5871,8 +6040,16 @@ ${bodyHtml}
     },
     thomson_pricing(container, data, ctx) {
       container.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid';
+      container.appendChild(grid);
+
+      const scalarCardHost = document.createElement('div');
+      scalarCardHost.className = 'detail-action-card';
+      scalarCardHost.innerHTML = '<h4>Deployment Economics</h4>';
+      grid.appendChild(scalarCardHost);
       const scalarHost = document.createElement('div');
-      container.appendChild(scalarHost);
+      scalarCardHost.appendChild(scalarHost);
       pcRenderScalarFields(
         scalarHost,
         [
@@ -5883,17 +6060,16 @@ ${bodyHtml}
             step: '1',
           },
           { path: 'hoursDay', label: 'Working hours per day', type: 'number', step: '0.5' },
-          { path: 'techRate', label: 'Technician cost / hour (AED)', type: 'number' },
-          { path: 'costPerKm', label: 'Cost per km (AED, round-trip)', type: 'number' },
+          { path: 'techRate', label: 'Technician cost / hour', type: 'number' },
+          { path: 'costPerKm', label: 'Cost per km (round-trip)', type: 'number' },
         ],
         data,
         ctx.markDirty,
       );
       const regionsHost = document.createElement('div');
       regionsHost.className = 'detail-action-card';
-      regionsHost.style.marginTop = '14px';
       regionsHost.innerHTML = '<h4>Regions</h4>';
-      container.appendChild(regionsHost);
+      grid.appendChild(regionsHost);
       const regionsTable = document.createElement('div');
       regionsHost.appendChild(regionsTable);
       const rerenderRegions = () =>
@@ -5902,9 +6078,24 @@ ${bodyHtml}
           data.regions,
           [
             { key: 'name', label: 'Region', type: 'text' },
-            { key: 'km', label: 'One-way km', type: 'number' },
-            { key: 'roundTripCost', label: 'Round-trip cost (AED)', type: 'number' },
-            { key: 'active', label: 'Active', type: 'checkbox' },
+            {
+              key: 'km',
+              label: 'One-way km',
+              type: 'number',
+              tooltip: 'One-way distance from base to this region.',
+            },
+            {
+              key: 'roundTripCost',
+              label: 'Round-trip cost',
+              type: 'number',
+              tooltip: 'Total transport cost for a round trip to this region.',
+            },
+            {
+              key: 'active',
+              label: 'Active',
+              type: 'checkbox',
+              tooltip: 'Whether this region is currently offered for Thomson installs.',
+            },
           ],
           {
             minRows: 1,
@@ -5917,10 +6108,9 @@ ${bodyHtml}
       rerenderRegions();
       const appliancesHost = document.createElement('div');
       appliancesHost.className = 'detail-action-card';
-      appliancesHost.style.marginTop = '14px';
       appliancesHost.innerHTML =
-        '<h4>Appliance rates</h4><p class="form-note">Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.</p>';
-      container.appendChild(appliancesHost);
+        '<h4>Appliance Rates</h4><p class="form-note">Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.</p>';
+      grid.appendChild(appliancesHost);
       const appliancesTable = document.createElement('div');
       appliancesHost.appendChild(appliancesTable);
       const rerenderAppliances = () =>
@@ -5929,8 +6119,20 @@ ${bodyHtml}
           data.appliances,
           [
             { key: 'name', label: 'Appliance', type: 'text' },
-            { key: 'rates.Base', label: 'Base rate (AED)', type: 'number' },
-            { key: 'avgMin', label: 'Avg install minutes', type: 'number', step: '0.5' },
+            {
+              key: 'rates.Base',
+              label: 'Base rate',
+              type: 'number',
+              tooltip:
+                'Every volume-tier rate for this appliance is automatically derived from this value.',
+            },
+            {
+              key: 'avgMin',
+              label: 'Avg install minutes',
+              type: 'number',
+              step: '0.5',
+              tooltip: 'Average technician minutes to install one unit of this appliance.',
+            },
             { key: 'active', label: 'Active', type: 'checkbox' },
           ],
           {
@@ -5953,9 +6155,8 @@ ${bodyHtml}
       rerenderAppliances();
       const addonsHost = document.createElement('div');
       addonsHost.className = 'detail-action-card';
-      addonsHost.style.marginTop = '14px';
-      addonsHost.innerHTML = '<h4>Additional services</h4>';
-      container.appendChild(addonsHost);
+      addonsHost.innerHTML = '<h4>Additional Services</h4>';
+      grid.appendChild(addonsHost);
       const addonsTable = document.createElement('div');
       addonsHost.appendChild(addonsTable);
       const addonNames = [
@@ -5970,8 +6171,20 @@ ${bodyHtml}
         addonRows,
         [
           { key: 'name', label: 'Service', type: 'readonly' },
-          { key: 'entry.rate', label: 'Rate (AED, or % for PM fee)', type: 'number' },
-          { key: 'entry.hours', label: 'Technician hours', type: 'number', step: '0.25' },
+          {
+            key: 'entry.rate',
+            label: 'Rate (or % for PM fee)',
+            type: 'number',
+            tooltip:
+              'Flat rate for this service, or a percentage of project value for the Project Management Fee row.',
+          },
+          {
+            key: 'entry.hours',
+            label: 'Technician hours',
+            type: 'number',
+            step: '0.25',
+            tooltip: 'Technician hours budgeted for this service.',
+          },
           { key: 'entry.note', label: 'Note', type: 'text' },
         ],
         { minRows: 4, noRemove: true, markDirty: ctx.markDirty, rerender: () => {} },
@@ -6242,6 +6455,7 @@ ${bodyHtml}
     });
     $('#workspace-heading').textContent = page.heading;
     $('#workspaceDescription').textContent = page.description;
+    $('#pricingCurrencyNote').hidden = false;
     page.domains.forEach((domain) => {
       pcWireCard(domain);
       pcLoadCard(domain);

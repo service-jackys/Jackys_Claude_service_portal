@@ -1345,3 +1345,45 @@ extended to the other 4 pages only after you confirm this one looks right.
 - Once VAS looks right, say so and the same tooltip + split-wise treatment will be applied to
   Rate Card Admin → D+I Admin Entry → AMC Admin Rate Section → Thomson Pricing Admin, in that
   order, one at a time.
+
+## Modification #28 — Extend split-wise layout to all Management pages, drop "(AED)" from labels
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review.
+
+### What changed
+
+- **Removed "(AED)" from every field/column label on all 5 Management pages** (VAS, Rate Card
+  Admin, D+I Admin Entry, AMC Admin Rate Section, Thomson Pricing Admin) — the currency is now
+  stated once, at the top of each page, instead of repeated on every field. Two labels that used
+  "(AED, ...)" for an extra qualifier kept that qualifier and just dropped "AED" itself (e.g.
+  "Cost per km (AED, round-trip)" → "Cost per km (round-trip)").
+- **Added a small glowing "All Prices in AED" tip next to the page heading**, shown only while a
+  Management page is open (it's hidden again the moment you switch to any other section).
+- **Applied the same tooltip + "split-wise" side-by-side layout to the remaining 4 pages**,
+  matching the treatment already confirmed on VAS Price Banding & Split:
+  - **Rate Card Admin**: each rate section is already its own boxed card — those cards now lay
+    out side by side instead of stacked, and the Activity/Rate columns have tooltips.
+  - **D+I Admin Entry**: now 5 side-by-side boxed groups — "Common Master Inputs" (max units +
+    all the crew/capacity/labor-minute fields), "Customer Groupings", "Regional Transport", and
+    the D&I / Install rate cards — with tooltips on crew factors, load capacities, labor
+    minutes, transport costs, batch/standard rates, and discount tiers. This is the layout you
+    originally referenced with the old D+I screenshot.
+  - **AMC Admin Rate Section**: the 17 flat fields are now two boxed groups ("Plan Percentages &
+    Markups" and "Visit & Staffing Economics") side by side with the existing reactive-visit-tier
+    and appliance-catalog cards, plus tooltips on risk uplift, overhead, profit markup, parts
+    reserves, visit duration, and per-tier/appliance table columns.
+  - **Thomson Pricing Admin**: the deployment-economics fields are now their own boxed card
+    alongside Regions, Appliance Rates, and Additional Services, with tooltips on region
+    distance/cost, the Base-rate-drives-everything relationship, and the Project Management Fee
+    rate row.
+  - Every one of these uses the same responsive `.pc-split-grid` CSS added for VAS — cards
+    wrap to a single column automatically on narrow screens, nothing was hand-tuned per page.
+
+### Needs you
+
+- Refresh each of the 5 Management pages and confirm the "(AED)" removal, the "All Prices in
+  AED" tip, and the new side-by-side layout look right — D+I Admin Entry in particular, since
+  that's the one with the most sub-sections now.
+- If anything reads awkwardly at your screen width, say which page/section and it can be
+  adjusted (grid column widths are easy to retune per domain).
