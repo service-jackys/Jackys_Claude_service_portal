@@ -1467,7 +1467,12 @@ extended to the other 4 pages only after you confirm this one looks right.
   Rates** card: it now spans the full row instead of sharing a half-width column with
   Additional Services, and the Appliance name column is explicitly wider (38% of the table, vs.
   18% Base rate / 20% Avg install minutes / 12% Active) so appliance names are readable.
+- **Additional Services** (Project Management Fee / Site Survey / Testing & Commissioning /
+  Training) now also spans the full row, and its Note column is explicitly wider (44% of the
+  table, vs. 20% Service / 18% Rate / 18% Technician hours) so the note text is actually
+  readable instead of being cut off to a few characters.
 
 ### Needs you
 
-- Refresh Thomson Pricing Admin and confirm Appliance Rates is now full-width and legible.
+- Refresh Thomson Pricing Admin and confirm Appliance Rates and Additional Services are both
+  full-width and legible.

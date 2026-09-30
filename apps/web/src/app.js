@@ -6095,8 +6095,11 @@ ${bodyHtml}
           },
         );
       rerenderAppliances();
+      // Also full-width, like Appliance Rates above -- the Note column
+      // needs real room, and this card would otherwise sit alone in a
+      // half-width row with empty space beside it (modification.md #32).
       const addonsHost = document.createElement('div');
-      addonsHost.className = 'detail-action-card';
+      addonsHost.className = 'detail-action-card pc-span-full';
       addonsHost.innerHTML = '<h4>Additional Services</h4>';
       grid.appendChild(addonsHost);
       const addonsTable = document.createElement('div');
@@ -6112,11 +6115,12 @@ ${bodyHtml}
         addonsTable,
         addonRows,
         [
-          { key: 'name', label: 'Service', type: 'readonly' },
+          { key: 'name', label: 'Service', type: 'readonly', width: '20%' },
           {
             key: 'entry.rate',
             label: 'Rate (or % for PM fee)',
             type: 'number',
+            width: '18%',
             tooltip:
               'Flat rate for this service, or a percentage of project value for the Project Management Fee row.',
           },
@@ -6125,9 +6129,10 @@ ${bodyHtml}
             label: 'Technician hours',
             type: 'number',
             step: '0.25',
+            width: '18%',
             tooltip: 'Technician hours budgeted for this service.',
           },
-          { key: 'entry.note', label: 'Note', type: 'text' },
+          { key: 'entry.note', label: 'Note', type: 'text', width: '44%' },
         ],
         { minRows: 4, noRemove: true, markDirty: ctx.markDirty, rerender: () => {} },
       );
