@@ -1106,7 +1106,10 @@ accessibility/touch-target checklist).
 ## Modification #25 — Refined CRM-pattern styling, color palettes, and dark mode
 
 **Date:** 2026-09-30
-**Status:** Code complete — needs your visual review
+**Status:** Confirmed working -- you reviewed and approved this on 2026-09-30. This is now the
+design baseline: any new page, screen, or feature built from here on should match it (collapsible
+icon sidebar, navy header/footer/sidebar tied to the palette tokens, palette + light/dark
+switcher, the compact type scale) rather than the older look from before Modification #24.
 
 ### What changed
 
