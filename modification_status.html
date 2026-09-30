@@ -1550,6 +1550,59 @@
           <li>Refresh Thomson Pricing Admin and confirm Appliance Rates and Additional Services are both full-width and legible.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#32 &mdash; 4 stand-alone quote calculators (VAS, Rate Card, AMC, Thomson)</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: new Quote Calculators sidebar section, 4 pages, no backend
+          changes
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New <strong>Quote Calculators</strong> sidebar section with 4 pages. Each reads the
+            same admin-configured data as its matching Management page and computes a price live
+            in the browser &mdash; none of them save, create, or touch any record.
+          </li>
+          <li>
+            <strong>VAS Quote Calculator</strong> &mdash; order value + plan in, band-midpoint fee
+            (rounded, floored at the plan minimum) out, plus claim fee and deductible.
+          </li>
+          <li>
+            <strong>Rate Card Calculator</strong> &mdash; section + activity + quantity lines,
+            summed to a grand total.
+          </li>
+          <li>
+            <strong>AMC Quote Calculator</strong> &mdash; editable per-contract appliance
+            quantities/values from AMC Admin's catalog, computing Basic RM / Standard PMC /
+            Premium PMC side by side (visits, labor, transport, parts reserve, overhead, price
+            excl./incl. 5% VAT), matching the workbook's Post-Warranty AMC/PMC formula exactly.
+          </li>
+          <li>
+            <strong>Thomson Quote Calculator</strong> &mdash; region + appliance + quantity +
+            site visits + training lines, with volume-tier rates, install labor/cost, add-on
+            revenue and transport all computed the same way as the workbook's Project Pricing
+            Calculator, plus a customer transport-share % control and a grand total (price, cost,
+            margin, margin %).
+          </li>
+          <li>
+            No backend changes &mdash; all 4 reuse the existing read-only pricing-config API and
+            compute entirely client-side.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Try all 4 calculators and sanity-check a few numbers against the workbook.</li>
+          <li>
+            Say the word when you want Thomson Proposal or the Revenue Dashboard (live from the
+            database) started next.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

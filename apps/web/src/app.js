@@ -652,6 +652,12 @@
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
+    // Quote calculators (Modification #32) read the same admin data, so they
+    // sit behind the same permission.
+    $('#vasCalcNav').hidden = !canReadPricingConfig;
+    $('#rateCardCalcNav').hidden = !canReadPricingConfig;
+    $('#amcCalcNav').hidden = !canReadPricingConfig;
+    $('#thomsonCalcNav').hidden = !canReadPricingConfig;
   }
 
   function showNoWorkspaceAccess() {
@@ -680,10 +686,21 @@
       activatePricingAdminMode(mode);
       return;
     }
-    // Leaving a Management admin page for any other workspace: none of the
-    // per-mode branches below know about the 5 pricing-admin panels, so they
-    // never got hidden on their own -- clear them here, once, for every mode.
+    if (PRICING_CALC_PAGES[mode]) {
+      activatePricingCalcMode(mode);
+      return;
+    }
+    // Leaving a Management admin page (or a quote calculator) for any other
+    // workspace: none of the per-mode branches below know about those
+    // panels, so they never got hidden on their own -- clear them here,
+    // once, for every mode.
     Object.values(PRICING_ADMIN_PAGES).forEach((page) => {
+      const nav = document.getElementById(page.navId);
+      const workspace = document.getElementById(page.workspaceId);
+      if (nav) nav.setAttribute('aria-current', 'false');
+      if (workspace) workspace.hidden = true;
+    });
+    Object.values(PRICING_CALC_PAGES).forEach((page) => {
       const nav = document.getElementById(page.navId);
       const workspace = document.getElementById(page.workspaceId);
       if (nav) nav.setAttribute('aria-current', 'false');
@@ -6414,6 +6431,727 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
+
+  // ---------------------------------------------------------------------
+  // Quote calculators (Modification #32) -- stand-alone pricing tools that
+  // read the same admin-configured data as the 5 Management pages above,
+  // but never save or create any record. Per the user's locked-in build
+  // order (2026-09-30): calculators first, not wired into job-cards or
+  // quotations yet; Thomson Proposal and the Revenue Dashboard come later.
+  // Every formula below was traced cell-by-cell against the master
+  // workbook (see modification.md #32) rather than guessed -- the same
+  // rigor that caught the vas_profit_split mistake in #29.
+  // ---------------------------------------------------------------------
+
+  const calcDataCache = new Map(); // domain -> data, refetched each time a calculator page opens
+
+  async function calcFetchDomains(domains) {
+    const result = {};
+    await Promise.all(
+      domains.map(async (domain) => {
+        const response = await apiRequest('/api/pricing-config/' + domain, { method: 'GET' });
+        result[domain] = response.payload;
+        calcDataCache.set(domain, response.payload);
+      }),
+    );
+    return result;
+  }
+
+  function calcField(labelText, inputHtml) {
+    return '<label>' + escapeHtml(labelText) + '<br />' + inputHtml + '</label>';
+  }
+
+  // --- VAS ----------------------------------------------------------------
+  const VAS_CALC_PLANS = [
+    {
+      key: 'ew1',
+      label: '1-Year EW',
+      rateKey: 'ew1Rate',
+      minFeeKey: 'ew1MinFee',
+      deductibleKey: 'deductibleEw1',
+    },
+    {
+      key: 'ew2',
+      label: '2-Year EW',
+      rateKey: 'ew2Rate',
+      minFeeKey: 'ew2MinFee',
+      deductibleKey: 'deductibleEw2',
+    },
+    {
+      key: 'di1',
+      label: 'Damage Insurance',
+      rateKey: 'di1Rate',
+      minFeeKey: 'di1MinFee',
+      deductibleKey: 'deductibleDi1',
+    },
+    {
+      key: 'premium',
+      label: 'Premium',
+      rateKey: 'premiumRate',
+      minFeeKey: 'premiumMinFee',
+      deductibleKey: 'deductiblePremium',
+    },
+  ];
+
+  function renderVasCalc(container, data) {
+    const bands = data.vas_price_bands;
+    const params = data.vas_pricing_params;
+    container.innerHTML =
+      '<h4>VAS Quote Calculator</h4>' +
+      '<p class="form-note">Enter the order value and pick a plan. The fee is looked up by price band -- using the band midpoint, matching the workbook -- then the plan’s rate is applied and rounded to the nearest rounding step, never below the plan’s minimum fee.</p>' +
+      '<div class="pc-split-grid">' +
+      '<div class="detail-action-card">' +
+      '<h4>Inputs</h4>' +
+      '<div class="field-grid">' +
+      calcField(
+        'Order value (AED)',
+        '<input type="number" min="0" step="0.01" value="1000" data-vc-order-value />',
+      ) +
+      calcField(
+        'Plan',
+        '<select data-vc-plan>' +
+          VAS_CALC_PLANS.map(
+            (p) => '<option value="' + p.key + '">' + escapeHtml(p.label) + '</option>',
+          ).join('') +
+          '</select>',
+      ) +
+      '</div>' +
+      '</div>' +
+      '<div class="detail-action-card">' +
+      '<h4>Quote</h4>' +
+      '<div data-vc-output></div>' +
+      '</div>' +
+      '</div>';
+
+    const orderValueInput = container.querySelector('[data-vc-order-value]');
+    const planSelect = container.querySelector('[data-vc-plan]');
+    const output = container.querySelector('[data-vc-output]');
+
+    function recompute() {
+      const orderValue = parseNumber(orderValueInput.value);
+      const plan = VAS_CALC_PLANS.find((p) => p.key === planSelect.value) || VAS_CALC_PLANS[0];
+      const band =
+        bands.find((b) => orderValue >= b.start && orderValue <= b.end) || bands[bands.length - 1];
+      const midpoint = (band.start + band.end) / 2;
+      const rate = params[plan.rateKey];
+      const minFee = params[plan.minFeeKey];
+      const roundingStep = params.roundingStep || 1;
+      const rawFee = Math.round((midpoint * rate) / roundingStep) * roundingStep;
+      const fee = Math.max(rawFee, minFee);
+      const claimFee =
+        orderValue < params.claimFeeThreshold ? params.claimFeeLow : params.claimFeeHigh;
+      const deductible = params[plan.deductibleKey] || 0;
+      output.innerHTML =
+        '<div class="table-wrap"><table><tbody>' +
+        '<tr><th>Matched band</th><td>' +
+        escapeHtml(band.label) +
+        ' (midpoint ' +
+        money(midpoint) +
+        ' AED)</td></tr>' +
+        '<tr><th>Plan fee</th><td><strong>' +
+        money(fee) +
+        ' AED</strong></td></tr>' +
+        '<tr><th>Claim fee</th><td>' +
+        money(claimFee) +
+        ' AED</td></tr>' +
+        '<tr><th>Deductible</th><td>' +
+        money(deductible) +
+        ' AED</td></tr>' +
+        '</tbody></table></div>';
+    }
+    orderValueInput.addEventListener('input', recompute);
+    planSelect.addEventListener('change', recompute);
+    recompute();
+  }
+
+  // --- Rate Card ------------------------------------------------------------
+  function renderRateCardCalc(container, data) {
+    const sections = data;
+    const lineItems = [];
+    container.innerHTML =
+      '<h4>Rate Card Calculator</h4>' +
+      '<p class="form-note">Build a quote line by line from the Rate Card admin’s own sections and activities, then read the total off the bottom row.</p>' +
+      '<div class="pc-split-grid">' +
+      '<div class="detail-action-card">' +
+      '<h4>Add a line</h4>' +
+      '<div class="field-grid">' +
+      calcField('Section', '<select data-rcc-section></select>') +
+      calcField('Activity', '<select data-rcc-activity></select>') +
+      calcField('Quantity', '<input type="number" min="0" step="1" value="1" data-rcc-qty />') +
+      '</div>' +
+      '<div class="form-footer">' +
+      '<button class="button button-primary" type="button" data-rcc-add>Add to quote</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Quote</h4>' +
+      '<div data-rcc-table></div>' +
+      '</div>' +
+      '</div>';
+
+    const sectionSelect = container.querySelector('[data-rcc-section]');
+    const activitySelect = container.querySelector('[data-rcc-activity]');
+    const qtyInput = container.querySelector('[data-rcc-qty]');
+    const addButton = container.querySelector('[data-rcc-add]');
+    const tableHost = container.querySelector('[data-rcc-table]');
+
+    sectionSelect.innerHTML = sections
+      .map((s, i) => '<option value="' + i + '">' + escapeHtml(s.label) + '</option>')
+      .join('');
+
+    function refreshActivities() {
+      const section = sections[Number(sectionSelect.value)];
+      activitySelect.innerHTML = (section?.activities || [])
+        .map(
+          (a, i) =>
+            '<option value="' +
+            i +
+            '">' +
+            escapeHtml(a.name) +
+            ' (' +
+            money(a.rate) +
+            ' AED)</option>',
+        )
+        .join('');
+    }
+    sectionSelect.addEventListener('change', refreshActivities);
+    refreshActivities();
+
+    function renderTable() {
+      if (!lineItems.length) {
+        tableHost.innerHTML = '<p class="empty-state">No lines added yet.</p>';
+        return;
+      }
+      const total = lineItems.reduce((sum, li) => sum + li.rate * li.qty, 0);
+      tableHost.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Section</th><th>Activity</th><th>Rate (AED)</th><th>Qty</th><th>Subtotal (AED)</th><th></th>' +
+        '</tr></thead><tbody>' +
+        lineItems
+          .map(
+            (li, i) =>
+              '<tr><td>' +
+              escapeHtml(li.sectionLabel) +
+              '</td><td>' +
+              escapeHtml(li.activityName) +
+              '</td><td>' +
+              money(li.rate) +
+              '</td><td>' +
+              li.qty +
+              '</td><td>' +
+              money(li.rate * li.qty) +
+              '</td><td><button class="button button-outline" type="button" data-rcc-remove="' +
+              i +
+              '">Remove</button></td></tr>',
+          )
+          .join('') +
+        '</tbody><tfoot><tr><td colspan="4"><strong>Total</strong></td><td colspan="2"><strong>' +
+        money(total) +
+        ' AED</strong></td></tr></tfoot></table></div>';
+      tableHost.querySelectorAll('[data-rcc-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          lineItems.splice(Number(btn.getAttribute('data-rcc-remove')), 1);
+          renderTable();
+        });
+      });
+    }
+
+    addButton.addEventListener('click', () => {
+      const section = sections[Number(sectionSelect.value)];
+      const activity = section?.activities?.[Number(activitySelect.value)];
+      const qty = parseNumber(qtyInput.value);
+      if (!section || !activity || qty <= 0) return;
+      lineItems.push({
+        sectionLabel: section.label,
+        activityName: activity.name,
+        rate: activity.rate,
+        qty,
+      });
+      renderTable();
+    });
+
+    renderTable();
+  }
+
+  // --- AMC ------------------------------------------------------------------
+  function amcCostPerVisit(data) {
+    return (
+      ((data.salary * data.technicians) / data.workingDays / data.hoursPerDay) * data.visitHours
+    );
+  }
+
+  function amcLookupBasicVisits(count, tiers) {
+    if (count === 0) return 0;
+    let visits = 0;
+    [...tiers]
+      .sort((a, b) => a[0] - b[0])
+      .forEach(([minQty, v]) => {
+        if (count >= minQty) visits = v;
+      });
+    return visits;
+  }
+
+  function renderAmcCalc(container, data) {
+    const appliances = data.appliances.filter((a) => a.active !== false).map((a) => ({ ...a }));
+    container.innerHTML =
+      '<h4>AMC Quote Calculator</h4>' +
+      '<p class="form-note">Edit the appliance quantities and unit values for this specific contract (pre-filled from AMC Admin Rate Section’s catalog), then read the Basic RM / Standard PMC / Premium PMC contract prices below. This mirrors the workbook’s “Post-Warranty AMC / PMC Pricing Calculator” formula exactly.</p>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Appliances for this contract</h4>' +
+      '<div data-ac-appliances></div>' +
+      '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Plan pricing</h4>' +
+      '<div data-ac-output></div>' +
+      '</div>';
+
+    const appliancesHost = container.querySelector('[data-ac-appliances]');
+    const output = container.querySelector('[data-ac-output]');
+
+    function renderAppliancesTable() {
+      appliancesHost.innerHTML =
+        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+        '<th style="width: 40%">Appliance</th><th style="width: 20%">Qty</th><th style="width: 20%">Unit value (AED)</th><th style="width: 20%">Total value (AED)</th>' +
+        '</tr></thead><tbody>' +
+        appliances
+          .map(
+            (a, i) =>
+              '<tr><td>' +
+              escapeHtml(a.name) +
+              '</td><td><input type="number" min="0" step="1" value="' +
+              a.qty +
+              '" data-ac-qty="' +
+              i +
+              '" /></td><td><input type="number" min="0" step="0.01" value="' +
+              a.price +
+              '" data-ac-price="' +
+              i +
+              '" /></td><td>' +
+              money(a.qty * a.price) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      appliancesHost.querySelectorAll('[data-ac-qty]').forEach((input) => {
+        input.addEventListener('input', () => {
+          appliances[Number(input.getAttribute('data-ac-qty'))].qty = parseNumber(input.value);
+          recompute();
+        });
+      });
+      appliancesHost.querySelectorAll('[data-ac-price]').forEach((input) => {
+        input.addEventListener('input', () => {
+          appliances[Number(input.getAttribute('data-ac-price'))].price = parseNumber(input.value);
+          recompute();
+        });
+      });
+    }
+
+    function planFor(visits, partsReserveRate, pct, totalValue, costPerVisit) {
+      const labor = visits * costPerVisit;
+      const transport = visits * data.transportPerVisit;
+      const parts = Math.max(totalValue * (partsReserveRate || 0), 0);
+      const direct = labor + transport + parts;
+      const overhead = direct * data.overhead;
+      const priceExclVat = Math.max(
+        direct + overhead + (direct + overhead) * data.profitMarkup,
+        totalValue * pct,
+      );
+      const priceInclVat = priceExclVat * 1.05;
+      return { visits, labor, transport, parts, direct, overhead, priceExclVat, priceInclVat };
+    }
+
+    function recompute() {
+      const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
+      const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
+      const costPerVisit = amcCostPerVisit(data);
+      const basicVisits = amcLookupBasicVisits(totalCount, data.basicVisitTiers);
+      const standardVisits =
+        totalCount === 0
+          ? 0
+          : Math.ceil(
+              (totalCount * data.standardPct * (1 + data.riskUplift) * data.standardVisits) /
+                data.handledPerVisit,
+            );
+      const premiumVisits =
+        totalCount === 0
+          ? 0
+          : Math.ceil(
+              (totalCount * data.premiumPct * (1 + data.riskUplift) * data.premiumVisits) /
+                data.handledPerVisit,
+            );
+
+      const rows = [
+        ['Basic RM', planFor(basicVisits, 0, data.basicPct, totalValue, costPerVisit)],
+        [
+          'Standard PMC',
+          planFor(
+            standardVisits,
+            data.standardPartsReserve,
+            data.standardPct,
+            totalValue,
+            costPerVisit,
+          ),
+        ],
+        [
+          'Premium PMC',
+          planFor(
+            premiumVisits,
+            data.premiumPartsReserve,
+            data.premiumPct,
+            totalValue,
+            costPerVisit,
+          ),
+        ],
+      ];
+
+      output.innerHTML =
+        '<p class="form-note">Total appliances: <strong>' +
+        totalCount +
+        '</strong> &middot; Total equipment value: <strong>' +
+        money(totalValue) +
+        ' AED</strong></p>' +
+        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+        '<th>Plan</th><th>Annual visits</th><th>Labor cost</th><th>Transport cost</th><th>Parts reserve</th><th>Direct cost</th><th>Overhead</th><th>Price (excl. VAT)</th><th>Price (incl. 5% VAT)</th>' +
+        '</tr></thead><tbody>' +
+        rows
+          .map(
+            ([label, p]) =>
+              '<tr><td>' +
+              escapeHtml(label) +
+              '</td><td>' +
+              p.visits +
+              '</td><td>' +
+              money(p.labor) +
+              '</td><td>' +
+              money(p.transport) +
+              '</td><td>' +
+              money(p.parts) +
+              '</td><td>' +
+              money(p.direct) +
+              '</td><td>' +
+              money(p.overhead) +
+              '</td><td><strong>' +
+              money(p.priceExclVat) +
+              '</strong></td><td><strong>' +
+              money(p.priceInclVat) +
+              '</strong></td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+    }
+
+    renderAppliancesTable();
+    recompute();
+  }
+
+  // --- Thomson --------------------------------------------------------------
+  function thomsonCalcUnitRate(appliance, qty) {
+    if (qty >= 500) return appliance.rates['500+'];
+    if (qty >= 300) return appliance.rates['300+'];
+    if (qty >= 150) return appliance.rates['150+'];
+    if (qty >= 50) return appliance.rates['50+'];
+    return appliance.rates.Base;
+  }
+
+  function renderThomsonCalc(container, data) {
+    const regions = data.regions.filter((r) => r.active !== false);
+    const appliances = data.appliances.filter((a) => a.active !== false);
+    const addons = data.addons;
+    const teamCapacity = data.techCount * data.hoursDay;
+    const lineItems = [];
+
+    container.innerHTML =
+      '<h4>Thomson Quote Calculator</h4>' +
+      '<p class="form-note">Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly.</p>' +
+      '<div class="pc-split-grid">' +
+      '<div class="detail-action-card">' +
+      '<h4>Add a line</h4>' +
+      '<div class="field-grid">' +
+      calcField(
+        'Region',
+        '<select data-tcc-region>' +
+          regions
+            .map(
+              (r) =>
+                '<option value="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</option>',
+            )
+            .join('') +
+          '</select>',
+      ) +
+      calcField(
+        'Appliance',
+        '<select data-tcc-appliance>' +
+          appliances
+            .map((a, i) => '<option value="' + i + '">' + escapeHtml(a.name) + '</option>')
+            .join('') +
+          '</select>',
+      ) +
+      calcField('Qty', '<input type="number" min="0" step="1" value="1" data-tcc-qty />') +
+      calcField(
+        'Site visits',
+        '<input type="number" min="0" step="1" value="1" data-tcc-visits />',
+      ) +
+      calcField(
+        'Training sessions',
+        '<input type="number" min="0" step="1" value="0" data-tcc-training />',
+      ) +
+      '</div>' +
+      '<div class="form-footer">' +
+      '<button class="button button-primary" type="button" data-tcc-add>Add line</button>' +
+      '</div>' +
+      '</div>' +
+      '<div class="detail-action-card">' +
+      '<h4>Transport</h4>' +
+      calcField(
+        'Customer transport share %',
+        '<input type="number" min="0" max="100" step="1" value="0" data-tcc-transport-share />',
+      ) +
+      '<p class="form-note">The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).</p>' +
+      '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Quote</h4>' +
+      '<div data-tcc-table></div>' +
+      '</div>' +
+      '</div>';
+
+    const regionSelect = container.querySelector('[data-tcc-region]');
+    const applianceSelect = container.querySelector('[data-tcc-appliance]');
+    const qtyInput = container.querySelector('[data-tcc-qty]');
+    const visitsInput = container.querySelector('[data-tcc-visits]');
+    const trainingInput = container.querySelector('[data-tcc-training]');
+    const addButton = container.querySelector('[data-tcc-add]');
+    const transportShareInput = container.querySelector('[data-tcc-transport-share]');
+    const tableHost = container.querySelector('[data-tcc-table]');
+
+    function computeLine(li) {
+      const region = regions.find((r) => r.name === li.region) || regions[0];
+      const appliance = appliances[li.applianceIdx];
+      const unitRate = thomsonCalcUnitRate(appliance, li.qty);
+      const applianceSubtotal = li.qty * unitRate;
+      const installLaborCost = li.qty * (appliance.avgMin / 60) * data.techRate;
+      const installDays =
+        teamCapacity > 0 ? Math.ceil((li.qty * (appliance.avgMin / 60)) / teamCapacity) : 0;
+      const testingTotal = li.qty * addons['Testing & Commissioning'].rate;
+      const pmFee = applianceSubtotal * addons['Project Management Fee'].rate;
+      const addonRevenue =
+        li.siteVisits * addons['Site Survey'].rate +
+        li.trainingSessions * addons['Training (End User)'].rate +
+        testingTotal +
+        pmFee;
+      const addonServicesCost =
+        li.siteVisits * addons['Site Survey'].hours * data.techRate +
+        li.qty * addons['Testing & Commissioning'].hours * data.techRate +
+        li.trainingSessions * addons['Training (End User)'].hours * data.techRate;
+      const totalTrips = installDays + li.siteVisits + li.trainingSessions;
+      const transportCost = totalTrips * region.roundTripCost;
+      const transportSharePct = parseNumber(transportShareInput.value) / 100;
+      const customerTransportCharge = transportCost * transportSharePct;
+      const totalPrice = applianceSubtotal + addonRevenue + customerTransportCharge;
+      const totalCost = installLaborCost + addonServicesCost + transportCost;
+      const margin = totalPrice - totalCost;
+      return {
+        ...li,
+        applianceName: appliance.name,
+        unitRate,
+        applianceSubtotal,
+        addonRevenue,
+        transportCost,
+        totalPrice,
+        totalCost,
+        margin,
+      };
+    }
+
+    function renderTable() {
+      if (!lineItems.length) {
+        tableHost.innerHTML = '<p class="empty-state">No lines added yet.</p>';
+        return;
+      }
+      const computed = lineItems.map(computeLine);
+      const totalPrice = computed.reduce((s, c) => s + c.totalPrice, 0);
+      const totalCost = computed.reduce((s, c) => s + c.totalCost, 0);
+      const margin = totalPrice - totalCost;
+      const marginPct = totalPrice ? (margin / totalPrice) * 100 : 0;
+      tableHost.innerHTML =
+        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+        '<th>Region</th><th>Appliance</th><th>Qty</th><th>Unit rate</th><th>Appliance subtotal</th><th>Add-on revenue</th><th>Transport cost</th><th>Total price</th><th>Total cost</th><th>Margin</th><th></th>' +
+        '</tr></thead><tbody>' +
+        computed
+          .map(
+            (c, i) =>
+              '<tr><td>' +
+              escapeHtml(c.region) +
+              '</td><td>' +
+              escapeHtml(c.applianceName) +
+              '</td><td>' +
+              c.qty +
+              '</td><td>' +
+              money(c.unitRate) +
+              '</td><td>' +
+              money(c.applianceSubtotal) +
+              '</td><td>' +
+              money(c.addonRevenue) +
+              '</td><td>' +
+              money(c.transportCost) +
+              '</td><td>' +
+              money(c.totalPrice) +
+              '</td><td>' +
+              money(c.totalCost) +
+              '</td><td>' +
+              money(c.margin) +
+              '</td><td><button class="button button-outline" type="button" data-tcc-remove="' +
+              i +
+              '">Remove</button></td></tr>',
+          )
+          .join('') +
+        '</tbody><tfoot><tr><td colspan="7"><strong>Grand total</strong></td><td><strong>' +
+        money(totalPrice) +
+        '</strong></td><td><strong>' +
+        money(totalCost) +
+        '</strong></td><td><strong>' +
+        money(margin) +
+        ' (' +
+        marginPct.toFixed(1) +
+        '%)</strong></td><td></td></tr></tfoot></table></div>';
+      tableHost.querySelectorAll('[data-tcc-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          lineItems.splice(Number(btn.getAttribute('data-tcc-remove')), 1);
+          renderTable();
+        });
+      });
+    }
+
+    addButton.addEventListener('click', () => {
+      const qty = parseNumber(qtyInput.value);
+      if (qty <= 0 || !appliances.length || !regions.length) return;
+      lineItems.push({
+        region: regionSelect.value,
+        applianceIdx: Number(applianceSelect.value),
+        qty,
+        siteVisits: parseNumber(visitsInput.value),
+        trainingSessions: parseNumber(trainingInput.value),
+      });
+      renderTable();
+    });
+    transportShareInput.addEventListener('input', renderTable);
+
+    renderTable();
+  }
+
+  const PRICING_CALC_PAGES = {
+    'vas-calc': {
+      navId: 'vasCalcNav',
+      workspaceId: 'vasCalcWorkspace',
+      heading: 'VAS Quote Calculator',
+      description: 'Stand-alone quote calculator, reading VAS Price Banding & Split’s admin data.',
+      domains: ['vas_price_bands', 'vas_pricing_params'],
+      render: (root, dataByDomain) => renderVasCalc(root, dataByDomain),
+    },
+    'rate-card-calc': {
+      navId: 'rateCardCalcNav',
+      workspaceId: 'rateCardCalcWorkspace',
+      heading: 'Rate Card Calculator',
+      description: 'Stand-alone quote calculator, reading Rate Card Admin’s admin data.',
+      domains: ['rate_card'],
+      render: (root, dataByDomain) => renderRateCardCalc(root, dataByDomain.rate_card),
+    },
+    'amc-calc': {
+      navId: 'amcCalcNav',
+      workspaceId: 'amcCalcWorkspace',
+      heading: 'AMC Quote Calculator',
+      description: 'Stand-alone quote calculator, reading AMC Admin Rate Section’s admin data.',
+      domains: ['amc_pricing'],
+      render: (root, dataByDomain) => renderAmcCalc(root, dataByDomain.amc_pricing),
+    },
+    'thomson-calc': {
+      navId: 'thomsonCalcNav',
+      workspaceId: 'thomsonCalcWorkspace',
+      heading: 'Thomson Quote Calculator',
+      description: 'Stand-alone quote calculator, reading Thomson Pricing Admin’s admin data.',
+      domains: ['thomson_pricing'],
+      render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
+    },
+  };
+
+  async function activatePricingCalcMode(mode) {
+    const page = PRICING_CALC_PAGES[mode];
+    if (!page) return;
+    if (!hasPermission('pricing_config.read')) return;
+    workspaceMode = mode;
+    Object.values(PRICING_ADMIN_PAGES).forEach((other) => {
+      $('#' + other.navId).setAttribute('aria-current', 'false');
+      $('#' + other.workspaceId).hidden = true;
+    });
+    Object.values(PRICING_CALC_PAGES).forEach((other) => {
+      $('#' + other.navId).setAttribute('aria-current', other === page ? 'page' : 'false');
+      $('#' + other.workspaceId).hidden = other !== page;
+    });
+    [
+      'complaintWorkspace',
+      'appointmentWorkspace',
+      'jobCardWorkspace',
+      'quotationWorkspace',
+      'inspectionWorkspace',
+      'warrantyApprovalWorkspace',
+      'dashboardWorkspace',
+      'technicianWorkspace',
+      'teamAccountWorkspace',
+      'masterDataWorkspace',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = true;
+    });
+    [
+      'complaintsNav',
+      'serviceRequestsNav',
+      'jobCardsNav',
+      'quotationsNav',
+      'inspectionsNav',
+      'warrantyApprovalsNav',
+      'dashboardNav',
+      'appointmentsNav',
+      'techniciansNav',
+      'teamAccountsNav',
+      'newRequestNav',
+      'masterDataNav',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.setAttribute('aria-current', 'false');
+    });
+    [
+      'refreshComplaintsButton',
+      'refreshAppointmentsButton',
+      'refreshJobCardsButton',
+      'refreshQuotationsButton',
+      'refreshInspectionsButton',
+      'refreshWarrantyApprovalsButton',
+      'refreshDashboardButton',
+      'refreshTechniciansButton',
+      'refreshTeamAccountsButton',
+    ].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = true;
+    });
+    $('#workspace-heading').textContent = page.heading;
+    $('#workspaceDescription').textContent = page.description;
+    $('#pricingCurrencyNote').hidden = false;
+
+    const root = document.querySelector('#' + page.workspaceId + ' [data-calc-root]');
+    if (!root) return;
+    root.innerHTML = '<p class="form-note">Loading current values&hellip;</p>';
+    try {
+      const dataByDomain = await calcFetchDomains(page.domains);
+      page.render(root, dataByDomain);
+    } catch (error) {
+      root.innerHTML =
+        '<p class="form-note">Could not load current values for this calculator.</p>';
+    }
+  }
+
+  $('#vasCalcNav')?.addEventListener('click', () => setWorkspaceMode('vas-calc'));
+  $('#rateCardCalcNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-calc'));
+  $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
+  $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 
   initJobCardForms();
   initQuotationForms();

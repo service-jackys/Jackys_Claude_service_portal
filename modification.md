@@ -1476,3 +1476,49 @@ extended to the other 4 pages only after you confirm this one looks right.
 
 - Refresh Thomson Pricing Admin and confirm Appliance Rates and Additional Services are both
   full-width and legible.
+
+## Modification #32 — 4 stand-alone quote calculators (VAS, Rate Card, AMC, Thomson)
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+Per your build order (quote calculators first, as stand-alone pricing tools, before Thomson
+Proposal or the Revenue Dashboard), a new **Quote Calculators** section was added to the sidebar
+with 4 pages. Every one of them reads the same admin-configured data as its matching Management
+page (VAS Price Banding & Split, Rate Card Admin, AMC Admin Rate Section, Thomson Pricing Admin)
+and computes a price live in the browser — **none of them save, create, or touch any record**.
+Each formula was traced cell-by-cell against the master workbook before being written (the same
+rigor that caught the vas_profit_split mistake in #29), not guessed:
+
+- **VAS Quote Calculator** — enter an order value and pick a plan (1-Year EW / 2-Year EW / Damage
+  Insurance / Premium); it looks up the matching price band, applies that band's midpoint to the
+  plan's rate, rounds to the rounding step, and enforces the plan's minimum fee — exactly the
+  workbook's `computeVasFee_` logic. Also shows the claim fee and deductible for the picked plan.
+- **Rate Card Calculator** — pick a section and activity, enter a quantity, and add as many lines
+  as needed; each line is quantity × rate, with a running grand total.
+- **AMC Quote Calculator** — starts from AMC Admin's appliance catalog (only active appliances),
+  editable per contract (quantity and unit value), and computes all 3 plans side by side (Basic
+  RM / Standard PMC / Premium PMC): annual visits, labor cost, transport cost, parts reserve,
+  direct cost, overhead, and the contract price excl. and incl. 5% VAT — matching the workbook's
+  "Post-Warranty AMC / PMC Pricing Calculator" table exactly, including the reactive-visit tier
+  lookup for Basic RM.
+- **Thomson Quote Calculator** — add project lines (region + appliance + quantity + site
+  visits + training sessions); each line's appliance rate is picked by the qty volume tier,
+  install labor/cost is derived from avg install minutes and technician rate, testing/PM-fee/
+  site-survey/training add-ons are priced from Thomson's Additional Services rates, and
+  transport is derived from install days + visits + region round-trip cost. A "Customer transport
+  share %" input controls how much of that transport cost is passed to the customer (workbook
+  default: 0%, fully absorbed). Grand total row shows total price, total cost, margin and margin
+  %, matching the workbook's "Project Pricing Calculator" section row-by-row.
+
+No backend changes were needed — all 4 calculators reuse the existing read-only
+`GET /api/pricing-config/:domain` endpoint (same permission, `pricing_config.read`) and compute
+entirely client-side.
+
+### Needs you
+
+- Try all 4 calculators and sanity-check a few numbers against the workbook yourself.
+- Say the word when you want Thomson Proposal or the Revenue Dashboard (live from the database,
+  per your answer) started next.

@@ -2525,6 +2525,22 @@
         <path d="M6 9v.01M18 15v.01" stroke-width="2.6" />
       </symbol>
       <symbol
+        id="icon-calculator"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="4" y="2" width="16" height="20" rx="2" />
+        <path d="M8 6h8" />
+        <path
+          d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01"
+          stroke-width="2.6"
+        />
+      </symbol>
+      <symbol
         id="icon-collapse"
         viewBox="0 0 24 24"
         fill="none"
@@ -3057,6 +3073,55 @@
               >
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
                 <span class="nav-label">Thomson Pricing Admin</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <p class="nav-group-label">Quote Calculators</p>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="vasCalcNav"
+                hidden
+                aria-label="VAS Quote Calculator"
+                title="VAS Quote Calculator"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                <span class="nav-label">VAS Quote Calculator</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="rateCardCalcNav"
+                hidden
+                aria-label="Rate Card Calculator"
+                title="Rate Card Calculator"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                <span class="nav-label">Rate Card Calculator</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="amcCalcNav"
+                hidden
+                aria-label="AMC Quote Calculator"
+                title="AMC Quote Calculator"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                <span class="nav-label">AMC Quote Calculator</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="thomsonCalcNav"
+                hidden
+                aria-label="Thomson Quote Calculator"
+                title="Thomson Quote Calculator"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                <span class="nav-label">Thomson Quote Calculator</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
             </div>
@@ -4716,6 +4781,64 @@
                     </div>
                     <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
                   </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="vasCalcWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Stand-alone VAS quote calculator using the same admin-configured price bands and
+                  pricing parameters as VAS Price Banding &amp; Split. This does not save or create
+                  any record &mdash; it only computes a price.
+                </p>
+                <section class="detail-action-card pricing-config-card" data-calc-root="vas-calc">
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="rateCardCalcWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Stand-alone Rate Card calculator using the same admin-configured sections and
+                  activity rates as Rate Card Admin. This does not save or create any record &mdash;
+                  it only computes a price.
+                </p>
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-calc-root="rate-card-calc"
+                >
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="amcCalcWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Stand-alone AMC contract quote calculator using the same admin-configured formula
+                  as AMC Admin Rate Section. This does not save or create any record &mdash; it only
+                  computes a price.
+                </p>
+                <section class="detail-action-card pricing-config-card" data-calc-root="amc-calc">
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="thomsonCalcWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Stand-alone Thomson project quote calculator using the same admin-configured rates
+                  as Thomson Pricing Admin. This does not save or create any record &mdash; it only
+                  computes a price.
+                </p>
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-calc-root="thomson-calc"
+                >
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
               </div>
             </div>
