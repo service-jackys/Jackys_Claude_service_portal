@@ -403,6 +403,44 @@ export const inspectionListQuerySchema = z
   })
   .strict();
 
+// VAS sale + printable certificate (modification.md #35 -- "Issue a VAS
+// Sale -- Customer Certificate", docs/index.html's VAS Sales tab /
+// docs/code.gs HEADERS_BY_TYPE['vas-sale']). planKey is not in the legacy
+// sheet -- added so the certificate's plan-specific legal text
+// (apps/web/src/app.js VAS_PLAN_CONTENT) can be looked up exactly by key on
+// any future reprint, rather than fuzzy-matching the stored plan label.
+export const vasSalePlanKeys = ['ew1', 'ew2', 'di1', 'premium'] as const;
+export const vasSalePlanKeySchema = z.enum(vasSalePlanKeys);
+
+export const vasSaleWriteSchema = z
+  .object({
+    saleDate: dateSchema.optional(),
+    customerName: optionalText(200),
+    contactNumber: optionalText(50),
+    address: optionalText(500),
+    invoiceNumber: optionalText(120),
+    purchaseDate: dateSchema.optional(),
+    itemCode: optionalText(120),
+    itemDescription: optionalText(300),
+    planKey: vasSalePlanKeySchema,
+    vasProduct: z.string().trim().min(1).max(200),
+    sellingPrice: z.number().min(0).max(10000000),
+    planFee: z.number().min(0).max(10000000),
+    deductible: z.number().min(0).max(10000000).optional(),
+    serviceFeeText: optionalText(300),
+    contractRef: optionalText(120),
+  })
+  .strict();
+export type VasSaleWriteInput = z.infer<typeof vasSaleWriteSchema>;
+
+export const vasSaleListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
 // New functionality, not a live-system parity item: staff raise a request
 // against a job card or inspection that's Out of Warranty, and the customer

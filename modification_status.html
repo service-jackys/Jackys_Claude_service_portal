@@ -1676,6 +1676,47 @@
           <li>Next up: VAS Sale issuance + printable certificate.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#35 &mdash; Issue a VAS Sale: save + printable certificate (JDI logo)</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review + a migration run</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: new <code>vas_sales</code> table + VAS Quote Calculator page
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New <strong>"Issue a VAS Sale &mdash; Customer Certificate"</strong> section at the
+            bottom of the VAS Quote Calculator page, reusing the plan &amp; selling price already
+            selected above.
+          </li>
+          <li>
+            New <code>vas_sales</code> table (migration #019) &mdash; normalized customer/appliance
+            fields plus an auto-generated <code>VS-YYYY-NNNNN</code> reference, matching the
+            live system's VAS sale record.
+          </li>
+          <li>
+            <strong>Save</strong> posts the sale to a new API endpoint; <strong>Print
+            Certificate</strong> then generates the correct legal text for that exact plan
+            (Cover, Exclusions, Limit of Liability, depreciation table, Claims Process,
+            Cancellations &amp; Refund Schedule) &mdash; ported verbatim from the legacy
+            certificates, one set of terms per plan.
+          </li>
+          <li>
+            Certificate print header uses the JDI logo, in the same print style/shell as every
+            other printed document &mdash; only this certificate's header changed.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run the new migration (<code>019_vas_sales.sql</code>) before testing.</li>
+          <li>Save + print a certificate for each of the 4 plans and check the terms text, depreciation %, refund schedule and logo against the legacy certificates.</li>
+          <li>Confirm "management" + "sales" are the right roles to issue VAS sales.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

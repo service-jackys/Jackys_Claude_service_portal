@@ -217,6 +217,14 @@ const requestBodies = {
       },
     },
   },
+  vasSale: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/VasSaleRequest' },
+      },
+    },
+  },
   warrantyApprovalCreate: {
     required: false,
     content: {
@@ -790,6 +798,28 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             customerSignature: { type: 'string', minLength: 1, maxLength: 200 },
             signatureDate: { type: 'string', format: 'date' },
             legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
+          },
+        },
+        VasSaleRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['planKey', 'vasProduct', 'sellingPrice', 'planFee'],
+          properties: {
+            saleDate: { type: 'string', format: 'date' },
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
+            address: { type: 'string', minLength: 1, maxLength: 500 },
+            invoiceNumber: { type: 'string', minLength: 1, maxLength: 120 },
+            purchaseDate: { type: 'string', format: 'date' },
+            itemCode: { type: 'string', minLength: 1, maxLength: 120 },
+            itemDescription: { type: 'string', minLength: 1, maxLength: 300 },
+            planKey: { type: 'string', enum: ['ew1', 'ew2', 'di1', 'premium'] },
+            vasProduct: { type: 'string', minLength: 1, maxLength: 200 },
+            sellingPrice: { type: 'number', minimum: 0, maximum: 10000000 },
+            planFee: { type: 'number', minimum: 0, maximum: 10000000 },
+            deductible: { type: 'number', minimum: 0, maximum: 10000000 },
+            serviceFeeText: { type: 'string', minLength: 1, maxLength: 300 },
+            contractRef: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },
         WarrantyApprovalCreateRequest: {

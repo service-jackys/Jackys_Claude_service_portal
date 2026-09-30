@@ -32,6 +32,8 @@ import { createQuotationHandlers } from '../quotations/routes.js';
 import { createQuotationService } from '../quotations/service.js';
 import { createInspectionHandlers } from '../inspections/routes.js';
 import { createInspectionService } from '../inspections/service.js';
+import { createVasSaleHandlers } from '../vas-sales/routes.js';
+import { createVasSaleService } from '../vas-sales/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
@@ -73,6 +75,7 @@ export type RouteDefinition = {
     | 'serviceJobCardStatus'
     | 'quotation'
     | 'inspection'
+    | 'vasSale'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision';
   parameters?: object[];
@@ -386,6 +389,22 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const vasSaleHandlers = pool
+    ? createVasSaleHandlers(createVasSaleService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1618,6 +1637,41 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: inspectionHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/vas-sales',
+        operationId: 'listVasSales',
+        tags: ['VAS Sales'],
+        summary: 'List issued VAS sales',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: vasSaleHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/vas-sales',
+        operationId: 'createVasSale',
+        tags: ['VAS Sales'],
+        summary: 'Issue a VAS sale and allocate its certificate reference',
+        security: 'bearerAuth' as const,
+        requestBody: 'vasSale' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: vasSaleHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/vas-sales/{id}',
+        operationId: 'getVasSale',
+        tags: ['VAS Sales'],
+        summary: 'Get a VAS sale (e.g. to reprint its certificate)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: vasSaleHandlers.detail,
       },
       {
         method: 'post' as const,

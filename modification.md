@@ -1590,3 +1590,45 @@ pages' customer-facing card, using the new plan fields added in #33:
   legacy VAS Pricing/VAS Sales pages.
 - Next up: VAS Sale issuance + printable certificate (per plan), with the JDI logo in the print
   header.
+
+## Modification #35 — Issue a VAS Sale: save + printable certificate (JDI logo)
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push. Adds a
+new database table, so this one also needs a migration run.
+
+### What changed
+
+Added the "Issue a VAS Sale — Customer Certificate" section to the bottom of the VAS Quote
+Calculator page, item (d)+(e) from your last message:
+
+- **New `vas_sales` table** (`packages/db/migrations/019_vas_sales.sql`) — a normalized record of
+  every VAS plan actually sold, matching the live system's `HEADERS_BY_TYPE['vas-sale']` field set
+  (customer name, contact, address, invoice number, purchase date, item code/description, plan,
+  selling price, plan fee, deductible, service fee, contract ref.), plus its own auto-generated
+  reference (`VS-YYYY-NNNNN`, same allocator pattern as quotations/inspections). One field the
+  legacy sheet didn't have — `plan_key` — was added so a reprinted certificate always finds the
+  exact plan's legal text, instead of matching it by display label.
+- **New `vas_sale.read` / `vas_sale.write` permissions**, granted to management + sales (same roles
+  as quotations/inspections) — separate from `pricing_config.*`, since issuing a sale is a
+  day-to-day sales action, not an admin one.
+- **Save**: the section reuses whichever plan and selling price are currently selected in the
+  calculator above, adds customer/appliance fields you fill in, and saves it via a new
+  `POST /api/vas-sales` endpoint.
+- **Print Certificate**: once saved, a certificate is generated with the exact legal text for that
+  plan (Cover, Exclusions, Limit of Liability, Basis of Claim Settlement / depreciation table,
+  Claims Process, Cancellations & Refund Schedule) — ported verbatim from the legacy
+  index.html/code.gs terms for each of the 4 plans, so each VAS plan gets its own correct
+  certificate wording, same as the legacy system.
+- **Print header uses the JDI logo** (`assets/landing/jdi-logogt.png`), in the same print style/CSS
+  shell already used for every other printed document (job card, quotation, inspection) — only this
+  certificate's header swaps in the logo image; the other documents' headers are unchanged.
+
+### Needs you
+
+- Run the new migration (`019_vas_sales.sql`) before testing this — it adds the `vas_sales` table
+  and the two new permission codes.
+- Save a sale for each of the 4 plans and check the printed certificate against the legacy
+  certificates you shared (terms text, depreciation %, refund schedule, logo).
+- Confirm the "management" and "sales" roles are the right ones to issue VAS sales — same roles as
+  quotations/inspections, but let me know if it should be different.
