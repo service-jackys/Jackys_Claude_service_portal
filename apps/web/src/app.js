@@ -167,6 +167,36 @@
     });
   }
 
+  // Collapsible sidebar (Modification #25 follow-up) -- toggled on the
+  // <html> element (not <body>) so the choice can be read and applied by a
+  // tiny inline script in index.html's <head> before first paint, the same
+  // reason the theme/palette choice above lives on <html> rather than
+  // <body>. Persisted per browser, same pattern as theme/palette.
+  const SIDEBAR_STORAGE_KEY = 'jackys-service-portal:sidebarCollapsed';
+
+  function applySidebarCollapsed(collapsed) {
+    document.documentElement.classList.toggle('sidebar-collapsed', collapsed);
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? '1' : '0');
+    } catch {
+      // Non-fatal.
+    }
+    const button = document.getElementById('sidebarToggleButton');
+    if (button) {
+      button.setAttribute('aria-expanded', String(!collapsed));
+      button.setAttribute('aria-label', collapsed ? 'Expand sidebar' : 'Collapse sidebar');
+      button.title = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+    }
+  }
+  function initSidebarToggle() {
+    const button = document.getElementById('sidebarToggleButton');
+    if (!button) return;
+    applySidebarCollapsed(document.documentElement.classList.contains('sidebar-collapsed'));
+    button.addEventListener('click', () => {
+      applySidebarCollapsed(!document.documentElement.classList.contains('sidebar-collapsed'));
+    });
+  }
+
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentJobCardId = null;
@@ -5014,5 +5044,6 @@ ${bodyHtml}
   initInspectionForms();
   initThemeAndPaletteControls();
   initUserMenu();
+  initSidebarToggle();
   restoreSession();
 })();

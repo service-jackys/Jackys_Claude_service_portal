@@ -1212,6 +1212,23 @@ Three more things you flagged, all fixed:
 - Gave the logo a small white plate of its own in the header, since the artwork was designed for
   a light bar and would have been hard to read directly on the new navy background.
 
+### Fourth follow-up (same day) — collapsible sidebar
+
+- **Sidebar can now collapse to icons only.** A small chevron button at the top of the sidebar
+  toggles between the full sidebar (icon + label, current width) and a narrow icon-only strip;
+  the workspace content area automatically widens to use the freed space, and back again, with a
+  short animation. Your choice is remembered per browser.
+- **Every navigation item now has its own icon** (Dashboard, Complaint inbox, Service requests,
+  New request, Salesmen & channels, Service job cards, Quotations, Inspections, Warranty
+  approvals, Technicians, Team logins, Appointments) — visible at all times, and the only thing
+  shown once collapsed. Hovering a collapsed icon still shows its name as a tooltip.
+- Built as a small reusable SVG icon set (one `<symbol>` per section, defined once near the top of
+  the page) rather than one-off images, specifically so a future new section just needs one more
+  `<symbol>` added there plus a reference to it on its nav button — no other part of this needs
+  to change.
+- On narrow/mobile screens the sidebar keeps behaving as before (a full stacked bar, no
+  collapse toggle) — collapsing only makes sense once there's a fixed sidebar to shrink.
+
 ### Known follow-up
 
 - Dark mode is applied broadly but not exhaustively verified against every screen in the app

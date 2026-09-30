@@ -29,6 +29,9 @@
           if (palette) {
             document.documentElement.setAttribute('data-palette', palette);
           }
+          if (localStorage.getItem('jackys-service-portal:sidebarCollapsed') === '1') {
+            document.documentElement.classList.add('sidebar-collapsed');
+          }
         } catch (e) {}
       })();
     </script>
@@ -57,6 +60,7 @@
         --accent-quotations: #b5750a;
         --accent-warranty: #a3405a;
         --nav-height: 76px;
+        --sidebar-width: 252px;
       }
 
       * {
@@ -1643,10 +1647,11 @@
         padding: 0;
       }
       body.is-authenticated .dashboard {
-        grid-template-columns: 252px minmax(0, 1fr);
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
         gap: 0;
         align-items: stretch;
         min-height: calc(100vh - var(--nav-height));
+        transition: grid-template-columns 0.18s ease;
       }
       /* The sidebar is pinned to the viewport (not just "sticky" within the
          page's own scroll), so its colored panel always reaches the very
@@ -1660,11 +1665,13 @@
         top: var(--nav-height);
         left: 0;
         bottom: 0;
-        width: 252px;
+        width: var(--sidebar-width);
         overflow-y: auto;
+        overflow-x: hidden;
         border-right: 1px solid var(--line);
         background: var(--surface);
         padding: 1.1rem 0.9rem;
+        transition: width 0.18s ease;
       }
       body.is-authenticated .dashboard-nav .user-card {
         border: 0;
@@ -1685,7 +1692,8 @@
         max-width: 1680px;
       }
       body.is-authenticated footer {
-        padding-left: 252px;
+        padding-left: var(--sidebar-width);
+        transition: padding-left 0.18s ease;
       }
       @media (max-width: 900px) {
         body.is-authenticated .dashboard-nav {
@@ -1959,6 +1967,78 @@
       body.is-authenticated .dashboard-link[aria-current='page'] {
         box-shadow: inset 3px 0 0 var(--blue);
       }
+      .nav-icon {
+        flex: none;
+        width: 19px;
+        height: 19px;
+        color: inherit;
+      }
+      .nav-label {
+        overflow: hidden;
+        flex: 1 1 auto;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .nav-arrow {
+        flex: none;
+      }
+
+      /* Collapsible sidebar (Modification #25 follow-up): a toggle button
+         at the top of the sidebar sets --sidebar-width to a narrow,
+         icon-only value via the `sidebar-collapsed` class on <body>. Every
+         layout rule that positions the sidebar/content/header/footer reads
+         --sidebar-width rather than a fixed number (see the token at
+         :root), so this one class collapses and re-expands the whole app
+         shell together. Persisted per browser by app.js, the same pattern
+         as the theme/palette choice. New nav items automatically support
+         this as long as they follow the existing
+         icon + .nav-label + .nav-arrow structure. */
+      .sidebar-toggle {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        justify-content: flex-end;
+        margin-bottom: 0.6rem;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: rgb(255 255 255 / 55%);
+        padding: 0.4rem;
+      }
+      .sidebar-toggle:hover {
+        background: rgb(255 255 255 / 12%);
+        color: #fff;
+      }
+      .sidebar-toggle .nav-icon {
+        transition: transform 0.18s ease;
+      }
+      html.sidebar-collapsed {
+        --sidebar-width: 72px;
+      }
+      html.sidebar-collapsed .sidebar-toggle {
+        justify-content: center;
+      }
+      html.sidebar-collapsed .sidebar-toggle .nav-icon {
+        transform: rotate(180deg);
+      }
+      html.sidebar-collapsed .nav-group-label,
+      html.sidebar-collapsed .nav-label,
+      html.sidebar-collapsed .nav-arrow {
+        display: none;
+      }
+      html.sidebar-collapsed .dashboard-link {
+        justify-content: center;
+        padding: 0.6rem;
+      }
+      html.sidebar-collapsed .dashboard-link[aria-current='page'] {
+        box-shadow: none;
+        background: rgb(255 255 255 / 16%);
+      }
+      @media (max-width: 900px) {
+        .sidebar-toggle {
+          display: none;
+        }
+      }
       /* Header aligned to the sidebar's own 252px column, so the brand
          logo sits directly above it (same left edge, same width) instead of
          indented into a centered container while the sidebar starts flush
@@ -1967,13 +2047,14 @@
          width. */
       body.is-authenticated .nav-inner {
         display: grid;
-        grid-template-columns: 252px minmax(0, 1fr);
+        grid-template-columns: var(--sidebar-width) minmax(0, 1fr);
         align-items: center;
         width: 100%;
         max-width: none;
         margin: 0;
         padding: 0;
         min-height: var(--nav-height);
+        transition: grid-template-columns 0.18s ease;
       }
       body.is-authenticated .brand {
         margin-right: 0;
@@ -2087,6 +2168,176 @@
     </style>
   </head>
   <body>
+    <!-- Sidebar section icons, kept as one reusable SVG sprite (Modification #25
+         follow-up) -- add a new <symbol id="icon-..."> here and reference it with
+         <svg class="nav-icon"><use href="#icon-..."></use></svg> for any future
+         nav item, rather than inlining a fresh <svg> per button. -->
+    <svg style="display: none" aria-hidden="true">
+      <symbol
+        id="icon-dashboard"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="3" width="8" height="8" rx="1.5" />
+        <rect x="13" y="3" width="8" height="8" rx="1.5" />
+        <rect x="3" y="13" width="8" height="8" rx="1.5" />
+        <rect x="13" y="13" width="8" height="8" rx="1.5" />
+      </symbol>
+      <symbol
+        id="icon-inbox"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M5 4h14l2 8v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-6l2-8z" />
+        <path d="M3 12h4l2 3h6l2-3h4" />
+      </symbol>
+      <symbol
+        id="icon-clipboard"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="6" y="4" width="12" height="17" rx="2" />
+        <rect x="9" y="2" width="6" height="4" rx="1" />
+        <path d="M9 11h6M9 15h6" />
+      </symbol>
+      <symbol
+        id="icon-plus-circle"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 8v8M8 12h8" />
+      </symbol>
+      <symbol
+        id="icon-users"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="9" cy="8" r="3" />
+        <circle cx="17" cy="10" r="2.3" />
+        <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" />
+        <path d="M15.5 14.2c2 .4 3.5 2.1 3.5 4.3" />
+      </symbol>
+      <symbol
+        id="icon-wrench"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-3 3-2-2z" />
+      </symbol>
+      <symbol
+        id="icon-file-text"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M7 3h7l4 4v14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z" />
+        <path d="M14 3v4h4" />
+        <path d="M9 13h6M9 17h6M9 9h2" />
+      </symbol>
+      <symbol
+        id="icon-clipboard-check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="6" y="4" width="12" height="17" rx="2" />
+        <rect x="9" y="2" width="6" height="4" rx="1" />
+        <path d="M9.5 13l1.8 1.8L14.5 11" />
+      </symbol>
+      <symbol
+        id="icon-shield-check"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M12 3l7 3v6c0 4.5-3 8-7 9-4-1-7-4.5-7-9V6l7-3z" />
+        <path d="M9 12l2 2 4-4" />
+      </symbol>
+      <symbol
+        id="icon-hard-hat"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M4 15a8 8 0 0 1 16 0" />
+        <rect x="2" y="15" width="20" height="3" rx="1.5" />
+        <path d="M12 6.5v4" />
+      </symbol>
+      <symbol
+        id="icon-key"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="8" cy="15" r="4" />
+        <path d="M11 12l9-9" />
+        <path d="M17 6l2 2M14 9l2 2" />
+      </symbol>
+      <symbol
+        id="icon-calendar"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <rect x="3" y="5" width="18" height="16" rx="2" />
+        <path d="M3 9h18M8 3v4M16 3v4" />
+      </symbol>
+      <symbol
+        id="icon-collapse"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M15 6l-6 6 6 6" />
+        <path d="M19.5 6l-6 6 6 6" opacity="0.55" />
+      </symbol>
+    </svg>
     <a class="skip-link" href="#main-content">Skip to main content</a>
     <div class="topbar">
       <div class="topbar-inner">
@@ -2387,6 +2638,16 @@
       >
         <div class="dashboard">
           <aside class="dashboard-nav">
+            <button
+              class="sidebar-toggle"
+              type="button"
+              id="sidebarToggleButton"
+              aria-expanded="true"
+              aria-label="Collapse sidebar"
+              title="Collapse sidebar"
+            >
+              <svg class="nav-icon" aria-hidden="true"><use href="#icon-collapse"></use></svg>
+            </button>
             <div class="dashboard-links">
               <p class="nav-group-label">Overview</p>
               <button
@@ -2395,8 +2656,11 @@
                 id="dashboardNav"
                 hidden
                 aria-label="Dashboard"
+                title="Dashboard"
               >
-                Dashboard <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+                <span class="nav-label">Dashboard</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <p class="nav-group-label">Service desk</p>
               <button
@@ -2405,8 +2669,11 @@
                 aria-current="page"
                 id="complaintsNav"
                 aria-label="Complaint inbox"
+                title="Complaint inbox"
               >
-                Complaint inbox <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-inbox"></use></svg>
+                <span class="nav-label">Complaint inbox</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2414,17 +2681,23 @@
                 id="serviceRequestsNav"
                 hidden
                 aria-label="Service requests"
+                title="Service requests"
               >
-                Service requests <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
+                <span class="nav-label">Service requests</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
                 type="button"
                 id="newRequestNav"
                 hidden
-                aria-label="New service request"
+                aria-label="New request"
+                title="New request"
               >
-                New request <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg>
+                <span class="nav-label">New request</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <p class="nav-group-label">Records</p>
               <button
@@ -2432,9 +2705,12 @@
                 type="button"
                 id="masterDataNav"
                 hidden
-                aria-label="Salesmen and sales channels"
+                aria-label="Salesmen &amp; channels"
+                title="Salesmen &amp; channels"
               >
-                Salesmen &amp; channels <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+                <span class="nav-label">Salesmen &amp; channels</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2442,8 +2718,11 @@
                 id="jobCardsNav"
                 hidden
                 aria-label="Service job cards"
+                title="Service job cards"
               >
-                Service job cards <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-wrench"></use></svg>
+                <span class="nav-label">Service job cards</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2451,8 +2730,11 @@
                 id="quotationsNav"
                 hidden
                 aria-label="Quotations"
+                title="Quotations"
               >
-                Quotations <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-file-text"></use></svg>
+                <span class="nav-label">Quotations</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2460,8 +2742,13 @@
                 id="inspectionsNav"
                 hidden
                 aria-label="Inspections"
+                title="Inspections"
               >
-                Inspections <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true">
+                  <use href="#icon-clipboard-check"></use>
+                </svg>
+                <span class="nav-label">Inspections</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2469,8 +2756,11 @@
                 id="warrantyApprovalsNav"
                 hidden
                 aria-label="Warranty approvals"
+                title="Warranty approvals"
               >
-                Warranty approvals <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-shield-check"></use></svg>
+                <span class="nav-label">Warranty approvals</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <p class="nav-group-label">Admin</p>
               <button
@@ -2479,8 +2769,11 @@
                 id="techniciansNav"
                 hidden
                 aria-label="Technicians"
+                title="Technicians"
               >
-                Technicians <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-hard-hat"></use></svg>
+                <span class="nav-label">Technicians</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2488,8 +2781,11 @@
                 id="teamAccountsNav"
                 hidden
                 aria-label="Team logins"
+                title="Team logins"
               >
-                Team logins <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                <span class="nav-label">Team logins</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
                 class="dashboard-link"
@@ -2497,8 +2793,11 @@
                 id="appointmentsNav"
                 hidden
                 aria-label="Appointments"
+                title="Appointments"
               >
-                Appointments <span aria-hidden="true">→</span>
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+                <span class="nav-label">Appointments</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
             </div>
           </aside>
