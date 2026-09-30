@@ -1659,11 +1659,19 @@
         align-items: stretch;
         min-height: calc(100vh - var(--nav-height));
       }
+      /* The sidebar is pinned to the viewport (not just "sticky" within the
+         page's own scroll), so its colored panel always reaches the very
+         bottom of the browser window -- it never runs out partway down a
+         short page and leaves a blank gap above the footer, and it keeps
+         covering the same 252px strip no matter how far the content column
+         scrolls. #staff-workspace's own footer sibling gets a matching
+         left-padding below so its text doesn't render underneath it. */
       body.is-authenticated .dashboard-nav {
-        position: sticky;
+        position: fixed;
         top: var(--nav-height);
-        align-self: stretch;
-        height: calc(100vh - var(--nav-height));
+        left: 0;
+        bottom: 0;
+        width: 252px;
         overflow-y: auto;
         border-right: 1px solid var(--line);
         background: var(--surface);
@@ -1679,15 +1687,26 @@
         padding: 1.6rem clamp(1.25rem, 2.4vw, 2.5rem) 3rem;
         max-width: 1680px;
       }
+      body.is-authenticated footer {
+        padding-left: 252px;
+      }
       @media (max-width: 900px) {
         body.is-authenticated .dashboard-nav {
           position: static;
+          top: auto;
+          left: auto;
+          bottom: auto;
+          width: auto;
           height: auto;
           border-right: 0;
           border-bottom: 1px solid var(--line);
         }
         body.is-authenticated .dashboard {
+          grid-template-columns: 1fr;
           min-height: 0;
+        }
+        body.is-authenticated footer {
+          padding-left: 0;
         }
       }
 
@@ -1846,6 +1865,21 @@
         background: linear-gradient(180deg, var(--navy), var(--navy-deep));
         border-right: 0;
         padding: 1.1rem 0.75rem;
+      }
+      /* A soft wash of the chosen palette behind the workspace's white cards
+         (light theme only -- in dark theme the neutral --surface-soft token
+         already reads as "on brand" on its own, and the pastel --blue-soft
+         tints would look washed-out on a dark backdrop). This is what makes
+         switching palettes read as a whole-page change rather than just a
+         sidebar color swap. */
+      html:not([data-theme='dark']) body.is-authenticated {
+        background: var(--blue-soft);
+      }
+      html:not([data-theme='dark']) body.is-authenticated .nav {
+        background: var(--blue-soft);
+      }
+      [data-theme='dark'] body.is-authenticated .nav {
+        background: rgb(16 26 44 / 92%);
       }
       body.is-authenticated .dashboard-nav .user-card {
         color: #fff;

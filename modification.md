@@ -1160,6 +1160,22 @@ light/dark toggle, palette picker).
   size, a particular palette's shade, spacing) rather than "make it better" so I can target the
   actual thing.
 
+### Follow-up fix (same day)
+
+You reported two more things after trying it:
+
+- **Sidebar only reached partway down the page** — it was sized to exactly one browser-window
+  height and scrolled along with the page, so on a page taller than one window (or a shorter
+  browser window) its dark background ran out before the page's footer, leaving a plain white
+  gap. **Fixed** — the sidebar is now pinned to the browser window itself (top-to-bottom), so its
+  color always fills the full height of your screen no matter how long the page is or how tall
+  your window is; the page footer's text is shifted right so it no longer sits underneath it.
+- **"Entire page should reflect the color selection, not just the sidebar"** (you pointed to
+  tweakcn.com as the pattern to match) — added a soft tint of the chosen palette as the page's
+  own background (behind the white content cards) and the top bar, in light mode, so picking a
+  palette now recolors the whole page's look, not only the sidebar and buttons. (Dark mode keeps
+  its own neutral dark background instead of a pastel tint, which would look washed-out there.)
+
 ### Known follow-up
 
 - Dark mode is applied broadly but not exhaustively verified against every screen in the app
