@@ -21,6 +21,10 @@ export function createPricingConfigHandlers(
     get: [
       requirePermission('pricing_config.read'),
       async (request, response, next) => {
+        // Never let the browser cache or conditionally-revalidate this: the value can
+        // change any time via Save/Reset/Restore, and a stale 304 with no body was being
+        // mis-handled as a load failure by the client (see modification.md #26 follow-up).
+        response.setHeader('Cache-Control', 'no-store');
         try {
           const domain = parseDomain(String(request.params.domain));
           if (!domain) {
@@ -36,6 +40,10 @@ export function createPricingConfigHandlers(
     save: [
       requirePermission('pricing_config.write'),
       async (request, response, next) => {
+        // Never let the browser cache or conditionally-revalidate this: the value can
+        // change any time via Save/Reset/Restore, and a stale 304 with no body was being
+        // mis-handled as a load failure by the client (see modification.md #26 follow-up).
+        response.setHeader('Cache-Control', 'no-store');
         try {
           const domain = parseDomain(String(request.params.domain));
           if (!domain) {
@@ -59,6 +67,10 @@ export function createPricingConfigHandlers(
     reset: [
       requirePermission('pricing_config.write'),
       async (request, response, next) => {
+        // Never let the browser cache or conditionally-revalidate this: the value can
+        // change any time via Save/Reset/Restore, and a stale 304 with no body was being
+        // mis-handled as a load failure by the client (see modification.md #26 follow-up).
+        response.setHeader('Cache-Control', 'no-store');
         try {
           const domain = parseDomain(String(request.params.domain));
           if (!domain) {
@@ -81,6 +93,10 @@ export function createPricingConfigHandlers(
     history: [
       requirePermission('pricing_config.read'),
       async (request, response, next) => {
+        // Never let the browser cache or conditionally-revalidate this: the value can
+        // change any time via Save/Reset/Restore, and a stale 304 with no body was being
+        // mis-handled as a load failure by the client (see modification.md #26 follow-up).
+        response.setHeader('Cache-Control', 'no-store');
         try {
           const domain = parseDomain(String(request.params.domain));
           if (!domain) {
@@ -97,6 +113,10 @@ export function createPricingConfigHandlers(
     restore: [
       requirePermission('pricing_config.write'),
       async (request, response, next) => {
+        // Never let the browser cache or conditionally-revalidate this: the value can
+        // change any time via Save/Reset/Restore, and a stale 304 with no body was being
+        // mis-handled as a load failure by the client (see modification.md #26 follow-up).
+        response.setHeader('Cache-Control', 'no-store');
         try {
           const domain = parseDomain(String(request.params.domain));
           if (!domain) {
