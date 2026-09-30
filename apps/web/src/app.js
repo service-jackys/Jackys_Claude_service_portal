@@ -5112,6 +5112,11 @@ ${bodyHtml}
             '">' +
             escapeHtml(field.label) +
             (field.type === 'percent' ? ' (%)' : '') +
+            (field.tooltip
+              ? ' <span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
+                escapeHtml(field.tooltip) +
+                '</span></span>'
+              : '') +
             '</label><input type="number" step="' +
             step +
             '" min="0" id="pc-' +
@@ -5148,7 +5153,16 @@ ${bodyHtml}
     const table = document.createElement('table');
     table.innerHTML =
       '<thead><tr>' +
-      columns.map((c) => '<th>' + escapeHtml(c.label) + '</th>').join('') +
+      columns
+        .map(
+          (c) =>
+            '<th' +
+            (c.tooltip ? ' title="' + escapeHtml(c.tooltip) + '"' : '') +
+            '>' +
+            escapeHtml(c.label) +
+            '</th>',
+        )
+        .join('') +
       (opts.noRemove ? '' : '<th></th>') +
       '</tr></thead><tbody></tbody>';
     const tbody = table.querySelector('tbody');
@@ -5273,9 +5287,24 @@ ${bodyHtml}
           container,
           data,
           [
-            { key: 'start', label: 'Band start (AED)', type: 'number' },
-            { key: 'end', label: 'Band end (AED)', type: 'number' },
-            { key: 'label', label: 'Label', type: 'text' },
+            {
+              key: 'start',
+              label: 'Band start (AED)',
+              type: 'number',
+              tooltip: 'Inclusive lower bound of this order-value band.',
+            },
+            {
+              key: 'end',
+              label: 'Band end (AED)',
+              type: 'number',
+              tooltip: 'Inclusive upper bound of this order-value band.',
+            },
+            {
+              key: 'label',
+              label: 'Label',
+              type: 'text',
+              tooltip: 'Display name shown for this band on the quote screen.',
+            },
           ],
           {
             minRows: 1,
@@ -5299,18 +5328,55 @@ ${bodyHtml}
           { path: 'ew2MinFee', label: 'Minimum fee — 2-Yr EW (AED)', type: 'number' },
           { path: 'di1MinFee', label: 'Minimum fee — 1-Yr DI (AED)', type: 'number' },
           { path: 'premiumMinFee', label: 'Minimum fee — Premium (AED)', type: 'number' },
-          { path: 'roundingStep', label: 'Rounding step (AED)', type: 'number' },
-          { path: 'claimFeeLow', label: 'Claim fee — items below threshold (AED)', type: 'number' },
+          {
+            path: 'roundingStep',
+            label: 'Rounding step (AED)',
+            type: 'number',
+            tooltip: 'The computed fee is rounded to the nearest multiple of this amount.',
+          },
+          {
+            path: 'claimFeeLow',
+            label: 'Claim fee — items below threshold (AED)',
+            type: 'number',
+            tooltip: 'Flat fee charged per claim when the item value is below the threshold.',
+          },
           {
             path: 'claimFeeHigh',
             label: 'Claim fee — items at/above threshold (AED)',
             type: 'number',
+            tooltip:
+              'Flat fee charged per claim when the item value meets or exceeds the threshold.',
           },
-          { path: 'claimFeeThreshold', label: 'Claim fee threshold (AED)', type: 'number' },
-          { path: 'deductibleEw1', label: 'Deductible — 1-Yr EW (AED)', type: 'number' },
-          { path: 'deductibleEw2', label: 'Deductible — 2-Yr EW (AED)', type: 'number' },
-          { path: 'deductibleDi1', label: 'Deductible — 1-Yr DI (AED)', type: 'number' },
-          { path: 'deductiblePremium', label: 'Deductible — Premium (AED)', type: 'number' },
+          {
+            path: 'claimFeeThreshold',
+            label: 'Claim fee threshold (AED)',
+            type: 'number',
+            tooltip: 'Item value that decides which of the two claim fees applies.',
+          },
+          {
+            path: 'deductibleEw1',
+            label: 'Deductible — 1-Yr EW (AED)',
+            type: 'number',
+            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+          },
+          {
+            path: 'deductibleEw2',
+            label: 'Deductible — 2-Yr EW (AED)',
+            type: 'number',
+            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+          },
+          {
+            path: 'deductibleDi1',
+            label: 'Deductible — 1-Yr DI (AED)',
+            type: 'number',
+            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+          },
+          {
+            path: 'deductiblePremium',
+            label: 'Deductible — Premium (AED)',
+            type: 'number',
+            tooltip: 'Amount the customer pays out of pocket before this plan covers a claim.',
+          },
         ],
         data,
         ctx.markDirty,
@@ -5330,8 +5396,16 @@ ${bodyHtml}
             path: 'technicianVisitCost',
             label: 'Technician visit cost — labor + transport (AED)',
             type: 'number',
+            tooltip:
+              'Fully-loaded cost of one technician visit, used to size the Service side of the split.',
           },
-          { path: 'referenceSellingPrice', label: 'Reference selling price (AED)', type: 'number' },
+          {
+            path: 'referenceSellingPrice',
+            label: 'Reference selling price (AED)',
+            type: 'number',
+            tooltip:
+              'Typical appliance selling price the plan percentages are benchmarked against.',
+          },
         ],
         data,
         ctx.markDirty,
@@ -5341,10 +5415,30 @@ ${bodyHtml}
         data.plans,
         [
           { key: 'plan', label: 'Plan', type: 'readonly' },
-          { key: 'claimFrequency', label: 'Claim frequency', type: 'percent' },
-          { key: 'partsCostPct', label: 'Parts cost %', type: 'percent' },
-          { key: 'marginBuffer', label: 'Margin buffer', type: 'percent' },
-          { key: 'appliedServicePct', label: 'Applied service %', type: 'percent' },
+          {
+            key: 'claimFrequency',
+            label: 'Claim frequency',
+            type: 'percent',
+            tooltip: 'Expected share of contracts on this plan that will file a claim.',
+          },
+          {
+            key: 'partsCostPct',
+            label: 'Parts cost %',
+            type: 'percent',
+            tooltip: 'Parts cost as a share of the reference selling price.',
+          },
+          {
+            key: 'marginBuffer',
+            label: 'Margin buffer',
+            type: 'percent',
+            tooltip: 'Extra margin held back before splitting profit between Sales and Service.',
+          },
+          {
+            key: 'appliedServicePct',
+            label: 'Applied service %',
+            type: 'percent',
+            tooltip: 'Share of the remaining gross profit allocated to Service on this plan.',
+          },
         ],
         {
           minRows: data.plans.length,
