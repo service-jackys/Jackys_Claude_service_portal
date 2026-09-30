@@ -1387,3 +1387,49 @@ extended to the other 4 pages only after you confirm this one looks right.
   that's the one with the most sub-sections now.
 - If anything reads awkwardly at your screen width, say which page/section and it can be
   adjusted (grid column widths are easy to retune per domain).
+
+## Modification #29 — Remove VAS Sales/Service GP Split section; fix split-wise grid layout
+
+**Date:** 2026-09-30
+**Status:** Built and verified (typecheck + build clean); needs your review before you push.
+
+### What changed
+
+- **Removed the "VAS Sales / Service GP Split" section from VAS Price Banding & Split.** You
+  were right to flag this — I traced it against the actual workbook and confirmed the problem:
+  - The **"VAS Pricing"** sheet is fully self-contained (rates, min fees, deductibles, claim
+    fees, and every value band all live in that one sheet, no other-sheet dependency) — this is
+    exactly what `vas_price_bands` and `vas_pricing_params` cover, and it's all that remains on
+    the VAS admin page now.
+  - The **"VAS Sales-Service GP Split"** sheet is a separate, management-reference-only
+    calculator: its `technicianVisitCost` input actually pulls from the `AMC-PMC-RM` sheet (a
+    real cross-sheet dependency), and its real output — the suggested/applied Service vs Sales
+    split, and the per-value-band AED split table — was never built into the admin page at all;
+    only its editable input assumptions were, under a misleading "Plan-Level Split Parameters"
+    heading. Since that whole sheet is reference-only and not part of VAS admin data entry, the
+    section is removed rather than fixed.
+  - Removed end-to-end: the `vas_profit_split` pricing-config domain, its Zod schema, its Excel
+    default, its admin-page card, and its entry in the domain allow-list — plus a new migration
+    (018) that drops any already-saved row for it and tightens the database CHECK constraint to
+    match. VAS Price Banding & Split's page description was also corrected to say what it now
+    actually admins (price banding and pricing parameters from the VAS Pricing sheet only).
+- **Fixed the split-wise grid layout** on Rate Card Admin, D+I Admin Entry, AMC Admin Rate
+  Section, and Thomson Pricing Admin — the previous `auto-fit` grid could pack 3+ narrow,
+  uneven-height columns on a wide screen, which is what made it look congested:
+  - The grid is now a fixed, responsive **2 cards per row** (1 column on narrow screens), and
+    cards in the same row now stretch to match height, so nothing sits shorter/taller than its
+    neighbor.
+  - **D+I Admin Entry's "Common Master Inputs" card now spans the full row width** ("end to
+    end") instead of being squeezed into a half-width column with 11+ fields wrapping
+    awkwardly — the rest of its cards (Customer Groupings, Regional Transport, D&I Rates,
+    Install Rates) fall into the 2-per-row grid below it.
+  - Card padding was opened up slightly so the boxes read as less cramped.
+
+### Needs you
+
+- Refresh VAS Price Banding & Split and confirm the GP Split section is gone and the remaining
+  two cards (price bands, pricing parameters) look right.
+- Refresh Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, and Thomson Pricing Admin and
+  check the new 2-per-row layout, especially D+I's full-width "Common Master Inputs" box.
+- **Run `npm run db:migrate`** to apply migration 018 (drops the `vas_profit_split` domain from
+  the database) before relying on the pricing-config admin pages again.

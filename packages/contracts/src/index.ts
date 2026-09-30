@@ -642,7 +642,6 @@ export const appointmentTransitions: Record<AppointmentStatus, readonly Appointm
 export const pricingConfigDomainSchema = z.enum([
   'vas_price_bands',
   'vas_pricing_params',
-  'vas_profit_split',
   'rate_card',
   'dandi_pricing',
   'amc_pricing',
@@ -704,31 +703,6 @@ export const vasPricingParamsSchema = z
   })
   .strict();
 export type VasPricingParamsInput = z.infer<typeof vasPricingParamsSchema>;
-
-// --- VAS: sales/service GP split ----------------------------------------
-export const vasProfitSplitPlanSchema = z
-  .object({
-    plan: z.enum([
-      '1-Year Extended Warranty',
-      '2-Year Extended Warranty',
-      '1-Year Damage Insurance',
-      'Premium Service (24hr SLA)',
-    ]),
-    claimFrequency: percentSchema,
-    partsCostPct: percentSchema,
-    marginBuffer: percentSchema,
-    appliedServicePct: percentSchema,
-  })
-  .strict();
-
-export const vasProfitSplitSchema = z
-  .object({
-    technicianVisitCost: nonNegSchema,
-    referenceSellingPrice: nonNegSchema,
-    plans: z.array(vasProfitSplitPlanSchema).min(1),
-  })
-  .strict();
-export type VasProfitSplitInput = z.infer<typeof vasProfitSplitSchema>;
 
 // --- Rate Card ------------------------------------------------------------
 export const rateCardActivitySchema = z
@@ -934,7 +908,6 @@ export function deriveThomsonTierRates(
 const pricingConfigPayloadSchemas: Record<PricingConfigDomain, z.ZodTypeAny> = {
   vas_price_bands: vasPriceBandsSchema,
   vas_pricing_params: vasPricingParamsSchema,
-  vas_profit_split: vasProfitSplitSchema,
   rate_card: rateCardSchema,
   dandi_pricing: dandiPricingSchema,
   amc_pricing: amcPricingSchema,

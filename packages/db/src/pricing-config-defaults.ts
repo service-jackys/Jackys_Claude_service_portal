@@ -5,7 +5,6 @@ import type {
   ThomsonPricingInput,
   VasPriceBandsInput,
   VasPricingParamsInput,
-  VasProfitSplitInput,
 } from '../../contracts/src/index.js';
 
 // Phase 6 (see modification.md #26) -- Excel-derived defaults, cross-checked
@@ -72,44 +71,6 @@ export const vasPricingParamsDefault: VasPricingParamsInput = {
   deductibleEw2: 0,
   deductibleDi1: 0,
   deductiblePremium: 0,
-};
-
-// technicianVisitCost = AMC techRate (salary*technicians/workingDays/hoursPerDay)
-// * visitHours + transportPerVisit = 43.2692307692 * 4 + 100 = 273.0769230769231
-// -- matches the workbook's "VAS Sales-Service GP Split" sheet exactly.
-export const vasProfitSplitDefault: VasProfitSplitInput = {
-  technicianVisitCost: 273.0769230769231,
-  referenceSellingPrice: 1500,
-  plans: [
-    {
-      plan: '1-Year Extended Warranty',
-      claimFrequency: 0.1,
-      partsCostPct: 0.1,
-      marginBuffer: 0.2,
-      appliedServicePct: 0.55,
-    },
-    {
-      plan: '2-Year Extended Warranty',
-      claimFrequency: 0.23,
-      partsCostPct: 0.1,
-      marginBuffer: 0.2,
-      appliedServicePct: 0.65,
-    },
-    {
-      plan: '1-Year Damage Insurance',
-      claimFrequency: 0.05,
-      partsCostPct: 0.2,
-      marginBuffer: 0.2,
-      appliedServicePct: 0.6,
-    },
-    {
-      plan: 'Premium Service (24hr SLA)',
-      claimFrequency: 0,
-      partsCostPct: 0,
-      marginBuffer: 0.2,
-      appliedServicePct: 1,
-    },
-  ],
 };
 
 // Proposed (going-forward) rates from the workbook's "Service Price List"
@@ -355,7 +316,6 @@ export const thomsonPricingDefault: ThomsonPricingInput = {
 export const pricingConfigDefaults = {
   vas_price_bands: vasPriceBandsDefault,
   vas_pricing_params: vasPricingParamsDefault,
-  vas_profit_split: vasProfitSplitDefault,
   rate_card: rateCardDefault,
   dandi_pricing: dandiPricingDefault,
   amc_pricing: amcPricingDefault,

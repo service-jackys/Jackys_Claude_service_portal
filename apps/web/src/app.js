@@ -5411,85 +5411,6 @@ ${bodyHtml}
         ctx.markDirty,
       );
     },
-    vas_profit_split(container, data, ctx) {
-      const scalarHost = document.createElement('div');
-      scalarHost.className = 'detail-action-card';
-      scalarHost.innerHTML = '<h4>Plan Economics Inputs</h4>';
-      const scalarFields = document.createElement('div');
-      scalarHost.appendChild(scalarFields);
-
-      const tableHost = document.createElement('div');
-      tableHost.className = 'detail-action-card';
-      tableHost.innerHTML = '<h4>Plan-Level Split Parameters</h4>';
-      const tableFields = document.createElement('div');
-      tableHost.appendChild(tableFields);
-
-      const grid = document.createElement('div');
-      grid.className = 'pc-split-grid pc-split-grid--asym';
-      grid.appendChild(scalarHost);
-      grid.appendChild(tableHost);
-
-      container.innerHTML = '';
-      container.appendChild(grid);
-      pcRenderScalarFields(
-        scalarFields,
-        [
-          {
-            path: 'technicianVisitCost',
-            label: 'Technician visit cost — labor + transport',
-            type: 'number',
-            tooltip:
-              'Fully-loaded cost of one technician visit, used to size the Service side of the split.',
-          },
-          {
-            path: 'referenceSellingPrice',
-            label: 'Reference selling price',
-            type: 'number',
-            tooltip:
-              'Typical appliance selling price the plan percentages are benchmarked against.',
-          },
-        ],
-        data,
-        ctx.markDirty,
-      );
-      pcRenderTable(
-        tableFields,
-        data.plans,
-        [
-          { key: 'plan', label: 'Plan', type: 'readonly' },
-          {
-            key: 'claimFrequency',
-            label: 'Claim frequency',
-            type: 'percent',
-            tooltip: 'Expected share of contracts on this plan that will file a claim.',
-          },
-          {
-            key: 'partsCostPct',
-            label: 'Parts cost %',
-            type: 'percent',
-            tooltip: 'Parts cost as a share of the reference selling price.',
-          },
-          {
-            key: 'marginBuffer',
-            label: 'Margin buffer',
-            type: 'percent',
-            tooltip: 'Extra margin held back before splitting profit between Sales and Service.',
-          },
-          {
-            key: 'appliedServicePct',
-            label: 'Applied service %',
-            type: 'percent',
-            tooltip: 'Share of the remaining gross profit allocated to Service on this plan.',
-          },
-        ],
-        {
-          minRows: data.plans.length,
-          noRemove: true,
-          markDirty: ctx.markDirty,
-          rerender: () => {},
-        },
-      );
-    },
     rate_card(container, data, ctx) {
       function rerenderAll() {
         container.innerHTML = '';
@@ -5586,7 +5507,7 @@ ${bodyHtml}
       container.appendChild(grid);
 
       const commonInputsHost = document.createElement('div');
-      commonInputsHost.className = 'detail-action-card';
+      commonInputsHost.className = 'detail-action-card pc-span-full';
       commonInputsHost.innerHTML = '<h4>Common Master Inputs</h4>';
       grid.appendChild(commonInputsHost);
       const maxUnitsField = document.createElement('div');
@@ -6202,8 +6123,8 @@ ${bodyHtml}
       workspaceId: 'vasAdminWorkspace',
       heading: 'VAS Price Banding & Split',
       description:
-        'Admin entry for VAS price banding, pricing parameters and the sales/service GP split.',
-      domains: ['vas_price_bands', 'vas_pricing_params', 'vas_profit_split'],
+        'Admin entry for VAS price banding and pricing parameters, sourced entirely from the VAS Pricing sheet.',
+      domains: ['vas_price_bands', 'vas_pricing_params'],
     },
     'rate-card-admin': {
       navId: 'rateCardAdminNav',

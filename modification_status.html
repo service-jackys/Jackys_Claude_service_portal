@@ -1439,6 +1439,54 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#29 &mdash; Remove VAS Sales/Service GP Split section; fix split-wise grid layout</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: remove a wrongly-scoped admin section on VAS Price Banding
+          &amp; Split, plus a grid-layout fix on the other 4 Management pages
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Removed the "VAS Sales / Service GP Split" section.</strong> Checked against
+            the actual workbook: the "VAS Pricing" sheet is fully self-contained and is exactly
+            what <code>vas_price_bands</code>/<code>vas_pricing_params</code> cover, while "VAS
+            Sales-Service GP Split" is a separate management-reference calculator (it even pulls
+            an input from the <code>AMC-PMC-RM</code> sheet) whose real output &mdash; the
+            suggested/applied split and the per-band AED split table &mdash; was never actually
+            built; only its input assumptions were, under a misleading heading. Removed
+            end-to-end: schema, Excel default, admin-page card, domain allow-list, plus a new
+            migration (018) tightening the database constraint and dropping any saved row for it.
+          </li>
+          <li>
+            <strong>Fixed the split-wise grid layout</strong> on Rate Card Admin, D+I Admin
+            Entry, AMC Admin Rate Section, and Thomson Pricing Admin: a fixed, responsive
+            2-cards-per-row grid (was an uneven auto-fit grid), with cards in the same row now
+            stretching to equal height. D+I's "Common Master Inputs" card now spans the full row
+            width instead of being squeezed into a half-width column.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Refresh VAS Price Banding &amp; Split and confirm the GP Split section is gone and
+            the remaining two cards look right.
+          </li>
+          <li>
+            Refresh the other 4 Management pages and check the new 2-per-row layout, especially
+            D+I's full-width "Common Master Inputs" box.
+          </li>
+          <li>
+            <strong>Run <code>npm run db:migrate</code></strong> to apply migration 018 before
+            relying on the pricing-config admin pages again.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
