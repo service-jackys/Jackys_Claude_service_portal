@@ -962,7 +962,10 @@
           <h2>#22 &mdash; Fixed false "active appointment" conflicts (reference-numbering bug)</h2>
           <span class="badge badge-code-complete">Verified working</span>
         </div>
-        <p class="meta">2026-09-29 &middot; Scope: backend (references, appointments) + bootstrap message + frontend race guard</p>
+        <p class="meta">
+          2026-09-29 &middot; Scope: backend (references, appointments) + bootstrap message +
+          frontend race guard
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
@@ -971,19 +974,18 @@
           </li>
           <li>
             <strong>Root cause</strong> &mdash; appointment references are formatted
-            <code>APT-YYYY-00001</code> (year only), but the counter handing out the next number
-            was keyed by the exact appointment date. Two appointments on different dates in the
-            same year each counted from 1 independently, so their references collided (both
-            became <code>APT-2026-00001</code>). The resulting database duplicate-key error was
-            mislabeled as "already has an active appointment" &mdash; an unrelated, misleading
-            explanation. There was never a real scheduling conflict.
+            <code>APT-YYYY-00001</code> (year only), but the counter handing out the next number was
+            keyed by the exact appointment date. Two appointments on different dates in the same
+            year each counted from 1 independently, so their references collided (both became
+            <code>APT-2026-00001</code>). The resulting database duplicate-key error was mislabeled
+            as "already has an active appointment" &mdash; an unrelated, misleading explanation.
+            There was never a real scheduling conflict.
           </li>
           <li>
             <strong>Fixed</strong> &mdash; the appointment / job-card / quotation / inspection /
-            warranty-approval counters now key by 1 January of the year (matching what the
-            reference format encodes). Migration 016 seeds the new counters from what's already
-            been issued. Complaint references were unaffected (they already encode the full
-            date).
+            warranty-approval counters now key by 1 January of the year (matching what the reference
+            format encodes). Migration 016 seeds the new counters from what's already been issued.
+            Complaint references were unaffected (they already encode the full date).
           </li>
           <li>
             Even if a reference collision were ever to recur, it's no longer mislabeled as an
@@ -991,14 +993,14 @@
           </li>
           <li>
             Also fixed the stale bootstrap error wording ("consumed for this process") left over
-            from before Modification #20 made bootstrap DB-backed and permanent &mdash; it now
-            says an admin account already exists and to sign in with it.
+            from before Modification #20 made bootstrap DB-backed and permanent &mdash; it now says
+            an admin account already exists and to sign in with it.
           </li>
           <li>
             Also fixed a UI race in the Schedule-appointment form: navigating to a different
             complaint while an earlier schedule request was still in flight could stamp that
-            request's result onto the complaint you'd since moved to. The handler now only
-            updates the screen if you're still viewing the complaint the request was for.
+            request's result onto the complaint you'd since moved to. The handler now only updates
+            the screen if you're still viewing the complaint the request was for.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
@@ -1026,9 +1028,9 @@
           <li>
             <strong>Fixed</strong> &mdash; the token is now also kept in the browser's
             <code>sessionStorage</code> for that tab. On page load, it's silently re-validated
-            against the server; if still good, you land back in the workspace instead of the
-            sign-in screen. <code>sessionStorage</code> (not <code>localStorage</code>) so it
-            still clears automatically when the tab/browser closes.
+            against the server; if still good, you land back in the workspace instead of the sign-in
+            screen. <code>sessionStorage</code> (not <code>localStorage</code>) so it still clears
+            automatically when the tab/browser closes.
           </li>
           <li>
             Auto-logout already existed server-side and needed no change: every session already
@@ -1037,7 +1039,9 @@
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Restart <code>npm run dev</code>, sign in, refresh, and confirm you stay signed in.</li>
+          <li>
+            Restart <code>npm run dev</code>, sign in, refresh, and confirm you stay signed in.
+          </li>
           <li>Sign out and confirm refreshing afterward does not restore the old session.</li>
         </ul>
         <div class="section-label">Follow-up</div>
@@ -1052,15 +1056,18 @@
       <div class="card">
         <div class="card-head">
           <h2>#24 &mdash; Professional full-page app shell for the staff workspace</h2>
-          <span class="badge badge-code-complete">Code complete &mdash; needs your visual review</span>
+          <span class="badge badge-code-complete"
+            >Code complete &mdash; needs your visual review</span
+          >
         </div>
-        <p class="meta">2026-09-30 &middot; Scope: staff portal frontend (CSS + 2-line app.js toggle)</p>
+        <p class="meta">
+          2026-09-30 &middot; Scope: staff portal frontend (CSS + 2-line app.js toggle)
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            After signing in, the page still looked like the public marketing page (topbar
-            banner, hero, public nav links) with the workspace squeezed into a narrow column
-            below it.
+            After signing in, the page still looked like the public marketing page (topbar banner,
+            hero, public nav links) with the workspace squeezed into a narrow column below it.
           </li>
           <li>
             <strong>Fixed</strong> &mdash; signed-in staff now get a real app shell: the topbar,
@@ -1091,7 +1098,67 @@
           <li>None flagged yet -- pending your review.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#25 &mdash; Refined CRM-pattern styling, color palettes, and dark mode</h2>
+          <span class="badge badge-code-complete"
+            >Code complete &mdash; needs your visual review</span
+          >
+        </div>
+        <p class="meta">
+          2026-09-30 &middot; Scope: staff portal frontend (CSS design tokens + palette/theme
+          controller)
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Follow-up to #24 based on your reference screenshot -- replaces the previous hand-picked
+            navy/red look with a design-token system you can switch yourself.
+          </li>
+          <li>
+            <strong>Smaller type</strong> across the whole app (base font size reduced), and
+            workspace page titles are noticeably smaller than in #24.
+          </li>
+          <li>
+            <strong>Sidebar rebuilt</strong> to match the reference pattern -- a solid dark panel
+            split into labeled groups ("Overview", "Service desk", "Records", "Admin"), smaller
+            evenly-padded links with fixed alignment, a slim colored bar marking the active page,
+            and sign out pinned to the bottom of the panel.
+          </li>
+          <li>
+            <strong>Color palette switcher</strong> -- a palette icon in the top bar offers 5
+            presets (Navy Blue, Emerald, Indigo, Teal, Amber) that recolor the accent across the
+            whole app at once (tweakcn.com-style) -- primary buttons, links, the login page's
+            selected-tab indicator, and active dashboard tabs, not just the sidebar. Status colors
+            (errors, cancelled, success, warning) stay put on purpose. Remembered per browser.
+          </li>
+          <li>
+            <strong>Light/dark theme toggle</strong> -- a sun/moon icon next to it switches the
+            whole app to a proper dark theme (not just inverted colors). Also remembered per
+            browser.
+          </li>
+          <li>
+            Both controls only appear once signed in. Implemented by re-pointing the same CSS
+            variables the rest of the stylesheet already uses, so it didn't require touching every
+            component; the record-type accent colors (Modification #6) are unchanged.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart <code>npm run dev</code>, sign in, and try the two new top-bar icons.</li>
+          <li>Try a couple of palettes and dark mode across a few different pages.</li>
+          <li>Refresh and confirm your choice is remembered.</li>
+        </ul>
+        <div class="section-label">Follow-up</div>
+        <ul>
+          <li>
+            Dark mode covers the main surfaces but hasn't been checked against every one of the
+            app's screens -- flag anything that still looks like light mode underneath.
+          </li>
+        </ul>
+      </div>
     </main>
+
     <footer>Jacky's Distribution — Service Portal migration project</footer>
   </body>
 </html>

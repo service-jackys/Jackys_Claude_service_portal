@@ -1048,7 +1048,7 @@ fresh sign-in every time.
 
 ### Known follow-up
 
-- None flagged. (Separately, a *server* restart still ends every active session immediately,
+- None flagged. (Separately, a _server_ restart still ends every active session immediately,
   since sessions themselves are still stored in memory, not the database -- only the login
   credentials were made persistent in Modification #20. Not something you've asked to change, but
   flagging it since it's the other way a "logout" can still happen.)
@@ -1102,3 +1102,67 @@ accessibility/touch-target checklist).
 ### Known follow-up
 
 - None flagged yet -- pending your review.
+
+## Modification #25 — Refined CRM-pattern styling, color palettes, and dark mode
+
+**Date:** 2026-09-30
+**Status:** Code complete — needs your visual review
+
+### What changed
+
+Follow-up to Modification #24, based on your feedback with the reference CRM screenshot: this
+replaces the previous hand-picked navy/red look with a design-token system you can switch
+yourself, closer to the pattern in the image you shared (dark grouped sidebar, compact type,
+light/dark toggle, palette picker).
+
+- **Smaller type across the whole app** — the base font size is reduced (~94% of before), and
+  the workspace header/page titles are noticeably smaller and less oversized than in #24.
+- **Sidebar rebuilt to match the reference pattern** — it's now a solid dark panel (instead of a
+  plain list on a white card), split into labeled groups ("Overview", "Service desk", "Records",
+  "Admin") the way the screenshot's sidebar groups "Overview / Commerce / Apps". Links are
+  smaller, evenly padded, and properly aligned (fixing the "fonts too big, alignment not
+  perfect" issue); the active page gets a slim colored bar on its left edge instead of a plain
+  background tint. Sign out is pinned to the bottom of the panel.
+- **Color palette switcher** — a small palette icon in the top bar (next to where the reference
+  image has one) opens 5 preset color options: Navy Blue (the original), Emerald, Indigo, Teal,
+  and Amber. Picking one recolors the accent consistently across the whole app in one shot (the
+  pattern from sites like tweakcn.com's theme editor) — not just the sidebar: primary action
+  buttons ("Sign in", "Save", "Create quotation", etc.), links, the selected-tab indicator on the
+  login page, active dashboard tabs, and section headings all switch together, since they already
+  shared the same underlying color variables. Status colors that carry a specific meaning (error
+  text, the red "cancelled" marker, success green, warning amber) are left alone on purpose, the
+  same way tweakcn keeps a "destructive" color separate from the picked theme color. Your choice
+  is remembered (localStorage) and reapplied on your next visit, on that browser.
+- **Light/dark theme toggle** — a sun/moon icon next to the palette picker switches the whole
+  app between light and a proper dark theme (dark backgrounds, light text, adjusted borders and
+  card colors) rather than just inverting colors. Also remembered per browser.
+- Both controls only appear once you're signed in (they live in the top bar, which is hidden for
+  anonymous visitors per #24) and apply instantly with no page reload.
+- Under the hood: this works by re-pointing the same CSS variables (`--navy`, `--blue`, `--ink`,
+  `--muted`, etc.) that the rest of the stylesheet already uses everywhere, via
+  `[data-palette="…"]` / `[data-theme="dark"]` attributes on `<html>` — so it didn't require
+  touching every individual component's CSS, and the record-type accent colors (appointments,
+  job cards, quotations, warranty — Modification #6) are left as they were, since those identify
+  a record type rather than the brand.
+- A tiny inline script in `index.html`'s `<head>` applies your saved theme/palette before the
+  page paints, so it never flashes the default look first.
+
+### Needs you
+
+- Restart `npm run dev`, sign in, and try the two new icons in the top bar (palette + sun/moon)
+  in the sidebar area.
+  - Pick a couple of the 5 palettes and confirm the sidebar/buttons/links all recolor together.
+  - Toggle dark mode and check a few different pages (Complaint inbox, a detail view, a form)
+    for anything that still looks like light mode underneath (a stray white background, etc.) —
+    dark mode covers the main surfaces but this is a large app and something could be missed.
+  - Refresh the page after choosing a palette/theme and confirm it's remembered.
+- As with #24, this is a visual/subjective change — tell me specifically what to nudge (font
+  size, a particular palette's shade, spacing) rather than "make it better" so I can target the
+  actual thing.
+
+### Known follow-up
+
+- Dark mode is applied broadly but not exhaustively verified against every screen in the app
+  (there are dozens of forms/detail views) — flag any page where it looks off and I'll patch it.
+- `appointments.b2b_branch_cust_code` carry-forward (tracked since Modification #2) — still
+  unaddressed, unrelated to this change.

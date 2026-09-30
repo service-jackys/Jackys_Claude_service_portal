@@ -14,6 +14,24 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+    <script>
+      /* Applies the saved theme/palette before first paint, so the page never
+         flashes the default light/navy look and then jumps to the user's
+         chosen one (Modification #25). Keys mirror app.js's THEME_STORAGE_KEY
+         / PALETTE_STORAGE_KEY constants. */
+      (function () {
+        try {
+          var theme = localStorage.getItem('jackys-service-portal:theme');
+          var palette = localStorage.getItem('jackys-service-portal:palette');
+          if (theme === 'dark' || theme === 'light') {
+            document.documentElement.setAttribute('data-theme', theme);
+          }
+          if (palette) {
+            document.documentElement.setAttribute('data-palette', palette);
+          }
+        } catch (e) {}
+      })();
+    </script>
     <style>
       :root {
         color-scheme: light;
@@ -46,6 +64,7 @@
       }
       html {
         scroll-behavior: smooth;
+        font-size: 15px;
       }
       body {
         min-width: 320px;
@@ -208,11 +227,11 @@
         box-shadow: 0 8px 18px rgb(16 43 78 / 12%);
       }
       .button-primary {
-        background: var(--red);
+        background: var(--blue);
         color: #fff;
       }
       .button-primary:hover:not(:disabled) {
-        background: #a92525;
+        filter: brightness(0.9);
       }
       .button-secondary {
         border-color: var(--navy);
@@ -662,7 +681,7 @@
         font-weight: 700;
       }
       .auth-tab[aria-selected='true'] {
-        border-color: var(--red);
+        border-color: var(--blue);
         color: var(--navy);
       }
       .auth-panel[hidden] {
@@ -1671,6 +1690,219 @@
           min-height: 0;
         }
       }
+
+      /* ---------- Modification #25: refined CRM-pattern styling, palettes, dark mode ----------
+         Everything below is additive -- it re-points the existing design tokens
+         (--navy, --blue, --ink, --muted, --line, --surface, --surface-soft, --shadow)
+         that the rest of this stylesheet already uses (see :root above), rather than
+         re-styling every component individually. Two independent switches, both set
+         as attributes on <html> and persisted to localStorage by app.js:
+           data-theme="light" | "dark"      -- overrides the neutral tokens
+           data-palette="navy|emerald|indigo|teal|amber"  -- overrides the brand/accent tokens
+         The category accent colors (--accent-appointments etc., Modification #6) are
+         deliberately left alone -- those identify a record type, not the brand. */
+
+      [data-palette='emerald'] {
+        --navy: #0f3d2e;
+        --navy-deep: #082017;
+        --blue: #0e9f6e;
+        --blue-soft: #e3f8ef;
+      }
+      [data-palette='indigo'] {
+        --navy: #211d5e;
+        --navy-deep: #14113a;
+        --blue: #4f46e5;
+        --blue-soft: #ecebfd;
+      }
+      [data-palette='teal'] {
+        --navy: #0f2b30;
+        --navy-deep: #081a1e;
+        --blue: #0891b2;
+        --blue-soft: #e1f4f8;
+      }
+      [data-palette='amber'] {
+        --navy: #3a2410;
+        --navy-deep: #22150a;
+        --blue: #d9670c;
+        --blue-soft: #fdf0e3;
+      }
+
+      [data-theme='dark'] {
+        color-scheme: dark;
+        --ink: #e7ecf5;
+        --muted: #97a6bd;
+        --line: #29374d;
+        --surface: #101a2c;
+        --surface-soft: #0a1220;
+        --shadow: 0 20px 55px rgb(0 0 0 / 45%);
+      }
+      [data-theme='dark'] .nav {
+        background: rgb(16 26 44 / 92%);
+        border-bottom-color: var(--line);
+      }
+      [data-theme='dark'] .button-outline {
+        background: var(--surface);
+        border-color: var(--line);
+        color: var(--ink);
+      }
+      [data-theme='dark'] footer {
+        background: var(--surface);
+      }
+      [data-theme='dark'] .calendar-cell,
+      [data-theme='dark'] .skip-link {
+        background: var(--surface);
+        color: var(--ink);
+      }
+      [data-theme='dark'] .calendar-event {
+        border-color: var(--line);
+        background: var(--surface-soft);
+        color: var(--ink);
+      }
+      [data-theme='dark'] .role {
+        background: var(--surface-soft);
+      }
+      [data-theme='dark'] input,
+      [data-theme='dark'] select,
+      [data-theme='dark'] textarea {
+        background: var(--surface);
+        border-color: var(--line);
+        color: var(--ink);
+      }
+      [data-theme='dark'] .card {
+        background: var(--surface);
+      }
+
+      /* Smaller, denser type scale across the whole app, and a compact,
+         palette-driven sidebar that matches common CRM admin patterns
+         (dark panel, grouped sections, slim active-item indicator). */
+      body {
+        font-size: 0.95rem;
+      }
+      .dashboard-header h2 {
+        font-size: 1.4rem;
+      }
+      h1 {
+        font-size: clamp(1.7rem, 3vw, 2.35rem);
+      }
+
+      .nav-controls {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      body:not(.is-authenticated) .nav-controls {
+        display: none;
+      }
+      .icon-button {
+        display: grid;
+        place-items: center;
+        width: 38px;
+        height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 1rem;
+        line-height: 1;
+      }
+      .icon-button:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      .palette-popover-wrap {
+        position: relative;
+      }
+      .palette-popover {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        z-index: 20;
+        display: flex;
+        gap: 0.5rem;
+        padding: 0.6rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+      .palette-popover[hidden] {
+        display: none;
+      }
+      .palette-swatch {
+        width: 26px;
+        height: 26px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        padding: 0;
+        cursor: pointer;
+      }
+      .palette-swatch[aria-current='true'] {
+        border-color: var(--ink);
+      }
+
+      body.is-authenticated .dashboard-nav {
+        display: flex;
+        flex-direction: column;
+        background: linear-gradient(180deg, var(--navy), var(--navy-deep));
+        border-right: 0;
+        padding: 1.1rem 0.75rem;
+      }
+      body.is-authenticated .dashboard-nav .user-card {
+        color: #fff;
+        padding: 0.3rem 0.35rem 1rem;
+      }
+      body.is-authenticated .user-avatar {
+        background: rgb(255 255 255 / 14%);
+        color: #fff;
+      }
+      body.is-authenticated .user-card strong {
+        color: #fff;
+        font-size: 0.94rem;
+      }
+      body.is-authenticated .user-card small {
+        color: rgb(255 255 255 / 62%);
+        font-size: 0.78rem;
+      }
+      body.is-authenticated .role {
+        background: rgb(255 255 255 / 14%);
+        color: #fff;
+      }
+      body.is-authenticated .dashboard-links {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        gap: 0.15rem;
+        margin-top: 0.5rem;
+      }
+      .nav-group-label {
+        margin: 0.85rem 0.6rem 0.3rem;
+        color: rgb(255 255 255 / 45%);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+      body.is-authenticated .dashboard-link {
+        gap: 0.6rem;
+        border-radius: 8px;
+        color: rgb(255 255 255 / 78%);
+        padding: 0.55rem 0.7rem;
+        font-size: 0.86rem;
+        font-weight: 600;
+      }
+      body.is-authenticated .dashboard-link[aria-current='page'],
+      body.is-authenticated .dashboard-link:hover {
+        background: rgb(255 255 255 / 12%);
+        color: #fff;
+      }
+      body.is-authenticated .dashboard-link[aria-current='page'] {
+        box-shadow: inset 3px 0 0 var(--blue);
+      }
+      body.is-authenticated #signOutButton {
+        margin-top: auto;
+        border-top: 1px solid rgb(255 255 255 / 14%);
+        padding-top: 0.9rem;
+      }
     </style>
   </head>
   <body>
@@ -1693,6 +1925,69 @@
         <div class="nav-actions">
           <a class="button button-outline" href="/">Public site</a>
           <a class="button button-outline" href="/complaints">Customer complaints</a>
+        </div>
+        <div class="nav-controls">
+          <button
+            class="icon-button"
+            type="button"
+            id="themeToggleButton"
+            aria-label="Switch to dark theme"
+          >
+            <span aria-hidden="true" id="themeToggleIcon">&#9789;</span>
+          </button>
+          <div class="palette-popover-wrap">
+            <button
+              class="icon-button"
+              type="button"
+              id="paletteToggleButton"
+              aria-label="Change color palette"
+              aria-expanded="false"
+            >
+              <span aria-hidden="true">&#127912;</span>
+            </button>
+            <div class="palette-popover" id="palettePopover" role="menu" hidden>
+              <button
+                class="palette-swatch"
+                type="button"
+                data-palette="navy"
+                style="background: #1769aa"
+                aria-label="Navy blue palette"
+                role="menuitemradio"
+              ></button>
+              <button
+                class="palette-swatch"
+                type="button"
+                data-palette="emerald"
+                style="background: #0e9f6e"
+                aria-label="Emerald palette"
+                role="menuitemradio"
+              ></button>
+              <button
+                class="palette-swatch"
+                type="button"
+                data-palette="indigo"
+                style="background: #4f46e5"
+                aria-label="Indigo palette"
+                role="menuitemradio"
+              ></button>
+              <button
+                class="palette-swatch"
+                type="button"
+                data-palette="teal"
+                style="background: #0891b2"
+                aria-label="Teal palette"
+                role="menuitemradio"
+              ></button>
+              <button
+                class="palette-swatch"
+                type="button"
+                data-palette="amber"
+                style="background: #d9670c"
+                aria-label="Amber palette"
+                role="menuitemradio"
+              ></button>
+            </div>
+          </div>
         </div>
       </div>
     </nav>
@@ -1890,6 +2185,7 @@
               <small id="userEmail"></small>
               <span class="role" id="userRole">Staff</span>
               <div class="dashboard-links">
+                <p class="nav-group-label">Overview</p>
                 <button
                   class="dashboard-link"
                   type="button"
@@ -1899,6 +2195,7 @@
                 >
                   Dashboard <span aria-hidden="true">→</span>
                 </button>
+                <p class="nav-group-label">Service desk</p>
                 <button
                   class="dashboard-link"
                   type="button"
@@ -1926,6 +2223,7 @@
                 >
                   New request <span aria-hidden="true">→</span>
                 </button>
+                <p class="nav-group-label">Records</p>
                 <button
                   class="dashboard-link"
                   type="button"
@@ -1971,6 +2269,7 @@
                 >
                   Warranty approvals <span aria-hidden="true">→</span>
                 </button>
+                <p class="nav-group-label">Admin</p>
                 <button
                   class="dashboard-link"
                   type="button"

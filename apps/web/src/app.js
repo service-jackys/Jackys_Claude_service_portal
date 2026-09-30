@@ -34,6 +34,107 @@
       // Non-fatal.
     }
   }
+
+  // Theme (light/dark) and color-palette preference (Modification #25).
+  // Unlike the auth token above, this is a non-sensitive per-user display
+  // preference that should survive across browser restarts, so it belongs
+  // in localStorage rather than sessionStorage. A small inline script in
+  // index.html's <head> reads the same two keys and applies them before
+  // first paint, so the page never flashes the default look first.
+  const THEME_STORAGE_KEY = 'jackys-service-portal:theme';
+  const PALETTE_STORAGE_KEY = 'jackys-service-portal:palette';
+  const VALID_PALETTES = ['navy', 'emerald', 'indigo', 'teal', 'amber'];
+
+  function getStoredTheme() {
+    try {
+      const value = localStorage.getItem(THEME_STORAGE_KEY);
+      return value === 'dark' ? 'dark' : 'light';
+    } catch {
+      return 'light';
+    }
+  }
+  function getStoredPalette() {
+    try {
+      const value = localStorage.getItem(PALETTE_STORAGE_KEY);
+      return VALID_PALETTES.includes(value) ? value : 'navy';
+    } catch {
+      return 'navy';
+    }
+  }
+  function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {
+      // Non-fatal -- the choice just won't be remembered next visit.
+    }
+    const button = document.getElementById('themeToggleButton');
+    const icon = document.getElementById('themeToggleIcon');
+    if (button) {
+      button.setAttribute(
+        'aria-label',
+        theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme',
+      );
+    }
+    if (icon) {
+      icon.textContent = theme === 'dark' ? '\u2600' : '\u263D';
+    }
+  }
+  function applyPalette(palette) {
+    document.documentElement.setAttribute('data-palette', palette);
+    try {
+      localStorage.setItem(PALETTE_STORAGE_KEY, palette);
+    } catch {
+      // Non-fatal.
+    }
+    document.querySelectorAll('.palette-swatch').forEach((swatch) => {
+      swatch.setAttribute('aria-current', String(swatch.dataset.palette === palette));
+    });
+  }
+  function initThemeAndPaletteControls() {
+    applyTheme(getStoredTheme());
+    applyPalette(getStoredPalette());
+
+    const themeButton = document.getElementById('themeToggleButton');
+    if (themeButton) {
+      themeButton.addEventListener('click', () => {
+        const next =
+          document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+        applyTheme(next);
+      });
+    }
+
+    const paletteButton = document.getElementById('paletteToggleButton');
+    const palettePopover = document.getElementById('palettePopover');
+    if (paletteButton && palettePopover) {
+      paletteButton.addEventListener('click', (event) => {
+        event.stopPropagation();
+        const isHidden = palettePopover.hidden;
+        palettePopover.hidden = !isHidden;
+        paletteButton.setAttribute('aria-expanded', String(isHidden));
+      });
+      palettePopover.querySelectorAll('.palette-swatch').forEach((swatch) => {
+        swatch.addEventListener('click', () => {
+          applyPalette(swatch.dataset.palette);
+          palettePopover.hidden = true;
+          paletteButton.setAttribute('aria-expanded', 'false');
+        });
+      });
+      document.addEventListener('click', (event) => {
+        if (!palettePopover.hidden && !palettePopover.contains(event.target)) {
+          palettePopover.hidden = true;
+          paletteButton.setAttribute('aria-expanded', 'false');
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !palettePopover.hidden) {
+          palettePopover.hidden = true;
+          paletteButton.setAttribute('aria-expanded', 'false');
+        }
+      });
+    }
+  }
+
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentJobCardId = null;
@@ -4879,5 +4980,6 @@ ${bodyHtml}
   initJobCardForms();
   initQuotationForms();
   initInspectionForms();
+  initThemeAndPaletteControls();
   restoreSession();
 })();
