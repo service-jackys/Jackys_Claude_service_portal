@@ -1717,6 +1717,51 @@
           <li>Confirm "management" + "sales" are the right roles to issue VAS sales.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#36 &mdash; VAS Quote Calculator: workspace bug, Clear button, VAS Issued tab, dashboard tiles</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">
+          2026-10-01 &middot; Scope: VAS Quote Calculator page + Dashboard &middot; no new migration
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Fixed the bug where leaving the <strong>VAS Quote Calculator</strong> for a Management
+            admin page left the calculator showing underneath instead of hiding it.
+          </li>
+          <li>
+            Added a <strong>Clear</strong> button to reset the calculator's price/plan inputs.
+          </li>
+          <li>
+            New <strong>"VAS Issued"</strong> tab inside the VAS Quote Calculator page, listing every
+            saved VAS sale with a <strong>Print</strong> button to reprint its certificate any time.
+          </li>
+          <li>
+            <strong>Side-by-side tabs, no inner scrollbar</strong> &mdash; the tabs now sit
+            horizontally instead of stacking vertically inside a capped-height scroll box (that
+            scroll box is also why the Clear button looked missing). The intro note now sits above
+            the tabs.
+          </li>
+          <li>
+            Saving a VAS sale now <strong>auto-clears</strong> the form and calculator for the next
+            entry, while keeping the just-saved certificate printable and refreshing "VAS Issued" if
+            it's open.
+          </li>
+          <li>
+            New <strong>VAS sales</strong> tile group on the main Dashboard (total + this month),
+            matching the Quotations &amp; inspections tiles.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>No new migration &mdash; just pull and restart the server.</li>
+          <li>Confirm switching tabs no longer leaves the calculator showing, the Clear button
+          works, a saved sale appears in "VAS Issued" with a working Print button, and the new
+          Dashboard tile shows the right counts.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

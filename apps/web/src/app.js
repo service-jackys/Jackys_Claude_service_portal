@@ -3257,6 +3257,7 @@ ${bodyHtml}
     warrantyApprovals: goToWarrantyApprovalsFiltered,
     quotations: () => setWorkspaceMode('quotations'),
     inspections: () => setWorkspaceMode('inspections'),
+    vasSales: () => setWorkspaceMode('vas-calc'),
   };
 
   // Delegated click handling survives each re-render (innerHTML swap) since
@@ -3267,6 +3268,7 @@ ${bodyHtml}
     ['dashJobCardTiles', 'jobCards'],
     ['dashQuotationInspectionTiles', null],
     ['dashWarrantyApprovalTiles', 'warrantyApprovals'],
+    ['dashVasSaleTiles', null],
   ].forEach(([containerId, section]) => {
     $('#' + containerId).addEventListener('click', (event) => {
       const tile = event.target.closest('[data-tile-key]');
@@ -3322,6 +3324,10 @@ ${bodyHtml}
     $('#dashWarrantyApprovalBars').innerHTML = dashboardBarsHtml(
       summary.warrantyApprovals.byStatus,
     );
+    $('#dashVasSaleTiles').innerHTML = dashboardTilesHtml({}, [
+      ['VAS sales (total)', summary.vasSales.total, 'vasSales:total'],
+      ['VAS sales (this month)', summary.vasSales.thisMonth, 'vasSales:month'],
+    ]);
     $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
 
@@ -3351,6 +3357,7 @@ ${bodyHtml}
     $('#dashJobCardTiles').innerHTML = '';
     $('#dashQuotationInspectionTiles').innerHTML = '';
     $('#dashWarrantyApprovalTiles').innerHTML = '';
+    $('#dashVasSaleTiles').innerHTML = '';
   }
 
   function renderJobCardActions(jobCard) {
@@ -6549,6 +6556,13 @@ ${bodyHtml}
       $('#' + other.navId).setAttribute('aria-current', other === page ? 'page' : 'false');
       $('#' + other.workspaceId).hidden = other !== page;
     });
+    // Also hide every Quote Calculator panel -- those live in a separate
+    // nav group from the Management admin pages above, so the toggle loop
+    // just above never touches them (modification.md #36 fix).
+    Object.values(PRICING_CALC_PAGES).forEach((other) => {
+      $('#' + other.navId).setAttribute('aria-current', 'false');
+      $('#' + other.workspaceId).hidden = true;
+    });
     // Also hide every other workspace panel outside the Management group.
     [
       'complaintWorkspace',
@@ -6794,8 +6808,13 @@ ${bodyHtml}
     const bands = data.vas_price_bands;
     const params = data.vas_pricing_params;
     container.innerHTML =
-      '<h4>VAS Quote Calculator</h4>' +
-      '<p class="form-note">Enter the appliance selling price and pick a plan to see the customer-facing quote.</p>' +
+      '<p class="form-note">Enter the appliance selling price and pick a plan to see the customer-facing quote. Switch to "VAS Issued" to find and reprint any previously saved sale.</p>' +
+      '<div class="vc-tab-nav" role="tablist" aria-label="VAS Quote Calculator sections">' +
+      '<button type="button" class="action-tab active" data-vc-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
+      '<button type="button" class="action-tab" data-vc-tab="issued" role="tab" aria-selected="false">VAS Issued</button>' +
+      '</div>' +
+      '<div class="vc-tab-panels">' +
+      '<section data-vc-panel="quote">' +
       '<div class="field-grid">' +
       calcField(
         'Appliance selling price (AED)',
@@ -6810,18 +6829,47 @@ ${bodyHtml}
           '</select>',
       ) +
       '</div>' +
+      '<p><button type="button" class="button button-outline" data-vc-clear>Clear</button></p>' +
       '<div data-vc-output></div>' +
       '<h4 style="margin-top: 1.5rem">Quick Price — All 4 Plans at Once</h4>' +
       '<p class="form-note">Same selling price above, every plan’s fee side by side.</p>' +
       '<div data-vc-quick></div>' +
       '<h4 style="margin-top: 1.5rem">Issue a VAS Sale — Customer Certificate</h4>' +
-      '<div data-vc-sale></div>';
+      '<div data-vc-sale></div>' +
+      '</section>' +
+      '<section data-vc-panel="issued" hidden>' +
+      '<h4>VAS Issued</h4>' +
+      '<p class="form-note">Every VAS sale saved from the calculator above. Print re-opens that exact certificate.</p>' +
+      '<div data-vc-issued></div>' +
+      '</section>' +
+      '</div>';
+
+    const tabNav = container.querySelector('.vc-tab-nav');
+    const panels = Array.from(container.querySelectorAll('[data-vc-panel]'));
+    const issuedHost = container.querySelector('[data-vc-issued]');
+    tabNav.addEventListener('click', (event) => {
+      const button = event.target.closest('.action-tab');
+      if (!button) return;
+      const target = button.dataset.vcTab;
+      tabNav.querySelectorAll('.action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.vcPanel !== target;
+      });
+      if (target === 'issued') {
+        loadVasIssuedList(issuedHost, params);
+      }
+    });
 
     const orderValueInput = container.querySelector('[data-vc-order-value]');
     const planSelect = container.querySelector('[data-vc-plan]');
     const output = container.querySelector('[data-vc-output]');
     const quickHost = container.querySelector('[data-vc-quick]');
     const saleHost = container.querySelector('[data-vc-sale]');
+    const clearButton = container.querySelector('[data-vc-clear]');
 
     function recompute() {
       const orderValue = parseNumber(orderValueInput.value);
@@ -6889,10 +6937,105 @@ ${bodyHtml}
         escapeHtml(band.label) +
         '</p>';
     }
+
+    // Resets the calculator's own inputs back to their defaults -- used by
+    // the explicit Clear button and automatically once a VAS sale has been
+    // saved, so the next customer starts from a blank slate (modification.md
+    // #36, issues 1 & 3).
+    function resetCalculatorInputs() {
+      orderValueInput.value = '1000';
+      planSelect.value = VAS_CALC_PLANS[0].key;
+      recompute();
+    }
+
+    clearButton.addEventListener('click', resetCalculatorInputs);
     orderValueInput.addEventListener('input', recompute);
     planSelect.addEventListener('change', recompute);
     recompute();
-    renderVasSaleSection(saleHost, VAS_CALC_PLANS, planSelect, orderValueInput, params, bands);
+    renderVasSaleSection(
+      saleHost,
+      VAS_CALC_PLANS,
+      planSelect,
+      orderValueInput,
+      params,
+      bands,
+      resetCalculatorInputs,
+      () => {
+        // Keep the VAS Issued list in sync if it's the tab currently open.
+        const issuedPanel = container.querySelector('[data-vc-panel="issued"]');
+        if (issuedPanel && !issuedPanel.hidden) loadVasIssuedList(issuedHost, params);
+      },
+    );
+  }
+
+  // Lists every saved vas_sales record (modification.md #36, issue 2) so a
+  // previously issued VAS sale can be found again and its certificate
+  // reprinted, without anywhere else in the portal to look it up.
+  async function loadVasIssuedList(host, params) {
+    if (!hasPermission('vas_sale.read')) {
+      host.innerHTML =
+        '<p class="form-note">You don\'t have permission to view issued VAS sales.</p>';
+      return;
+    }
+    host.innerHTML = '<p class="form-note">Loading issued VAS sales&hellip;</p>';
+    try {
+      const response = await apiRequest('/api/vas-sales?pageSize=100');
+      const sales = response.vasSales || [];
+      if (!sales.length) {
+        host.innerHTML = '<p class="form-note">No VAS sales issued yet.</p>';
+        return;
+      }
+      host.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Reference</th><th>Issued</th><th>Customer</th><th>Plan</th><th>Selling price</th><th>Plan fee</th><th></th>' +
+        '</tr></thead><tbody>' +
+        sales
+          .map(
+            (sale) =>
+              '<tr>' +
+              '<td>' +
+              escapeHtml(sale.vasSaleReference) +
+              '</td><td>' +
+              escapeHtml(formatDate(sale.createdAt)) +
+              '</td><td>' +
+              escapeHtml(sale.customerName || '—') +
+              '</td><td>' +
+              escapeHtml(sale.vasProduct) +
+              '</td><td>' +
+              money(sale.sellingPrice) +
+              ' AED</td><td>' +
+              money(sale.planFee) +
+              ' AED</td><td>' +
+              '<button type="button" class="button button-outline" data-vc-reprint="' +
+              escapeHtml(sale.id) +
+              '">Print</button>' +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      host.querySelectorAll('[data-vc-reprint]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const detail = await apiRequest('/api/vas-sales/' + button.dataset.vcReprint);
+            printVasSaleCertificate(detail.vasSale, [
+              params.depreciationYear1,
+              params.depreciationYear2,
+              params.depreciationYear3,
+            ]);
+          } catch (error) {
+            setMessage(
+              '#workspaceMessage',
+              'Could not load this VAS sale: ' + (error.message || 'unknown error'),
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">Could not load issued VAS sales.</p>';
+    }
   }
 
   // Fills in the "Issue a VAS Sale -- Customer Certificate" section (#35):
@@ -6900,8 +7043,21 @@ ${bodyHtml}
   // calculator above, saves a normalized vas_sales record via the API, then
   // enables printing that saved record's certificate. Gated separately from
   // the read-only quote calculator above it -- a pricing_config.read user
-  // can look up quotes without being able to issue a sale.
-  function renderVasSaleSection(saleHost, plans, planSelect, orderValueInput, params, bands) {
+  // can look up quotes without being able to issue a sale. After a
+  // successful save, the customer/appliance fields and the calculator's own
+  // inputs are cleared automatically for the next sale (modification.md #36,
+  // issue 3) -- the Print button stays enabled against the just-saved
+  // record, and onSaved() refreshes the "VAS Issued" tab if it's open.
+  function renderVasSaleSection(
+    saleHost,
+    plans,
+    planSelect,
+    orderValueInput,
+    params,
+    bands,
+    resetCalculatorInputs,
+    onSaved,
+  ) {
     if (!hasPermission('vas_sale.write')) {
       saleHost.innerHTML =
         '<p class="form-note">You don\'t have permission to issue VAS sales.</p>';
@@ -6932,6 +7088,12 @@ ${bodyHtml}
     const printButton = saleHost.querySelector('[data-vs-print]');
     const messageHost = saleHost.querySelector('[data-vs-message]');
     let savedSale = null;
+
+    function clearSaleFormInputs() {
+      saleHost.querySelectorAll('.field-grid input').forEach((el) => {
+        el.value = '';
+      });
+    }
 
     saveButton.addEventListener('click', async () => {
       savedSale = null;
@@ -6971,8 +7133,11 @@ ${bodyHtml}
         messageHost.innerHTML =
           '<p class="form-note">Saved as <strong>' +
           escapeHtml(savedSale.vasSaleReference) +
-          '</strong>. You can now print the certificate.</p>';
+          '</strong> and added to the "VAS Issued" tab. Print below, or reprint it any time from VAS Issued. The form has been cleared for the next sale.</p>';
         printButton.disabled = false;
+        clearSaleFormInputs();
+        resetCalculatorInputs();
+        onSaved();
       } catch (error) {
         messageHost.innerHTML =
           '<p class="form-note">Could not save the VAS sale: ' +

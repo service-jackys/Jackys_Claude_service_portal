@@ -59,6 +59,7 @@
         --accent-jobcards: #6b46c1;
         --accent-quotations: #b5750a;
         --accent-warranty: #a3405a;
+        --accent-vas: #1f8a5f;
         --nav-height: 76px;
         --sidebar-width: 252px;
       }
@@ -1158,6 +1159,23 @@
         font-weight: 500;
         font-size: 0.78rem;
         text-transform: none;
+      }
+      /* Dedicated horizontal tab bar for the VAS Quote Calculator
+         (modification.md #37) -- deliberately NOT .action-tab-nav /
+         .action-tab-panels, which stack vertically and cap height with an
+         internal scrollbar; this one lays its tabs side by side and lets
+         the page scroll normally. */
+      .vc-tab-nav {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 0.75rem;
+        margin-bottom: 1.1rem;
+      }
+      .vc-tab-panels {
+        min-width: 0;
       }
       @media (max-width: 780px) {
         .detail-actions {
@@ -3740,6 +3758,17 @@
                     </h4>
                     <div class="dashboard-tiles" id="dashWarrantyApprovalTiles"></div>
                     <div class="dashboard-bars" id="dashWarrantyApprovalBars"></div>
+                  </div>
+                  <div class="dashboard-tile-group" style="--group-accent: var(--accent-vas)">
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path
+                            d="M12 3l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z M9 12l2 2 4-4"
+                          /></svg></span
+                      >VAS sales
+                    </h4>
+                    <div class="dashboard-tiles" id="dashVasSaleTiles"></div>
                   </div>
                 </div>
               </div>
