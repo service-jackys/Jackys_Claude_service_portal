@@ -1673,3 +1673,27 @@ Fixed three issues you reported after testing #35's VAS sale save/print flow:
   hides it properly; the Clear button resets the calculator; saving a VAS sale clears the form and
   shows it in the new "VAS Issued" tab with a working Print button; the Dashboard shows the new VAS
   sales tile.
+
+## Modification #37 — VAS Quote Calculator: start empty, Clear should actually clear
+
+**Date:** 2026-10-01
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+Fixed the selling-price field in the VAS Quote Calculator:
+
+- **Starts empty** — the field used to load pre-filled with `1000`, which also meant a quote was
+  shown immediately for that default value with nothing entered.
+- **Clear now actually clears** — clicking Clear used to put `1000` back instead of emptying the
+  field, so the quote card and Quick Price table underneath never actually disappeared.
+- **Empty price = empty result** — leaving the field blank now clears the quote card and the Quick
+  Price table instead of quietly quoting a 0 AED sale.
+- **Save guard** — if you click "Save VAS sale" with the price field empty or at 0, it now stops
+  and asks you to enter the selling price first, instead of saving a 0 AED sale record.
+
+### Needs you
+
+- Nothing to migrate — pull, restart, and confirm the price field is empty on load, Clear empties
+  it (and the quote/Quick Price panels) instead of putting 1000 back, and trying to save with no
+  price shows the new reminder message.

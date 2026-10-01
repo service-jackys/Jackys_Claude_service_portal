@@ -1762,6 +1762,29 @@
           Dashboard tile shows the right counts.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#37 &mdash; VAS Quote Calculator: start empty, Clear should actually clear</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-01 &middot; Scope: VAS Quote Calculator page &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Selling price field now <strong>starts empty</strong> instead of pre-filled with 1000.</li>
+          <li><strong>Clear</strong> now empties the field (and the quote / Quick Price panels)
+          instead of putting 1000 back.</li>
+          <li>An empty price field clears the quote card and Quick Price table instead of quietly
+          quoting a 0 AED sale.</li>
+          <li>Trying to <strong>Save</strong> with no price entered now shows a reminder instead of
+          saving a 0 AED sale.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>No migration &mdash; pull and restart.</li>
+          <li>Confirm the price field loads empty, Clear truly clears everything, and saving with
+          no price shows the reminder.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -6818,7 +6818,7 @@ ${bodyHtml}
       '<div class="field-grid">' +
       calcField(
         'Appliance selling price (AED)',
-        '<input type="number" min="0" step="0.01" value="1000" data-vc-order-value />',
+        '<input type="number" min="0" step="0.01" placeholder="e.g. 1000" data-vc-order-value />',
       ) +
       calcField(
         'Plan',
@@ -6872,6 +6872,11 @@ ${bodyHtml}
     const clearButton = container.querySelector('[data-vc-clear]');
 
     function recompute() {
+      if (!orderValueInput.value.trim()) {
+        output.innerHTML = '';
+        quickHost.innerHTML = '';
+        return;
+      }
       const orderValue = parseNumber(orderValueInput.value);
       const plan = VAS_CALC_PLANS.find((p) => p.key === planSelect.value) || VAS_CALC_PLANS[0];
       const band =
@@ -6943,7 +6948,7 @@ ${bodyHtml}
     // saved, so the next customer starts from a blank slate (modification.md
     // #36, issues 1 & 3).
     function resetCalculatorInputs() {
-      orderValueInput.value = '1000';
+      orderValueInput.value = '';
       planSelect.value = VAS_CALC_PLANS[0].key;
       recompute();
     }
@@ -7100,6 +7105,11 @@ ${bodyHtml}
       printButton.disabled = true;
       messageHost.innerHTML = '';
       const orderValue = parseNumber(orderValueInput.value);
+      if (!orderValueInput.value.trim() || orderValue <= 0) {
+        messageHost.innerHTML =
+          '<p class="form-note">Enter the appliance selling price above before saving.</p>';
+        return;
+      }
       const plan = plans.find((p) => p.key === planSelect.value) || plans[0];
       const band =
         bands.find((b) => orderValue >= b.start && orderValue <= b.end) || bands[bands.length - 1];
