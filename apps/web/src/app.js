@@ -1740,6 +1740,108 @@ ${bodyHtml}
     openPrintWindow(printDocumentShell(title, buildVasCertificateBody(sale, depreciation)));
   }
 
+  // Per-plan coverage text for the AMC contract certificate (modification.md
+  // #38, "Issue an AMC Contract -- Customer Certificate"), ported verbatim
+  // from docs/index_sep_15.html's updateAMCContractUI(). Keyed by the same
+  // plan keys the AMC Quote Calculator computes (basic-rm / standard-pmc /
+  // premium-pmc), so a reprint always finds the exact plan's text by key.
+  const AMC_CONTRACT_PLANS = {
+    'basic-rm': {
+      label: 'Basic RM',
+      coverage: 'Reactive maintenance only',
+      coverageDetail: 'No spare parts included; reactive visits based on the approved quote.',
+    },
+    'standard-pmc': {
+      label: 'Standard PMC',
+      coverage: 'Standard coverage with minor parts',
+      coverageDetail: 'Planned visits plus minor parts (filters, belts, seals).',
+    },
+    'premium-pmc': {
+      label: 'Premium PMC',
+      coverage: 'Comprehensive coverage with parts',
+      coverageDetail: 'Planned visits plus mechanical parts except compressor.',
+    },
+  };
+
+  function printAmcApplianceTable(appliances) {
+    const rows = (appliances || [])
+      .map(
+        (a) =>
+          `<tr><td>${escapeHtml(a.name)}</td><td class="num">${escapeHtml(String(a.qty))}</td><td class="num">${money(a.price)} AED</td><td class="num">${money(a.qty * a.price)} AED</td></tr>`,
+      )
+      .join('');
+    return `<table><thead><tr><th>Appliance type</th><th class="num">Qty</th><th class="num">Unit selling price</th><th class="num">Total equipment value</th></tr></thead><tbody>${
+      rows || '<tr><td colspan="4" style="text-align:center;color:#888;">No appliances</td></tr>'
+    }</tbody></table>`;
+  }
+
+  function buildAmcContractCertificateBody(contract) {
+    const planMeta = AMC_CONTRACT_PLANS[contract.planKey] || AMC_CONTRACT_PLANS['premium-pmc'];
+    const planLabel = contract.planLabel || planMeta.label;
+    const vat = Number(contract.priceInclVat) - Number(contract.priceExclVat);
+    return `
+      ${printDocHeadWithLogo('Annual Maintenance Contract', contract.amcContractReference)}
+      <h2>Contract details</h2>
+      ${printFieldGrid([
+        ['Contract date', contract.contractDate],
+        ['Contract period', contract.contractPeriod],
+        ['Client', contract.clientName],
+        ['Attention to', contract.attentionTo],
+        ['Site / location', contract.siteLocation],
+        ['Commencement date', contract.commencementDate],
+        ['Contract ref.', contract.contractRef || contract.amcContractReference],
+      ])}
+      <h2>Approved service plan</h2>
+      ${printFieldGrid([
+        ['Selected plan', planLabel],
+        ['Visits', contract.visitsText || `${contract.annualVisits} visits/year`],
+        ['Coverage / basis', contract.coverage || planMeta.coverage],
+        ['Plan coverage', contract.coverageDetail || planMeta.coverageDetail],
+        ['Contract value incl. VAT', money(contract.priceInclVat) + ' AED'],
+      ])}
+      <h2>Appliance schedule covered under this AMC</h2>
+      ${printAmcApplianceTable(contract.appliances)}
+      <h2>Service inclusions</h2>
+      <p style="font-size:12px;"><strong>Planned Preventive Maintenance:</strong> Scheduled visits as per the approved plan, including inspection, cleaning, functional checks and performance verification.</p>
+      <p style="font-size:12px;"><strong>Corrective Maintenance:</strong> Valid breakdown calls attended within 24&ndash;48 hours from logging, subject to site access, fault condition and parts availability.</p>
+      <p style="font-size:12px;"><strong>Labor Coverage:</strong> Labor for covered repair, service and maintenance activities is included during the contract period unless otherwise stated in the approved plan.</p>
+      <h2>Service exclusions</h2>
+      <p style="font-size:12px;">Major spare parts, consumables, cosmetic parts and compressor are excluded unless specifically covered under the selected plan.</p>
+      <p style="font-size:12px;">Damage due to misuse, negligence, external causes, power surge, fire, flood, unauthorized repair or force majeure is excluded.</p>
+      <p style="font-size:12px;">Appliances not listed in the appliance schedule are outside this AMC. Out-of-scope work, relocation, installation changes or additional visits will be quoted separately.</p>
+      <h2>Payment terms and validity</h2>
+      <p style="font-size:12px;"><strong>Payment Terms:</strong> 100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after receipt of the signed acceptance, confirmed purchase order where applicable, and full advance payment.</p>
+      <p style="font-size:12px;">Prices are in AED and include 5% VAT where shown. This AMC is valid for one year from commencement unless renewed or amended in writing by both parties.</p>
+      <h2>Customer confirmation</h2>
+      ${printFieldGrid([
+        ['Approved plan', planLabel],
+        ['Excl. VAT', money(contract.priceExclVat) + ' AED'],
+        ['VAT @ 5%', money(vat) + ' AED'],
+        ['Incl. VAT', money(contract.priceInclVat) + ' AED'],
+        ['Total appliances', String(contract.totalCount)],
+        ['Total equipment value', money(contract.totalValue) + ' AED'],
+      ])}
+      <div class="cert-feebox">
+        <div class="fee">${money(contract.priceInclVat)} AED</div>
+        <div>${escapeHtml(planLabel)} &mdash; contract value incl. VAT</div>
+      </div>
+      <h2>Signatures</h2>
+      <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of the selected AMC plan, scope, pricing, payment terms, exclusions and general terms stated in this agreement &amp; contract.</p>
+      <div class="sign-row">
+        <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
+        <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
+      </div>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Jacky's reserves the right to amend these Terms &amp; Conditions; amendments will not reduce cover for contracts already commenced.</p>
+    `;
+  }
+
+  function printAmcContractCertificate(contract) {
+    if (!contract) return;
+    const planMeta = AMC_CONTRACT_PLANS[contract.planKey] || AMC_CONTRACT_PLANS['premium-pmc'];
+    const title = `${contract.planLabel || planMeta.label} AMC Contract ${contract.amcContractReference || ''}`;
+    openPrintWindow(printDocumentShell(title, buildAmcContractCertificateBody(contract)));
+  }
+
   function openPrintWindow(html) {
     // No 'noopener' here: this window only ever gets same-origin,
     // app-generated content written into it via document.write below, so
@@ -3258,6 +3360,7 @@ ${bodyHtml}
     quotations: () => setWorkspaceMode('quotations'),
     inspections: () => setWorkspaceMode('inspections'),
     vasSales: () => setWorkspaceMode('vas-calc'),
+    amcContracts: () => setWorkspaceMode('amc-calc'),
   };
 
   // Delegated click handling survives each re-render (innerHTML swap) since
@@ -3269,6 +3372,7 @@ ${bodyHtml}
     ['dashQuotationInspectionTiles', null],
     ['dashWarrantyApprovalTiles', 'warrantyApprovals'],
     ['dashVasSaleTiles', null],
+    ['dashAmcContractTiles', null],
   ].forEach(([containerId, section]) => {
     $('#' + containerId).addEventListener('click', (event) => {
       const tile = event.target.closest('[data-tile-key]');
@@ -3328,6 +3432,10 @@ ${bodyHtml}
       ['VAS sales (total)', summary.vasSales.total, 'vasSales:total'],
       ['VAS sales (this month)', summary.vasSales.thisMonth, 'vasSales:month'],
     ]);
+    $('#dashAmcContractTiles').innerHTML = dashboardTilesHtml({}, [
+      ['AMC contracts (total)', summary.amcContracts.total, 'amcContracts:total'],
+      ['AMC contracts (this month)', summary.amcContracts.thisMonth, 'amcContracts:month'],
+    ]);
     $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
 
@@ -3358,6 +3466,7 @@ ${bodyHtml}
     $('#dashQuotationInspectionTiles').innerHTML = '';
     $('#dashWarrantyApprovalTiles').innerHTML = '';
     $('#dashVasSaleTiles').innerHTML = '';
+    $('#dashAmcContractTiles').innerHTML = '';
   }
 
   function renderJobCardActions(jobCard) {
@@ -7295,20 +7404,65 @@ ${bodyHtml}
 
   function renderAmcCalc(container, data) {
     const appliances = data.appliances.filter((a) => a.active !== false).map((a) => ({ ...a }));
+    const defaultAppliances = appliances.map((a) => ({ ...a }));
     container.innerHTML =
-      '<h4>AMC Quote Calculator</h4>' +
-      '<p class="form-note">Edit the appliance quantities and unit values for this specific contract (pre-filled from AMC Admin Rate Section’s catalog), then read the Basic RM / Standard PMC / Premium PMC contract prices below. This mirrors the workbook’s “Post-Warranty AMC / PMC Pricing Calculator” formula exactly.</p>' +
+      '<p class="form-note">Edit the appliance quantities and unit values for this specific contract (pre-filled from AMC Admin Rate Section’s catalog), then read the Basic RM / Standard PMC / Premium PMC contract prices below and issue the one the customer approves. Switch to "AMC Issued" to find and reprint any previously saved contract.</p>' +
+      '<div class="vc-tab-nav" role="tablist" aria-label="AMC Quote Calculator sections">' +
+      '<button type="button" class="action-tab active" data-ac-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
+      '<button type="button" class="action-tab" data-ac-tab="issued" role="tab" aria-selected="false">AMC Issued</button>' +
+      '</div>' +
+      '<div class="vc-tab-panels">' +
+      '<section data-ac-panel="quote">' +
       '<div class="detail-action-card pc-span-full">' +
       '<h4>Appliances for this contract</h4>' +
+      '<p><button type="button" class="button button-outline" data-ac-clear>Clear</button></p>' +
       '<div data-ac-appliances></div>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
       '<h4>Plan pricing</h4>' +
       '<div data-ac-output></div>' +
+      '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Issue an AMC Contract — Customer Certificate</h4>' +
+      '<div data-ac-sale></div>' +
+      '</div>' +
+      '</section>' +
+      '<section data-ac-panel="issued" hidden>' +
+      '<h4>AMC Issued</h4>' +
+      '<p class="form-note">Every AMC contract saved from the calculator above. Print re-opens that exact certificate.</p>' +
+      '<div data-ac-issued></div>' +
+      '</section>' +
       '</div>';
+
+    const tabNav = container.querySelector('.vc-tab-nav');
+    const panels = Array.from(container.querySelectorAll('[data-ac-panel]'));
+    const issuedHost = container.querySelector('[data-ac-issued]');
+    tabNav.addEventListener('click', (event) => {
+      const button = event.target.closest('.action-tab');
+      if (!button) return;
+      const target = button.dataset.acTab;
+      tabNav.querySelectorAll('.action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.acPanel !== target;
+      });
+      if (target === 'issued') {
+        loadAmcIssuedList(issuedHost);
+      }
+    });
 
     const appliancesHost = container.querySelector('[data-ac-appliances]');
     const output = container.querySelector('[data-ac-output]');
+    const saleHost = container.querySelector('[data-ac-sale]');
+    const clearButton = container.querySelector('[data-ac-clear]');
+
+    // The 3 computed plan rows from the most recent recompute() --
+    // read by the Issue-a-Contract section below when Save is clicked, so
+    // it always saves the exact numbers currently on screen.
+    let lastRows = null;
 
     function renderAppliancesTable() {
       appliancesHost.innerHTML =
@@ -7366,6 +7520,7 @@ ${bodyHtml}
       const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
       const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
       const costPerVisit = amcCostPerVisit(data);
+
       const basicVisits = amcLookupBasicVisits(totalCount, data.basicVisitTiers);
       const standardVisits =
         totalCount === 0
@@ -7406,6 +7561,8 @@ ${bodyHtml}
         ],
       ];
 
+      lastRows = rows;
+
       output.innerHTML =
         '<p class="form-note">Total appliances: <strong>' +
         totalCount +
@@ -7442,8 +7599,238 @@ ${bodyHtml}
         '</tbody></table></div>';
     }
 
+    // Resets every appliance's qty/price back to AMC Admin Rate Section's
+    // catalog defaults -- used by the explicit Clear button and
+    // automatically once an AMC contract has been saved, so the next
+    // customer's contract starts from the admin catalog, not the previous
+    // customer's numbers (modification.md #38).
+    function resetAppliances() {
+      appliances.forEach((a, i) => {
+        a.qty = defaultAppliances[i].qty;
+        a.price = defaultAppliances[i].price;
+      });
+      renderAppliancesTable();
+      recompute();
+    }
+
+    clearButton.addEventListener('click', resetAppliances);
     renderAppliancesTable();
     recompute();
+    renderAmcContractSection(
+      saleHost,
+      appliances,
+      () => lastRows,
+      resetAppliances,
+      () => {
+        // Keep the AMC Issued list in sync if it's the tab currently open.
+        const issuedPanel = container.querySelector('[data-ac-panel="issued"]');
+        if (issuedPanel && !issuedPanel.hidden) loadAmcIssuedList(issuedHost);
+      },
+    );
+  }
+
+  // Lists every saved amc_contracts record (modification.md #38) so a
+  // previously issued AMC contract can be found again and its certificate
+  // reprinted.
+  async function loadAmcIssuedList(host) {
+    if (!hasPermission('amc_contract.read')) {
+      host.innerHTML =
+        '<p class="form-note">You don\'t have permission to view issued AMC contracts.</p>';
+      return;
+    }
+    host.innerHTML = '<p class="form-note">Loading issued AMC contracts&hellip;</p>';
+    try {
+      const response = await apiRequest('/api/amc-contracts?pageSize=100');
+      const contracts = response.amcContracts || [];
+      if (!contracts.length) {
+        host.innerHTML = '<p class="form-note">No AMC contracts issued yet.</p>';
+        return;
+      }
+      host.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Plan</th><th>Total appliances</th><th>Price incl. VAT</th><th></th>' +
+        '</tr></thead><tbody>' +
+        contracts
+          .map(
+            (c) =>
+              '<tr>' +
+              '<td>' +
+              escapeHtml(c.amcContractReference) +
+              '</td><td>' +
+              escapeHtml(formatDate(c.createdAt)) +
+              '</td><td>' +
+              escapeHtml(c.clientName || '—') +
+              '</td><td>' +
+              escapeHtml(c.planLabel) +
+              '</td><td>' +
+              escapeHtml(String(c.totalCount)) +
+              '</td><td>' +
+              money(c.priceInclVat) +
+              ' AED</td><td>' +
+              '<button type="button" class="button button-outline" data-ac-reprint="' +
+              escapeHtml(c.id) +
+              '">Print</button>' +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      host.querySelectorAll('[data-ac-reprint]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const detail = await apiRequest('/api/amc-contracts/' + button.dataset.acReprint);
+            printAmcContractCertificate(detail.amcContract);
+          } catch (error) {
+            setMessage(
+              '#workspaceMessage',
+              'Could not load this AMC contract: ' + (error.message || 'unknown error'),
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">Could not load issued AMC contracts.</p>';
+    }
+  }
+
+  // Fills in the "Issue an AMC Contract -- Customer Certificate" section
+  // (modification.md #38): the admin picks which of the 3 computed plans
+  // the customer approved, fills in client/site details, saves a
+  // normalized amc_contracts record via the API, then can print that
+  // record's certificate. After a successful save, the appliances and the
+  // contract form both reset for the next customer -- the Print button
+  // stays enabled against the just-saved record, and onSaved() refreshes
+  // the "AMC Issued" tab if it's open.
+  function renderAmcContractSection(saleHost, appliances, getRows, resetAppliances, onSaved) {
+    if (!hasPermission('amc_contract.write')) {
+      saleHost.innerHTML =
+        '<p class="form-note">You don\'t have permission to issue AMC contracts.</p>';
+      return;
+    }
+    saleHost.innerHTML =
+      '<p class="form-note">Pick the plan the customer approved, fill in the client &amp; site details, save the contract, then print the certificate.</p>' +
+      '<div class="field-grid">' +
+      calcField(
+        'Approved plan',
+        '<select data-as-plan>' +
+          '<option value="basic-rm">Basic RM</option>' +
+          '<option value="standard-pmc">Standard PMC</option>' +
+          '<option value="premium-pmc" selected>Premium PMC</option>' +
+          '</select>',
+      ) +
+      calcField('Contract period', '<input type="text" value="1 Year" data-as-period />') +
+      calcField('Client', '<input type="text" data-as-client />') +
+      calcField('Attention to', '<input type="text" data-as-attention />') +
+      calcField('Site / location', '<input type="text" data-as-location />') +
+      calcField('Commencement date', '<input type="date" data-as-commencement />') +
+      calcField(
+        'Contract ref. (optional — auto-generated if blank)',
+        '<input type="text" data-as-contract-ref />',
+      ) +
+      '</div>' +
+      '<p>' +
+      '<button type="button" class="button button-primary" data-as-save>Save AMC contract</button> ' +
+      '<button type="button" class="button button-outline" data-as-print disabled>Print certificate</button>' +
+      '</p>' +
+      '<div data-as-message></div>';
+
+    const planSelect = saleHost.querySelector('[data-as-plan]');
+    const saveButton = saleHost.querySelector('[data-as-save]');
+    const printButton = saleHost.querySelector('[data-as-print]');
+    const messageHost = saleHost.querySelector('[data-as-message]');
+    let savedContract = null;
+
+    function clearContractFormInputs() {
+      saleHost.querySelectorAll('.field-grid input[type="text"]').forEach((el) => {
+        el.value = '';
+      });
+      saleHost.querySelectorAll('.field-grid input[type="date"]').forEach((el) => {
+        el.value = '';
+      });
+      saleHost.querySelector('[data-as-period]').value = '1 Year';
+      planSelect.value = 'premium-pmc';
+    }
+
+    const planRowLabels = {
+      'basic-rm': 'Basic RM',
+      'standard-pmc': 'Standard PMC',
+      'premium-pmc': 'Premium PMC',
+    };
+
+    saveButton.addEventListener('click', async () => {
+      savedContract = null;
+      printButton.disabled = true;
+      messageHost.innerHTML = '';
+      const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
+      if (totalCount <= 0) {
+        messageHost.innerHTML =
+          '<p class="form-note">Add at least one appliance with a quantity above before saving.</p>';
+        return;
+      }
+      const rows = getRows();
+      const planKey = planSelect.value;
+      const rowEntry = rows && rows.find(([label]) => label === planRowLabels[planKey]);
+      if (!rowEntry) {
+        messageHost.innerHTML =
+          '<p class="form-note">Could not find pricing for the selected plan -- adjust the appliances above first.</p>';
+        return;
+      }
+      const plan = rowEntry[1];
+      const planMeta = AMC_CONTRACT_PLANS[planKey];
+      const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
+      const field = (selector) => saleHost.querySelector(selector).value.trim();
+      const payload = {
+        contractPeriod: field('[data-as-period]') || undefined,
+        clientName: field('[data-as-client]') || undefined,
+        attentionTo: field('[data-as-attention]') || undefined,
+        siteLocation: field('[data-as-location]') || undefined,
+        planKey,
+        planLabel: planMeta.label,
+        coverage: planMeta.coverage,
+        coverageDetail: planMeta.coverageDetail,
+        visitsText: plan.visits + ' visits/year',
+        annualVisits: plan.visits,
+        appliances: appliances.map((a) => ({ name: a.name, qty: a.qty, price: a.price })),
+        totalCount,
+        totalValue,
+        laborCost: plan.labor,
+        transportCost: plan.transport,
+        partsReserve: plan.parts,
+        directCost: plan.direct,
+        overhead: plan.overhead,
+        priceExclVat: plan.priceExclVat,
+        priceInclVat: plan.priceInclVat,
+        commencementDate: field('[data-as-commencement]') || undefined,
+        contractRef: field('[data-as-contract-ref]') || undefined,
+      };
+      try {
+        const response = await apiRequest('/api/amc-contracts', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        savedContract = response.amcContract;
+        messageHost.innerHTML =
+          '<p class="form-note">Saved as <strong>' +
+          escapeHtml(savedContract.amcContractReference) +
+          '</strong> and added to the "AMC Issued" tab. Print below, or reprint it any time from AMC Issued. The appliances have been reset for the next contract.</p>';
+        printButton.disabled = false;
+        clearContractFormInputs();
+        resetAppliances();
+        onSaved();
+      } catch (error) {
+        messageHost.innerHTML =
+          '<p class="form-note">Could not save the AMC contract: ' +
+          escapeHtml(error.message || 'unknown error') +
+          '</p>';
+      }
+    });
+
+    printButton.addEventListener('click', () => {
+      if (!savedContract) return;
+      printAmcContractCertificate(savedContract);
+    });
   }
 
   // --- Thomson --------------------------------------------------------------

@@ -1785,6 +1785,70 @@
           no price shows the reminder.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#38 &mdash; AMC: Issue a Contract</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">
+          2026-10-01 &middot; Scope: AMC Quote Calculator page + Dashboard &middot; new migration
+          (<code>020_amc_contracts.sql</code>)
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Gave the <strong>AMC Quote Calculator</strong> the same save + printable certificate +
+            Issued tab + dashboard tile treatment VAS got in #33-#37.
+          </li>
+          <li>
+            New <strong>amc_contracts</strong> table and <code>AC-YYYY-NNNNN</code> reference
+            numbering (matching VAS's <code>VS-YYYY-NNNNN</code> style), storing the selected plan,
+            contract/client/site details and the full appliance schedule (AMC prices against a
+            whole list of appliances, not a single item like VAS).
+          </li>
+          <li>
+            <strong>Side-by-side tabs</strong> &mdash; "Quote Calculator" and "AMC Issued", using the
+            same horizontal, no-inner-scroll layout introduced for VAS in #37.
+          </li>
+          <li>
+            Added a <strong>Clear</strong> button that resets every appliance's qty/price back to AMC
+            Admin Rate Section's catalog defaults.
+          </li>
+          <li>
+            New <strong>"Issue an AMC Contract &mdash; Customer Certificate"</strong> section: pick
+            which of the 3 computed plans (Basic RM / Standard PMC / Premium PMC) the customer
+            approved, fill in contract/client/site details, save, then print &mdash; the certificate
+            text (coverage, inclusions/exclusions, payment terms, signatures) is ported verbatim from
+            the legacy AMC contract certificate.
+          </li>
+          <li>
+            New <strong>"AMC Issued"</strong> tab listing every saved AMC contract with a
+            <strong>Print</strong> button to reprint its certificate any time.
+          </li>
+          <li>
+            Saving an AMC contract <strong>auto-clears</strong> the appliance table and the contract
+            form for the next customer, and refreshes "AMC Issued" if it's open.
+          </li>
+          <li>
+            New <strong>AMC contracts</strong> tile group on the main Dashboard (total + this month),
+            matching the VAS sales tiles.
+          </li>
+          <li>
+            Also fixed a stale note on both the VAS and AMC Quote Calculator cards that still said
+            "This does not save or create any record".
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run the new migration (<code>020_amc_contracts.sql</code>) before testing.</li>
+          <li>
+            Confirm the tabs sit side by side with no inner scrollbar, Clear resets the appliance
+            table, saving an AMC contract for each plan works and shows up in "AMC Issued" with a
+            working Print button, the certificate text matches the legacy wording, and the new
+            Dashboard tile shows the right counts.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -34,6 +34,8 @@ import { createInspectionHandlers } from '../inspections/routes.js';
 import { createInspectionService } from '../inspections/service.js';
 import { createVasSaleHandlers } from '../vas-sales/routes.js';
 import { createVasSaleService } from '../vas-sales/service.js';
+import { createAmcContractHandlers } from '../amc-contracts/routes.js';
+import { createAmcContractService } from '../amc-contracts/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
@@ -76,6 +78,7 @@ export type RouteDefinition = {
     | 'quotation'
     | 'inspection'
     | 'vasSale'
+    | 'amcContract'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision';
   parameters?: object[];
@@ -395,6 +398,22 @@ export function createRouteCatalog(
       };
   const vasSaleHandlers = pool
     ? createVasSaleHandlers(createVasSaleService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const amcContractHandlers = pool
+    ? createAmcContractHandlers(createAmcContractService(pool), requirePermission)
     : {
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
@@ -1672,6 +1691,41 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: vasSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/amc-contracts',
+        operationId: 'listAmcContracts',
+        tags: ['AMC Contracts'],
+        summary: 'List issued AMC contracts',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: amcContractHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/amc-contracts',
+        operationId: 'createAmcContract',
+        tags: ['AMC Contracts'],
+        summary: 'Issue an AMC contract and allocate its certificate reference',
+        security: 'bearerAuth' as const,
+        requestBody: 'amcContract' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: amcContractHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/amc-contracts/{id}',
+        operationId: 'getAmcContract',
+        tags: ['AMC Contracts'],
+        summary: 'Get an AMC contract (e.g. to reprint its certificate)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: amcContractHandlers.detail,
       },
       {
         method: 'post' as const,

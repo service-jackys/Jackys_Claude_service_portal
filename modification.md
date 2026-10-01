@@ -1697,3 +1697,59 @@ Fixed the selling-price field in the VAS Quote Calculator:
 - Nothing to migrate — pull, restart, and confirm the price field is empty on load, Clear empties
   it (and the quote/Quick Price panels) instead of putting 1000 back, and trying to save with no
   price shows the new reminder message.
+
+## Modification #38 — AMC: Issue a Contract
+
+**Date:** 2026-10-01
+**Status:** Built and verified (typecheck + build clean). Needs `npm run db:migrate` (new migration
+`020_amc_contracts.sql`).
+
+### What changed
+
+Gave the AMC Quote Calculator the same save + printable certificate + "Issued" tab + dashboard tile
+treatment VAS got in #33-#37.
+
+**New backend (migration `020_amc_contracts.sql`):**
+
+- New `amc_contracts` table: reference (`AC-YYYY-NNNNN`, same numbering style as VAS's `VS-YYYY-NNNNN`),
+  the selected plan, contract/client/site details, a `jsonb` appliance schedule (AMC prices against a
+  whole list of appliances, not a single item like VAS), and the full pricing breakdown
+  (labor/transport/parts/direct/overhead/price excl. & incl. VAT).
+- New `amc_contract.read` / `amc_contract.write` permissions, granted to `management` and `sales`.
+- New reference-number allocator `allocateAmcContractReference` (mirrors `allocateVasSaleReference`).
+- New `GET/POST /api/amc-contracts` and `GET /api/amc-contracts/{id}` endpoints, new
+  `amc-contracts.ts`/`service.ts`/`routes.ts` (mirroring the VAS sales backend), wired into the route
+  catalog and OpenAPI schema.
+- Dashboard summary now also reports `amcContracts: { total, thisMonth }`.
+
+**AMC Quote Calculator (frontend):**
+
+- **Horizontal tabs** — "Quote Calculator" and "AMC Issued", side by side, using the same
+  `.vc-tab-nav`/`.vc-tab-panels` layout introduced for VAS in #37 (no internal scrollbars).
+- **Clear button** — resets every appliance's qty/price back to AMC Admin Rate Section's catalog
+  defaults.
+- **"Issue an AMC Contract — Customer Certificate"** — pick which of the 3 computed plans (Basic RM /
+  Standard PMC / Premium PMC) the customer approved, fill in contract period / client / attention to /
+  site / commencement date / contract ref., save it. Saving guards against an empty appliance list and
+  reuses the exact numbers currently on screen for the selected plan.
+- **Printable certificate** — ported verbatim from the legacy workbook's AMC contract certificate:
+  contract details, approved plan & coverage text, full appliance schedule table, service inclusions /
+  exclusions, payment terms, customer confirmation, fee box, and signature blocks.
+- **"AMC Issued" tab** — lists every saved AMC contract with a working Print button that re-fetches
+  that exact record and reprints its certificate.
+- **Auto-clear on save** — saving a contract clears the appliance table and the contract form for the
+  next customer, and refreshes "AMC Issued" if it's the tab currently open.
+- **Dashboard tile** — a new "AMC contracts" group on the main Dashboard (total + this-month), same
+  shape as the VAS sales tile; clicking it jumps to the AMC Quote Calculator.
+
+Also fixed a stale static note on both the VAS and AMC Quote Calculator cards that still said "This
+does not save or create any record" — left over from before #35/#38 added saving.
+
+### Needs you
+
+- Run `npm run db:migrate` to apply migration `020_amc_contracts.sql` before testing.
+- After migrating and restarting the server, confirm: the AMC Quote Calculator shows the Quote
+  Calculator / AMC Issued tabs side by side with no internal scrollbar; Clear resets the appliance
+  table; picking a plan and saving an AMC contract works, shows up in "AMC Issued" with a working
+  Print button, and the appliance table/form reset afterwards; the Dashboard shows the new "AMC
+  contracts" tile.

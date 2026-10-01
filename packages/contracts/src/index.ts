@@ -441,6 +441,61 @@ export const vasSaleListQuerySchema = z
   })
   .strict();
 
+// AMC contract + printable certificate (modification.md #38 -- "Issue an
+// AMC Contract -- Customer Certificate", docs/code.gs
+// HEADERS_BY_TYPE['amc-contract'] / docs/index_sep_15.html's AMC Contract
+// tab). Unlike VAS (one item, one plan), an AMC contract covers a whole
+// appliance schedule priced as a single contract, so `appliances` is an
+// array rather than flat columns -- matching how the AMC Quote Calculator
+// (modification.md #32) already represents them client-side.
+export const amcContractPlanKeys = ['basic-rm', 'standard-pmc', 'premium-pmc'] as const;
+export const amcContractPlanKeySchema = z.enum(amcContractPlanKeys);
+
+const amcApplianceLineSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    qty: z.number().min(0).max(100000),
+    price: z.number().min(0).max(10000000),
+  })
+  .strict();
+
+export const amcContractWriteSchema = z
+  .object({
+    contractDate: dateSchema.optional(),
+    contractPeriod: optionalText(50),
+    clientName: optionalText(200),
+    attentionTo: optionalText(200),
+    siteLocation: optionalText(500),
+    planKey: amcContractPlanKeySchema,
+    planLabel: z.string().trim().min(1).max(100),
+    coverage: optionalText(200),
+    coverageDetail: optionalText(300),
+    visitsText: optionalText(100),
+    annualVisits: z.number().min(0).max(1000),
+    appliances: z.array(amcApplianceLineSchema).min(1).max(200),
+    totalCount: z.number().min(0).max(100000),
+    totalValue: z.number().min(0).max(100000000),
+    laborCost: z.number().min(0).max(10000000),
+    transportCost: z.number().min(0).max(10000000),
+    partsReserve: z.number().min(0).max(10000000),
+    directCost: z.number().min(0).max(10000000),
+    overhead: z.number().min(0).max(10000000),
+    priceExclVat: z.number().min(0).max(10000000),
+    priceInclVat: z.number().min(0).max(10000000),
+    commencementDate: dateSchema.optional(),
+    contractRef: optionalText(120),
+  })
+  .strict();
+export type AmcContractWriteInput = z.infer<typeof amcContractWriteSchema>;
+
+export const amcContractListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
 // New functionality, not a live-system parity item: staff raise a request
 // against a job card or inspection that's Out of Warranty, and the customer

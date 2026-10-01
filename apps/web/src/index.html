@@ -60,6 +60,7 @@
         --accent-quotations: #b5750a;
         --accent-warranty: #a3405a;
         --accent-vas: #1f8a5f;
+        --accent-amc: #c2650a;
         --nav-height: 76px;
         --sidebar-width: 252px;
       }
@@ -3770,6 +3771,17 @@
                     </h4>
                     <div class="dashboard-tiles" id="dashVasSaleTiles"></div>
                   </div>
+                  <div class="dashboard-tile-group" style="--group-accent: var(--accent-amc)">
+                    <h4>
+                      <span class="dashboard-group-icon" aria-hidden="true"
+                        ><svg viewBox="0 0 24 24">
+                          <path
+                            d="M4 20l6-6 M9 9l-2-2 5-5 2 2-5 5 2 2 5-5 2 2-5 5-2-2-5 5z"
+                          /></svg></span
+                      >AMC contracts
+                    </h4>
+                    <div class="dashboard-tiles" id="dashAmcContractTiles"></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -4868,8 +4880,8 @@
               <div class="card-body">
                 <p class="form-note">
                   Stand-alone VAS quote calculator using the same admin-configured price bands and
-                  pricing parameters as VAS Price Banding &amp; Split. This does not save or create
-                  any record &mdash; it only computes a price.
+                  pricing parameters as VAS Price Banding &amp; Split. Quotes a price live from that
+                  data, and lets you issue and save an actual VAS sale with a printable certificate.
                 </p>
                 <section class="detail-action-card pricing-config-card" data-calc-root="vas-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
@@ -4897,8 +4909,9 @@
               <div class="card-body">
                 <p class="form-note">
                   Stand-alone AMC contract quote calculator using the same admin-configured formula
-                  as AMC Admin Rate Section. This does not save or create any record &mdash; it only
-                  computes a price.
+                  as AMC Admin Rate Section. Quotes Basic RM / Standard PMC / Premium PMC live from
+                  that data, and lets you issue and save an actual AMC contract with a printable
+                  certificate.
                 </p>
                 <section class="detail-action-card pricing-config-card" data-calc-root="amc-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
