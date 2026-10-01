@@ -1632,3 +1632,39 @@ Calculator page, item (d)+(e) from your last message:
   certificates you shared (terms text, depreciation %, refund schedule, logo).
 - Confirm the "management" and "sales" roles are the right ones to issue VAS sales — same roles as
   quotations/inspections, but let me know if it should be different.
+
+## Modification #36 — VAS Quote Calculator: workspace-hiding bug, Clear button, VAS Issued tab, dashboard tiles
+
+**Date:** 2026-10-01
+**Status:** Built and verified (typecheck + build clean). No new migration — reuses the `vas_sales`
+table from #35.
+
+### What changed
+
+Fixed three issues you reported after testing #35's VAS sale save/print flow:
+
+- **Workspace-hiding bug fixed** — switching from the VAS Quote Calculator to a Management admin
+  page (Pricing Admin, Rate Card Admin, etc.) left the calculator showing underneath instead of
+  being hidden. `activatePricingAdminMode()` was hiding every other admin page but never hid the
+  Quote Calculator panels; it now does.
+- **Clear button** added to the VAS Quote Calculator's price/plan inputs, resetting the selling
+  price and plan back to their defaults.
+- **New "VAS Issued" tab** inside the VAS Quote Calculator page itself (next to "Quote Calculator"),
+  listing every saved VAS sale (reference, issued date, customer, plan, selling price, plan fee)
+  with a **Print** button per row that reopens and reprints that exact certificate at any time.
+- **Auto-clear on save** — once a VAS sale is saved, the customer/appliance form and the calculator
+  inputs above it clear themselves automatically for the next sale. The certificate you just saved
+  stays printable from the same page, and the "VAS Issued" tab refreshes itself if it's the one
+  open.
+- **Dashboard tile** — a new "VAS sales" group on the main Dashboard showing total VAS sales and
+  this-month VAS sales, same shape as the existing Quotations & inspections tiles; clicking it jumps
+  to the VAS Quote Calculator.
+
+### Needs you
+
+- Nothing new to migrate — this only adds UI and read queries against the `vas_sales` table #35
+  already created.
+- After you pull and restart the server, check: switching away from the VAS Quote Calculator now
+  hides it properly; the Clear button resets the calculator; saving a VAS sale clears the form and
+  shows it in the new "VAS Issued" tab with a working Print button; the Dashboard shows the new VAS
+  sales tile.
