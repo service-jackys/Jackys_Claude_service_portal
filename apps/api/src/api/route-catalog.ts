@@ -36,6 +36,8 @@ import { createVasSaleHandlers } from '../vas-sales/routes.js';
 import { createVasSaleService } from '../vas-sales/service.js';
 import { createAmcContractHandlers } from '../amc-contracts/routes.js';
 import { createAmcContractService } from '../amc-contracts/service.js';
+import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
+import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
@@ -79,6 +81,7 @@ export type RouteDefinition = {
     | 'inspection'
     | 'vasSale'
     | 'amcContract'
+    | 'rateCardSale'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision';
   parameters?: object[];
@@ -414,6 +417,22 @@ export function createRouteCatalog(
       };
   const amcContractHandlers = pool
     ? createAmcContractHandlers(createAmcContractService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const rateCardSaleHandlers = pool
+    ? createRateCardSaleHandlers(createRateCardSaleService(pool), requirePermission)
     : {
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
@@ -1726,6 +1745,41 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: amcContractHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/rate-card-sales',
+        operationId: 'listRateCardSales',
+        tags: ['Rate Card Sales'],
+        summary: 'List issued Rate Card sales',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: rateCardSaleHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/rate-card-sales',
+        operationId: 'createRateCardSale',
+        tags: ['Rate Card Sales'],
+        summary: 'Issue a Rate Card sale and allocate its quotation reference',
+        security: 'bearerAuth' as const,
+        requestBody: 'rateCardSale' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: rateCardSaleHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/rate-card-sales/{id}',
+        operationId: 'getRateCardSale',
+        tags: ['Rate Card Sales'],
+        summary: 'Get a Rate Card sale (e.g. to reprint its quotation)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: rateCardSaleHandlers.detail,
       },
       {
         method: 'post' as const,

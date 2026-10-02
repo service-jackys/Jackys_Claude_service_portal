@@ -1876,3 +1876,36 @@ bug, same fix.
 - Confirm the "Contract ref." input on both the VAS sale form and the AMC contract save form now
   lines up with the other inputs in its row, and hovering the label shows the "optional —
   auto-generated if blank" note as a tooltip.
+
+## Modification #43 — Rate Card: Issue a Sale — printable quotation, "Rate Card Issued" tab, dashboard tile
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). Needs `npm run db:migrate` (new migration
+`022_rate_card_sales.sql`).
+
+### What changed
+
+Gave the Rate Card Calculator the same save + printable record + "Issued" tab + dashboard tile
+treatment VAS (#35–37) and AMC (#38–42) already received — until now it was quote-only, with no way
+to save a quote or print anything from it.
+
+- **"Issue a Rate Card Sale — Printable Quotation"** — a new section below the quote lines. Fill in
+  client / contact / site details and Save; this stores the exact quote lines on screen (section,
+  activity, rate, qty) plus the total as one normalized `rate_card_sales` record, with its own
+  reference number (`RC-YYYY-NNNNN`).
+- **Printable quotation** — Print generates an A4 document (company header, quotation details, the
+  full line-item table, the total value, and a signature block) from the saved record.
+- **"Rate Card Issued" tab** — lists every saved Rate Card sale (reference, date, client, line count,
+  total value) with a Print button that reprints that exact quotation later.
+- **Clear button** — the quote-lines table didn't have one before; added so the next customer's quote
+  starts empty, same as VAS/AMC.
+- **Dashboard tile** — a new "Rate Card sales" group on the main Dashboard (total + this-month), same
+  shape as the VAS/AMC tiles; clicking it jumps to the Rate Card Calculator.
+
+### Needs you
+
+- Run `npm run db:migrate` to apply migration `022_rate_card_sales.sql` before testing.
+- After migrating and restarting the server, confirm: building a quote (add a few lines), filling in
+  client details, and saving works; printing shows the right lines and total; "Rate Card Issued"
+  lists the saved sale and reprints it; Clear empties the quote lines; and the Dashboard shows the new
+  "Rate Card sales" tile.

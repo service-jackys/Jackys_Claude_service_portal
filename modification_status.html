@@ -1983,6 +1983,36 @@
           hovering the label shows the tooltip.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#43 &mdash; Rate Card: Issue a Sale &mdash; printable quotation, Issued tab, dashboard tile</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: Rate Card Calculator page &middot; needs migration 022</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            A new <strong>"Issue a Rate Card Sale &mdash; Printable Quotation"</strong> section saves
+            the quote lines on screen as one normalized record with its own reference number
+            (<code>RC-YYYY-NNNNN</code>), and prints an A4 quotation from it.
+          </li>
+          <li>
+            A new <strong>"Rate Card Issued"</strong> tab lists every saved sale with a Print button
+            to reprint it later, and a <strong>Clear</strong> button now empties the quote lines
+            (the calculator never had one before).
+          </li>
+          <li>
+            A new <strong>"Rate Card sales"</strong> dashboard tile (total + this-month), matching
+            the VAS/AMC tiles already there.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run <code>npm run db:migrate</code> to apply migration <code>022_rate_card_sales.sql</code>.</li>
+          <li>Confirm saving a quote, printing it, reprinting from "Rate Card Issued", Clear, and the
+          new dashboard tile all work.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

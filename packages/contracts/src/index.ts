@@ -514,6 +514,43 @@ export const amcContractListQuerySchema = z
   })
   .strict();
 
+// Rate Card sale + printable quotation (modification.md #43 -- "Issue a
+// Rate Card Sale"). A Rate Card sale is one or more line items (section +
+// activity + rate + qty) priced as a single quotation total, matching how
+// the Rate Card Calculator (modification.md #32) already represents them
+// client-side -- so lineItems is an array rather than flat columns, the
+// same shape choice amc_contracts' appliances made.
+export const rateCardSaleLineItemSchema = z
+  .object({
+    sectionLabel: z.string().trim().min(1).max(200),
+    activityName: z.string().trim().min(1).max(200),
+    rate: z.number().min(0).max(10000000),
+    qty: z.number().min(0).max(100000),
+  })
+  .strict();
+
+export const rateCardSaleWriteSchema = z
+  .object({
+    saleDate: dateSchema.optional(),
+    clientName: optionalText(200),
+    contactNumber: optionalText(50),
+    siteLocation: optionalText(500),
+    lineItems: z.array(rateCardSaleLineItemSchema).min(1).max(200),
+    totalValue: z.number().min(0).max(100000000),
+    contractRef: optionalText(120),
+  })
+  .strict();
+export type RateCardSaleWriteInput = z.infer<typeof rateCardSaleWriteSchema>;
+export type RateCardSaleLineItemInput = z.infer<typeof rateCardSaleLineItemSchema>;
+
+export const rateCardSaleListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
 // New functionality, not a live-system parity item: staff raise a request
 // against a job card or inspection that's Out of Warranty, and the customer

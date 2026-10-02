@@ -3412,6 +3412,7 @@ ${bodyHtml}
     inspections: () => setWorkspaceMode('inspections'),
     vasSales: () => setWorkspaceMode('vas-calc'),
     amcContracts: () => setWorkspaceMode('amc-calc'),
+    rateCardSales: () => setWorkspaceMode('rate-card-calc'),
   };
 
   // Delegated click handling survives each re-render (innerHTML swap) since
@@ -3424,6 +3425,7 @@ ${bodyHtml}
     ['dashWarrantyApprovalTiles', 'warrantyApprovals'],
     ['dashVasSaleTiles', null],
     ['dashAmcContractTiles', null],
+    ['dashRateCardSaleTiles', null],
   ].forEach(([containerId, section]) => {
     $('#' + containerId).addEventListener('click', (event) => {
       const tile = event.target.closest('[data-tile-key]');
@@ -3486,6 +3488,10 @@ ${bodyHtml}
     $('#dashAmcContractTiles').innerHTML = dashboardTilesHtml({}, [
       ['AMC contracts (total)', summary.amcContracts.total, 'amcContracts:total'],
       ['AMC contracts (this month)', summary.amcContracts.thisMonth, 'amcContracts:month'],
+    ]);
+    $('#dashRateCardSaleTiles').innerHTML = dashboardTilesHtml({}, [
+      ['Rate Card sales (total)', summary.rateCardSales.total, 'rateCardSales:total'],
+      ['Rate Card sales (this month)', summary.rateCardSales.thisMonth, 'rateCardSales:month'],
     ]);
     $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
@@ -7329,12 +7335,62 @@ ${bodyHtml}
   }
 
   // --- Rate Card ------------------------------------------------------------
+  function printRateCardLineItemsTable(lineItems) {
+    const rows = (lineItems || [])
+      .map(
+        (li) =>
+          `<tr><td>${escapeHtml(li.sectionLabel)}</td><td>${escapeHtml(li.activityName)}</td><td class="num">${money(li.rate)} AED</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">${money(li.rate * li.qty)} AED</td></tr>`,
+      )
+      .join('');
+    return `<table><thead><tr><th>Section</th><th>Activity</th><th class="num">Rate</th><th class="num">Qty</th><th class="num">Subtotal</th></tr></thead><tbody>${
+      rows || '<tr><td colspan="5" style="text-align:center;color:#888;">No lines</td></tr>'
+    }</tbody></table>`;
+  }
+
+  function buildRateCardSaleCertificateBody(sale) {
+    return `
+      ${printDocHeadWithLogo('Rate Card Service Quotation', sale.rateCardSaleReference)}
+      <h2>Quotation details</h2>
+      ${printFieldGrid([
+        ['Sale date', sale.saleDate],
+        ['Client', sale.clientName],
+        ['Contact number', sale.contactNumber],
+        ['Site / location', sale.siteLocation],
+        ['Contract ref.', sale.contractRef || sale.rateCardSaleReference],
+      ])}
+      <h2>Quote lines</h2>
+      ${printRateCardLineItemsTable(sale.lineItems)}
+      <div class="cert-feebox">
+        <div class="fee">${money(sale.totalValue)} AED</div>
+        <div>Total quotation value</div>
+      </div>
+      <h2>Signatures</h2>
+      <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing and payment terms.</p>
+      <div class="sign-row">
+        <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
+        <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
+      </div>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in AED. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>
+    `;
+  }
+
+  function printRateCardSaleCertificate(sale) {
+    if (!sale) return;
+    const title = `Rate Card Quotation ${sale.rateCardSaleReference || ''}`;
+    openPrintWindow(printDocumentShell(title, buildRateCardSaleCertificateBody(sale)));
+  }
+
   function renderRateCardCalc(container, data) {
     const sections = data;
     const lineItems = [];
     container.innerHTML =
-      '<h4>Rate Card Calculator</h4>' +
-      '<p class="form-note">Build a quote line by line from the Rate Card admin’s own sections and activities, then read the total off the bottom row.</p>' +
+      '<p class="form-note">Build a quote line by line from the Rate Card admin’s own sections and activities, then read the total off the bottom row. Switch to "Rate Card Issued" to find and reprint any previously saved sale.</p>' +
+      '<div class="vc-tab-nav" role="tablist" aria-label="Rate Card Calculator sections">' +
+      '<button type="button" class="action-tab active" data-rc-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
+      '<button type="button" class="action-tab" data-rc-tab="issued" role="tab" aria-selected="false">Rate Card Issued</button>' +
+      '</div>' +
+      '<div class="vc-tab-panels">' +
+      '<section data-rc-panel="quote">' +
       '<div class="pc-split-grid">' +
       '<div class="detail-action-card">' +
       '<h4>Add a line</h4>' +
@@ -7344,20 +7400,54 @@ ${bodyHtml}
       calcField('Quantity', '<input type="number" min="0" step="1" value="1" data-rcc-qty />') +
       '</div>' +
       '<div class="form-footer">' +
-      '<button class="button button-primary" type="button" data-rcc-add>Add to quote</button>' +
+      '<button class="button button-primary" type="button" data-rcc-add>Add to quote</button> ' +
+      '<button class="button button-outline" type="button" data-rcc-clear>Clear</button>' +
       '</div>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
       '<h4>Quote</h4>' +
       '<div data-rcc-table></div>' +
       '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Issue a Rate Card Sale — Printable Quotation</h4>' +
+      '<div data-rcc-sale></div>' +
+      '</div>' +
+      '</div>' +
+      '</section>' +
+      '<section data-rc-panel="issued" hidden>' +
+      '<h4>Rate Card Issued</h4>' +
+      '<p class="form-note">Every Rate Card sale saved from the calculator above. Print re-opens that exact quotation.</p>' +
+      '<div data-rcc-issued></div>' +
+      '</section>' +
       '</div>';
+
+    const tabNav = container.querySelector('.vc-tab-nav');
+    const panels = Array.from(container.querySelectorAll('[data-rc-panel]'));
+    const issuedHost = container.querySelector('[data-rcc-issued]');
+    tabNav.addEventListener('click', (event) => {
+      const button = event.target.closest('.action-tab');
+      if (!button) return;
+      const target = button.dataset.rcTab;
+      tabNav.querySelectorAll('.action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.rcPanel !== target;
+      });
+      if (target === 'issued') {
+        loadRateCardIssuedList(issuedHost);
+      }
+    });
 
     const sectionSelect = container.querySelector('[data-rcc-section]');
     const activitySelect = container.querySelector('[data-rcc-activity]');
     const qtyInput = container.querySelector('[data-rcc-qty]');
     const addButton = container.querySelector('[data-rcc-add]');
+    const clearButton = container.querySelector('[data-rcc-clear]');
     const tableHost = container.querySelector('[data-rcc-table]');
+    const saleHost = container.querySelector('[data-rcc-sale]');
 
     sectionSelect.innerHTML = sections
       .map((s, i) => '<option value="' + i + '">' + escapeHtml(s.label) + '</option>')
@@ -7420,6 +7510,15 @@ ${bodyHtml}
       });
     }
 
+    // Empties the quote entirely -- used by the explicit Clear button and
+    // automatically once a Rate Card sale has been saved, so the next
+    // customer's quote starts from nothing (modification.md #43, same
+    // Clear-must-actually-clear fix VAS/AMC got in #37/#39).
+    function clearLineItems() {
+      lineItems.length = 0;
+      renderTable();
+    }
+
     addButton.addEventListener('click', () => {
       const section = sections[Number(sectionSelect.value)];
       const activity = section?.activities?.[Number(activitySelect.value)];
@@ -7433,8 +7532,172 @@ ${bodyHtml}
       });
       renderTable();
     });
+    clearButton.addEventListener('click', clearLineItems);
 
     renderTable();
+    renderRateCardSaleSection(saleHost, lineItems, clearLineItems, () => {
+      // Keep the Rate Card Issued list in sync if it's the tab currently open.
+      const issuedPanel = container.querySelector('[data-rc-panel="issued"]');
+      if (issuedPanel && !issuedPanel.hidden) loadRateCardIssuedList(issuedHost);
+    });
+  }
+
+  // Lists every saved rate_card_sales record (modification.md #43) so a
+  // previously issued Rate Card sale can be found again and its quotation
+  // reprinted, without anywhere else in the portal to look it up.
+  async function loadRateCardIssuedList(host) {
+    if (!hasPermission('rate_card_sale.read')) {
+      host.innerHTML =
+        '<p class="form-note">You don\'t have permission to view issued Rate Card sales.</p>';
+      return;
+    }
+    host.innerHTML = '<p class="form-note">Loading issued Rate Card sales&hellip;</p>';
+    try {
+      const response = await apiRequest('/api/rate-card-sales?pageSize=100');
+      const sales = response.rateCardSales || [];
+      if (!sales.length) {
+        host.innerHTML = '<p class="form-note">No Rate Card sales issued yet.</p>';
+        return;
+      }
+      host.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Lines</th><th>Total value</th><th></th>' +
+        '</tr></thead><tbody>' +
+        sales
+          .map(
+            (sale) =>
+              '<tr>' +
+              '<td>' +
+              escapeHtml(sale.rateCardSaleReference) +
+              '</td><td>' +
+              escapeHtml(formatDate(sale.createdAt)) +
+              '</td><td>' +
+              escapeHtml(sale.clientName || '—') +
+              '</td><td>' +
+              String((sale.lineItems || []).length) +
+              '</td><td>' +
+              money(sale.totalValue) +
+              ' AED</td><td>' +
+              '<button type="button" class="button button-outline" data-rcc-reprint="' +
+              escapeHtml(sale.id) +
+              '">Print</button>' +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      host.querySelectorAll('[data-rcc-reprint]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const detail = await apiRequest('/api/rate-card-sales/' + button.dataset.rccReprint);
+            printRateCardSaleCertificate(detail.rateCardSale);
+          } catch (error) {
+            setMessage(
+              '#workspaceMessage',
+              'Could not load this Rate Card sale: ' + (error.message || 'unknown error'),
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">Could not load issued Rate Card sales.</p>';
+    }
+  }
+
+  // Fills in the "Issue a Rate Card Sale -- Printable Quotation" section
+  // (modification.md #43): uses whichever quote lines are currently built
+  // in the calculator above, saves a normalized rate_card_sales record,
+  // then enables printing that saved record's quotation. After a
+  // successful save, the quote lines and the sale form both reset for the
+  // next customer, and onSaved() refreshes the "Rate Card Issued" tab if
+  // it's open -- same treatment as renderVasSaleSection / renderAmcContractSection.
+  function renderRateCardSaleSection(saleHost, lineItems, clearLineItems, onSaved) {
+    if (!hasPermission('rate_card_sale.write')) {
+      saleHost.innerHTML =
+        '<p class="form-note">You don\'t have permission to issue Rate Card sales.</p>';
+      return;
+    }
+    saleHost.innerHTML =
+      '<p class="form-note">Uses the quote lines built above. Fill in the client details and save the sale, then print the quotation.</p>' +
+      '<div class="field-grid">' +
+      calcField('Client', '<input type="text" data-rs-client />') +
+      calcField('Contact number', '<input type="text" data-rs-contact-number />') +
+      calcField('Site / location', '<input type="text" data-rs-location />') +
+      calcField(
+        'Contract ref.',
+        '<input type="text" data-rs-contract-ref />',
+        'Optional — auto-generated if left blank',
+      ) +
+      '</div>' +
+      '<p>' +
+      '<button type="button" class="button button-primary" data-rs-save>Save Rate Card sale</button> ' +
+      '<button type="button" class="button button-outline" data-rs-print disabled>Print quotation</button>' +
+      '</p>' +
+      '<div data-rs-message></div>';
+
+    const saveButton = saleHost.querySelector('[data-rs-save]');
+    const printButton = saleHost.querySelector('[data-rs-print]');
+    const messageHost = saleHost.querySelector('[data-rs-message]');
+    let savedSale = null;
+
+    function clearSaleFormInputs() {
+      saleHost.querySelectorAll('.field-grid input').forEach((el) => {
+        el.value = '';
+      });
+    }
+
+    saveButton.addEventListener('click', async () => {
+      savedSale = null;
+      printButton.disabled = true;
+      messageHost.innerHTML = '';
+      if (!lineItems.length) {
+        messageHost.innerHTML =
+          '<p class="form-note">Add at least one line to the quote above before saving.</p>';
+        return;
+      }
+      const totalValue = lineItems.reduce((s, li) => s + li.rate * li.qty, 0);
+      const field = (selector) => saleHost.querySelector(selector).value.trim();
+      const payload = {
+        clientName: field('[data-rs-client]') || undefined,
+        contactNumber: field('[data-rs-contact-number]') || undefined,
+        siteLocation: field('[data-rs-location]') || undefined,
+        lineItems: lineItems.map((li) => ({
+          sectionLabel: li.sectionLabel,
+          activityName: li.activityName,
+          rate: li.rate,
+          qty: li.qty,
+        })),
+        totalValue,
+        contractRef: field('[data-rs-contract-ref]') || undefined,
+      };
+      try {
+        const response = await apiRequest('/api/rate-card-sales', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        savedSale = response.rateCardSale;
+        messageHost.innerHTML =
+          '<p class="form-note">Saved as <strong>' +
+          escapeHtml(savedSale.rateCardSaleReference) +
+          '</strong> and added to the "Rate Card Issued" tab. Print below, or reprint it any time from Rate Card Issued. The quote has been reset for the next customer.</p>';
+        printButton.disabled = false;
+        clearSaleFormInputs();
+        clearLineItems();
+        onSaved();
+      } catch (error) {
+        messageHost.innerHTML =
+          '<p class="form-note">Could not save the Rate Card sale: ' +
+          escapeHtml(error.message || 'unknown error') +
+          '</p>';
+      }
+    });
+
+    printButton.addEventListener('click', () => {
+      if (!savedSale) return;
+      printRateCardSaleCertificate(savedSale);
+    });
   }
 
   // --- AMC ------------------------------------------------------------------

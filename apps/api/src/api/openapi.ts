@@ -233,6 +233,14 @@ const requestBodies = {
       },
     },
   },
+  rateCardSale: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/RateCardSaleRequest' },
+      },
+    },
+  },
   warrantyApprovalCreate: {
     required: false,
     content: {
@@ -899,6 +907,35 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               },
             },
             commencementDate: { type: 'string', format: 'date' },
+            contractRef: { type: 'string', minLength: 1, maxLength: 120 },
+          },
+        },
+        RateCardSaleRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['lineItems', 'totalValue'],
+          properties: {
+            saleDate: { type: 'string', format: 'date' },
+            clientName: { type: 'string', minLength: 1, maxLength: 200 },
+            contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
+            siteLocation: { type: 'string', minLength: 1, maxLength: 500 },
+            lineItems: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 200,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['sectionLabel', 'activityName', 'rate', 'qty'],
+                properties: {
+                  sectionLabel: { type: 'string', minLength: 1, maxLength: 200 },
+                  activityName: { type: 'string', minLength: 1, maxLength: 200 },
+                  rate: { type: 'number', minimum: 0, maximum: 10000000 },
+                  qty: { type: 'number', minimum: 0, maximum: 100000 },
+                },
+              },
+            },
+            totalValue: { type: 'number', minimum: 0, maximum: 100000000 },
             contractRef: { type: 'string', minLength: 1, maxLength: 120 },
           },
         },

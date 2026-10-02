@@ -14,6 +14,8 @@ export type DashboardSummary = {
   vasSales: { total: number; thisMonth: number };
   // AMC contracts issued (modification.md #38) -- same shape again.
   amcContracts: { total: number; thisMonth: number };
+  // Rate Card sales issued (modification.md #43) -- same shape again.
+  rateCardSales: { total: number; thisMonth: number };
 };
 
 async function statusCounts(
@@ -72,6 +74,8 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     vasSalesMonth,
     amcContractsTotal,
     amcContractsMonth,
+    rateCardSalesTotal,
+    rateCardSalesMonth,
   ] = await Promise.all([
     statusCounts(client, 'complaints'),
     statusCounts(client, 'appointments'),
@@ -90,6 +94,8 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     monthToDateTotal(client, 'vas_sales', 'created_at'),
     simpleTotal(client, 'amc_contracts'),
     monthToDateTotal(client, 'amc_contracts', 'created_at'),
+    simpleTotal(client, 'rate_card_sales'),
+    monthToDateTotal(client, 'rate_card_sales', 'created_at'),
   ]);
 
   return {
@@ -101,5 +107,6 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     warrantyApprovals,
     vasSales: { total: vasSalesTotal, thisMonth: vasSalesMonth },
     amcContracts: { total: amcContractsTotal, thisMonth: amcContractsMonth },
+    rateCardSales: { total: rateCardSalesTotal, thisMonth: rateCardSalesMonth },
   };
 }
