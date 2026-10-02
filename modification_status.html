@@ -1849,6 +1849,62 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#39 &mdash; AMC Quote Calculator: Excel-style manual entry, real Clear, print one plan at a time</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">
+          2026-10-02 &middot; Scope: AMC Quote Calculator page &middot; new migration
+          (<code>021_amc_contracts_plans_jsonb.sql</code>)
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Appliances are user-entered only</strong> &mdash; the table no longer pre-loads
+            from AMC Admin Rate Section's catalog. Pick an appliance type and click
+            <strong>"+ Add appliance"</strong> to add it at qty 0 / unit value 0; a
+            <strong>Remove</strong> button takes it back out.
+          </li>
+          <li>
+            <strong>Clear actually clears</strong> &mdash; the same bug VAS had in #37: Clear used to
+            reload the admin catalog's numbers instead of emptying the list. It now empties the
+            appliance list completely, with Plan pricing going back to its placeholder instead of a
+            stale total.
+          </li>
+          <li>
+            <strong>Plan pricing is fully dynamic</strong> &mdash; no appliances (or a 0 quantity)
+            means nothing computed, matching VAS's empty-price behaviour, instead of quietly pricing
+            a 0 AED contract.
+          </li>
+          <li>
+            <strong>Save stores all 3 plans, not one chosen plan</strong> &mdash; the "Approved plan"
+            selector before saving is gone. Saving now stores the appliance schedule plus the full
+            Basic RM / Standard PMC / Premium PMC numbers together as one quote.
+          </li>
+          <li>
+            <strong>Print one plan at a time, dynamically</strong> &mdash; after saving, a
+            <strong>"Plan to print"</strong> dropdown + Print button generate a certificate for only
+            the selected plan. The same per-row plan picker is now in <strong>"AMC Issued"</strong>
+            too, so any saved contract can be printed for whichever plan the customer goes with,
+            any time later.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            Run the new migration (<code>021_amc_contracts_plans_jsonb.sql</code>) &mdash; it drops
+            the old single-plan columns from #38 and adds a <code>plans</code> jsonb column. Any
+            test AMC contracts saved under #38's migration lose their old plan data.
+          </li>
+          <li>
+            Confirm the appliance table starts empty, Clear truly empties it, adding/removing
+            appliances updates Plan pricing live, saving works with no plan chosen up front, and
+            picking a different plan in "Plan to print" (both right after saving and from "AMC
+            Issued") prints only that plan's certificate.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

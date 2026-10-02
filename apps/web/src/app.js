@@ -1745,7 +1745,10 @@ ${bodyHtml}
   // from docs/index_sep_15.html's updateAMCContractUI(). Keyed by the same
   // plan keys the AMC Quote Calculator computes (basic-rm / standard-pmc /
   // premium-pmc), so a reprint always finds the exact plan's text by key.
-  const AMC_CONTRACT_PLANS = {
+  // Fallback coverage text for each plan key (modification.md #38/#39),
+  // used only if a saved record's plan entry has no coverage/coverageDetail
+  // of its own (older data, or a client-side preview before save).
+  const AMC_CONTRACT_PLAN_FALLBACKS = {
     'basic-rm': {
       label: 'Basic RM',
       coverage: 'Reactive maintenance only',
@@ -1775,10 +1778,16 @@ ${bodyHtml}
     }</tbody></table>`;
   }
 
-  function buildAmcContractCertificateBody(contract) {
-    const planMeta = AMC_CONTRACT_PLANS[contract.planKey] || AMC_CONTRACT_PLANS['premium-pmc'];
-    const planLabel = contract.planLabel || planMeta.label;
-    const vat = Number(contract.priceInclVat) - Number(contract.priceExclVat);
+  // Builds the certificate body for exactly one plan of a saved AMC
+  // contract (modification.md #39 -- a saved contract carries all 3
+  // computed plans; the plan to print is picked afterwards, per print, so
+  // this always takes the specific `plan` entry to print, not the whole
+  // contract).
+  function buildAmcContractCertificateBody(contract, plan) {
+    const fallback =
+      AMC_CONTRACT_PLAN_FALLBACKS[plan.planKey] || AMC_CONTRACT_PLAN_FALLBACKS['premium-pmc'];
+    const planLabel = plan.planLabel || fallback.label;
+    const vat = Number(plan.priceInclVat) - Number(plan.priceExclVat);
     return `
       ${printDocHeadWithLogo('Annual Maintenance Contract', contract.amcContractReference)}
       <h2>Contract details</h2>
@@ -1794,10 +1803,10 @@ ${bodyHtml}
       <h2>Approved service plan</h2>
       ${printFieldGrid([
         ['Selected plan', planLabel],
-        ['Visits', contract.visitsText || `${contract.annualVisits} visits/year`],
-        ['Coverage / basis', contract.coverage || planMeta.coverage],
-        ['Plan coverage', contract.coverageDetail || planMeta.coverageDetail],
-        ['Contract value incl. VAT', money(contract.priceInclVat) + ' AED'],
+        ['Visits', plan.visitsText || `${plan.annualVisits} visits/year`],
+        ['Coverage / basis', plan.coverage || fallback.coverage],
+        ['Plan coverage', plan.coverageDetail || fallback.coverageDetail],
+        ['Contract value incl. VAT', money(plan.priceInclVat) + ' AED'],
       ])}
       <h2>Appliance schedule covered under this AMC</h2>
       ${printAmcApplianceTable(contract.appliances)}
@@ -1815,14 +1824,14 @@ ${bodyHtml}
       <h2>Customer confirmation</h2>
       ${printFieldGrid([
         ['Approved plan', planLabel],
-        ['Excl. VAT', money(contract.priceExclVat) + ' AED'],
+        ['Excl. VAT', money(plan.priceExclVat) + ' AED'],
         ['VAT @ 5%', money(vat) + ' AED'],
-        ['Incl. VAT', money(contract.priceInclVat) + ' AED'],
+        ['Incl. VAT', money(plan.priceInclVat) + ' AED'],
         ['Total appliances', String(contract.totalCount)],
         ['Total equipment value', money(contract.totalValue) + ' AED'],
       ])}
       <div class="cert-feebox">
-        <div class="fee">${money(contract.priceInclVat)} AED</div>
+        <div class="fee">${money(plan.priceInclVat)} AED</div>
         <div>${escapeHtml(planLabel)} &mdash; contract value incl. VAT</div>
       </div>
       <h2>Signatures</h2>
@@ -1835,11 +1844,14 @@ ${bodyHtml}
     `;
   }
 
-  function printAmcContractCertificate(contract) {
-    if (!contract) return;
-    const planMeta = AMC_CONTRACT_PLANS[contract.planKey] || AMC_CONTRACT_PLANS['premium-pmc'];
-    const title = `${contract.planLabel || planMeta.label} AMC Contract ${contract.amcContractReference || ''}`;
-    openPrintWindow(printDocumentShell(title, buildAmcContractCertificateBody(contract)));
+  // Prints exactly one plan from a saved AMC contract -- `planKey` picks
+  // which of the contract's saved `plans` entries to print (modification.md
+  // #39). Falls back to the first saved plan if the key doesn't match.
+  function printAmcContractCertificate(contract, planKey) {
+    if (!contract || !contract.plans || !contract.plans.length) return;
+    const plan = contract.plans.find((p) => p.planKey === planKey) || contract.plans[0];
+    const title = `${plan.planLabel} AMC Contract ${contract.amcContractReference || ''}`;
+    openPrintWindow(printDocumentShell(title, buildAmcContractCertificateBody(contract, plan)));
   }
 
   function openPrintWindow(html) {
@@ -7403,10 +7415,17 @@ ${bodyHtml}
   }
 
   function renderAmcCalc(container, data) {
-    const appliances = data.appliances.filter((a) => a.active !== false).map((a) => ({ ...a }));
-    const defaultAppliances = appliances.map((a) => ({ ...a }));
+    // Catalog of appliance types from AMC Admin Rate Section -- used only
+    // to populate the "+ Add appliance" dropdown (modification.md #39).
+    // The working appliance list below always starts EMPTY: nothing is
+    // pre-filled from the master catalog any more, matching the Excel
+    // workflow where the user builds the schedule one appliance at a time,
+    // each starting at qty 0 / unit value 0.
+    const catalog = data.appliances.filter((a) => a.active !== false);
+    const appliances = [];
+
     container.innerHTML =
-      '<p class="form-note">Edit the appliance quantities and unit values for this specific contract (pre-filled from AMC Admin Rate Section’s catalog), then read the Basic RM / Standard PMC / Premium PMC contract prices below and issue the one the customer approves. Switch to "AMC Issued" to find and reprint any previously saved contract.</p>' +
+      '<p class="form-note">Add each appliance type covered by this contract one at a time (nothing is pre-filled from the admin catalog), enter its quantity and unit value, then read the Basic RM / Standard PMC / Premium PMC contract prices below. Saving stores all 3 plans together; you pick which one to print afterwards. Switch to "AMC Issued" to find and reprint any previously saved contract.</p>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="AMC Quote Calculator sections">' +
       '<button type="button" class="action-tab active" data-ac-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
       '<button type="button" class="action-tab" data-ac-tab="issued" role="tab" aria-selected="false">AMC Issued</button>' +
@@ -7415,7 +7434,28 @@ ${bodyHtml}
       '<section data-ac-panel="quote">' +
       '<div class="detail-action-card pc-span-full">' +
       '<h4>Appliances for this contract</h4>' +
-      '<p><button type="button" class="button button-outline" data-ac-clear>Clear</button></p>' +
+      (catalog.length
+        ? '<div class="field-grid">' +
+          calcField(
+            'Appliance type',
+            '<select data-ac-add-select>' +
+              catalog
+                .map(
+                  (a) =>
+                    '<option value="' +
+                    escapeHtml(a.name) +
+                    '">' +
+                    escapeHtml(a.name) +
+                    '</option>',
+                )
+                .join('') +
+              '</select>',
+          ) +
+          '</div>' +
+          '<p><button type="button" class="button button-outline" data-ac-add>+ Add appliance</button> ' +
+          '<button type="button" class="button button-outline" data-ac-clear>Clear</button></p>'
+        : '<p class="form-note">No appliance types are configured in AMC Admin Rate Section yet.</p>' +
+          '<p><button type="button" class="button button-outline" data-ac-clear>Clear</button></p>') +
       '<div data-ac-appliances></div>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
@@ -7429,7 +7469,7 @@ ${bodyHtml}
       '</section>' +
       '<section data-ac-panel="issued" hidden>' +
       '<h4>AMC Issued</h4>' +
-      '<p class="form-note">Every AMC contract saved from the calculator above. Print re-opens that exact certificate.</p>' +
+      '<p class="form-note">Every AMC contract saved from the calculator above, with all 3 plans’ numbers stored. Pick a plan and Print to generate that plan’s certificate.</p>' +
       '<div data-ac-issued></div>' +
       '</section>' +
       '</div>';
@@ -7458,16 +7498,24 @@ ${bodyHtml}
     const output = container.querySelector('[data-ac-output]');
     const saleHost = container.querySelector('[data-ac-sale]');
     const clearButton = container.querySelector('[data-ac-clear]');
+    const addButton = container.querySelector('[data-ac-add]');
+    const addSelect = container.querySelector('[data-ac-add-select]');
 
-    // The 3 computed plan rows from the most recent recompute() --
+    // The 3 computed plan rows from the most recent recompute() -- null
+    // whenever there are no appliances (or none with a quantity > 0) --
     // read by the Issue-a-Contract section below when Save is clicked, so
     // it always saves the exact numbers currently on screen.
     let lastRows = null;
 
     function renderAppliancesTable() {
+      if (!appliances.length) {
+        appliancesHost.innerHTML =
+          '<p class="form-note">No appliances added yet. Pick an appliance type above and click "+ Add appliance".</p>';
+        return;
+      }
       appliancesHost.innerHTML =
         '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
-        '<th style="width: 40%">Appliance</th><th style="width: 20%">Qty</th><th style="width: 20%">Unit value (AED)</th><th style="width: 20%">Total value (AED)</th>' +
+        '<th style="width: 35%">Appliance</th><th style="width: 15%">Qty</th><th style="width: 20%">Unit value (AED)</th><th style="width: 20%">Total value (AED)</th><th style="width: 10%"></th>' +
         '</tr></thead><tbody>' +
         appliances
           .map(
@@ -7484,7 +7532,9 @@ ${bodyHtml}
               i +
               '" /></td><td>' +
               money(a.qty * a.price) +
-              '</td></tr>',
+              '</td><td><button type="button" class="button button-outline" data-ac-remove="' +
+              i +
+              '">Remove</button></td></tr>',
           )
           .join('') +
         '</tbody></table></div>';
@@ -7497,6 +7547,13 @@ ${bodyHtml}
       appliancesHost.querySelectorAll('[data-ac-price]').forEach((input) => {
         input.addEventListener('input', () => {
           appliances[Number(input.getAttribute('data-ac-price'))].price = parseNumber(input.value);
+          recompute();
+        });
+      });
+      appliancesHost.querySelectorAll('[data-ac-remove]').forEach((button) => {
+        button.addEventListener('click', () => {
+          appliances.splice(Number(button.getAttribute('data-ac-remove')), 1);
+          renderAppliancesTable();
           recompute();
         });
       });
@@ -7519,23 +7576,29 @@ ${bodyHtml}
     function recompute() {
       const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
       const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
+
+      // Dynamic, like VAS's empty-price state: no appliances (or none with
+      // a quantity entered yet) means no plan pricing shown at all, rather
+      // than quietly pricing a 0 AED contract (modification.md #39).
+      if (!appliances.length || totalCount <= 0) {
+        lastRows = null;
+        output.innerHTML = appliances.length
+          ? '<p class="form-note">Enter a quantity for at least one appliance above to see plan pricing.</p>'
+          : '<p class="form-note">Add at least one appliance above to see plan pricing.</p>';
+        return;
+      }
+
       const costPerVisit = amcCostPerVisit(data);
 
       const basicVisits = amcLookupBasicVisits(totalCount, data.basicVisitTiers);
-      const standardVisits =
-        totalCount === 0
-          ? 0
-          : Math.ceil(
-              (totalCount * data.standardPct * (1 + data.riskUplift) * data.standardVisits) /
-                data.handledPerVisit,
-            );
-      const premiumVisits =
-        totalCount === 0
-          ? 0
-          : Math.ceil(
-              (totalCount * data.premiumPct * (1 + data.riskUplift) * data.premiumVisits) /
-                data.handledPerVisit,
-            );
+      const standardVisits = Math.ceil(
+        (totalCount * data.standardPct * (1 + data.riskUplift) * data.standardVisits) /
+          data.handledPerVisit,
+      );
+      const premiumVisits = Math.ceil(
+        (totalCount * data.premiumPct * (1 + data.riskUplift) * data.premiumVisits) /
+          data.handledPerVisit,
+      );
 
       const rows = [
         ['Basic RM', planFor(basicVisits, 0, data.basicPct, totalValue, costPerVisit)],
@@ -7599,28 +7662,33 @@ ${bodyHtml}
         '</tbody></table></div>';
     }
 
-    // Resets every appliance's qty/price back to AMC Admin Rate Section's
-    // catalog defaults -- used by the explicit Clear button and
-    // automatically once an AMC contract has been saved, so the next
-    // customer's contract starts from the admin catalog, not the previous
-    // customer's numbers (modification.md #38).
-    function resetAppliances() {
-      appliances.forEach((a, i) => {
-        a.qty = defaultAppliances[i].qty;
-        a.price = defaultAppliances[i].price;
-      });
+    // Empties the appliance list entirely -- used by the explicit Clear
+    // button and automatically once an AMC contract has been saved, so
+    // the next customer's contract starts from nothing, not the previous
+    // customer's numbers or the admin catalog's defaults (modification.md
+    // #39 -- Clear must actually clear, the same fix VAS got in #37).
+    function clearAppliances() {
+      appliances.length = 0;
       renderAppliancesTable();
       recompute();
     }
 
-    clearButton.addEventListener('click', resetAppliances);
+    if (addButton) {
+      addButton.addEventListener('click', () => {
+        if (!addSelect || !addSelect.value) return;
+        appliances.push({ name: addSelect.value, qty: 0, price: 0 });
+        renderAppliancesTable();
+        recompute();
+      });
+    }
+    clearButton.addEventListener('click', clearAppliances);
     renderAppliancesTable();
     recompute();
     renderAmcContractSection(
       saleHost,
       appliances,
       () => lastRows,
-      resetAppliances,
+      clearAppliances,
       () => {
         // Keep the AMC Issued list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-ac-panel="issued"]');
@@ -7629,9 +7697,10 @@ ${bodyHtml}
     );
   }
 
-  // Lists every saved amc_contracts record (modification.md #38) so a
-  // previously issued AMC contract can be found again and its certificate
-  // reprinted.
+  // Lists every saved amc_contracts record (modification.md #38/#39) so a
+  // previously issued AMC contract can be found again and a chosen plan's
+  // certificate reprinted. Each saved record carries all 3 computed plans
+  // -- the plan to print is picked per row, per print, from a dropdown.
   async function loadAmcIssuedList(host) {
     if (!hasPermission('amc_contract.read')) {
       host.innerHTML =
@@ -7648,11 +7717,13 @@ ${bodyHtml}
       }
       host.innerHTML =
         '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Reference</th><th>Issued</th><th>Client</th><th>Plan</th><th>Total appliances</th><th>Price incl. VAT</th><th></th>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Total appliances</th><th>Plan to print</th><th>Price incl. VAT</th><th></th>' +
         '</tr></thead><tbody>' +
         contracts
-          .map(
-            (c) =>
+          .map((c) => {
+            const plans = c.plans || [];
+            const defaultPlan = plans[plans.length - 1] || plans[0];
+            return (
               '<tr>' +
               '<td>' +
               escapeHtml(c.amcContractReference) +
@@ -7661,25 +7732,53 @@ ${bodyHtml}
               '</td><td>' +
               escapeHtml(c.clientName || '—') +
               '</td><td>' +
-              escapeHtml(c.planLabel) +
-              '</td><td>' +
               escapeHtml(String(c.totalCount)) +
-              '</td><td>' +
-              money(c.priceInclVat) +
+              '</td><td><select data-ac-plan-select="' +
+              escapeHtml(c.id) +
+              '">' +
+              plans
+                .map(
+                  (p) =>
+                    '<option value="' +
+                    escapeHtml(p.planKey) +
+                    '"' +
+                    (defaultPlan && p.planKey === defaultPlan.planKey ? ' selected' : '') +
+                    '>' +
+                    escapeHtml(p.planLabel) +
+                    '</option>',
+                )
+                .join('') +
+              '</select></td><td data-ac-price-cell="' +
+              escapeHtml(c.id) +
+              '">' +
+              money(defaultPlan ? defaultPlan.priceInclVat : 0) +
               ' AED</td><td>' +
               '<button type="button" class="button button-outline" data-ac-reprint="' +
               escapeHtml(c.id) +
               '">Print</button>' +
-              '</td></tr>',
-          )
+              '</td></tr>'
+            );
+          })
           .join('') +
         '</tbody></table></div>';
+      host.querySelectorAll('[data-ac-plan-select]').forEach((select) => {
+        select.addEventListener('change', () => {
+          const id = select.getAttribute('data-ac-plan-select');
+          const contract = contracts.find((c) => String(c.id) === String(id));
+          const plan =
+            contract && contract.plans && contract.plans.find((p) => p.planKey === select.value);
+          const cell = host.querySelector('[data-ac-price-cell="' + id + '"]');
+          if (cell && plan) cell.textContent = money(plan.priceInclVat) + ' AED';
+        });
+      });
       host.querySelectorAll('[data-ac-reprint]').forEach((button) => {
         button.addEventListener('click', async () => {
           button.disabled = true;
           try {
-            const detail = await apiRequest('/api/amc-contracts/' + button.dataset.acReprint);
-            printAmcContractCertificate(detail.amcContract);
+            const id = button.getAttribute('data-ac-reprint');
+            const select = host.querySelector('[data-ac-plan-select="' + id + '"]');
+            const detail = await apiRequest('/api/amc-contracts/' + id);
+            printAmcContractCertificate(detail.amcContract, select ? select.value : undefined);
           } catch (error) {
             setMessage(
               '#workspaceMessage',
@@ -7696,30 +7795,23 @@ ${bodyHtml}
   }
 
   // Fills in the "Issue an AMC Contract -- Customer Certificate" section
-  // (modification.md #38): the admin picks which of the 3 computed plans
-  // the customer approved, fills in client/site details, saves a
-  // normalized amc_contracts record via the API, then can print that
-  // record's certificate. After a successful save, the appliances and the
-  // contract form both reset for the next customer -- the Print button
-  // stays enabled against the just-saved record, and onSaved() refreshes
-  // the "AMC Issued" tab if it's open.
-  function renderAmcContractSection(saleHost, appliances, getRows, resetAppliances, onSaved) {
+  // (modification.md #38/#39): fills in client/site details and saves a
+  // normalized amc_contracts record carrying the appliance schedule and
+  // ALL 3 computed plans -- no plan is chosen at save time, matching the
+  // Excel workflow where which plan prints is decided afterwards. After a
+  // successful save, the appliances and the contract form both reset for
+  // the next customer -- a "Plan to print" dropdown + Print button stay
+  // enabled against the just-saved record, and onSaved() refreshes the
+  // "AMC Issued" tab if it's open.
+  function renderAmcContractSection(saleHost, appliances, getRows, clearAppliances, onSaved) {
     if (!hasPermission('amc_contract.write')) {
       saleHost.innerHTML =
         '<p class="form-note">You don\'t have permission to issue AMC contracts.</p>';
       return;
     }
     saleHost.innerHTML =
-      '<p class="form-note">Pick the plan the customer approved, fill in the client &amp; site details, save the contract, then print the certificate.</p>' +
+      '<p class="form-note">Fill in the client &amp; site details and save the contract — all 3 plans’ numbers are stored together, and you pick which one to print below (or any time from "AMC Issued").</p>' +
       '<div class="field-grid">' +
-      calcField(
-        'Approved plan',
-        '<select data-as-plan>' +
-          '<option value="basic-rm">Basic RM</option>' +
-          '<option value="standard-pmc">Standard PMC</option>' +
-          '<option value="premium-pmc" selected>Premium PMC</option>' +
-          '</select>',
-      ) +
       calcField('Contract period', '<input type="text" value="1 Year" data-as-period />') +
       calcField('Client', '<input type="text" data-as-client />') +
       calcField('Attention to', '<input type="text" data-as-attention />') +
@@ -7730,14 +7822,18 @@ ${bodyHtml}
         '<input type="text" data-as-contract-ref />',
       ) +
       '</div>' +
-      '<p>' +
-      '<button type="button" class="button button-primary" data-as-save>Save AMC contract</button> ' +
-      '<button type="button" class="button button-outline" data-as-print disabled>Print certificate</button>' +
-      '</p>' +
-      '<div data-as-message></div>';
+      '<p><button type="button" class="button button-primary" data-as-save>Save AMC contract</button></p>' +
+      '<div data-as-message></div>' +
+      '<div class="field-grid">' +
+      calcField(
+        'Plan to print',
+        '<select data-as-print-plan disabled><option value="">Save first to choose a plan</option></select>',
+      ) +
+      '</div>' +
+      '<p><button type="button" class="button button-outline" data-as-print disabled>Print certificate</button></p>';
 
-    const planSelect = saleHost.querySelector('[data-as-plan]');
     const saveButton = saleHost.querySelector('[data-as-save]');
+    const printPlanSelect = saleHost.querySelector('[data-as-print-plan]');
     const printButton = saleHost.querySelector('[data-as-print]');
     const messageHost = saleHost.querySelector('[data-as-message]');
     let savedContract = null;
@@ -7750,17 +7846,12 @@ ${bodyHtml}
         el.value = '';
       });
       saleHost.querySelector('[data-as-period]').value = '1 Year';
-      planSelect.value = 'premium-pmc';
     }
-
-    const planRowLabels = {
-      'basic-rm': 'Basic RM',
-      'standard-pmc': 'Standard PMC',
-      'premium-pmc': 'Premium PMC',
-    };
 
     saveButton.addEventListener('click', async () => {
       savedContract = null;
+      printPlanSelect.innerHTML = '<option value="">Save first to choose a plan</option>';
+      printPlanSelect.disabled = true;
       printButton.disabled = true;
       messageHost.innerHTML = '';
       const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
@@ -7770,38 +7861,42 @@ ${bodyHtml}
         return;
       }
       const rows = getRows();
-      const planKey = planSelect.value;
-      const rowEntry = rows && rows.find(([label]) => label === planRowLabels[planKey]);
-      if (!rowEntry) {
+      if (!rows) {
         messageHost.innerHTML =
-          '<p class="form-note">Could not find pricing for the selected plan -- adjust the appliances above first.</p>';
+          '<p class="form-note">Could not find pricing for the appliances above -- adjust the quantities first.</p>';
         return;
       }
-      const plan = rowEntry[1];
-      const planMeta = AMC_CONTRACT_PLANS[planKey];
       const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
+      const plans = Object.keys(AMC_CONTRACT_PLAN_FALLBACKS).map((planKey) => {
+        const fallback = AMC_CONTRACT_PLAN_FALLBACKS[planKey];
+        const rowEntry = rows.find(([label]) => label === fallback.label);
+        const plan = rowEntry[1];
+        return {
+          planKey,
+          planLabel: fallback.label,
+          coverage: fallback.coverage,
+          coverageDetail: fallback.coverageDetail,
+          visitsText: plan.visits + ' visits/year',
+          annualVisits: plan.visits,
+          laborCost: plan.labor,
+          transportCost: plan.transport,
+          partsReserve: plan.parts,
+          directCost: plan.direct,
+          overhead: plan.overhead,
+          priceExclVat: plan.priceExclVat,
+          priceInclVat: plan.priceInclVat,
+        };
+      });
       const field = (selector) => saleHost.querySelector(selector).value.trim();
       const payload = {
         contractPeriod: field('[data-as-period]') || undefined,
         clientName: field('[data-as-client]') || undefined,
         attentionTo: field('[data-as-attention]') || undefined,
         siteLocation: field('[data-as-location]') || undefined,
-        planKey,
-        planLabel: planMeta.label,
-        coverage: planMeta.coverage,
-        coverageDetail: planMeta.coverageDetail,
-        visitsText: plan.visits + ' visits/year',
-        annualVisits: plan.visits,
         appliances: appliances.map((a) => ({ name: a.name, qty: a.qty, price: a.price })),
         totalCount,
         totalValue,
-        laborCost: plan.labor,
-        transportCost: plan.transport,
-        partsReserve: plan.parts,
-        directCost: plan.direct,
-        overhead: plan.overhead,
-        priceExclVat: plan.priceExclVat,
-        priceInclVat: plan.priceInclVat,
+        plans,
         commencementDate: field('[data-as-commencement]') || undefined,
         contractRef: field('[data-as-contract-ref]') || undefined,
       };
@@ -7814,10 +7909,23 @@ ${bodyHtml}
         messageHost.innerHTML =
           '<p class="form-note">Saved as <strong>' +
           escapeHtml(savedContract.amcContractReference) +
-          '</strong> and added to the "AMC Issued" tab. Print below, or reprint it any time from AMC Issued. The appliances have been reset for the next contract.</p>';
+          '</strong> and added to the "AMC Issued" tab. Pick a plan below to print, or reprint it any time from AMC Issued. The appliances have been reset for the next contract.</p>';
+        printPlanSelect.innerHTML = savedContract.plans
+          .map(
+            (p) =>
+              '<option value="' +
+              escapeHtml(p.planKey) +
+              '">' +
+              escapeHtml(p.planLabel) +
+              ' — ' +
+              money(p.priceInclVat) +
+              ' AED incl. VAT</option>',
+          )
+          .join('');
+        printPlanSelect.disabled = false;
         printButton.disabled = false;
         clearContractFormInputs();
-        resetAppliances();
+        clearAppliances();
         onSaved();
       } catch (error) {
         messageHost.innerHTML =
@@ -7829,7 +7937,7 @@ ${bodyHtml}
 
     printButton.addEventListener('click', () => {
       if (!savedContract) return;
-      printAmcContractCertificate(savedContract);
+      printAmcContractCertificate(savedContract, printPlanSelect.value);
     });
   }
 

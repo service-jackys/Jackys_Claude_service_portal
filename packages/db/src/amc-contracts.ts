@@ -6,6 +6,25 @@ export type AmcApplianceLine = {
   price: number;
 };
 
+// One of the 3 plans computed for this contract's appliance schedule
+// (modification.md #39). The saved record always carries all 3 -- which
+// one to print is picked afterwards, per print.
+export type AmcPlanComputation = {
+  planKey: string;
+  planLabel: string;
+  coverage: string | null;
+  coverageDetail: string | null;
+  visitsText: string | null;
+  annualVisits: number;
+  laborCost: number;
+  transportCost: number;
+  partsReserve: number;
+  directCost: number;
+  overhead: number;
+  priceExclVat: number;
+  priceInclVat: number;
+};
+
 export type AmcContractRecord = {
   id: string;
   amcContractReference: string;
@@ -14,22 +33,10 @@ export type AmcContractRecord = {
   clientName: string | null;
   attentionTo: string | null;
   siteLocation: string | null;
-  planKey: string;
-  planLabel: string;
-  coverage: string | null;
-  coverageDetail: string | null;
-  visitsText: string | null;
-  annualVisits: string;
   appliances: AmcApplianceLine[];
   totalCount: string;
   totalValue: string;
-  laborCost: string;
-  transportCost: string;
-  partsReserve: string;
-  directCost: string;
-  overhead: string;
-  priceExclVat: string;
-  priceInclVat: string;
+  plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
   createdAt: Date;
@@ -44,22 +51,10 @@ export type AmcContractContent = {
   clientName: string | null;
   attentionTo: string | null;
   siteLocation: string | null;
-  planKey: string;
-  planLabel: string;
-  coverage: string | null;
-  coverageDetail: string | null;
-  visitsText: string | null;
-  annualVisits: number;
   appliances: AmcApplianceLine[];
   totalCount: number;
   totalValue: number;
-  laborCost: number;
-  transportCost: number;
-  partsReserve: number;
-  directCost: number;
-  overhead: number;
-  priceExclVat: number;
-  priceInclVat: number;
+  plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
 };
@@ -72,22 +67,10 @@ const columns = `
   client_name AS "clientName",
   attention_to AS "attentionTo",
   site_location AS "siteLocation",
-  plan_key AS "planKey",
-  plan_label AS "planLabel",
-  coverage,
-  coverage_detail AS "coverageDetail",
-  visits_text AS "visitsText",
-  annual_visits AS "annualVisits",
   appliances,
   total_count AS "totalCount",
   total_value AS "totalValue",
-  labor_cost AS "laborCost",
-  transport_cost AS "transportCost",
-  parts_reserve AS "partsReserve",
-  direct_cost AS "directCost",
-  overhead,
-  price_excl_vat AS "priceExclVat",
-  price_incl_vat AS "priceInclVat",
+  plans,
   commencement_date::text AS "commencementDate",
   contract_ref AS "contractRef",
   created_at AS "createdAt",
@@ -104,18 +87,14 @@ export async function insertAmcContract(
   const result = await client.query<{ id: string }>(
     `INSERT INTO amc_contracts (
        amc_contract_reference, contract_date, contract_period, client_name, attention_to,
-       site_location, plan_key, plan_label, coverage, coverage_detail,
-       visits_text, annual_visits, appliances, total_count, total_value,
-       labor_cost, transport_cost, parts_reserve, direct_cost, overhead,
-       price_excl_vat, price_incl_vat, commencement_date, contract_ref,
+       site_location, appliances, total_count, total_value, plans,
+       commencement_date, contract_ref,
        created_by, updated_by
      ) VALUES (
        $1, $2, $3, $4, $5,
-       $6, $7, $8, $9, $10,
-       $11, $12, $13::jsonb, $14, $15,
-       $16, $17, $18, $19, $20,
-       $21, $22, $23, $24,
-       $25, $25
+       $6, $7::jsonb, $8, $9, $10::jsonb,
+       $11, $12,
+       $13, $13
      )
      RETURNING id`,
     [
@@ -125,22 +104,10 @@ export async function insertAmcContract(
       c.clientName,
       c.attentionTo,
       c.siteLocation,
-      c.planKey,
-      c.planLabel,
-      c.coverage,
-      c.coverageDetail,
-      c.visitsText,
-      c.annualVisits,
       JSON.stringify(c.appliances),
       c.totalCount,
       c.totalValue,
-      c.laborCost,
-      c.transportCost,
-      c.partsReserve,
-      c.directCost,
-      c.overhead,
-      c.priceExclVat,
-      c.priceInclVat,
+      JSON.stringify(c.plans),
       c.commencementDate,
       c.contractRef,
       input.createdBy,

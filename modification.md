@@ -1753,3 +1753,48 @@ does not save or create any record" — left over from before #35/#38 added savi
   table; picking a plan and saving an AMC contract works, shows up in "AMC Issued" with a working
   Print button, and the appliance table/form reset afterwards; the Dashboard shows the new "AMC
   contracts" tile.
+
+## Modification #39 — AMC Quote Calculator: Excel-style manual entry, real Clear, print one plan at a time
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). Needs `npm run db:migrate` (new migration
+`021_amc_contracts_plans_jsonb.sql`).
+
+### What changed
+
+Reworked #38's AMC Quote Calculator to match the Excel workflow instead of the admin-catalog-prefill
+approach it shipped with:
+
+- **Appliances are user-entered only** — the appliance table no longer pre-loads from AMC Admin Rate
+  Section's catalog. It starts empty; pick an appliance type from the dropdown and click
+  **"+ Add appliance"** to add it to the schedule, starting at qty 0 / unit value 0. A **Remove**
+  button on each row takes it back out.
+- **Clear actually clears** — same bug as VAS's #37: Clear used to reload the appliances back to the
+  admin catalog's numbers instead of emptying them. It now empties the appliance list completely, and
+  the Plan pricing section goes back to its "add an appliance" placeholder — not a stale total.
+- **Plan pricing is fully dynamic** — with no appliances (or a quantity of 0), the Plan pricing card
+  shows nothing computed, same as VAS's empty-price behaviour from #37, instead of quietly pricing a
+  0 AED contract.
+- **Save now stores all 3 plans, not one chosen plan** — picking an "Approved plan" before saving is
+  gone. Saving a contract now stores the appliance schedule plus the full computed numbers for Basic
+  RM / Standard PMC / Premium PMC together, as one quote. Which plan to print is a separate decision,
+  made afterwards.
+- **Print one plan at a time, dynamically** — after saving, a **"Plan to print"** dropdown (showing
+  each plan's price) + Print button appear; printing generates a certificate for only the selected
+  plan, with that plan's coverage, visits and price — not all three. The same per-row plan picker is
+  now in the **"AMC Issued"** tab too, so any saved contract can be reprinted for whichever plan the
+  customer actually goes with, any time later (not just the plan chosen at save time, since none is
+  any more).
+
+### Needs you
+
+- Run `npm run db:migrate` to apply migration `021_amc_contracts_plans_jsonb.sql` (drops the old
+  single-plan columns on `amc_contracts` and adds a `plans` jsonb column holding all 3 plans).
+- This changes the save payload shape — if you had already migrated `020_amc_contracts.sql` and saved
+  any test AMC contracts under it, their old single-plan data is dropped by `021`; nothing production
+  depends on it yet.
+- After migrating and restarting the server, confirm: the appliance table starts empty on load; Clear
+  truly empties it (not back to catalog defaults); adding/removing appliances updates Plan pricing
+  live; saving a contract works without choosing a plan first; after saving, picking a different plan
+  in "Plan to print" and clicking Print shows only that plan's certificate; and the "AMC Issued" tab's
+  per-row plan dropdown + Print does the same for a previously saved contract.

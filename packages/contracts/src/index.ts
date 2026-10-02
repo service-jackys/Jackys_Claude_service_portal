@@ -459,22 +459,17 @@ const amcApplianceLineSchema = z
   })
   .strict();
 
-export const amcContractWriteSchema = z
+// One of the 3 plans computed for a saved AMC contract's appliance
+// schedule (modification.md #39 -- the Excel workflow saves the full
+// quote, not one chosen plan; which plan to print is picked afterwards).
+const amcContractPlanComputationSchema = z
   .object({
-    contractDate: dateSchema.optional(),
-    contractPeriod: optionalText(50),
-    clientName: optionalText(200),
-    attentionTo: optionalText(200),
-    siteLocation: optionalText(500),
     planKey: amcContractPlanKeySchema,
     planLabel: z.string().trim().min(1).max(100),
     coverage: optionalText(200),
     coverageDetail: optionalText(300),
     visitsText: optionalText(100),
     annualVisits: z.number().min(0).max(1000),
-    appliances: z.array(amcApplianceLineSchema).min(1).max(200),
-    totalCount: z.number().min(0).max(100000),
-    totalValue: z.number().min(0).max(100000000),
     laborCost: z.number().min(0).max(10000000),
     transportCost: z.number().min(0).max(10000000),
     partsReserve: z.number().min(0).max(10000000),
@@ -482,11 +477,26 @@ export const amcContractWriteSchema = z
     overhead: z.number().min(0).max(10000000),
     priceExclVat: z.number().min(0).max(10000000),
     priceInclVat: z.number().min(0).max(10000000),
+  })
+  .strict();
+
+export const amcContractWriteSchema = z
+  .object({
+    contractDate: dateSchema.optional(),
+    contractPeriod: optionalText(50),
+    clientName: optionalText(200),
+    attentionTo: optionalText(200),
+    siteLocation: optionalText(500),
+    appliances: z.array(amcApplianceLineSchema).min(1).max(200),
+    totalCount: z.number().min(0).max(100000),
+    totalValue: z.number().min(0).max(100000000),
+    plans: z.array(amcContractPlanComputationSchema).min(1).max(3),
     commencementDate: dateSchema.optional(),
     contractRef: optionalText(120),
   })
   .strict();
 export type AmcContractWriteInput = z.infer<typeof amcContractWriteSchema>;
+export type AmcContractPlanComputation = z.infer<typeof amcContractPlanComputationSchema>;
 
 export const amcContractListQuerySchema = z
   .object({
