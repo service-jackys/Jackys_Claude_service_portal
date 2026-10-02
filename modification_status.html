@@ -1957,6 +1957,32 @@
           plan you picked, and the General Terms and Conditions section on every plan's print.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#42 &mdash; "Contract ref." field label was pushing its input box down</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: VAS sale form &amp; AMC contract form &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            The "Contract ref." label read <strong>"Contract ref. (optional &mdash; auto-generated
+            if blank)"</strong>, long enough to wrap to 2 lines in its grid cell and push that field's
+            input box down, out of line with the other inputs in the same row.
+          </li>
+          <li>
+            Shortened the visible label to <strong>"Contract ref."</strong> and moved the
+            "optional &mdash; auto-generated if blank" note into a hover tooltip instead. Fixed on
+            both the VAS sale form and the AMC contract form.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>No migration &mdash; pull and restart.</li>
+          <li>Confirm the "Contract ref." input lines up with the rest of its row on both forms, and
+          hovering the label shows the tooltip.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

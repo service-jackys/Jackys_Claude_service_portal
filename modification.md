@@ -1851,3 +1851,28 @@ Quotation" sheet:
   the Save screen or "AMC Issued") shows a "Service Scope — Inclusions & Exclusions" section with
   Included / Not included text for **only** the plan you picked to print, and a "General Terms and
   Conditions" section near the end that appears **on every plan's print**, not just one.
+
+## Modification #42 — "Contract ref." field label was pushing its input box down
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+On the VAS sale and AMC contract save forms, the "Contract ref." field's label read
+**"Contract ref. (optional — auto-generated if blank)"** — long enough to wrap onto 2 lines inside
+its grid cell. Since all fields in the same row of a `.field-grid` row share the same row height,
+that 2-line label pushed only _that_ field's input box down, out of line with the other inputs next
+to it in the same row.
+
+Fixed by shortening the visible label back to **"Contract ref."** (so it never wraps) and moving the
+"optional — auto-generated if blank" explanation into a hover tooltip (a native `title` attribute on
+the label) instead. Applies to both the VAS sale form and the AMC contract form — same label, same
+bug, same fix.
+
+### Needs you
+
+- No migration — pull and restart.
+- Confirm the "Contract ref." input on both the VAS sale form and the AMC contract save form now
+  lines up with the other inputs in its row, and hovering the label shows the "optional —
+  auto-generated if blank" note as a tooltip.

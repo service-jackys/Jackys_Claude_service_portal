@@ -6814,8 +6814,9 @@ ${bodyHtml}
     return result;
   }
 
-  function calcField(labelText, inputHtml) {
-    return '<label>' + escapeHtml(labelText) + '<br />' + inputHtml + '</label>';
+  function calcField(labelText, inputHtml, hint) {
+    const titleAttr = hint ? ' title="' + escapeHtml(hint) + '"' : '';
+    return '<label' + titleAttr + '>' + escapeHtml(labelText) + '<br />' + inputHtml + '</label>';
   }
 
   // --- VAS ----------------------------------------------------------------
@@ -7239,8 +7240,9 @@ ${bodyHtml}
       calcField('Item code', '<input type="text" data-vs-item-code />') +
       calcField('Item description', '<input type="text" data-vs-item-description />') +
       calcField(
-        'Contract ref. (optional — auto-generated if blank)',
+        'Contract ref.',
         '<input type="text" data-vs-contract-ref />',
+        'Optional — auto-generated if left blank',
       ) +
       '</div>' +
       '<p>' +
@@ -7873,8 +7875,9 @@ ${bodyHtml}
       calcField('Site / location', '<input type="text" data-as-location />') +
       calcField('Commencement date', '<input type="date" data-as-commencement />') +
       calcField(
-        'Contract ref. (optional — auto-generated if blank)',
+        'Contract ref.',
         '<input type="text" data-as-contract-ref />',
+        'Optional — auto-generated if left blank',
       ) +
       '</div>' +
       '<p><button type="button" class="button button-primary" data-as-save>Save AMC contract</button></p>' +
