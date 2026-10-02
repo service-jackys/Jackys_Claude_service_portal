@@ -1798,3 +1798,21 @@ approach it shipped with:
   live; saving a contract works without choosing a plan first; after saving, picking a different plan
   in "Plan to print" and clicking Print shows only that plan's certificate; and the "AMC Issued" tab's
   per-row plan dropdown + Print does the same for a previously saved contract.
+
+## Modification #40 — AMC Quote Calculator: appliance row's own Total value wasn't live
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+Fixed a bug from #39: typing a quantity or unit value into an added appliance row updated the Plan
+pricing card below correctly, but the same row's own **"Total value (AED)"** column stayed frozen at
+whatever it showed when the row was added (0.00), because that cell was only ever written once when
+the table was built, never on keystroke. It now updates on every quantity/unit value change, same as
+the rest of the page.
+
+### Needs you
+
+- No migration — pull, restart, and confirm typing a quantity and a unit value for an added appliance
+  updates that row's own Total value column immediately, not just the Plan pricing card below it.

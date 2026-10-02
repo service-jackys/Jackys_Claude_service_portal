@@ -7530,7 +7530,9 @@ ${bodyHtml}
               a.price +
               '" data-ac-price="' +
               i +
-              '" /></td><td>' +
+              '" /></td><td data-ac-total="' +
+              i +
+              '">' +
               money(a.qty * a.price) +
               '</td><td><button type="button" class="button button-outline" data-ac-remove="' +
               i +
@@ -7538,15 +7540,29 @@ ${bodyHtml}
           )
           .join('') +
         '</tbody></table></div>';
+      // Updates this row's own "Total value" cell in place -- the Plan
+      // pricing card below already recomputes from the live appliances
+      // array on every keystroke, but that card doesn't touch the
+      // appliance table's own total column, so it needs its own update
+      // here (otherwise it stays frozen at whatever it showed when the
+      // table was last rebuilt).
+      function updateRowTotal(index) {
+        const cell = appliancesHost.querySelector('[data-ac-total="' + index + '"]');
+        if (cell) cell.textContent = money(appliances[index].qty * appliances[index].price);
+      }
       appliancesHost.querySelectorAll('[data-ac-qty]').forEach((input) => {
         input.addEventListener('input', () => {
-          appliances[Number(input.getAttribute('data-ac-qty'))].qty = parseNumber(input.value);
+          const index = Number(input.getAttribute('data-ac-qty'));
+          appliances[index].qty = parseNumber(input.value);
+          updateRowTotal(index);
           recompute();
         });
       });
       appliancesHost.querySelectorAll('[data-ac-price]').forEach((input) => {
         input.addEventListener('input', () => {
-          appliances[Number(input.getAttribute('data-ac-price'))].price = parseNumber(input.value);
+          const index = Number(input.getAttribute('data-ac-price'));
+          appliances[index].price = parseNumber(input.value);
+          updateRowTotal(index);
           recompute();
         });
       });

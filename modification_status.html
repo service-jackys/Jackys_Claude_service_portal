@@ -1905,6 +1905,28 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#40 &mdash; AMC Quote Calculator: appliance row's own Total value wasn't live</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: AMC Quote Calculator page &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Typing a quantity or unit value into an added appliance row updated the Plan pricing
+            card below correctly, but that row's own <strong>"Total value (AED)"</strong> column
+            stayed frozen at 0.00 &mdash; it was only ever written once when the row was added, never
+            on keystroke. It now updates live, same as the rest of the page.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>No migration &mdash; pull and restart.</li>
+          <li>Confirm typing a quantity and a unit value updates that row's own Total value column
+          immediately.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
