@@ -8397,7 +8397,7 @@ ${bodyHtml}
       '<p class="form-note">The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).</p>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
-      '<h4>Quote</h4>' +
+      '<div class="card-row-header"><h4>Quote</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
       '<div data-tcc-table></div>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
@@ -8443,6 +8443,21 @@ ${bodyHtml}
     const transportShareInput = container.querySelector('[data-tcc-transport-share]');
     const tableHost = container.querySelector('[data-tcc-table]');
     const saleHost = container.querySelector('[data-tcc-sale]');
+    const livePill = container.querySelector('[data-tcc-live-pill]');
+
+    // Briefly flashes the "Live" pill -- called every time renderTable()
+    // actually re-renders, so a Transport % edit (or adding/removing a
+    // line) gives a visible confirmation the Quote table just updated
+    // (modification.md #47).
+    function flashLivePill() {
+      if (!livePill) return;
+      livePill.classList.remove('is-flashing');
+      // Force a reflow so the animation restarts even if triggered again
+      // before the previous flash finished.
+      void livePill.offsetWidth;
+      livePill.classList.add('is-flashing');
+      setTimeout(() => livePill.classList.remove('is-flashing'), 520);
+    }
 
     function computeLine(li) {
       const region = regions.find((r) => r.name === li.region) || regions[0];
@@ -8488,6 +8503,7 @@ ${bodyHtml}
     }
 
     function renderTable() {
+      flashLivePill();
       if (!lineItems.length) {
         tableHost.innerHTML = '<p class="empty-state">No lines added yet.</p>';
         lastComputed = null;

@@ -1994,3 +1994,22 @@ within its own column at any panel width instead of spilling into the next one.
 - No migration — pull and restart.
 - Confirm the Thomson Quote Calculator's "Quote" table header row reads cleanly (wrapping onto 2
   lines where needed) with no overlapping text, including when the browser window/panel is narrower.
+
+## Modification #47 — Thomson Quote Calculator: pulsing "Live" pill confirms dynamic updates
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+Added a small "Live" pill on the right side of the "Quote" card heading in the Thomson Quote
+Calculator. It pulses gently at rest (signaling the Quote table updates automatically), and flashes
+more strongly for a moment every time the table actually re-renders — e.g. right after changing
+"Customer transport share %", or adding/removing a line — so the dynamic update is visibly confirmed
+rather than just assumed.
+
+### Needs you
+
+- No migration — pull and restart.
+- Confirm on the Thomson Quote Calculator: the "Quote" card header shows a small pulsing "Live" pill
+  on the right, and it flashes noticeably when you change the Transport share % or add/remove a line.
