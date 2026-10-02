@@ -2113,6 +2113,38 @@
           add/remove a quote line.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#48 &mdash; Thomson Calculator: "Additional Services" rates visible, admin can amend per quote</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            A new <strong>"Additional Services"</strong> card shows the Project Management Fee,
+            Site Survey, Testing &amp; Commissioning and Training rates from Thomson Pricing Admin.
+          </li>
+          <li>
+            Admin users (<code>pricing_config.write</code>) get editable Rate/Hours fields that
+            override those rates <strong>for this quote only</strong> &mdash; the Quote table
+            updates immediately and the "Live" pill flashes, but Thomson Pricing Admin's saved
+            defaults are never touched. A <strong>"Reset to admin defaults"</strong> button is
+            included.
+          </li>
+          <li>
+            Everyone else sees the same rates as read-only text, so they can see what's being used
+            without being able to change it.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>As an admin: confirm the Rate/Hours fields are editable, changes update the Quote
+          table live, and Reset restores the admin defaults.</li>
+          <li>As a non-admin: confirm the same card shows read-only values with no inputs or Reset
+          button.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

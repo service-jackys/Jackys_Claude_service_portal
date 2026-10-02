@@ -8333,7 +8333,29 @@ ${bodyHtml}
   function renderThomsonCalc(container, data) {
     const regions = data.regions.filter((r) => r.active !== false);
     const appliances = data.appliances.filter((a) => a.active !== false);
-    const addons = data.addons;
+    // The 4 "Additional Services" rows from Thomson Pricing Admin, as a
+    // mutable working copy -- a pricing_config.write user can amend these
+    // for this quote only (modification.md #48); editing them never writes
+    // back to the saved admin defaults in data.addons.
+    const THOMSON_ADDON_NAMES = [
+      'Project Management Fee',
+      'Site Survey',
+      'Testing & Commissioning',
+      'Training (End User)',
+    ];
+    const canAmendAddons = hasPermission('pricing_config.write');
+    function cloneAddonDefaults() {
+      return THOMSON_ADDON_NAMES.reduce((acc, name) => {
+        const entry = data.addons[name] || {};
+        acc[name] = {
+          rate: Number(entry.rate) || 0,
+          hours: Number(entry.hours) || 0,
+          note: entry.note || '',
+        };
+        return acc;
+      }, {});
+    }
+    let addons = cloneAddonDefaults();
     const teamCapacity = data.techCount * data.hoursDay;
     const lineItems = [];
     // The most recently computed line rows (null whenever there are no
@@ -8397,6 +8419,19 @@ ${bodyHtml}
       '<p class="form-note">The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).</p>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
+      '<div class="card-row-header"><h4>Additional Services</h4>' +
+      (canAmendAddons
+        ? '<button class="button button-outline" type="button" data-tcc-addons-reset>Reset to admin defaults</button>'
+        : '') +
+      '</div>' +
+      '<p class="form-note">' +
+      (canAmendAddons
+        ? 'Rates come from Thomson Pricing Admin. Amend them below to override for this quote only — this never changes the saved admin defaults.'
+        : 'Rates used in this quote, set in Thomson Pricing Admin.') +
+      '</p>' +
+      '<div data-tcc-addons></div>' +
+      '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
       '<div class="card-row-header"><h4>Quote</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
       '<div data-tcc-table></div>' +
       '</div>' +
@@ -8444,6 +8479,62 @@ ${bodyHtml}
     const tableHost = container.querySelector('[data-tcc-table]');
     const saleHost = container.querySelector('[data-tcc-sale]');
     const livePill = container.querySelector('[data-tcc-live-pill]');
+    const addonsHost = container.querySelector('[data-tcc-addons]');
+    const addonsResetButton = container.querySelector('[data-tcc-addons-reset]');
+
+    // Renders the "Additional Services" table -- editable inputs for a
+    // pricing_config.write user, plain values for everyone else (they can
+    // still see which rates this quote is using, just not change them).
+    function renderAddonsTable() {
+      addonsHost.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Service</th><th>Rate (or % for PM fee)</th><th>Technician hours</th><th>Note</th>' +
+        '</tr></thead><tbody>' +
+        THOMSON_ADDON_NAMES.map((name, i) => {
+          const entry = addons[name];
+          return (
+            '<tr><td>' +
+            escapeHtml(name) +
+            '</td><td>' +
+            (canAmendAddons
+              ? '<input type="number" step="0.01" value="' +
+                entry.rate +
+                '" data-tcc-addon-rate="' +
+                i +
+                '" />'
+              : escapeHtml(String(entry.rate))) +
+            '</td><td>' +
+            (canAmendAddons
+              ? '<input type="number" step="0.25" value="' +
+                entry.hours +
+                '" data-tcc-addon-hours="' +
+                i +
+                '" />'
+              : escapeHtml(String(entry.hours))) +
+            '</td><td>' +
+            escapeHtml(entry.note || '') +
+            '</td></tr>'
+          );
+        }).join('') +
+        '</tbody></table></div>';
+      if (!canAmendAddons) return;
+      addonsHost.querySelectorAll('[data-tcc-addon-rate]').forEach((input) => {
+        input.addEventListener('input', () => {
+          addons[THOMSON_ADDON_NAMES[Number(input.dataset.tccAddonRate)]].rate = parseNumber(
+            input.value,
+          );
+          renderTable();
+        });
+      });
+      addonsHost.querySelectorAll('[data-tcc-addon-hours]').forEach((input) => {
+        input.addEventListener('input', () => {
+          addons[THOMSON_ADDON_NAMES[Number(input.dataset.tccAddonHours)]].hours = parseNumber(
+            input.value,
+          );
+          renderTable();
+        });
+      });
+    }
 
     // Briefly flashes the "Live" pill -- called every time renderTable()
     // actually re-renders, so a Transport % edit (or adding/removing a
@@ -8594,7 +8685,15 @@ ${bodyHtml}
     });
     clearButton.addEventListener('click', clearLineItems);
     transportShareInput.addEventListener('input', renderTable);
+    if (addonsResetButton) {
+      addonsResetButton.addEventListener('click', () => {
+        addons = cloneAddonDefaults();
+        renderAddonsTable();
+        renderTable();
+      });
+    }
 
+    renderAddonsTable();
     renderTable();
     renderThomsonSaleSection(
       saleHost,

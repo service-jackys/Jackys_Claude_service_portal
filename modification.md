@@ -2013,3 +2013,36 @@ rather than just assumed.
 - No migration — pull and restart.
 - Confirm on the Thomson Quote Calculator: the "Quote" card header shows a small pulsing "Live" pill
   on the right, and it flashes noticeably when you change the Transport share % or add/remove a line.
+
+## Modification #48 — Thomson Calculator: "Additional Services" rates visible, admin can amend per quote
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+The Thomson Quote Calculator now shows a new **"Additional Services"** card (Project Management Fee,
+Site Survey, Testing & Commissioning, Training) with the exact rate / technician-hours / note values
+currently set in Thomson Pricing Admin, so anyone using the calculator can see what's driving the
+add-on revenue and cost in their quote.
+
+- **Admin users** (`pricing_config.write` — matches who can already edit Thomson Pricing Admin) get
+  editable Rate and Technician hours fields here. Changing one updates the Quote table immediately
+  (the "Live" pill flashes, same as a Transport % change) — this is a **this-quote-only override**:
+  it never writes back to the saved Thomson Pricing Admin defaults, so other quotes and future
+  sessions are unaffected.
+- A **"Reset to admin defaults"** button puts the values back to whatever Thomson Pricing Admin
+  currently has, discarding the override.
+- Everyone else (anyone with calculator access) sees the same rates as plain read-only values, so
+  they know what's being used without being able to change it.
+- Saving a Thomson sale captures whichever rates were in effect at Save time, same as every other
+  computed number on the line — so a quote built with an amended rate reprints correctly later.
+
+### Needs you
+
+- No migration — pull and restart.
+- Confirm as an admin: the "Additional Services" card shows editable Rate/Hours fields, changing one
+  updates the Quote table's totals immediately, and "Reset to admin defaults" restores Thomson
+  Pricing Admin's values.
+- Confirm as a non-admin (management) user: the same card shows the rates as read-only text, with no
+  Rate/Hours inputs and no Reset button.
