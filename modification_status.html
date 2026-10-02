@@ -2069,6 +2069,30 @@
           under each line's unit rate is correct.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#46 &mdash; Thomson Quote table: headers still overlapped after #45, now wrap instead</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator table &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            #45's column widths weren't enough by themselves &mdash; the global table style still
+            forced headers onto one line, so long ones like "Appliance subtotal" still overflowed
+            into their neighbor on a narrower panel.
+          </li>
+          <li>
+            The Quote table's headers can now wrap onto 2 lines instead of overflowing sideways,
+            so the header row stays readable at any panel width.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Confirm the Quote table's header row no longer overlaps, including with a narrower
+          browser window.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

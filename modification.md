@@ -1972,3 +1972,25 @@ quote-only, with no way to save a project quote or print anything from it.
 - No migration — pull and restart.
 - Confirm on the Thomson Quote Calculator: the "Quote" table's header row reads cleanly with no
   overlapping text, and adding a line whose quantity crosses a tier threshold (e.g. 50, 150, 300, 500) shows the right tier and base rate under its unit rate.
+
+## Modification #46 — Thomson Quote table: headers still overlapped after #45, allowed to wrap
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+#45's fix (giving each column an explicit width) wasn't enough on its own — the global table style
+still forced every header (`th { white-space: nowrap }`) onto a single line, so a long header like
+"Appliance subtotal" still overflowed its column box and visually overlapped its neighbor whenever
+the panel was narrower than the full un-wrapped header text needed.
+
+Added a `.calc-quote-table` class (now on the Thomson Quote table) that lets its headers wrap onto
+2 lines instead of overflowing sideways. Combined with #45's column widths, the header row now stays
+within its own column at any panel width instead of spilling into the next one.
+
+### Needs you
+
+- No migration — pull and restart.
+- Confirm the Thomson Quote Calculator's "Quote" table header row reads cleanly (wrapping onto 2
+  lines where needed) with no overlapping text, including when the browser window/panel is narrower.

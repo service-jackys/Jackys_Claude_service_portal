@@ -8500,7 +8500,7 @@ ${bodyHtml}
       const margin = totalPrice - totalCost;
       const marginPct = totalPrice ? (margin / totalPrice) * 100 : 0;
       tableHost.innerHTML =
-        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+        '<div class="table-wrap"><table class="calc-quote-table" style="table-layout: fixed"><thead><tr>' +
         '<th style="width: 8%">Region</th><th style="width: 15%">Appliance</th><th style="width: 5%">Qty</th><th style="width: 11%">Unit rate</th><th style="width: 11%">Appliance subtotal</th><th style="width: 10%">Add-on revenue</th><th style="width: 10%">Transport cost</th><th style="width: 9%">Total price</th><th style="width: 9%">Total cost</th><th style="width: 9%">Margin</th><th style="width: 3%"></th>' +
         '</tr></thead><tbody>' +
         computed

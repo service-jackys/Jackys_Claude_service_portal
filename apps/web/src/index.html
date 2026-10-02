@@ -922,6 +922,17 @@
         letter-spacing: normal;
         white-space: nowrap;
       }
+      /* Narrow, many-column calculator tables (Thomson's Quote table) --
+         percentage column widths alone weren't enough: the global `th {
+         white-space: nowrap }` above kept forcing long headers like
+         "Appliance subtotal" onto one line, so they still overflowed their
+         fixed-width column and visually overlapped the header text next to
+         them. Letting these headers wrap onto 2 lines removes the overlap
+         regardless of how narrow the panel gets (modification.md #46). */
+      .calc-quote-table th {
+        white-space: normal;
+        line-height: 1.25;
+      }
       td strong {
         color: var(--navy);
       }
