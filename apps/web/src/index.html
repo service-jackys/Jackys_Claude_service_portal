@@ -908,6 +908,20 @@
         text-transform: uppercase;
         white-space: nowrap;
       }
+      /* Small muted second line under a table cell's main value -- e.g. the
+         pricing tier and base rate under an applied unit rate (modification.md
+         #45), so a discounted rate can show what it was discounted from
+         without needing its own column. */
+      .cell-sub {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: normal;
+        white-space: nowrap;
+      }
       td strong {
         color: var(--navy);
       }

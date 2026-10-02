@@ -8271,12 +8271,17 @@ ${bodyHtml}
   }
 
   // --- Thomson --------------------------------------------------------------
+  function thomsonCalcTier(qty) {
+    if (qty >= 500) return '500+';
+    if (qty >= 300) return '300+';
+    if (qty >= 150) return '150+';
+    if (qty >= 50) return '50+';
+    return 'Base';
+  }
+
   function thomsonCalcUnitRate(appliance, qty) {
-    if (qty >= 500) return appliance.rates['500+'];
-    if (qty >= 300) return appliance.rates['300+'];
-    if (qty >= 150) return appliance.rates['150+'];
-    if (qty >= 50) return appliance.rates['50+'];
-    return appliance.rates.Base;
+    const tier = thomsonCalcTier(qty);
+    return tier === 'Base' ? appliance.rates.Base : appliance.rates[tier];
   }
 
   function printThomsonLineItemsTable(lineItems) {
@@ -8442,6 +8447,8 @@ ${bodyHtml}
     function computeLine(li) {
       const region = regions.find((r) => r.name === li.region) || regions[0];
       const appliance = appliances[li.applianceIdx];
+      const tier = thomsonCalcTier(li.qty);
+      const baseRate = appliance.rates.Base;
       const unitRate = thomsonCalcUnitRate(appliance, li.qty);
       const applianceSubtotal = li.qty * unitRate;
       const installLaborCost = li.qty * (appliance.avgMin / 60) * data.techRate;
@@ -8468,6 +8475,8 @@ ${bodyHtml}
       return {
         ...li,
         applianceName: appliance.name,
+        tier,
+        baseRate,
         unitRate,
         applianceSubtotal,
         addonRevenue,
@@ -8492,7 +8501,7 @@ ${bodyHtml}
       const marginPct = totalPrice ? (margin / totalPrice) * 100 : 0;
       tableHost.innerHTML =
         '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
-        '<th>Region</th><th>Appliance</th><th>Qty</th><th>Unit rate</th><th>Appliance subtotal</th><th>Add-on revenue</th><th>Transport cost</th><th>Total price</th><th>Total cost</th><th>Margin</th><th></th>' +
+        '<th style="width: 8%">Region</th><th style="width: 15%">Appliance</th><th style="width: 5%">Qty</th><th style="width: 11%">Unit rate</th><th style="width: 11%">Appliance subtotal</th><th style="width: 10%">Add-on revenue</th><th style="width: 10%">Transport cost</th><th style="width: 9%">Total price</th><th style="width: 9%">Total cost</th><th style="width: 9%">Margin</th><th style="width: 3%"></th>' +
         '</tr></thead><tbody>' +
         computed
           .map(
@@ -8505,6 +8514,13 @@ ${bodyHtml}
               c.qty +
               '</td><td>' +
               money(c.unitRate) +
+              (c.tier === 'Base'
+                ? '<span class="cell-sub">Base rate</span>'
+                : '<span class="cell-sub">Tier ' +
+                  escapeHtml(c.tier) +
+                  ' &middot; base ' +
+                  money(c.baseRate) +
+                  '</span>') +
               '</td><td>' +
               money(c.applianceSubtotal) +
               '</td><td>' +

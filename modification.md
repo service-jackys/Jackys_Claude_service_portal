@@ -1947,3 +1947,28 @@ quote-only, with no way to save a project quote or print anything from it.
   filling in client details, and saving works; printing shows the right lines, totals and margin;
   "Thomson Issued" lists the saved sale and reprints it; Clear empties the line items; and the
   Dashboard shows the new "Thomson sales" tile.
+
+## Modification #45 — Thomson Quote Calculator: fixed overlapping table headers, added tier/base-rate shown per line
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration.
+
+### What changed
+
+- **Overlapping headers fixed.** The Thomson "Quote" table used `table-layout: fixed` with no
+  column widths set, so all 11 columns were forced to an equal ~9% share regardless of content —
+  long headers like "Appliance subtotal", "Add-on revenue" and "Transport cost" didn't wrap and
+  spilled over their neighbors, making the header row unreadable. Gave each column an explicit
+  width sized to what it actually needs, the same fix the VAS plan table and AMC appliances table
+  already use.
+- **Base rate + tier shown per line.** Each line's "Unit rate" cell now shows a small second line
+  underneath: which quantity tier (`Base`, `50+`, `150+`, `300+`, `500+`) its rate was pulled from,
+  and the un-discounted base rate it was discounted from — e.g. "Tier 150+ · base 74.00" — so the
+  discount applied by that tier is visible directly in the calculator, matching the master workbook's
+  tiered pricing. This is calculator-only (not shown on the printed customer quotation).
+
+### Needs you
+
+- No migration — pull and restart.
+- Confirm on the Thomson Quote Calculator: the "Quote" table's header row reads cleanly with no
+  overlapping text, and adding a line whose quantity crosses a tier threshold (e.g. 50, 150, 300, 500) shows the right tier and base rate under its unit rate.
