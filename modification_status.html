@@ -1927,6 +1927,36 @@
           immediately.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#41 &mdash; AMC print: mandatory General Terms and Conditions, Service Scope for the selected plan only</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: AMC Quote Calculator print output &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Service Scope &mdash; Inclusions &amp; Exclusions</strong> is now on every AMC
+            print, for the selected plan only &mdash; each plan's Included / Not included wording,
+            ported verbatim from the Excel Contract Quotation sheet's section 4 scope table, is saved
+            per plan on the contract record and shown for whichever single plan was picked to print,
+            not all 3 plans together like the legacy sample.
+          </li>
+          <li>
+            <strong>General Terms and Conditions</strong> is now mandatory on every AMC print,
+            regardless of plan &mdash; ported verbatim from the Contract Quotation sheet's section 7,
+            added after "Service exclusions" and before "Payment terms and validity" on every
+            certificate.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>No migration &mdash; the <code>plans</code> jsonb column already supports the new
+          fields. Pull and restart.</li>
+          <li>Confirm printing any saved AMC contract shows the Service Scope section for only the
+          plan you picked, and the General Terms and Conditions section on every plan's print.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

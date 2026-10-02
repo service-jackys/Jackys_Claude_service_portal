@@ -39,6 +39,8 @@ function toContent(input: AmcContractWriteInput): AmcContractContent {
       planLabel: plan.planLabel,
       coverage: plan.coverage ?? null,
       coverageDetail: plan.coverageDetail ?? null,
+      included: plan.included ?? null,
+      notIncluded: plan.notIncluded ?? null,
       visitsText: plan.visitsText ?? null,
       annualVisits: plan.annualVisits,
       laborCost: plan.laborCost,

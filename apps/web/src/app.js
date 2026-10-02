@@ -1748,23 +1748,53 @@ ${bodyHtml}
   // Fallback coverage text for each plan key (modification.md #38/#39),
   // used only if a saved record's plan entry has no coverage/coverageDetail
   // of its own (older data, or a client-side preview before save).
+  // `included`/`notIncluded` are the Contract Quotation sheet's section 4
+  // "Service Scope" wording, ported verbatim (modification.md #41).
   const AMC_CONTRACT_PLAN_FALLBACKS = {
     'basic-rm': {
       label: 'Basic RM',
       coverage: 'Reactive maintenance only',
       coverageDetail: 'No spare parts included; reactive visits based on the approved quote.',
+      included:
+        'Technical diagnosis and troubleshooting, preventive cleaning and functional checks, minor adjustments, tightening and calibration where applicable, and labor for the listed RM services.',
+      notIncluded:
+        'Replacement parts, major repairs, compressor or sealed-system work, refrigerant/gas recharge or leak repair, cosmetic damage, consumables, and damage caused by misuse, power events, water, fire, corrosion or unauthorized repair.',
     },
     'standard-pmc': {
       label: 'Standard PMC',
       coverage: 'Standard coverage with minor parts',
       coverageDetail: 'Planned visits plus minor parts (filters, belts, seals).',
+      included:
+        'Scheduled preventive maintenance, inspection, cleaning, functional checks, troubleshooting, corrective-service labor, and minor routine service parts such as filters, belts, seals/gaskets, clamps and fasteners, subject to inspection, availability and the listed appliance schedule.',
+      notIncluded:
+        'Major mechanical/electrical components, compressor or sealed-system work, refrigerant/gas, PCB/control boards, motors, pumps, heating elements, glass, cosmetic items, consumables, and damage caused by misuse or external causes.',
     },
     'premium-pmc': {
       label: 'Premium PMC',
       coverage: 'Comprehensive coverage with parts',
       coverageDetail: 'Planned visits plus mechanical parts except compressor.',
+      included:
+        'All Standard PMC services plus covered mechanical replacement parts commonly used for the listed home and kitchen appliances, subject to inspection, availability and normal AMC conditions.',
+      notIncluded:
+        'Compressor or sealed-system work, refrigerant/gas, PCB/control boards and other electronic assemblies, glass/cosmetic parts, consumables, pre-existing or abuse-related damage, and work outside the listed appliances. Special or high-value components not expressly covered are separately quoted.',
     },
   };
+
+  // Section 7 "GENERAL TERMS AND CONDITIONS" from the Contract Quotation
+  // sheet, ported verbatim -- mandatory on every AMC print regardless of
+  // which plan is selected (modification.md #41).
+  const AMC_GENERAL_TERMS_AND_CONDITIONS = [
+    'Service Request Process: All service requests must be logged through the Jacky’s Distribution helpdesk by phone or email.',
+    'Response Time: Valid service requests will be acknowledged and registered promptly. Standard service calls will be attended to within 24–48 hours subject to site access, working hours, and service team availability.',
+    'Spare Parts: Major spare parts and consumables are excluded under a standard labor-only AMC unless covered under a comprehensive plan. Where required, a quotation will be submitted for client approval prior to replacement.',
+    'Client’s Responsibility: The client shall ensure the appliances are used as per the manufacturer’s instructions and are accessible for service.',
+    'Limitation of Liability: Jacky’s Distribution shall not be liable for losses, delays, or damages arising from misuse, unauthorized repair, external causes, force majeure events, or circumstances beyond its reasonable control. Liability under this agreement is limited to the services expressly stated herein.',
+    'Contract Validity: This agreement shall remain valid for one year from the commencement date. Renewal, extension, or amendment shall be subject to written confirmation by both parties.',
+    'Site Access and Safety: The client shall provide reasonable access to the equipment and ensure that the service area is safe and available for maintenance work at the scheduled time.',
+    'Working Hours: Standard service support will be provided during normal business working hours, excluding public holidays, unless otherwise agreed in writing.',
+    'Out-of-Scope Work: Any work outside the agreed scope, including unlisted appliances, additional visits, relocation, installation changes, or third-party damage rectification, will be quoted separately for client approval.',
+    'Governing Terms: This quotation and any resulting AMC shall be governed by the mutually accepted commercial terms stated herein and the applicable laws of the United Arab Emirates.',
+  ];
 
   function printAmcApplianceTable(appliances) {
     const rows = (appliances || [])
@@ -1808,6 +1838,11 @@ ${bodyHtml}
         ['Plan coverage', plan.coverageDetail || fallback.coverageDetail],
         ['Contract value incl. VAT', money(plan.priceInclVat) + ' AED'],
       ])}
+      <h2>Service Scope &mdash; Inclusions &amp; Exclusions</h2>
+      <p style="font-size:12px;"><strong>Plan:</strong> ${escapeHtml(planLabel)}</p>
+      ${printTextBlock('Included', plan.included || fallback.included)}
+      ${printTextBlock('Not included / separately quoted', plan.notIncluded || fallback.notIncluded)}
+      <p style="font-size:11px;color:#555;"><strong>Coverage note:</strong> Coverage applies only to the appliances listed in this quotation and is subject to inspection, parts availability, fair-use conditions and the approved AMC terms. Parts and work not expressly included above require separate approval.</p>
       <h2>Appliance schedule covered under this AMC</h2>
       ${printAmcApplianceTable(contract.appliances)}
       <h2>Service inclusions</h2>
@@ -1818,6 +1853,10 @@ ${bodyHtml}
       <p style="font-size:12px;">Major spare parts, consumables, cosmetic parts and compressor are excluded unless specifically covered under the selected plan.</p>
       <p style="font-size:12px;">Damage due to misuse, negligence, external causes, power surge, fire, flood, unauthorized repair or force majeure is excluded.</p>
       <p style="font-size:12px;">Appliances not listed in the appliance schedule are outside this AMC. Out-of-scope work, relocation, installation changes or additional visits will be quoted separately.</p>
+      <h2>General Terms and Conditions</h2>
+      <ul style="font-size:11.5px;margin:0 0 0 18px;padding:0;">
+        ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:4px;">${escapeHtml(term)}</li>`).join('')}
+      </ul>
       <h2>Payment terms and validity</h2>
       <p style="font-size:12px;"><strong>Payment Terms:</strong> 100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after receipt of the signed acceptance, confirmed purchase order where applicable, and full advance payment.</p>
       <p style="font-size:12px;">Prices are in AED and include 5% VAT where shown. This AMC is valid for one year from commencement unless renewed or amended in writing by both parties.</p>
@@ -7892,6 +7931,8 @@ ${bodyHtml}
           planLabel: fallback.label,
           coverage: fallback.coverage,
           coverageDetail: fallback.coverageDetail,
+          included: fallback.included,
+          notIncluded: fallback.notIncluded,
           visitsText: plan.visits + ' visits/year',
           annualVisits: plan.visits,
           laborCost: plan.labor,

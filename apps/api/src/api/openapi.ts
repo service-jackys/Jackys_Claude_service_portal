@@ -884,6 +884,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                   planLabel: { type: 'string', minLength: 1, maxLength: 100 },
                   coverage: { type: 'string', minLength: 1, maxLength: 200 },
                   coverageDetail: { type: 'string', minLength: 1, maxLength: 300 },
+                  included: { type: 'string', minLength: 1, maxLength: 600 },
+                  notIncluded: { type: 'string', minLength: 1, maxLength: 600 },
                   visitsText: { type: 'string', minLength: 1, maxLength: 100 },
                   annualVisits: { type: 'number', minimum: 0, maximum: 1000 },
                   laborCost: { type: 'number', minimum: 0, maximum: 10000000 },

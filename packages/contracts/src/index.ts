@@ -468,6 +468,14 @@ const amcContractPlanComputationSchema = z
     planLabel: z.string().trim().min(1).max(100),
     coverage: optionalText(200),
     coverageDetail: optionalText(300),
+    // Full "Service Scope -- Inclusions & Exclusions" wording for this
+    // plan, from the Contract Quotation sheet's section 4 scope table
+    // (modification.md #41) -- stored per plan (like coverage/
+    // coverageDetail already were) so a reprint always shows exactly what
+    // applied when this contract was saved, even if the admin text
+    // changes later.
+    included: optionalText(600),
+    notIncluded: optionalText(600),
     visitsText: optionalText(100),
     annualVisits: z.number().min(0).max(1000),
     laborCost: z.number().min(0).max(10000000),

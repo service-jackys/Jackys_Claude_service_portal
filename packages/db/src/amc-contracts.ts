@@ -14,6 +14,8 @@ export type AmcPlanComputation = {
   planLabel: string;
   coverage: string | null;
   coverageDetail: string | null;
+  included: string | null;
+  notIncluded: string | null;
   visitsText: string | null;
   annualVisits: number;
   laborCost: number;

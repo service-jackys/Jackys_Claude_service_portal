@@ -1816,3 +1816,38 @@ the rest of the page.
 
 - No migration — pull, restart, and confirm typing a quantity and a unit value for an added appliance
   updates that row's own Total value column immediately, not just the Plan pricing card below it.
+
+## Modification #41 — AMC print: mandatory General Terms and Conditions, and Service Scope for the selected plan only
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). No migration (the existing `plans` jsonb
+column already supports the new fields).
+
+### What changed
+
+The AMC Quote Calculator's printed certificate was missing two things from the Excel "Contract
+Quotation" sheet:
+
+- **"Service Scope — Inclusions & Exclusions" is now on every AMC print, for the selected plan
+  only** — each plan (Basic RM / Standard PMC / Premium PMC) now carries its own Included / Not
+  included wording, ported verbatim from the Excel sheet's section 4 scope table. The certificate
+  shows this as a new section right before the appliance schedule, for whichever single plan was
+  picked to print — not all 3 plans together like the legacy `index.html` sample. This text is saved
+  per plan on the contract record (same as coverage/coverage detail already were), so a reprint later
+  always shows exactly what applied when the contract was saved, even if the admin text changes.
+- **"General Terms and Conditions" is now mandatory on every AMC print, regardless of plan** — a new
+  section, ported verbatim from the Contract Quotation sheet's section 7 (service request process,
+  response time, spare parts, client's responsibility, limitation of liability, contract validity,
+  site access and safety, working hours, out-of-scope work, governing terms), is added after "Service
+  exclusions" and before "Payment terms and validity" on every certificate. This text isn't
+  plan-specific or contract-specific, so it isn't stored per-contract — it's the same boilerplate on
+  every print, like the existing generic inclusions/exclusions paragraphs.
+
+### Needs you
+
+- No migration needed — `plans` is already a `jsonb` column from #39, so the new `included` /
+  `notIncluded` fields need nothing beyond pulling the code and restarting.
+- After pulling and restarting, confirm: printing any saved AMC contract's certificate (from either
+  the Save screen or "AMC Issued") shows a "Service Scope — Inclusions & Exclusions" section with
+  Included / Not included text for **only** the plan you picked to print, and a "General Terms and
+  Conditions" section near the end that appears **on every plan's print**, not just one.
