@@ -1909,3 +1909,41 @@ to save a quote or print anything from it.
   client details, and saving works; printing shows the right lines and total; "Rate Card Issued"
   lists the saved sale and reprints it; Clear empties the quote lines; and the Dashboard shows the new
   "Rate Card sales" tile.
+
+## Modification #44 — Thomson: Issue a Sale — printable quotation, "Thomson Issued" tab, dashboard tile
+
+**Date:** 2026-10-02
+**Status:** Built and verified (typecheck + build clean). Needs `npm run db:migrate` (new migration
+`023_thomson_sales.sql`).
+
+### What changed
+
+Gave the Thomson Calculator the same save + printable record + "Issued" tab + dashboard tile
+treatment VAS (#35–37), AMC (#38–42) and Rate Card (#43) already received — until now it was
+quote-only, with no way to save a project quote or print anything from it.
+
+- **"Issue a Thomson Sale — Printable Quotation"** — a new section below the project line items. Fill
+  in client / contact / site details and Save; this stores each line item's fully computed numbers
+  (region, appliance, qty, site visits, training sessions, unit rate, appliance subtotal, add-on
+  revenue, transport cost, total price, total cost, margin) — not just the raw inputs — plus the
+  chosen "Customer transport share %" and the project totals, as one normalized `thomson_sales`
+  record with its own reference number (`TH-YYYY-NNNNN`). Unlike Rate Card (where rate × qty is
+  always reproducible later), a Thomson line's price depends on admin rates and team capacity that
+  can change — so, matching the AMC `plans` precedent, each line item carries its own computed
+  numbers, keeping a reprint months later accurate to what the customer was actually quoted.
+- **Printable quotation** — Print generates an A4 document (company header, quotation details, the
+  full line-item table, the total project price, and a signature block) from the saved record.
+- **"Thomson Issued" tab** — lists every saved Thomson sale (reference, date, client, line count,
+  total price, margin) with a Print button that reprints that exact quotation later.
+- **Clear button** — the project line-items table didn't have one before; added so the next project's
+  quote starts empty, same as VAS/AMC/Rate Card.
+- **Dashboard tile** — a new "Thomson sales" group on the main Dashboard (total + this-month), same
+  shape as the VAS/AMC/Rate Card tiles; clicking it jumps to the Thomson Calculator.
+
+### Needs you
+
+- Run `npm run db:migrate` to apply migration `023_thomson_sales.sql` before testing.
+- After migrating and restarting the server, confirm: building a project quote (add a few lines),
+  filling in client details, and saving works; printing shows the right lines, totals and margin;
+  "Thomson Issued" lists the saved sale and reprints it; Clear empties the line items; and the
+  Dashboard shows the new "Thomson sales" tile.

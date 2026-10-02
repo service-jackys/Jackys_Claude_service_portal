@@ -3413,6 +3413,7 @@ ${bodyHtml}
     vasSales: () => setWorkspaceMode('vas-calc'),
     amcContracts: () => setWorkspaceMode('amc-calc'),
     rateCardSales: () => setWorkspaceMode('rate-card-calc'),
+    thomsonSales: () => setWorkspaceMode('thomson-calc'),
   };
 
   // Delegated click handling survives each re-render (innerHTML swap) since
@@ -3426,6 +3427,7 @@ ${bodyHtml}
     ['dashVasSaleTiles', null],
     ['dashAmcContractTiles', null],
     ['dashRateCardSaleTiles', null],
+    ['dashThomsonSaleTiles', null],
   ].forEach(([containerId, section]) => {
     $('#' + containerId).addEventListener('click', (event) => {
       const tile = event.target.closest('[data-tile-key]');
@@ -3492,6 +3494,10 @@ ${bodyHtml}
     $('#dashRateCardSaleTiles').innerHTML = dashboardTilesHtml({}, [
       ['Rate Card sales (total)', summary.rateCardSales.total, 'rateCardSales:total'],
       ['Rate Card sales (this month)', summary.rateCardSales.thisMonth, 'rateCardSales:month'],
+    ]);
+    $('#dashThomsonSaleTiles').innerHTML = dashboardTilesHtml({}, [
+      ['Thomson sales (total)', summary.thomsonSales.total, 'thomsonSales:total'],
+      ['Thomson sales (this month)', summary.thomsonSales.thisMonth, 'thomsonSales:month'],
     ]);
     $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
@@ -8273,16 +8279,72 @@ ${bodyHtml}
     return appliance.rates.Base;
   }
 
+  function printThomsonLineItemsTable(lineItems) {
+    const rows = (lineItems || [])
+      .map(
+        (li) =>
+          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">${money(li.unitRate)} AED</td><td class="num">${money(li.applianceSubtotal)} AED</td><td class="num">${money(li.addonRevenue)} AED</td><td class="num">${money(li.transportCost)} AED</td><td class="num">${money(li.totalPrice)} AED</td></tr>`,
+      )
+      .join('');
+    return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">Transport cost</th><th class="num">Total price</th></tr></thead><tbody>${
+      rows || '<tr><td colspan="8" style="text-align:center;color:#888;">No lines</td></tr>'
+    }</tbody></table>`;
+  }
+
+  function buildThomsonSaleCertificateBody(sale) {
+    return `
+      ${printDocHeadWithLogo('Thomson Project Quotation', sale.thomsonSaleReference)}
+      <h2>Quotation details</h2>
+      ${printFieldGrid([
+        ['Sale date', sale.saleDate],
+        ['Client', sale.clientName],
+        ['Contact number', sale.contactNumber],
+        ['Site / location', sale.siteLocation],
+        ['Customer transport share', String(sale.transportSharePercent) + '%'],
+        ['Contract ref.', sale.contractRef || sale.thomsonSaleReference],
+      ])}
+      <h2>Project lines</h2>
+      ${printThomsonLineItemsTable(sale.lineItems)}
+      <div class="cert-feebox">
+        <div class="fee">${money(sale.totalPrice)} AED</div>
+        <div>Total project price</div>
+      </div>
+      <h2>Signatures</h2>
+      <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing and payment terms.</p>
+      <div class="sign-row">
+        <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
+        <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
+      </div>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in AED. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>
+    `;
+  }
+
+  function printThomsonSaleCertificate(sale) {
+    if (!sale) return;
+    const title = `Thomson Quotation ${sale.thomsonSaleReference || ''}`;
+    openPrintWindow(printDocumentShell(title, buildThomsonSaleCertificateBody(sale)));
+  }
+
   function renderThomsonCalc(container, data) {
     const regions = data.regions.filter((r) => r.active !== false);
     const appliances = data.appliances.filter((a) => a.active !== false);
     const addons = data.addons;
     const teamCapacity = data.techCount * data.hoursDay;
     const lineItems = [];
+    // The most recently computed line rows (null whenever there are no
+    // lines) -- read by the Issue-a-Sale section below when Save is
+    // clicked, so it always saves the exact numbers currently on screen,
+    // same pattern as AMC's lastRows (modification.md #39).
+    let lastComputed = null;
 
     container.innerHTML =
-      '<h4>Thomson Quote Calculator</h4>' +
-      '<p class="form-note">Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly.</p>' +
+      '<p class="form-note">Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly. Switch to "Thomson Issued" to find and reprint any previously saved sale.</p>' +
+      '<div class="vc-tab-nav" role="tablist" aria-label="Thomson Quote Calculator sections">' +
+      '<button type="button" class="action-tab active" data-th-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
+      '<button type="button" class="action-tab" data-th-tab="issued" role="tab" aria-selected="false">Thomson Issued</button>' +
+      '</div>' +
+      '<div class="vc-tab-panels">' +
+      '<section data-th-panel="quote">' +
       '<div class="pc-split-grid">' +
       '<div class="detail-action-card">' +
       '<h4>Add a line</h4>' +
@@ -8317,7 +8379,8 @@ ${bodyHtml}
       ) +
       '</div>' +
       '<div class="form-footer">' +
-      '<button class="button button-primary" type="button" data-tcc-add>Add line</button>' +
+      '<button class="button button-primary" type="button" data-tcc-add>Add line</button> ' +
+      '<button class="button button-outline" type="button" data-tcc-clear>Clear</button>' +
       '</div>' +
       '</div>' +
       '<div class="detail-action-card">' +
@@ -8332,7 +8395,38 @@ ${bodyHtml}
       '<h4>Quote</h4>' +
       '<div data-tcc-table></div>' +
       '</div>' +
+      '<div class="detail-action-card pc-span-full">' +
+      '<h4>Issue a Thomson Sale — Printable Quotation</h4>' +
+      '<div data-tcc-sale></div>' +
+      '</div>' +
+      '</div>' +
+      '</section>' +
+      '<section data-th-panel="issued" hidden>' +
+      '<h4>Thomson Issued</h4>' +
+      '<p class="form-note">Every Thomson sale saved from the calculator above. Print re-opens that exact quotation.</p>' +
+      '<div data-tcc-issued></div>' +
+      '</section>' +
       '</div>';
+
+    const tabNav = container.querySelector('.vc-tab-nav');
+    const panels = Array.from(container.querySelectorAll('[data-th-panel]'));
+    const issuedHost = container.querySelector('[data-tcc-issued]');
+    tabNav.addEventListener('click', (event) => {
+      const button = event.target.closest('.action-tab');
+      if (!button) return;
+      const target = button.dataset.thTab;
+      tabNav.querySelectorAll('.action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      panels.forEach((panel) => {
+        panel.hidden = panel.dataset.thPanel !== target;
+      });
+      if (target === 'issued') {
+        loadThomsonIssuedList(issuedHost);
+      }
+    });
 
     const regionSelect = container.querySelector('[data-tcc-region]');
     const applianceSelect = container.querySelector('[data-tcc-appliance]');
@@ -8340,8 +8434,10 @@ ${bodyHtml}
     const visitsInput = container.querySelector('[data-tcc-visits]');
     const trainingInput = container.querySelector('[data-tcc-training]');
     const addButton = container.querySelector('[data-tcc-add]');
+    const clearButton = container.querySelector('[data-tcc-clear]');
     const transportShareInput = container.querySelector('[data-tcc-transport-share]');
     const tableHost = container.querySelector('[data-tcc-table]');
+    const saleHost = container.querySelector('[data-tcc-sale]');
 
     function computeLine(li) {
       const region = regions.find((r) => r.name === li.region) || regions[0];
@@ -8385,9 +8481,11 @@ ${bodyHtml}
     function renderTable() {
       if (!lineItems.length) {
         tableHost.innerHTML = '<p class="empty-state">No lines added yet.</p>';
+        lastComputed = null;
         return;
       }
       const computed = lineItems.map(computeLine);
+      lastComputed = computed;
       const totalPrice = computed.reduce((s, c) => s + c.totalPrice, 0);
       const totalCost = computed.reduce((s, c) => s + c.totalCost, 0);
       const margin = totalPrice - totalCost;
@@ -8441,6 +8539,15 @@ ${bodyHtml}
       });
     }
 
+    // Empties the project lines entirely -- used by the explicit Clear
+    // button and automatically once a Thomson sale has been saved, so the
+    // next customer's quote starts from nothing (modification.md #44,
+    // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
+    function clearLineItems() {
+      lineItems.length = 0;
+      renderTable();
+    }
+
     addButton.addEventListener('click', () => {
       const qty = parseNumber(qtyInput.value);
       if (qty <= 0 || !appliances.length || !regions.length) return;
@@ -8453,9 +8560,202 @@ ${bodyHtml}
       });
       renderTable();
     });
+    clearButton.addEventListener('click', clearLineItems);
     transportShareInput.addEventListener('input', renderTable);
 
     renderTable();
+    renderThomsonSaleSection(
+      saleHost,
+      () => lastComputed,
+      transportShareInput,
+      clearLineItems,
+      () => {
+        // Keep the Thomson Issued list in sync if it's the tab currently open.
+        const issuedPanel = container.querySelector('[data-th-panel="issued"]');
+        if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost);
+      },
+    );
+  }
+
+  // Lists every saved thomson_sales record (modification.md #44) so a
+  // previously issued Thomson sale can be found again and its quotation
+  // reprinted, without anywhere else in the portal to look it up.
+  async function loadThomsonIssuedList(host) {
+    if (!hasPermission('thomson_sale.read')) {
+      host.innerHTML =
+        '<p class="form-note">You don\'t have permission to view issued Thomson sales.</p>';
+      return;
+    }
+    host.innerHTML = '<p class="form-note">Loading issued Thomson sales&hellip;</p>';
+    try {
+      const response = await apiRequest('/api/thomson-sales?pageSize=100');
+      const sales = response.thomsonSales || [];
+      if (!sales.length) {
+        host.innerHTML = '<p class="form-note">No Thomson sales issued yet.</p>';
+        return;
+      }
+      host.innerHTML =
+        '<div class="table-wrap"><table><thead><tr>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Lines</th><th>Total price</th><th>Margin</th><th></th>' +
+        '</tr></thead><tbody>' +
+        sales
+          .map(
+            (sale) =>
+              '<tr>' +
+              '<td>' +
+              escapeHtml(sale.thomsonSaleReference) +
+              '</td><td>' +
+              escapeHtml(formatDate(sale.createdAt)) +
+              '</td><td>' +
+              escapeHtml(sale.clientName || '—') +
+              '</td><td>' +
+              String((sale.lineItems || []).length) +
+              '</td><td>' +
+              money(sale.totalPrice) +
+              ' AED</td><td>' +
+              money(sale.margin) +
+              ' AED</td><td>' +
+              '<button type="button" class="button button-outline" data-tcc-reprint="' +
+              escapeHtml(sale.id) +
+              '">Print</button>' +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      host.querySelectorAll('[data-tcc-reprint]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const detail = await apiRequest('/api/thomson-sales/' + button.dataset.tccReprint);
+            printThomsonSaleCertificate(detail.thomsonSale);
+          } catch (error) {
+            setMessage(
+              '#workspaceMessage',
+              'Could not load this Thomson sale: ' + (error.message || 'unknown error'),
+            );
+          } finally {
+            button.disabled = false;
+          }
+        });
+      });
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">Could not load issued Thomson sales.</p>';
+    }
+  }
+
+  // Fills in the "Issue a Thomson Sale -- Printable Quotation" section
+  // (modification.md #44): uses whichever project lines are currently
+  // computed in the calculator above (full numbers, not just raw inputs --
+  // see 023_thomson_sales.sql for why), saves a normalized thomson_sales
+  // record, then enables printing that saved record's quotation. After a
+  // successful save, the project lines and the sale form both reset for
+  // the next customer, and onSaved() refreshes the "Thomson Issued" tab if
+  // it's open -- same treatment as renderRateCardSaleSection.
+  function renderThomsonSaleSection(
+    saleHost,
+    getComputed,
+    transportShareInput,
+    clearLineItems,
+    onSaved,
+  ) {
+    if (!hasPermission('thomson_sale.write')) {
+      saleHost.innerHTML =
+        '<p class="form-note">You don\'t have permission to issue Thomson sales.</p>';
+      return;
+    }
+    saleHost.innerHTML =
+      '<p class="form-note">Uses the project lines built above. Fill in the client details and save the sale, then print the quotation.</p>' +
+      '<div class="field-grid">' +
+      calcField('Client', '<input type="text" data-ths-client />') +
+      calcField('Contact number', '<input type="text" data-ths-contact-number />') +
+      calcField('Site / location', '<input type="text" data-ths-location />') +
+      calcField(
+        'Contract ref.',
+        '<input type="text" data-ths-contract-ref />',
+        'Optional — auto-generated if left blank',
+      ) +
+      '</div>' +
+      '<p>' +
+      '<button type="button" class="button button-primary" data-ths-save>Save Thomson sale</button> ' +
+      '<button type="button" class="button button-outline" data-ths-print disabled>Print quotation</button>' +
+      '</p>' +
+      '<div data-ths-message></div>';
+
+    const saveButton = saleHost.querySelector('[data-ths-save]');
+    const printButton = saleHost.querySelector('[data-ths-print]');
+    const messageHost = saleHost.querySelector('[data-ths-message]');
+    let savedSale = null;
+
+    function clearSaleFormInputs() {
+      saleHost.querySelectorAll('.field-grid input').forEach((el) => {
+        el.value = '';
+      });
+    }
+
+    saveButton.addEventListener('click', async () => {
+      savedSale = null;
+      printButton.disabled = true;
+      messageHost.innerHTML = '';
+      const computed = getComputed();
+      if (!computed || !computed.length) {
+        messageHost.innerHTML =
+          '<p class="form-note">Add at least one project line above before saving.</p>';
+        return;
+      }
+      const totalPrice = computed.reduce((s, c) => s + c.totalPrice, 0);
+      const totalCost = computed.reduce((s, c) => s + c.totalCost, 0);
+      const margin = totalPrice - totalCost;
+      const field = (selector) => saleHost.querySelector(selector).value.trim();
+      const payload = {
+        clientName: field('[data-ths-client]') || undefined,
+        contactNumber: field('[data-ths-contact-number]') || undefined,
+        siteLocation: field('[data-ths-location]') || undefined,
+        transportSharePercent: parseNumber(transportShareInput.value),
+        lineItems: computed.map((c) => ({
+          region: c.region,
+          applianceName: c.applianceName,
+          qty: c.qty,
+          siteVisits: c.siteVisits,
+          trainingSessions: c.trainingSessions,
+          unitRate: c.unitRate,
+          applianceSubtotal: c.applianceSubtotal,
+          addonRevenue: c.addonRevenue,
+          transportCost: c.transportCost,
+          totalPrice: c.totalPrice,
+          totalCost: c.totalCost,
+          margin: c.margin,
+        })),
+        totalPrice,
+        totalCost,
+        margin,
+        contractRef: field('[data-ths-contract-ref]') || undefined,
+      };
+      try {
+        const response = await apiRequest('/api/thomson-sales', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        savedSale = response.thomsonSale;
+        messageHost.innerHTML =
+          '<p class="form-note">Saved as <strong>' +
+          escapeHtml(savedSale.thomsonSaleReference) +
+          '</strong> and added to the "Thomson Issued" tab. Print below, or reprint it any time from Thomson Issued. The project lines have been reset for the next customer.</p>';
+        printButton.disabled = false;
+        clearSaleFormInputs();
+        clearLineItems();
+        onSaved();
+      } catch (error) {
+        messageHost.innerHTML =
+          '<p class="form-note">Could not save the Thomson sale: ' +
+          escapeHtml(error.message || 'unknown error') +
+          '</p>';
+      }
+    });
+
+    printButton.addEventListener('click', () => {
+      if (!savedSale) return;
+      printThomsonSaleCertificate(savedSale);
+    });
   }
 
   const PRICING_CALC_PAGES = {

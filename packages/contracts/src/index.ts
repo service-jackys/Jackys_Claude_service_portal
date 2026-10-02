@@ -551,6 +551,56 @@ export const rateCardSaleListQuerySchema = z
   })
   .strict();
 
+// Thomson sale + printable quotation (modification.md #44 -- "Issue a
+// Thomson Sale"). Unlike Rate Card's line items (rate * qty is always
+// reproducible later), a Thomson line's price depends on admin rates that
+// can change (tech rate, region round-trip cost, add-on rates, team
+// capacity) and the "Customer transport share %" chosen at save time -- so,
+// like amcContractPlanComputationSchema, each line item carries its own
+// fully computed numbers rather than just the raw inputs, so a reprint
+// later always matches what the customer was quoted.
+export const thomsonSaleLineItemSchema = z
+  .object({
+    region: z.string().trim().min(1).max(100),
+    applianceName: z.string().trim().min(1).max(200),
+    qty: z.number().min(0).max(100000),
+    siteVisits: z.number().min(0).max(1000),
+    trainingSessions: z.number().min(0).max(1000),
+    unitRate: z.number().min(0).max(10000000),
+    applianceSubtotal: z.number().min(0).max(100000000),
+    addonRevenue: z.number().min(0).max(100000000),
+    transportCost: z.number().min(0).max(100000000),
+    totalPrice: z.number().min(0).max(100000000),
+    totalCost: z.number().min(0).max(100000000),
+    margin: z.number().min(-100000000).max(100000000),
+  })
+  .strict();
+
+export const thomsonSaleWriteSchema = z
+  .object({
+    saleDate: dateSchema.optional(),
+    clientName: optionalText(200),
+    contactNumber: optionalText(50),
+    siteLocation: optionalText(500),
+    transportSharePercent: z.number().min(0).max(100),
+    lineItems: z.array(thomsonSaleLineItemSchema).min(1).max(200),
+    totalPrice: z.number().min(0).max(100000000),
+    totalCost: z.number().min(0).max(100000000),
+    margin: z.number().min(-100000000).max(100000000),
+    contractRef: optionalText(120),
+  })
+  .strict();
+export type ThomsonSaleWriteInput = z.infer<typeof thomsonSaleWriteSchema>;
+export type ThomsonSaleLineItemInput = z.infer<typeof thomsonSaleLineItemSchema>;
+
+export const thomsonSaleListQuerySchema = z
+  .object({
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(25, 1, 100),
+  })
+  .strict();
+
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
 // New functionality, not a live-system parity item: staff raise a request
 // against a job card or inspection that's Out of Warranty, and the customer

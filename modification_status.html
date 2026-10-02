@@ -2013,6 +2013,37 @@
           new dashboard tile all work.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#44 &mdash; Thomson: Issue a Sale &mdash; printable quotation, Issued tab, dashboard tile</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-02 &middot; Scope: Thomson Calculator page &middot; needs migration 023</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            A new <strong>"Issue a Thomson Sale &mdash; Printable Quotation"</strong> section saves
+            each line item's fully computed numbers (not just the raw inputs) plus the project
+            totals as one normalized record with its own reference number
+            (<code>TH-YYYY-NNNNN</code>), and prints an A4 quotation from it.
+          </li>
+          <li>
+            A new <strong>"Thomson Issued"</strong> tab lists every saved sale with a Print button
+            to reprint it later, and a <strong>Clear</strong> button now empties the line items
+            (the calculator never had one before).
+          </li>
+          <li>
+            A new <strong>"Thomson sales"</strong> dashboard tile (total + this-month), matching
+            the VAS/AMC/Rate Card tiles already there.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run <code>npm run db:migrate</code> to apply migration <code>023_thomson_sales.sql</code>.</li>
+          <li>Confirm saving a quote, printing it, reprinting from "Thomson Issued", Clear, and the
+          new dashboard tile all work.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

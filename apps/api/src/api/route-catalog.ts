@@ -38,6 +38,8 @@ import { createAmcContractHandlers } from '../amc-contracts/routes.js';
 import { createAmcContractService } from '../amc-contracts/service.js';
 import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
+import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
+import { createThomsonSaleService } from '../thomson-sales/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
@@ -82,6 +84,7 @@ export type RouteDefinition = {
     | 'vasSale'
     | 'amcContract'
     | 'rateCardSale'
+    | 'thomsonSale'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision';
   parameters?: object[];
@@ -433,6 +436,22 @@ export function createRouteCatalog(
       };
   const rateCardSaleHandlers = pool
     ? createRateCardSaleHandlers(createRateCardSaleService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const thomsonSaleHandlers = pool
+    ? createThomsonSaleHandlers(createThomsonSaleService(pool), requirePermission)
     : {
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
@@ -1780,6 +1799,41 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: rateCardSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/thomson-sales',
+        operationId: 'listThomsonSales',
+        tags: ['Thomson Sales'],
+        summary: 'List issued Thomson sales',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: thomsonSaleHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/thomson-sales',
+        operationId: 'createThomsonSale',
+        tags: ['Thomson Sales'],
+        summary: 'Issue a Thomson sale and allocate its quotation reference',
+        security: 'bearerAuth' as const,
+        requestBody: 'thomsonSale' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: thomsonSaleHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/thomson-sales/{id}',
+        operationId: 'getThomsonSale',
+        tags: ['Thomson Sales'],
+        summary: 'Get a Thomson sale (e.g. to reprint its quotation)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: thomsonSaleHandlers.detail,
       },
       {
         method: 'post' as const,
