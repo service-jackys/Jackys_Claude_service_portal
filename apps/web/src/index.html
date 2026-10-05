@@ -1383,6 +1383,21 @@
         color: var(--muted);
         font-weight: 700;
       }
+      .rc-table td.pg-cell {
+        max-width: 260px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .pg-error {
+        color: var(--red);
+        font-weight: 600;
+      }
+      .pg-empty {
+        padding: 1.4rem 0.9rem;
+        text-align: center;
+        color: var(--muted);
+      }
       .rd-pager {
         display: flex;
         align-items: center;
@@ -3084,6 +3099,32 @@
         <path d="M6 9v.01M18 15v.01" stroke-width="2.6" />
       </symbol>
       <symbol
+        id="icon-bar-chart"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M4 20V4" />
+        <path d="M4 20h16" />
+        <rect x="8" y="12" width="3" height="5" rx="0.5" />
+        <rect x="13" y="7" width="3" height="10" rx="0.5" />
+        <rect x="18" y="10" width="2" height="7" rx="0.5" />
+      </symbol>
+      <symbol
+        id="icon-activity"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 12h4l3-8 4 16 3-8h4" />
+      </symbol>
+      <symbol
         id="icon-calculator"
         viewBox="0 0 24 24"
         fill="none"
@@ -3534,6 +3575,18 @@
               >
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-shield-check"></use></svg>
                 <span class="nav-label">Warranty approvals</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="reportsNav"
+                hidden
+                aria-label="Reports"
+                title="Reports"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-bar-chart"></use></svg>
+                <span class="nav-label">Reports</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <p class="nav-group-label">Admin</p>
@@ -5464,6 +5517,18 @@
                 >
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
+              </div>
+            </div>
+
+            <div class="card" id="reportsWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Pick a record type and a date range, preview the matching records, then download
+                  them as an Excel workbook. Every download is written to the Activity log.
+                </p>
+                <div data-calc-root="reports">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
               </div>
             </div>
 

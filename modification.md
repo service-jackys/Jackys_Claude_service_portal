@@ -2101,3 +2101,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Upload now stores each CSIDI row against its revenue line (joined on Inv/Del No and job type; all 1,165 CSIDI/CSIDO/CSIII lines matched) and the rate masters on the batch.
 
 **Needs you:** `npm run db:migrate` (025), restart, then **re-upload the .xlsm** on Service Revenue Dashboard (older uploads have no CSIDI columns; the Logic sheet shows built-in rates for them). Export a report and check the Jobs and Revenue Logic sheets.
+
+
+## Modification #52 — Reports page: download service records as Excel
+
+**Date:** 2026-10-05 · **Scope:** Sales / Management / Admin · migration 026 · no new package
+
+**What changed**
+- New **Reports** page under Records (the legacy portal's "Download service reports" tab): pick a record type, a date range (this month, last month, year to date, custom, all) and optional search text, preview the rows, then download a formatted Excel workbook.
+- Record types: Quotations, Inspection Reports, AMC Contracts, Thomson Sales, VAS Sales, Rate Card Sales, Service Job Cards and Scheduler (appointments). Each type only appears if the user's role can already read that record type.
+- Every download is written to the audit log (report, range, search, rows) so it shows on the Activity log.
+- New API: GET /api/reports, GET /api/reports/{type}, GET /api/reports/{type}/export. Migration 026 gives sales and management the reports.read permission (admin already had it).
+
+**Needs you:** `npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded file.

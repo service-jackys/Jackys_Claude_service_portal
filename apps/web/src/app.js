@@ -661,6 +661,7 @@
     const canReadRevenue = hasPermission('revenue_dashboard.read');
     $('#revenueDashNav').hidden = !canReadRevenue;
     $('#budgetDashNav').hidden = !canReadRevenue;
+    $('#reportsNav').hidden = !hasPermission('reports.read');
   }
 
   function showNoWorkspaceAccess() {
@@ -8943,6 +8944,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderBudgetDashboard(root),
     },
+    reports: {
+      navId: 'reportsNav',
+      workspaceId: 'reportsWorkspace',
+      heading: 'Reports',
+      description: 'Download service records as Excel workbooks.',
+      permission: 'reports.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderReportsPage(root),
+    },
   };
 
   async function activatePricingCalcMode(mode) {
@@ -9006,7 +9017,8 @@ ${bodyHtml}
     });
     $('#workspace-heading').textContent = page.heading;
     $('#workspaceDescription').textContent = page.description;
-    $('#pricingCurrencyNote').hidden = false;
+    $('#pricingCurrencyNote').hidden = !!page.hideCurrencyNote;
+    $('#pricingCurrencyNote').style.display = page.hideCurrencyNote ? 'none' : '';
 
     const root = document.querySelector('#' + page.workspaceId + ' [data-calc-root]');
     if (!root) return;
@@ -9023,6 +9035,341 @@ ${bodyHtml}
       root.innerHTML =
         '<p class="form-note">Could not load current values for this calculator.</p>';
     }
+  }
+
+  // --- Reports page (modification.md #52) ----------------------------------
+  // The legacy portal's "Download service reports" tab: choose a record type
+  // and a date range, preview the rows, download an Excel workbook. Rows come
+  // from GET /api/reports/{type}; the download is GET /api/reports/{type}/export
+  // and is written to the Activity log by the server.
+  function pgYmd(date) {
+    const pad = (n) => String(n).padStart(2, '0');
+    return date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  }
+
+  function pgRangeFor(kind) {
+    const now = new Date();
+    if (kind === 'month') {
+      return {
+        from: pgYmd(new Date(now.getFullYear(), now.getMonth(), 1)),
+        to: pgYmd(new Date(now.getFullYear(), now.getMonth() + 1, 0)),
+      };
+    }
+    if (kind === 'last-month') {
+      return {
+        from: pgYmd(new Date(now.getFullYear(), now.getMonth() - 1, 1)),
+        to: pgYmd(new Date(now.getFullYear(), now.getMonth(), 0)),
+      };
+    }
+    if (kind === 'ytd') {
+      return { from: pgYmd(new Date(now.getFullYear(), 0, 1)), to: pgYmd(now) };
+    }
+    return { from: '', to: '' };
+  }
+
+  function pgCellHtml(value, kind) {
+    if (value === null || value === undefined || value === '') return '<td></td>';
+    if (kind === 'money') {
+      return (
+        '<td class="num">' +
+        Number(value).toLocaleString('en-US', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }) +
+        '</td>'
+      );
+    }
+    if (kind === 'number') {
+      return '<td class="num">' + Number(value).toLocaleString('en-US') + '</td>';
+    }
+    const text = String(value);
+    return (
+      '<td class="pg-cell"' +
+      (text.length > 24 ? ' title="' + escapeHtml(text) + '"' : '') +
+      '>' +
+      escapeHtml(text) +
+      '</td>'
+    );
+  }
+
+  async function renderReportsPage(root) {
+    root.innerHTML = '<p class="form-note">Loading report types&hellip;</p>';
+    let types;
+    try {
+      types = (await apiRequest('/api/reports')).items;
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    if (!types.length) {
+      root.innerHTML =
+        '<p class="form-note">Your role cannot download any record types yet. Ask an administrator.</p>';
+      return;
+    }
+    const month = pgRangeFor('month');
+    const state = {
+      type: types[0].type,
+      range: 'month',
+      from: month.from,
+      to: month.to,
+      search: '',
+      page: 1,
+      pageSize: 25,
+      data: null,
+      loading: false,
+      downloading: false,
+      error: '',
+    };
+
+    const RANGES = [
+      ['month', 'This month'],
+      ['last-month', 'Last month'],
+      ['ytd', 'Year to date'],
+      ['custom', 'Custom range'],
+      ['all', 'All dates'],
+    ];
+
+    root.innerHTML =
+      '<div class="rc-section rd-filter-card"><div class="rd-report-toolbar" data-pg-bar></div>' +
+      '<p class="form-note" data-pg-msg style="margin:0.5rem 0 0"></p></div>' +
+      '<div class="rc-section" data-pg-results></div>';
+    const bar = root.querySelector('[data-pg-bar]');
+    const message = root.querySelector('[data-pg-msg]');
+    const results = root.querySelector('[data-pg-results]');
+
+    const current = () => types.find((entry) => entry.type === state.type);
+
+    function params(extra) {
+      return rdQs({
+        from: state.range === 'all' ? '' : state.from,
+        to: state.range === 'all' ? '' : state.to,
+        search: state.search,
+        ...extra,
+      });
+    }
+
+    function validate() {
+      if (state.range === 'all') return '';
+      if (!state.from || !state.to) return 'Choose both a From and a To date.';
+      if (state.to < state.from) return 'The To date must be on or after the From date.';
+      return '';
+    }
+
+    function drawBar() {
+      bar.innerHTML =
+        '<div class="th-field"><label>Report type<select data-pg="type">' +
+        types
+          .map(
+            (entry) =>
+              '<option value="' +
+              escapeHtml(entry.type) +
+              '"' +
+              (entry.type === state.type ? ' selected' : '') +
+              '>' +
+              escapeHtml(entry.label) +
+              '</option>',
+          )
+          .join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Date range<select data-pg="range">' +
+        RANGES.map(
+          ([value, label]) =>
+            '<option value="' +
+            value +
+            '"' +
+            (value === state.range ? ' selected' : '') +
+            '>' +
+            label +
+            '</option>',
+        ).join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>From<input type="date" data-pg="from" value="' +
+        escapeHtml(state.from) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        ' /></label></div>' +
+        '<div class="th-field"><label>To<input type="date" data-pg="to" value="' +
+        escapeHtml(state.to) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        ' /></label></div>' +
+        '<div class="th-field"><label>Search<input type="search" data-pg="search" placeholder="Number, customer, contact&hellip;" value="' +
+        escapeHtml(state.search) +
+        '" /></label></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-pg-refresh>Refresh</button></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-pg-download' +
+        (state.downloading ? ' disabled' : '') +
+        '>' +
+        (state.downloading ? 'Preparing&hellip;' : 'Download XLSX') +
+        '</button></div>';
+      const control = (name) => bar.querySelector('[data-pg="' + name + '"]');
+      control('type').addEventListener('change', (event) => {
+        state.type = event.target.value;
+        state.page = 1;
+        load();
+      });
+      control('range').addEventListener('change', (event) => {
+        state.range = event.target.value;
+        if (state.range !== 'custom' && state.range !== 'all') {
+          const range = pgRangeFor(state.range);
+          state.from = range.from;
+          state.to = range.to;
+        }
+        state.page = 1;
+        drawBar();
+        load();
+      });
+      ['from', 'to'].forEach((name) =>
+        control(name).addEventListener('change', (event) => {
+          state[name] = event.target.value;
+          state.page = 1;
+          load();
+        }),
+      );
+      let timer = null;
+      control('search').addEventListener('input', (event) => {
+        state.search = event.target.value.trim();
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          state.page = 1;
+          load();
+        }, 350);
+      });
+      bar.querySelector('[data-pg-refresh]').addEventListener('click', () => load());
+      bar.querySelector('[data-pg-download]').addEventListener('click', download);
+    }
+
+    function drawResults() {
+      const meta = current();
+      const data = state.data;
+      if (state.loading && !data) {
+        results.innerHTML = '<p class="pg-empty">Loading records&hellip;</p>';
+        return;
+      }
+      if (state.error) {
+        results.innerHTML = '<p class="pg-empty pg-error">' + escapeHtml(state.error) + '</p>';
+        return;
+      }
+      if (!data) {
+        results.innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+      const head =
+        '<div class="rc-section-head"><span>' +
+        escapeHtml(data.label) +
+        '</span><span class="rc-count">' +
+        data.total.toLocaleString('en-US') +
+        ' matching record' +
+        (data.total === 1 ? '' : 's') +
+        ' &middot; filtered on ' +
+        escapeHtml(String(meta?.dateLabel || 'date').toLowerCase()) +
+        '</span></div>';
+      if (!data.rows.length) {
+        results.innerHTML =
+          head +
+          '<p class="pg-empty">No records match this report type, date range and search.</p>';
+        return;
+      }
+      results.innerHTML =
+        head +
+        '<div class="table-wrap"><table class="rc-table rd-jobs-table"><thead><tr>' +
+        data.columns
+          .map(
+            (column) =>
+              '<th' +
+              (column.kind === 'money' || column.kind === 'number' ? ' class="num"' : '') +
+              '>' +
+              escapeHtml(column.label) +
+              '</th>',
+          )
+          .join('') +
+        '</tr></thead><tbody>' +
+        data.rows
+          .map(
+            (row) =>
+              '<tr>' +
+              row.map((value, index) => pgCellHtml(value, data.columns[index].kind)).join('') +
+              '</tr>',
+          )
+          .join('') +
+        '</tbody></table></div>' +
+        '<div class="rd-pager"><button class="button button-outline" type="button" data-pg-prev' +
+        (data.page <= 1 ? ' disabled' : '') +
+        '>Previous</button><span class="form-note">Page ' +
+        data.page +
+        ' of ' +
+        totalPages +
+        '</span><button class="button button-outline" type="button" data-pg-next' +
+        (data.page >= totalPages ? ' disabled' : '') +
+        '>Next</button></div>';
+      results.querySelector('[data-pg-prev]')?.addEventListener('click', () => {
+        state.page = Math.max(1, state.page - 1);
+        load();
+      });
+      results.querySelector('[data-pg-next]')?.addEventListener('click', () => {
+        state.page += 1;
+        load();
+      });
+    }
+
+    async function load() {
+      const problem = validate();
+      message.textContent = problem;
+      message.classList.toggle('pg-error', Boolean(problem));
+      if (problem) return;
+      state.loading = true;
+      state.error = '';
+      drawResults();
+      try {
+        state.data = await apiRequest(
+          '/api/reports/' +
+            encodeURIComponent(state.type) +
+            '?' +
+            params({ page: state.page, pageSize: state.pageSize }),
+        );
+      } catch (error) {
+        state.data = null;
+        state.error = error.message;
+      } finally {
+        state.loading = false;
+      }
+      drawResults();
+    }
+
+    async function download() {
+      const problem = validate();
+      if (problem) {
+        message.textContent = problem;
+        message.classList.add('pg-error');
+        return;
+      }
+      state.downloading = true;
+      drawBar();
+      message.classList.remove('pg-error');
+      message.textContent = '';
+      try {
+        const blob = await apiBlobRequest(
+          '/api/reports/' + encodeURIComponent(state.type) + '/export?' + params({}),
+        );
+        const label = (current()?.label || 'Report')
+          .replace(/[^A-Za-z0-9]+/g, '_')
+          .replace(/^_+|_+$/g, '');
+        const range = state.range === 'all' ? 'All' : state.from + '_to_' + state.to;
+        const fileName = 'Report_' + label + '_' + range + '.xlsx';
+        rdDownloadBlob(blob, fileName);
+        message.textContent = 'Downloaded ' + fileName + '.';
+      } catch (error) {
+        message.textContent = error.message;
+        message.classList.add('pg-error');
+      } finally {
+        state.downloading = false;
+        drawBar();
+      }
+    }
+
+    drawBar();
+    await load();
   }
 
   // --- Service Revenue + Budget dashboards (modification.md #49, #50) -----
@@ -11213,6 +11560,7 @@ ${bodyHtml}
   $('#revenueDashNav')?.addEventListener('click', () => setWorkspaceMode('revenue-dashboard'));
   $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
   $('#rateCardCalcNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-calc'));
+  $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 

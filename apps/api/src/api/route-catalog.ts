@@ -40,6 +40,8 @@ import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
+import { createReportHandlers } from '../reports/routes.js';
+import { createReportService } from '../reports/service.js';
 import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
 import { createRevenueDashboardService } from '../revenue-dashboard/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
@@ -209,6 +211,16 @@ export function createRouteCatalog(
         (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
           providerUnavailable(response);
         };
+  const unavailableHandlers = (names: string[]): Record<string, RequestHandler[]> =>
+    Object.fromEntries(
+      names.map((name) => [
+        name,
+        [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      ]),
+    );
   const complaintHandlers = pool
     ? createComplaintHandlers(
         createComplaintService(pool),
@@ -519,6 +531,9 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
       };
+  const reportHandlers = pool
+    ? createReportHandlers(createReportService(pool), requirePermission)
+    : unavailableHandlers(['types', 'preview', 'download']);
   const revenueDashboardHandlers = pool
     ? createRevenueDashboardHandlers(createRevenueDashboardService(pool), requirePermission)
     : {
@@ -1927,6 +1942,51 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/reports',
+        operationId: 'listReportTypes',
+        tags: ['Reports'],
+        summary: 'List the record types the signed-in user can pull reports for',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: reportHandlers.types,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/reports/{type}',
+        operationId: 'previewReport',
+        tags: ['Reports'],
+        summary: 'Preview report rows for a record type, date range and search text',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'type', in: 'path', required: true, schema: { type: 'string' } },
+          ...paginationParameters,
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: reportHandlers.preview,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/reports/{type}/export',
+        operationId: 'downloadReport',
+        tags: ['Reports'],
+        summary:
+          'Download the report rows as a formatted Excel workbook (logged in the Activity log)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'type', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ],
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: reportHandlers.download,
       },
       {
         method: 'post' as const,
