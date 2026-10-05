@@ -48,6 +48,16 @@ export function createApplicationAuth(pool: Pool, localAuth: LocalAuth | null) {
       return null;
     }
 
+    if (source.user.mustChangePassword) {
+      response.status(403).type('application/problem+json').json({
+        type: 'urn:jackys-service-portal:errors:password-change-required',
+        title: 'Password change required',
+        status: 403,
+        detail: 'Choose a new password before using the portal.',
+      });
+      return null;
+    }
+
     const client = await pool.connect();
     let profile;
     try {
@@ -91,4 +101,22 @@ export function createApplicationAuth(pool: Pool, localAuth: LocalAuth | null) {
 async function getLocalSource(token: string, localAuth: LocalAuth): Promise<AuthSource | null> {
   const user = await localAuth.getUserFromToken(token);
   return user ? { user, token } : null;
+}
+
+// The permissions a signed-in user really has right now: administrators keep
+// '*', everyone else gets what the role matrix (role_permissions) grants their
+// profile. /api/auth/me and sign-in use this so the screens match what the API
+// will actually allow (modification.md #55).
+export async function withEffectivePermissions(
+  pool: Pool | null,
+  user: AuthUser,
+): Promise<AuthUser> {
+  if (!pool || user.permissions.includes('*')) return user;
+  const client = await pool.connect();
+  try {
+    const profile = await findProfileAccessByEmail(client, user.email);
+    return { ...user, permissions: profile && profile.active ? profile.permissions : [] };
+  } finally {
+    client.release();
+  }
 }

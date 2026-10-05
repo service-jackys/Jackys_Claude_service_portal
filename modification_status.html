@@ -2483,6 +2483,40 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#55 &mdash; Role matrix editor, change password, forced change on first login</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Admin and every signed-in user · migration 027 · restart
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New Roles &amp; permissions page (Admin): tick what each role can do; saves are logged;
+            the Administrator role is fixed.
+          </li>
+          <li>
+            Change password in the account menu; new or reset logins must choose their own password
+            before using the portal.
+          </li>
+          <li>Team logins gets a Reset password button (signs the person out everywhere).</li>
+          <li>
+            Fix: menus and screens now follow the database permissions, matching what the server
+            allows.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            npm run db:migrate (027), restart, then try a new login end to end and untick a
+            permission for Sales.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

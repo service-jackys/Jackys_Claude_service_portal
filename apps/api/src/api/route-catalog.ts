@@ -8,7 +8,11 @@ import {
 } from '../../../../packages/db/src/profiles.js';
 import { problem } from './problem.js';
 import type { AuthUser, LocalAuth } from '../auth/local-auth.js';
-import { createApplicationAuth, type ApplicationAuth } from '../auth/application-auth.js';
+import {
+  createApplicationAuth,
+  withEffectivePermissions,
+  type ApplicationAuth,
+} from '../auth/application-auth.js';
 import { createComplaintHandlers } from '../complaints/routes.js';
 import { createComplaintService } from '../complaints/service.js';
 import { createLocalComplaintRateLimiter } from '../complaints/rate-limit.js';
@@ -40,6 +44,8 @@ import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
+import { createRoleHandlers } from '../roles/routes.js';
+import { createRoleService } from '../roles/service.js';
 import { createAuditHandlers } from '../audit/routes.js';
 import { createAuditService } from '../audit/service.js';
 import { recordAuthEvent } from '../audit/record.js';
@@ -70,6 +76,8 @@ export type RouteDefinition = {
     | 'login'
     | 'staffUser'
     | 'updateStaffUser'
+    | 'changePassword'
+    | 'rolePermissions'
     | 'publicComplaint'
     | 'complaintNotes'
     | 'complaintStatus'
@@ -539,6 +547,9 @@ export function createRouteCatalog(
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
+  const roleHandlers = pool
+    ? createRoleHandlers(createRoleService(pool), requirePermission)
+    : unavailableHandlers(['matrix', 'update']);
   const rateCardViewHandlers = pool
     ? createRateCardViewHandlers(createRateCardViewService(pool), requirePermission)
     : unavailableHandlers(['view']);
@@ -784,7 +795,10 @@ export function createRouteCatalog(
             if (pool) {
               await ensureLocalAdminProfile(pool, result.user.email, result.user.name);
             }
-            response.status(201).json({ token: result.token, user: result.user });
+            response.status(201).json({
+              token: result.token,
+              user: await withEffectivePermissions(pool, result.user),
+            });
           } catch (error) {
             next(error);
           }
@@ -828,7 +842,10 @@ export function createRouteCatalog(
               actorEmail: result.user.email,
               requestId: request.header('x-request-id') ?? undefined,
             });
-            response.json({ token: result.token, user: result.user });
+            response.json({
+              token: result.token,
+              user: await withEffectivePermissions(pool, result.user),
+            });
           } catch (error) {
             next(error);
           }
@@ -949,23 +966,37 @@ export function createRouteCatalog(
               );
               return;
             }
-            const parsedBody = request.body as { role?: string; active?: boolean };
+            const parsedBody = request.body as {
+              role?: string;
+              active?: boolean;
+              password?: string;
+            };
             if (pool) {
               await updateProfileAccessByEmail(pool, result.user.email, {
                 active: parsedBody.active,
                 roleCode: parsedBody.role,
               });
             }
-            await recordAuthEvent(pool, {
-              action: 'auth.user_updated',
-              actorProfileId: auth.profileId,
-              metadata: {
-                email: result.user.email,
-                ...(parsedBody.role !== undefined ? { role: parsedBody.role } : {}),
-                ...(parsedBody.active !== undefined ? { active: parsedBody.active } : {}),
-              },
-              requestId: request.header('x-request-id') ?? undefined,
-            });
+            if (result.passwordReset) {
+              await recordAuthEvent(pool, {
+                action: 'auth.password_reset',
+                actorProfileId: auth.profileId,
+                metadata: { email: result.user.email },
+                requestId: request.header('x-request-id') ?? undefined,
+              });
+            }
+            if (parsedBody.role !== undefined || parsedBody.active !== undefined) {
+              await recordAuthEvent(pool, {
+                action: 'auth.user_updated',
+                actorProfileId: auth.profileId,
+                metadata: {
+                  email: result.user.email,
+                  ...(parsedBody.role !== undefined ? { role: parsedBody.role } : {}),
+                  ...(parsedBody.active !== undefined ? { active: parsedBody.active } : {}),
+                },
+                requestId: request.header('x-request-id') ?? undefined,
+              });
+            }
             response.json({ user: result.user });
           } catch (error) {
             next(error);
@@ -989,10 +1020,96 @@ export function createRouteCatalog(
           }
           await localAuth.requireAuth(request, response, next);
         },
-        (_request, response) => {
-          response.json({ user: response.locals.auth.user as AuthUser });
+        async (_request, response, next) => {
+          try {
+            response.json({
+              user: await withEffectivePermissions(pool, response.locals.auth.user as AuthUser),
+            });
+          } catch (error) {
+            next(error);
+          }
         },
       ],
+    },
+    {
+      method: 'post',
+      path: '/api/auth/change-password',
+      operationId: 'changeOwnPassword',
+      tags: ['Authentication'],
+      summary: 'Choose a new password for the signed-in user (also clears a forced change)',
+      security: 'bearerAuth',
+      requestBody: 'changePassword',
+      responses: [200, 400, 401, 403, 501],
+      handlers: [
+        async (request, response, next) => {
+          if (!localAuth) {
+            providerUnavailable(response);
+            return;
+          }
+          await localAuth.requireAuth(request, response, next);
+        },
+        async (request, response, next) => {
+          try {
+            const { token, user } = response.locals.auth as { token: string; user: AuthUser };
+            const result = await localAuth!.changePassword(user.id, token, request.body);
+            if (result.kind === 'wrong-current') {
+              problem(
+                response,
+                403,
+                'wrong-current-password',
+                'Forbidden',
+                'The current password is incorrect.',
+              );
+              return;
+            }
+            if (result.kind === 'same-password') {
+              problem(
+                response,
+                400,
+                'same-password',
+                'Bad Request',
+                'Choose a password different from the current one.',
+              );
+              return;
+            }
+            if (result.kind === 'not-found') {
+              problem(response, 401, 'unauthorized', 'Unauthorized', 'Sign in again.');
+              return;
+            }
+            await recordAuthEvent(pool, {
+              action: 'auth.password_changed',
+              actorEmail: result.user.email,
+              metadata: { email: result.user.email },
+              requestId: request.header('x-request-id') ?? undefined,
+            });
+            response.json({ user: await withEffectivePermissions(pool, result.user) });
+          } catch (error) {
+            next(error);
+          }
+        },
+      ],
+    },
+    {
+      method: 'get',
+      path: '/api/role-matrix',
+      operationId: 'getRoleMatrix',
+      tags: ['Authentication'],
+      summary: 'Which permissions each role carries (admin only)',
+      security: 'bearerAuth',
+      responses: [200, 401, 403, 500],
+      handlers: roleHandlers.matrix,
+    },
+    {
+      method: 'put',
+      path: '/api/role-matrix/{role}',
+      operationId: 'setRolePermissions',
+      tags: ['Authentication'],
+      summary: "Replace one role's permissions (admin only; the admin role is fixed)",
+      security: 'bearerAuth',
+      requestBody: 'rolePermissions',
+      parameters: [{ name: 'role', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: [200, 400, 401, 403, 404, 409, 500],
+      handlers: roleHandlers.update,
     },
     {
       method: 'post',

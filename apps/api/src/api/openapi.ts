@@ -49,6 +49,22 @@ const requestBodies = {
       },
     },
   },
+  changePassword: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ChangePasswordRequest' },
+      },
+    },
+  },
+  rolePermissions: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/RolePermissionsRequest' },
+      },
+    },
+  },
   updateStaffUser: {
     required: true,
     content: {
@@ -382,6 +398,24 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
             active: { type: 'boolean' },
+            password: { type: 'string', minLength: 12, maxLength: 200 },
+          },
+        },
+        ChangePasswordRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['currentPassword', 'newPassword'],
+          properties: {
+            currentPassword: { type: 'string', minLength: 1, maxLength: 200 },
+            newPassword: { type: 'string', minLength: 12, maxLength: 200 },
+          },
+        },
+        RolePermissionsRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['permissions'],
+          properties: {
+            permissions: { type: 'array', items: { type: 'string' }, maxItems: 200 },
           },
         },
         PublicComplaintRequest: {

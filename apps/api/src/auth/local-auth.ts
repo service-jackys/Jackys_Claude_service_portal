@@ -9,6 +9,7 @@ import {
   findLocalAuthUserById,
   insertLocalAuthUser,
   listLocalAuthUsers,
+  setLocalAuthUserPassword,
   updateLocalAuthUser,
   type LocalAuthUserRecord,
 } from '../../../../packages/db/src/local-auth-users.js';
@@ -26,6 +27,7 @@ export type AuthUser = {
   role: LocalRole;
   permissions: readonly string[];
   active: boolean;
+  mustChangePassword: boolean;
 };
 
 type Session = {
@@ -78,11 +80,26 @@ export const updateUserSchema = z
   .object({
     role: z.enum(localRoles).optional(),
     active: z.boolean().optional(),
+    // Admin password reset (modification.md #55): sets a temporary password
+    // the teammate must replace at their next sign-in.
+    password: z.string().min(12).max(200).optional(),
   })
   .strict()
-  .refine((value) => value.role !== undefined || value.active !== undefined, {
-    message: 'Provide a role and/or active to update.',
-  });
+  .refine(
+    (value) =>
+      value.role !== undefined || value.active !== undefined || value.password !== undefined,
+    {
+      message: 'Provide a role, active and/or password to update.',
+    },
+  );
+
+// A signed-in user choosing their own password (modification.md #55).
+export const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1).max(200),
+    newPassword: z.string().min(12).max(200),
+  })
+  .strict();
 
 type LocalAuthOptions = {
   bootstrapToken?: string;
@@ -126,6 +143,7 @@ function publicUser(user: LocalAuthUserRecord): AuthUser {
     role,
     permissions: rolePermissions[role],
     active: user.active,
+    mustChangePassword: user.mustChangePassword,
   };
 }
 
@@ -166,6 +184,38 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
     }
   }
 
+  function revokeUserSessions(userId: string, exceptToken?: string): void {
+    const keep = exceptToken ? hashToken(exceptToken).toString('hex') : null;
+    for (const [key, session] of sessions) {
+      if (session.userId === userId && key !== keep) sessions.delete(key);
+    }
+  }
+
+  async function changePassword(userId: string, token: string, input: unknown) {
+    const data = changePasswordSchema.parse(input);
+    const client = await pool.connect();
+    try {
+      const user = await findLocalAuthUserById(client, userId);
+      if (!user || !user.active) return { kind: 'not-found' as const };
+      if (!(await verifyPassword(data.currentPassword, user.passwordHash))) {
+        return { kind: 'wrong-current' as const };
+      }
+      if (data.newPassword === data.currentPassword) return { kind: 'same-password' as const };
+      const updated = await setLocalAuthUserPassword(
+        client,
+        userId,
+        await hashPassword(data.newPassword),
+        false,
+      );
+      // Any other device or browser still signed in with the old password
+      // is signed out; this session carries on.
+      revokeUserSessions(userId, token);
+      return { kind: 'changed' as const, user: publicUser(updated!) };
+    } finally {
+      client.release();
+    }
+  }
+
   function revokeToken(token: string): void {
     sessions.delete(hashToken(token).toString('hex'));
   }
@@ -192,6 +242,9 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
         name: data.name,
         role: data.role,
         passwordHash: await hashPassword(data.password),
+        // The admin chose this password, so the teammate picks their own
+        // at first sign-in.
+        mustChangePassword: true,
       });
       return { kind: 'created' as const, user: publicUser(user) };
     } finally {
@@ -203,9 +256,23 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
     const data = updateUserSchema.parse(input);
     const client = await pool.connect();
     try {
-      const user = await updateLocalAuthUser(client, id, data);
+      let user = await updateLocalAuthUser(client, id, { role: data.role, active: data.active });
       if (!user) return { kind: 'not-found' as const };
-      return { kind: 'updated' as const, user: publicUser(user) };
+      if (data.password !== undefined) {
+        user = (await setLocalAuthUserPassword(
+          client,
+          id,
+          await hashPassword(data.password),
+          true,
+        ))!;
+        // Anyone signed in with the old password is signed out.
+        revokeUserSessions(id);
+      }
+      return {
+        kind: 'updated' as const,
+        user: publicUser(user),
+        passwordReset: data.password !== undefined,
+      };
     } finally {
       client.release();
     }
@@ -277,6 +344,15 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
     return async (request: Request, response: Response, next: NextFunction): Promise<void> => {
       await requireAuth(request, response, () => {
         const user = response.locals.auth.user as AuthUser;
+        if (user.mustChangePassword) {
+          response.status(403).type('application/problem+json').json({
+            type: 'urn:jackys-service-portal:errors:password-change-required',
+            title: 'Password change required',
+            status: 403,
+            detail: 'Choose a new password before using the portal.',
+          });
+          return;
+        }
         if (!user.permissions.includes('*') && !user.permissions.includes(permission)) {
           response.status(403).type('application/problem+json').json({
             type: 'urn:jackys-service-portal:errors:forbidden',
@@ -296,6 +372,7 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
     login,
     createUser,
     updateUser,
+    changePassword,
     listUsers,
     requireAuth,
     requirePermission,

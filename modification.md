@@ -2140,3 +2140,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Old Rate Card sales stay in the database and can be downloaded from Reports (Rate Card Sales); the dashboard "Rate Card sales" tile now opens Reports.
 
 **Needs you:** restart, open Records > Rate card. Change a rate in Rate Card Admin or D+I Admin Entry and check the page follows.
+
+## Modification #55 — Role matrix editor, change password, forced change on first login
+
+**Date:** 2026-10-05 · **Scope:** Admin (matrix, reset); every signed-in user (change password) · migration 027 · restart
+
+**What changed**
+- New **Roles & permissions** page under Admin: a grid of every permission against the User, Sales and Management roles. Tick or untick, then Save. The Administrator column is fixed (it always has everything). Each save is written to the Activity log (added / removed permissions) and applies the next time that person opens a screen.
+- **Change password** in the account menu: current password, new password (12+ characters), repeat. Other devices signed in with the old password are signed out.
+- **Forced change on first login:** a login an admin creates, or whose password an admin resets, must choose its own password before anything else works (the API refuses every other call until then; the dialog cannot be dismissed, only signed out of).
+- **Reset password** button on Team logins: sets a temporary password and signs that person out everywhere.
+- **Fix:** screens and menus now follow the permissions stored in the database (the role matrix) instead of a fixed list, so what a person sees matches what the server allows.
+- New API: POST /api/auth/change-password, GET /api/role-matrix, PUT /api/role-matrix/{role}; PATCH /api/auth/users/{id} accepts a password.
+
+**Needs you:** `npm run db:migrate` (027), restart. Add a test login, sign in as it, choose a new password; then untick a permission for Sales and check that screen disappears for that login.

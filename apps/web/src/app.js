@@ -534,6 +534,10 @@
     saveStoredToken(authToken);
     const session = await apiRequest('/api/auth/me');
     currentUser = session.user;
+    if (currentUser.mustChangePassword) {
+      openPasswordDialog(true);
+      return;
+    }
     showWorkspaceForCurrentUser(true);
   }
 
@@ -555,6 +559,10 @@
     try {
       const session = await apiRequest('/api/auth/me');
       currentUser = session.user;
+      if (currentUser.mustChangePassword) {
+        openPasswordDialog(true);
+        return;
+      }
       showWorkspaceForCurrentUser(false);
     } catch {
       authToken = null;
@@ -663,6 +671,7 @@
     $('#reportsNav').hidden = !hasPermission('reports.read');
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
+    $('#rolesNav').hidden = !hasPermission('admin.users');
   }
 
   function showNoWorkspaceAccess() {
@@ -2656,7 +2665,7 @@ ${bodyHtml}
         return `<tr data-user-id="${escapeHtml(user.id)}"><td>${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td><select class="team-account-role-select" data-user-id="${escapeHtml(user.id)}" ${isSelf ? 'disabled' : ''}>${roleOptions}</select></td><td>${user.active ? 'Active' : 'Inactive'}</td><td>${
           isSelf
             ? '<span class="form-note-inline">(you)</span>'
-            : `<button class="button-link" type="button" data-save-role="${escapeHtml(user.id)}">Save role</button> <button class="button-link" type="button" data-toggle-active="${escapeHtml(user.id)}">${user.active ? 'Deactivate' : 'Reactivate'}</button>`
+            : `<button class="button-link" type="button" data-save-role="${escapeHtml(user.id)}">Save role</button> <button class="button-link" type="button" data-toggle-active="${escapeHtml(user.id)}">${user.active ? 'Deactivate' : 'Reactivate'}</button> <button class="button-link" type="button" data-reset-password="${escapeHtml(user.id)}" data-name="${escapeHtml(user.name)}">Reset password</button>`
         }</td></tr>`;
       })
       .join('');
@@ -2713,6 +2722,11 @@ ${bodyHtml}
       const userId = saveRoleButton.dataset.saveRole;
       const select = $(`select.team-account-role-select[data-user-id="${userId}"]`);
       if (select) updateTeamAccount(userId, { role: select.value });
+      return;
+    }
+    const resetButton = event.target.closest('button[data-reset-password]');
+    if (resetButton) {
+      openResetPasswordDialog(resetButton.dataset.resetPassword, resetButton.dataset.name);
       return;
     }
     const toggleButton = event.target.closest('button[data-toggle-active]');
@@ -5352,6 +5366,138 @@ ${bodyHtml}
     $('#complaintDetail').hidden = true;
   });
   $('#signOutButton').addEventListener('click', () => signOut());
+
+  // ---------- Change password / forced change (modification #55) ----------
+  let passwordForced = false;
+
+  function openPasswordDialog(forced) {
+    passwordForced = Boolean(forced);
+    const dialog = $('#passwordDialog');
+    $('#passwordForm').reset();
+    clearErrors($('#passwordForm'));
+    $('#passwordMessage').hidden = true;
+    $('#passwordDialogTitle').textContent = forced ? 'Choose your own password' : 'Change password';
+    $('#passwordDialogNote').textContent = forced
+      ? 'You are signed in with a temporary password. Choose your own (at least 12 characters) to continue.'
+      : 'Use at least 12 characters. Other devices signed in with your old password are signed out.';
+    $('#passwordCancel').textContent = forced ? 'Sign out' : 'Cancel';
+    if (!dialog.open) dialog.showModal();
+    $('#pwCurrent').focus();
+  }
+
+  $('#passwordDialog').addEventListener('cancel', (event) => {
+    // Escape must not skip a forced change.
+    if (passwordForced) event.preventDefault();
+  });
+
+  $('#passwordCancel').addEventListener('click', () => {
+    $('#passwordDialog').close();
+    if (passwordForced) signOut();
+  });
+
+  $('#changePasswordButton').addEventListener('click', () => {
+    $('#userMenuPopover').hidden = true;
+    $('#userMenuButton').setAttribute('aria-expanded', 'false');
+    openPasswordDialog(false);
+  });
+
+  $('#passwordForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    $('#passwordMessage').hidden = true;
+    const current = $('#pwCurrent').value;
+    const next = $('#pwNew').value;
+    const again = $('#pwConfirm').value;
+    let valid = true;
+    if (!current) {
+      showFieldError(form, 'pwCurrent', 'Enter your current password.');
+      valid = false;
+    }
+    if (next.length < 12) {
+      showFieldError(form, 'pwNew', 'Use at least 12 characters.');
+      valid = false;
+    } else if (next === current) {
+      showFieldError(form, 'pwNew', 'Choose a password different from the current one.');
+      valid = false;
+    }
+    if (again !== next) {
+      showFieldError(form, 'pwConfirm', 'The two passwords do not match.');
+      valid = false;
+    }
+    if (!valid) return;
+    const button = $('#passwordSave');
+    setBusy(button, true, 'Saving…');
+    try {
+      const result = await apiRequest('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword: current, newPassword: next }),
+      });
+      const wasForced = passwordForced;
+      passwordForced = false;
+      currentUser = result.user;
+      $('#passwordDialog').close();
+      if (wasForced) {
+        showWorkspaceForCurrentUser(true);
+      }
+      setMessage('#workspaceMessage', 'Password changed.', true);
+    } catch (error) {
+      const message = $('#passwordMessage');
+      message.textContent = error.message;
+      message.hidden = false;
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  // Admin reset of a teammate's password (Team logins).
+  let resetPasswordUserId = null;
+
+  function openResetPasswordDialog(userId, name) {
+    resetPasswordUserId = userId;
+    $('#resetPasswordForm').reset();
+    clearErrors($('#resetPasswordForm'));
+    $('#resetPasswordMessage').hidden = true;
+    $('#resetPasswordNote').textContent =
+      'Set a temporary password for ' +
+      name +
+      '. They are signed out everywhere and must choose their own at the next sign-in.';
+    $('#resetPasswordDialog').showModal();
+    $('#resetPasswordValue').focus();
+  }
+
+  $('#resetPasswordCancel').addEventListener('click', () => $('#resetPasswordDialog').close());
+
+  $('#resetPasswordForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const value = $('#resetPasswordValue').value;
+    if (value.length < 12) {
+      showFieldError(form, 'resetPasswordValue', 'Use at least 12 characters.');
+      return;
+    }
+    const button = $('#resetPasswordSave');
+    setBusy(button, true, 'Resetting…');
+    try {
+      await apiRequest('/api/auth/users/' + encodeURIComponent(resetPasswordUserId), {
+        method: 'PATCH',
+        body: JSON.stringify({ password: value }),
+      });
+      $('#resetPasswordDialog').close();
+      setMessage(
+        '#workspaceMessage',
+        'Password reset. Share the temporary password directly.',
+        true,
+      );
+    } catch (error) {
+      const message = $('#resetPasswordMessage');
+      message.textContent = error.message;
+      message.hidden = false;
+    } finally {
+      setBusy(button, false);
+    }
+  });
 
   // ---------- Phase 6 (see modification.md #26): admin pricing config ----------
   // Generic engine for the 5 "Management" admin pages (VAS price banding &
@@ -8723,6 +8869,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    roles: {
+      navId: 'rolesNav',
+      workspaceId: 'rolesWorkspace',
+      heading: 'Roles & permissions',
+      description: 'Choose what each role can open and do.',
+      permission: 'admin.users',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderRolesPage(root),
+    },
     'activity-log': {
       navId: 'activityLogNav',
       workspaceId: 'activityLogWorkspace',
@@ -8869,6 +9025,123 @@ ${bodyHtml}
       escapeHtml(text) +
       '</td>'
     );
+  }
+
+  // ---------- Roles & permissions (modification #55) ----------
+  async function renderRolesPage(root) {
+    root.innerHTML = '<p class="form-note">Loading roles&hellip;</p>';
+    let data;
+    try {
+      data = await apiRequest('/api/role-matrix');
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const editable = data.roles.filter((role) => role.code !== 'admin');
+    const original = {};
+    const draft = {};
+    editable.forEach((role) => {
+      original[role.code] = new Set(data.grants[role.code] || []);
+      draft[role.code] = new Set(data.grants[role.code] || []);
+    });
+    const groups = new Map();
+    data.permissions.forEach((permission) => {
+      const key = permission.code.split('.')[0];
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key).push(permission);
+    });
+    const roleLabel = (role) => (role.code === 'admin' ? 'Administrator' : role.displayName);
+    const head = data.roles
+      .map((role) => '<th class="rm-check">' + escapeHtml(roleLabel(role)) + '</th>')
+      .join('');
+    let rows = '';
+    groups.forEach((permissions, key) => {
+      rows +=
+        '<tr class="rm-group"><td colspan="' +
+        (data.roles.length + 1) +
+        '">' +
+        escapeHtml(AL_MODULE_LABELS[key] || alSentence(key)) +
+        '</td></tr>';
+      permissions.forEach((permission) => {
+        const cells = data.roles
+          .map((role) =>
+            role.code === 'admin'
+              ? '<td class="rm-check"><span class="rm-locked" title="Always on">✓</span></td>'
+              : '<td class="rm-check"><input type="checkbox" data-role="' +
+                escapeHtml(role.code) +
+                '" data-perm="' +
+                escapeHtml(permission.code) +
+                '" aria-label="' +
+                escapeHtml(roleLabel(role) + ': ' + permission.code) +
+                '"' +
+                (draft[role.code].has(permission.code) ? ' checked' : '') +
+                ' /></td>',
+          )
+          .join('');
+        rows +=
+          '<tr' +
+          (key === 'admin' ? ' class="rm-sensitive"' : '') +
+          '><td>' +
+          escapeHtml(permission.description) +
+          '<small>' +
+          escapeHtml(permission.code) +
+          '</small></td>' +
+          cells +
+          '</tr>';
+      });
+    });
+    root.innerHTML =
+      '<div class="rm-bar"><button type="button" class="button button-primary" data-rm-save disabled>Save changes</button>' +
+      '<button type="button" class="button" data-rm-discard disabled>Discard</button>' +
+      '<span class="form-note" data-rm-status>No changes</span></div>' +
+      '<div class="rm-wrap"><table class="rc-table rm-table"><thead><tr><th>Permission</th>' +
+      head +
+      '</tr></thead><tbody>' +
+      rows +
+      '</tbody></table></div>' +
+      '<p class="form-note">Rows marked with an amber edge (admin.*) control who can manage logins and permissions &mdash; grant them with care.</p>';
+    const saveButton = root.querySelector('[data-rm-save]');
+    const discardButton = root.querySelector('[data-rm-discard]');
+    const status = root.querySelector('[data-rm-status]');
+    const changedRoles = () =>
+      editable.filter((role) => {
+        const before = original[role.code];
+        const after = draft[role.code];
+        return before.size !== after.size || [...after].some((code) => !before.has(code));
+      });
+    const refresh = () => {
+      const count = changedRoles().length;
+      saveButton.disabled = !count;
+      discardButton.disabled = !count;
+      status.textContent = count
+        ? count + (count === 1 ? ' role' : ' roles') + ' with unsaved changes'
+        : 'No changes';
+    };
+    root.addEventListener('change', (event) => {
+      const box = event.target.closest('input[data-role]');
+      if (!box) return;
+      const set = draft[box.dataset.role];
+      if (box.checked) set.add(box.dataset.perm);
+      else set.delete(box.dataset.perm);
+      refresh();
+    });
+    discardButton.addEventListener('click', () => renderRolesPage(root));
+    saveButton.addEventListener('click', async () => {
+      setBusy(saveButton, true, 'Saving…');
+      try {
+        for (const role of changedRoles()) {
+          await apiRequest('/api/role-matrix/' + encodeURIComponent(role.code), {
+            method: 'PUT',
+            body: JSON.stringify({ permissions: [...draft[role.code]].sort() }),
+          });
+        }
+        await renderRolesPage(root);
+        setMessage('#workspaceMessage', 'Permissions saved.', true);
+      } catch (error) {
+        setBusy(saveButton, false);
+        status.textContent = error.message;
+      }
+    });
   }
 
   async function renderReportsPage(root) {
@@ -11689,6 +11962,7 @@ ${bodyHtml}
   $('#rateCardNav')?.addEventListener('click', () => setWorkspaceMode('rate-card'));
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
+  $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 

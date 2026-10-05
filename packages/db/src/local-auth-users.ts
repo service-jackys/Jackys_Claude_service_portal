@@ -12,6 +12,7 @@ export type LocalAuthUserRecord = {
   role: string;
   passwordHash: string;
   active: boolean;
+  mustChangePassword: boolean;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -23,6 +24,7 @@ const columns = `
   role,
   password_hash AS "passwordHash",
   active,
+  must_change_password AS "mustChangePassword",
   created_at AS "createdAt",
   updated_at AS "updatedAt"
 `;
@@ -65,13 +67,19 @@ export async function listLocalAuthUsers(client: PoolClient): Promise<LocalAuthU
 
 export async function insertLocalAuthUser(
   client: PoolClient,
-  input: { email: string; name: string; role: string; passwordHash: string },
+  input: {
+    email: string;
+    name: string;
+    role: string;
+    passwordHash: string;
+    mustChangePassword?: boolean;
+  },
 ): Promise<LocalAuthUserRecord> {
   const result = await client.query<{ id: string }>(
-    `INSERT INTO local_auth_users (email, name, role, password_hash)
-     VALUES (lower($1), $2, $3, $4)
+    `INSERT INTO local_auth_users (email, name, role, password_hash, must_change_password)
+     VALUES (lower($1), $2, $3, $4, $5)
      RETURNING id`,
-    [input.email, input.name, input.role, input.passwordHash],
+    [input.email, input.name, input.role, input.passwordHash, input.mustChangePassword ?? false],
   );
   const user = await findLocalAuthUserById(client, result.rows[0].id);
   if (!user) throw new Error('The created team login could not be loaded.');
@@ -91,6 +99,29 @@ export async function updateLocalAuthUser(
      WHERE id = $1
      RETURNING id`,
     [id, input.role ?? null, input.active ?? null],
+  );
+  if (!result.rows[0]) return null;
+  return findLocalAuthUserById(client, result.rows[0].id);
+}
+
+// Stores a new password hash. `mustChange` is true when an administrator set a
+// temporary password (the owner must replace it at next sign-in) and false when
+// the owner chose it themselves.
+export async function setLocalAuthUserPassword(
+  client: PoolClient,
+  id: string,
+  passwordHash: string,
+  mustChange: boolean,
+): Promise<LocalAuthUserRecord | null> {
+  const result = await client.query<{ id: string }>(
+    `UPDATE local_auth_users
+     SET password_hash = $2,
+         must_change_password = $3,
+         password_changed_at = CASE WHEN $3 THEN password_changed_at ELSE now() END,
+         updated_at = now()
+     WHERE id = $1
+     RETURNING id`,
+    [id, passwordHash, mustChange],
   );
   if (!result.rows[0]) return null;
   return findLocalAuthUserById(client, result.rows[0].id);
