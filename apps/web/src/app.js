@@ -662,6 +662,7 @@
     $('#revenueDashNav').hidden = !canReadRevenue;
     $('#budgetDashNav').hidden = !canReadRevenue;
     $('#reportsNav').hidden = !hasPermission('reports.read');
+    $('#activityLogNav').hidden = !hasPermission('audit.read');
   }
 
   function showNoWorkspaceAccess() {
@@ -8954,6 +8955,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    'activity-log': {
+      navId: 'activityLogNav',
+      workspaceId: 'activityLogWorkspace',
+      heading: 'Activity log',
+      description: 'Who did what, and when.',
+      permission: 'audit.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderActivityLog(root),
+    },
   };
 
   async function activatePricingCalcMode(mode) {
@@ -9366,6 +9377,354 @@ ${bodyHtml}
         state.downloading = false;
         drawBar();
       }
+    }
+
+    drawBar();
+    await load();
+  }
+
+  // --- Activity log screen (modification.md #53) ----------------------------
+  // Reads the audit trail (audit_events) through GET /api/audit-events. Every
+  // write the portal makes is recorded there with the user who made it; as of
+  // #53 sign-ins, sign-outs, failed sign-ins, team-login changes and report
+  // downloads are recorded too.
+  const AL_MODULE_LABELS = {
+    auth: 'Sign-in & team logins',
+    complaint: 'Complaints',
+    appointment: 'Appointments',
+    job_card: 'Job cards',
+    job_card_attachment: 'Job card files',
+    quotation: 'Quotations',
+    inspection: 'Inspections',
+    warranty_approval: 'Warranty approvals',
+    vas_sale: 'VAS sales',
+    amc_contract: 'AMC contracts',
+    thomson_sale: 'Thomson sales',
+    rate_card_sale: 'Rate card sales',
+    pricing_config: 'Pricing masters',
+    revenue_dashboard: 'Revenue dashboard',
+    report: 'Reports',
+    customer: 'Customers',
+    branch: 'Branches',
+    technician: 'Technicians',
+    salesman: 'Salesmen',
+    sales_channel: 'Sales channels',
+    schedule: 'Scheduler drafts',
+    role: 'Roles & permissions',
+  };
+  const AL_ACTION_LABELS = {
+    'auth.login': 'Signed in',
+    'auth.login_failed': 'Failed sign-in',
+    'auth.logout': 'Signed out',
+    'auth.user_created': 'Team login created',
+    'auth.user_updated': 'Team login changed',
+    'auth.password_changed': 'Password changed',
+    'auth.password_reset': 'Password reset by admin',
+    'report.exported': 'Report downloaded',
+    'revenue_dashboard.imported': 'Revenue workbook uploaded',
+    'pricing_config.saved': 'Pricing master saved',
+    'pricing_config.reset': 'Pricing master reset to defaults',
+    'pricing_config.restored': 'Pricing master restored',
+  };
+
+  function alSentence(text) {
+    const spaced = String(text).replace(/_/g, ' ').trim();
+    return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  }
+
+  function alActionLabel(action) {
+    if (AL_ACTION_LABELS[action]) return AL_ACTION_LABELS[action];
+    const [moduleKey, ...rest] = String(action).split('.');
+    const moduleLabel = AL_MODULE_LABELS[moduleKey] || alSentence(moduleKey);
+    return rest.length
+      ? moduleLabel + ': ' + alSentence(rest.join(' ')).toLowerCase()
+      : moduleLabel;
+  }
+
+  function alDetails(event) {
+    const meta = event.metadata || {};
+    const parts = [];
+    const used = new Set();
+    Object.entries(meta).forEach(([key, value]) => {
+      if (/Reference$/.test(key) && value) {
+        parts.push(String(value));
+        used.add(key);
+      }
+    });
+    if (meta.fromStatus !== undefined || meta.toStatus !== undefined) {
+      parts.push('Status: ' + (meta.fromStatus ?? '—') + ' → ' + (meta.toStatus ?? '—'));
+      used.add('fromStatus');
+      used.add('toStatus');
+    }
+    if (event.action === 'report.exported') {
+      parts.push(
+        [
+          meta.report,
+          meta.from || meta.to ? (meta.from || '…') + ' to ' + (meta.to || '…') : 'all dates',
+        ]
+          .filter(Boolean)
+          .join(' · ') +
+          ' · ' +
+          (meta.rows ?? 0) +
+          (Number(meta.rows) === 1 ? ' row' : ' rows'),
+      );
+      ['report', 'reportType', 'from', 'to', 'rows', 'totalMatching', 'fileName', 'search'].forEach(
+        (key) => used.add(key),
+      );
+    }
+    Object.entries(meta).forEach(([key, value]) => {
+      if (used.has(key) || value === null || value === undefined || value === '') return;
+      const text = typeof value === 'object' ? JSON.stringify(value) : String(value);
+      parts.push(alSentence(key.replace(/([A-Z])/g, ' $1')) + ': ' + text);
+    });
+    return parts.join(' · ');
+  }
+
+  async function renderActivityLog(root) {
+    root.innerHTML = '<p class="form-note">Loading activity&hellip;</p>';
+    let options;
+    try {
+      options = await apiRequest('/api/audit-events/filters');
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const state = {
+      range: 'week',
+      from: '',
+      to: '',
+      actorId: '',
+      module: '',
+      search: '',
+      page: 1,
+      pageSize: 50,
+      data: null,
+      loading: false,
+      error: '',
+    };
+    const RANGES = [
+      ['today', 'Today'],
+      ['week', 'Last 7 days'],
+      ['month', 'Last 30 days'],
+      ['custom', 'Custom range'],
+      ['all', 'All time'],
+    ];
+
+    function applyRange(kind) {
+      const now = new Date();
+      const back = (days) =>
+        pgYmd(new Date(now.getFullYear(), now.getMonth(), now.getDate() - days));
+      if (kind === 'today') {
+        state.from = pgYmd(now);
+        state.to = pgYmd(now);
+      } else if (kind === 'week') {
+        state.from = back(6);
+        state.to = pgYmd(now);
+      } else if (kind === 'month') {
+        state.from = back(29);
+        state.to = pgYmd(now);
+      }
+    }
+    applyRange(state.range);
+
+    root.innerHTML =
+      '<div class="rc-section rd-filter-card"><div class="rd-report-toolbar" data-al-bar></div>' +
+      '<p class="form-note" data-al-msg style="margin:0.5rem 0 0"></p></div>' +
+      '<div class="rc-section" data-al-results></div>';
+    const bar = root.querySelector('[data-al-bar]');
+    const message = root.querySelector('[data-al-msg]');
+    const results = root.querySelector('[data-al-results]');
+
+    function validate() {
+      if (state.range === 'all') return '';
+      if (!state.from || !state.to) return 'Choose both a From and a To date.';
+      if (state.to < state.from) return 'The To date must be on or after the From date.';
+      return '';
+    }
+
+    function drawBar() {
+      const opt = (value, label, selected) =>
+        '<option value="' +
+        escapeHtml(value) +
+        '"' +
+        (selected ? ' selected' : '') +
+        '>' +
+        escapeHtml(label) +
+        '</option>';
+      bar.innerHTML =
+        '<div class="th-field"><label>Date range<select data-al="range">' +
+        RANGES.map(([value, label]) => opt(value, label, value === state.range)).join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>From<input type="date" data-al="from" value="' +
+        escapeHtml(state.from) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        ' /></label></div>' +
+        '<div class="th-field"><label>To<input type="date" data-al="to" value="' +
+        escapeHtml(state.to) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        ' /></label></div>' +
+        '<div class="th-field"><label>User<select data-al="actorId">' +
+        opt('', 'All users', state.actorId === '') +
+        options.actors
+          .map((actor) =>
+            opt(actor.id, actor.name + ' (' + actor.email + ')', state.actorId === actor.id),
+          )
+          .join('') +
+        opt('none', 'No signed-in user (public / failed sign-in)', state.actorId === 'none') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Area<select data-al="module">' +
+        opt('', 'All areas', state.module === '') +
+        options.modules
+          .map((key) => opt(key, AL_MODULE_LABELS[key] || alSentence(key), state.module === key))
+          .join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Search<input type="search" data-al="search" placeholder="Reference, name, detail&hellip;" value="' +
+        escapeHtml(state.search) +
+        '" /></label></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-al-refresh>Refresh</button></div>';
+      const control = (name) => bar.querySelector('[data-al="' + name + '"]');
+      control('range').addEventListener('change', (event) => {
+        state.range = event.target.value;
+        applyRange(state.range);
+        state.page = 1;
+        drawBar();
+        load();
+      });
+      ['from', 'to'].forEach((name) =>
+        control(name).addEventListener('change', (event) => {
+          state[name] = event.target.value;
+          state.page = 1;
+          load();
+        }),
+      );
+      ['actorId', 'module'].forEach((name) =>
+        control(name).addEventListener('change', (event) => {
+          state[name] = event.target.value;
+          state.page = 1;
+          load();
+        }),
+      );
+      let timer = null;
+      control('search').addEventListener('input', (event) => {
+        state.search = event.target.value.trim();
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          state.page = 1;
+          load();
+        }, 350);
+      });
+      bar.querySelector('[data-al-refresh]').addEventListener('click', () => load());
+    }
+
+    function drawResults() {
+      const data = state.data;
+      if (state.loading && !data) {
+        results.innerHTML = '<p class="pg-empty">Loading activity&hellip;</p>';
+        return;
+      }
+      if (state.error) {
+        results.innerHTML = '<p class="pg-empty pg-error">' + escapeHtml(state.error) + '</p>';
+        return;
+      }
+      if (!data) {
+        results.innerHTML = '';
+        return;
+      }
+      const totalPages = Math.max(1, Math.ceil(data.total / data.pageSize));
+      const head =
+        '<div class="rc-section-head"><span>Activity</span><span class="rc-count">' +
+        data.total.toLocaleString('en-US') +
+        ' event' +
+        (data.total === 1 ? '' : 's') +
+        '</span></div>';
+      if (!data.items.length) {
+        results.innerHTML = head + '<p class="pg-empty">No activity matches these filters.</p>';
+        return;
+      }
+      results.innerHTML =
+        head +
+        '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Time (Dubai)</th><th>User</th><th>Action</th><th>Details</th><th>Record</th></tr></thead><tbody>' +
+        data.items
+          .map((event) => {
+            const details = alDetails(event);
+            const warn = event.action === 'auth.login_failed';
+            return (
+              '<tr><td class="num" style="text-align:left">' +
+              escapeHtml(event.occurredAt) +
+              '</td><td>' +
+              (event.actorName
+                ? escapeHtml(event.actorName) +
+                  '<br /><span class="form-note" style="margin:0">' +
+                  escapeHtml(event.actorEmail || '') +
+                  '</span>'
+                : '<span class="form-note" style="margin:0">—</span>') +
+              '</td><td><span class="pg-chip' +
+              (warn ? ' warn' : '') +
+              '" title="' +
+              escapeHtml(event.action) +
+              '">' +
+              escapeHtml(alActionLabel(event.action)) +
+              '</span></td><td class="pg-wrap">' +
+              escapeHtml(details) +
+              '</td><td>' +
+              (event.targetType
+                ? escapeHtml(alSentence(event.targetType)) +
+                  (event.targetId ? ' #' + escapeHtml(event.targetId) : '')
+                : '') +
+              '</td></tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table></div>' +
+        '<div class="rd-pager"><button class="button button-outline" type="button" data-al-prev' +
+        (data.page <= 1 ? ' disabled' : '') +
+        '>Previous</button><span class="form-note">Page ' +
+        data.page +
+        ' of ' +
+        totalPages +
+        '</span><button class="button button-outline" type="button" data-al-next' +
+        (data.page >= totalPages ? ' disabled' : '') +
+        '>Next</button></div>';
+      results.querySelector('[data-al-prev]')?.addEventListener('click', () => {
+        state.page = Math.max(1, state.page - 1);
+        load();
+      });
+      results.querySelector('[data-al-next]')?.addEventListener('click', () => {
+        state.page += 1;
+        load();
+      });
+    }
+
+    async function load() {
+      const problem = validate();
+      message.textContent = problem;
+      message.classList.toggle('pg-error', Boolean(problem));
+      if (problem) return;
+      state.loading = true;
+      state.error = '';
+      drawResults();
+      try {
+        state.data = await apiRequest(
+          '/api/audit-events?' +
+            rdQs({
+              from: state.range === 'all' ? '' : state.from,
+              to: state.range === 'all' ? '' : state.to,
+              actorId: state.actorId,
+              module: state.module,
+              search: state.search,
+              page: state.page,
+              pageSize: state.pageSize,
+            }),
+        );
+      } catch (error) {
+        state.data = null;
+        state.error = error.message;
+      } finally {
+        state.loading = false;
+      }
+      drawResults();
     }
 
     drawBar();
@@ -11561,6 +11920,7 @@ ${bodyHtml}
   $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
   $('#rateCardCalcNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-calc'));
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
+  $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 

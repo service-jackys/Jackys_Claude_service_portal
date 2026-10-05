@@ -2227,6 +2227,23 @@
           <li>`npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded file.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#53 &mdash; Activity log screen: who did what, with filters</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-05 &middot; Scope: Admin / Management · no new migration (uses 026) · restart</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>New **Activity log** page under Admin (the legacy "Activity Log" tab): every audit event with the time (Dubai), the user, a readable action name and the details, filtered by date range (today, last 7 / 30 days, custom, all time), user, area and free-text search, 50 per page.</li>
+          <li>The audit trail now also records sign-ins, sign-outs, failed sign-ins (with the email tried), team-login created / changed, and report downloads, so the log answers "who signed in and who changed what".</li>
+          <li>New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to management by migration 026; admin already had it).</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>restart, sign in and out as a couple of users, then open Activity log as admin or management and filter by user and area.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

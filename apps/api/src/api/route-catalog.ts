@@ -40,6 +40,9 @@ import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
+import { createAuditHandlers } from '../audit/routes.js';
+import { createAuditService } from '../audit/service.js';
+import { recordAuthEvent } from '../audit/record.js';
 import { createReportHandlers } from '../reports/routes.js';
 import { createReportService } from '../reports/service.js';
 import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
@@ -531,6 +534,9 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
       };
+  const auditHandlers = pool
+    ? createAuditHandlers(createAuditService(pool), requirePermission)
+    : unavailableHandlers(['list', 'filters']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -797,6 +803,12 @@ export function createRouteCatalog(
           try {
             const result = await localAuth.login(request.body);
             if (result.kind === 'invalid-credentials') {
+              const attempted = (request.body as { email?: unknown } | undefined)?.email;
+              await recordAuthEvent(pool, {
+                action: 'auth.login_failed',
+                metadata: { email: typeof attempted === 'string' ? attempted.slice(0, 200) : null },
+                requestId: request.header('x-request-id') ?? undefined,
+              });
               problem(
                 response,
                 401,
@@ -806,6 +818,11 @@ export function createRouteCatalog(
               );
               return;
             }
+            await recordAuthEvent(pool, {
+              action: 'auth.login',
+              actorEmail: result.user.email,
+              requestId: request.header('x-request-id') ?? undefined,
+            });
             response.json({ token: result.token, user: result.user });
           } catch (error) {
             next(error);
@@ -845,6 +862,16 @@ export function createRouteCatalog(
             if (pool) {
               await ensureLocalProfile(pool, result.user.email, result.user.name, result.user.role);
             }
+            await recordAuthEvent(pool, {
+              action: 'auth.user_created',
+              actorProfileId: (response.locals.auth as ApplicationAuth).profileId,
+              metadata: {
+                email: result.user.email,
+                name: result.user.name,
+                role: result.user.role,
+              },
+              requestId: request.header('x-request-id') ?? undefined,
+            });
             response.status(201).json({ user: result.user });
           } catch (error) {
             next(error);
@@ -917,13 +944,23 @@ export function createRouteCatalog(
               );
               return;
             }
+            const parsedBody = request.body as { role?: string; active?: boolean };
             if (pool) {
-              const parsedBody = request.body as { role?: string; active?: boolean };
               await updateProfileAccessByEmail(pool, result.user.email, {
                 active: parsedBody.active,
                 roleCode: parsedBody.role,
               });
             }
+            await recordAuthEvent(pool, {
+              action: 'auth.user_updated',
+              actorProfileId: auth.profileId,
+              metadata: {
+                email: result.user.email,
+                ...(parsedBody.role !== undefined ? { role: parsedBody.role } : {}),
+                ...(parsedBody.active !== undefined ? { active: parsedBody.active } : {}),
+              },
+              requestId: request.header('x-request-id') ?? undefined,
+            });
             response.json({ user: result.user });
           } catch (error) {
             next(error);
@@ -961,7 +998,7 @@ export function createRouteCatalog(
       security: 'optionalBearerAuth',
       responses: [204, 501],
       handlers: [
-        (request, response) => {
+        async (request, response) => {
           if (!localAuth) {
             providerUnavailable(response);
             return;
@@ -970,7 +1007,17 @@ export function createRouteCatalog(
           const token = authorization?.startsWith('Bearer ')
             ? authorization.slice('Bearer '.length).trim()
             : undefined;
-          if (token) localAuth.revokeToken(token);
+          if (token) {
+            const user = await localAuth.getUserFromToken(token);
+            localAuth.revokeToken(token);
+            if (user) {
+              await recordAuthEvent(pool, {
+                action: 'auth.logout',
+                actorEmail: user.email,
+                requestId: request.header('x-request-id') ?? undefined,
+              });
+            }
+          }
           response.status(204).send();
         },
       ],
@@ -1942,6 +1989,36 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/audit-events',
+        operationId: 'listAuditEvents',
+        tags: ['Activity Log'],
+        summary: 'Who did what and when: the audit trail, filtered by date, user, area and text',
+        security: 'bearerAuth' as const,
+        parameters: [
+          ...paginationParameters,
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'actorId', in: 'query', schema: { type: 'string' } },
+          { name: 'module', in: 'query', schema: { type: 'string', maxLength: 60 } },
+          { name: 'action', in: 'query', schema: { type: 'string', maxLength: 120 } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: auditHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/audit-events/filters',
+        operationId: 'listAuditEventFilters',
+        tags: ['Activity Log'],
+        summary:
+          'The users, areas and actions that appear in the audit trail (for the filter boxes)',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: auditHandlers.filters,
       },
       {
         method: 'get' as const,

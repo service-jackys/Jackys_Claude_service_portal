@@ -2114,3 +2114,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: GET /api/reports, GET /api/reports/{type}, GET /api/reports/{type}/export. Migration 026 gives sales and management the reports.read permission (admin already had it).
 
 **Needs you:** `npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded file.
+
+
+## Modification #53 — Activity log screen: who did what, with filters
+
+**Date:** 2026-10-05 · **Scope:** Admin / Management · no new migration (uses 026) · restart
+
+**What changed**
+- New **Activity log** page under Admin (the legacy "Activity Log" tab): every audit event with the time (Dubai), the user, a readable action name and the details, filtered by date range (today, last 7 / 30 days, custom, all time), user, area and free-text search, 50 per page.
+- The audit trail now also records sign-ins, sign-outs, failed sign-ins (with the email tried), team-login created / changed, and report downloads, so the log answers "who signed in and who changed what".
+- New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to management by migration 026; admin already had it).
+
+**Needs you:** restart, sign in and out as a couple of users, then open Activity log as admin or management and filter by user and area.
