@@ -1394,6 +1394,60 @@
         min-width: 220px;
         max-width: 520px;
       }
+      .rcv-banner {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.9rem 1.1rem;
+        margin-bottom: 1rem;
+        border-radius: 10px;
+        background: var(--navy);
+        color: #fff;
+      }
+      .rcv-banner span {
+        font-size: 0.85rem;
+        opacity: 0.85;
+      }
+      .rcv-grid-top {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1rem;
+      }
+      .rcv-card {
+        border: 1px solid #dfe5ee;
+        border-radius: 10px;
+        padding: 1rem 1.1rem;
+        background: #fff;
+        margin-bottom: 1rem;
+      }
+      .rcv-card h3 {
+        margin: 0 0 0.6rem;
+        font-size: 1rem;
+        color: var(--navy);
+      }
+      .rcv-card h4 {
+        margin: 0 0 0.4rem;
+        font-size: 0.82rem;
+        color: #55657d;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .rcv-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 1.2rem;
+      }
+      .rcv-note {
+        margin-bottom: 0.8rem;
+        padding: 0.5rem 0.75rem;
+        border-left: 3px solid #e0a100;
+        background: #fff8e6;
+        border-radius: 4px;
+        font-size: 0.82rem;
+        color: #6b4e00;
+      }
       .pg-chip {
         display: inline-block;
         padding: 0.1rem 0.5rem;
@@ -3599,6 +3653,18 @@
               <button
                 class="dashboard-link"
                 type="button"
+                id="rateCardNav"
+                hidden
+                aria-label="Rate card"
+                title="Rate card"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
+                <span class="nav-label">Rate card</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
                 id="reportsNav"
                 hidden
                 aria-label="Reports"
@@ -3753,18 +3819,6 @@
               >
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
                 <span class="nav-label">VAS Quote Calculator</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="rateCardCalcNav"
-                hidden
-                aria-label="Rate Card Calculator"
-                title="Rate Card Calculator"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
-                <span class="nav-label">Rate Card Calculator</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
@@ -5505,19 +5559,11 @@
               </div>
             </div>
 
-            <div class="card" id="rateCardCalcWorkspace" hidden>
+            <div class="card" id="rateCardWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Stand-alone Rate Card calculator using the same admin-configured sections and
-                  activity rates as Rate Card Admin. This does not save or create any record &mdash;
-                  it only computes a price.
-                </p>
-                <section
-                  class="detail-action-card pricing-config-card"
-                  data-calc-root="rate-card-calc"
-                >
-                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
-                </section>
+                <div data-calc-root="rate-card">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
               </div>
             </div>
 

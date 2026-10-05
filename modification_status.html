@@ -1319,105 +1319,111 @@
           <li>
             <strong>Fixed: pages loading with wrong values / blank cards.</strong> Two independent
             causes: the browser was caching the pricing-config API responses and mishandling the
-            resulting "no change" (304) response as a failure &mdash; every pricing-config
-            endpoint now sends <code>Cache-Control: no-store</code>; and the new rendering engine
-            called an undefined <code>esc(...)</code> helper instead of the app's real
+            resulting "no change" (304) response as a failure &mdash; every pricing-config endpoint
+            now sends <code>Cache-Control: no-store</code>; and the new rendering engine called an
+            undefined <code>esc(...)</code> helper instead of the app's real
             <code>escapeHtml(...)</code> &mdash; fixed at all 10 call sites.
           </li>
           <li>
-            <strong>Fixed: Management panel stayed visible after switching to another sidebar
-            section.</strong> Leaving a Management page for Dashboard, Appointments, etc. now
-            correctly hides it.
+            <strong
+              >Fixed: Management panel stayed visible after switching to another sidebar
+              section.</strong
+            >
+            Leaving a Management page for Dashboard, Appointments, etc. now correctly hides it.
           </li>
           <li>
-            <strong>Fixed: entering a Management page from another section left that section's
-            selection and "Refresh" button showing.</strong> Coming from Appointments (or any
-            other section) into a Management page had left the previous section's sidebar
-            highlight and its header "Refresh" button still showing on top of the Management
-            page. <code>activatePricingAdminMode()</code> now resets every other section's nav
-            highlight and hides every other section's header "Refresh" button on entry.
+            <strong
+              >Fixed: entering a Management page from another section left that section's selection
+              and "Refresh" button showing.</strong
+            >
+            Coming from Appointments (or any other section) into a Management page had left the
+            previous section's sidebar highlight and its header "Refresh" button still showing on
+            top of the Management page. <code>activatePricingAdminMode()</code> now resets every
+            other section's nav highlight and hides every other section's header "Refresh" button on
+            entry.
           </li>
           <li>
-            <strong>VAS Price Banding &amp; Split: denser layout, tooltips, side-by-side
-            sub-sections.</strong> Smaller type and tighter spacing scoped to the Management pages
-            only; a hover/focus tooltip on every field and table column that isn't
-            self-explanatory (rounding, claim fees, deductibles, plan-split parameters, band
-            boundaries); and a "split-wise" layout applied where VAS actually has more than one
-            logical sub-section &mdash; Pricing Parameters is now two side-by-side boxed groups
-            ("Rates &amp; Minimum Fees" and "Claim &amp; Deductible Rules"), and the Sales/Service
-            GP Split card is now two side-by-side boxed groups ("Plan Economics Inputs" and
-            "Plan-Level Split Parameters"). Value Bands stayed a single section &mdash; it's just
-            the one table, so there was nothing to split.
+            <strong
+              >VAS Price Banding &amp; Split: denser layout, tooltips, side-by-side
+              sub-sections.</strong
+            >
+            Smaller type and tighter spacing scoped to the Management pages only; a hover/focus
+            tooltip on every field and table column that isn't self-explanatory (rounding, claim
+            fees, deductibles, plan-split parameters, band boundaries); and a "split-wise" layout
+            applied where VAS actually has more than one logical sub-section &mdash; Pricing
+            Parameters is now two side-by-side boxed groups ("Rates &amp; Minimum Fees" and "Claim
+            &amp; Deductible Rules"), and the Sales/Service GP Split card is now two side-by-side
+            boxed groups ("Plan Economics Inputs" and "Plan-Level Split Parameters"). Value Bands
+            stayed a single section &mdash; it's just the one table, so there was nothing to split.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>
             Refresh the Management &rarr; VAS Price Banding &amp; Split page and check the new
-            tighter/split-wise layout, and the two other bug fixes (switch between Appointments
-            and Management, and between Management pages, a few times) look right on your screen
-            sizes.
+            tighter/split-wise layout, and the two other bug fixes (switch between Appointments and
+            Management, and between Management pages, a few times) look right on your screen sizes.
           </li>
           <li>
-            Once VAS looks right, say so and the same tooltip + split-wise treatment will be
-            applied to Rate Card Admin &rarr; D+I Admin Entry &rarr; AMC Admin Rate Section
-            &rarr; Thomson Pricing Admin, in that order, one at a time.
+            Once VAS looks right, say so and the same tooltip + split-wise treatment will be applied
+            to Rate Card Admin &rarr; D+I Admin Entry &rarr; AMC Admin Rate Section &rarr; Thomson
+            Pricing Admin, in that order, one at a time.
           </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#28 &mdash; Extend split-wise layout to all Management pages, drop "(AED)" from labels</h2>
+          <h2>
+            #28 &mdash; Extend split-wise layout to all Management pages, drop "(AED)" from labels
+          </h2>
           <span class="badge badge-code-complete"
             >Built and verified &mdash; needs your review</span
           >
         </div>
         <p class="meta">
-          2026-09-30 &middot; Scope: label cleanup + a page-level currency tip on all 5
-          Management pages, plus the tooltip/split-wise treatment extended from VAS to the
-          remaining 4 pages
+          2026-09-30 &middot; Scope: label cleanup + a page-level currency tip on all 5 Management
+          pages, plus the tooltip/split-wise treatment extended from VAS to the remaining 4 pages
         </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            <strong>Removed "(AED)" from every field/column label</strong> on all 5 Management
-            pages (VAS, Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, Thomson Pricing
-            Admin) &mdash; the currency is now stated once per page instead of repeated on every
-            field. Two labels using "(AED, ...)" for an extra qualifier kept the qualifier and
-            just dropped "AED" (e.g. "Cost per km (AED, round-trip)" &rarr; "Cost per km
-            (round-trip)").
+            <strong>Removed "(AED)" from every field/column label</strong> on all 5 Management pages
+            (VAS, Rate Card Admin, D+I Admin Entry, AMC Admin Rate Section, Thomson Pricing Admin)
+            &mdash; the currency is now stated once per page instead of repeated on every field. Two
+            labels using "(AED, ...)" for an extra qualifier kept the qualifier and just dropped
+            "AED" (e.g. "Cost per km (AED, round-trip)" &rarr; "Cost per km (round-trip)").
           </li>
           <li>
             <strong>Added a small glowing "All Prices in AED" tip next to the page heading</strong>,
             shown only while a Management page is open.
           </li>
           <li>
-            <strong>Applied the tooltip + "split-wise" side-by-side layout to the remaining 4
-            pages</strong>, matching the treatment already confirmed on VAS Price Banding &amp;
-            Split:
+            <strong
+              >Applied the tooltip + "split-wise" side-by-side layout to the remaining 4
+              pages</strong
+            >, matching the treatment already confirmed on VAS Price Banding &amp; Split:
             <ul>
               <li>
-                <strong>Rate Card Admin</strong>: each rate section's boxed card now lays out
-                side by side instead of stacked, with tooltips on the Activity/Rate columns.
+                <strong>Rate Card Admin</strong>: each rate section's boxed card now lays out side
+                by side instead of stacked, with tooltips on the Activity/Rate columns.
               </li>
               <li>
-                <strong>D+I Admin Entry</strong>: now 5 side-by-side boxed groups &mdash;
-                "Common Master Inputs," "Customer Groupings," "Regional Transport," and the D&amp;I
-                / Install rate cards &mdash; with tooltips on crew factors, load capacities, labor
-                minutes, transport costs, batch/standard rates, and discount tiers. This matches
-                the layout from the old D+I screenshot originally referenced.
+                <strong>D+I Admin Entry</strong>: now 5 side-by-side boxed groups &mdash; "Common
+                Master Inputs," "Customer Groupings," "Regional Transport," and the D&amp;I /
+                Install rate cards &mdash; with tooltips on crew factors, load capacities, labor
+                minutes, transport costs, batch/standard rates, and discount tiers. This matches the
+                layout from the old D+I screenshot originally referenced.
               </li>
               <li>
-                <strong>AMC Admin Rate Section</strong>: the 17 flat fields are now two boxed
-                groups ("Plan Percentages &amp; Markups" and "Visit &amp; Staffing Economics")
-                side by side with the reactive-visit-tier and appliance-catalog cards, plus
-                tooltips throughout.
+                <strong>AMC Admin Rate Section</strong>: the 17 flat fields are now two boxed groups
+                ("Plan Percentages &amp; Markups" and "Visit &amp; Staffing Economics") side by side
+                with the reactive-visit-tier and appliance-catalog cards, plus tooltips throughout.
               </li>
               <li>
                 <strong>Thomson Pricing Admin</strong>: deployment-economics fields are now their
                 own boxed card alongside Regions, Appliance Rates, and Additional Services, with
-                tooltips on region distance/cost, the Base-rate-derives-everything relationship,
-                and the Project Management Fee rate row.
+                tooltips on region distance/cost, the Base-rate-derives-everything relationship, and
+                the Project Management Fee rate row.
               </li>
             </ul>
           </li>
@@ -1429,13 +1435,13 @@
         <div class="section-label">Needs you</div>
         <ul>
           <li>
-            Refresh each of the 5 Management pages and confirm the "(AED)" removal, the "All
-            Prices in AED" tip, and the new side-by-side layout look right &mdash; D+I Admin
-            Entry in particular, since it has the most sub-sections now.
+            Refresh each of the 5 Management pages and confirm the "(AED)" removal, the "All Prices
+            in AED" tip, and the new side-by-side layout look right &mdash; D+I Admin Entry in
+            particular, since it has the most sub-sections now.
           </li>
           <li>
-            If anything reads awkwardly at your screen width, say which page/section and it can
-            be adjusted.
+            If anything reads awkwardly at your screen width, say which page/section and it can be
+            adjusted.
           </li>
         </ul>
       </div>
@@ -1453,29 +1459,29 @@
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            <strong>Removed the "VAS Sales / Service GP Split" section.</strong> Checked against
-            the actual workbook: the "VAS Pricing" sheet is fully self-contained and is exactly
-            what <code>vas_price_bands</code>/<code>vas_pricing_params</code> cover, while "VAS
-            Sales-Service GP Split" is a separate management-reference calculator (it even pulls
-            an input from the <code>AMC-PMC-RM</code> sheet) whose real output &mdash; the
+            <strong>Removed the "VAS Sales / Service GP Split" section.</strong> Checked against the
+            actual workbook: the "VAS Pricing" sheet is fully self-contained and is exactly what
+            <code>vas_price_bands</code>/<code>vas_pricing_params</code> cover, while "VAS
+            Sales-Service GP Split" is a separate management-reference calculator (it even pulls an
+            input from the <code>AMC-PMC-RM</code> sheet) whose real output &mdash; the
             suggested/applied split and the per-band AED split table &mdash; was never actually
-            built; only its input assumptions were, under a misleading heading. Removed
-            end-to-end: schema, Excel default, admin-page card, domain allow-list, plus a new
-            migration (018) tightening the database constraint and dropping any saved row for it.
+            built; only its input assumptions were, under a misleading heading. Removed end-to-end:
+            schema, Excel default, admin-page card, domain allow-list, plus a new migration (018)
+            tightening the database constraint and dropping any saved row for it.
           </li>
           <li>
-            <strong>Fixed the split-wise grid layout</strong> on Rate Card Admin, D+I Admin
-            Entry, AMC Admin Rate Section, and Thomson Pricing Admin: a fixed, responsive
-            2-cards-per-row grid (was an uneven auto-fit grid), with cards in the same row now
-            stretching to equal height. D+I's "Common Master Inputs" card now spans the full row
-            width instead of being squeezed into a half-width column.
+            <strong>Fixed the split-wise grid layout</strong> on Rate Card Admin, D+I Admin Entry,
+            AMC Admin Rate Section, and Thomson Pricing Admin: a fixed, responsive 2-cards-per-row
+            grid (was an uneven auto-fit grid), with cards in the same row now stretching to equal
+            height. D+I's "Common Master Inputs" card now spans the full row width instead of being
+            squeezed into a half-width column.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>
-            Refresh VAS Price Banding &amp; Split and confirm the GP Split section is gone and
-            the remaining two cards look right.
+            Refresh VAS Price Banding &amp; Split and confirm the GP Split section is gone and the
+            remaining two cards look right.
           </li>
           <li>
             Refresh the other 4 Management pages and check the new 2-per-row layout, especially
@@ -1500,23 +1506,23 @@
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            <strong>Appliance Catalog now gets its own full-width row</strong>, the same
-            treatment D+I's "Common Master Inputs" got &mdash; instead of being squeezed into a
-            half-width column alongside the reactive-visit tiers card. It renders first, with
-            the tiers card following in whatever half-width slot is left.
+            <strong>Appliance Catalog now gets its own full-width row</strong>, the same treatment
+            D+I's "Common Master Inputs" got &mdash; instead of being squeezed into a half-width
+            column alongside the reactive-visit tiers card. It renders first, with the tiers card
+            following in whatever half-width slot is left.
           </li>
           <li>
-            <strong>The Appliance name column is now explicitly wider</strong> (42% of the table
-            vs. 18% / 18% / 12% for Qty / Unit price / Active) so appliance names are readable
-            without clicking into each field. This is a small new capability in the shared table
-            renderer &mdash; a column can request extra width, used only where a page opts in.
+            <strong>The Appliance name column is now explicitly wider</strong> (42% of the table vs.
+            18% / 18% / 12% for Qty / Unit price / Active) so appliance names are readable without
+            clicking into each field. This is a small new capability in the shared table renderer
+            &mdash; a column can request extra width, used only where a page opts in.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>
-            Refresh AMC Admin Rate Section and confirm the Appliance Catalog table is full-width
-            and legible.
+            Refresh AMC Admin Rate Section and confirm the Appliance Catalog table is full-width and
+            legible.
           </li>
         </ul>
       </div>
@@ -1527,27 +1533,28 @@
             >Built and verified &mdash; needs your review</span
           >
         </div>
-        <p class="meta">
-          2026-09-30 &middot; Scope: layout fix on one card, Thomson Pricing Admin
-        </p>
+        <p class="meta">2026-09-30 &middot; Scope: layout fix on one card, Thomson Pricing Admin</p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
             Same fix as #30 (AMC Appliance Catalog), applied to Thomson Pricing Admin's
             <strong>Appliance Rates</strong> card: it now spans the full row instead of sharing a
-            half-width column with Additional Services, and the Appliance name column is
-            explicitly wider (38% of the table vs. 18% / 20% / 12% for Base rate / Avg install
-            minutes / Active) so appliance names are readable.
+            half-width column with Additional Services, and the Appliance name column is explicitly
+            wider (38% of the table vs. 18% / 20% / 12% for Base rate / Avg install minutes /
+            Active) so appliance names are readable.
           </li>
           <li>
-            <strong>Additional Services</strong> now also spans the full row, and its Note
-            column is explicitly wider (44% of the table vs. 20% / 18% / 18% for Service / Rate
-            / Technician hours) so the note text is no longer cut off.
+            <strong>Additional Services</strong> now also spans the full row, and its Note column is
+            explicitly wider (44% of the table vs. 20% / 18% / 18% for Service / Rate / Technician
+            hours) so the note text is no longer cut off.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Refresh Thomson Pricing Admin and confirm Appliance Rates and Additional Services are both full-width and legible.</li>
+          <li>
+            Refresh Thomson Pricing Admin and confirm Appliance Rates and Additional Services are
+            both full-width and legible.
+          </li>
         </ul>
       </div>
       <div class="card">
@@ -1564,9 +1571,9 @@
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            New <strong>Quote Calculators</strong> sidebar section with 4 pages. Each reads the
-            same admin-configured data as its matching Management page and computes a price live
-            in the browser &mdash; none of them save, create, or touch any record.
+            New <strong>Quote Calculators</strong> sidebar section with 4 pages. Each reads the same
+            admin-configured data as its matching Management page and computes a price live in the
+            browser &mdash; none of them save, create, or touch any record.
           </li>
           <li>
             <strong>VAS Quote Calculator</strong> &mdash; order value + plan in, band-midpoint fee
@@ -1578,16 +1585,15 @@
           </li>
           <li>
             <strong>AMC Quote Calculator</strong> &mdash; editable per-contract appliance
-            quantities/values from AMC Admin's catalog, computing Basic RM / Standard PMC /
-            Premium PMC side by side (visits, labor, transport, parts reserve, overhead, price
-            excl./incl. 5% VAT), matching the workbook's Post-Warranty AMC/PMC formula exactly.
+            quantities/values from AMC Admin's catalog, computing Basic RM / Standard PMC / Premium
+            PMC side by side (visits, labor, transport, parts reserve, overhead, price excl./incl.
+            5% VAT), matching the workbook's Post-Warranty AMC/PMC formula exactly.
           </li>
           <li>
-            <strong>Thomson Quote Calculator</strong> &mdash; region + appliance + quantity +
-            site visits + training lines, with volume-tier rates, install labor/cost, add-on
-            revenue and transport all computed the same way as the workbook's Project Pricing
-            Calculator, plus a customer transport-share % control and a grand total (price, cost,
-            margin, margin %).
+            <strong>Thomson Quote Calculator</strong> &mdash; region + appliance + quantity + site
+            visits + training lines, with volume-tier rates, install labor/cost, add-on revenue and
+            transport all computed the same way as the workbook's Project Pricing Calculator, plus a
+            customer transport-share % control and a grand total (price, cost, margin, margin %).
           </li>
           <li>
             No backend changes &mdash; all 4 reuse the existing read-only pricing-config API and
@@ -1611,19 +1617,19 @@
           >
         </div>
         <p class="meta">
-          2026-09-30 &middot; Scope: rename + new table + 15 new admin fields, VAS Pricing
-          Master only
+          2026-09-30 &middot; Scope: rename + new table + 15 new admin fields, VAS Pricing Master
+          only
         </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
             Renamed <strong>VAS Price Banding &amp; Split</strong> to
-            <strong>VAS Pricing Master</strong> in the sidebar and page heading &mdash; same
-            page, same data.
+            <strong>VAS Pricing Master</strong> in the sidebar and page heading &mdash; same page,
+            same data.
           </li>
           <li>
-            New <strong>VAS Plan Pricing Table</strong> &mdash; one real table, one row per
-            plan, replacing two field-grid boxes that never actually rendered as a table.
+            New <strong>VAS Plan Pricing Table</strong> &mdash; one real table, one row per plan,
+            replacing two field-grid boxes that never actually rendered as a table.
           </li>
           <li>
             Added 12 missing fields (Service fee, Claims allowed, Coverage &amp; terms &times; 4
@@ -1633,9 +1639,7 @@
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>
-            Refresh VAS Pricing Master and confirm the table and new fields read correctly.
-          </li>
+          <li>Refresh VAS Pricing Master and confirm the table and new fields read correctly.</li>
           <li>Next up: the VAS Quote Calculator redesign, then VAS Sale + certificate.</li>
         </ul>
       </div>
@@ -1656,13 +1660,16 @@
             plain-language subtitle under the fee, matching the legacy customer-facing page.
           </li>
           <li>
-            Quote card now shows exactly: <strong>Selling price, Deductible per claim, Service
-            fee per claim, Claims allowed, Coverage &amp; terms</strong> &mdash; sourced from the
-            new VAS Pricing Master fields (#33).
+            Quote card now shows exactly:
+            <strong
+              >Selling price, Deductible per claim, Service fee per claim, Claims allowed, Coverage
+              &amp; terms</strong
+            >
+            &mdash; sourced from the new VAS Pricing Master fields (#33).
           </li>
           <li>
-            1-Year Damage Insurance's service fee is computed live from the selling price
-            against the claim-fee threshold, exactly like the legacy calculator.
+            1-Year Damage Insurance's service fee is computed live from the selling price against
+            the claim-fee threshold, exactly like the legacy calculator.
           </li>
           <li>
             Added <strong>"Quick Price &mdash; All 4 Plans at Once"</strong> &mdash; one table,
@@ -1695,32 +1702,40 @@
           </li>
           <li>
             New <code>vas_sales</code> table (migration #019) &mdash; normalized customer/appliance
-            fields plus an auto-generated <code>VS-YYYY-NNNNN</code> reference, matching the
-            live system's VAS sale record.
+            fields plus an auto-generated <code>VS-YYYY-NNNNN</code> reference, matching the live
+            system's VAS sale record.
           </li>
           <li>
-            <strong>Save</strong> posts the sale to a new API endpoint; <strong>Print
-            Certificate</strong> then generates the correct legal text for that exact plan
-            (Cover, Exclusions, Limit of Liability, depreciation table, Claims Process,
+            <strong>Save</strong> posts the sale to a new API endpoint;
+            <strong>Print Certificate</strong> then generates the correct legal text for that exact
+            plan (Cover, Exclusions, Limit of Liability, depreciation table, Claims Process,
             Cancellations &amp; Refund Schedule) &mdash; ported verbatim from the legacy
             certificates, one set of terms per plan.
           </li>
           <li>
-            Certificate print header uses the JDI logo, in the same print style/shell as every
-            other printed document &mdash; only this certificate's header changed.
+            Certificate print header uses the JDI logo, in the same print style/shell as every other
+            printed document &mdash; only this certificate's header changed.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>Run the new migration (<code>019_vas_sales.sql</code>) before testing.</li>
-          <li>Save + print a certificate for each of the 4 plans and check the terms text, depreciation %, refund schedule and logo against the legacy certificates.</li>
+          <li>
+            Save + print a certificate for each of the 4 plans and check the terms text,
+            depreciation %, refund schedule and logo against the legacy certificates.
+          </li>
           <li>Confirm "management" + "sales" are the right roles to issue VAS sales.</li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#36 &mdash; VAS Quote Calculator: workspace bug, Clear button, VAS Issued tab, dashboard tiles</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #36 &mdash; VAS Quote Calculator: workspace bug, Clear button, VAS Issued tab, dashboard
+            tiles
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
         <p class="meta">
           2026-10-01 &middot; Scope: VAS Quote Calculator page + Dashboard &middot; no new migration
@@ -1735,8 +1750,9 @@
             Added a <strong>Clear</strong> button to reset the calculator's price/plan inputs.
           </li>
           <li>
-            New <strong>"VAS Issued"</strong> tab inside the VAS Quote Calculator page, listing every
-            saved VAS sale with a <strong>Print</strong> button to reprint its certificate any time.
+            New <strong>"VAS Issued"</strong> tab inside the VAS Quote Calculator page, listing
+            every saved VAS sale with a <strong>Print</strong> button to reprint its certificate any
+            time.
           </li>
           <li>
             <strong>Side-by-side tabs, no inner scrollbar</strong> &mdash; the tabs now sit
@@ -1757,38 +1773,56 @@
         <div class="section-label">Needs you</div>
         <ul>
           <li>No new migration &mdash; just pull and restart the server.</li>
-          <li>Confirm switching tabs no longer leaves the calculator showing, the Clear button
-          works, a saved sale appears in "VAS Issued" with a working Print button, and the new
-          Dashboard tile shows the right counts.</li>
+          <li>
+            Confirm switching tabs no longer leaves the calculator showing, the Clear button works,
+            a saved sale appears in "VAS Issued" with a working Print button, and the new Dashboard
+            tile shows the right counts.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#37 &mdash; VAS Quote Calculator: start empty, Clear should actually clear</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-01 &middot; Scope: VAS Quote Calculator page &middot; no migration</p>
+        <p class="meta">
+          2026-10-01 &middot; Scope: VAS Quote Calculator page &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
-          <li>Selling price field now <strong>starts empty</strong> instead of pre-filled with 1000.</li>
-          <li><strong>Clear</strong> now empties the field (and the quote / Quick Price panels)
-          instead of putting 1000 back.</li>
-          <li>An empty price field clears the quote card and Quick Price table instead of quietly
-          quoting a 0 AED sale.</li>
-          <li>Trying to <strong>Save</strong> with no price entered now shows a reminder instead of
-          saving a 0 AED sale.</li>
+          <li>
+            Selling price field now <strong>starts empty</strong> instead of pre-filled with 1000.
+          </li>
+          <li>
+            <strong>Clear</strong> now empties the field (and the quote / Quick Price panels)
+            instead of putting 1000 back.
+          </li>
+          <li>
+            An empty price field clears the quote card and Quick Price table instead of quietly
+            quoting a 0 AED sale.
+          </li>
+          <li>
+            Trying to <strong>Save</strong> with no price entered now shows a reminder instead of
+            saving a 0 AED sale.
+          </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>No migration &mdash; pull and restart.</li>
-          <li>Confirm the price field loads empty, Clear truly clears everything, and saving with
-          no price shows the reminder.</li>
+          <li>
+            Confirm the price field loads empty, Clear truly clears everything, and saving with no
+            price shows the reminder.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#38 &mdash; AMC: Issue a Contract</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
         <p class="meta">
           2026-10-01 &middot; Scope: AMC Quote Calculator page + Dashboard &middot; new migration
@@ -1803,23 +1837,23 @@
           <li>
             New <strong>amc_contracts</strong> table and <code>AC-YYYY-NNNNN</code> reference
             numbering (matching VAS's <code>VS-YYYY-NNNNN</code> style), storing the selected plan,
-            contract/client/site details and the full appliance schedule (AMC prices against a
-            whole list of appliances, not a single item like VAS).
+            contract/client/site details and the full appliance schedule (AMC prices against a whole
+            list of appliances, not a single item like VAS).
           </li>
           <li>
-            <strong>Side-by-side tabs</strong> &mdash; "Quote Calculator" and "AMC Issued", using the
-            same horizontal, no-inner-scroll layout introduced for VAS in #37.
+            <strong>Side-by-side tabs</strong> &mdash; "Quote Calculator" and "AMC Issued", using
+            the same horizontal, no-inner-scroll layout introduced for VAS in #37.
           </li>
           <li>
-            Added a <strong>Clear</strong> button that resets every appliance's qty/price back to AMC
-            Admin Rate Section's catalog defaults.
+            Added a <strong>Clear</strong> button that resets every appliance's qty/price back to
+            AMC Admin Rate Section's catalog defaults.
           </li>
           <li>
             New <strong>"Issue an AMC Contract &mdash; Customer Certificate"</strong> section: pick
             which of the 3 computed plans (Basic RM / Standard PMC / Premium PMC) the customer
             approved, fill in contract/client/site details, save, then print &mdash; the certificate
-            text (coverage, inclusions/exclusions, payment terms, signatures) is ported verbatim from
-            the legacy AMC contract certificate.
+            text (coverage, inclusions/exclusions, payment terms, signatures) is ported verbatim
+            from the legacy AMC contract certificate.
           </li>
           <li>
             New <strong>"AMC Issued"</strong> tab listing every saved AMC contract with a
@@ -1830,8 +1864,8 @@
             form for the next customer, and refreshes "AMC Issued" if it's open.
           </li>
           <li>
-            New <strong>AMC contracts</strong> tile group on the main Dashboard (total + this month),
-            matching the VAS sales tiles.
+            New <strong>AMC contracts</strong> tile group on the main Dashboard (total + this
+            month), matching the VAS sales tiles.
           </li>
           <li>
             Also fixed a stale note on both the VAS and AMC Quote Calculator cards that still said
@@ -1851,8 +1885,13 @@
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#39 &mdash; AMC Quote Calculator: Excel-style manual entry, real Clear, print one plan at a time</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #39 &mdash; AMC Quote Calculator: Excel-style manual entry, real Clear, print one plan
+            at a time
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
         <p class="meta">
           2026-10-02 &middot; Scope: AMC Quote Calculator page &middot; new migration
@@ -1867,8 +1906,8 @@
             <strong>Remove</strong> button takes it back out.
           </li>
           <li>
-            <strong>Clear actually clears</strong> &mdash; the same bug VAS had in #37: Clear used to
-            reload the admin catalog's numbers instead of emptying the list. It now empties the
+            <strong>Clear actually clears</strong> &mdash; the same bug VAS had in #37: Clear used
+            to reload the admin catalog's numbers instead of emptying the list. It now empties the
             appliance list completely, with Plan pricing going back to its placeholder instead of a
             stale total.
           </li>
@@ -1878,16 +1917,16 @@
             a 0 AED contract.
           </li>
           <li>
-            <strong>Save stores all 3 plans, not one chosen plan</strong> &mdash; the "Approved plan"
-            selector before saving is gone. Saving now stores the appliance schedule plus the full
-            Basic RM / Standard PMC / Premium PMC numbers together as one quote.
+            <strong>Save stores all 3 plans, not one chosen plan</strong> &mdash; the "Approved
+            plan" selector before saving is gone. Saving now stores the appliance schedule plus the
+            full Basic RM / Standard PMC / Premium PMC numbers together as one quote.
           </li>
           <li>
             <strong>Print one plan at a time, dynamically</strong> &mdash; after saving, a
             <strong>"Plan to print"</strong> dropdown + Print button generate a certificate for only
             the selected plan. The same per-row plan picker is now in <strong>"AMC Issued"</strong>
-            too, so any saved contract can be printed for whichever plan the customer goes with,
-            any time later.
+            too, so any saved contract can be printed for whichever plan the customer goes with, any
+            time later.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
@@ -1908,92 +1947,123 @@
       <div class="card">
         <div class="card-head">
           <h2>#40 &mdash; AMC Quote Calculator: appliance row's own Total value wasn't live</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: AMC Quote Calculator page &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: AMC Quote Calculator page &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
             Typing a quantity or unit value into an added appliance row updated the Plan pricing
             card below correctly, but that row's own <strong>"Total value (AED)"</strong> column
-            stayed frozen at 0.00 &mdash; it was only ever written once when the row was added, never
-            on keystroke. It now updates live, same as the rest of the page.
+            stayed frozen at 0.00 &mdash; it was only ever written once when the row was added,
+            never on keystroke. It now updates live, same as the rest of the page.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>No migration &mdash; pull and restart.</li>
-          <li>Confirm typing a quantity and a unit value updates that row's own Total value column
-          immediately.</li>
+          <li>
+            Confirm typing a quantity and a unit value updates that row's own Total value column
+            immediately.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#41 &mdash; AMC print: mandatory General Terms and Conditions, Service Scope for the selected plan only</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #41 &mdash; AMC print: mandatory General Terms and Conditions, Service Scope for the
+            selected plan only
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: AMC Quote Calculator print output &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: AMC Quote Calculator print output &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
             <strong>Service Scope &mdash; Inclusions &amp; Exclusions</strong> is now on every AMC
             print, for the selected plan only &mdash; each plan's Included / Not included wording,
-            ported verbatim from the Excel Contract Quotation sheet's section 4 scope table, is saved
-            per plan on the contract record and shown for whichever single plan was picked to print,
-            not all 3 plans together like the legacy sample.
+            ported verbatim from the Excel Contract Quotation sheet's section 4 scope table, is
+            saved per plan on the contract record and shown for whichever single plan was picked to
+            print, not all 3 plans together like the legacy sample.
           </li>
           <li>
             <strong>General Terms and Conditions</strong> is now mandatory on every AMC print,
-            regardless of plan &mdash; ported verbatim from the Contract Quotation sheet's section 7,
-            added after "Service exclusions" and before "Payment terms and validity" on every
+            regardless of plan &mdash; ported verbatim from the Contract Quotation sheet's section
+            7, added after "Service exclusions" and before "Payment terms and validity" on every
             certificate.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>No migration &mdash; the <code>plans</code> jsonb column already supports the new
-          fields. Pull and restart.</li>
-          <li>Confirm printing any saved AMC contract shows the Service Scope section for only the
-          plan you picked, and the General Terms and Conditions section on every plan's print.</li>
+          <li>
+            No migration &mdash; the <code>plans</code> jsonb column already supports the new
+            fields. Pull and restart.
+          </li>
+          <li>
+            Confirm printing any saved AMC contract shows the Service Scope section for only the
+            plan you picked, and the General Terms and Conditions section on every plan's print.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#42 &mdash; "Contract ref." field label was pushing its input box down</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: VAS sale form &amp; AMC contract form &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: VAS sale form &amp; AMC contract form &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            The "Contract ref." label read <strong>"Contract ref. (optional &mdash; auto-generated
-            if blank)"</strong>, long enough to wrap to 2 lines in its grid cell and push that field's
-            input box down, out of line with the other inputs in the same row.
+            The "Contract ref." label read
+            <strong>"Contract ref. (optional &mdash; auto-generated if blank)"</strong>, long enough
+            to wrap to 2 lines in its grid cell and push that field's input box down, out of line
+            with the other inputs in the same row.
           </li>
           <li>
-            Shortened the visible label to <strong>"Contract ref."</strong> and moved the
-            "optional &mdash; auto-generated if blank" note into a hover tooltip instead. Fixed on
-            both the VAS sale form and the AMC contract form.
+            Shortened the visible label to <strong>"Contract ref."</strong> and moved the "optional
+            &mdash; auto-generated if blank" note into a hover tooltip instead. Fixed on both the
+            VAS sale form and the AMC contract form.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
           <li>No migration &mdash; pull and restart.</li>
-          <li>Confirm the "Contract ref." input lines up with the rest of its row on both forms, and
-          hovering the label shows the tooltip.</li>
+          <li>
+            Confirm the "Contract ref." input lines up with the rest of its row on both forms, and
+            hovering the label shows the tooltip.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#43 &mdash; Rate Card: Issue a Sale &mdash; printable quotation, Issued tab, dashboard tile</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #43 &mdash; Rate Card: Issue a Sale &mdash; printable quotation, Issued tab, dashboard
+            tile
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Rate Card Calculator page &middot; needs migration 022</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Rate Card Calculator page &middot; needs migration 022
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            A new <strong>"Issue a Rate Card Sale &mdash; Printable Quotation"</strong> section saves
-            the quote lines on screen as one normalized record with its own reference number
+            A new <strong>"Issue a Rate Card Sale &mdash; Printable Quotation"</strong> section
+            saves the quote lines on screen as one normalized record with its own reference number
             (<code>RC-YYYY-NNNNN</code>), and prints an A4 quotation from it.
           </li>
           <li>
@@ -2008,17 +2078,29 @@
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Run <code>npm run db:migrate</code> to apply migration <code>022_rate_card_sales.sql</code>.</li>
-          <li>Confirm saving a quote, printing it, reprinting from "Rate Card Issued", Clear, and the
-          new dashboard tile all work.</li>
+          <li>
+            Run <code>npm run db:migrate</code> to apply migration
+            <code>022_rate_card_sales.sql</code>.
+          </li>
+          <li>
+            Confirm saving a quote, printing it, reprinting from "Rate Card Issued", Clear, and the
+            new dashboard tile all work.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#44 &mdash; Thomson: Issue a Sale &mdash; printable quotation, Issued tab, dashboard tile</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #44 &mdash; Thomson: Issue a Sale &mdash; printable quotation, Issued tab, dashboard
+            tile
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Thomson Calculator page &middot; needs migration 023</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Thomson Calculator page &middot; needs migration 023
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
@@ -2029,52 +2111,71 @@
           </li>
           <li>
             A new <strong>"Thomson Issued"</strong> tab lists every saved sale with a Print button
-            to reprint it later, and a <strong>Clear</strong> button now empties the line items
-            (the calculator never had one before).
+            to reprint it later, and a <strong>Clear</strong> button now empties the line items (the
+            calculator never had one before).
           </li>
           <li>
-            A new <strong>"Thomson sales"</strong> dashboard tile (total + this-month), matching
-            the VAS/AMC/Rate Card tiles already there.
+            A new <strong>"Thomson sales"</strong> dashboard tile (total + this-month), matching the
+            VAS/AMC/Rate Card tiles already there.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Run <code>npm run db:migrate</code> to apply migration <code>023_thomson_sales.sql</code>.</li>
-          <li>Confirm saving a quote, printing it, reprinting from "Thomson Issued", Clear, and the
-          new dashboard tile all work.</li>
+          <li>
+            Run <code>npm run db:migrate</code> to apply migration
+            <code>023_thomson_sales.sql</code>.
+          </li>
+          <li>
+            Confirm saving a quote, printing it, reprinting from "Thomson Issued", Clear, and the
+            new dashboard tile all work.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#45 &mdash; Thomson Calculator: fixed overlapping headers, shows tier/base rate per line</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #45 &mdash; Thomson Calculator: fixed overlapping headers, shows tier/base rate per line
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator table &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Thomson Quote Calculator table &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            The "Quote" table's header row was overlapping and unreadable (fixed-layout columns
-            with no widths set). Each column now has an explicit width so headers like
-            "Appliance subtotal" and "Add-on revenue" render cleanly.
+            The "Quote" table's header row was overlapping and unreadable (fixed-layout columns with
+            no widths set). Each column now has an explicit width so headers like "Appliance
+            subtotal" and "Add-on revenue" render cleanly.
           </li>
           <li>
-            Each line's unit rate now shows the quantity <strong>tier</strong> it came from
-            (Base / 50+ / 150+ / 300+ / 500+) and the un-discounted <strong>base rate</strong>
+            Each line's unit rate now shows the quantity <strong>tier</strong> it came from (Base /
+            50+ / 150+ / 300+ / 500+) and the un-discounted <strong>base rate</strong>
             underneath, so the tier discount is visible in the calculator.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Confirm the Quote table's headers no longer overlap and the tier/base rate shown
-          under each line's unit rate is correct.</li>
+          <li>
+            Confirm the Quote table's headers no longer overlap and the tier/base rate shown under
+            each line's unit rate is correct.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#46 &mdash; Thomson Quote table: headers still overlapped after #45, now wrap instead</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #46 &mdash; Thomson Quote table: headers still overlapped after #45, now wrap instead
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator table &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Thomson Quote Calculator table &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
@@ -2083,22 +2184,30 @@
             into their neighbor on a narrower panel.
           </li>
           <li>
-            The Quote table's headers can now wrap onto 2 lines instead of overflowing sideways,
-            so the header row stays readable at any panel width.
+            The Quote table's headers can now wrap onto 2 lines instead of overflowing sideways, so
+            the header row stays readable at any panel width.
           </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Confirm the Quote table's header row no longer overlaps, including with a narrower
-          browser window.</li>
+          <li>
+            Confirm the Quote table's header row no longer overlaps, including with a narrower
+            browser window.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#47 &mdash; Thomson Quote Calculator: pulsing "Live" pill confirms dynamic updates</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #47 &mdash; Thomson Quote Calculator: pulsing "Live" pill confirms dynamic updates
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Thomson Quote Calculator &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
@@ -2109,21 +2218,30 @@
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>Confirm the "Live" pill shows and flashes when you change Transport share % or
-          add/remove a quote line.</li>
+          <li>
+            Confirm the "Live" pill shows and flashes when you change Transport share % or
+            add/remove a quote line.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
-          <h2>#48 &mdash; Thomson Calculator: "Additional Services" rates visible, admin can amend per quote</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <h2>
+            #48 &mdash; Thomson Calculator: "Additional Services" rates visible, admin can amend per
+            quote
+          </h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-02 &middot; Scope: Thomson Quote Calculator &middot; no migration</p>
+        <p class="meta">
+          2026-10-02 &middot; Scope: Thomson Quote Calculator &middot; no migration
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
-            A new <strong>"Additional Services"</strong> card shows the Project Management Fee,
-            Site Survey, Testing &amp; Commissioning and Training rates from Thomson Pricing Admin.
+            A new <strong>"Additional Services"</strong> card shows the Project Management Fee, Site
+            Survey, Testing &amp; Commissioning and Training rates from Thomson Pricing Admin.
           </li>
           <li>
             Admin users (<code>pricing_config.write</code>) get editable Rate/Hours fields that
@@ -2139,24 +2257,32 @@
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>As an admin: confirm the Rate/Hours fields are editable, changes update the Quote
-          table live, and Reset restores the admin defaults.</li>
-          <li>As a non-admin: confirm the same card shows read-only values with no inputs or Reset
-          button.</li>
+          <li>
+            As an admin: confirm the Rate/Hours fields are editable, changes update the Quote table
+            live, and Reset restores the admin defaults.
+          </li>
+          <li>
+            As a non-admin: confirm the same card shows read-only values with no inputs or Reset
+            button.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#49 &mdash; Service Revenue Dashboard + Budget vs Actual (Excel-fed)</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-05 &middot; Scope: Management &middot; migration 024 + <code>npm install</code></p>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Management &middot; migration 024 + <code>npm install</code>
+        </p>
         <div class="section-label">What changed</div>
         <ul>
           <li>
             <strong>Service Revenue Dashboard</strong>: Overview (KPIs, monthly trend, mix by job
-            type / channel / salesperson / customer) and a searchable Explorer, with
-            Year/Month/Job type/Channel filters.
+            type / channel / salesperson / customer) and a searchable Explorer, with Year/Month/Job
+            type/Channel filters.
           </li>
           <li>
             <strong>Budget vs Actual</strong>: monthly budget revenue and volume against actuals,
@@ -2171,77 +2297,190 @@
         <div class="section-label">Needs you</div>
         <ul>
           <li><code>npm install</code>, <code>npm run db:migrate</code>, restart.</li>
-          <li>As admin: upload both workbooks and check the revenue total (AED 324,697 for the file you sent) and July&ndash;September volumes (444 / 573 / 299).</li>
+          <li>
+            As admin: upload both workbooks and check the revenue total (AED 324,697 for the file
+            you sent) and July&ndash;September volumes (444 / 573 / 299).
+          </li>
           <li>As management: both pages visible, no upload box.</li>
-          <li>Source-data points worth a look: ~58% of revenue has channel "REVIEW"; budget monthly OPEX excludes Staff Travel and Insurance but its YTD column includes them.</li>
+          <li>
+            Source-data points worth a look: ~58% of revenue has channel "REVIEW"; budget monthly
+            OPEX excludes Staff Travel and Insurance but its YTD column includes them.
+          </li>
         </ul>
       </div>
 
-          <div class="card">
+      <div class="card">
         <div class="card-head">
           <h2>#50 &mdash; Service Revenue Dashboard: Reports tab, value labels, full drill-down</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-05 &middot; Scope: Management / Finance &middot; no new migration &middot; <code>npm install</code></p>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Management / Finance &middot; no new migration &middot;
+          <code>npm install</code>
+        </p>
         <div class="section-label">What changed</div>
         <ul>
-          <li>New <strong>Reports</strong> tab: drill-down to individual jobs, monthly, weekly, Accounts Review, billing &amp; cost, customer Pareto, channel &amp; sales, exceptions, management summary, .xlsx export.</li>
-          <li>Charts match the legacy dashboard (Chart.js) and show values in AED on the bars and stacks.</li>
+          <li>
+            New <strong>Reports</strong> tab: drill-down to individual jobs, monthly, weekly,
+            Accounts Review, billing &amp; cost, customer Pareto, channel &amp; sales, exceptions,
+            management summary, .xlsx export.
+          </li>
+          <li>
+            Charts match the legacy dashboard (Chart.js) and show values in AED on the bars and
+            stacks.
+          </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li><code>npm install</code>, restart, then open Service Revenue Dashboard &rarr; Reports and drill from a month down to the jobs.</li>
+          <li>
+            <code>npm install</code>, restart, then open Service Revenue Dashboard &rarr; Reports
+            and drill from a month down to the jobs.
+          </li>
         </ul>
       </div>
-          <div class="card">
+      <div class="card">
         <div class="card-head">
           <h2>#51 &mdash; Report export: CSIDI-sheet columns + Revenue Logic sheet</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-05 &middot; Scope: Management / Finance &middot; migration 025 &middot; re-upload the workbook</p>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Management / Finance &middot; migration 025 &middot; re-upload
+          the workbook
+        </p>
         <div class="section-label">What changed</div>
         <ul>
-          <li>Jobs sheet now has every CSIDI-sheet column plus revenue build-up columns (labour, discount, transport, rebuilt revenue, reconciliation) and &ldquo;what if&rdquo; columns for the missing ERP data.</li>
-          <li>New <strong>Revenue Logic</strong> sheet: rules, rate masters, AED value of each assumption, ERP fields still needed, open decisions.</li>
+          <li>
+            Jobs sheet now has every CSIDI-sheet column plus revenue build-up columns (labour,
+            discount, transport, rebuilt revenue, reconciliation) and &ldquo;what if&rdquo; columns
+            for the missing ERP data.
+          </li>
+          <li>
+            New <strong>Revenue Logic</strong> sheet: rules, rate masters, AED value of each
+            assumption, ERP fields still needed, open decisions.
+          </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li><code>npm run db:migrate</code>, restart, re-upload the .xlsm, then export a report and review the Jobs and Revenue Logic sheets.</li>
+          <li>
+            <code>npm run db:migrate</code>, restart, re-upload the .xlsm, then export a report and
+            review the Jobs and Revenue Logic sheets.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#52 &mdash; Reports page: download service records as Excel</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-05 &middot; Scope: Sales / Management / Admin · migration 026 · no new package</p>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Sales / Management / Admin · migration 026 · no new package
+        </p>
         <div class="section-label">What changed</div>
         <ul>
-          <li>New **Reports** page under Records (the legacy portal's "Download service reports" tab): pick a record type, a date range (this month, last month, year to date, custom, all) and optional search text, preview the rows, then download a formatted Excel workbook.</li>
-          <li>Record types: Quotations, Inspection Reports, AMC Contracts, Thomson Sales, VAS Sales, Rate Card Sales, Service Job Cards and Scheduler (appointments). Each type only appears if the user's role can already read that record type.</li>
-          <li>Every download is written to the audit log (report, range, search, rows) so it shows on the Activity log.</li>
-          <li>New API: GET /api/reports, GET /api/reports/{type}, GET /api/reports/{type}/export. Migration 026 gives sales and management the reports.read permission (admin already had it).</li>
+          <li>
+            New **Reports** page under Records (the legacy portal's "Download service reports" tab):
+            pick a record type, a date range (this month, last month, year to date, custom, all) and
+            optional search text, preview the rows, then download a formatted Excel workbook.
+          </li>
+          <li>
+            Record types: Quotations, Inspection Reports, AMC Contracts, Thomson Sales, VAS Sales,
+            Rate Card Sales, Service Job Cards and Scheduler (appointments). Each type only appears
+            if the user's role can already read that record type.
+          </li>
+          <li>
+            Every download is written to the audit log (report, range, search, rows) so it shows on
+            the Activity log.
+          </li>
+          <li>
+            New API: GET /api/reports, GET /api/reports/{type}, GET /api/reports/{type}/export.
+            Migration 026 gives sales and management the reports.read permission (admin already had
+            it).
+          </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>`npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded file.</li>
+          <li>
+            `npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded
+            file.
+          </li>
         </ul>
       </div>
       <div class="card">
         <div class="card-head">
           <h2>#53 &mdash; Activity log screen: who did what, with filters</h2>
-          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
         </div>
-        <p class="meta">2026-10-05 &middot; Scope: Admin / Management · no new migration (uses 026) · restart</p>
+        <p class="meta">
+          2026-10-05 &middot; Scope: Admin / Management · no new migration (uses 026) · restart
+        </p>
         <div class="section-label">What changed</div>
         <ul>
-          <li>New **Activity log** page under Admin (the legacy "Activity Log" tab): every audit event with the time (Dubai), the user, a readable action name and the details, filtered by date range (today, last 7 / 30 days, custom, all time), user, area and free-text search, 50 per page.</li>
-          <li>The audit trail now also records sign-ins, sign-outs, failed sign-ins (with the email tried), team-login created / changed, and report downloads, so the log answers "who signed in and who changed what".</li>
-          <li>New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to management by migration 026; admin already had it).</li>
+          <li>
+            New **Activity log** page under Admin (the legacy "Activity Log" tab): every audit event
+            with the time (Dubai), the user, a readable action name and the details, filtered by
+            date range (today, last 7 / 30 days, custom, all time), user, area and free-text search,
+            50 per page.
+          </li>
+          <li>
+            The audit trail now also records sign-ins, sign-outs, failed sign-ins (with the email
+            tried), team-login created / changed, and report downloads, so the log answers "who
+            signed in and who changed what".
+          </li>
+          <li>
+            New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to
+            management by migration 026; admin already had it).
+          </li>
         </ul>
         <div class="section-label">Needs you</div>
         <ul>
-          <li>restart, sign in and out as a couple of users, then open Activity log as admin or management and filter by user and area.</li>
+          <li>
+            restart, sign in and out as a couple of users, then open Activity log as admin or
+            management and filter by user and area.
+          </li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#54 &mdash; Rate Card page (read-only) replaces the Rate Card Calculator</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-10-05 &middot; Scope: everyone signed in · no new migration (uses 026) · restart
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Rate Card Calculator removed from Quote Calculators; new read-only
+            <strong>Rate Card</strong> page under Records.
+          </li>
+          <li>
+            Warranty, Non-Warranty (Customer Paying) and Inspections &amp; Site Visits show their
+            activity rates.
+          </li>
+          <li>
+            Delivery &amp; Installations and Installations show base rates, discount tiers and
+            transport, with a tooltip and note that they depend on D+I Admin Entry factors.
+          </li>
+          <li>
+            New API GET /api/rate-card (rate_card.view). Old Rate Card sales remain available in
+            Reports.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            restart, open Records &gt; Rate card, and check the figures against D+I Admin Entry.
+          </li>
         </ul>
       </div>
     </main>

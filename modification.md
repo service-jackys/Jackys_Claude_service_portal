@@ -2126,3 +2126,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to management by migration 026; admin already had it).
 
 **Needs you:** restart, sign in and out as a couple of users, then open Activity log as admin or management and filter by user and area.
+
+## Modification #54 — Rate Card page (read-only) replaces the Rate Card Calculator
+
+**Date:** 2026-10-05 · **Scope:** everyone signed in · no new migration (uses 026) · restart
+
+**What changed**
+- The **Rate Card Calculator** (quote building, "Rate Card Issued" list, sale certificate) is removed from the Quote Calculators group. The rate card is a price list, not a calculator.
+- New **Rate Card** page under Records: Warranty Repairs, Non-Warranty Repairs (Customer Paying) and Inspections & Site Visits show their activity rates.
+- **Delivery & Installations** and **Installations** show base rates per appliance (standard and batch), the quantity-discount tiers, transport per trip by region and the minimum unit rate, taken from D+I Admin Entry. An info tooltip and a note say these two depend on the D+I Admin Entry factors, so they are base rates rather than final quotes.
+- Internal cost inputs (technician cost per hour, minutes per appliance, trip capacity) are never sent to the page.
+- New API: GET /api/rate-card (rate_card.view, granted to user, sales, management and admin by migration 026).
+- Old Rate Card sales stay in the database and can be downloaded from Reports (Rate Card Sales); the dashboard "Rate Card sales" tile now opens Reports.
+
+**Needs you:** restart, open Records > Rate card. Change a rate in Rate Card Admin or D+I Admin Entry and check the page follows.

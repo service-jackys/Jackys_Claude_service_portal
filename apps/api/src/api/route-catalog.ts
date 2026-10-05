@@ -43,6 +43,8 @@ import { createThomsonSaleService } from '../thomson-sales/service.js';
 import { createAuditHandlers } from '../audit/routes.js';
 import { createAuditService } from '../audit/service.js';
 import { recordAuthEvent } from '../audit/record.js';
+import { createRateCardViewHandlers } from '../rate-card-view/routes.js';
+import { createRateCardViewService } from '../rate-card-view/service.js';
 import { createReportHandlers } from '../reports/routes.js';
 import { createReportService } from '../reports/service.js';
 import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
@@ -537,6 +539,9 @@ export function createRouteCatalog(
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
+  const rateCardViewHandlers = pool
+    ? createRateCardViewHandlers(createRateCardViewService(pool), requirePermission)
+    : unavailableHandlers(['view']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -1989,6 +1994,17 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/rate-card',
+        operationId: 'getRateCard',
+        tags: ['Rate Card'],
+        summary:
+          'Read-only price list: activity rates plus D+I / Installation base rates, discounts and transport',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: rateCardViewHandlers.view,
       },
       {
         method: 'get' as const,
