@@ -23,6 +23,7 @@ import {
   insertDraftSchedule,
   linkDraftItemAppointment,
   listDraftItems,
+  listAwaitingDrafts,
   listDrafts,
   replaceDraftItems,
   updateDraftStatus,
@@ -60,6 +61,15 @@ export function createScheduleService(pool: Pool) {
     const client = await pool.connect();
     try {
       return await listDrafts(client, input.page ?? 1, input.pageSize ?? 25);
+    } finally {
+      client.release();
+    }
+  }
+
+  async function awaiting() {
+    const client = await pool.connect();
+    try {
+      return await listAwaitingDrafts(client);
     } finally {
       client.release();
     }
@@ -286,6 +296,7 @@ export function createScheduleService(pool: Pool) {
   }
 
   return {
+    awaiting,
     list,
     create,
     detail,

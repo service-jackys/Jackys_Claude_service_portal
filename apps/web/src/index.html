@@ -1450,6 +1450,51 @@
         color: #6b7a90;
         font-size: 0.8rem;
       }
+      .nav-badge {
+        margin-left: auto;
+        margin-right: 0.4rem;
+        min-width: 1.3rem;
+        padding: 0 0.4rem;
+        border-radius: 999px;
+        background: #e0a100;
+        color: #1a1200;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-align: center;
+        line-height: 1.3rem;
+      }
+      .ad-card {
+        border: 1px solid #dfe5ee;
+        border-radius: 10px;
+        padding: 0.9rem 1.1rem;
+        background: #fff;
+        margin-bottom: 1rem;
+      }
+      .ad-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+        margin-bottom: 0.6rem;
+      }
+      .ad-head h3 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--navy);
+      }
+      .ad-head small {
+        display: block;
+        color: #6b7a90;
+      }
+      .ad-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .ad-warn {
+        color: #9a5b00;
+        font-size: 0.8rem;
+      }
       .rcv-banner {
         display: flex;
         flex-wrap: wrap;
@@ -3651,6 +3696,19 @@
                 <span class="nav-label">New request</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="awaitingDraftsNav"
+                hidden
+                aria-label="Awaiting drafts"
+                title="Awaiting drafts"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                <span class="nav-label">Awaiting drafts</span>
+                <span class="nav-badge" id="awaitingDraftsCount" hidden></span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Records</p>
               <button
                 class="dashboard-link"
@@ -5692,6 +5750,18 @@
                   changes. Times are Dubai time.
                 </p>
                 <div data-calc-root="activity-log">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="awaitingDraftsWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Draft schedules that have been prepared but not yet confirmed. Promote a draft to
+                  turn each job in it into an appointment, or cancel it if it is no longer needed.
+                </p>
+                <div data-calc-root="awaiting-drafts">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>

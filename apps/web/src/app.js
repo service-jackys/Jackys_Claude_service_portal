@@ -672,6 +672,16 @@
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
+    $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
+    if (hasPermission('scheduler.read')) {
+      apiRequest('/api/schedules/awaiting')
+        .then((result) => {
+          const badge = $('#awaitingDraftsCount');
+          badge.textContent = String(result.drafts.length);
+          badge.hidden = !result.drafts.length;
+        })
+        .catch(() => {});
+    }
   }
 
   function showNoWorkspaceAccess() {
@@ -8869,6 +8879,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    'awaiting-drafts': {
+      navId: 'awaitingDraftsNav',
+      workspaceId: 'awaitingDraftsWorkspace',
+      heading: 'Awaiting drafts',
+      description: 'Draft schedules waiting to be promoted or cancelled.',
+      permission: 'scheduler.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderAwaitingDrafts(root),
+    },
     roles: {
       navId: 'rolesNav',
       workspaceId: 'rolesWorkspace',
@@ -9027,7 +9047,106 @@ ${bodyHtml}
     );
   }
 
-  // ---------- Roles & permissions (modification #55) ----------
+  // ---------- Awaiting drafts (modification #56) ----------
+  async function renderAwaitingDrafts(root) {
+    root.innerHTML = '<p class="form-note">Loading drafts&hellip;</p>';
+    let drafts;
+    try {
+      drafts = (await apiRequest('/api/schedules/awaiting')).drafts;
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const badge = $('#awaitingDraftsCount');
+    badge.textContent = String(drafts.length);
+    badge.hidden = !drafts.length;
+    if (!drafts.length) {
+      root.innerHTML = '<p class="empty-state">No drafts are waiting. You are all caught up.</p>';
+      return;
+    }
+    const canWrite = hasPermission('scheduler.write');
+    root.innerHTML = drafts
+      .map((draft) => {
+        const rows = draft.items
+          .map(
+            (item) =>
+              '<tr><td>' +
+              escapeHtml(item.complaintReference) +
+              '</td><td>' +
+              escapeHtml(item.customerName) +
+              '</td><td>' +
+              escapeHtml(item.region || '—') +
+              '</td><td>' +
+              escapeHtml(item.technicianName || 'Unassigned') +
+              '</td><td>' +
+              escapeHtml(item.appointmentDate + ' ' + item.appointmentTime) +
+              '</td><td>' +
+              escapeHtml(item.complaintStatus) +
+              (item.complaintStatus === 'Ready for Scheduling'
+                ? ''
+                : ' <span class="ad-warn">(cannot be promoted)</span>') +
+              '</td></tr>',
+          )
+          .join('');
+        return (
+          '<section class="ad-card" data-draft="' +
+          escapeHtml(draft.id) +
+          '"><div class="ad-head"><div><h3>Draft #' +
+          escapeHtml(draft.id) +
+          ' &middot; ' +
+          draft.items.length +
+          (draft.items.length === 1 ? ' job' : ' jobs') +
+          '</h3><small>Created ' +
+          escapeHtml(new Date(draft.createdAt).toLocaleString('en-GB')) +
+          (draft.createdByName ? ' by ' + escapeHtml(draft.createdByName) : '') +
+          '</small></div>' +
+          (canWrite
+            ? '<div class="ad-actions"><button type="button" class="button button-primary" data-ad-promote>Promote</button><button type="button" class="button" data-ad-cancel>Cancel draft</button></div>'
+            : '') +
+          '</div><table class="rc-table"><thead><tr><th>Complaint</th><th>Customer</th><th>Region</th><th>Technician</th><th>When</th><th>Complaint status</th></tr></thead><tbody>' +
+          (rows || '<tr><td colspan="6">No jobs in this draft.</td></tr>') +
+          '</tbody></table></section>'
+        );
+      })
+      .join('');
+    root.querySelectorAll('.ad-card').forEach((card) => {
+      const id = card.dataset.draft;
+      const promote = card.querySelector('[data-ad-promote]');
+      const cancel = card.querySelector('[data-ad-cancel]');
+      if (!promote) return;
+      let armed = false;
+      const act = async (button, path, label, busyLabel, done) => {
+        setBusy(button, true, busyLabel);
+        try {
+          await apiRequest('/api/schedules/drafts/' + encodeURIComponent(id) + path, {
+            method: 'POST',
+          });
+          await renderAwaitingDrafts(root);
+          setMessage('#workspaceMessage', done, true);
+        } catch (error) {
+          setBusy(button, false);
+          setMessage('#workspaceMessage', error.message);
+        }
+      };
+      promote.addEventListener('click', () =>
+        act(promote, '/promote', 'Promote', 'Promoting…', 'Draft promoted: appointments created.'),
+      );
+      cancel.addEventListener('click', () => {
+        if (!armed) {
+          armed = true;
+          cancel.textContent = 'Click again to confirm';
+          setTimeout(() => {
+            armed = false;
+            cancel.textContent = 'Cancel draft';
+          }, 4000);
+          return;
+        }
+        act(cancel, '/cancel', 'Cancel draft', 'Cancelling…', 'Draft cancelled.');
+      });
+    });
+  }
+
+  // ---------- Roles & permissions (modification #55) ----------  // ---------- Roles & permissions (modification #55) ----------
   async function renderRolesPage(root) {
     root.innerHTML = '<p class="form-note">Loading roles&hellip;</p>';
     let data;
@@ -11963,6 +12082,7 @@ ${bodyHtml}
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
+  $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 

@@ -130,3 +130,66 @@ export async function listDrafts(client: PoolClient, page: number, pageSize: num
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
 }
+
+export type AwaitingDraft = {
+  id: string;
+  createdAt: Date;
+  createdByName: string | null;
+  items: {
+    complaintReference: string;
+    customerName: string;
+    region: string | null;
+    complaintStatus: string;
+    technicianName: string | null;
+    appointmentDate: string;
+    appointmentTime: string;
+  }[];
+};
+
+// Every draft schedule still waiting to be promoted or cancelled, oldest
+// first, with the jobs inside each one (modification.md #56).
+export async function listAwaitingDrafts(client: PoolClient): Promise<AwaitingDraft[]> {
+  const drafts = await client.query<{
+    id: string;
+    createdAt: Date;
+    createdByName: string | null;
+  }>(
+    `SELECT d.id::text AS id, d.created_at AS "createdAt", p.display_name AS "createdByName"
+     FROM draft_schedules d
+     LEFT JOIN profiles p ON p.id = d.created_by
+     WHERE d.status = 'Draft'
+     ORDER BY d.created_at ASC, d.id ASC`,
+  );
+  if (!drafts.rows.length) return [];
+  const items = await client.query<{
+    draftId: string;
+    complaintReference: string;
+    customerName: string;
+    region: string | null;
+    complaintStatus: string;
+    technicianName: string | null;
+    appointmentDate: string;
+    appointmentTime: string;
+  }>(
+    `SELECT i.draft_schedule_id::text AS "draftId",
+            c.complaint_reference AS "complaintReference",
+            c.customer_name AS "customerName",
+            c.region,
+            c.status AS "complaintStatus",
+            t.name AS "technicianName",
+            i.appointment_date::text AS "appointmentDate",
+            to_char(i.appointment_time, 'HH24:MI') AS "appointmentTime"
+     FROM draft_schedule_items i
+     JOIN complaints c ON c.id = i.complaint_id
+     LEFT JOIN technicians t ON t.id = i.technician_id
+     WHERE i.draft_schedule_id = ANY($1::bigint[])
+     ORDER BY i.appointment_date, i.appointment_time, i.id`,
+    [drafts.rows.map((row) => row.id)],
+  );
+  return drafts.rows.map((draft) => ({
+    ...draft,
+    items: items.rows
+      .filter((item) => item.draftId === draft.id)
+      .map(({ draftId: _draftId, ...rest }) => rest),
+  }));
+}

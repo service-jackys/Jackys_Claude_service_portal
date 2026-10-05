@@ -2154,3 +2154,14 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: POST /api/auth/change-password, GET /api/role-matrix, PUT /api/role-matrix/{role}; PATCH /api/auth/users/{id} accepts a password.
 
 **Needs you:** `npm run db:migrate` (027), restart. Add a test login, sign in as it, choose a new password; then untick a permission for Sales and check that screen disappears for that login.
+
+## Modification #56 — Awaiting drafts screen
+
+**Date:** 2026-10-05 · **Scope:** anyone who can view scheduling (scheduler.read); promote / cancel need scheduler.write · no migration · restart
+
+**What changed**
+- New **Awaiting drafts** page under Service desk, with a count badge in the menu: every draft schedule still waiting, oldest first, each showing its jobs (complaint, customer, region, technician, date and time, complaint status).
+- **Promote** turns the draft's jobs into appointments; **Cancel draft** (asks you to click twice) discards it. A job whose complaint is no longer Ready for Scheduling is flagged and the server refuses to promote it, with the reason shown.
+- New API: GET /api/schedules/awaiting (scheduler.read). Promote and cancel use the existing endpoints, which are already logged in the Activity log.
+
+**Needs you:** restart, then create a draft (API) and check it appears, promotes and cancels.

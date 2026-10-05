@@ -651,6 +651,10 @@ export function createRouteCatalog(
   const scheduleHandlers = pool
     ? createScheduleHandlers(createScheduleService(pool), requirePermission)
     : {
+        awaiting: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -1754,6 +1758,16 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 409, 500],
         handlers: serviceJobCardHandlers.status,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/schedules/awaiting',
+        operationId: 'listAwaitingDrafts',
+        tags: ['Schedules'],
+        summary: 'Draft schedules still waiting to be promoted or cancelled, with their jobs',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: scheduleHandlers.awaiting,
       },
       {
         method: 'get' as const,

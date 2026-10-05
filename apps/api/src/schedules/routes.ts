@@ -20,6 +20,17 @@ export function createScheduleHandlers(
   requirePermission: (permission: string) => RequestHandler,
 ): Record<string, RequestHandler[]> {
   return {
+    awaiting: [
+      requirePermission('scheduler.read'),
+      async (_request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json({ drafts: await service.awaiting() });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     list: [
       requirePermission('scheduler.read'),
       async (request, response, next) => {

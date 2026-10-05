@@ -2517,6 +2517,34 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#56 &mdash; Awaiting drafts screen</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-10-05 &middot; Scope: scheduler.read (promote / cancel need scheduler.write) · no
+          migration · restart
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New Awaiting drafts page under Service desk with a count badge: every pending draft with
+            its jobs.
+          </li>
+          <li>
+            Promote creates the appointments; Cancel draft discards it (double-click to confirm).
+            Unschedulable jobs are flagged.
+          </li>
+          <li>New API GET /api/schedules/awaiting.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>restart, create a draft through the API, then promote and cancel from the page.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
