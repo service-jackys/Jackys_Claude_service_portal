@@ -1039,6 +1039,155 @@
         stroke-linecap: round;
         stroke-linejoin: round;
       }
+      /* Service Revenue + Budget dashboards (modification.md #49). */
+      .rd-banner {
+        margin: 0 0 0.6rem;
+      }
+      .rd-banner-empty {
+        color: var(--muted);
+      }
+      .rd-upload {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem 0.9rem;
+        margin: 0 0 1rem;
+        padding: 0.7rem 0.9rem;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        background: var(--surface-soft);
+      }
+      .rd-tabs {
+        display: flex;
+        gap: 0.4rem;
+        margin: 0 0 0.8rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .rd-tab {
+        border: 0;
+        background: none;
+        padding: 0.5rem 0.9rem;
+        font-weight: 700;
+        color: var(--muted);
+        cursor: pointer;
+        border-bottom: 3px solid transparent;
+      }
+      .rd-tab.is-active {
+        color: var(--navy);
+        border-bottom-color: var(--navy);
+      }
+      .rd-filters {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.6rem 0.9rem;
+        margin: 0 0 0.8rem;
+      }
+      .rd-filters label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        display: grid;
+        gap: 0.2rem;
+      }
+      .rd-tiles {
+        margin: 0 0 1rem;
+      }
+      .rd-tiles .tile-value.rd-pos,
+      .rd-pos {
+        color: #1b7f55;
+      }
+      .rd-tiles .tile-value.rd-neg,
+      .rd-neg {
+        color: #b3372e;
+      }
+      .rd-grid-2 {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 0.9rem;
+        margin: 0 0 1rem;
+      }
+      .rd-span {
+        grid-column: 1 / -1;
+      }
+      .rd-bars {
+        display: grid;
+        gap: 0.4rem;
+      }
+      .rd-bar-row {
+        display: grid;
+        grid-template-columns: minmax(110px, 40%) 1fr auto;
+        gap: 0.5rem;
+        align-items: center;
+        font-size: 0.8rem;
+      }
+      .rd-bar-label {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .rd-bar-track {
+        background: var(--surface-soft);
+        border-radius: 6px;
+        height: 14px;
+        overflow: hidden;
+      }
+      .rd-bar-fill {
+        display: block;
+        height: 100%;
+        border-radius: 6px;
+      }
+      .rd-bar-value em {
+        color: var(--muted);
+        font-style: normal;
+        margin-left: 0.25rem;
+      }
+      .rd-trend {
+        width: 100%;
+        height: auto;
+        max-height: 280px;
+      }
+      .rd-grid {
+        stroke: var(--line);
+        stroke-width: 1;
+      }
+      .rd-axis {
+        font-size: 12px;
+        fill: var(--muted);
+      }
+      .rd-legend {
+        display: flex;
+        gap: 1rem;
+        font-size: 0.78rem;
+        margin: 0 0 0.3rem;
+      }
+      .rd-legend i {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 2px;
+        margin-right: 0.3rem;
+      }
+      .rd-pager {
+        display: flex;
+        align-items: center;
+        gap: 0.8rem;
+        margin-top: 0.6rem;
+      }
+      .rd-budget-table th,
+      .rd-budget-table td {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .rd-budget-table th:first-child,
+      .rd-budget-table td:first-child {
+        text-align: left;
+      }
+      .rd-explorer-table td:first-child {
+        white-space: nowrap;
+      }
+      .rd-strong td {
+        font-weight: 700;
+      }
       .dashboard-tiles {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -3245,6 +3394,30 @@
                 <span class="nav-label">Thomson Pricing Admin</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="revenueDashNav"
+                hidden
+                aria-label="Service Revenue Dashboard"
+                title="Service Revenue Dashboard"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+                <span class="nav-label">Service Revenue Dashboard</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="budgetDashNav"
+                hidden
+                aria-label="Budget vs Actual"
+                title="Budget vs Actual"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                <span class="nav-label">Budget vs Actual</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Quote Calculators</p>
               <button
                 class="dashboard-link"
@@ -5051,6 +5224,31 @@
                 >
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
+              </div>
+            </div>
+
+            <div class="card" id="revenueDashWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Commercial revenue reporting from the master Service Dashboard workbook, kept
+                  separate from the operational dashboard. Until ERP data access exists, an admin
+                  uploads the workbook to refresh these figures.
+                </p>
+                <div data-calc-root="revenue-dashboard">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="budgetDashWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  The prepared service budget compared with actual revenue from the uploaded revenue
+                  workbook, month by month.
+                </p>
+                <div data-calc-root="budget-dashboard">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
               </div>
             </div>
 

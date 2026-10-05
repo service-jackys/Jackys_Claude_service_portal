@@ -658,6 +658,9 @@
     $('#rateCardCalcNav').hidden = !canReadPricingConfig;
     $('#amcCalcNav').hidden = !canReadPricingConfig;
     $('#thomsonCalcNav').hidden = !canReadPricingConfig;
+    const canReadRevenue = hasPermission('revenue_dashboard.read');
+    $('#revenueDashNav').hidden = !canReadRevenue;
+    $('#budgetDashNav').hidden = !canReadRevenue;
   }
 
   function showNoWorkspaceAccess() {
@@ -8922,12 +8925,30 @@ ${bodyHtml}
       domains: ['thomson_pricing'],
       render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
     },
+    'revenue-dashboard': {
+      navId: 'revenueDashNav',
+      workspaceId: 'revenueDashWorkspace',
+      heading: 'Service Revenue Dashboard',
+      description: 'Commercial revenue reporting, fed from the master Service Dashboard workbook.',
+      permission: 'revenue_dashboard.read',
+      domains: [],
+      load: (root) => renderRevenueDashboard(root),
+    },
+    'budget-dashboard': {
+      navId: 'budgetDashNav',
+      workspaceId: 'budgetDashWorkspace',
+      heading: 'Budget vs Actual',
+      description: 'Prepared service budget compared with actual revenue.',
+      permission: 'revenue_dashboard.read',
+      domains: [],
+      load: (root) => renderBudgetDashboard(root),
+    },
   };
 
   async function activatePricingCalcMode(mode) {
     const page = PRICING_CALC_PAGES[mode];
     if (!page) return;
-    if (!hasPermission('pricing_config.read')) return;
+    if (!hasPermission(page.permission || 'pricing_config.read')) return;
     workspaceMode = mode;
     Object.values(PRICING_ADMIN_PAGES).forEach((other) => {
       $('#' + other.navId).setAttribute('aria-current', 'false');
@@ -8989,6 +9010,11 @@ ${bodyHtml}
 
     const root = document.querySelector('#' + page.workspaceId + ' [data-calc-root]');
     if (!root) return;
+    if (page.load) {
+      // Dashboard pages load their own data (modification.md #49).
+      await page.load(root);
+      return;
+    }
     root.innerHTML = '<p class="form-note">Loading current values&hellip;</p>';
     try {
       const dataByDomain = await calcFetchDomains(page.domains);
@@ -8999,7 +9025,741 @@ ${bodyHtml}
     }
   }
 
+  // --- Service Revenue + Budget dashboards (modification.md #49) ----------
+  // Fed by admin uploads of the master Excel workbooks (Service Dashboard
+  // .xlsm and Service Budget .xlsx) until ERP gives us an API or table
+  // access. Pure SVG/CSS charts -- no charting library (the production CSP
+  // only allows same-origin scripts).
+  const RD_MONTHS = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+  const RD_JOB_LABELS = {
+    CSIJW: 'Warranty Repairs',
+    CSIDI: 'Delivery + Installation',
+    CSIJO: 'Non-Warranty Repairs',
+    CSIDO: 'Delivery Only',
+    CSIII: 'Installation Only',
+  };
+  const RD_COLORS = ['#1f6fb2', '#d98324', '#2f9e6f', '#7a4fb5', '#c8453b', '#4a5a6a'];
+
+  function rdMoney(value) {
+    return Number(value || 0).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+  function rdPercent(part, whole) {
+    return whole ? ((part / whole) * 100).toFixed(1) + '%' : '--';
+  }
+  function rdJobLabel(code) {
+    return RD_JOB_LABELS[code] ? code + ' - ' + RD_JOB_LABELS[code] : code;
+  }
+
+  function rdSourceBanner(batch, kindLabel) {
+    if (!batch) {
+      return (
+        '<p class="form-note rd-banner rd-banner-empty">No ' +
+        escapeHtml(kindLabel) +
+        ' workbook has been uploaded yet.</p>'
+      );
+    }
+    return (
+      '<p class="form-note rd-banner">Source: <strong>' +
+      escapeHtml(batch.fileName) +
+      '</strong> &middot; uploaded ' +
+      escapeHtml(formatDate(batch.uploadedAt)) +
+      ' &middot; ' +
+      rdMoney(batch.rowCount) +
+      ' rows &middot; AED ' +
+      rdMoney(batch.totalAmount) +
+      '</p>'
+    );
+  }
+
+  // Upload card, shown only to users who may upload. `kind` is
+  // 'revenue' or 'budget'; onDone re-renders the page.
+  function rdUploadCard(host, kind, onDone) {
+    if (!hasPermission('revenue_dashboard.write')) return;
+    const label =
+      kind === 'revenue' ? 'Service Dashboard master (.xlsm)' : 'Service Budget workbook (.xlsx)';
+    const card = document.createElement('div');
+    card.className = 'rd-upload';
+    card.innerHTML =
+      '<strong>Refresh data</strong><span class="form-note">Upload the latest ' +
+      escapeHtml(label) +
+      '. The newest upload replaces what the dashboard shows; earlier uploads are kept as history.</span>' +
+      '<input type="file" accept=".xlsx,.xlsm" data-rd-file />' +
+      '<button class="button" type="button" data-rd-upload>Upload</button>' +
+      '<span class="form-note" data-rd-upload-msg></span>';
+    host.appendChild(card);
+    const msg = card.querySelector('[data-rd-upload-msg]');
+    card.querySelector('[data-rd-upload]').addEventListener('click', async () => {
+      const file = card.querySelector('[data-rd-file]').files[0];
+      if (!file) {
+        msg.textContent = 'Choose a file first.';
+        return;
+      }
+      msg.textContent = 'Uploading and reading the workbook - this can take a few seconds...';
+      try {
+        const form = new FormData();
+        form.append('kind', kind);
+        form.append('file', file);
+        const result = await apiUploadRequest('/api/revenue-dashboard/import', form);
+        msg.textContent = 'Imported ' + rdMoney(result.batch.rowCount) + ' rows.';
+        onDone();
+      } catch (error) {
+        msg.textContent = error.message || 'The upload failed.';
+      }
+    });
+  }
+
+  function rdBars(items, options = {}) {
+    const rows = items.filter((item) => Number(item.revenue) !== 0);
+    if (!rows.length) return '<p class="form-note">No data for the selected filters.</p>';
+    const max = Math.max(...rows.map((item) => Math.abs(Number(item.revenue))));
+    const total = rows.reduce((sum, item) => sum + Number(item.revenue), 0);
+    return (
+      '<div class="rd-bars">' +
+      rows
+        .map((item, i) => {
+          const value = Number(item.revenue);
+          const label = options.labelFor ? options.labelFor(item.label) : item.label;
+          return (
+            '<div class="rd-bar-row"><span class="rd-bar-label" title="' +
+            escapeHtml(label) +
+            '">' +
+            escapeHtml(label) +
+            '</span><span class="rd-bar-track"><span class="rd-bar-fill" style="width:' +
+            Math.max(2, (Math.abs(value) / max) * 100).toFixed(1) +
+            '%;background:' +
+            RD_COLORS[i % RD_COLORS.length] +
+            '"></span></span><span class="rd-bar-value">' +
+            rdMoney(value) +
+            ' <em>' +
+            rdPercent(value, total) +
+            '</em></span></div>'
+          );
+        })
+        .join('') +
+      '</div>'
+    );
+  }
+
+  // Monthly trend: one polyline per year across Jan..Dec, with hover titles.
+  function rdTrendChart(byMonth) {
+    if (!byMonth.length) return '<p class="form-note">No data for the selected filters.</p>';
+    const years = [...new Set(byMonth.map((row) => row.year))].sort();
+    const max = Math.max(...byMonth.map((row) => Number(row.revenue)), 1);
+    const W = 640;
+    const H = 240;
+    const pad = { l: 56, r: 12, t: 12, b: 28 };
+    const x = (m) => pad.l + ((m - 1) / 11) * (W - pad.l - pad.r);
+    const y = (v) => H - pad.b - (v / max) * (H - pad.t - pad.b);
+    let svg =
+      '<svg viewBox="0 0 ' +
+      W +
+      ' ' +
+      H +
+      '" class="rd-trend" role="img" aria-label="Monthly revenue trend">';
+    for (let i = 0; i <= 4; i += 1) {
+      const v = (max / 4) * i;
+      svg +=
+        '<line x1="' +
+        pad.l +
+        '" x2="' +
+        (W - pad.r) +
+        '" y1="' +
+        y(v) +
+        '" y2="' +
+        y(v) +
+        '" class="rd-grid"/><text x="' +
+        (pad.l - 6) +
+        '" y="' +
+        (y(v) + 4) +
+        '" text-anchor="end" class="rd-axis">' +
+        rdMoney(v) +
+        '</text>';
+    }
+    RD_MONTHS.forEach((name, i) => {
+      svg +=
+        '<text x="' +
+        x(i + 1) +
+        '" y="' +
+        (H - 8) +
+        '" text-anchor="middle" class="rd-axis">' +
+        name +
+        '</text>';
+    });
+    years.forEach((year, yi) => {
+      const color = RD_COLORS[yi % RD_COLORS.length];
+      const points = byMonth.filter((row) => row.year === year);
+      svg +=
+        '<polyline fill="none" stroke="' +
+        color +
+        '" stroke-width="2.5" points="' +
+        points.map((row) => x(row.month) + ',' + y(Number(row.revenue))).join(' ') +
+        '"/>';
+      points.forEach((row) => {
+        svg +=
+          '<circle cx="' +
+          x(row.month) +
+          '" cy="' +
+          y(Number(row.revenue)) +
+          '" r="4" fill="' +
+          color +
+          '"><title>' +
+          year +
+          ' ' +
+          RD_MONTHS[row.month - 1] +
+          ': AED ' +
+          rdMoney(row.revenue) +
+          ' (' +
+          rdMoney(row.jobs) +
+          ' jobs)</title></circle>';
+      });
+    });
+    svg += '</svg>';
+    const legend =
+      '<div class="rd-legend">' +
+      years
+        .map(
+          (year, yi) =>
+            '<span><i style="background:' +
+            RD_COLORS[yi % RD_COLORS.length] +
+            '"></i>' +
+            year +
+            '</span>',
+        )
+        .join('') +
+      '</div>';
+    return legend + svg;
+  }
+
+  async function renderRevenueDashboard(root) {
+    const filters = { year: '', month: '', jobType: '', channel: '' };
+    let tab = 'overview';
+    let explorerPage = 1;
+    let explorerSearch = '';
+
+    root.innerHTML =
+      '<div data-rd-top></div><div data-rd-body><p class="form-note">Loading revenue data&hellip;</p></div>';
+    const top = root.querySelector('[data-rd-top]');
+    const body = root.querySelector('[data-rd-body]');
+
+    function query(extra) {
+      const params = new URLSearchParams();
+      Object.entries({ ...filters, ...(extra || {}) }).forEach(([key, value]) => {
+        if (value !== '' && value !== undefined && value !== null) params.set(key, value);
+      });
+      return params.toString();
+    }
+
+    function filterBar(options) {
+      const sel = (name, label, values, labelFor) =>
+        '<label>' +
+        label +
+        '<select data-rd-filter="' +
+        name +
+        '"><option value="">All</option>' +
+        values
+          .map(
+            (v) =>
+              '<option value="' +
+              escapeHtml(String(v)) +
+              '"' +
+              (String(filters[name]) === String(v) ? ' selected' : '') +
+              '>' +
+              escapeHtml(labelFor ? labelFor(v) : String(v === '' ? 'Unassigned' : v)) +
+              '</option>',
+          )
+          .join('') +
+        '</select></label>';
+      return (
+        '<div class="rd-filters">' +
+        sel('year', 'Year', options.years) +
+        sel('month', 'Month', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], (v) => RD_MONTHS[v - 1]) +
+        sel('jobType', 'Job type', options.jobTypes, rdJobLabel) +
+        sel(
+          'channel',
+          'Channel',
+          options.channels.filter((c) => c !== ''),
+        ) +
+        '<button class="button button-outline" type="button" data-rd-reset>Reset</button></div>'
+      );
+    }
+
+    function bindFilters(reload) {
+      body.querySelectorAll('[data-rd-filter]').forEach((select) => {
+        select.addEventListener('change', () => {
+          filters[select.dataset.rdFilter] = select.value;
+          explorerPage = 1;
+          reload();
+        });
+      });
+      body.querySelector('[data-rd-reset]')?.addEventListener('click', () => {
+        Object.keys(filters).forEach((key) => (filters[key] = ''));
+        explorerPage = 1;
+        reload();
+      });
+    }
+
+    function tabsHtml() {
+      return (
+        '<div class="rd-tabs" role="tablist">' +
+        [
+          ['overview', 'Overview'],
+          ['explorer', 'Explorer'],
+        ]
+          .map(
+            ([id, name]) =>
+              '<button type="button" role="tab" class="rd-tab' +
+              (tab === id ? ' is-active' : '') +
+              '" data-rd-tab="' +
+              id +
+              '">' +
+              name +
+              '</button>',
+          )
+          .join('') +
+        '</div>'
+      );
+    }
+
+    function bindTabs() {
+      body.querySelectorAll('[data-rd-tab]').forEach((button) => {
+        button.addEventListener('click', () => {
+          tab = button.dataset.rdTab;
+          draw();
+        });
+      });
+    }
+
+    let lastOptions = { years: [], jobTypes: [], channels: [] };
+
+    async function drawOverview() {
+      const data = await apiRequest('/api/revenue-dashboard/summary?' + query());
+      top.innerHTML = '';
+      const banner = document.createElement('div');
+      banner.innerHTML = rdSourceBanner(data.batch, 'revenue');
+      top.appendChild(banner);
+      rdUploadCard(top, 'revenue', () => renderRevenueDashboard(root));
+      if (!data.summary) {
+        body.innerHTML =
+          '<p class="form-note">Upload the Service Dashboard master workbook to see revenue here.</p>';
+        return;
+      }
+      const s = data.summary;
+      lastOptions = s.options;
+      // First load: default to the latest year in the data.
+      if (filters.year === '' && !drawOverview.seeded && s.options.years.length) {
+        drawOverview.seeded = true;
+        filters.year = String(s.options.years[s.options.years.length - 1]);
+        return drawOverview();
+      }
+      const avg = s.totals.jobs ? s.totals.revenue / s.totals.jobs : 0;
+      const topType = s.byJobType[0];
+      body.innerHTML =
+        tabsHtml() +
+        filterBar(s.options) +
+        '<div class="dashboard-tiles rd-tiles">' +
+        '<div class="dashboard-tile"><span class="tile-value">' +
+        rdMoney(s.totals.revenue) +
+        '</span><span class="tile-label">Revenue (AED)</span></div>' +
+        '<div class="dashboard-tile"><span class="tile-value">' +
+        rdMoney(s.totals.jobs) +
+        '</span><span class="tile-label">Jobs billed</span></div>' +
+        '<div class="dashboard-tile"><span class="tile-value">' +
+        rdMoney(s.totals.qty) +
+        '</span><span class="tile-label">Units / qty</span></div>' +
+        '<div class="dashboard-tile"><span class="tile-value">' +
+        rdMoney(avg) +
+        '</span><span class="tile-label">Avg revenue per job (AED)</span></div>' +
+        '<div class="dashboard-tile"><span class="tile-value">' +
+        (topType ? escapeHtml(topType.label) : '--') +
+        '</span><span class="tile-label">Top job type' +
+        (topType ? ' (' + rdPercent(Number(topType.revenue), s.totals.revenue) + ')' : '') +
+        '</span></div></div>' +
+        '<div class="rd-grid-2">' +
+        '<section class="detail-action-card"><h4>Monthly revenue trend (AED)</h4>' +
+        rdTrendChart(s.byMonth) +
+        '</section>' +
+        '<section class="detail-action-card"><h4>Revenue by job type</h4>' +
+        rdBars(s.byJobType, { labelFor: rdJobLabel }) +
+        '</section>' +
+        '<section class="detail-action-card"><h4>Revenue by sales channel</h4>' +
+        rdBars(s.byChannel) +
+        '</section>' +
+        '<section class="detail-action-card"><h4>Top salespeople</h4>' +
+        rdBars(s.bySalesPerson) +
+        '</section>' +
+        '<section class="detail-action-card rd-span"><h4>Top customers</h4>' +
+        rdBars(s.topCustomers) +
+        '</section></div>' +
+        '<p class="form-note">Revenue is the figure calculated in the master workbook (rate card, ' +
+        'RWR/BER flat charge and tiered delivery pricing already applied).</p>';
+      bindTabs();
+      bindFilters(draw);
+    }
+
+    async function drawExplorer() {
+      const data = await apiRequest(
+        '/api/revenue-dashboard/lines?' +
+          query({ search: explorerSearch, page: explorerPage, pageSize: 50 }),
+      );
+      const lines = data.lines || [];
+      const pg = data.pagination;
+      body.innerHTML =
+        tabsHtml() +
+        filterBar(lastOptions) +
+        '<div class="rd-filters"><label>Search<input type="search" data-rd-search value="' +
+        escapeHtml(explorerSearch) +
+        '" placeholder="Customer, invoice, order, salesperson, remarks" /></label></div>' +
+        '<p class="form-note">' +
+        rdMoney(pg.total) +
+        ' jobs &middot; AED ' +
+        rdMoney(data.revenue) +
+        '</p>' +
+        (lines.length
+          ? '<div class="table-wrap"><table class="rd-explorer-table"><thead><tr><th>Date</th><th>Job type</th><th>Inv/Del no</th>' +
+            '<th>CSOSC order</th><th>Customer</th><th>Channel</th><th>Job status</th><th>Qty</th>' +
+            '<th>Unit price</th><th>Revenue</th></tr></thead><tbody>' +
+            lines
+              .map(
+                (row) =>
+                  '<tr><td>' +
+                  escapeHtml(row.orderDate || '') +
+                  '</td><td>' +
+                  escapeHtml(row.jobType) +
+                  '</td><td>' +
+                  escapeHtml(row.invDelNo || '') +
+                  '</td><td>' +
+                  escapeHtml(row.csoscOrderNo || '') +
+                  '</td><td>' +
+                  escapeHtml(row.customer || '') +
+                  '</td><td>' +
+                  escapeHtml(row.salesChannel || '') +
+                  '</td><td>' +
+                  escapeHtml(row.jobSheetStatus || '') +
+                  '</td><td>' +
+                  rdMoney(row.qty) +
+                  '</td><td>' +
+                  Number(row.unitPrice).toFixed(2) +
+                  '</td><td>' +
+                  Number(row.revenue).toFixed(2) +
+                  '</td></tr>',
+              )
+              .join('') +
+            '</tbody></table></div>' +
+            '<div class="rd-pager"><button class="button button-outline" type="button" data-rd-prev' +
+            (pg.page <= 1 ? ' disabled' : '') +
+            '>Previous</button><span class="form-note">Page ' +
+            pg.page +
+            ' of ' +
+            Math.max(1, pg.totalPages) +
+            '</span><button class="button button-outline" type="button" data-rd-next' +
+            (pg.page >= pg.totalPages ? ' disabled' : '') +
+            '>Next</button></div>'
+          : '<p class="form-note">No jobs match the selected filters.</p>');
+      bindTabs();
+      bindFilters(draw);
+      const search = body.querySelector('[data-rd-search]');
+      let timer = null;
+      search.addEventListener('input', () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          explorerSearch = search.value.trim();
+          explorerPage = 1;
+          draw().then(() => body.querySelector('[data-rd-search]')?.focus());
+        }, 350);
+      });
+      body.querySelector('[data-rd-prev]')?.addEventListener('click', () => {
+        explorerPage -= 1;
+        draw();
+      });
+      body.querySelector('[data-rd-next]')?.addEventListener('click', () => {
+        explorerPage += 1;
+        draw();
+      });
+    }
+
+    async function draw() {
+      try {
+        if (tab === 'explorer') await drawExplorer();
+        else await drawOverview();
+      } catch (error) {
+        body.innerHTML =
+          '<p class="form-note">' +
+          escapeHtml(error.message || 'Could not load the revenue dashboard.') +
+          '</p>';
+      }
+    }
+    await draw();
+  }
+
+  async function renderBudgetDashboard(root) {
+    root.innerHTML = '<p class="form-note">Loading budget data&hellip;</p>';
+    let data;
+    try {
+      data = await apiRequest('/api/revenue-dashboard/budget');
+    } catch (error) {
+      root.innerHTML =
+        '<p class="form-note">' +
+        escapeHtml(error.message || 'Could not load the budget dashboard.') +
+        '</p>';
+      return;
+    }
+    root.innerHTML = '';
+    const head = document.createElement('div');
+    head.innerHTML =
+      rdSourceBanner(data.budgetBatch, 'budget') +
+      (data.revenueBatch
+        ? ''
+        : '<p class="form-note rd-banner rd-banner-empty">No revenue workbook is uploaded, so actuals are empty.</p>');
+    root.appendChild(head);
+    rdUploadCard(root, 'budget', () => renderBudgetDashboard(root));
+    if (!data.budgetBatch) {
+      const note = document.createElement('p');
+      note.className = 'form-note';
+      note.textContent = 'Upload the Service Budget workbook to see budget vs actual here.';
+      root.appendChild(note);
+      return;
+    }
+
+    const periods = [...new Set(data.budget.map((row) => row.period))].sort();
+    const lineMap = new Map();
+    data.budget.forEach((row) => {
+      if (!lineMap.has(row.lineItem)) {
+        lineMap.set(row.lineItem, { section: row.section, lineItem: row.lineItem, values: {} });
+      }
+      lineMap.get(row.lineItem).values[row.period] = Number(row.amount);
+    });
+    const lines = [...lineMap.values()];
+    const budgetRevenue = lines.find((l) => l.section === 'revenue')?.values || {};
+    const budgetVolume = lines.find((l) => l.section === 'volume')?.values || {};
+    const actualMap = {};
+    data.actual.forEach((row) => {
+      actualMap[row.period] = { revenue: Number(row.revenue), qty: Number(row.qty) };
+    });
+    // Months that have any actual revenue count towards year-to-date.
+    const actualPeriods = periods.filter((p) => actualMap[p]);
+    const ytdBudget = actualPeriods.reduce((sum, p) => sum + (budgetRevenue[p] || 0), 0);
+    const ytdActual = actualPeriods.reduce((sum, p) => sum + actualMap[p].revenue, 0);
+    const fyBudget = periods.reduce((sum, p) => sum + (budgetRevenue[p] || 0), 0);
+    const monthName = (p) => RD_MONTHS[Number(p.slice(5, 7)) - 1] + ' ' + p.slice(2, 4);
+    const varClass = (v) => (v < 0 ? ' rd-neg' : ' rd-pos');
+
+    const tiles =
+      '<div class="dashboard-tiles rd-tiles">' +
+      '<div class="dashboard-tile"><span class="tile-value">' +
+      rdMoney(fyBudget) +
+      '</span><span class="tile-label">Budget revenue, full year (AED)</span></div>' +
+      '<div class="dashboard-tile"><span class="tile-value">' +
+      rdMoney(ytdBudget) +
+      '</span><span class="tile-label">Budget to date (AED)</span></div>' +
+      '<div class="dashboard-tile"><span class="tile-value">' +
+      rdMoney(ytdActual) +
+      '</span><span class="tile-label">Actual revenue to date (AED)</span></div>' +
+      '<div class="dashboard-tile"><span class="tile-value' +
+      varClass(ytdActual - ytdBudget) +
+      '">' +
+      rdMoney(ytdActual - ytdBudget) +
+      '</span><span class="tile-label">Variance to date (AED)</span></div>' +
+      '<div class="dashboard-tile"><span class="tile-value">' +
+      rdPercent(ytdActual, ytdBudget) +
+      '</span><span class="tile-label">Achievement vs budget to date</span></div></div>';
+
+    // Grouped columns: budget vs actual per month.
+    const maxBar = Math.max(
+      1,
+      ...periods.map((p) => Math.max(budgetRevenue[p] || 0, actualMap[p]?.revenue || 0)),
+    );
+    const W = 640;
+    const H = 240;
+    const pad = { l: 56, r: 12, t: 12, b: 28 };
+    const slot = (W - pad.l - pad.r) / periods.length;
+    const yy = (v) => H - pad.b - (v / maxBar) * (H - pad.t - pad.b);
+    let svg =
+      '<svg viewBox="0 0 ' +
+      W +
+      ' ' +
+      H +
+      '" class="rd-trend" role="img" aria-label="Budget versus actual revenue by month">';
+    for (let i = 0; i <= 4; i += 1) {
+      const v = (maxBar / 4) * i;
+      svg +=
+        '<line x1="' +
+        pad.l +
+        '" x2="' +
+        (W - pad.r) +
+        '" y1="' +
+        yy(v) +
+        '" y2="' +
+        yy(v) +
+        '" class="rd-grid"/>' +
+        '<text x="' +
+        (pad.l - 6) +
+        '" y="' +
+        (yy(v) + 4) +
+        '" text-anchor="end" class="rd-axis">' +
+        rdMoney(v) +
+        '</text>';
+    }
+    periods.forEach((p, i) => {
+      const x0 = pad.l + i * slot + slot * 0.14;
+      const bw = slot * 0.34;
+      const b = budgetRevenue[p] || 0;
+      svg +=
+        '<rect x="' +
+        x0 +
+        '" y="' +
+        yy(b) +
+        '" width="' +
+        bw +
+        '" height="' +
+        (H - pad.b - yy(b)) +
+        '" fill="' +
+        RD_COLORS[0] +
+        '"><title>Budget ' +
+        monthName(p) +
+        ': AED ' +
+        rdMoney(b) +
+        '</title></rect>';
+      if (actualMap[p]) {
+        const a = actualMap[p].revenue;
+        svg +=
+          '<rect x="' +
+          (x0 + bw + 2) +
+          '" y="' +
+          yy(a) +
+          '" width="' +
+          bw +
+          '" height="' +
+          (H - pad.b - yy(a)) +
+          '" fill="' +
+          RD_COLORS[1] +
+          '"><title>Actual ' +
+          monthName(p) +
+          ': AED ' +
+          rdMoney(a) +
+          '</title></rect>';
+      }
+      svg +=
+        '<text x="' +
+        (pad.l + i * slot + slot / 2) +
+        '" y="' +
+        (H - 8) +
+        '" text-anchor="middle" class="rd-axis">' +
+        monthName(p) +
+        '</text>';
+    });
+    svg += '</svg>';
+    const legend =
+      '<div class="rd-legend"><span><i style="background:' +
+      RD_COLORS[0] +
+      '"></i>Budget</span><span><i style="background:' +
+      RD_COLORS[1] +
+      '"></i>Actual</span></div>';
+
+    const cells = (fn) => periods.map((p) => '<td>' + fn(p) + '</td>').join('');
+    const compare =
+      '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>Measure</th>' +
+      periods.map((p) => '<th>' + monthName(p) + '</th>').join('') +
+      '<th>Total</th></tr></thead><tbody>' +
+      '<tr><td>Budget revenue</td>' +
+      cells((p) => rdMoney(budgetRevenue[p])) +
+      '<td><strong>' +
+      rdMoney(fyBudget) +
+      '</strong></td></tr>' +
+      '<tr><td>Actual revenue</td>' +
+      cells((p) => (actualMap[p] ? rdMoney(actualMap[p].revenue) : '&mdash;')) +
+      '<td><strong>' +
+      rdMoney(ytdActual) +
+      '</strong></td></tr>' +
+      '<tr><td>Variance</td>' +
+      cells((p) =>
+        actualMap[p]
+          ? '<span class="' +
+            varClass(actualMap[p].revenue - (budgetRevenue[p] || 0)).trim() +
+            '">' +
+            rdMoney(actualMap[p].revenue - (budgetRevenue[p] || 0)) +
+            '</span>'
+          : '&mdash;',
+      ) +
+      '<td><strong class="' +
+      varClass(ytdActual - ytdBudget).trim() +
+      '">' +
+      rdMoney(ytdActual - ytdBudget) +
+      '</strong></td></tr>' +
+      '<tr><td>Achievement</td>' +
+      cells((p) =>
+        actualMap[p] ? rdPercent(actualMap[p].revenue, budgetRevenue[p] || 0) : '&mdash;',
+      ) +
+      '<td><strong>' +
+      rdPercent(ytdActual, ytdBudget) +
+      '</strong></td></tr>' +
+      '<tr><td>Budget volume</td>' +
+      cells((p) => rdMoney(budgetVolume[p])) +
+      '<td>' +
+      rdMoney(periods.reduce((s, p) => s + (budgetVolume[p] || 0), 0)) +
+      '</td></tr>' +
+      '<tr><td>Actual volume</td>' +
+      cells((p) => (actualMap[p] ? rdMoney(actualMap[p].qty) : '&mdash;')) +
+      '<td>' +
+      rdMoney(actualPeriods.reduce((s, p) => s + actualMap[p].qty, 0)) +
+      '</td></tr>' +
+      '</tbody></table></div>';
+
+    const pl =
+      '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>P&amp;L line (budget)</th>' +
+      periods.map((p) => '<th>' + monthName(p) + '</th>').join('') +
+      '<th>Total</th></tr></thead><tbody>' +
+      lines
+        .filter((l) => l.section !== 'volume')
+        .map((l) => {
+          const total = periods.reduce((s, p) => s + (l.values[p] || 0), 0);
+          const strong = ['revenue', 'opex', 'nop', 'np'].includes(l.section);
+          return (
+            '<tr' +
+            (strong ? ' class="rd-strong"' : '') +
+            '><td>' +
+            escapeHtml(l.lineItem) +
+            '</td>' +
+            periods.map((p) => '<td>' + rdMoney(l.values[p]) + '</td>').join('') +
+            '<td>' +
+            rdMoney(total) +
+            '</td></tr>'
+          );
+        })
+        .join('') +
+      '</tbody></table></div>';
+
+    const rest = document.createElement('div');
+    rest.innerHTML =
+      tiles +
+      '<section class="detail-action-card"><h4>Monthly revenue: budget vs actual (AED)</h4>' +
+      legend +
+      svg +
+      '</section>' +
+      '<section class="detail-action-card"><h4>Budget vs actual by month</h4>' +
+      compare +
+      '<p class="form-note">Actuals come from the uploaded revenue workbook. The latest month can be partial until its data is complete.</p></section>' +
+      '<section class="detail-action-card"><h4>Budget P&amp;L</h4>' +
+      pl +
+      '</section>';
+    root.appendChild(rest);
+  }
+
   $('#vasCalcNav')?.addEventListener('click', () => setWorkspaceMode('vas-calc'));
+  $('#revenueDashNav')?.addEventListener('click', () => setWorkspaceMode('revenue-dashboard'));
+  $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
   $('#rateCardCalcNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-calc'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));

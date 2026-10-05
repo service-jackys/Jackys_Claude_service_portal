@@ -601,6 +601,34 @@ export const thomsonSaleListQuerySchema = z
   })
   .strict();
 
+// Service Revenue Dashboard + Budget vs Actual (modification.md #49). Fed by
+// admin uploads of the master Excel workbooks until ERP access exists.
+export const revenueImportKinds = ['revenue', 'budget'] as const;
+export const revenueImportKindSchema = z.enum(revenueImportKinds);
+
+const optionalQueryInt = (min: number, max: number) =>
+  z.preprocess(
+    (value) => (value === '' || value === undefined ? undefined : Number(value)),
+    z.number().int().min(min).max(max).optional(),
+  );
+
+export const revenueFilterQuerySchema = z
+  .object({
+    year: optionalQueryInt(2000, 2100),
+    month: optionalQueryInt(1, 12),
+    jobType: z.string().trim().min(1).max(20).optional(),
+    channel: z.string().trim().max(40).optional(),
+  })
+  .strict();
+
+export const revenueLinesQuerySchema = revenueFilterQuerySchema
+  .extend({
+    search: z.string().trim().min(1).max(200).optional(),
+    page: queryNumber(1, 1, 100000),
+    pageSize: queryNumber(50, 1, 200),
+  })
+  .strict();
+
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).
 // New functionality, not a live-system parity item: staff raise a request
 // against a job card or inspection that's Out of Warranty, and the customer

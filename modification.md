@@ -2046,3 +2046,31 @@ add-on revenue and cost in their quote.
   Pricing Admin's values.
 - Confirm as a non-admin (management) user: the same card shows the rates as read-only text, with no
   Rate/Hours inputs and no Reset button.
+
+## Modification #49 — Service Revenue Dashboard + Budget vs Actual (Excel-fed)
+
+**Date:** 2026-10-05
+**Status:** Built and verified (typecheck + build clean; workbook import and every dashboard query run against a real Postgres with your two master workbooks). Needs `npm install` and `npm run db:migrate` (024).
+
+### What changed
+
+Two new pages under **Management**, separate from the operational dashboard:
+
+- **Service Revenue Dashboard** — Overview (revenue, jobs, units, average per job, top job type, monthly trend by year, revenue by job type / sales channel / salesperson / top customers) and Explorer (every job row, searchable, paged), with Year / Month / Job type / Channel filters.
+- **Budget vs Actual** — monthly budget revenue and volume from the Service Budget workbook next to actual revenue and volume from the revenue data, variance and achievement %, year-to-date tiles, and the budget P&L (cost lines, OPEX, NOP, NP).
+
+Until ERP gives us an API or table access, both are fed from your master workbooks. An admin uploads the **Service Dashboard master (.xlsm)** on the revenue page and the **Service Budget (.xlsx)** on the budget page. The server reads the "Revenue Source" sheet (the Excel-calculated Revenue is kept as-is — it is the canonical figure) and the budget "P&L -YTD" sheet. Each upload becomes a batch; the newest is active and older ones are kept as history. Management can view; only admin can upload (`revenue_dashboard.read` / `revenue_dashboard.write`).
+
+### Under the hood
+
+- Migration `024_revenue_dashboard.sql`: `revenue_import_batches`, `revenue_lines`, `budget_lines` + the two permissions.
+- API: `POST /api/revenue-dashboard/import`, `GET /batches`, `/summary`, `/lines`, `/budget`.
+- New dependency: `exceljs` (reads the workbooks on the server).
+- Charts are plain SVG/CSS (no charting library; production CSP only allows same-origin scripts).
+
+### Needs you
+
+- `npm install`, `npm run db:migrate`, restart.
+- As admin: upload the .xlsm on Service Revenue Dashboard and the .xlsx on Budget vs Actual; confirm the revenue total matches the workbook (AED 324,697 for the file you sent) and July–September volumes (444 / 573 / 299).
+- As management: confirm you can view both pages but see no upload box.
+- Data points worth a look in the source workbooks (shown as-is, not changed): about 58% of revenue has sales channel "REVIEW" (the remarks did not say HAA or INS), and the budget P&L's monthly OPEX (58,471) excludes Staff Travel and Staff Insurance while its own YTD column (723,734) includes them.

@@ -2145,6 +2145,38 @@
           button.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#49 &mdash; Service Revenue Dashboard + Budget vs Actual (Excel-fed)</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-05 &middot; Scope: Management &middot; migration 024 + <code>npm install</code></p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            <strong>Service Revenue Dashboard</strong>: Overview (KPIs, monthly trend, mix by job
+            type / channel / salesperson / customer) and a searchable Explorer, with
+            Year/Month/Job type/Channel filters.
+          </li>
+          <li>
+            <strong>Budget vs Actual</strong>: monthly budget revenue and volume against actuals,
+            variance, achievement %, year-to-date tiles and the budget P&amp;L.
+          </li>
+          <li>
+            Fed from your master workbooks until ERP access exists: admin uploads the Service
+            Dashboard .xlsm and the Service Budget .xlsx. Newest upload is active, older ones kept
+            as history. Management can view; only admin can upload.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npm install</code>, <code>npm run db:migrate</code>, restart.</li>
+          <li>As admin: upload both workbooks and check the revenue total (AED 324,697 for the file you sent) and July&ndash;September volumes (444 / 573 / 299).</li>
+          <li>As management: both pages visible, no upload box.</li>
+          <li>Source-data points worth a look: ~58% of revenue has channel "REVIEW"; budget monthly OPEX excludes Staff Travel and Insurance but its YTD column includes them.</li>
+        </ul>
+      </div>
+
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

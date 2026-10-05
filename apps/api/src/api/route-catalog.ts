@@ -40,6 +40,8 @@ import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
+import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
+import { createRevenueDashboardService } from '../revenue-dashboard/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
 import { createAttachmentService } from '../attachments/service.js';
 import { createWarrantyApprovalHandlers } from '../warranty-approvals/routes.js';
@@ -462,6 +464,30 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const revenueDashboardHandlers = pool
+    ? createRevenueDashboardHandlers(createRevenueDashboardService(pool), requirePermission)
+    : {
+        importWorkbook: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        batches: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        summary: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        lines: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        budget: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1834,6 +1860,70 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.detail,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/revenue-dashboard/import',
+        operationId: 'importRevenueWorkbook',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Upload the master revenue (.xlsm) or budget (.xlsx) workbook (multipart/form-data: file, kind=revenue|budget)',
+        security: 'bearerAuth' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.importWorkbook,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/batches',
+        operationId: 'listRevenueImportBatches',
+        tags: ['Revenue Dashboard'],
+        summary: 'List workbook uploads and which one is active for each kind',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.batches,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/summary',
+        operationId: 'getRevenueDashboardSummary',
+        tags: ['Revenue Dashboard'],
+        summary: 'Revenue KPIs, monthly trend and mixes from the active revenue upload',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'year', in: 'query', schema: { type: 'integer', minimum: 2000, maximum: 2100 } },
+          { name: 'month', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12 } },
+          { name: 'jobType', in: 'query', schema: { type: 'string', maxLength: 20 } },
+          { name: 'channel', in: 'query', schema: { type: 'string', maxLength: 40 } },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.summary,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/lines',
+        operationId: 'listRevenueDashboardLines',
+        tags: ['Revenue Dashboard'],
+        summary: 'Job-level revenue rows (explorer) from the active revenue upload',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'year', in: 'query', schema: { type: 'integer', minimum: 2000, maximum: 2100 } },
+          { name: 'month', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12 } },
+          { name: 'jobType', in: 'query', schema: { type: 'string', maxLength: 20 } },
+          { name: 'channel', in: 'query', schema: { type: 'string', maxLength: 40 } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.lines,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/budget',
+        operationId: 'getBudgetVsActual',
+        tags: ['Revenue Dashboard'],
+        summary: 'Monthly budget (P&L) with actual revenue from the active revenue upload',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.budget,
       },
       {
         method: 'post' as const,
