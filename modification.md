@@ -2087,3 +2087,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: GET /api/revenue-dashboard/group, /matrix, /exceptions, /export (revenue_dashboard.read).
 
 **Needs you:** `npm install`, restart, `git push`. Open Service Revenue Dashboard → Reports and click through a drill-down to individual jobs.
+
+
+## Modification #51 — Report export: full CSIDI-sheet columns on Jobs + "Revenue Logic" sheet
+
+**Date:** 2026-10-05 · **Scope:** Management / Finance / Accounts · **migration 025** · re-upload the Service Dashboard workbook
+
+**What changed**
+- The Jobs sheet of the exported report now carries every column of the workbook's CSIDI sheet (Tranc, customer code, location, raw units, invoice status, derived type, calc qty, appliance category and its source, customer grouping, sites, trips, crew, discount tier/rate, base/net unit rate, transport, billing qty, proposed revenue, pricing status, review note and the eight "Before fix" columns), for CSIDI / CSIDO / CSIII jobs. Header colours separate the groups: navy = base job, teal = CSIDI sheet, brown = how the revenue is built, plum = what missing ERP data could change.
+- New calculation columns per job: revenue basis, labour before discount, volume discount, AED 35 floor, labour after discount, transport, rebuilt revenue, workbook-minus-rebuilt (reconciles to 0.00 for all 849 CSIDI-sheet jobs in 2026), revenue per unit, change vs the 3 Oct fix.
+- New "what if" columns: all units refrigerator/washer, all cooker, trips in Sharjah, not same customer/site, 3-person crew, CSIDO billed per unit; plus the assumptions behind each figure and Remarks flags (no activity wording, "only installation" wording, other products, models seen).
+- New **Revenue Logic** sheet: current rules per job type, how the activity is classified, the rate masters in force (read from the workbook's Del+Install Pricing, Install Pricing and Calculation sheets), the AED value of every assumption (category, region, grouping/sites, crew, trips, CSIDO quantity basis, classification gaps, effect of the 3 Oct change), category-identification split, reconciliation, the Orion ERP fields still needed and the open management decisions.
+- Upload now stores each CSIDI row against its revenue line (joined on Inv/Del No and job type; all 1,165 CSIDI/CSIDO/CSIII lines matched) and the rate masters on the batch.
+
+**Needs you:** `npm run db:migrate` (025), restart, then **re-upload the .xlsm** on Service Revenue Dashboard (older uploads have no CSIDI columns; the Logic sheet shows built-in rates for them). Export a report and check the Jobs and Revenue Logic sheets.

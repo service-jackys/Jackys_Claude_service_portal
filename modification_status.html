@@ -2193,6 +2193,22 @@
           <li><code>npm install</code>, restart, then open Service Revenue Dashboard &rarr; Reports and drill from a month down to the jobs.</li>
         </ul>
       </div>
+          <div class="card">
+        <div class="card-head">
+          <h2>#51 &mdash; Report export: CSIDI-sheet columns + Revenue Logic sheet</h2>
+          <span class="badge badge-code-complete">Built and verified &mdash; needs your review</span>
+        </div>
+        <p class="meta">2026-10-05 &middot; Scope: Management / Finance &middot; migration 025 &middot; re-upload the workbook</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Jobs sheet now has every CSIDI-sheet column plus revenue build-up columns (labour, discount, transport, rebuilt revenue, reconciliation) and &ldquo;what if&rdquo; columns for the missing ERP data.</li>
+          <li>New <strong>Revenue Logic</strong> sheet: rules, rate masters, AED value of each assumption, ERP fields still needed, open decisions.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li><code>npm run db:migrate</code>, restart, re-upload the .xlsm, then export a report and review the Jobs and Revenue Logic sheets.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

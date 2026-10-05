@@ -51,6 +51,7 @@ export type RevenueLineInput = {
   salesChannel: string | null;
   costStatus: string | null;
   remarks: string | null;
+  pricing?: Record<string, unknown> | null;
 };
 
 export type BudgetLineInput = {
@@ -107,7 +108,7 @@ export async function insertRevenueLines(
     const chunk = lines.slice(start, start + REVENUE_CHUNK);
     const params: unknown[] = [];
     const rows = chunk.map((line, i) => {
-      const base = i * 23;
+      const base = i * 24;
       params.push(
         batchId,
         line.sourceRow,
@@ -132,14 +133,23 @@ export async function insertRevenueLines(
         line.salesChannel,
         line.costStatus,
         line.remarks,
+        line.pricing ? JSON.stringify(line.pricing) : null,
       );
-      return '(' + Array.from({ length: 23 }, (_, k) => '$' + (base + k + 1)).join(', ') + ')';
+      return (
+        '(' +
+        Array.from(
+          { length: 24 },
+          (_, k) => '$' + (base + k + 1) + (k === 23 ? '::jsonb' : ''),
+        ).join(', ') +
+        ')'
+      );
     });
     await client.query(
       `INSERT INTO revenue_lines
          (batch_id, source_row, job_type, description, inv_del_no, csosc_order_no, order_date,
           year, week_no, month_no, customer, lpo_no, csosc_status, job_sheet_status, sales_person,
-          qty, unit_price, revenue, original_job_value, billing_code, sales_channel, cost_status, remarks)
+          qty, unit_price, revenue, original_job_value, billing_code, sales_channel, cost_status, remarks,
+          pricing)
        VALUES ${rows.join(', ')}`,
       params,
     );
@@ -464,7 +474,7 @@ export async function revenueExportLines(
 ) {
   const f = filterClause(batchId, filters);
   const rows = await client.query(
-    `SELECT ${lineColumns} FROM revenue_lines WHERE ${f.where}
+    `SELECT ${lineColumns}, pricing FROM revenue_lines WHERE ${f.where}
      ORDER BY order_date DESC NULLS LAST, id DESC LIMIT ${limit}`,
     f.params,
   );

@@ -73,7 +73,12 @@ export function createRevenueDashboardService(pool: Pool) {
               fileSha256: sha,
               rowCount: parsed.lines.length,
               totalAmount: parsed.totalRevenue,
-              summary: { rates: parsed.rates, selectedYear: parsed.selectedYear },
+              summary: {
+                rates: parsed.rates,
+                selectedYear: parsed.selectedYear,
+                pricingRules: parsed.pricingRules,
+                pricingMatched: parsed.pricingMatched,
+              },
               uploadedBy: profileId,
             })
           : await createImportBatch(client, {

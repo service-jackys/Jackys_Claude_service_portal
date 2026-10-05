@@ -1,4 +1,10 @@
 import ExcelJS from 'exceljs';
+import {
+  DEFAULT_PRICING_RULES,
+  type PricingMaster,
+  type PricingRules,
+  type SheetPricing,
+} from './pricing-logic.js';
 
 export class WorkbookParseError extends Error {}
 
@@ -25,11 +31,14 @@ export type ParsedRevenueLine = {
   salesChannel: string | null;
   costStatus: string | null;
   remarks: string | null;
+  pricing: SheetPricing | null;
 };
 
 export type ParsedRevenueWorkbook = {
   lines: ParsedRevenueLine[];
   rates: { jobType: string; description: string; price: number }[];
+  pricingRules: PricingRules;
+  pricingMatched: number;
   selectedYear: number | null;
   totalRevenue: number;
 };
@@ -170,6 +179,7 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       salesChannel: text(at(row, 'Sales Channel')),
       costStatus: text(at(row, 'Cost Status')),
       remarks: text(at(row, 'Remarks')),
+      pricing: null,
     });
   });
   if (!lines.length) {
@@ -192,7 +202,161 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       }
     }
   }
-  return { lines, rates, selectedYear, totalRevenue };
+  const pricingRules = readPricingRules(workbook, rates);
+  const pricingMatched = attachSheetPricing(workbook, lines);
+  return { lines, rates, pricingRules, pricingMatched, selectedYear, totalRevenue };
+}
+
+function nOrNull(value: ExcelJS.CellValue | undefined): number | null {
+  const v = plain(value);
+  if (v === null || v === undefined || v === '') return null;
+  const n = typeof v === 'number' ? v : Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+// The pricing masters sit at fixed cells on "Del+Install Pricing" and
+// "Install Pricing" (category master J18:M22, discounts B25:E32, transport
+// G25:J27, crew factors G31:H34, defaults L25:M31).
+function readPricingMaster(sheet: ExcelJS.Worksheet | undefined): PricingMaster | null {
+  if (!sheet) return null;
+  const cell = (r: number, c: number) => sheet.getRow(r).getCell(c).value;
+  const categories: PricingMaster['categories'] = [];
+  for (let r = 19; r <= 30; r += 1) {
+    const category = text(cell(r, 10));
+    if (!category) break;
+    categories.push({
+      category,
+      batchRate: num(cell(r, 11)),
+      standardRate: num(cell(r, 12)),
+      minimumRate: num(cell(r, 13)),
+    });
+  }
+  const discounts: PricingMaster['discounts'] = [];
+  for (let r = 26; r <= 40; r += 1) {
+    const minimum = nOrNull(cell(r, 2));
+    if (minimum === null) break;
+    discounts.push({
+      minimum,
+      maximum: num(cell(r, 3)),
+      tier: text(cell(r, 4)) ?? '',
+      discount: num(cell(r, 5)),
+    });
+  }
+  const transport: PricingMaster['transport'] = [];
+  for (let r = 26; r <= 29; r += 1) {
+    const region = text(cell(r, 7));
+    if (region) transport.push({ region, roundTrip: num(cell(r, 10)) });
+  }
+  const crew: PricingMaster['crew'] = [];
+  for (let r = 32; r <= 36; r += 1) {
+    const size = nOrNull(cell(r, 7));
+    if (size !== null) crew.push({ size, loading: num(cell(r, 8)) });
+  }
+  if (!categories.length || !discounts.length) return null;
+  return {
+    categories,
+    discounts,
+    transport,
+    crew,
+    defaults: {
+      customerGrouping: text(cell(26, 13)) ?? 'Same customer / same site',
+      sites: nOrNull(cell(27, 13)) ?? 1,
+      crewSize: nOrNull(cell(28, 13)) ?? 2,
+      tripThreshold: nOrNull(cell(29, 13)) ?? 20,
+      tripsAtOrBelow: nOrNull(cell(30, 13)) ?? 1,
+      tripsAbove: nOrNull(cell(31, 13)) ?? 2,
+    },
+  };
+}
+
+function readPricingRules(workbook: ExcelJS.Workbook, rates: PricingRules['rates']): PricingRules {
+  const di = readPricingMaster(workbook.getWorksheet('Del+Install Pricing'));
+  const install = readPricingMaster(workbook.getWorksheet('Install Pricing'));
+  if (!di || !install) {
+    return { ...DEFAULT_PRICING_RULES, rates: rates.length ? rates : DEFAULT_PRICING_RULES.rates };
+  }
+  return {
+    source: 'workbook',
+    rates: rates.length ? rates : DEFAULT_PRICING_RULES.rates,
+    deliveryInstall: di,
+    install,
+  };
+}
+
+// CSIDI sheet = source of every CSIDI / CSIDO / CSIII line. Its pricing
+// columns are joined to Revenue Source on Inv/Del No (+ matching job type).
+function attachSheetPricing(workbook: ExcelJS.Workbook, lines: ParsedRevenueLine[]): number {
+  const sheet = workbook.getWorksheet('CSIDI');
+  if (!sheet) return 0;
+  const col = headerIndex(sheet);
+  if (!col.has('inv/del no') || !col.has('pricing type')) return 0;
+  const get = (row: ExcelJS.Row, label: string) => {
+    const c = col.get(label.toLowerCase());
+    return c ? row.getCell(c).value : undefined;
+  };
+  const byInvoice = new Map<string, SheetPricing>();
+  sheet.eachRow((row, rowNumber) => {
+    if (rowNumber === 1) return;
+    const inv = text(get(row, 'Inv/Del No'));
+    const pricingType = text(get(row, 'Pricing Type'));
+    if (!inv || !pricingType) return;
+    byInvoice.set(inv, {
+      tranc: text(get(row, 'Tranc')),
+      custCode: text(get(row, 'Cust_Code')),
+      trnNo: text(get(row, 'TRN_No')),
+      currency: text(get(row, 'Cur')),
+      location: text(get(row, 'Location')),
+      delLoc: text(get(row, 'Del_Loc')),
+      rawQty: nOrNull(get(row, 'Qty')),
+      value: nOrNull(get(row, 'Value')),
+      items: nOrNull(get(row, 'No. of Items')),
+      invoiceStatus: text(get(row, 'Status')),
+      salesman: text(get(row, 'Salesman')),
+      refDocNo: text(get(row, 'Ref DocNo.')),
+      refDocDt: text(get(row, 'Ref DocDt.')),
+      delDate: text(get(row, 'Del. Date')),
+      lpoNo: text(get(row, 'LPO_NO')),
+      derivedType: text(get(row, 'Derived Type')),
+      calcQty: nOrNull(get(row, 'Calc Qty')),
+      originalType: text(get(row, 'Original Type')),
+      applianceCategory: text(get(row, 'Appliance Category')),
+      categorySource: text(get(row, 'Category Source')),
+      pricingType,
+      customerGrouping: text(get(row, 'Customer Grouping')),
+      sites: nOrNull(get(row, 'Number of Sites')),
+      plannedTrips: nOrNull(get(row, 'Planned Trips')),
+      crewSize: nOrNull(get(row, 'Crew Size')),
+      discountTier: text(get(row, 'Discount Tier')),
+      discountRate: nOrNull(get(row, 'Discount Rate')),
+      baseUnitRate: nOrNull(get(row, 'Base Unit Rate')),
+      netUnitRate: nOrNull(get(row, 'Net Unit Rate')),
+      transportCharge: nOrNull(get(row, 'Transport Charge')),
+      billingQty: nOrNull(get(row, 'Proposed Billing Qty')),
+      proposedRevenue: nOrNull(get(row, 'Proposed Revenue')),
+      pricingStatus: text(get(row, 'Pricing Status')),
+      reviewNote: text(get(row, 'Review Note')),
+      before: {
+        applianceCategory: text(get(row, 'Appliance Category (Before Fix)')),
+        pricingType: text(get(row, 'Pricing Type (Before Fix)')),
+        discountRate: nOrNull(get(row, 'Discount Rate (Before Fix)')),
+        baseUnitRate: nOrNull(get(row, 'Base Unit Rate (Before Fix)')),
+        netUnitRate: nOrNull(get(row, 'Net Unit Rate (Before Fix)')),
+        transport: nOrNull(get(row, 'Transport (Before Fix)')),
+        billingQty: nOrNull(get(row, 'Billing Qty (Before Fix)')),
+        revenue: nOrNull(get(row, 'Revenue (Before Fix)')),
+      },
+    });
+  });
+  let matched = 0;
+  for (const line of lines) {
+    if (!line.invDelNo) continue;
+    const hit = byInvoice.get(line.invDelNo);
+    if (hit && (hit.pricingType ?? '').toUpperCase() === line.jobType) {
+      line.pricing = hit;
+      matched += 1;
+    }
+  }
+  return matched;
 }
 
 const BUDGET_SECTIONS: Record<string, ParsedBudgetLine['section']> = {
