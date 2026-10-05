@@ -208,7 +208,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   const L = (key: string) => (x: (typeof enriched)[number]) => x.line[key];
   const E = (key: keyof (typeof enriched)[number]['e']) => (x: (typeof enriched)[number]) =>
     x.e[key];
-  const cols: Col[] = [
+  const allCols: Col[] = [
     { h: 'Date', w: 12, group: 'base', get: L('orderDate') },
     { h: 'Year', w: 7, group: 'base', get: L('year') },
     { h: 'Month', w: 7, group: 'base', get: L('month') },
@@ -394,6 +394,14 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     calc: 'FF8A4B00',
     risk: 'FF7A1F3D',
   };
+
+  // Only keep a pricing / calculation column when at least one exported job has
+  // a value in it (e.g. no CSIDI-sheet columns for an upload without that data,
+  // no Sharjah what-if when there are no CSIDI jobs in the filter).
+  const isEmpty = (v: unknown) => v === null || v === undefined || v === '';
+  const cols = allCols.filter(
+    (c) => c.group === 'base' || enriched.some((x) => !isEmpty(c.get(x))),
+  );
 
   const jobs = wb.addWorksheet('Jobs');
   jobs.addRow(cols.map((c) => c.h));
