@@ -10249,7 +10249,9 @@ ${bodyHtml}
                   ': ' +
                   (p.dim === 'exception' ? p.label || p.value : rdLabel(p.dim, p.value)),
               ) +
-              ' &times;</button>',
+              '</button><button type="button" class="rd-crumb rd-crumb-x" data-rd-crumb-x="' +
+              i +
+              '" title="Remove this step" aria-label="Remove this step">&times;</button>',
           )
           .join('') +
         '</div>';
@@ -10370,6 +10372,14 @@ ${bodyHtml}
       reportBody.querySelectorAll('[data-rd-crumb]').forEach((button) => {
         button.addEventListener('click', () => {
           drill.path = drill.path.slice(0, Number(button.dataset.rdCrumb) + 1);
+          drill.groupBy = null;
+          drill.page = 1;
+          drawReportsView();
+        });
+      });
+      reportBody.querySelectorAll('[data-rd-crumb-x]').forEach((button) => {
+        button.addEventListener('click', () => {
+          drill.path = drill.path.slice(0, Number(button.dataset.rdCrumbX));
           drill.groupBy = null;
           drill.page = 1;
           drawReportsView();

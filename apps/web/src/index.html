@@ -1355,6 +1355,22 @@
         font-weight: 700;
         cursor: pointer;
       }
+      .rd-crumb:has(+ .rd-crumb-x) {
+        border-right: 0;
+        border-radius: 999px 0 0 999px;
+        padding-right: 0.4rem;
+        margin-right: -0.4rem;
+      }
+      .rd-crumb-x {
+        border-radius: 0 999px 999px 0;
+        padding: 0.25rem 0.6rem 0.25rem 0.4rem;
+        font-size: 0.9rem;
+        line-height: 1;
+      }
+      .rd-crumb-x:hover {
+        background: #fde8e8;
+        color: #b42318;
+      }
       .rd-chip {
         background: var(--surface-soft);
         border: 1px solid var(--line);
