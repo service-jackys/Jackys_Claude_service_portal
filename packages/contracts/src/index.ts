@@ -601,32 +601,104 @@ export const thomsonSaleListQuerySchema = z
   })
   .strict();
 
-// Service Revenue Dashboard + Budget vs Actual (modification.md #49). Fed by
-// admin uploads of the master Excel workbooks until ERP access exists.
+// Service Revenue Dashboard + Budget vs Actual (modification.md #49, #50).
+// Fed by admin uploads of the master Excel workbooks until ERP access exists.
 export const revenueImportKinds = ['revenue', 'budget'] as const;
 export const revenueImportKindSchema = z.enum(revenueImportKinds);
 
-const optionalQueryInt = (min: number, max: number) =>
-  z.preprocess(
-    (value) => (value === '' || value === undefined ? undefined : Number(value)),
-    z.number().int().min(min).max(max).optional(),
-  );
+export const revenueDimensions = [
+  'year',
+  'month',
+  'week',
+  'period',
+  'yearWeek',
+  'jobType',
+  'channel',
+  'salesPerson',
+  'customer',
+  'costStatus',
+  'billingCode',
+  'jobStatus',
+  'orderStatus',
+] as const;
+export const revenueDimensionSchema = z.enum(revenueDimensions);
+
+export const revenueExceptionKeys = [
+  'billingReview',
+  'channelReview',
+  'costReview',
+  'zeroRevenue',
+  'notApproved',
+  'unmatchedOrder',
+  'noCustomer',
+] as const;
+
+const filterText = z.string().trim().min(1).max(200).optional();
+const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
 
 export const revenueFilterQuerySchema = z
   .object({
-    year: optionalQueryInt(2000, 2100),
-    month: optionalQueryInt(1, 12),
-    jobType: z.string().trim().min(1).max(20).optional(),
-    channel: z.string().trim().max(40).optional(),
+    year: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^\d{4}$/)
+        .optional(),
+    ),
+    month: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^\d{1,2}$/)
+        .optional(),
+    ),
+    week: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^\d{1,2}$/)
+        .optional(),
+    ),
+    period: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^\d{4}-\d{2}$/)
+        .optional(),
+    ),
+    yearWeek: z.preprocess(
+      emptyToUndefined,
+      z
+        .string()
+        .regex(/^\d{4}-W\d{2}$/)
+        .optional(),
+    ),
+    jobType: z.preprocess(emptyToUndefined, filterText),
+    channel: z.preprocess(emptyToUndefined, filterText),
+    salesPerson: z.preprocess(emptyToUndefined, filterText),
+    customer: z.preprocess(emptyToUndefined, filterText),
+    costStatus: z.preprocess(emptyToUndefined, filterText),
+    billingCode: z.preprocess(emptyToUndefined, filterText),
+    jobStatus: z.preprocess(emptyToUndefined, filterText),
+    orderStatus: z.preprocess(emptyToUndefined, filterText),
+    exception: z.preprocess(emptyToUndefined, z.enum(revenueExceptionKeys).optional()),
+    search: z.preprocess(emptyToUndefined, filterText),
   })
   .strict();
 
 export const revenueLinesQuerySchema = revenueFilterQuerySchema
   .extend({
-    search: z.string().trim().min(1).max(200).optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(50, 1, 200),
   })
+  .strict();
+
+export const revenueGroupQuerySchema = revenueFilterQuerySchema
+  .extend({ dimension: revenueDimensionSchema })
+  .strict();
+
+export const revenueMatrixQuerySchema = revenueFilterQuerySchema
+  .extend({ rowDimension: revenueDimensionSchema, columnDimension: revenueDimensionSchema })
   .strict();
 
 // Out-of-warranty approval requests (Phase 5 -- docs/DEVELOPMENT_PLAN.md).

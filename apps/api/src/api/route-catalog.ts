@@ -106,6 +106,57 @@ const paginationParameters: object[] = [
   },
 ];
 
+const revenueFilterParameters: object[] = [
+  ...[
+    'year',
+    'month',
+    'week',
+    'period',
+    'yearWeek',
+    'jobType',
+    'channel',
+    'salesPerson',
+    'customer',
+    'costStatus',
+    'billingCode',
+    'jobStatus',
+    'orderStatus',
+  ].map((name) => ({ name, in: 'query', schema: { type: 'string', maxLength: 200 } })),
+  {
+    name: 'exception',
+    in: 'query',
+    schema: {
+      type: 'string',
+      enum: [
+        'billingReview',
+        'channelReview',
+        'costReview',
+        'zeroRevenue',
+        'notApproved',
+        'unmatchedOrder',
+        'noCustomer',
+      ],
+    },
+  },
+  { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+];
+
+const revenueDimensionEnum = [
+  'year',
+  'month',
+  'week',
+  'period',
+  'yearWeek',
+  'jobType',
+  'channel',
+  'salesPerson',
+  'customer',
+  'costStatus',
+  'billingCode',
+  'jobStatus',
+  'orderStatus',
+];
+
 const appointmentListParameters: object[] = [
   ...paginationParameters,
   { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
@@ -488,6 +539,22 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         budget: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        group: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        matrix: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        exceptions: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        exportWorkbook: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1889,12 +1956,7 @@ export function createRouteCatalog(
         tags: ['Revenue Dashboard'],
         summary: 'Revenue KPIs, monthly trend and mixes from the active revenue upload',
         security: 'bearerAuth' as const,
-        parameters: [
-          { name: 'year', in: 'query', schema: { type: 'integer', minimum: 2000, maximum: 2100 } },
-          { name: 'month', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12 } },
-          { name: 'jobType', in: 'query', schema: { type: 'string', maxLength: 20 } },
-          { name: 'channel', in: 'query', schema: { type: 'string', maxLength: 40 } },
-        ],
+        parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.summary,
       },
@@ -1905,15 +1967,76 @@ export function createRouteCatalog(
         tags: ['Revenue Dashboard'],
         summary: 'Job-level revenue rows (explorer) from the active revenue upload',
         security: 'bearerAuth' as const,
-        parameters: paginationParameters.concat([
-          { name: 'year', in: 'query', schema: { type: 'integer', minimum: 2000, maximum: 2100 } },
-          { name: 'month', in: 'query', schema: { type: 'integer', minimum: 1, maximum: 12 } },
-          { name: 'jobType', in: 'query', schema: { type: 'string', maxLength: 20 } },
-          { name: 'channel', in: 'query', schema: { type: 'string', maxLength: 40 } },
-          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
-        ]),
+        parameters: paginationParameters.concat(revenueFilterParameters),
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.lines,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/group',
+        operationId: 'getRevenueDashboardGroup',
+        tags: ['Revenue Dashboard'],
+        summary: 'Revenue grouped by one dimension (drill-down level) under the given filters',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'dimension',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: revenueDimensionEnum },
+          },
+          ...revenueFilterParameters,
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.group,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/matrix',
+        operationId: 'getRevenueDashboardMatrix',
+        tags: ['Revenue Dashboard'],
+        summary: 'Two-way revenue pivot (for example month by job type)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'rowDimension',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: revenueDimensionEnum },
+          },
+          {
+            name: 'columnDimension',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: revenueDimensionEnum },
+          },
+          ...revenueFilterParameters,
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.matrix,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/exceptions',
+        operationId: 'getRevenueDashboardExceptions',
+        tags: ['Revenue Dashboard'],
+        summary: 'Finance / data-quality exception counts and revenue at stake',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.exceptions,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/export',
+        operationId: 'exportRevenueDashboardReport',
+        tags: ['Revenue Dashboard'],
+        summary: 'Download the filtered revenue report as a formatted Excel workbook',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: revenueDashboardHandlers.exportWorkbook,
       },
       {
         method: 'get' as const,

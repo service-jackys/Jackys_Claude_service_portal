@@ -86,6 +86,54 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    group: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.group(request.query));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    matrix: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.matrix(request.query));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    exceptions: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.exceptions(request.query));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    exportWorkbook: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          const buffer = await service.exportWorkbook(request.query);
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', 'attachment; filename="service-revenue-report.xlsx"')
+            .send(buffer);
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     budget: [
       requirePermission('revenue_dashboard.read'),
       async (_request, response, next) => {

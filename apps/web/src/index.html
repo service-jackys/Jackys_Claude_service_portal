@@ -1039,7 +1039,9 @@
         stroke-linecap: round;
         stroke-linejoin: round;
       }
-      /* Service Revenue + Budget dashboards (modification.md #49). */
+      /* Service Revenue + Budget dashboards (modification.md #49, #50) --
+         card, KPI, sub-tab, chart-box and table styling follows the legacy
+         portal's Revenue Dashboard. */
       .rd-banner {
         margin: 0 0 0.6rem;
       }
@@ -1057,121 +1059,346 @@
         border-radius: 12px;
         background: var(--surface-soft);
       }
-      .rd-tabs {
+      .rc-section {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        margin: 0 0 1rem;
+        overflow: hidden;
+      }
+      .rc-section-head {
+        background: var(--surface-soft);
+        color: var(--navy);
+        padding: 0.55rem 0.8rem;
+        font-weight: 700;
+        font-size: 0.82rem;
         display: flex;
-        gap: 0.4rem;
-        margin: 0 0 0.8rem;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
         border-bottom: 1px solid var(--line);
       }
-      .rd-tab {
-        border: 0;
+      .rc-count {
+        font-weight: 600;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .rd-kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.9rem;
+        margin: 0 0 1rem;
+      }
+      .rd-kpi-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1rem 1.1rem;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 3px rgb(16 43 78 / 8%);
+      }
+      .rd-kpi-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 3px;
+        height: 100%;
+        background: var(--navy);
+      }
+      .rd-kpi-card .lbl {
+        color: var(--muted);
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 0.45rem;
+      }
+      .rd-kpi-card .val {
+        font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+        font-size: 1.45rem;
+        font-weight: 700;
+        color: var(--ink);
+        overflow-wrap: anywhere;
+      }
+      .rd-kpi-card .sub {
+        font-size: 0.68rem;
+        color: var(--muted);
+        margin-top: 0.3rem;
+      }
+      .rd-subtabs {
+        display: flex;
+        gap: 0.5rem;
+        margin: 0 0 1rem;
+        border-bottom: 2px solid var(--line);
+      }
+      .rd-subtab-btn {
         background: none;
-        padding: 0.5rem 0.9rem;
+        border: none;
+        padding: 0.6rem 1.1rem;
+        font-size: 0.85rem;
         font-weight: 700;
         color: var(--muted);
         cursor: pointer;
         border-bottom: 3px solid transparent;
+        margin-bottom: -2px;
       }
-      .rd-tab.is-active {
-        color: var(--navy);
-        border-bottom-color: var(--navy);
+      .rd-subtab-btn:hover {
+        color: var(--ink);
       }
-      .rd-filters {
+      .rd-subtab-btn.active {
+        color: var(--red);
+        border-bottom-color: var(--red);
+      }
+      .rd-two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        margin: 0 0 1rem;
+      }
+      .rd-two-col .rc-section {
+        margin: 0;
+        min-width: 0;
+      }
+      @media (max-width: 900px) {
+        .rd-two-col {
+          grid-template-columns: 1fr;
+        }
+      }
+      .rd-chart-box {
+        position: relative;
+        height: 290px;
+        padding: 0.9rem 1rem;
+        box-sizing: border-box;
+      }
+      .rd-chart-box.short {
+        height: 230px;
+      }
+      .rd-chart-box.tall {
+        height: 340px;
+      }
+      .rd-chart-pad {
+        padding: 0.4rem 0.4rem 0.8rem;
+      }
+      .rd-chart-pad .rd-chart-box {
+        padding-bottom: 0.4rem;
+      }
+      .rd-legend-row {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 0.4rem 1.1rem;
+        font-size: 0.76rem;
+        margin-top: 0.5rem;
+      }
+      .rd-legend-row i,
+      .rd-dot {
+        display: inline-block;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        margin-right: 6px;
+      }
+      .rd-dot-warn {
+        background: #d98324;
+      }
+      .rd-dot-ok {
+        background: #2f9e6f;
+      }
+      .rd-pad {
+        padding: 0.7rem 0.9rem;
+        margin: 0;
+      }
+      .rd-filter-card {
+        padding: 0.7rem 0.9rem;
+      }
+      .rd-report-toolbar {
         display: flex;
         flex-wrap: wrap;
         align-items: flex-end;
         gap: 0.6rem 0.9rem;
-        margin: 0 0 0.8rem;
       }
-      .rd-filters label {
-        font-size: 0.78rem;
-        font-weight: 600;
+      .rd-report-toolbar .th-field label,
+      .rd-search {
         display: grid;
         gap: 0.2rem;
+        font-size: 0.74rem;
+        font-weight: 600;
       }
-      .rd-tiles {
-        margin: 0 0 1rem;
+      .rd-report-toolbar select,
+      .rd-search input,
+      .rd-search select {
+        font-size: 0.8rem;
+        padding: 0.4rem 0.55rem;
       }
-      .rd-tiles .tile-value.rd-pos,
+      .rd-search input {
+        min-width: 320px;
+      }
+      .rd-report-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem 0.7rem;
+        padding: 0.7rem 0.9rem;
+      }
+      .rd-spacer {
+        flex: 1;
+      }
+      .rd-view-pills,
+      .rd-month-pills {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+      .rd-mpill {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.3rem 0.8rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      .rd-mpill.active {
+        background: var(--navy);
+        border-color: var(--navy);
+        color: #fff;
+      }
+      .rd-mpill.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+      .rc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.78rem;
+      }
+      .rc-table th,
+      .rc-table td {
+        padding: 0.4rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        white-space: normal;
+        text-align: left;
+        vertical-align: top;
+      }
+      .rc-table th {
+        background: var(--surface-soft);
+        color: var(--navy);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+      .rc-table th.num,
+      .rc-table td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .rc-table tfoot td {
+        font-weight: 700;
+        background: var(--surface-soft);
+      }
+      .rc-table tr.is-drill {
+        cursor: pointer;
+      }
+      .rc-table tr.is-drill:hover td,
+      .rc-table tr.is-drill:focus-visible td {
+        background: var(--blue-soft);
+        outline: none;
+      }
+      .rd-drill-cue {
+        color: var(--blue);
+        font-weight: 700;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .rd-meaning {
+        color: var(--muted);
+        max-width: 420px;
+      }
+      .rd-mix-track {
+        background: var(--surface-soft);
+        border-radius: 4px;
+        height: 5px;
+        margin-top: 4px;
+        overflow: hidden;
+      }
+      .rd-mix-fill {
+        height: 100%;
+        border-radius: 4px;
+      }
+      .rd-zero {
+        color: var(--muted);
+      }
       .rd-pos {
         color: #1b7f55;
       }
-      .rd-tiles .tile-value.rd-neg,
       .rd-neg {
         color: #b3372e;
       }
-      .rd-grid-2 {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-        gap: 0.9rem;
-        margin: 0 0 1rem;
-      }
-      .rd-span {
-        grid-column: 1 / -1;
-      }
-      .rd-bars {
-        display: grid;
-        gap: 0.4rem;
-      }
-      .rd-bar-row {
-        display: grid;
-        grid-template-columns: minmax(110px, 40%) 1fr auto;
-        gap: 0.5rem;
-        align-items: center;
-        font-size: 0.8rem;
-      }
-      .rd-bar-label {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .rd-bar-track {
-        background: var(--surface-soft);
-        border-radius: 6px;
-        height: 14px;
-        overflow: hidden;
-      }
-      .rd-bar-fill {
-        display: block;
-        height: 100%;
-        border-radius: 6px;
-      }
-      .rd-bar-value em {
-        color: var(--muted);
-        font-style: normal;
-        margin-left: 0.25rem;
-      }
-      .rd-trend {
-        width: 100%;
-        height: auto;
-        max-height: 280px;
-      }
-      .rd-grid {
-        stroke: var(--line);
-        stroke-width: 1;
-      }
-      .rd-axis {
-        font-size: 12px;
-        fill: var(--muted);
-      }
-      .rd-legend {
+      .rd-crumbs {
         display: flex;
-        gap: 1rem;
-        font-size: 0.78rem;
-        margin: 0 0 0.3rem;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.7rem 0.9rem 0;
       }
-      .rd-legend i {
-        display: inline-block;
-        width: 10px;
-        height: 10px;
-        border-radius: 2px;
-        margin-right: 0.3rem;
+      .rd-crumb {
+        border: 1px solid var(--line);
+        background: var(--blue-soft);
+        color: var(--navy);
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        font-size: 0.76rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .rd-chip {
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.25rem 0.7rem;
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .rd-sep {
+        color: var(--muted);
+        font-weight: 700;
       }
       .rd-pager {
         display: flex;
         align-items: center;
         gap: 0.8rem;
-        margin-top: 0.6rem;
+        padding: 0.7rem 0.9rem;
+      }
+      .rd-jobs-table td {
+        font-size: 0.74rem;
+      }
+      .rd-jobs-table tbody tr:not(.rd-detail) td:first-child {
+        white-space: nowrap;
+      }
+      .rd-detail td {
+        background: var(--surface-soft);
+      }
+      .rd-detail-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.3rem 1rem;
+        font-size: 0.74rem;
+      }
+      .rd-detail pre {
+        margin: 0.4rem 0 0;
+        white-space: pre-wrap;
+        font-family: inherit;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .rd-summary-text {
+        width: 100%;
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 0.76rem;
       }
       .rd-budget-table th,
       .rd-budget-table td {
@@ -1181,9 +1408,6 @@
       .rd-budget-table th:first-child,
       .rd-budget-table td:first-child {
         text-align: left;
-      }
-      .rd-explorer-table td:first-child {
-        white-space: nowrap;
       }
       .rd-strong td {
         font-weight: 700;

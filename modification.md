@@ -2074,3 +2074,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - As admin: upload the .xlsm on Service Revenue Dashboard and the .xlsx on Budget vs Actual; confirm the revenue total matches the workbook (AED 324,697 for the file you sent) and July–September volumes (444 / 573 / 299).
 - As management: confirm you can view both pages but see no upload box.
 - Data points worth a look in the source workbooks (shown as-is, not changed): about 58% of revenue has sales channel "REVIEW" (the remarks did not say HAA or INS), and the budget P&L's monthly OPEX (58,471) excludes Staff Travel and Staff Insurance while its own YTD column (723,734) includes them.
+
+
+## Modification #50 — Service Revenue Dashboard: Reports tab, value labels, full drill-down
+
+**Date:** 2026-10-05 · **Scope:** Management / Finance / Accounts · no new migration (uses 024) · `npm install`
+
+**What changed**
+- Service Revenue Dashboard now has Overview / Explorer / Reports tabs sharing one filter bar (Year, Month, Week, Job type, Sales channel, Cost status).
+- Charts use the same Chart.js visuals as the legacy dashboard (self-hosted at `apps/web/src/vendor/chart.umd.js`, so the production CSP is unaffected). Monthly revenue trend shows the value (AED) on every stack; doughnut shows %; horizontal bars show AED at the bar end. Budget vs Actual has a labelled grouped chart.
+- Reports: Drill-down (any dimension → any dimension → individual jobs with remarks), Monthly report (MoM %), Weekly report, Accounts Review (units pivot), Billing & cost, Customers (Pareto / concentration), Channel & sales, Exceptions (billing/channel/cost review, zero revenue, not approved, unmatched order, no customer, with AED at stake), Management summary (copyable text), Export to .xlsx (11 sheets).
+- New API: GET /api/revenue-dashboard/group, /matrix, /exceptions, /export (revenue_dashboard.read).
+
+**Needs you:** `npm install`, restart, `git push`. Open Service Revenue Dashboard → Reports and click through a drill-down to individual jobs.

@@ -187,29 +187,89 @@ export async function findActiveBatch(
   return result.rows[0] ?? null;
 }
 
-export type RevenueFilters = {
-  year?: number;
-  month?: number;
-  jobType?: string;
-  channel?: string;
+// Dimensions a report can be filtered by or grouped on. Each maps to a SQL
+// expression over revenue_lines -- always from this fixed whitelist, never
+// from request text, so the generated SQL stays injection-safe.
+export const REVENUE_DIMENSIONS = {
+  year: 'year',
+  month: 'month_no',
+  week: 'week_no',
+  period: "to_char(make_date(year, month_no, 1), 'YYYY-MM')",
+  yearWeek: "(year::text || '-W' || lpad(week_no::text, 2, '0'))",
+  jobType: 'job_type',
+  channel: "COALESCE(NULLIF(sales_channel, ''), 'UNASSIGNED')",
+  salesPerson: "COALESCE(NULLIF(sales_person, ''), 'UNASSIGNED')",
+  customer: "COALESCE(NULLIF(customer, ''), 'UNKNOWN')",
+  costStatus: "COALESCE(NULLIF(cost_status, ''), 'UNKNOWN')",
+  billingCode: "COALESCE(NULLIF(billing_code, ''), 'UNKNOWN')",
+  jobStatus: "COALESCE(NULLIF(job_sheet_status, ''), 'UNKNOWN')",
+  orderStatus: "COALESCE(NULLIF(csosc_status, ''), 'UNKNOWN')",
+} as const;
+
+export type RevenueDimension = keyof typeof REVENUE_DIMENSIONS;
+
+// Pre-defined data-quality / finance exception checks.
+export const REVENUE_EXCEPTIONS = {
+  billingReview: {
+    label: 'Billing code needs review',
+    description:
+      'The billing code could not be derived from the job remarks (HAA / INS not stated).',
+    sql: "billing_code = 'REVIEW'",
+  },
+  channelReview: {
+    label: 'Sales channel needs review',
+    description: 'The remarks do not say HAA or INS, so the channel is undecided.',
+    sql: "sales_channel = 'REVIEW'",
+  },
+  costReview: {
+    label: 'Cost status needs review',
+    description:
+      'Cost status is REVIEW or ZERO COST - REVIEW; the revenue rule could not be applied cleanly.',
+    sql: "cost_status ILIKE '%REVIEW%'",
+  },
+  zeroRevenue: {
+    label: 'Zero-revenue jobs',
+    description: 'Jobs that produce no revenue (for example zero-cost RWR).',
+    sql: 'revenue = 0',
+  },
+  notApproved: {
+    label: 'Order not Approved',
+    description: 'The CSOSC order status is not Approved (pending approval or submission).',
+    sql: "COALESCE(csosc_status, '') <> 'Approved'",
+  },
+  unmatchedOrder: {
+    label: 'No matching CSOSC order',
+    description: 'The invoice reference found no CSOSC job order in the workbook.',
+    sql: "lpo_no = 'UNMATCHED CSOSC'",
+  },
+  noCustomer: {
+    label: 'Missing customer',
+    description: 'No customer name on the row.',
+    sql: "COALESCE(customer, '') = ''",
+  },
+} as const;
+
+export type RevenueExceptionKey = keyof typeof REVENUE_EXCEPTIONS;
+
+export type RevenueFilters = Partial<Record<RevenueDimension, string>> & {
+  exception?: RevenueExceptionKey;
   search?: string;
 };
 
 function filterClause(
   batchId: string,
   filters: RevenueFilters,
-  options: { ignoreMonth?: boolean } = {},
+  options: { ignore?: RevenueDimension[] } = {},
 ): { where: string; params: unknown[] } {
   const params: unknown[] = [batchId];
   const where = ['batch_id = $1'];
-  const add = (sql: string, value: unknown) => {
+  for (const dimension of Object.keys(REVENUE_DIMENSIONS) as RevenueDimension[]) {
+    const value = filters[dimension];
+    if (value === undefined || value === '' || options.ignore?.includes(dimension)) continue;
     params.push(value);
-    where.push(sql.replace('?', '$' + params.length));
-  };
-  if (filters.year !== undefined) add('year = ?', filters.year);
-  if (filters.month !== undefined && !options.ignoreMonth) add('month_no = ?', filters.month);
-  if (filters.jobType) add('job_type = ?', filters.jobType);
-  if (filters.channel) add("COALESCE(sales_channel, '') = ?", filters.channel);
+    where.push(`${REVENUE_DIMENSIONS[dimension]}::text = $${params.length}`);
+  }
+  if (filters.exception) where.push('(' + REVENUE_EXCEPTIONS[filters.exception].sql + ')');
   if (filters.search) {
     params.push('%' + filters.search.replace(/[%_\\]/g, (c) => '\\' + c) + '%');
     const p = '$' + params.length;
@@ -222,58 +282,150 @@ function filterClause(
 
 type Totals = { revenue: string; jobs: string; qty: string };
 
-export async function revenueSummary(client: PoolClient, batchId: string, filters: RevenueFilters) {
-  const f = filterClause(batchId, filters);
-  const fTrend = filterClause(batchId, filters, { ignoreMonth: true });
-
+async function totalsFor(client: PoolClient, f: { where: string; params: unknown[] }) {
   const totals = await client.query<Totals>(
     `SELECT COALESCE(SUM(revenue), 0) AS revenue, COUNT(*) AS jobs, COALESCE(SUM(qty), 0) AS qty
      FROM revenue_lines WHERE ${f.where}`,
     f.params,
   );
-  const byMonth = await client.query(
-    `SELECT year, month_no AS "month", SUM(revenue) AS revenue, COUNT(*) AS jobs, SUM(qty) AS qty
-     FROM revenue_lines WHERE ${fTrend.where} AND year IS NOT NULL AND month_no IS NOT NULL
-     GROUP BY year, month_no ORDER BY year, month_no`,
-    fTrend.params,
+  const t = totals.rows[0]!;
+  return { revenue: Number(t.revenue), jobs: Number(t.jobs), qty: Number(t.qty) };
+}
+
+export async function revenueGroup(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+  dimension: RevenueDimension,
+  limit = 500,
+) {
+  const f = filterClause(batchId, filters);
+  const expr = REVENUE_DIMENSIONS[dimension];
+  const rows = await client.query<{ key: string; revenue: string; jobs: string; qty: string }>(
+    `SELECT ${expr}::text AS key, COALESCE(SUM(revenue), 0) AS revenue, COUNT(*) AS jobs,
+            COALESCE(SUM(qty), 0) AS qty
+     FROM revenue_lines WHERE ${f.where} AND ${expr} IS NOT NULL
+     GROUP BY 1 ORDER BY SUM(revenue) DESC, 1 LIMIT ${Math.min(Math.max(limit, 1), 2000)}`,
+    f.params,
   );
-  const group = async (expr: string, limit: number) =>
-    (
-      await client.query(
-        `SELECT ${expr} AS label, SUM(revenue) AS revenue, COUNT(*) AS jobs, SUM(qty) AS qty
-         FROM revenue_lines WHERE ${f.where}
-         GROUP BY 1 ORDER BY SUM(revenue) DESC, 1 LIMIT ${limit}`,
-        f.params,
-      )
-    ).rows;
+  return {
+    totals: await totalsFor(client, f),
+    rows: rows.rows.map((r) => ({
+      key: r.key,
+      revenue: Number(r.revenue),
+      jobs: Number(r.jobs),
+      qty: Number(r.qty),
+    })),
+  };
+}
+
+// Two-way pivot (e.g. month x job type) used by the stacked charts and the
+// finance matrix reports.
+export async function revenueMatrix(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+  rowDimension: RevenueDimension,
+  columnDimension: RevenueDimension,
+) {
+  const f = filterClause(batchId, filters);
+  const r = REVENUE_DIMENSIONS[rowDimension];
+  const c = REVENUE_DIMENSIONS[columnDimension];
+  const cells = await client.query<{
+    row: string;
+    col: string;
+    revenue: string;
+    jobs: string;
+    qty: string;
+  }>(
+    `SELECT ${r}::text AS row, ${c}::text AS col, COALESCE(SUM(revenue), 0) AS revenue,
+            COUNT(*) AS jobs, COALESCE(SUM(qty), 0) AS qty
+     FROM revenue_lines WHERE ${f.where} AND ${r} IS NOT NULL AND ${c} IS NOT NULL
+     GROUP BY 1, 2 ORDER BY 1, 2`,
+    f.params,
+  );
+  return {
+    totals: await totalsFor(client, f),
+    cells: cells.rows.map((x) => ({
+      row: x.row,
+      col: x.col,
+      revenue: Number(x.revenue),
+      jobs: Number(x.jobs),
+      qty: Number(x.qty),
+    })),
+  };
+}
+
+export async function revenueExceptions(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+) {
+  const base = filterClause(batchId, { ...filters, exception: undefined });
+  const out = [];
+  for (const [key, def] of Object.entries(REVENUE_EXCEPTIONS)) {
+    const result = await client.query<{ jobs: string; revenue: string }>(
+      `SELECT COUNT(*) AS jobs, COALESCE(SUM(revenue), 0) AS revenue
+       FROM revenue_lines WHERE ${base.where} AND (${def.sql})`,
+      base.params,
+    );
+    out.push({
+      key,
+      label: def.label,
+      description: def.description,
+      jobs: Number(result.rows[0]!.jobs),
+      revenue: Number(result.rows[0]!.revenue),
+    });
+  }
+  return { totals: await totalsFor(client, base), exceptions: out };
+}
+
+export async function revenueSummary(client: PoolClient, batchId: string, filters: RevenueFilters) {
+  const f = filterClause(batchId, filters);
   const years = await client.query<{ year: number }>(
     `SELECT DISTINCT year FROM revenue_lines WHERE batch_id = $1 AND year IS NOT NULL ORDER BY year`,
     [batchId],
   );
-  const channels = await client.query<{ channel: string }>(
-    `SELECT DISTINCT COALESCE(sales_channel, '') AS channel FROM revenue_lines
-     WHERE batch_id = $1 ORDER BY 1`,
+  const distinct = async (dimension: RevenueDimension) =>
+    (
+      await client.query<{ v: string }>(
+        `SELECT DISTINCT ${REVENUE_DIMENSIONS[dimension]}::text AS v FROM revenue_lines
+         WHERE batch_id = $1 AND ${REVENUE_DIMENSIONS[dimension]} IS NOT NULL ORDER BY 1`,
+        [batchId],
+      )
+    ).rows.map((r) => r.v);
+  const weeksClause = filterClause(batchId, { year: filters.year, month: filters.month });
+  const weeks = await client.query<{ v: string }>(
+    `SELECT DISTINCT week_no::text AS v FROM revenue_lines
+     WHERE ${weeksClause.where} AND week_no IS NOT NULL ORDER BY 1`,
+    weeksClause.params,
+  );
+  const rates = await client.query<{ summary: { rates?: unknown } }>(
+    `SELECT summary FROM revenue_import_batches WHERE id = $1`,
     [batchId],
   );
-  const jobTypes = await client.query<{ jobType: string }>(
-    `SELECT DISTINCT job_type AS "jobType" FROM revenue_lines WHERE batch_id = $1 ORDER BY 1`,
-    [batchId],
-  );
-  const t = totals.rows[0]!;
   return {
-    totals: { revenue: Number(t.revenue), jobs: Number(t.jobs), qty: Number(t.qty) },
-    byMonth: byMonth.rows,
-    byJobType: await group('job_type', 20),
-    byChannel: await group("COALESCE(NULLIF(sales_channel, ''), 'UNASSIGNED')", 20),
-    bySalesPerson: await group("COALESCE(NULLIF(sales_person, ''), 'UNASSIGNED')", 10),
-    topCustomers: await group("COALESCE(NULLIF(customer, ''), 'UNKNOWN')", 10),
+    totals: await totalsFor(client, f),
+    rates: rates.rows[0]?.summary?.rates ?? [],
     options: {
       years: years.rows.map((r) => r.year),
-      channels: channels.rows.map((r) => r.channel),
-      jobTypes: jobTypes.rows.map((r) => r.jobType),
+      weeks: weeks.rows.map((r) => r.v).sort((a, b) => Number(a) - Number(b)),
+      jobTypes: await distinct('jobType'),
+      channels: await distinct('channel'),
+      costStatuses: await distinct('costStatus'),
     },
   };
 }
+
+const lineColumns = `
+  id, source_row AS "sourceRow", job_type AS "jobType", description,
+  inv_del_no AS "invDelNo", csosc_order_no AS "csoscOrderNo", order_date::text AS "orderDate",
+  year, week_no AS "weekNo", month_no AS "month", customer, lpo_no AS "lpoNo",
+  csosc_status AS "orderStatus", job_sheet_status AS "jobSheetStatus",
+  sales_person AS "salesPerson", qty, unit_price AS "unitPrice", revenue,
+  original_job_value AS "originalJobValue", billing_code AS "billingCode",
+  sales_channel AS "salesChannel", cost_status AS "costStatus", remarks
+`;
 
 export async function revenueLines(
   client: PoolClient,
@@ -283,17 +435,14 @@ export async function revenueLines(
   pageSize: number,
 ) {
   const f = filterClause(batchId, filters);
-  const totals = await client.query<{ total: string; revenue: string }>(
-    `SELECT COUNT(*) AS total, COALESCE(SUM(revenue), 0) AS revenue FROM revenue_lines WHERE ${f.where}`,
+  const totals = await client.query<{ total: string; revenue: string; qty: string }>(
+    `SELECT COUNT(*) AS total, COALESCE(SUM(revenue), 0) AS revenue, COALESCE(SUM(qty), 0) AS qty
+     FROM revenue_lines WHERE ${f.where}`,
     f.params,
   );
   const params = [...f.params, pageSize, (page - 1) * pageSize];
   const rows = await client.query(
-    `SELECT id, job_type AS "jobType", description, inv_del_no AS "invDelNo",
-            csosc_order_no AS "csoscOrderNo", order_date::text AS "orderDate", customer,
-            job_sheet_status AS "jobSheetStatus", sales_person AS "salesPerson", qty,
-            unit_price AS "unitPrice", revenue, billing_code AS "billingCode",
-            sales_channel AS "salesChannel", cost_status AS "costStatus"
+    `SELECT ${lineColumns}
      FROM revenue_lines WHERE ${f.where}
      ORDER BY order_date DESC NULLS LAST, id DESC
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -303,7 +452,23 @@ export async function revenueLines(
     items: rows.rows,
     total: Number(totals.rows[0]!.total),
     revenue: Number(totals.rows[0]!.revenue),
+    qty: Number(totals.rows[0]!.qty),
   };
+}
+
+export async function revenueExportLines(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+  limit = 50000,
+) {
+  const f = filterClause(batchId, filters);
+  const rows = await client.query(
+    `SELECT ${lineColumns} FROM revenue_lines WHERE ${f.where}
+     ORDER BY order_date DESC NULLS LAST, id DESC LIMIT ${limit}`,
+    f.params,
+  );
+  return rows.rows;
 }
 
 export async function budgetVsActual(
