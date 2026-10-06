@@ -8359,7 +8359,7 @@ ${bodyHtml}
       '<section class="detail-action-card"><h4>Customer</h4><div class="field-grid">' +
       '<div class="field"><label for="wiCustomerType">Customer type <span class="required">*</span></label><select id="wiCustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select><span class="field-error" data-error-for="wiCustomerType"></span></div>' +
       '<div class="field"><label for="wiCustomerName">Customer name <span class="required">*</span></label><input id="wiCustomerName" maxlength="200" /><span class="field-error" data-error-for="wiCustomerName"></span></div>' +
-      '<div class="field"><label for="wiCustomerContact">Contact number <span class="required">*</span> ' +
+      '<div class="field"><label for="wiCustomerContact">Contact number <span class="required" id="wiContactStar">*</span> ' +
       tip(
         'Used to warn you if this customer already has an open complaint, appointment or walk-in card.',
       ) +
@@ -8497,6 +8497,7 @@ ${bodyHtml}
     const b2bBox = $$('wiB2bFields');
     $$('wiCustomerType').addEventListener('change', () => {
       b2bBox.hidden = $$('wiCustomerType').value !== 'B2B';
+      $$('wiContactStar').hidden = $$('wiCustomerType').value === 'B2B';
     });
     populateSelectOptions('#wiSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#wiSalesChannel', salesChannelOptions, 'Select a sales channel');
