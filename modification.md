@@ -2304,3 +2304,18 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **Errors:** an unexpected server error now shows its real reason in the message (first 300 characters), and an invalid request lists which fields are wrong, instead of the generic text.
 
 **Needs you:** run `npm run db:migrate` (031) and restart.
+
+
+## Modification #67 — Dashboard redesign and live Kanban board
+
+**Date:** 2026-10-06 · **Scope:** dashboard.read · **migration 032** · restart · hard-refresh
+
+**What changed**
+- **Overview tab** restyled in the CRM style: a row of headline numbers (open cases, appointments today, awaiting job card, late cases, average TAT with on-time %), then two sections, **Service desk** (complaints, appointments, service job cards, warranty approvals) and **Sales & contracts** (quotations & inspections, VAS, AMC, Rate Card, Thomson). Each group is a card with compact tiles and bars. Every tile still opens its filtered list; the headline numbers are clickable too. Dark theme, keyboard focus and reduced-motion are supported. The status bars now actually fill (they were rendering empty before).
+- **Kanban board tab** (live, refreshes every minute and on the Refresh button): columns Scheduled, In progress on site, Awaiting job card, Job card open, Job card in progress, Completed (last 14 days). Cards are appointments and job cards (walk-in, scheduler, quotation) with reference, customer, item, B2C/B2B and warranty chips, technician or visit date, and a TAT badge. Filters: search, technician, customer type, turnaround. Clicking a card opens that appointment or job card.
+- **TAT** = Dubai calendar days from complaint logged (else walk-in intake / job card date) to now, or to completion. On track up to 3 days, at risk after that, late from 5 days. The thresholds are settings (revenue_settings keys tat_target_days, tat_late_days, seeded by migration 032); there is no screen to edit them yet.
+- New API: GET /api/dashboard/board (dashboard.read).
+
+**Not included:** drag-and-drop between columns (status changes still happen on the appointment / job card, so the board cannot drift from the records). Each column shows at most the 60 oldest cases.
+
+**Needs you:** run `npm run db:migrate` (032), restart, hard-refresh. Please confirm the 3 / 5 day thresholds, and whether TAT should start at booking instead of complaint logged.

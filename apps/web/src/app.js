@@ -3666,13 +3666,283 @@ ${bodyHtml}
     $('#dashboardUpdatedAt').textContent = `Last updated ${formatDate(new Date().toISOString())}`;
   }
 
+  // ---- Dashboard redesign (#67): hero KPIs + live kanban board -----------------
+  let dashboardBoard = null;
+  let dashboardSummary = null;
+  const BOARD_COLOURS = {
+    scheduled: '#1769aa',
+    on_site: '#0f7d8c',
+    awaiting_job_card: '#b5750a',
+    jc_open: '#6b46c1',
+    jc_progress: '#3a4fb5',
+    done: '#176b4d',
+  };
+  const TAT_LABEL = { on_track: 'On track', at_risk: 'At risk', late: 'Late' };
+  const boardFilter = { q: '', tech: '', type: '', tat: '' };
+
+  function setDashTab(name) {
+    const board = name === 'board';
+    $('#dashOverviewPanel').hidden = board;
+    $('#dashBoardPanel').hidden = !board;
+    document.querySelectorAll('[data-dash-tab]').forEach((tab) => {
+      const on = tab.dataset.dashTab === name;
+      tab.classList.toggle('is-active', on);
+      tab.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  function kpiHtml(label, value, note, color, action) {
+    const inner = `<span class="dash-kpi-label">${escapeHtml(label)}</span><span class="dash-kpi-value">${escapeHtml(String(value))}</span><span class="dash-kpi-note">${escapeHtml(note || '')}</span>`;
+    const style = `--kpi-color:${color}`;
+    return action
+      ? `<button type="button" class="dash-kpi" style="${style}" data-kpi="${action}">${inner}</button>`
+      : `<div class="dash-kpi" style="${style}">${inner}</div>`;
+  }
+
+  function renderDashHero(summary, board) {
+    const st = board?.stats;
+    const limits = board?.thresholds;
+    const tiles = [
+      kpiHtml(
+        'Open cases',
+        st ? st.open : '-',
+        'Appointments and job cards in flight',
+        '#1769aa',
+        'board',
+      ),
+      kpiHtml(
+        'Appointments today',
+        summary.appointments.today,
+        'Open the schedule',
+        '#0f7d8c',
+        'today',
+      ),
+      kpiHtml(
+        'Awaiting job card',
+        summary.jobCards.awaitingCreation ?? 0,
+        'Completed visits with no job card',
+        '#b5750a',
+        'awaiting',
+      ),
+      kpiHtml(
+        'Late cases',
+        st ? st.late : '-',
+        limits ? `${limits.late}+ days since logged` : '',
+        '#c53030',
+        'late',
+      ),
+      kpiHtml(
+        'Average TAT',
+        st && st.avgTatDays != null ? `${st.avgTatDays} d` : '-',
+        st && st.onTimePercent != null
+          ? `${st.onTimePercent}% on time, last 30 days (${st.completed30} done)`
+          : 'No completed job cards in the last 30 days',
+        '#176b4d',
+        null,
+      ),
+    ];
+    $('#dashHero').innerHTML = tiles.join('');
+  }
+
+  function boardCardMatches(card) {
+    if (boardFilter.tech && (card.technician || '') !== boardFilter.tech) return false;
+    if (boardFilter.type && (card.customerType || '') !== boardFilter.type) return false;
+    if (boardFilter.tat && card.tat !== boardFilter.tat) return false;
+    if (boardFilter.q) {
+      const hay = `${card.reference} ${card.customerName || ''} ${card.item || ''}`.toLowerCase();
+      if (!hay.includes(boardFilter.q)) return false;
+    }
+    return true;
+  }
+
+  function boardDueLabel(value) {
+    if (!value) return '';
+    const d = new Date(String(value).slice(0, 10) + 'T00:00:00');
+    return Number.isNaN(d.getTime())
+      ? ''
+      : d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+  }
+
+  function boardCardHtml(card, limits) {
+    const kind =
+      card.kind === 'appointment'
+        ? 'Appt'
+        : String(card.source || '')
+              .toLowerCase()
+              .startsWith('walk')
+          ? 'Walk-in'
+          : 'Job card';
+    const chips = [card.customerType, card.warranty]
+      .filter(Boolean)
+      .map((c) => `<span class="kb-chip">${escapeHtml(c)}</span>`)
+      .join('');
+    const percent = Math.min(100, Math.round((card.ageDays / Math.max(1, limits.late)) * 100));
+    const due = boardDueLabel(card.dueDate);
+    const dueText = due ? (card.kind === 'appointment' ? `Visit ${due}` : `Due ${due}`) : '';
+    return `<article class="kb-card tat-${card.tat}" tabindex="0" role="button" data-kb-kind="${card.kind}" data-kb-id="${escapeHtml(card.id)}" aria-label="${escapeHtml(`${kind} ${card.reference}, ${card.ageDays} days, ${TAT_LABEL[card.tat]}`)}">
+      <div class="kb-card-top"><span class="kb-ref">${escapeHtml(card.reference)}</span><span class="kb-kind">${kind}</span></div>
+      <div class="kb-cust">${escapeHtml(card.customerName || 'Customer not recorded')}</div>
+      ${card.item ? `<div class="kb-item">${escapeHtml(card.item)}</div>` : ''}
+      ${chips ? `<div class="kb-chips">${chips}</div>` : ''}
+      <div class="kb-meter" aria-hidden="true"><span style="width:${percent}%"></span></div>
+      <div class="kb-foot"><span class="kb-tech">${escapeHtml(card.technician || dueText || 'Unassigned')}</span><span class="kb-tat">${card.ageDays}d &middot; ${TAT_LABEL[card.tat]}</span></div>
+    </article>`;
+  }
+
+  function renderKanban() {
+    const board = dashboardBoard;
+    if (!board) {
+      $('#dashBoard').innerHTML = '<p class="kb-empty">Board data is not available right now.</p>';
+      $('#dashBoardStats').innerHTML = '';
+      $('#dashBoardLegend').textContent = '';
+      return;
+    }
+    const techSelect = $('#dashBoardTech');
+    const techs = [
+      ...new Set(board.columns.flatMap((c) => c.cards.map((x) => x.technician)).filter(Boolean)),
+    ].sort();
+    if (techs.join('|') !== techSelect.dataset.techs) {
+      techSelect.dataset.techs = techs.join('|');
+      techSelect.innerHTML =
+        '<option value="">All technicians</option>' +
+        techs.map((t) => `<option value="${escapeHtml(t)}">${escapeHtml(t)}</option>`).join('');
+      techSelect.value = boardFilter.tech;
+    }
+    const st = board.stats;
+    $('#dashBoardStats').innerHTML = [
+      kpiHtml('Open cases', st.open, 'Not yet completed', '#1769aa', null),
+      kpiHtml('At risk', st.atRisk, `Over ${board.thresholds.target} days`, '#b5750a', null),
+      kpiHtml('Late', st.late, `${board.thresholds.late}+ days`, '#c53030', null),
+      kpiHtml(
+        'Average TAT',
+        st.avgTatDays != null ? `${st.avgTatDays} d` : '-',
+        'Completed, last 30 days',
+        '#176b4d',
+        null,
+      ),
+      kpiHtml(
+        'On time',
+        st.onTimePercent != null ? `${st.onTimePercent}%` : '-',
+        `Within ${board.thresholds.target} days`,
+        '#176b4d',
+        null,
+      ),
+    ].join('');
+    $('#dashBoard').innerHTML = board.columns
+      .map((col) => {
+        const shown = col.cards.filter(boardCardMatches);
+        const filtered = shown.length !== col.cards.length;
+        const meta = [
+          col.avgDays != null ? `Avg ${col.avgDays} d` : null,
+          col.late ? `${col.late} late` : null,
+        ]
+          .filter(Boolean)
+          .join(' · ');
+        const body = shown.length
+          ? shown.map((c) => boardCardHtml(c, board.thresholds)).join('')
+          : '<p class="kb-empty">No cases</p>';
+        const more =
+          !filtered && col.count > col.cards.length
+            ? `<p class="kb-more">Showing the ${col.cards.length} oldest of ${col.count}</p>`
+            : '';
+        return `<section class="kb-col" style="--col:${BOARD_COLOURS[col.key] || '#1769aa'}" aria-label="${escapeHtml(col.label)}">
+          <div class="kb-col-head"><div class="kb-col-title"><span>${escapeHtml(col.label)}</span><span class="kb-count">${filtered ? `${shown.length}/${col.count}` : col.count}</span></div><div class="kb-col-meta" title="${escapeHtml(col.hint)}">${escapeHtml(meta || col.hint)}</div></div>
+          <div class="kb-list">${body}${more}</div>
+        </section>`;
+      })
+      .join('');
+    $('#dashBoardLegend').textContent =
+      `Turnaround counts calendar days (Dubai) from when the complaint was logged, or the walk-in was received. ` +
+      `On track up to ${board.thresholds.target} days, at risk after that, late from ${board.thresholds.late} days. ` +
+      `Updates automatically every minute.`;
+  }
+
+  async function refreshDashboardQuiet() {
+    try {
+      const [summary, board] = await Promise.all([
+        apiRequest('/api/dashboard/summary'),
+        apiRequest('/api/dashboard/board').catch(() => null),
+      ]);
+      dashboardSummary = summary.summary;
+      dashboardBoard = board?.board || null;
+      renderDashboard(dashboardSummary);
+      renderDashHero(dashboardSummary, dashboardBoard);
+      renderKanban();
+    } catch {
+      /* keep the last good view on a transient failure */
+    }
+  }
+
+  document
+    .querySelectorAll('[data-dash-tab]')
+    .forEach((tab) => tab.addEventListener('click', () => setDashTab(tab.dataset.dashTab)));
+  $('#dashHero').addEventListener('click', (event) => {
+    const kpi = event.target.closest('[data-kpi]');
+    if (!kpi) return;
+    const action = kpi.dataset.kpi;
+    if (action === 'today') goToAppointmentsToday();
+    else if (action === 'awaiting') goToJobCardsFiltered(AWAITING_JOB_CARD_FILTER);
+    else if (action === 'late') {
+      boardFilter.tat = 'late';
+      $('#dashBoardTat').value = 'late';
+      setDashTab('board');
+      renderKanban();
+    } else setDashTab('board');
+  });
+  $('#dashBoardSearch').addEventListener('input', (event) => {
+    boardFilter.q = event.target.value.trim().toLowerCase();
+    renderKanban();
+  });
+  [
+    ['#dashBoardTech', 'tech'],
+    ['#dashBoardType', 'type'],
+    ['#dashBoardTat', 'tat'],
+  ].forEach(([sel, key]) =>
+    $(sel).addEventListener('change', (event) => {
+      boardFilter[key] = event.target.value;
+      renderKanban();
+    }),
+  );
+  function openBoardCard(card) {
+    if (!card) return;
+    if (card.dataset.kbKind === 'appointment') {
+      setWorkspaceMode('appointments');
+      loadAppointmentDetail(card.dataset.kbId);
+    } else {
+      setWorkspaceMode('job-cards');
+      loadJobCardDetail(card.dataset.kbId);
+    }
+  }
+  $('#dashBoard').addEventListener('click', (event) =>
+    openBoardCard(event.target.closest('[data-kb-id]')),
+  );
+  $('#dashBoard').addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const card = event.target.closest('[data-kb-id]');
+    if (!card) return;
+    event.preventDefault();
+    openBoardCard(card);
+  });
+  setInterval(() => {
+    if (document.hidden || $('#dashboardWorkspace').hidden || !hasPermission('dashboard.read'))
+      return;
+    refreshDashboardQuiet();
+  }, 60000);
+
   async function loadDashboard() {
     if (!hasPermission('dashboard.read')) return;
     clearWorkspaceRecovery();
     $('#dashboardEmpty').hidden = true;
     try {
-      const result = await apiRequest('/api/dashboard/summary');
+      const [result, boardResult] = await Promise.all([
+        apiRequest('/api/dashboard/summary'),
+        apiRequest('/api/dashboard/board').catch(() => null),
+      ]);
+      dashboardSummary = result.summary;
+      dashboardBoard = boardResult?.board || null;
       renderDashboard(result.summary);
+      renderDashHero(result.summary, dashboardBoard);
+      renderKanban();
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -3687,6 +3957,12 @@ ${bodyHtml}
   }
 
   function resetDashboardWorkspace() {
+    dashboardBoard = null;
+    dashboardSummary = null;
+    $('#dashHero').innerHTML = '';
+    $('#dashBoard').innerHTML = '';
+    $('#dashBoardStats').innerHTML = '';
+    setDashTab('overview');
     $('#dashComplaintTiles').innerHTML = '';
     $('#dashAppointmentTiles').innerHTML = '';
     $('#dashJobCardTiles').innerHTML = '';

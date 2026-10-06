@@ -16,5 +16,15 @@ export function createDashboardHandlers(
         }
       },
     ],
+    board: [
+      requirePermission('dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json({ board: await service.board() });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
   };
 }

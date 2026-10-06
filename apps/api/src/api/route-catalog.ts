@@ -688,6 +688,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        board: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const scheduleHandlers = pool
     ? createScheduleHandlers(createScheduleService(pool), requirePermission)
@@ -2703,6 +2707,17 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: dashboardHandlers.summary,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/dashboard/board',
+        operationId: 'getDashboardBoard',
+        tags: ['Dashboard'],
+        summary:
+          'Kanban board of open appointments and job cards by stage, with turnaround time (TAT) per case',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: dashboardHandlers.board,
       },
     ],
   ];
