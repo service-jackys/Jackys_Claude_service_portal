@@ -5,11 +5,13 @@ import {
   serviceJobCardStatusUpdateSchema,
   serviceJobCardCreateSchema,
   serviceJobCardUpdateSchema,
+  walkInJobCardCreateSchema,
   type JobCardPart,
   type ServiceJobCardCreateInput,
   type ServiceJobCardUpdateInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
+  findOpenRecordsForContact,
   findServiceJobCardByAppointmentId,
   findServiceJobCardByQuotationId,
   findServiceJobCardById,
@@ -29,7 +31,10 @@ import {
 import { findQuotationById, type QuotationRecord } from '../../../../packages/db/src/quotations.js';
 import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
 import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
-import { allocateJobCardReference } from '../../../../packages/db/src/references.js';
+import {
+  allocateJobCardReference,
+  allocateWalkInJobCardReference,
+} from '../../../../packages/db/src/references.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class ServiceJobCardError extends Error {
@@ -130,6 +135,15 @@ function defaultsFromAppointment(
     schoolContactNumber: appointment.b2bBranchSchool ? appointment.schoolContactNumber : null,
     customerNumber: appointment.customerNumber,
     legacyReference: null,
+    itemCode: appointment.itemCode,
+    mainGroup: null,
+    groupName: null,
+    subGroup: appointment.subGroup,
+    itemInMaster: null,
+    serialNo: null,
+    purchaseDate: null,
+    accessoriesReceived: null,
+    conditionNotes: null,
   };
 }
 
@@ -172,6 +186,15 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
     schoolContactNumber: null,
     customerNumber: null,
     legacyReference: quotation.legacyReference,
+    itemCode: null,
+    mainGroup: null,
+    groupName: null,
+    subGroup: null,
+    itemInMaster: null,
+    serialNo: null,
+    purchaseDate: null,
+    accessoriesReceived: null,
+    conditionNotes: null,
   };
 }
 
@@ -404,6 +427,98 @@ export function createServiceJobCardService(pool: Pool) {
     });
   }
 
+  // ---- Walk-in job cards (modification.md #59) ----
+  // The customer comes straight to the service centre: no complaint, no
+  // appointment, no quotation. The card is opened at the counter with the
+  // essentials and everything else is filled in as the repair progresses.
+
+  async function walkInContactCheck(contact: unknown) {
+    const client = await pool.connect();
+    try {
+      return await findOpenRecordsForContact(client, typeof contact === 'string' ? contact : '');
+    } finally {
+      client.release();
+    }
+  }
+
+  async function createWalkIn(input: unknown, profileId: string, requestId: string = randomUUID()) {
+    const data = walkInJobCardCreateSchema.parse(input ?? {});
+    return withTransaction(pool, async (client) => {
+      const intakeAt = new Date();
+      const today = intakeAt.toISOString().slice(0, 10);
+      const content = mergeContent(
+        {
+          jobCardDate: today,
+          customerName: null,
+          customerContact: null,
+          customerAddress: null,
+          itemDescription: null,
+          modelNo: null,
+          warrantyStatus: null,
+          complaint: null,
+          serviceRendered: null,
+          periodFrom: null,
+          periodTo: null,
+          timeConsumedHours: null,
+          parts: [],
+          totalCost: 0,
+          serviceCharge: 0,
+          grandTotal: 0,
+          amountChargeable: null,
+          invoiceNo: null,
+          deliveryDate: null,
+          technicianName: null,
+          brand: null,
+          salesman: null,
+          salesChannel: null,
+          jobFinalStatus: 'WIP',
+          schoolContactPerson: null,
+          schoolContactNumber: null,
+          customerNumber: null,
+          legacyReference: null,
+          itemCode: null,
+          mainGroup: null,
+          groupName: null,
+          subGroup: null,
+          itemInMaster: null,
+          serialNo: null,
+          purchaseDate: null,
+          accessoriesReceived: null,
+          conditionNotes: null,
+        },
+        data,
+      );
+      const jobCardReference = await allocateWalkInJobCardReference(client, today);
+      const jobCard = await insertServiceJobCard(client, {
+        jobCardReference,
+        appointmentId: null,
+        quotationId: null,
+        sourceType: 'Walk-in',
+        createdBy: profileId,
+        content,
+        intakeAt,
+      });
+      await insertServiceJobCardHistory(
+        client,
+        jobCard.id,
+        null,
+        'Open',
+        profileId,
+        'Walk-in intake',
+        requestId,
+      );
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'job_card.created',
+        targetType: 'service_job_card',
+        targetId: jobCard.id,
+        metadata: { jobCardReference: jobCard.jobCardReference, sourceType: 'Walk-in' },
+        requestId,
+      });
+      return jobCard;
+    });
+  }
+
   async function updateContent(
     id: string,
     input: unknown,
@@ -452,6 +567,15 @@ export function createServiceJobCardService(pool: Pool) {
           schoolContactNumber: current.schoolContactNumber,
           customerNumber: current.customerNumber,
           legacyReference: current.legacyReference,
+          itemCode: current.itemCode,
+          mainGroup: current.mainGroup,
+          groupName: current.groupName,
+          subGroup: current.subGroup,
+          itemInMaster: current.itemInMaster,
+          serialNo: current.serialNo,
+          purchaseDate: current.purchaseDate,
+          accessoriesReceived: current.accessoriesReceived,
+          conditionNotes: current.conditionNotes,
         },
         overrides,
       );
@@ -583,6 +707,8 @@ export function createServiceJobCardService(pool: Pool) {
     prefillFromQuotation,
     createFromQuotation,
     byQuotation,
+    createWalkIn,
+    walkInContactCheck,
   };
 }
 

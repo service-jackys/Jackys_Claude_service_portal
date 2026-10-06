@@ -673,6 +673,7 @@
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
     $('#stockMasterNav').hidden = !hasPermission('stock.write');
+    $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
     if (hasPermission('scheduler.read')) {
@@ -1038,8 +1039,14 @@
         <div class="field"><label for="${prefix}CustomerContact">Customer contact</label><input type="text" id="${prefix}CustomerContact" maxlength="50"></div>
         <div class="field"><label for="${prefix}CustomerAddress">Customer address</label><input type="text" id="${prefix}CustomerAddress" maxlength="500"></div>
         <div class="field"><label for="${prefix}ItemDescription">Item description</label><input type="text" id="${prefix}ItemDescription" maxlength="300"></div>
-        <div class="field"><label for="${prefix}ModelNo">Model no.</label><input type="text" id="${prefix}ModelNo" maxlength="120"></div>
-        <div class="field"><label for="${prefix}Brand">Brand</label><input type="text" id="${prefix}Brand" maxlength="120"></div>
+        <div class="field"><label for="${prefix}ModelNo">Model no. (item code) <span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">Type an item code or description to search the stock master, or pick a brand first to list only its models. Picking a result fills brand, description, group and sub group.</span></span></label><input type="text" id="${prefix}ModelNo" maxlength="120" autocomplete="off"></div>
+        <div class="field"><label for="${prefix}Brand">Brand</label><input type="text" id="${prefix}Brand" maxlength="120" autocomplete="off"></div>
+        <div class="field"><label for="${prefix}MainGroup">Main group</label><input type="text" id="${prefix}MainGroup" maxlength="120"></div>
+        <div class="field"><label for="${prefix}GroupName">Group</label><input type="text" id="${prefix}GroupName" maxlength="120"></div>
+        <div class="field"><label for="${prefix}SubGroup">Sub group</label><input type="text" id="${prefix}SubGroup" maxlength="120"></div>
+        <div class="field"><label for="${prefix}SerialNo">Serial number</label><input type="text" id="${prefix}SerialNo" maxlength="120"></div>
+        <div class="field"><label for="${prefix}PurchaseDate">Purchase date</label><input type="date" id="${prefix}PurchaseDate"></div>
+        <input type="hidden" id="${prefix}ItemCode">
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
         <div class="field"><label for="${prefix}Salesman">Salesman</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
@@ -1085,6 +1092,15 @@
     $('#jobCardContentFields').innerHTML = jobCardFieldsHtml('jce');
     $('#quotationJobCardCreateFields').innerHTML = jobCardFieldsHtml('jcq');
     ['jcc', 'jce', 'jcq'].forEach((prefix) => {
+      attachItemPicker({
+        brand: $(`#${prefix}Brand`),
+        model: $(`#${prefix}ModelNo`),
+        desc: $(`#${prefix}ItemDescription`),
+        code: $(`#${prefix}ItemCode`),
+        mainGroup: $(`#${prefix}MainGroup`),
+        group: $(`#${prefix}GroupName`),
+        subGroup: $(`#${prefix}SubGroup`),
+      });
       $(`#${prefix}AddPartButton`).addEventListener('click', () => {
         jobCardPartsState[prefix].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
         renderJobCardParts(prefix);
@@ -1189,6 +1205,28 @@
     $(`#${prefix}ItemDescription`).value = content.itemDescription || '';
     $(`#${prefix}ModelNo`).value = content.modelNo || '';
     $(`#${prefix}Brand`).value = content.brand || '';
+    $(`#${prefix}MainGroup`).value = content.mainGroup || '';
+    $(`#${prefix}GroupName`).value = content.groupName || '';
+    $(`#${prefix}SubGroup`).value = content.subGroup || '';
+    $(`#${prefix}SerialNo`).value = content.serialNo || '';
+    $(`#${prefix}PurchaseDate`).value = content.purchaseDate
+      ? content.purchaseDate.slice(0, 10)
+      : '';
+    $(`#${prefix}ItemCode`).value = content.itemCode || '';
+    [
+      `#${prefix}ModelNo`,
+      `#${prefix}Brand`,
+      `#${prefix}ItemDescription`,
+      `#${prefix}MainGroup`,
+      `#${prefix}GroupName`,
+      `#${prefix}SubGroup`,
+    ].forEach((selector) => {
+      const input = $(selector);
+      input.classList.remove('sm-filled');
+      input.removeAttribute('title');
+      input.closest('.field')?.classList.remove('sm-autofilled');
+    });
+    setItemPickerState($(`#${prefix}ModelNo`), content.itemInMaster ?? null, content.itemCode);
     $(`#${prefix}WarrantyStatus`).value = content.warrantyStatus || '';
     $(`#${prefix}TechnicianName`).value = content.technicianName || '';
     populateSelectOptions(
@@ -1237,6 +1275,13 @@
       itemDescription: $(`#${prefix}ItemDescription`).value.trim() || undefined,
       modelNo: $(`#${prefix}ModelNo`).value.trim() || undefined,
       brand: $(`#${prefix}Brand`).value.trim() || undefined,
+      mainGroup: $(`#${prefix}MainGroup`).value.trim() || undefined,
+      groupName: $(`#${prefix}GroupName`).value.trim() || undefined,
+      subGroup: $(`#${prefix}SubGroup`).value.trim() || undefined,
+      serialNo: $(`#${prefix}SerialNo`).value.trim() || undefined,
+      purchaseDate: $(`#${prefix}PurchaseDate`).value || undefined,
+      itemCode: $(`#${prefix}ItemCode`).value.trim() || undefined,
+      itemInMaster: readItemInMaster($(`#${prefix}ModelNo`)),
       warrantyStatus: $(`#${prefix}WarrantyStatus`).value.trim() || undefined,
       technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
       salesman: $(`#${prefix}Salesman`).value.trim() || undefined,
@@ -1948,6 +1993,7 @@ ${bodyHtml}
       <h2>Job details</h2>
       ${printFieldGrid([
         ['Appointment ref.', jobCard.appointmentReference],
+        ['Source', jobCard.sourceType],
         ['Job card date', jobCard.jobCardDate],
         ['Customer name', jobCard.customerName],
         ['Customer contact', jobCard.customerContact],
@@ -1955,6 +2001,12 @@ ${bodyHtml}
         ['Item description', jobCard.itemDescription],
         ['Model no.', jobCard.modelNo],
         ['Brand', jobCard.brand],
+        ['Main group / group', [jobCard.mainGroup, jobCard.groupName].filter(Boolean).join(' / ')],
+        ['Sub group', jobCard.subGroup],
+        ['Serial number', jobCard.serialNo],
+        ['Purchase date', jobCard.purchaseDate],
+        ['Accessories received', jobCard.accessoriesReceived],
+        ['Condition at drop-off', jobCard.conditionNotes],
         ['Warranty status', jobCard.warrantyStatus],
         ['Technician', jobCard.technicianName],
         ['Salesman', jobCard.salesman],
@@ -2840,6 +2892,7 @@ ${bodyHtml}
 
   function resetNewComplaintForm() {
     $('#newComplaintForm').reset();
+    clearItemPickerMarks($('#newComplaintForm'));
     clearErrors($('#newComplaintForm'));
     applyNewComplaintCustomerTypeGating();
     $('#newComplaintB2bBranchSearchInput').value = '';
@@ -3624,9 +3677,20 @@ ${bodyHtml}
       }
       renderWorkflowLinks('jobCardWorkflowLinks', jobCardWorkflowLinks);
       const details = [
+        ['Source', jobCard.sourceType],
         ['Appointment', jobCard.appointmentReference],
         ['Customer', jobCard.customerName],
         ['Contact', jobCard.customerContact],
+        ['Brand / model', [jobCard.brand, jobCard.modelNo].filter(Boolean).join(' ')],
+        ['Item description', jobCard.itemDescription],
+        [
+          'Group / sub group',
+          [jobCard.mainGroup, jobCard.groupName, jobCard.subGroup].filter(Boolean).join(' › '),
+        ],
+        ['Serial number', jobCard.serialNo],
+        ['Accessories received', jobCard.accessoriesReceived],
+        ['Condition at drop-off', jobCard.conditionNotes],
+        ['Received (walk-in)', jobCard.intakeAt ? formatDate(jobCard.intakeAt) : ''],
         ['Appointment date', jobCard.appointmentDate],
         ['Fault description', jobCard.faultDescription],
         ['Complaint', jobCard.complaint],
@@ -4478,6 +4542,7 @@ ${bodyHtml}
     scheduleB2bBranchSearchSequence += 1;
     if (scheduleB2bBranchSearchDebounce) clearTimeout(scheduleB2bBranchSearchDebounce);
     $('#scheduleForm').reset();
+    clearItemPickerMarks($('#scheduleForm'));
     clearErrors($('#scheduleForm'));
     $('#technicianId').innerHTML = '<option value="">Select a date first</option>';
     $('#technicianId').disabled = true;
@@ -7430,19 +7495,18 @@ ${bodyHtml}
     const printButton = saleHost.querySelector('[data-vs-print]');
     const vsCode = saleHost.querySelector('[data-vs-item-code]');
     const vsDesc = saleHost.querySelector('[data-vs-item-description]');
-    const vsPick = (item) => {
-      setFieldValue(vsCode, item.itemCode);
-      setFieldValue(vsDesc, item.itemDesc);
-    };
-    attachStockLookup(vsCode, vsPick);
-    attachStockLookup(vsDesc, vsPick);
+    attachItemPicker({ model: vsCode, desc: vsDesc });
     const messageHost = saleHost.querySelector('[data-vs-message]');
     let savedSale = null;
 
     function clearSaleFormInputs() {
       saleHost.querySelectorAll('.field-grid input').forEach((el) => {
         el.value = '';
+        el.classList.remove('sm-filled');
+        el.removeAttribute('title');
+        el.closest('.field')?.classList.remove('sm-autofilled');
       });
+      setItemPickerState(vsCode, null);
     }
 
     saveButton.addEventListener('click', async () => {
@@ -7615,124 +7679,358 @@ ${bodyHtml}
   }
 
   // --- Stock master ---------------------------------------------------------
-  // Item lookup: type an item code (or part of the description) and pick a hit
-  // to fill the related fields. Reads /api/stock/items (MDA and SDA only).
-  function attachStockLookup(input, onPick) {
-    if (!input || input.dataset.stockLookup) return;
-    input.dataset.stockLookup = '1';
-    input.setAttribute('autocomplete', 'off');
-    const parent = input.parentElement;
-    parent.classList.add('sm-host');
-    const list = document.createElement('div');
-    list.className = 'sm-suggest';
-    list.hidden = true;
-    list.setAttribute('role', 'listbox');
-    parent.appendChild(list);
-    let timer = null;
-    let sequence = 0;
-    let hits = [];
-    let active = -1;
-
-    function close() {
-      list.hidden = true;
-      active = -1;
-    }
-    function highlight() {
-      list.querySelectorAll('.sm-hit').forEach((el, index) => {
-        el.classList.toggle('is-active', index === active);
+  // --- Item picker (stock master) -------------------------------------------
+  // One lookup used by every form that has a brand / model: pick a brand first
+  // and the model list narrows to that brand, or just type an item code or
+  // description. Picking a result fills model (the ItemCode), brand,
+  // description, main group, group and sub group; manual typing is always
+  // allowed and is remembered as "not in stock master".
+  let stockFacetsPromise = null;
+  function loadStockFacets() {
+    if (!stockFacetsPromise) {
+      stockFacetsPromise = apiRequest('/api/stock/facets').catch(() => {
+        stockFacetsPromise = null;
+        return { brands: [], groups: [] };
       });
     }
-    function pick(index) {
-      const item = hits[index];
-      if (!item) return;
-      close();
-      onPick(item);
+    return stockFacetsPromise;
+  }
+
+  const PICKER_HINT =
+    'Search the stock master: choose a brand first to list only its models, or type an item code or description. Picking a result fills brand, group and sub group.';
+
+  function pickerFieldWrap(input) {
+    return input.closest('.field') || input.parentElement;
+  }
+
+  function setPickerHint(modelInput, kind, code) {
+    const wrap = pickerFieldWrap(modelInput);
+    let hint = wrap.querySelector('.sm-hint');
+    if (!hint) {
+      hint = document.createElement('small');
+      hint.className = 'sm-hint';
+      wrap.appendChild(hint);
     }
-    function show() {
-      if (hits.length === 0) {
-        close();
-        return;
-      }
-      list.innerHTML = hits
-        .map(
-          (item, index) =>
-            '<button type="button" class="sm-hit" role="option" data-index="' +
-            index +
-            '"><strong>' +
-            escapeHtml(item.itemCode) +
-            '</strong><span>' +
-            escapeHtml(item.itemDesc) +
-            '</span><em>' +
-            escapeHtml([item.brand, item.groupName, item.subGroup].filter(Boolean).join(' · ')) +
-            '</em></button>',
-        )
-        .join('');
-      list.hidden = false;
-      active = -1;
+    hint.dataset.kind = kind;
+    hint.textContent =
+      kind === 'found'
+        ? 'Stock master item ' + code + ' — related fields were filled; you can still edit them.'
+        : kind === 'manual'
+          ? 'Not in the stock master — it will be saved as typed.'
+          : PICKER_HINT;
+  }
+
+  function clearItemPickerMarks(container) {
+    container.querySelectorAll('.sm-filled').forEach((input) => {
+      input.classList.remove('sm-filled');
+      input.removeAttribute('title');
+    });
+    container
+      .querySelectorAll('.sm-autofilled')
+      .forEach((wrap) => wrap.classList.remove('sm-autofilled'));
+    container.querySelectorAll('input[data-in-master]').forEach((input) => {
+      input.dataset.inMaster = '';
+      setPickerHint(input, 'idle');
+    });
+  }
+
+  // Called when a form is loaded with an existing record, so the hint and the
+  // in-master flag reflect what was saved.
+  function setItemPickerState(modelInput, inMaster, code) {
+    if (!modelInput) return;
+    modelInput.dataset.inMaster = inMaster === true ? 'true' : inMaster === false ? 'false' : '';
+    modelInput.classList.toggle('sm-filled', inMaster === true);
+    setPickerHint(
+      modelInput,
+      inMaster === true ? 'found' : inMaster === false ? 'manual' : 'idle',
+      code || modelInput.value,
+    );
+  }
+
+  function readItemInMaster(modelInput) {
+    const value = modelInput?.dataset.inMaster;
+    return value === 'true' ? true : value === 'false' ? false : undefined;
+  }
+
+  function attachItemPicker(fields) {
+    const { model, brand, desc } = fields;
+    const anchor = model || desc || brand;
+    if (!anchor || anchor.dataset.itemPicker) return;
+    anchor.dataset.itemPicker = '1';
+    const state = { picked: null, filling: false, allBrands: false };
+    const marked = [];
+
+    function exactBrand(facets) {
+      const typed = (brand?.value || '').trim().toLowerCase();
+      if (!typed || state.allBrands) return '';
+      const match = facets.brands.find((entry) => entry.brand.toLowerCase() === typed);
+      return match ? match.brand : '';
     }
-    async function search() {
-      const term = input.value.trim();
-      if (term.length < 2 || !hasPermission('stock.read')) {
-        close();
-        return;
+
+    function setValue(input, value) {
+      if (!input || value === null || value === undefined || value === '') return;
+      const max = Number(input.getAttribute('maxlength')) || 0;
+      input.value = max ? String(value).slice(0, max) : String(value);
+      if (input.type !== 'hidden') {
+        input.classList.add('sm-filled');
+        input.title = 'Filled from the stock master';
+        pickerFieldWrap(input).classList.add('sm-autofilled');
+        marked.push(input);
       }
-      const mine = ++sequence;
-      try {
-        const data = await apiRequest(
-          '/api/stock/items?q=' + encodeURIComponent(term) + '&limit=10',
-        );
+    }
+
+    function clearMark(input) {
+      input.classList.remove('sm-filled');
+      input.removeAttribute('title');
+      pickerFieldWrap(input).classList.remove('sm-autofilled');
+    }
+
+    function fill(item) {
+      state.filling = true;
+      marked.splice(0).forEach(clearMark);
+      setValue(model, item.itemCode);
+      setValue(fields.code, item.itemCode);
+      setValue(brand, item.brand);
+      setValue(desc, item.itemDesc);
+      setValue(fields.mainGroup, item.mainGroup);
+      setValue(fields.group, item.groupName);
+      setValue(fields.subGroup, item.subGroup);
+      state.picked = item.itemCode;
+      state.allBrands = false;
+      if (model) setItemPickerState(model, true, item.itemCode);
+      else if (desc) desc.dataset.inMaster = 'true';
+      state.filling = false;
+    }
+
+    function makeDropdown(input, getHits, renderHeader) {
+      const wrap = pickerFieldWrap(input);
+      wrap.classList.add('sm-host');
+      input.classList.add('sm-lookup');
+      const list = document.createElement('div');
+      list.className = 'sm-suggest';
+      list.hidden = true;
+      list.setAttribute('role', 'listbox');
+      wrap.appendChild(list);
+      let hits = [];
+      let active = -1;
+      let sequence = 0;
+      let timer = null;
+      let stale = false;
+      const close = () => {
+        list.hidden = true;
+        active = -1;
+      };
+      const highlight = () =>
+        list.querySelectorAll('.sm-hit').forEach((el, index) => {
+          el.classList.toggle('is-active', index === active);
+        });
+      async function run() {
+        if (!hasPermission('stock.read')) return close();
+        const mine = ++sequence;
+        const result = await getHits();
         if (mine !== sequence) return;
-        hits = data.items;
-        show();
-      } catch {
+        stale = false;
+        hits = result.hits;
+        const header = renderHeader ? renderHeader(result) : '';
+        if (!hits.length && !result.message) return close();
+        list.innerHTML =
+          (header ? '<div class="sm-head">' + header + '</div>' : '') +
+          (hits.length
+            ? hits.map((entry, index) => entry.html(index)).join('')
+            : '<div class="sm-empty">' + escapeHtml(result.message) + '</div>');
+        list.hidden = false;
+        active = -1;
+      }
+      const schedule = () => {
+        // The list on screen belongs to the previous text until the new
+        // search returns, so it must not be selectable in the meantime.
+        stale = true;
+        active = -1;
+        highlight();
+        clearTimeout(timer);
+        timer = setTimeout(run, 180);
+      };
+      input.addEventListener('input', schedule);
+      input.addEventListener('focus', run);
+      input.addEventListener('blur', () => setTimeout(close, 150));
+      input.addEventListener('keydown', (event) => {
+        if (list.hidden) return;
+        if (stale) {
+          if (event.key === 'Enter') event.preventDefault();
+          return;
+        }
+        if (event.key === 'ArrowDown') {
+          event.preventDefault();
+          active = Math.min(active + 1, hits.length - 1);
+          highlight();
+        } else if (event.key === 'ArrowUp') {
+          event.preventDefault();
+          active = Math.max(active - 1, 0);
+          highlight();
+        } else if (event.key === 'Enter' && active >= 0) {
+          event.preventDefault();
+          hits[active].pick();
+          close();
+        } else if (event.key === 'Escape') {
+          close();
+        }
+      });
+      list.addEventListener('mousedown', (event) => {
+        if (stale) {
+          event.preventDefault();
+          return;
+        }
+        const allBrands = event.target.closest('[data-sm-all-brands]');
+        if (allBrands) {
+          event.preventDefault();
+          state.allBrands = true;
+          run();
+          return;
+        }
+        const button = event.target.closest('.sm-hit');
+        if (!button) return;
+        event.preventDefault();
+        hits[Number(button.dataset.index)].pick();
         close();
+      });
+      return { close };
+    }
+
+    const itemHit = (item) => ({
+      pick: () => fill(item),
+      html: (index) =>
+        '<button type="button" class="sm-hit" role="option" data-index="' +
+        index +
+        '"><strong>' +
+        escapeHtml(item.itemCode) +
+        '</strong><span>' +
+        escapeHtml(item.itemDesc) +
+        '</span><em>' +
+        escapeHtml([item.brand, item.groupName, item.subGroup].filter(Boolean).join(' · ')) +
+        '</em></button>',
+    });
+
+    async function searchItems(input) {
+      const facets = await loadStockFacets();
+      const term = input.value.trim();
+      const brandFilter = exactBrand(facets);
+      if (term.length < 2 && !brandFilter) {
+        return {
+          hits: [],
+          brandFilter,
+          message: 'Type at least 2 characters, or choose a brand first.',
+        };
+      }
+      const params = new URLSearchParams({ q: term, limit: '12' });
+      if (brandFilter) params.set('brand', brandFilter);
+      try {
+        const data = await apiRequest('/api/stock/items?' + params);
+        return {
+          hits: data.items.map(itemHit),
+          brandFilter,
+          message: 'No match in the stock master. Keep typing to enter it manually.',
+        };
+      } catch {
+        return { hits: [], brandFilter, message: '' };
       }
     }
-    input.addEventListener('input', () => {
-      clearTimeout(timer);
-      timer = setTimeout(search, 220);
+
+    const brandHeader = (result) =>
+      result.brandFilter
+        ? 'Models for <strong>' +
+          escapeHtml(result.brandFilter) +
+          '</strong> · <a href="#" data-sm-all-brands>search all brands</a>'
+        : '';
+
+    if (model) makeDropdown(model, () => searchItems(model), brandHeader);
+    if (desc && desc !== model) makeDropdown(desc, () => searchItems(desc), brandHeader);
+    if (brand) {
+      const dropdown = makeDropdown(brand, async () => {
+        const facets = await loadStockFacets();
+        const typed = brand.value.trim().toLowerCase();
+        const matches = facets.brands
+          .filter((entry) => !typed || entry.brand.toLowerCase().includes(typed))
+          .sort(
+            (a, b) =>
+              Number(b.brand.toLowerCase().startsWith(typed)) -
+              Number(a.brand.toLowerCase().startsWith(typed)),
+          )
+          .slice(0, 10);
+        return {
+          hits: matches.map((entry) => ({
+            pick: () => {
+              state.filling = true;
+              brand.value = entry.brand;
+              state.allBrands = false;
+              state.filling = false;
+              (model || desc)?.focus();
+            },
+            html: (index) =>
+              '<button type="button" class="sm-hit sm-brand" role="option" data-index="' +
+              index +
+              '"><strong>' +
+              escapeHtml(entry.brand) +
+              '</strong><em>' +
+              entry.count +
+              ' items</em></button>',
+          })),
+          message: typed ? 'No brand matches — it will be saved as typed.' : '',
+        };
+      });
+      void dropdown;
+      brand.addEventListener('input', () => {
+        if (state.filling) return;
+        state.allBrands = false;
+        clearMark(brand);
+      });
+    }
+
+    // Manual typing in the model / description after a pick means the item is
+    // no longer the stock-master one.
+    [model, desc].filter(Boolean).forEach((input) => {
+      input.addEventListener('input', () => {
+        if (state.filling) return;
+        clearMark(input);
+        if (model) {
+          const typed = model.value.trim();
+          if (state.picked && typed === state.picked) return;
+          state.picked = null;
+          model.dataset.inMaster = typed ? 'false' : '';
+          if (fields.code) fields.code.value = '';
+          setPickerHint(model, 'idle');
+        }
+      });
     });
-    input.addEventListener('keydown', (event) => {
-      if (list.hidden) return;
-      if (event.key === 'ArrowDown') {
-        event.preventDefault();
-        active = Math.min(active + 1, hits.length - 1);
-        highlight();
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault();
-        active = Math.max(active - 1, 0);
-        highlight();
-      } else if (event.key === 'Enter' && active >= 0) {
-        event.preventDefault();
-        pick(active);
-      } else if (event.key === 'Escape') {
-        close();
-      }
+    [fields.mainGroup, fields.group, fields.subGroup].filter(Boolean).forEach((input) => {
+      input.addEventListener('input', () => {
+        if (!state.filling) clearMark(input);
+      });
     });
-    list.addEventListener('mousedown', (event) => {
-      const button = event.target.closest('.sm-hit');
-      if (!button) return;
-      event.preventDefault();
-      pick(Number(button.dataset.index));
-    });
-    input.addEventListener('blur', () => setTimeout(close, 120));
+    if (model) {
+      setPickerHint(model, 'idle');
+      model.addEventListener('blur', () => {
+        if (model.dataset.inMaster === 'false' && model.value.trim()) {
+          setPickerHint(model, 'manual');
+        }
+      });
+    }
   }
 
-  function setFieldValue(input, value) {
-    if (!input || value === null || value === undefined) return;
-    input.value = value;
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-  }
-
-  function initStockLookups() {
-    attachStockLookup($('#newComplaintSerialOrItemCode'), (item) => {
-      setFieldValue($('#newComplaintSerialOrItemCode'), item.itemCode);
-      setFieldValue($('#newComplaintBrand'), item.brand);
-      setFieldValue($('#newComplaintModel'), item.itemDesc.slice(0, 120));
+  function initItemPickers() {
+    // New request: brand, model (item code)
+    attachItemPicker({
+      brand: $('#newComplaintBrand'),
+      model: $('#newComplaintModel'),
     });
-    attachStockLookup($('#waItemDescription'), (item) => {
-      setFieldValue($('#waItemDescription'), item.itemDesc.slice(0, 300));
+    // Schedule appointment (overrides on the complaint's own values)
+    attachItemPicker({
+      brand: $('#scheduleBrand'),
+      model: $('#scheduleModel'),
+      code: $('#scheduleItemCode'),
+      subGroup: $('#scheduleSubGroup'),
     });
+    // Warranty approvals and VAS sale carry only an item description
+    attachItemPicker({ desc: $('#waItemDescription') });
   }
 
   function smDate(value) {
@@ -7907,6 +8205,7 @@ ${bodyHtml}
         form.append('channel', channel);
         form.append('file', file);
         const result = await apiUploadRequest('/api/stock/upload', form);
+        stockFacetsPromise = null;
         await renderStockMasterPage(root);
         const fresh = root.querySelector('[data-sm-report]');
         fresh.innerHTML = smReport(result.upload);
@@ -7914,6 +8213,258 @@ ${bodyHtml}
       } catch (error) {
         msg.textContent = error.message || 'The upload failed.';
         button.disabled = false;
+      }
+    });
+  }
+
+  // --- Walk-in service job card -----------------------------------------------
+  // The customer comes straight to the service centre: no complaint, no
+  // appointment. Counter staff capture the essentials; the technician, parts
+  // and charges are added later from the normal job card screen.
+  function walkInIntakeHtml() {
+    const tip = (text) =>
+      '<span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
+      escapeHtml(text) +
+      '</span></span>';
+    return (
+      '<div class="rcv-banner"><strong>Walk-in job card</strong><span>Customer at the counter — no complaint or appointment needed</span></div>' +
+      '<div class="wi-dup" data-wi-dup hidden></div>' +
+      '<form id="walkInForm" novalidate>' +
+      '<section class="detail-action-card"><h4>Customer</h4><div class="field-grid">' +
+      '<div class="field"><label for="wiCustomerName">Customer name <span class="required">*</span></label><input id="wiCustomerName" maxlength="200" /><span class="field-error" data-error-for="wiCustomerName"></span></div>' +
+      '<div class="field"><label for="wiCustomerContact">Contact number <span class="required">*</span> ' +
+      tip(
+        'Used to warn you if this customer already has an open complaint, appointment or walk-in card.',
+      ) +
+      '</label><input id="wiCustomerContact" type="tel" maxlength="50" /><span class="field-error" data-error-for="wiCustomerContact"></span></div>' +
+      '<div class="field"><label for="wiCustomerAddress">Address</label><input id="wiCustomerAddress" maxlength="500" /></div>' +
+      '<div class="field"><label for="wiCustomerNumber">Customer number</label><input id="wiCustomerNumber" maxlength="100" /></div>' +
+      '</div></section>' +
+      '<section class="detail-action-card"><h4>Item brought in</h4><div class="field-grid">' +
+      '<div class="field"><label for="wiBrand">Brand ' +
+      tip('Start typing or click to pick a brand. The model list then shows only that brand.') +
+      '</label><input id="wiBrand" maxlength="120" autocomplete="off" /></div>' +
+      '<div class="field"><label for="wiModelNo">Model (item code) ' +
+      tip(
+        'Type an item code or part of the description. Picking a result fills brand, description, group and sub group.',
+      ) +
+      '</label><input id="wiModelNo" maxlength="120" autocomplete="off" /><span class="field-error" data-error-for="wiModelNo"></span></div>' +
+      '<div class="field field-wide"><label for="wiItemDescription">Item description</label><input id="wiItemDescription" maxlength="300" autocomplete="off" /></div>' +
+      '<div class="field"><label for="wiMainGroup">Main group</label><input id="wiMainGroup" maxlength="120" /></div>' +
+      '<div class="field"><label for="wiGroup">Group</label><input id="wiGroup" maxlength="120" /></div>' +
+      '<div class="field"><label for="wiSubGroup">Sub group</label><input id="wiSubGroup" maxlength="120" /></div>' +
+      '<div class="field"><label for="wiSerialNo">Serial number</label><input id="wiSerialNo" maxlength="120" /></div>' +
+      '<div class="field"><label for="wiPurchaseDate">Purchase date</label><input id="wiPurchaseDate" type="date" /></div>' +
+      '<div class="field"><label for="wiInvoiceNo">Invoice no. ' +
+      tip('Ask for the purchase invoice: it proves the warranty period.') +
+      '</label><input id="wiInvoiceNo" maxlength="120" /></div>' +
+      '<div class="field"><label for="wiWarrantyStatus">Warranty status</label><select id="wiWarrantyStatus"><option value="To be verified">To be verified</option><option value="In Warranty">In Warranty</option><option value="Out of Warranty">Out of Warranty</option></select></div>' +
+      '<input id="wiItemCode" type="hidden" />' +
+      '</div></section>' +
+      '<section class="detail-action-card"><h4>Fault and condition</h4>' +
+      '<div class="field"><label for="wiComplaint">Fault reported by the customer <span class="required">*</span></label><textarea id="wiComplaint" maxlength="10000"></textarea><span class="field-error" data-error-for="wiComplaint"></span></div>' +
+      '<div class="field-grid">' +
+      '<div class="field"><label for="wiAccessories">Accessories received ' +
+      tip('Power cord, remote, charger, box, SIM tray… so nothing is disputed at collection.') +
+      '</label><input id="wiAccessories" maxlength="1000" placeholder="e.g. power cord, remote" /></div>' +
+      '<div class="field"><label for="wiCondition">Condition at drop-off ' +
+      tip(
+        'Scratches, dents, missing parts: written down now, agreed by the customer on the receipt.',
+      ) +
+      '</label><input id="wiCondition" maxlength="2000" placeholder="e.g. scratch on the lid" /></div>' +
+      '</div></section>' +
+      '<div class="form-footer"><span class="form-note" id="wiResult" role="status"></span>' +
+      '<button class="button button-primary" type="submit" id="wiSubmit">Open walk-in job card</button></div>' +
+      '</form><div data-wi-done hidden></div>'
+    );
+  }
+
+  function printWalkInReceipt(jobCard) {
+    if (!jobCard) return;
+    const intake = jobCard.intakeAt ? new Date(jobCard.intakeAt).toLocaleString('en-GB') : '';
+    const body = `
+      ${printDocHeadWithLogo('Service Intake Receipt', jobCard.jobCardReference)}
+      <h2>Customer</h2>
+      ${printFieldGrid([
+        ['Received on', intake],
+        ['Customer name', jobCard.customerName],
+        ['Contact', jobCard.customerContact],
+        ['Address', jobCard.customerAddress],
+      ])}
+      <h2>Item received</h2>
+      ${printFieldGrid([
+        ['Brand', jobCard.brand],
+        ['Model / item code', jobCard.modelNo],
+        ['Description', jobCard.itemDescription],
+        ['Serial number', jobCard.serialNo],
+        ['Purchase date', jobCard.purchaseDate],
+        ['Invoice no.', jobCard.invoiceNo],
+        ['Warranty status', jobCard.warrantyStatus],
+        ['Accessories received', jobCard.accessoriesReceived],
+        ['Condition at drop-off', jobCard.conditionNotes],
+      ])}
+      ${printTextBlock('Fault reported', jobCard.complaint)}
+      <h2>Terms</h2>
+      <ol style="font-size:12px;">
+        <li>Warranty cover is confirmed only after inspection and proof of purchase; an inspection or diagnosis fee may apply to out-of-warranty items, even if the repair is declined.</li>
+        <li>A quotation is given before any chargeable repair. Work starts only after the customer approves it.</li>
+        <li>Please back up and remove personal data from phones, computers and storage devices. Jacky's is not responsible for data loss.</li>
+        <li>Items not collected within 30 days of the completion notice are left at the owner's risk and may incur storage charges.</li>
+        <li>Please present this receipt to collect the item. Accessories are returned only as listed above.</li>
+      </ol>
+      <div class="sign-row">
+        <div class="sign-box">Received by (service centre)</div>
+        <div class="sign-box">Customer signature</div>
+      </div>
+    `;
+    openPrintWindow(printDocumentShell(`Intake receipt ${jobCard.jobCardReference || ''}`, body));
+  }
+
+  async function renderWalkInPage(root) {
+    root.innerHTML = walkInIntakeHtml();
+    const form = root.querySelector('#walkInForm');
+    const done = root.querySelector('[data-wi-done]');
+    const dup = root.querySelector('[data-wi-dup]');
+    const $$ = (id) => root.querySelector('#' + id);
+    attachItemPicker({
+      brand: $$('wiBrand'),
+      model: $$('wiModelNo'),
+      desc: $$('wiItemDescription'),
+      code: $$('wiItemCode'),
+      mainGroup: $$('wiMainGroup'),
+      group: $$('wiGroup'),
+      subGroup: $$('wiSubGroup'),
+    });
+
+    // Duplicate check on the phone number (does not block, only informs).
+    let dupSequence = 0;
+    async function checkContact() {
+      const contact = $$('wiCustomerContact').value.trim();
+      const mine = ++dupSequence;
+      if (contact.replace(/\D/g, '').length < 7) {
+        dup.hidden = true;
+        return;
+      }
+      try {
+        const found = await apiRequest(
+          '/api/job-cards/walk-in/contact-check?contact=' + encodeURIComponent(contact),
+        );
+        if (mine !== dupSequence) return;
+        const rows = [
+          ...found.complaints.map(
+            (row) =>
+              '<li>Complaint <strong>' +
+              escapeHtml(row.reference) +
+              '</strong> (' +
+              escapeHtml(row.status) +
+              ') — ' +
+              escapeHtml(row.summary) +
+              '</li>',
+          ),
+          ...found.appointments.map(
+            (row) =>
+              '<li>Appointment <strong>' +
+              escapeHtml(row.reference) +
+              '</strong> (' +
+              escapeHtml(row.status) +
+              ') on ' +
+              escapeHtml(row.appointmentDate) +
+              '</li>',
+          ),
+          ...found.walkIns.map(
+            (row) =>
+              '<li>Walk-in card <strong>' +
+              escapeHtml(row.reference) +
+              '</strong> (' +
+              escapeHtml(row.status) +
+              ')' +
+              (row.item ? ' — ' + escapeHtml(row.item) : '') +
+              '</li>',
+          ),
+        ];
+        dup.hidden = rows.length === 0;
+        dup.innerHTML = rows.length
+          ? '<strong>This number already has open records.</strong> Check it is not the same repair before opening another card:<ul>' +
+            rows.join('') +
+            '</ul>'
+          : '';
+      } catch {
+        dup.hidden = true;
+      }
+    }
+    $$('wiCustomerContact').addEventListener('change', checkContact);
+    $$('wiCustomerContact').addEventListener('blur', checkContact);
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      clearErrors(form);
+      let valid = true;
+      const need = (id, message) => {
+        if (!$$(id).value.trim()) {
+          showFieldError(form, id, message);
+          valid = false;
+        }
+      };
+      need('wiCustomerName', 'Enter the customer name.');
+      need('wiCustomerContact', 'Enter a contact number.');
+      need('wiComplaint', 'Describe the fault.');
+      if (!$$('wiModelNo').value.trim() && !$$('wiItemDescription').value.trim()) {
+        showFieldError(form, 'wiModelNo', 'Enter the model, item code or description.');
+        valid = false;
+      }
+      if (!valid) return;
+      const value = (id) => $$(id).value.trim() || undefined;
+      const payload = {
+        customerName: value('wiCustomerName'),
+        customerContact: value('wiCustomerContact'),
+        customerAddress: value('wiCustomerAddress'),
+        customerNumber: value('wiCustomerNumber'),
+        brand: value('wiBrand'),
+        modelNo: value('wiModelNo'),
+        itemDescription: value('wiItemDescription'),
+        itemCode: value('wiItemCode'),
+        mainGroup: value('wiMainGroup'),
+        groupName: value('wiGroup'),
+        subGroup: value('wiSubGroup'),
+        itemInMaster: readItemInMaster($$('wiModelNo')),
+        serialNo: value('wiSerialNo'),
+        purchaseDate: $$('wiPurchaseDate').value || undefined,
+        invoiceNo: value('wiInvoiceNo'),
+        warrantyStatus: value('wiWarrantyStatus'),
+        complaint: value('wiComplaint'),
+        accessoriesReceived: value('wiAccessories'),
+        conditionNotes: value('wiCondition'),
+      };
+      const button = $$('wiSubmit');
+      setBusy(button, true, 'Opening…');
+      try {
+        const result = await apiRequest('/api/job-cards/walk-in', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        const jobCard = result.jobCard;
+        form.hidden = true;
+        dup.hidden = true;
+        done.hidden = false;
+        done.innerHTML =
+          '<section class="detail-action-card wi-done"><h4>Walk-in job card opened</h4>' +
+          '<p class="wi-ref">' +
+          escapeHtml(jobCard.jobCardReference) +
+          '</p><p class="form-note">Print the intake receipt for the customer to sign, then hand the item to the technician.</p>' +
+          '<p><button class="button button-primary" type="button" data-wi-print>Print intake receipt</button> ' +
+          '<button class="button button-outline" type="button" data-wi-open>Open job card</button> ' +
+          '<button class="button button-outline" type="button" data-wi-new>New walk-in</button></p></section>';
+        done
+          .querySelector('[data-wi-print]')
+          .addEventListener('click', () => printWalkInReceipt(jobCard));
+        done.querySelector('[data-wi-open]').addEventListener('click', () => {
+          setWorkspaceMode('job-cards');
+          loadJobCardDetail(jobCard.id);
+        });
+        done.querySelector('[data-wi-new]').addEventListener('click', () => renderWalkInPage(root));
+      } catch (error) {
+        setBusy(button, false);
+        $$('wiResult').textContent = error.message || 'The job card could not be opened.';
       }
     });
   }
@@ -9192,6 +9743,16 @@ ${bodyHtml}
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderStockMasterPage(root),
+    },
+    'walk-in': {
+      navId: 'walkInNav',
+      workspaceId: 'walkInWorkspace',
+      heading: 'Walk-in job card',
+      description: 'Open a job card for a customer at the service counter.',
+      permission: 'service_job_card.write',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderWalkInPage(root),
     },
     reports: {
       navId: 'reportsNav',
@@ -12762,7 +13323,8 @@ ${bodyHtml}
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
-  initStockLookups();
+  $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
+  initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));

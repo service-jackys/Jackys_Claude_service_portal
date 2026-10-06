@@ -54,6 +54,16 @@ export type ServiceJobCardRecord = {
   schoolContactNumber: string | null;
   customerNumber: string | null;
   legacyReference: string | null;
+  itemCode: string | null;
+  mainGroup: string | null;
+  groupName: string | null;
+  subGroup: string | null;
+  itemInMaster: boolean | null;
+  serialNo: string | null;
+  purchaseDate: string | null;
+  accessoriesReceived: string | null;
+  conditionNotes: string | null;
+  intakeAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -103,6 +113,15 @@ export type ServiceJobCardContent = {
   schoolContactNumber: string | null;
   customerNumber: string | null;
   legacyReference: string | null;
+  itemCode: string | null;
+  mainGroup: string | null;
+  groupName: string | null;
+  subGroup: string | null;
+  itemInMaster: boolean | null;
+  serialNo: string | null;
+  purchaseDate: string | null;
+  accessoriesReceived: string | null;
+  conditionNotes: string | null;
 };
 
 const columns = `
@@ -148,6 +167,16 @@ const columns = `
   service_job_cards.school_contact_number AS "schoolContactNumber",
   service_job_cards.customer_number AS "customerNumber",
   service_job_cards.legacy_reference AS "legacyReference",
+  service_job_cards.item_code AS "itemCode",
+  service_job_cards.main_group AS "mainGroup",
+  service_job_cards.group_name AS "groupName",
+  service_job_cards.sub_group AS "subGroup",
+  service_job_cards.item_in_master AS "itemInMaster",
+  service_job_cards.serial_no AS "serialNo",
+  service_job_cards.purchase_date::text AS "purchaseDate",
+  service_job_cards.accessories_received AS "accessoriesReceived",
+  service_job_cards.condition_notes AS "conditionNotes",
+  service_job_cards.intake_at AS "intakeAt",
   service_job_cards.created_at AS "createdAt",
   service_job_cards.updated_at AS "updatedAt",
   service_job_cards.created_by AS "createdBy",
@@ -164,6 +193,7 @@ export async function insertServiceJobCard(
     sourceType: string;
     createdBy: string;
     content: ServiceJobCardContent;
+    intakeAt?: Date | null;
   },
 ): Promise<ServiceJobCardRecord> {
   const c = input.content;
@@ -175,7 +205,9 @@ export async function insertServiceJobCard(
        period_from, period_to, time_consumed_hours, parts,
        total_cost, service_charge, grand_total, amount_chargeable,
        invoice_no, delivery_date, technician_name, brand, salesman, sales_channel, job_final_status,
-       school_contact_person, school_contact_number, customer_number, legacy_reference
+       school_contact_person, school_contact_number, customer_number, legacy_reference,
+       item_code, main_group, group_name, sub_group, item_in_master, serial_no, purchase_date,
+       accessories_received, condition_notes, intake_at
      ) VALUES (
        $1, $2, $3, $4, $4,
        $5, $6, $7, $8, $9,
@@ -183,7 +215,9 @@ export async function insertServiceJobCard(
        $15, $16, $17, $18,
        $19, $20, $21, $22,
        $23, $24, $25, $26, $27, $28, $29,
-       $30, $31, $32, $33
+       $30, $31, $32, $33,
+       $34, $35, $36, $37, $38, $39, $40,
+       $41, $42, $43
      )
      RETURNING id`,
     [
@@ -220,6 +254,16 @@ export async function insertServiceJobCard(
       c.schoolContactNumber,
       c.customerNumber,
       c.legacyReference,
+      c.itemCode,
+      c.mainGroup,
+      c.groupName,
+      c.subGroup,
+      c.itemInMaster,
+      c.serialNo,
+      c.purchaseDate,
+      c.accessoriesReceived,
+      c.conditionNotes,
+      input.intakeAt ?? null,
     ],
   );
   const jobCard = await findServiceJobCardById(client, result.rows[0].id);
@@ -242,7 +286,10 @@ export async function updateServiceJobCardContent(
          amount_chargeable = $18, invoice_no = $19, delivery_date = $20, technician_name = $21,
          brand = $22, salesman = $23, sales_channel = $24, job_final_status = $25,
          school_contact_person = $26, school_contact_number = $27, customer_number = $28,
-         legacy_reference = $29, updated_by = $30, updated_at = now()
+         legacy_reference = $29, updated_by = $30,
+         item_code = $31, main_group = $32, group_name = $33, sub_group = $34,
+         item_in_master = $35, serial_no = $36, purchase_date = $37,
+         accessories_received = $38, condition_notes = $39, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -276,6 +323,15 @@ export async function updateServiceJobCardContent(
       content.customerNumber,
       content.legacyReference,
       profileId,
+      content.itemCode,
+      content.mainGroup,
+      content.groupName,
+      content.subGroup,
+      content.itemInMaster,
+      content.serialNo,
+      content.purchaseDate,
+      content.accessoriesReceived,
+      content.conditionNotes,
     ],
   );
   if (!result.rows[0]) return null;
@@ -438,4 +494,67 @@ export async function listServiceJobCardHistory(
     [jobCardId],
   );
   return result.rows;
+}
+
+export type OpenRecordsForContact = {
+  complaints: {
+    id: string;
+    reference: string;
+    status: string;
+    submittedAt: Date;
+    summary: string;
+  }[];
+  appointments: { id: string; reference: string; status: string; appointmentDate: string }[];
+  walkIns: {
+    id: string;
+    reference: string;
+    status: string;
+    createdAt: Date;
+    item: string | null;
+  }[];
+};
+
+/**
+ * Open records for the same phone number, so the counter staff can see that a
+ * walk-in customer already has a complaint, appointment or walk-in card before
+ * a second record is opened for the same repair. Numbers are matched on their
+ * last nine digits so +971 / 05x / spaces do not matter.
+ */
+export async function findOpenRecordsForContact(
+  client: PoolClient,
+  contact: string,
+): Promise<OpenRecordsForContact> {
+  const digits = contact.replace(/\D/g, '');
+  if (digits.length < 7) return { complaints: [], appointments: [], walkIns: [] };
+  const key = digits.slice(-9);
+  const norm = (column: string) => `right(regexp_replace(${column}, '[^0-9]', '', 'g'), 9) = $1`;
+  const complaints = await client.query(
+    `SELECT id::text, complaint_reference AS reference, status, submitted_at AS "submittedAt",
+            left(description, 120) AS summary
+       FROM complaints
+      WHERE ${norm('contact_number')} AND status NOT IN ('Closed', 'Cancelled')
+      ORDER BY submitted_at DESC LIMIT 5`,
+    [key],
+  );
+  const appointments = await client.query(
+    `SELECT id::text, appointment_reference AS reference, status,
+            appointment_date::text AS "appointmentDate"
+       FROM appointments
+      WHERE ${norm('contact_number')} AND status NOT IN ('Completed', 'Cancelled')
+      ORDER BY appointment_date DESC LIMIT 5`,
+    [key],
+  );
+  const walkIns = await client.query(
+    `SELECT id::text, job_card_reference AS reference, status, created_at AS "createdAt",
+            COALESCE(NULLIF(trim(concat_ws(' ', brand, model_no)), ''), item_description) AS item
+       FROM service_job_cards
+      WHERE ${norm('customer_contact')} AND status NOT IN ('Completed', 'Cancelled')
+      ORDER BY created_at DESC LIMIT 5`,
+    [key],
+  );
+  return {
+    complaints: complaints.rows,
+    appointments: appointments.rows,
+    walkIns: walkIns.rows,
+  };
 }

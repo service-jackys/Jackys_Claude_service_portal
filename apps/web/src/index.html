@@ -1515,14 +1515,88 @@
         color: #9a5b00;
         font-size: 0.8rem;
       }
+      /* Item picker (#59): lookup highlight, auto-fill marker, hints, walk-in page. */
+      .sm-lookup {
+        border-left: 3px solid var(--blue, #1d5fa8) !important;
+      }
+      .sm-filled {
+        background: #ecfdf3 !important;
+        border-color: #34a853 !important;
+      }
+      .sm-autofilled > label::after {
+        content: 'auto-filled';
+        margin-left: 8px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: #d7f5e2;
+        color: #166534;
+        font-size: 0.72em;
+        font-weight: 600;
+        vertical-align: middle;
+      }
+      .sm-hint {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.8em;
+        color: #5b6672;
+      }
+      .sm-hint[data-kind='found'] {
+        color: #166534;
+      }
+      .sm-hint[data-kind='manual'] {
+        color: #b45309;
+      }
+      .sm-head {
+        padding: 6px 10px;
+        font-size: 0.8em;
+        background: var(--blue-soft, #eef3fb);
+        border-bottom: 1px solid var(--line, #d7dbe0);
+      }
+      .sm-empty {
+        padding: 10px;
+        font-size: 0.85em;
+        color: #5b6672;
+      }
+      .sm-brand {
+        grid-template-columns: 1fr auto;
+      }
+      .sm-brand em {
+        grid-column: 2;
+      }
+      #walkInForm .field {
+        align-self: start;
+      }
+      .wi-dup {
+        margin: 12px 0;
+        padding: 10px 14px;
+        border: 1px solid #f5c26b;
+        background: #fff8e6;
+        border-radius: 8px;
+        font-size: 0.9em;
+      }
+      .wi-dup ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+      }
+      .wi-done {
+        text-align: center;
+      }
+      .wi-ref {
+        font-size: 1.8em;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        margin: 8px 0;
+      }
+
       /* Stock master (#58): upload page and the item-code lookup dropdown. */
       .sm-host {
         position: relative;
+        align-self: start;
       }
       .sm-suggest {
         position: absolute;
         left: 0;
-        right: 0;
+        width: max(100%, min(520px, 90vw));
         top: 100%;
         z-index: 40;
         max-height: 280px;
@@ -3816,6 +3890,18 @@
               <button
                 class="dashboard-link"
                 type="button"
+                id="walkInNav"
+                hidden
+                aria-label="Walk-in job card"
+                title="Walk-in job card"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg>
+                <span class="nav-label">Walk-in job card</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
                 id="awaitingDraftsNav"
                 hidden
                 aria-label="Awaiting drafts"
@@ -4600,8 +4686,47 @@
                             />
                           </div>
                           <div class="field">
+                            <label for="scheduleBrand"
+                              >Brand
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >Optional. Leave blank to keep the complaint's brand. Pick a brand
+                                  first to list only its models.</span
+                                >
+                              </span></label
+                            >
+                            <input
+                              id="scheduleBrand"
+                              name="brand"
+                              maxlength="120"
+                              autocomplete="off"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <div class="field">
+                            <label for="scheduleModel"
+                              >Model (item code)
+                              <span class="tooltip" tabindex="0">
+                                <span class="tooltip-icon" aria-hidden="true">i</span>
+                                <span class="tooltip-bubble" role="tooltip"
+                                  >Optional. Search the stock master by item code or description;
+                                  picking a result fills brand and sub group.</span
+                                >
+                              </span></label
+                            >
+                            <input
+                              id="scheduleModel"
+                              name="model"
+                              maxlength="120"
+                              autocomplete="off"
+                              placeholder="Leave blank to keep the complaint's value"
+                            />
+                          </div>
+                          <input id="scheduleItemCode" name="itemCode" type="hidden" />
+                          <div class="field">
                             <label for="scheduleSubGroup">Sub group</label>
-                            <input id="scheduleSubGroup" name="subGroup" />
+                            <input id="scheduleSubGroup" name="subGroup" maxlength="120" />
                           </div>
                           <div class="form-footer">
                             <span class="form-note" id="scheduleResult" role="status"></span>
@@ -5831,6 +5956,14 @@
                 <section class="detail-action-card pricing-config-card" data-calc-root="vas-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
+              </div>
+            </div>
+
+            <div class="card" id="walkInWorkspace" hidden>
+              <div class="card-body">
+                <div data-calc-root="walk-in">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
               </div>
             </div>
 

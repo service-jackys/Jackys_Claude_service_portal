@@ -57,6 +57,17 @@ export function createStockMasterHandlers(
         }
       },
     ],
+    facets: [
+      requirePermission('stock.read'),
+      async (_request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'private, max-age=300');
+          response.json(await service.facets());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     search: [
       requirePermission('stock.read'),
       async (request, response, next) => {

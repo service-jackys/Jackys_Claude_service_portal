@@ -7,7 +7,7 @@ import {
   saveStockUploadReport,
   searchStockItems,
   STOCK_CHANNELS,
-  STOCK_SEARCH_GROUPS,
+  stockFacets,
   stockStatus,
 } from '../../../../packages/db/src/stock-master.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
@@ -29,6 +29,8 @@ export const MAX_STOCK_FILE_BYTES = 20 * 1024 * 1024;
 const channelSchema = z.enum(STOCK_CHANNELS);
 const searchQuerySchema = z.object({
   q: z.string().trim().max(80).default(''),
+  brand: z.string().trim().max(120).default(''),
+  group: z.string().trim().max(120).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(15),
 });
 
@@ -122,10 +124,15 @@ export function createStockMasterService(pool: Pool) {
     async search(query: unknown) {
       const parsed = searchQuerySchema.parse(query);
       return {
-        groups: [...STOCK_SEARCH_GROUPS],
-        items: await searchStockItems(pool, { query: parsed.q, limit: parsed.limit }),
+        items: await searchStockItems(pool, {
+          query: parsed.q,
+          limit: parsed.limit,
+          brand: parsed.brand,
+          group: parsed.group,
+        }),
       };
     },
+    facets: () => stockFacets(pool),
   };
 }
 

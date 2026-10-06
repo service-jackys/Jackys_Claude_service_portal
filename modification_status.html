@@ -2613,6 +2613,40 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#59 &mdash; Walk-in service job card and shared item picker</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-10-06 &middot; Scope: service_job_card.write, stock.read · migration 029 · restart
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New Walk-in job card page with its own WJC number series, a duplicate check on the
+            contact number, a printable intake receipt, and TAT counted from intake.
+          </li>
+          <li>
+            All job cards carry item code, groups, serial, purchase date, accessories and condition
+            notes.
+          </li>
+          <li>
+            Item picker on New request, scheduler, warranty approvals, VAS sale and job cards: brand
+            and model cascade, auto-fill and highlight, free text flagged as not in stock master.
+          </li>
+          <li>Migration 029 also fixes quotation-sourced job card creation.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            npm run db:migrate (028, 029), restart, hard-refresh, then open Walk-in job card. Review
+            the receipt wording.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

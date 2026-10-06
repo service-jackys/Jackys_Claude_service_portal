@@ -48,11 +48,12 @@ const APPOINTMENT_TAT = `CASE WHEN appointments.closed_at IS NOT NULL AND appoin
 const APPOINTMENT_DAYS_OPEN = `CASE WHEN appointments.closed_at IS NULL AND appointments.status <> 'Cancelled'
   THEN ${dubaiDay('now()')} - ${dubaiDay(TAT_LOGGED)} END`;
 
-// Job card TAT: complaint logged (else job card date) to the job card being
+// Job card TAT: complaint logged (else walk-in intake, else job card date) to the job card being
 // finalised, in Dubai calendar days.
 const JOB_CARD_TAT = `CASE WHEN service_job_cards.finalized_at IS NOT NULL
   THEN ${dubaiDay('service_job_cards.finalized_at')} - COALESCE(
     ${dubaiDay('complaints.submitted_at')},
+    ${dubaiDay('service_job_cards.intake_at')},
     service_job_cards.job_card_date,
     ${dubaiDay('service_job_cards.created_at')}) END`;
 
@@ -277,9 +278,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       'service_job_cards.customer_contact',
       'service_job_cards.invoice_no',
       'service_job_cards.technician_name',
+      'service_job_cards.item_code',
     ],
     columns: [
       { label: 'Number', expr: 'service_job_cards.job_card_reference' },
+      { label: 'Source', expr: 'service_job_cards.source_type' },
       { label: 'Job Card Date', expr: 'service_job_cards.job_card_date', kind: 'date' },
       { label: 'Source Ref No', expr: 'service_job_cards.legacy_reference' },
       { label: 'Customer Name', expr: 'service_job_cards.customer_name' },
@@ -287,7 +290,16 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { label: 'Address', expr: 'service_job_cards.customer_address' },
       { label: 'Item Description', expr: 'service_job_cards.item_description' },
       { label: 'Model No', expr: 'service_job_cards.model_no' },
+      { label: 'Item Code', expr: 'service_job_cards.item_code' },
       { label: 'Brand', expr: 'service_job_cards.brand' },
+      { label: 'Main Group', expr: 'service_job_cards.main_group' },
+      { label: 'Group', expr: 'service_job_cards.group_name' },
+      { label: 'Sub Group', expr: 'service_job_cards.sub_group' },
+      { label: 'Serial No', expr: 'service_job_cards.serial_no' },
+      {
+        label: 'Item In Stock Master',
+        expr: "CASE service_job_cards.item_in_master WHEN true THEN 'Yes' WHEN false THEN 'No' END",
+      },
       { label: 'Warranty Status', expr: 'service_job_cards.warranty_status' },
       { label: 'Complaint', expr: 'service_job_cards.complaint' },
       { label: 'Service Rendered', expr: 'service_job_cards.service_rendered' },
@@ -314,6 +326,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { label: 'Sales Channel', expr: 'service_job_cards.sales_channel' },
       { label: 'Workflow Status', expr: 'service_job_cards.status' },
       { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Intake At', expr: 'service_job_cards.intake_at', kind: 'datetime' },
       { label: 'Finalised At', expr: 'service_job_cards.finalized_at', kind: 'datetime' },
       { label: 'TAT (days)', expr: JOB_CARD_TAT, kind: 'number' },
       created('service_job_cards'),

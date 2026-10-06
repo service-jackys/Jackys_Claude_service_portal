@@ -427,6 +427,14 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        walkInCreate: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        walkInContactCheck: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         byAppointment: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -562,7 +570,7 @@ export function createRouteCatalog(
     : unavailableHandlers(['view']);
   const stockMasterHandlers = pool
     ? createStockMasterHandlers(createStockMasterService(pool), requirePermission)
-    : unavailableHandlers(['upload', 'status', 'search']);
+    : unavailableHandlers(['upload', 'status', 'search', 'facets']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -1699,6 +1707,37 @@ export function createRouteCatalog(
         handlers: serviceJobCardHandlers.list,
       },
       {
+        method: 'post' as const,
+        path: '/api/job-cards/walk-in',
+        operationId: 'createWalkInServiceJobCard',
+        tags: ['Service Job Cards'],
+        summary:
+          'Open a service job card for a customer who walks in (no complaint, appointment or quotation); needs customer name, contact, item and fault',
+        security: 'bearerAuth' as const,
+        requestBody: 'serviceJobCardCreate' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: serviceJobCardHandlers.walkInCreate,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/walk-in/contact-check',
+        operationId: 'walkInContactCheck',
+        tags: ['Service Job Cards'],
+        summary:
+          'Open complaints, appointments and walk-in cards for the same phone number (duplicate check)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'contact',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', maxLength: 50 },
+          },
+        ],
+        responses: [200, 401, 403, 500],
+        handlers: serviceJobCardHandlers.walkInContactCheck,
+      },
+      {
         method: 'get' as const,
         path: '/api/appointments/{appointmentId}/job-card/prefill',
         operationId: 'prefillServiceJobCard',
@@ -2185,13 +2224,36 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
+        path: '/api/stock/facets',
+        operationId: 'getStockFacets',
+        tags: ['Stock Master'],
+        summary: 'Brands and main groups available to the item lookup, with counts',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: stockMasterHandlers.facets,
+      },
+      {
+        method: 'get' as const,
         path: '/api/stock/items',
         operationId: 'searchStockItems',
         tags: ['Stock Master'],
-        summary: 'Search unique stock items by item code or description (MDA and SDA groups)',
+        summary:
+          'Search unique stock items by item code or description; optional brand and group filters (appliances ranked first)',
         security: 'bearerAuth' as const,
         parameters: [
-          { name: 'q', in: 'query', required: true, schema: { type: 'string', maxLength: 80 } },
+          { name: 'q', in: 'query', required: false, schema: { type: 'string', maxLength: 80 } },
+          {
+            name: 'brand',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', maxLength: 120 },
+          },
+          {
+            name: 'group',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', maxLength: 120 },
+          },
           {
             name: 'limit',
             in: 'query',

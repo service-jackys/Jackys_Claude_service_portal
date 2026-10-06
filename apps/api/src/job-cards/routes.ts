@@ -73,6 +73,38 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    walkInCreate: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.status(201).json({
+            jobCard: await service.createWalkIn(
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    walkInContactCheck: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json(await service.walkInContactCheck(request.query.contact));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     updateContent: [
       requirePermission('service_job_card.write'),
       async (request, response, next) => {

@@ -300,6 +300,18 @@ const jobCardContentFields = {
   technicianName: optionalText(120),
   brand: optionalText(120),
   jobFinalStatus: jobFinalStatusSchema.optional(),
+  // Stock-master item fields (modification.md #59) -- filled by the item
+  // lookup, always editable. itemInMaster is false when the item was typed in
+  // by hand because it is not in the ERP stock master.
+  itemCode: optionalText(120),
+  mainGroup: optionalText(120),
+  groupName: optionalText(120),
+  subGroup: optionalText(120),
+  itemInMaster: z.boolean().optional(),
+  serialNo: optionalText(120),
+  purchaseDate: dateSchema.optional(),
+  accessoriesReceived: optionalText(1000),
+  conditionNotes: optionalText(2000),
   schoolContactPerson: optionalText(500),
   schoolContactNumber: optionalText(100),
   customerNumber: optionalText(100),
@@ -316,6 +328,44 @@ const jobCardContentFields = {
 
 export const serviceJobCardCreateSchema = z.object(jobCardContentFields).strict();
 export type ServiceJobCardCreateInput = z.infer<typeof serviceJobCardCreateSchema>;
+
+// A walk-in job card has no complaint, appointment or quotation behind it, so
+// the counter staff must capture who the customer is, what they brought and
+// what is wrong with it.
+export const walkInJobCardCreateSchema = z
+  .object(jobCardContentFields)
+  .strict()
+  .superRefine((value, context) => {
+    if (!value.customerName) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerName'],
+        message: 'Customer name is required.',
+      });
+    }
+    if (!value.customerContact) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerContact'],
+        message: 'Customer contact is required.',
+      });
+    }
+    if (!value.modelNo && !value.itemDescription && !value.itemCode) {
+      context.addIssue({
+        code: 'custom',
+        path: ['modelNo'],
+        message: 'Enter the model, item code or item description.',
+      });
+    }
+    if (!value.complaint) {
+      context.addIssue({
+        code: 'custom',
+        path: ['complaint'],
+        message: 'Describe the fault the customer reported.',
+      });
+    }
+  });
+export type WalkInJobCardCreateInput = z.infer<typeof walkInJobCardCreateSchema>;
 
 export const serviceJobCardUpdateSchema = z.object(jobCardContentFields).strict();
 export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchema>;

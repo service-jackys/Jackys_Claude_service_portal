@@ -267,16 +267,26 @@ export type StockSearchHit = StockItem & {
   channels: { channel: StockChannel; seen: boolean }[];
 };
 
+/** Main groups that are not repairable products (charges, 3PL, vouchers). */
+export const STOCK_NON_PRODUCT_GROUPS = [
+  'VOUCHERS & OTHER CHARGES',
+  '3PL-NON ELECTRONICS',
+] as const;
+
 /**
- * Item search: item code first (prefix before contains), then description.
- * Restricted to the search main groups unless allGroups is set.
+ * Item search: exact code first, then code prefix, then appliances (MDA, SDA)
+ * ahead of the other groups. Matches item code or description. Optional brand
+ * and main-group filters give the brand-then-model cascade. Non-product groups
+ * are never offered.
  */
 export async function searchStockItems(
   db: Queryable,
-  options: { query: string; limit: number; allGroups?: boolean },
+  options: { query: string; limit: number; brand?: string; group?: string },
 ): Promise<StockSearchHit[]> {
   const term = options.query.trim();
-  if (!term) return [];
+  const brand = options.brand?.trim() ?? '';
+  const group = options.group?.trim() ?? '';
+  if (!term && !brand && !group) return [];
   const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
   const result = await db.query<StockSearchHit>(
     `SELECT ${itemColumns},
@@ -290,22 +300,50 @@ export async function searchStockItems(
               FROM stock_item_channels sic WHERE sic.item_code = stock_items.item_code
             ), '[]'::json) AS channels
        FROM stock_items
-      WHERE (item_code ILIKE $1 ESCAPE '\\' OR item_desc ILIKE $2 ESCAPE '\\')
-        AND ($3::boolean OR main_group = ANY($4::text[]))
-      ORDER BY (upper(item_code) = upper($5)) DESC,
-               (item_code ILIKE $1 ESCAPE '\\') DESC,
+      WHERE ($1 = '' OR item_code ILIKE $2 ESCAPE '\\' OR item_desc ILIKE $3 ESCAPE '\\')
+        AND ($4 = '' OR upper(brand) = upper($4))
+        AND ($5 = '' OR upper(main_group) = upper($5))
+        AND COALESCE(main_group, '') <> ALL($6::text[])
+      ORDER BY (upper(item_code) = upper($1)) DESC,
+               (item_code ILIKE $2 ESCAPE '\\') DESC,
+               (COALESCE(brand, '') NOT ILIKE '%SPARES%') DESC,
+               (main_group = ANY($7::text[])) DESC,
                item_code
-      LIMIT $6`,
+      LIMIT $8`,
     [
+      term,
       `${escaped}%`,
       `%${escaped}%`,
-      options.allGroups === true,
+      brand,
+      group,
+      [...STOCK_NON_PRODUCT_GROUPS],
       [...STOCK_SEARCH_GROUPS],
-      term,
       options.limit,
     ],
   );
   return result.rows;
+}
+
+/** Brands and main groups on offer, with item counts -- feeds the brand
+ *  type-ahead and the group filter. */
+export async function stockFacets(db: Queryable): Promise<{
+  brands: { brand: string; count: number }[];
+  groups: { group: string; count: number }[];
+}> {
+  const exclude = [...STOCK_NON_PRODUCT_GROUPS];
+  const brands = await db.query<{ brand: string; count: number }>(
+    `SELECT brand, count(*)::int AS count FROM stock_items
+      WHERE brand IS NOT NULL AND COALESCE(main_group, '') <> ALL($1::text[])
+      GROUP BY brand ORDER BY count(*) DESC, brand`,
+    [exclude],
+  );
+  const groups = await db.query<{ group: string; count: number }>(
+    `SELECT main_group AS "group", count(*)::int AS count FROM stock_items
+      WHERE main_group IS NOT NULL AND main_group <> ALL($1::text[])
+      GROUP BY main_group ORDER BY (main_group = ANY($2::text[])) DESC, count(*) DESC`,
+    [exclude, [...STOCK_SEARCH_GROUPS]],
+  );
+  return { brands: brands.rows, groups: groups.rows };
 }
 
 export type StockChannelStatus = {

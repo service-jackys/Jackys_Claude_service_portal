@@ -2193,3 +2193,21 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: POST /api/stock/upload (multipart: file, channel), GET /api/stock/status, GET /api/stock/items?q=. Uploads are written to the Activity log (stock.uploaded).
 
 **Needs you:** `npm run db:migrate` (028), restart, hard-refresh. Upload the three ERP files, then type a code on New request.
+
+
+## Modification #59 — Walk-in service job card and shared item picker
+
+**Date:** 2026-10-06 · **Scope:** walk-in needs service_job_card.write; item search needs stock.read · migration 029 · restart
+
+**What changed**
+- New **Walk-in job card** page (Service desk): a short intake form for a customer who comes straight to the service centre, with no complaint, appointment or quotation. Required: customer name, contact, item (model, description or item code) and the complaint. Optional: serial number, purchase date, accessories received, condition notes, warranty details.
+- Walk-in cards get their own number series, `WJC-YYYY-NNNNN`, and a printable intake receipt. The receipt terms are generic and need your wording review.
+- A duplicate check on the contact number (last 9 digits) warns about open complaints, appointments and walk-in cards for the same customer.
+- Turnaround time for walk-ins is counted from intake. For other cards it is still counted from the complaint logged, then the job card date.
+- Job cards from complaints, appointments and quotations gain the same item fields (item code, main group, group, sub group, serial number, purchase date, accessories, condition notes) and show them on the detail view and print.
+- **Item picker** on New request, Appointment scheduler, Warranty approvals, VAS sale and all job card forms: type a model, description or item code and pick a match; brand, sub group, group and description fill in and are highlighted "auto-filled". Choosing a brand first limits the model list to that brand. A group filter is available. Text not in the stock master is always allowed and flagged "not in stock master". Spare-part brands are listed last; non-product groups are hidden.
+- Migration 029 also fixes a latent constraint: job cards created from a quotation were rejected because source_type only allowed Scheduler. It now allows Quotation and Walk-in.
+- New API: POST /api/job-cards/walk-in, GET /api/job-cards/walk-in/contact-check, GET /api/stock/facets; GET /api/stock/items now takes brand and group.
+- The public complaint form is unchanged because it is unauthenticated.
+
+**Needs you:** `npm run db:migrate` (028, 029), restart, hard-refresh. Open Walk-in job card from the Service desk menu.
