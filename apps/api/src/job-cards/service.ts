@@ -12,6 +12,7 @@ import {
 } from '../../../../packages/contracts/src/index.js';
 import {
   findOpenRecordsForContact,
+  listAppointmentsAwaitingJobCard,
   findServiceJobCardByAppointmentId,
   findServiceJobCardByQuotationId,
   findServiceJobCardById,
@@ -432,6 +433,19 @@ export function createServiceJobCardService(pool: Pool) {
   // appointment, no quotation. The card is opened at the counter with the
   // essentials and everything else is filled in as the repair progresses.
 
+  async function listAwaiting(query: Record<string, unknown>) {
+    const client = await pool.connect();
+    try {
+      return await listAppointmentsAwaitingJobCard(client, {
+        search: typeof query.search === 'string' ? query.search : undefined,
+        page: Number(query.page ?? 1),
+        pageSize: Number(query.pageSize ?? 50),
+      });
+    } finally {
+      client.release();
+    }
+  }
+
   async function walkInContactCheck(contact: unknown) {
     const client = await pool.connect();
     try {
@@ -709,6 +723,7 @@ export function createServiceJobCardService(pool: Pool) {
     byQuotation,
     createWalkIn,
     walkInContactCheck,
+    listAwaiting,
   };
 }
 

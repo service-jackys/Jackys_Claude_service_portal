@@ -558,3 +558,64 @@ export async function findOpenRecordsForContact(
     walkIns: walkIns.rows,
   };
 }
+
+const AWAITING_JOB_CARD_WHERE = `appointments.status = 'Completed'
+  AND NOT EXISTS (
+    SELECT 1 FROM service_job_cards WHERE service_job_cards.appointment_id = appointments.id
+  )`;
+
+export type AwaitingJobCardAppointment = {
+  appointmentId: string;
+  appointmentReference: string;
+  complaintId: string | null;
+  complaintReference: string | null;
+  customerName: string;
+  contactNumber: string | null;
+  brand: string | null;
+  model: string | null;
+  faultDescription: string;
+  appointmentDate: string;
+  completedAt: string | null;
+  technicianName: string | null;
+};
+
+/** Completed appointments that have no service job card yet, oldest first. */
+export async function listAppointmentsAwaitingJobCard(
+  client: PoolClient,
+  query: { search?: string; page: number; pageSize: number },
+) {
+  const values: unknown[] = [];
+  let search = '';
+  if (query.search) {
+    values.push(`%${query.search}%`);
+    search = ` AND (appointments.appointment_reference ILIKE $1 OR appointments.customer_name ILIKE $1 OR appointments.contact_number ILIKE $1 OR complaints.complaint_reference ILIKE $1)`;
+  }
+  const from = `FROM appointments
+    LEFT JOIN complaints ON complaints.id = appointments.complaint_id
+    LEFT JOIN technicians ON technicians.id = appointments.technician_id`;
+  const where = `WHERE ${AWAITING_JOB_CARD_WHERE}${search}`;
+  const count = await client.query<{ total: string }>(
+    `SELECT count(*)::text AS total ${from} ${where}`,
+    values,
+  );
+  values.push(query.pageSize, (query.page - 1) * query.pageSize);
+  const result = await client.query<AwaitingJobCardAppointment>(
+    `SELECT appointments.id::text AS "appointmentId",
+            appointments.appointment_reference AS "appointmentReference",
+            appointments.complaint_id::text AS "complaintId",
+            complaints.complaint_reference AS "complaintReference",
+            appointments.customer_name AS "customerName",
+            appointments.contact_number AS "contactNumber",
+            appointments.brand AS brand,
+            appointments.model AS model,
+            appointments.fault_description AS "faultDescription",
+            appointments.appointment_date::text AS "appointmentDate",
+            appointments.closed_at AS "completedAt",
+            technicians.name AS "technicianName"
+     ${from} ${where}
+     ORDER BY appointments.closed_at ASC NULLS LAST, appointments.id ASC
+     LIMIT $${values.length - 1} OFFSET $${values.length}`,
+    values,
+  );
+  return { items: result.rows, total: Number(count.rows[0].total) };
+}

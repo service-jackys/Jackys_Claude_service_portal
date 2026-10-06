@@ -5,7 +5,7 @@ export type StatusCounts = Record<string, number>;
 export type DashboardSummary = {
   complaints: { byStatus: StatusCounts; total: number };
   appointments: { byStatus: StatusCounts; total: number; today: number };
-  jobCards: { byStatus: StatusCounts; total: number };
+  jobCards: { byStatus: StatusCounts; total: number; awaitingCreation: number };
   quotations: { total: number; thisMonth: number };
   inspections: { total: number; thisMonth: number };
   warrantyApprovals: { byStatus: StatusCounts; total: number };
@@ -67,6 +67,7 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     appointments,
     appointmentsToday,
     jobCards,
+    jobCardsAwaiting,
     quotationsTotal,
     quotationsMonth,
     inspectionsTotal,
@@ -89,6 +90,13 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
       )
       .then((result) => Number(result.rows[0].count)),
     statusCounts(client, 'service_job_cards'),
+    client
+      .query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM appointments
+         WHERE status = 'Completed'
+           AND NOT EXISTS (SELECT 1 FROM service_job_cards j WHERE j.appointment_id = appointments.id)`,
+      )
+      .then((result) => Number(result.rows[0].count)),
     simpleTotal(client, 'quotations'),
     monthToDateTotal(client, 'quotations', 'created_at'),
     simpleTotal(client, 'inspections'),
@@ -107,7 +115,7 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
   return {
     complaints,
     appointments: { ...appointments, today: appointmentsToday },
-    jobCards,
+    jobCards: { ...jobCards, awaitingCreation: jobCardsAwaiting },
     quotations: { total: quotationsTotal, thisMonth: quotationsMonth },
     inspections: { total: inspectionsTotal, thisMonth: inspectionsMonth },
     warrantyApprovals,

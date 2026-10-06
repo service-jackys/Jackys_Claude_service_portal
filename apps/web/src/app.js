@@ -2171,6 +2171,41 @@ ${bodyHtml}
     }
   }
 
+  // Filter value for completed appointments that have no job card yet. They
+  // are not job cards, so the list switches to /api/job-cards/awaiting.
+  const AWAITING_JOB_CARD_FILTER = 'awaiting-job-card';
+
+  function renderAwaitingJobCards(appointments) {
+    const body = $('#jobCardsBody');
+    const canCreate = hasPermission('service_job_card.write');
+    body.innerHTML = appointments
+      .map((row) => {
+        const item = [row.brand, row.model].filter(Boolean).join(' ');
+        return `<tr><td>${
+          canCreate
+            ? `<button class="button button-secondary" type="button" data-create-for="${escapeHtml(row.appointmentId)}">Create job card</button>`
+            : '<em>Not created</em>'
+        }</td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(row.appointmentId)}">${escapeHtml(row.appointmentReference)}</button>${row.complaintReference ? '<br><small>' + escapeHtml(row.complaintReference) + '</small>' : ''}</td><td><strong>${escapeHtml(row.customerName)}</strong><br>${escapeHtml(row.contactNumber || '')}${item ? '<br><small>' + escapeHtml(item) + '</small>' : ''}</td><td>${escapeHtml(formatDate(row.appointmentDate))}${row.technicianName ? '<br><small>' + escapeHtml(row.technicianName) + '</small>' : ''}</td><td><span class="status status-in-progress">Awaiting job card</span></td></tr>`;
+      })
+      .join('');
+    const empty = $('#jobCardsEmpty');
+    empty.textContent = 'No completed appointments are waiting for a job card.';
+    empty.hidden = appointments.length > 0;
+    body.querySelectorAll('[data-appointment-id]').forEach((button) =>
+      button.addEventListener('click', () => {
+        setWorkspaceMode('appointments');
+        loadAppointmentDetail(button.dataset.appointmentId);
+      }),
+    );
+    body.querySelectorAll('[data-create-for]').forEach((button) =>
+      button.addEventListener('click', async () => {
+        setWorkspaceMode('appointments');
+        await loadAppointmentDetail(button.dataset.createFor);
+        createJobCard();
+      }),
+    );
+  }
+
   function renderJobCards(jobCards) {
     const body = $('#jobCardsBody');
     body.innerHTML = jobCards
@@ -2179,6 +2214,7 @@ ${bodyHtml}
           `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span></td></tr>`,
       )
       .join('');
+    $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
     $('#jobCardsEmpty').hidden = jobCards.length > 0;
     body
       .querySelectorAll('[data-job-card-id]')
@@ -2247,10 +2283,17 @@ ${bodyHtml}
     const search = $('#jobCardSearch').value.trim();
     const status = $('#jobCardStatusFilter').value;
     if (search) params.set('search', search);
-    if (status) params.set('status', status);
+    const awaiting = status === AWAITING_JOB_CARD_FILTER;
+    if (status && !awaiting) params.set('status', status);
     $('#jobCardsBody').innerHTML =
       '<tr><td colspan="5" class="empty-state">Loading service job cards…</td></tr>';
     try {
+      if (awaiting) {
+        const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
+        lastLoadedJobCards = [];
+        renderAwaitingJobCards(awaitingResult.appointments || []);
+        return;
+      }
       const result = await apiRequest('/api/job-cards?' + params);
       lastLoadedJobCards = result.jobCards || [];
       renderJobCards(lastLoadedJobCards);
@@ -3549,7 +3592,10 @@ ${bodyHtml}
     $('#dashAppointmentBars').innerHTML = dashboardBarsHtml(summary.appointments.byStatus);
     $('#dashJobCardTiles').innerHTML = dashboardTilesHtml(
       summary.jobCards.byStatus,
-      [['Total', summary.jobCards.total]],
+      [
+        ['Awaiting job card', summary.jobCards.awaitingCreation ?? 0, AWAITING_JOB_CARD_FILTER],
+        ['Total', summary.jobCards.total],
+      ],
       (status) => status,
     );
     $('#dashJobCardBars').innerHTML = dashboardBarsHtml(summary.jobCards.byStatus);

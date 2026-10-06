@@ -431,6 +431,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        awaiting: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         walkInContactCheck: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -1705,6 +1709,19 @@ export function createRouteCatalog(
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: serviceJobCardHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/awaiting',
+        operationId: 'listAppointmentsAwaitingJobCard',
+        tags: ['Service Job Cards'],
+        summary: 'Completed appointments that do not have a service job card yet',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: serviceJobCardHandlers.awaiting,
       },
       {
         method: 'post' as const,

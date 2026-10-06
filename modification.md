@@ -2211,3 +2211,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - The public complaint form is unchanged because it is unauthenticated.
 
 **Needs you:** `npm run db:migrate` (028, 029), restart, hard-refresh. Open Walk-in job card from the Service desk menu.
+
+
+## Modification #60 — Completed appointments awaiting a job card
+
+**Date:** 2026-10-06 · **Scope:** service_job_card.read for the list, service_job_card.write for Create · no migration · restart
+
+**What changed**
+- A completed appointment with no service job card used to show up nowhere: the complaint was closed, the appointment was completed, and the job card did not exist yet. These are now listed under **Service job cards → status filter → Awaiting job card**, oldest completion first, with the appointment, complaint reference, customer, item, technician and a **Create job card** button that opens the pre-filled job card form for that appointment.
+- The **Dashboard** job card tiles have a new **Awaiting job card** tile with the count. Clicking it opens the same list.
+- New API: GET /api/job-cards/awaiting (search, page, pageSize); the dashboard summary gains jobCards.awaitingCreation.
+
+**Needs you:** restart and hard-refresh. No migration.

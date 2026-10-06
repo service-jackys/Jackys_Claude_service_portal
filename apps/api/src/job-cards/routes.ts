@@ -94,6 +94,28 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    awaiting: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          const result = await service.listAwaiting(request.query);
+          const page = Number(request.query.page ?? 1);
+          const pageSize = Number(request.query.pageSize ?? 50);
+          response.json({
+            appointments: result.items,
+            pagination: {
+              page,
+              pageSize,
+              total: result.total,
+              totalPages: Math.ceil(result.total / pageSize),
+            },
+          });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     walkInContactCheck: [
       requirePermission('service_job_card.write'),
       async (request, response, next) => {
