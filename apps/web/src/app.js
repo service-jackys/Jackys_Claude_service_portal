@@ -5284,12 +5284,37 @@ ${bodyHtml}
   $('#refreshDashboardButton').addEventListener('click', loadDashboard);
   $('#refreshTechniciansButton').addEventListener('click', loadTechnicians);
   $('#refreshTeamAccountsButton').addEventListener('click', loadTeamAccounts);
-  $('#applyComplaintFilters').addEventListener('click', loadComplaints);
-  $('#applyJobCardFilters').addEventListener('click', loadJobCards);
-  $('#applyAppointmentFilters').addEventListener('click', loadAppointments);
-  $('#applyQuotationFilters').addEventListener('click', loadQuotations);
-  $('#applyInspectionFilters').addEventListener('click', loadInspections);
-  $('#applyWarrantyApprovalFilters').addEventListener('click', loadWarrantyApprovals);
+  // Filters apply as soon as they change: drop-downs and dates immediately,
+  // the search box 300 ms after the last keystroke (Enter applies at once).
+  function bindLiveFilters(load, searchSelector, otherSelectors = []) {
+    let timer = null;
+    const search = searchSelector ? $(searchSelector) : null;
+    if (search) {
+      search.addEventListener('input', () => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(load, 300);
+      });
+      search.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        window.clearTimeout(timer);
+        load();
+      });
+    }
+    otherSelectors.forEach((selector) => $(selector)?.addEventListener('change', load));
+  }
+  bindLiveFilters(loadComplaints, '#complaintSearch', ['#complaintStatusFilter']);
+  bindLiveFilters(loadJobCards, '#jobCardSearch', ['#jobCardStatusFilter']);
+  bindLiveFilters(loadAppointments, '#appointmentSearch', [
+    '#appointmentStatusFilter',
+    '#appointmentFrom',
+    '#appointmentTo',
+  ]);
+  bindLiveFilters(loadQuotations, '#quotationSearch');
+  bindLiveFilters(loadInspections, '#inspectionSearch');
+  bindLiveFilters(loadWarrantyApprovals, '#warrantyApprovalSearch', [
+    '#warrantyApprovalStatusFilter',
+  ]);
   $('#appointmentSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadAppointments();
   });

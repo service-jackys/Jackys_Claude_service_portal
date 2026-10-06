@@ -520,7 +520,6 @@ test.describe('staff access boundary', () => {
     await page.locator('#appointmentStatusFilter').selectOption('Scheduled');
     await page.locator('#appointmentFrom').fill('2026-10-01');
     await page.locator('#appointmentTo').fill('2026-10-31');
-    await page.getByRole('button', { name: 'Apply filters' }).click();
     // Applying filters fires two requests: the filtered appointment list
     // itself, and (right after, inside loadAppointments()) a background
     // refetch for the calendar month-view grid, which uses its own
@@ -1348,7 +1347,6 @@ test.describe('service job-card workspace', () => {
     await expect(page.getByRole('button', { name: 'JBC-2026-00001' })).toBeVisible();
     await page.locator('#jobCardSearch').fill('JBC-2026');
     await page.locator('#jobCardStatusFilter').selectOption('Open');
-    await page.getByRole('button', { name: 'Apply filters' }).click();
     await expect.poll(() => listUrls.at(-1)).toContain('search=JBC-2026');
     expect(new URL(listUrls.at(-1)!).searchParams.get('status')).toBe('Open');
 

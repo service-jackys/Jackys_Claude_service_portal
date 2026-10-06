@@ -2250,3 +2250,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Nothing is sent from the portal. Using it is logged in the Activity log as "Revenue summary email drafted".
 
 **Needs you:** restart and hard-refresh. No migration. Open the .eml in the Outlook you normally use and tell me if anything renders differently from the preview.
+
+
+## Modification #63 — Filters apply as you type or pick
+
+**Date:** 2026-10-06 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- The six list pages that had an **Apply filters** button now filter live: Complaints, Appointments, Service job cards, Quotations, Inspections and Warranty approvals. Drop-downs and dates apply the moment you change them; the search box applies 300 ms after you stop typing, or at once on Enter. The Apply filters buttons are removed. (Reports, Activity log, the revenue dashboard and the other newer pages already worked this way.)
+- This also fixes "All statuses shows only Completed" on Service job cards: choosing All statuses changed the drop-down but the list stayed on the previous Completed result until Apply was clicked. It now reloads immediately.
+- The two end-to-end tests that clicked Apply filters no longer do.
+
+**Needs you:** hard-refresh. No restart or migration needed.
