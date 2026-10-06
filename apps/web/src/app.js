@@ -934,7 +934,13 @@
     }
     const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
     const start = shiftDate(monthStart, -monthStart.getDay());
-    return { start, end: shiftDate(start, 41) };
+    const daysInMonth = new Date(
+      calendarCursor.getFullYear(),
+      calendarCursor.getMonth() + 1,
+      0,
+    ).getDate();
+    const weeks = Math.ceil((monthStart.getDay() + daysInMonth) / 7);
+    return { start, end: shiftDate(start, weeks * 7 - 1) };
   }
 
   function calendarTitle(range) {
@@ -4411,7 +4417,7 @@ ${bodyHtml}
     body.innerHTML = appointments
       .map(
         (appointment) =>
-          `<tr><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><strong>${escapeHtml(appointment.customerName)}</strong><br>${escapeHtml(appointment.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(appointment))}</td><td>${escapeHtml(appointment.technicianId || 'Unassigned')}</td><td><span class="status ${statusClass(appointment.status)}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td></tr>`,
+          `<tr class="row-${CAL_STATUS_KEY[appointment.status] || 'scheduled'}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><strong>${escapeHtml(appointment.customerName)}</strong><br>${escapeHtml(appointment.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(appointment))}</td><td>${escapeHtml(appointment.technicianId || 'Unassigned')}</td><td><span class="status ${statusClass(appointment.status)}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td></tr>`,
       )
       .join('');
     $('#appointmentsEmpty').hidden = appointments.length > 0;
@@ -4422,43 +4428,84 @@ ${bodyHtml}
       );
   }
 
+  const CAL_STATUS_KEY = {
+    Scheduled: 'scheduled',
+    'In Progress': 'in-progress',
+    Completed: 'completed',
+    Cancelled: 'cancelled',
+  };
+  const CAL_MONTH_CHIPS = 3;
+
+  function calChipHtml(appointment, canWrite) {
+    const key = CAL_STATUS_KEY[appointment.status] || 'scheduled';
+    const draggable =
+      canWrite && appointment.status !== 'Completed' && appointment.status !== 'Cancelled';
+    const tip = `${appointment.appointmentReference} · ${appointment.status}${
+      appointment.technicianName ? ' · ' + appointment.technicianName : ''
+    }${draggable ? '. Drag to reschedule.' : ''}`;
+    const meta =
+      calendarView === 'week'
+        ? `${escapeHtml(appointment.appointmentReference)} · ${escapeHtml(appointment.status)}`
+        : escapeHtml(appointment.appointmentReference.split('-').pop());
+    return `<button class="cal-chip st-${key}" type="button" data-calendar-appointment-id="${escapeHtml(appointment.id)}" draggable="${draggable}" title="${escapeHtml(tip)}"><i aria-hidden="true"></i><span class="cn">${escapeHtml(appointment.customerName)}</span><span class="cm">${meta}</span></button>`;
+  }
+
   function renderCalendar() {
     const range = calendarRange();
     const calendar = $('#appointmentCalendar');
     const canWrite = hasPermission('appointments.write');
-    const days = calendarView === 'week' ? 7 : 42;
+    const days = Math.round((range.end - range.start) / 86400000) + 1;
     const byDate = new Map();
+    const counts = { Scheduled: 0, 'In Progress': 0, Completed: 0, Cancelled: 0 };
     calendarAppointments.forEach((appointment) => {
       const key = appointment.appointmentDate;
       if (!byDate.has(key)) byDate.set(key, []);
       byDate.get(key).push(appointment);
+      if (appointment.status in counts) counts[appointment.status] += 1;
     });
     const weekdayHeaders = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
       .map((day) => `<div class="calendar-cell-header">${day}</div>`)
       .join('');
+    const todayKey = dateInputValue(new Date());
     const cells = Array.from({ length: days }, (_, index) => {
       const date = shiftDate(range.start, index);
       const key = dateInputValue(date);
-      const events = (byDate.get(key) || [])
-        .sort((left, right) => String(left.customerName).localeCompare(String(right.customerName)))
-        .map(
-          (appointment) =>
-            `<button class="calendar-event" type="button" data-calendar-appointment-id="${escapeHtml(appointment.id)}" draggable="${canWrite && appointment.status !== 'Completed' && appointment.status !== 'Cancelled'}" title="${escapeHtml(appointment.appointmentReference)}${canWrite ? '. Drag to reschedule.' : ''}"><strong>${escapeHtml(appointment.customerName)}</strong><span class="calendar-event-status">${escapeHtml(appointment.status)}</span></button>`,
-        )
+      const all = (byDate.get(key) || []).sort((left, right) =>
+        String(left.customerName).localeCompare(String(right.customerName)),
+      );
+      const limit = calendarView === 'week' ? all.length : CAL_MONTH_CHIPS;
+      const events = all
+        .slice(0, limit)
+        .map((appointment) => calChipHtml(appointment, canWrite))
         .join('');
-      const today = dateInputValue(new Date()) === key;
-      return `<div class="calendar-cell${today ? ' calendar-cell-today' : ''}" data-calendar-date="${key}"><div class="calendar-cell-header">${date.getDate()}</div>${events}</div>`;
+      const more =
+        all.length > limit
+          ? `<button class="cal-more" type="button" data-cal-more="${key}">+${all.length - limit} more</button>`
+          : '';
+      const outside = calendarView === 'month' && date.getMonth() !== calendarCursor.getMonth();
+      return `<div class="calendar-cell${key === todayKey ? ' calendar-cell-today' : ''}${outside ? ' is-outside' : ''}" data-calendar-date="${key}"><span class="cal-day">${date.getDate()}</span>${events}${more}</div>`;
     }).join('');
     calendar.className = `calendar-grid calendar-${calendarView}`;
     calendar.setAttribute('aria-label', `${calendarTitle(range)} appointment calendar`);
     calendar.innerHTML = weekdayHeaders + cells;
     $('#calendarTitle').textContent = calendarTitle(range);
-    $('#calendarMonthButton').setAttribute('aria-pressed', String(calendarView === 'month'));
-    $('#calendarWeekButton').setAttribute('aria-pressed', String(calendarView === 'week'));
-    $('#calendarMonthButton').className =
-      calendarView === 'month' ? 'button button-secondary' : 'button button-outline';
-    $('#calendarWeekButton').className =
-      calendarView === 'week' ? 'button button-secondary' : 'button button-outline';
+    $('#calendarLegend').innerHTML = [
+      ['Scheduled', 'scheduled'],
+      ['In Progress', 'progress'],
+      ['Completed', 'completed'],
+      ['Cancelled', 'cancelled'],
+    ]
+      .map(
+        ([label, key]) =>
+          `<span style="--st:var(--st-${key})"><i aria-hidden="true"></i>${label} <b>${counts[label]}</b></span>`,
+      )
+      .join('');
+    ['Month', 'Week'].forEach((name) => {
+      const button = $('#calendar' + name + 'Button');
+      const on = calendarView === name.toLowerCase();
+      button.setAttribute('aria-pressed', String(on));
+      button.className = 'cal-seg-btn' + (on ? ' is-active' : '');
+    });
     calendar.querySelectorAll('[data-calendar-appointment-id]').forEach((button) => {
       button.addEventListener('click', () =>
         loadAppointmentDetail(button.dataset.calendarAppointmentId),
@@ -4470,6 +4517,13 @@ ${bodyHtml}
         });
       }
     });
+    calendar.querySelectorAll('[data-cal-more]').forEach((button) =>
+      button.addEventListener('click', () => {
+        calendarCursor = localDate(button.dataset.calMore);
+        calendarView = 'week';
+        loadCalendar();
+      }),
+    );
     calendar.querySelectorAll('[data-calendar-date]').forEach((cell) => {
       cell.addEventListener('dragover', (event) => {
         if (canWrite) event.preventDefault();

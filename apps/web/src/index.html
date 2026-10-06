@@ -2329,6 +2329,325 @@
           transform: none;
         }
       }
+      /* ---- Appointments calendar redesign (modification #68) ---- */
+      :root {
+        --st-scheduled: #1769aa;
+        --st-progress: #b5750a;
+        --st-completed: #176b4d;
+        --st-cancelled: #c53030;
+      }
+      [data-theme='dark'] {
+        --st-scheduled: #5aa9e6;
+        --st-progress: #e0a53a;
+        --st-completed: #4cc38a;
+        --st-cancelled: #f0707a;
+      }
+      .cal-card {
+        margin-top: 14px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 14px 14px;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 5%);
+      }
+      .cal-card .calendar-toolbar {
+        margin: 0 0 8px;
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 10px;
+      }
+      .cal-card .calendar-title {
+        min-width: 0;
+        font-size: 1.05rem;
+        color: var(--ink);
+      }
+      .cal-nav {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .cal-iconbtn,
+      .cal-today,
+      .cal-seg-btn {
+        appearance: none;
+        font: inherit;
+        cursor: pointer;
+        min-height: 36px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+      .cal-iconbtn {
+        width: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 8px;
+      }
+      .cal-iconbtn svg {
+        width: 18px;
+        height: 18px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .cal-today {
+        padding: 0 14px;
+        border-radius: 8px;
+        font-weight: 600;
+      }
+      .cal-iconbtn:hover,
+      .cal-today:hover,
+      .cal-seg-btn:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      .cal-iconbtn:focus-visible,
+      .cal-today:focus-visible,
+      .cal-seg-btn:focus-visible,
+      .cal-chip:focus-visible,
+      .cal-more:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+      }
+      .cal-seg {
+        justify-self: end;
+        display: inline-flex;
+      }
+      .cal-seg-btn {
+        padding: 0 16px;
+        font-weight: 600;
+      }
+      .cal-seg-btn:first-child {
+        border-radius: 8px 0 0 8px;
+      }
+      .cal-seg-btn:last-child {
+        border-radius: 0 8px 8px 0;
+        margin-left: -1px;
+      }
+      .cal-seg-btn.is-active {
+        background: var(--blue);
+        border-color: var(--blue);
+        color: #fff;
+      }
+      .cal-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        margin: 4px 0 10px;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .cal-legend span {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .cal-legend i,
+      .cal-chip i {
+        flex: none;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--st);
+      }
+      .cal-legend b {
+        color: var(--ink);
+      }
+      .cal-card .calendar-grid {
+        border-radius: 10px;
+        grid-auto-rows: auto;
+      }
+      .cal-card .calendar-grid > .calendar-cell-header {
+        padding: 8px 10px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+        border-right: 1px solid var(--line);
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cal-card .calendar-grid > .calendar-cell-header:nth-child(7) {
+        border-right: 0;
+      }
+      .cal-card .calendar-cell {
+        min-height: 5.1rem;
+        padding: 4px 5px 5px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        min-width: 0;
+        background: var(--surface);
+      }
+      .cal-card .calendar-week .calendar-cell,
+      .cal-card .calendar-grid.calendar-week .calendar-cell {
+        min-height: 13rem;
+      }
+      .cal-card .calendar-cell.is-outside {
+        background: var(--surface-soft);
+      }
+      .cal-card .calendar-cell.is-outside .cal-day {
+        opacity: 0.45;
+      }
+      .cal-card .calendar-cell-today {
+        background: color-mix(in srgb, var(--blue) 7%, var(--surface));
+      }
+      .cal-day {
+        align-self: flex-start;
+        min-width: 22px;
+        height: 22px;
+        padding: 0 5px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .calendar-cell-today .cal-day {
+        background: var(--blue);
+        color: #fff;
+      }
+      .cal-chip {
+        --st: var(--st-scheduled);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        width: 100%;
+        min-width: 0;
+        min-height: 22px;
+        padding: 2px 6px;
+        border: 0;
+        border-left: 3px solid var(--st);
+        border-radius: 5px;
+        background: color-mix(in srgb, var(--st) 13%, var(--surface));
+        color: var(--ink);
+        font: inherit;
+        font-size: 0.74rem;
+        text-align: left;
+        cursor: pointer;
+        transition: background 0.15s ease;
+      }
+      .cal-chip:hover {
+        background: color-mix(in srgb, var(--st) 24%, var(--surface));
+      }
+      .cal-chip[draggable='true'] {
+        cursor: grab;
+      }
+      .cal-chip .cn {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-weight: 600;
+      }
+      .cal-chip .cm {
+        margin-left: auto;
+        flex: none;
+        font-size: 0.66rem;
+        color: var(--muted);
+      }
+      .cal-chip.st-in-progress {
+        --st: var(--st-progress);
+      }
+      .cal-chip.st-completed {
+        --st: var(--st-completed);
+      }
+      .cal-chip.st-cancelled {
+        --st: var(--st-cancelled);
+      }
+      .cal-chip.st-cancelled .cn {
+        text-decoration: line-through;
+        font-weight: 500;
+        opacity: 0.8;
+      }
+      .calendar-week .cal-chip {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        align-items: start;
+        column-gap: 6px;
+        padding: 6px 8px;
+      }
+      .calendar-week .cal-chip i {
+        margin-top: 5px;
+      }
+      .calendar-week .cal-chip .cn {
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+      .calendar-week .cal-chip .cm {
+        grid-column: 2;
+        margin-left: 0;
+      }
+      .cal-more {
+        align-self: flex-start;
+        padding: 0 6px;
+        min-height: 20px;
+        border: 0;
+        background: none;
+        font: inherit;
+        font-size: 0.72rem;
+        font-weight: 700;
+        color: var(--blue);
+        cursor: pointer;
+      }
+      .cal-more:hover {
+        text-decoration: underline;
+      }
+      [data-theme='dark'] h1,
+      [data-theme='dark'] .cal-list-title,
+      [data-theme='dark'] td strong {
+        color: var(--ink);
+      }
+      .cal-list-title {
+        margin: 20px 0 8px;
+        font-size: 0.95rem;
+        color: var(--ink);
+      }
+      tr.row-scheduled td:first-child {
+        box-shadow: inset 3px 0 0 var(--st-scheduled);
+      }
+      tr.row-in-progress td:first-child {
+        box-shadow: inset 3px 0 0 var(--st-progress);
+      }
+      tr.row-completed td:first-child {
+        box-shadow: inset 3px 0 0 var(--st-completed);
+      }
+      tr.row-cancelled td:first-child {
+        box-shadow: inset 3px 0 0 var(--st-cancelled);
+      }
+      @media (max-width: 760px) {
+        .cal-card .calendar-toolbar {
+          grid-template-columns: 1fr auto;
+        }
+        .cal-card .calendar-title {
+          grid-column: 1 / -1;
+          grid-row: 1;
+          text-align: left;
+        }
+        .cal-card .calendar-cell {
+          min-height: 4.2rem;
+        }
+        .cal-chip .cm {
+          display: none;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cal-iconbtn,
+        .cal-today,
+        .cal-seg-btn,
+        .cal-chip {
+          transition: none;
+        }
+      }
       .history {
         margin: 1.4rem 0 0;
         padding: 0;
@@ -6881,40 +7200,58 @@
                     >Appointments to</label
                   ><input id="appointmentTo" type="date" />
                 </div>
-                <div class="calendar-toolbar" aria-label="Appointment calendar controls">
-                  <div class="calendar-toolbar-group">
-                    <button class="button button-outline" type="button" id="calendarPreviousButton">
-                      Previous
-                    </button>
-                    <button class="button button-outline" type="button" id="calendarTodayButton">
-                      Today
-                    </button>
-                    <button class="button button-outline" type="button" id="calendarNextButton">
-                      Next
-                    </button>
+                <div class="cal-card">
+                  <div class="calendar-toolbar" aria-label="Appointment calendar controls">
+                    <div class="cal-nav">
+                      <button
+                        class="cal-iconbtn"
+                        type="button"
+                        id="calendarPreviousButton"
+                        aria-label="Previous period"
+                        title="Previous"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true">
+                          <path d="M15 6l-6 6 6 6" />
+                        </svg>
+                      </button>
+                      <button
+                        class="cal-iconbtn"
+                        type="button"
+                        id="calendarNextButton"
+                        aria-label="Next period"
+                        title="Next"
+                      >
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+                      </button>
+                      <button class="cal-today" type="button" id="calendarTodayButton">
+                        Today
+                      </button>
+                    </div>
+                    <h3 class="calendar-title" id="calendarTitle">Appointment calendar</h3>
+                    <div class="cal-seg" role="group" aria-label="Calendar view">
+                      <button
+                        class="cal-seg-btn is-active"
+                        type="button"
+                        id="calendarMonthButton"
+                        aria-pressed="true"
+                      >
+                        Month
+                      </button>
+                      <button
+                        class="cal-seg-btn"
+                        type="button"
+                        id="calendarWeekButton"
+                        aria-pressed="false"
+                      >
+                        Week
+                      </button>
+                    </div>
                   </div>
-                  <h3 class="calendar-title" id="calendarTitle">Appointment calendar</h3>
-                  <div class="calendar-toolbar-group" role="group" aria-label="Calendar view">
-                    <button
-                      class="button button-secondary"
-                      type="button"
-                      id="calendarMonthButton"
-                      aria-pressed="true"
-                    >
-                      Month
-                    </button>
-                    <button
-                      class="button button-outline"
-                      type="button"
-                      id="calendarWeekButton"
-                      aria-pressed="false"
-                    >
-                      Week
-                    </button>
-                  </div>
+                  <div class="cal-legend" id="calendarLegend" aria-label="Status colours"></div>
+                  <div id="calendarMessage" class="notice notice-error" role="alert" hidden></div>
+                  <div class="calendar-grid" id="appointmentCalendar" aria-live="polite"></div>
                 </div>
-                <div id="calendarMessage" class="notice notice-error" role="alert" hidden></div>
-                <div class="calendar-grid" id="appointmentCalendar" aria-live="polite"></div>
+                <h3 class="cal-list-title">All appointments</h3>
                 <div class="table-wrap">
                   <table>
                     <caption class="visually-hidden">

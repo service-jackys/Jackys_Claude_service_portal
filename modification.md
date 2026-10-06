@@ -2319,3 +2319,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Not included:** drag-and-drop between columns (status changes still happen on the appointment / job card, so the board cannot drift from the records). Each column shows at most the 60 oldest cases.
 
 **Needs you:** run `npm run db:migrate` (032), restart, hard-refresh. Please confirm the 3 / 5 day thresholds, and whether TAT should start at booking instead of complaint logged.
+
+
+## Modification #68 — Appointments calendar redesign with status colours
+
+**Date:** 2026-10-06 · **Scope:** appointments.read · web only · no migration · hard-refresh
+
+**What changed**
+- The calendar is compact: a month shows only the weeks it needs (5 rows instead of always 6), cells are shorter, and each appointment is a one-line chip with the customer name and the last digits of the reference. A day with more than 3 appointments shows "+N more", which opens that week.
+- **Status colours** on the calendar chips and as a left accent on the list rows: Scheduled blue, In Progress amber, Completed green, Cancelled red (name struck through). A legend above the calendar shows the count of each status in view.
+- Cleaner toolbar: previous / next arrows, Today, the month title, and a Month / Week toggle. Today is a filled circle on its date; days from neighbouring months are dimmed. Week view shows the reference and status on each chip.
+- Drag-to-reschedule, the status filter and search work as before. The list below the calendar is titled "All appointments".
+- Dark mode: page titles and customer names in tables were dark on dark; fixed.
+
+**Needs you:** hard-refresh only.
