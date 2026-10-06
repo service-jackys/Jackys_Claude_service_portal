@@ -120,7 +120,12 @@ export function createRevenueDashboardHandlers(
       requirePermission('revenue_dashboard.read'),
       async (request, response, next) => {
         try {
-          const buffer = await service.exportWorkbook(request.query);
+          const auth = response.locals.auth as ApplicationAuth;
+          const buffer = await service.exportWorkbook(
+            request.query,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
           response
             .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
             .set('Content-Disposition', 'attachment; filename="service-revenue-report.xlsx"')
@@ -128,6 +133,26 @@ export function createRevenueDashboardHandlers(
         } catch (error) {
           if (error instanceof RevenueDashboardServiceError) {
             problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    activity: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          await service.recordActivity(
+            request.query,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.status(204).end();
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
             return;
           }
           next(error);

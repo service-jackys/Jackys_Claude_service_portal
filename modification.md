@@ -2223,3 +2223,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: GET /api/job-cards/awaiting (search, page, pageSize); the dashboard summary gains jobCards.awaitingCreation.
 
 **Needs you:** restart and hard-refresh. No migration.
+
+
+## Modification #61 — Revenue dashboard email draft, activity logging, complaint warranty classification
+
+**Date:** 2026-10-06 · **Scope:** revenue_dashboard.read for the draft and the logging; complaints.write for the classification · no migration · restart
+
+**What changed**
+- **Email draft** button on Revenue dashboard → Reports, next to Management summary. It opens your own mail app with the management summary for the period on screen filled in as the body and the period in the subject. Nothing is sent. Mail apps cap long mailto links, so a long summary is shortened in the draft and the full text is copied to the clipboard to paste below.
+- **Activity logging for the revenue dashboard.** The Activity log now records: Revenue dashboard viewed (per tab and per Reports view, at most once per 10 minutes each), Revenue report downloaded (with the filters used), Revenue summary email drafted, Revenue summary copied.
+- **Warranty classification on complaints** (In Warranty / Out Warranty). The field and its link to appointments already existed in the database but nothing in the portal could set it. The complaint's Notes panel now has a Warranty classification select; it can be saved with or without notes, shows in the complaint details, and is carried into the appointment's job warranty when one is booked.
+- New API: POST /api/revenue-dashboard/activity (query: action, view, period). POST /api/complaints/{id}/notes now accepts notes, warrantyClassification, or both.
+- The public complaint form is unchanged: customers do not classify their own warranty.
+
+**Needs you:** restart and hard-refresh. No migration.

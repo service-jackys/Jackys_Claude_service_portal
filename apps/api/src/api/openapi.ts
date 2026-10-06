@@ -463,8 +463,10 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
         ComplaintNotesRequest: {
           type: 'object',
           additionalProperties: false,
-          required: ['notes'],
-          properties: { notes: { type: 'string', minLength: 1, maxLength: 10000 } },
+          properties: {
+            notes: { type: 'string', minLength: 1, maxLength: 10000 },
+            warrantyClassification: { type: 'string', enum: ['', 'In Warranty', 'Out Warranty'] },
+          },
         },
         ComplaintStatusRequest: {
           type: 'object',

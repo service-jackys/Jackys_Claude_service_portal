@@ -182,10 +182,19 @@ export async function updateComplaintNotes(
 ): Promise<ComplaintRecord | null> {
   const result = await client.query<ComplaintRecord>(
     `UPDATE complaints
-     SET cce_notes = $2, updated_by = $3, updated_at = now()
+     SET cce_notes = CASE WHEN $2::boolean THEN $3 ELSE cce_notes END,
+         warranty_classification = CASE WHEN $4::boolean THEN NULLIF($5, '') ELSE warranty_classification END,
+         updated_by = $6, updated_at = now()
      WHERE id = $1
      RETURNING ${complaintColumns}`,
-    [id, notes.notes, profileId],
+    [
+      id,
+      notes.notes !== undefined,
+      notes.notes ?? null,
+      notes.warrantyClassification !== undefined,
+      notes.warrantyClassification ?? null,
+      profileId,
+    ],
   );
   return result.rows[0] ?? null;
 }

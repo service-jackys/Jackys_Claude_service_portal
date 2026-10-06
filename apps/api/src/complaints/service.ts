@@ -134,7 +134,10 @@ export function createComplaintService(pool: Pool) {
         action: 'complaint.notes_updated',
         targetType: 'complaint',
         targetId: id,
-        metadata: {},
+        metadata:
+          notes.warrantyClassification !== undefined
+            ? { warrantyClassification: notes.warrantyClassification || null }
+            : {},
         requestId,
       });
       return complaint;

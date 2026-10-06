@@ -4724,6 +4724,8 @@ ${bodyHtml}
     if (!canWrite) return;
 
     $('#complaintNotes').value = complaint.cceNotes || '';
+    $('#complaintWarranty').value = complaint.warrantyClassification || '';
+    $('#complaintWarranty').dataset.saved = complaint.warrantyClassification || '';
     const nextStatuses = complaintTransitions[complaint.status] || [];
     $('#complaintNextStatus').innerHTML = nextStatuses.length
       ? nextStatuses
@@ -4997,6 +4999,7 @@ ${bodyHtml}
         ['Model', complaint.model],
         ['Serial or item code', complaint.serialOrItemCode],
         ['Sales order', complaint.salesOrderNumber],
+        ['Warranty classification', complaint.warrantyClassification],
         ['B2B Branch / School', complaint.b2bBranchSchool],
         ['Site contact person', complaint.schoolContactPerson],
         ['Site contact number', complaint.schoolContactNumber],
@@ -5051,8 +5054,11 @@ ${bodyHtml}
     const form = event.currentTarget;
     clearErrors(form);
     const notes = $('#complaintNotes').value.trim();
-    if (!notes) {
-      showFieldError(form, 'complaintNotes', 'Enter notes before saving.');
+    const warrantyClassification = $('#complaintWarranty').value;
+    const classificationChanged =
+      warrantyClassification !== ($('#complaintWarranty').dataset.saved || '');
+    if (!notes && !classificationChanged) {
+      showFieldError(form, 'complaintNotes', 'Enter notes or change the warranty classification.');
       return;
     }
     const button = $('#saveNotesButton');
@@ -5060,11 +5066,14 @@ ${bodyHtml}
     try {
       await apiRequest('/api/complaints/' + encodeURIComponent(currentComplaintId) + '/notes', {
         method: 'POST',
-        body: JSON.stringify({ notes }),
+        body: JSON.stringify({
+          ...(notes ? { notes } : {}),
+          ...(classificationChanged ? { warrantyClassification } : {}),
+        }),
       });
       await loadComplaintDetail(currentComplaintId);
       await loadComplaints();
-      setMessage('#workspaceMessage', 'Notes saved.', true);
+      setMessage('#workspaceMessage', 'Complaint updated.', true);
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -10880,6 +10889,10 @@ ${bodyHtml}
     'auth.password_reset': 'Password reset by admin',
     'report.exported': 'Report downloaded',
     'revenue_dashboard.imported': 'Revenue workbook uploaded',
+    'revenue_dashboard.viewed': 'Revenue dashboard viewed',
+    'revenue_dashboard.exported': 'Revenue report downloaded',
+    'revenue_dashboard.email_drafted': 'Revenue summary email drafted',
+    'revenue_dashboard.summary_copied': 'Revenue summary copied',
     'pricing_config.saved': 'Pricing master saved',
     'pricing_config.reset': 'Pricing master reset to defaults',
     'pricing_config.restored': 'Pricing master restored',
@@ -11836,6 +11849,20 @@ ${bodyHtml}
     });
     return q.toString();
   }
+  // Tell the server who looked at / copied / emailed the revenue dashboard.
+  // Fire-and-forget; a view is logged at most once per 10 minutes per tab.
+  const rdActivitySeen = new Map();
+  function rdLogActivity(action, view, period) {
+    if (action === 'viewed') {
+      const last = rdActivitySeen.get(view) || 0;
+      if (Date.now() - last < 10 * 60 * 1000) return;
+      rdActivitySeen.set(view, Date.now());
+    }
+    apiRequest('/api/revenue-dashboard/activity?' + rdQs({ action, view, period }), {
+      method: 'POST',
+    }).catch(() => {});
+  }
+
   const rdApi = (path, params) => apiRequest('/api/revenue-dashboard/' + path + '?' + rdQs(params));
 
   function rdDownloadBlob(blob, fileName) {
@@ -13034,6 +13061,7 @@ ${bodyHtml}
           exceptions: drawExceptions,
         };
         await views[reportView]();
+        rdLogActivity('viewed', 'reports:' + reportView, periodLabel());
       } catch (error) {
         reportBody.innerHTML =
           '<p class="form-note rd-pad">' +
@@ -13083,7 +13111,7 @@ ${bodyHtml}
             '</button>',
         ).join('') +
         '</div>' +
-        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button></div>' +
+        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button></div>' +
         '<div data-rd-summary-box hidden class="rd-pad"><textarea class="rd-summary-text" readonly rows="14"></textarea><div class="rd-report-actions"><button class="button button-outline" type="button" data-rd-copy>Copy text</button><span class="form-note" data-rd-copy-msg>Plain-text summary for email &mdash; nothing is sent.</span></div></div></div>' +
         '<div data-rd-report-body></div>';
       reportBody = body.querySelector('[data-rd-report-body]');
@@ -13121,11 +13149,55 @@ ${bodyHtml}
           area.value = error.message || 'Could not build the summary.';
         }
       });
+      // Email draft: opens the user's own mail app with the summary filled in;
+      // nothing is sent. Mail clients cap mailto: links at roughly 2,000
+      // characters, so a longer summary is trimmed in the draft and the full
+      // text is copied to the clipboard to paste underneath.
+      body.querySelector('[data-rd-email]').addEventListener('click', async (e) => {
+        const button = e.currentTarget;
+        const box = body.querySelector('[data-rd-summary-box]');
+        const area = box.querySelector('textarea');
+        const msg = body.querySelector('[data-rd-copy-msg]');
+        box.hidden = false;
+        button.disabled = true;
+        try {
+          const text = await managementSummary(sum);
+          area.value = text;
+          const subject = 'Service revenue summary - ' + periodLabel();
+          const limit = 1500;
+          const trimmed = text.length > limit;
+          const draftBody = trimmed
+            ? text.slice(0, text.lastIndexOf('\n', limit)) +
+              '\n\n[Summary shortened - the full text is in the Management summary box; paste it here.]'
+            : text;
+          if (trimmed) {
+            try {
+              await navigator.clipboard.writeText(text);
+            } catch {
+              /* the full text stays visible in the box */
+            }
+          }
+          rdLogActivity('email_drafted', tab, periodLabel());
+          window.location.href =
+            'mailto:?subject=' +
+            encodeURIComponent(subject) +
+            '&body=' +
+            encodeURIComponent(draftBody);
+          msg.textContent = trimmed
+            ? 'Draft opened with a shortened summary; the full text was copied to your clipboard.'
+            : 'Draft opened in your mail app. Nothing is sent until you press Send.';
+        } catch (error) {
+          msg.textContent = error.message || 'Could not build the email draft.';
+        } finally {
+          button.disabled = false;
+        }
+      });
       body.querySelector('[data-rd-copy]').addEventListener('click', async () => {
         const area = body.querySelector('[data-rd-summary-box] textarea');
         const msg = body.querySelector('[data-rd-copy-msg]');
         try {
           await navigator.clipboard.writeText(area.value);
+          rdLogActivity('summary_copied', tab, periodLabel());
           msg.textContent = 'Copied.';
         } catch {
           area.select();
@@ -13141,6 +13213,7 @@ ${bodyHtml}
         rdDestroyCharts(body);
         reportBody = null;
         const sum = await rdApi('summary', F);
+        rdLogActivity('viewed', tab, periodLabel());
         top.innerHTML = '';
         const banner = document.createElement('div');
         banner.innerHTML = rdSourceBanner(sum.batch, 'revenue');

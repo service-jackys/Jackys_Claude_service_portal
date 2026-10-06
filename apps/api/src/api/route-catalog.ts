@@ -613,6 +613,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        activity: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         exportWorkbook: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -2465,6 +2469,27 @@ export function createRouteCatalog(
         responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         responses: [200, 400, 401, 403, 404, 500],
         handlers: revenueDashboardHandlers.exportWorkbook,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/revenue-dashboard/activity',
+        operationId: 'recordRevenueDashboardActivity',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Log that the signed-in user viewed the dashboard, copied the summary or opened an email draft (query parameters, no body)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'action',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: ['viewed', 'email_drafted', 'summary_copied'] },
+          },
+          { name: 'view', in: 'query', schema: { type: 'string', maxLength: 40 } },
+          { name: 'period', in: 'query', schema: { type: 'string', maxLength: 120 } },
+        ],
+        responses: [204, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.activity,
       },
       {
         method: 'get' as const,

@@ -104,11 +104,18 @@ export const complaintListQuerySchema = z
 
 export type ComplaintListQuery = z.infer<typeof complaintListQuerySchema>;
 
+export const complaintWarrantyClassifications = ['In Warranty', 'Out Warranty'] as const;
+
+// Either field may be sent on its own; an empty warrantyClassification clears it.
 export const complaintNotesSchema = z
   .object({
-    notes: z.string().trim().min(1).max(10000),
+    notes: z.string().trim().min(1).max(10000).optional(),
+    warrantyClassification: z.enum(['', ...complaintWarrantyClassifications]).optional(),
   })
-  .strict();
+  .strict()
+  .refine((value) => value.notes !== undefined || value.warrantyClassification !== undefined, {
+    message: 'Send notes, a warranty classification, or both.',
+  });
 
 export type ComplaintNotesInput = z.infer<typeof complaintNotesSchema>;
 

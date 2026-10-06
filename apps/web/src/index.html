@@ -4441,6 +4441,12 @@
                         <h4 id="notesHeading">CCE notes</h4>
                         <p>Keep the internal service follow-up notes current.</p>
                         <form id="notesForm" novalidate>
+                          <label for="complaintWarranty">Warranty classification</label>
+                          <select id="complaintWarranty" name="warrantyClassification">
+                            <option value="">Not classified</option>
+                            <option>In Warranty</option>
+                            <option>Out Warranty</option>
+                          </select>
                           <label for="complaintNotes">Notes</label>
                           <textarea id="complaintNotes" name="notes" maxlength="10000"></textarea>
                           <span class="field-error" data-error-for="complaintNotes"></span>

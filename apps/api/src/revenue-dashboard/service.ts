@@ -29,7 +29,7 @@ import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from '.
 
 export class RevenueDashboardServiceError extends Error {
   constructor(
-    public readonly code: 'invalid-file' | 'no-data',
+    public readonly code: 'invalid-file' | 'no-data' | 'invalid-activity',
     message: string,
   ) {
     super(message);
@@ -179,7 +179,11 @@ export function createRevenueDashboardService(pool: Pool) {
     return withActive((client, batchId) => revenueExceptions(client, batchId, filters));
   }
 
-  async function exportWorkbook(query: Record<string, unknown>) {
+  async function exportWorkbook(
+    query: Record<string, unknown>,
+    profileId?: string,
+    requestId: string = randomUUID(),
+  ) {
     const filters = revenueFilterQuerySchema.parse(query) as RevenueFilters;
     const client = await pool.connect();
     try {
@@ -202,7 +206,56 @@ export function createRevenueDashboardService(pool: Pool) {
         exceptions: await revenueExceptions(client, batch.id, filters),
         lines: await revenueExportLines(client, batch.id, filters),
       };
-      return buildRevenueReportWorkbook(data);
+      const workbook = await buildRevenueReportWorkbook(data);
+      if (profileId) {
+        await insertAuditEvent(client, {
+          actorProfileId: profileId,
+          action: 'revenue_dashboard.exported',
+          targetType: 'revenue_import_batch',
+          targetId: batch.id,
+          metadata: { filters: Object.fromEntries(Object.entries(filters).filter(([, v]) => v)) },
+          requestId,
+        });
+      }
+      return workbook;
+    } finally {
+      client.release();
+    }
+  }
+
+  // Who looked at, copied or drafted an email from the revenue dashboard. The
+  // browser reports these (a view is not a server request), so only a small
+  // fixed set of actions and a short view label are accepted.
+  const ACTIVITY_ACTIONS = ['viewed', 'email_drafted', 'summary_copied'] as const;
+
+  async function recordActivity(
+    query: Record<string, unknown>,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const action = String(query.action ?? '');
+    if (!(ACTIVITY_ACTIONS as readonly string[]).includes(action)) {
+      throw new RevenueDashboardServiceError(
+        'invalid-activity',
+        'action must be one of: ' + ACTIVITY_ACTIONS.join(', ') + '.',
+      );
+    }
+    const view = String(query.view ?? '').trim();
+    if (view && !/^[A-Za-z0-9:_ -]{1,40}$/.test(view)) {
+      throw new RevenueDashboardServiceError('invalid-activity', 'view is not a valid label.');
+    }
+    const period = String(query.period ?? '')
+      .trim()
+      .slice(0, 120);
+    const client = await pool.connect();
+    try {
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.' + action,
+        targetType: 'revenue_dashboard',
+        metadata: { ...(view ? { view } : {}), ...(period ? { period } : {}) },
+        requestId,
+      });
     } finally {
       client.release();
     }
@@ -244,6 +297,7 @@ export function createRevenueDashboardService(pool: Pool) {
     matrix,
     exceptions,
     exportWorkbook,
+    recordActivity,
   };
 }
 
