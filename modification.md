@@ -2237,3 +2237,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - The public complaint form is unchanged: customers do not classify their own warranty.
 
 **Needs you:** restart and hard-refresh. No migration.
+
+
+## Modification #62 — Formatted (HTML) management email
+
+**Date:** 2026-10-06 · **Scope:** revenue_dashboard.read · no migration · restart
+
+**What changed**
+- New **Formatted email** button on Revenue dashboard → Reports, next to Email draft. It builds a styled management email for the period on screen and shows a preview: navy header, headline movement versus the prior month, four KPI tiles (revenue, jobs, units, average per job), revenue by job type, by sales channel, top 5 customers, the last 6 months, items for finance review, sign-off and the basis note.
+- Mail links cannot carry formatting, so there are three ways to use it: **Copy formatted email** (paste into a new Outlook or Gmail message and the layout stays), **Download as email draft (.eml)** (opens in Outlook as an editable draft with the layout; add recipients and send), or **Download .html**.
+- Built from tables and inline styles only so it renders the same in Outlook, Gmail and phones. A plain-text version is included inside the .eml for clients that need it.
+- Nothing is sent from the portal. Using it is logged in the Activity log as "Revenue summary email drafted".
+
+**Needs you:** restart and hard-refresh. No migration. Open the .eml in the Outlook you normally use and tell me if anything renders differently from the preview.

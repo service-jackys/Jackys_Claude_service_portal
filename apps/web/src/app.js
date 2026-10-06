@@ -13043,6 +13043,327 @@ ${bodyHtml}
       return lines.join('\n');
     }
 
+    // ---- Formatted (HTML) management email --------------------------------
+    // Email-safe markup: tables and inline styles only, because mail clients
+    // ignore <style> blocks, flexbox and most modern CSS. Bars are table cells.
+    async function managementEmailData(sum) {
+      const [byType, byChannel, byCustomer, byPeriod, exc] = await Promise.all([
+        rdApi('group', { ...F, dimension: 'jobType' }),
+        rdApi('group', { ...F, dimension: 'channel' }),
+        rdApi('group', { ...F, dimension: 'customer' }),
+        rdApi('group', { ...F, month: '', week: '', dimension: 'period' }),
+        rdApi('exceptions', F),
+      ]);
+      const periods = [...byPeriod.data.rows].sort((a, b) => a.key.localeCompare(b.key));
+      return {
+        t: sum.summary.totals,
+        byType: byType.data.rows,
+        byChannel: byChannel.data.rows,
+        customers: byCustomer.data.rows.slice(0, 5),
+        periods,
+        open: exc.data.exceptions.filter((e) => e.jobs),
+        source: sum.batch ? sum.batch.fileName : 'workbook',
+        uploadedAt: sum.batch ? sum.batch.uploadedAt : null,
+      };
+    }
+
+    function managementEmailHtml(d) {
+      const NAVY = '#12305c';
+      const BLUE = '#1d5fa8';
+      const INK = '#1f2933';
+      const MUTED = '#667085';
+      const LINE = '#e4e7ec';
+      const GREEN = '#15803d';
+      const RED = '#b42318';
+      const font = "font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;";
+      const e = escapeHtml;
+      const total = d.t.revenue || 0;
+      const last = d.periods[d.periods.length - 1];
+      const prev = d.periods[d.periods.length - 2];
+      const change =
+        last && prev && prev.revenue ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
+
+      const kpi = (label, value, note) =>
+        '<td width="25%" valign="top" style="padding:0 4px;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fc;border:1px solid ' +
+        LINE +
+        ';border-top:3px solid ' +
+        BLUE +
+        ';">' +
+        '<tr><td style="padding:12px 10px;' +
+        font +
+        '">' +
+        '<div style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:' +
+        MUTED +
+        ';">' +
+        e(label) +
+        '</div>' +
+        '<div style="font-size:21px;font-weight:700;color:' +
+        NAVY +
+        ';padding-top:4px;">' +
+        e(value) +
+        '</div>' +
+        (note
+          ? '<div style="font-size:11px;color:' + MUTED + ';padding-top:2px;">' + e(note) + '</div>'
+          : '') +
+        '</td></tr></table></td>';
+
+      const bar = (part, whole, color) => {
+        const pct = whole ? Math.max(0, Math.min(100, (part / whole) * 100)) : 0;
+        const w = Math.max(pct, 1);
+        return (
+          '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+          '<td width="' +
+          w.toFixed(1) +
+          '%" height="8" bgcolor="' +
+          color +
+          '" style="background:' +
+          color +
+          ';font-size:0;line-height:0;">&nbsp;</td>' +
+          '<td height="8" style="font-size:0;line-height:0;">&nbsp;</td></tr></table>'
+        );
+      };
+
+      const section = (title) =>
+        '<tr><td style="padding:26px 28px 8px;' +
+        font +
+        '"><div style="font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:' +
+        NAVY +
+        ';border-bottom:2px solid ' +
+        NAVY +
+        ';padding-bottom:6px;">' +
+        e(title) +
+        '</div></td></tr>';
+
+      const shareTable = (rows, labelFor, color) => {
+        const rowMax = Math.max(1, ...rows.map((r) => r.revenue || 0));
+        return (
+          '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
+          font +
+          'font-size:13px;color:' +
+          INK +
+          ';">' +
+          rows
+            .map(
+              (r) =>
+                '<tr><td width="34%" style="padding:7px 8px 7px 0;border-bottom:1px solid ' +
+                LINE +
+                ';">' +
+                e(labelFor(r)) +
+                '</td>' +
+                '<td width="30%" style="padding:7px 8px;border-bottom:1px solid ' +
+                LINE +
+                ';">' +
+                bar(r.revenue, rowMax, color) +
+                '</td>' +
+                '<td width="22%" align="right" style="padding:7px 0 7px 8px;border-bottom:1px solid ' +
+                LINE +
+                ';font-weight:600;">AED ' +
+                rdMoney(r.revenue) +
+                '</td>' +
+                '<td width="14%" align="right" style="padding:7px 0 7px 8px;border-bottom:1px solid ' +
+                LINE +
+                ';color:' +
+                MUTED +
+                ';">' +
+                rdPercent(r.revenue, total) +
+                '</td></tr>',
+            )
+            .join('') +
+          '</table></td></tr>'
+        );
+      };
+
+      const trend = d.periods.slice(-6);
+      const trendMax = Math.max(1, ...trend.map((p) => p.revenue || 0));
+      const trendRows = trend
+        .map(
+          (p) =>
+            '<tr><td width="22%" style="padding:6px 8px 6px 0;border-bottom:1px solid ' +
+            LINE +
+            ';">' +
+            e(rdLabel('period', p.key)) +
+            '</td>' +
+            '<td width="48%" style="padding:6px 8px;border-bottom:1px solid ' +
+            LINE +
+            ';">' +
+            bar(p.revenue, trendMax, NAVY) +
+            '</td>' +
+            '<td width="30%" align="right" style="padding:6px 0 6px 8px;border-bottom:1px solid ' +
+            LINE +
+            ';font-weight:600;">AED ' +
+            rdMoney(p.revenue) +
+            '</td></tr>',
+        )
+        .join('');
+
+      const headlineNote =
+        change === null
+          ? ''
+          : '<span style="color:' +
+            (change >= 0 ? GREEN : RED) +
+            ';font-weight:700;">' +
+            (change >= 0 ? '&#9650; +' : '&#9660; ') +
+            change.toFixed(1) +
+            '%</span> ' +
+            e(
+              'in ' +
+                rdLabel('period', last.key) +
+                ' versus ' +
+                rdLabel('period', prev.key) +
+                ' (AED ' +
+                rdMoney(last.revenue) +
+                ' against AED ' +
+                rdMoney(prev.revenue) +
+                ').',
+            );
+
+      const reviewRows = d.open.length
+        ? d.open
+            .map(
+              (x) =>
+                '<tr><td style="padding:7px 0;border-bottom:1px solid ' +
+                LINE +
+                ';">' +
+                e(x.label) +
+                '</td>' +
+                '<td align="right" style="padding:7px 0;border-bottom:1px solid ' +
+                LINE +
+                ';color:' +
+                MUTED +
+                ';">' +
+                rdMoney(x.jobs) +
+                ' jobs</td>' +
+                '<td align="right" style="padding:7px 0 7px 12px;border-bottom:1px solid ' +
+                LINE +
+                ';font-weight:600;">AED ' +
+                rdMoney(x.revenue) +
+                '</td></tr>',
+            )
+            .join('')
+        : '<tr><td style="padding:7px 0;color:' + GREEN + ';">No open items &#10003;</td></tr>';
+
+      return (
+        '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Service revenue summary</title></head>' +
+        '<body style="margin:0;padding:0;background:#eef1f5;">' +
+        '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;"><tr><td align="center" style="padding:24px 10px;">' +
+        '<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid ' +
+        LINE +
+        ';">' +
+        // header
+        '<tr><td bgcolor="' +
+        NAVY +
+        '" style="background:' +
+        NAVY +
+        ';padding:26px 28px;' +
+        font +
+        '">' +
+        '<div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a9c2e6;">Jacky&#39;s Distribution &middot; After-Sales Service</div>' +
+        '<div style="font-size:24px;font-weight:700;color:#ffffff;padding-top:6px;">Service Revenue Summary</div>' +
+        '<div style="font-size:14px;color:#d6e3f5;padding-top:6px;">' +
+        e(periodLabel()) +
+        '</div></td></tr>' +
+        // intro
+        '<tr><td style="padding:22px 28px 6px;' +
+        font +
+        'font-size:14px;line-height:1.55;color:' +
+        INK +
+        ';">Dear Management,<br><br>Please find below the service revenue summary for <strong>' +
+        e(periodLabel()) +
+        '</strong>.' +
+        (headlineNote ? ' Latest month: ' + headlineNote : '') +
+        '</td></tr>' +
+        // KPIs
+        '<tr><td style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        kpi('Revenue', 'AED ' + rdMoney(d.t.revenue), '') +
+        kpi('Jobs', rdMoney(d.t.jobs), '') +
+        kpi('Units', rdMoney(d.t.qty), '') +
+        kpi('Avg per job', 'AED ' + rdMoney(d.t.jobs ? d.t.revenue / d.t.jobs : 0), '') +
+        '</tr></table></td></tr>' +
+        section('Revenue by job type') +
+        shareTable(d.byType, (r) => rdLabel('jobType', r.key), BLUE) +
+        section('Revenue by sales channel') +
+        shareTable(d.byChannel, (r) => r.key, '#0e7490') +
+        section('Top 5 customers') +
+        shareTable(d.customers, (r, i) => r.key, '#7c3aed') +
+        (trend.length > 1
+          ? section('Monthly trend (last ' + trend.length + ' months)') +
+            '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
+            font +
+            'font-size:13px;color:' +
+            INK +
+            ';">' +
+            trendRows +
+            '</table></td></tr>'
+          : '') +
+        section('Items for finance review') +
+        '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
+        font +
+        'font-size:13px;color:' +
+        INK +
+        ';">' +
+        reviewRows +
+        '</table></td></tr>' +
+        // footer
+        '<tr><td style="padding:26px 28px 24px;' +
+        font +
+        'font-size:13px;line-height:1.55;color:' +
+        INK +
+        ';">Kind regards,<br><strong>Jacky&#39;s Distribution &mdash; After-Sales Service</strong></td></tr>' +
+        '<tr><td bgcolor="#f5f8fc" style="background:#f5f8fc;border-top:1px solid ' +
+        LINE +
+        ';padding:14px 28px;' +
+        font +
+        'font-size:11px;line-height:1.5;color:' +
+        MUTED +
+        ';">' +
+        'Basis: figures are the Revenue calculated in the master Service Dashboard workbook (' +
+        e(d.source) +
+        (d.uploadedAt ? ', uploaded ' + e(formatDate(d.uploadedAt)) : '') +
+        '); management analysis, not an ERP ledger extract. Generated from the Service Portal on ' +
+        e(formatDate(new Date().toISOString())) +
+        '.</td></tr>' +
+        '</table></td></tr></table></body></html>'
+      );
+    }
+
+    function emailDownload(content, fileName, type) {
+      rdDownloadBlob(new Blob([content], { type }), fileName);
+    }
+
+    // An .eml with X-Unsent opens in Outlook as an editable draft with the
+    // formatting intact; the user adds recipients and presses Send.
+    function buildEml(subject, html, text) {
+      const b64 = (value) => {
+        const bytes = new TextEncoder().encode(value);
+        let binary = '';
+        bytes.forEach((byte) => {
+          binary += String.fromCharCode(byte);
+        });
+        return btoa(binary).replace(/(.{76})/g, '$1\r\n');
+      };
+      const boundary = '=_jd_' + Date.now().toString(36);
+      return [
+        'X-Unsent: 1',
+        'Subject: ' + subject,
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="' + boundary + '"',
+        '',
+        '--' + boundary,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        b64(text),
+        '--' + boundary,
+        'Content-Type: text/html; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        b64(html),
+        '--' + boundary + '--',
+        '',
+      ].join('\r\n');
+    }
+
     let reportBody = null;
     let currentSum = null;
     async function drawReportsView() {
@@ -13111,7 +13432,8 @@ ${bodyHtml}
             '</button>',
         ).join('') +
         '</div>' +
-        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button></div>' +
+        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button><button class="button button-outline" type="button" data-rd-html-email>Formatted email</button></div>' +
+        '<div data-rd-html-box hidden class="rd-pad"><div class="rd-report-actions"><button class="button" type="button" data-rd-html-copy>Copy formatted email</button><button class="button button-outline" type="button" data-rd-html-eml>Download as email draft (.eml)</button><button class="button button-outline" type="button" data-rd-html-file>Download .html</button><span class="form-note" data-rd-html-msg>Paste into Outlook or Gmail, or open the .eml file; add recipients and send yourself. Nothing is sent from the portal.</span></div><iframe data-rd-html-frame title="Formatted email preview" style="width:100%;height:760px;border:1px solid #d7dbe0;background:#eef1f5;margin-top:10px;"></iframe></div>' +
         '<div data-rd-summary-box hidden class="rd-pad"><textarea class="rd-summary-text" readonly rows="14"></textarea><div class="rd-report-actions"><button class="button button-outline" type="button" data-rd-copy>Copy text</button><span class="form-note" data-rd-copy-msg>Plain-text summary for email &mdash; nothing is sent.</span></div></div></div>' +
         '<div data-rd-report-body></div>';
       reportBody = body.querySelector('[data-rd-report-body]');
@@ -13191,6 +13513,57 @@ ${bodyHtml}
         } finally {
           button.disabled = false;
         }
+      });
+      // Formatted email: a styled HTML version for management, previewed here.
+      let emailBuilt = null;
+      body.querySelector('[data-rd-html-email]').addEventListener('click', async (e) => {
+        const button = e.currentTarget;
+        const box = body.querySelector('[data-rd-html-box]');
+        const msg = body.querySelector('[data-rd-html-msg]');
+        button.disabled = true;
+        try {
+          const data = await managementEmailData(sum);
+          const html = managementEmailHtml(data);
+          const text = await managementSummary(sum);
+          emailBuilt = { html, text, subject: 'Service revenue summary - ' + periodLabel() };
+          box.hidden = false;
+          body.querySelector('[data-rd-html-frame]').srcdoc = html;
+          box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          rdLogActivity('email_drafted', 'html-email', periodLabel());
+        } catch (error) {
+          box.hidden = false;
+          msg.textContent = error.message || 'Could not build the formatted email.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+      body.querySelector('[data-rd-html-copy]').addEventListener('click', async () => {
+        const msg = body.querySelector('[data-rd-html-msg]');
+        if (!emailBuilt) return;
+        try {
+          await navigator.clipboard.write([
+            new ClipboardItem({
+              'text/html': new Blob([emailBuilt.html], { type: 'text/html' }),
+              'text/plain': new Blob([emailBuilt.text], { type: 'text/plain' }),
+            }),
+          ]);
+          msg.textContent = 'Copied with formatting. Paste it into a new email (Ctrl+V).';
+        } catch {
+          msg.textContent =
+            'This browser blocked copying. Download the .eml draft or the .html file instead.';
+        }
+      });
+      body.querySelector('[data-rd-html-eml]').addEventListener('click', () => {
+        if (!emailBuilt) return;
+        emailDownload(
+          buildEml(emailBuilt.subject, emailBuilt.html, emailBuilt.text),
+          'service-revenue-summary.eml',
+          'message/rfc822',
+        );
+      });
+      body.querySelector('[data-rd-html-file]').addEventListener('click', () => {
+        if (!emailBuilt) return;
+        emailDownload(emailBuilt.html, 'service-revenue-summary.html', 'text/html');
       });
       body.querySelector('[data-rd-copy]').addEventListener('click', async () => {
         const area = body.querySelector('[data-rd-summary-box] textarea');
