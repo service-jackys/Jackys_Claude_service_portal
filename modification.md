@@ -2331,5 +2331,6 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Cleaner toolbar: previous / next arrows, Today, the month title, and a Month / Week toggle. Today is a filled circle on its date; days from neighbouring months are dimmed. Week view shows the reference and status on each chip.
 - Drag-to-reschedule, the status filter and search work as before. The list below the calendar is titled "All appointments".
 - Dark mode: page titles and customer names in tables were dark on dark; fixed.
+- **All appointments table** restyled: smaller type, uppercase column headers, compact rows with hover, customer name with the contact number beneath, technician shown by name with initials (the list showed a raw technician id before), status as a coloured pill, and a row count next to the title. The appointment list API now also returns `technicianName`.
 
 **Needs you:** hard-refresh only.

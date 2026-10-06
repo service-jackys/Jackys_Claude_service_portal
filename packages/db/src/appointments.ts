@@ -14,6 +14,7 @@ export type AppointmentRecord = {
   customerId: string | null;
   branchId: string | null;
   technicianId: string | null;
+  technicianName?: string | null;
   customerType: string;
   customerName: string;
   contactNumber: string | null;
@@ -57,6 +58,7 @@ const columns = `
   appointments.customer_id AS "customerId",
   appointments.branch_id AS "branchId",
   appointments.technician_id AS "technicianId",
+  (SELECT t.name FROM technicians t WHERE t.id = appointments.technician_id) AS "technicianName",
   appointments.customer_type AS "customerType",
   appointments.customer_name AS "customerName",
   appointments.contact_number AS "contactNumber",

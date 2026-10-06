@@ -4414,12 +4414,23 @@ ${bodyHtml}
 
   function renderAppointments(appointments) {
     const body = $('#appointmentsBody');
+    const initials = (name) =>
+      String(name)
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0].toUpperCase())
+        .join('');
     body.innerHTML = appointments
-      .map(
-        (appointment) =>
-          `<tr class="row-${CAL_STATUS_KEY[appointment.status] || 'scheduled'}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><strong>${escapeHtml(appointment.customerName)}</strong><br>${escapeHtml(appointment.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(appointment))}</td><td>${escapeHtml(appointment.technicianId || 'Unassigned')}</td><td><span class="status ${statusClass(appointment.status)}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td></tr>`,
-      )
+      .map((appointment) => {
+        const key = CAL_STATUS_KEY[appointment.status] || 'scheduled';
+        const tech = appointment.technicianName
+          ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
+          : '<span class="ap-none">Unassigned</span>';
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td></tr>`;
+      })
       .join('');
+    $('#appointmentListCount').textContent = appointments.length ? String(appointments.length) : '';
     $('#appointmentsEmpty').hidden = appointments.length > 0;
     body
       .querySelectorAll('[data-appointment-id]')

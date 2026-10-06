@@ -2648,6 +2648,132 @@
           transition: none;
         }
       }
+      /* ---- Appointments list table (modification #68) ---- */
+      #appointmentWorkspace .ap-list {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface);
+        box-shadow: 0 1px 2px rgb(16 43 78 / 5%);
+      }
+      #appointmentWorkspace .ap-list table {
+        font-size: 0.76rem;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      #appointmentWorkspace .ap-list th {
+        padding: 8px 12px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        white-space: nowrap;
+        text-align: left;
+      }
+      #appointmentWorkspace .ap-list td {
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+        line-height: 1.3;
+        color: var(--ink);
+      }
+      #appointmentWorkspace .ap-list tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      #appointmentWorkspace .ap-list tbody tr:hover td {
+        background: color-mix(in srgb, var(--blue) 5%, var(--surface));
+      }
+      #appointmentWorkspace .ap-list .table-link {
+        font-size: 0.76rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .ap-name {
+        display: block;
+        font-weight: 600;
+        font-size: 0.78rem;
+      }
+      .ap-sub {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+      .ap-date {
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .ap-tech {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        white-space: nowrap;
+      }
+      .ap-tech b {
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.62rem;
+        font-weight: 700;
+        background: color-mix(in srgb, var(--blue) 14%, var(--surface));
+        color: var(--blue);
+      }
+      [data-theme='dark'] .ap-tech b {
+        color: #9cc9ec;
+      }
+      .ap-none {
+        color: var(--muted);
+        font-style: italic;
+      }
+      .ap-pill {
+        --st: var(--st-scheduled);
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        white-space: nowrap;
+        background: color-mix(in srgb, var(--st) 13%, var(--surface));
+        color: var(--st);
+      }
+      .ap-pill::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--st);
+      }
+      .ap-pill.st-in-progress {
+        --st: var(--st-progress);
+      }
+      .ap-pill.st-completed {
+        --st: var(--st-completed);
+      }
+      .ap-pill.st-cancelled {
+        --st: var(--st-cancelled);
+      }
+      .ap-count {
+        margin-left: 6px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        vertical-align: middle;
+      }
+      .ap-count:empty {
+        display: none;
+      }
       .history {
         margin: 1.4rem 0 0;
         padding: 0;
@@ -7251,8 +7377,10 @@
                   <div id="calendarMessage" class="notice notice-error" role="alert" hidden></div>
                   <div class="calendar-grid" id="appointmentCalendar" aria-live="polite"></div>
                 </div>
-                <h3 class="cal-list-title">All appointments</h3>
-                <div class="table-wrap">
+                <h3 class="cal-list-title">
+                  All appointments <span class="ap-count" id="appointmentListCount"></span>
+                </h3>
+                <div class="table-wrap ap-list">
                   <table>
                     <caption class="visually-hidden">
                       Appointments
