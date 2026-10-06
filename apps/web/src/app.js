@@ -13047,10 +13047,10 @@ ${bodyHtml}
     // Email-safe markup: tables and inline styles only, because mail clients
     // ignore <style> blocks, flexbox and most modern CSS. Bars are table cells.
     async function managementEmailData(sum) {
-      const [byType, byChannel, byCustomer, byPeriod, exc] = await Promise.all([
+      const [byType, byChannel, bySales, byPeriod, exc] = await Promise.all([
         rdApi('group', { ...F, dimension: 'jobType' }),
         rdApi('group', { ...F, dimension: 'channel' }),
-        rdApi('group', { ...F, dimension: 'customer' }),
+        rdApi('group', { ...F, dimension: 'salesPerson' }),
         rdApi('group', { ...F, month: '', week: '', dimension: 'period' }),
         rdApi('exceptions', F),
       ]);
@@ -13059,7 +13059,7 @@ ${bodyHtml}
         t: sum.summary.totals,
         byType: byType.data.rows,
         byChannel: byChannel.data.rows,
-        customers: byCustomer.data.rows.slice(0, 5),
+        salesPeople: bySales.data.rows,
         periods,
         open: exc.data.exceptions.filter((e) => e.jobs),
         source: sum.batch ? sum.batch.fileName : 'workbook',
@@ -13069,7 +13069,6 @@ ${bodyHtml}
 
     function managementEmailHtml(d) {
       const NAVY = '#12305c';
-      const BLUE = '#1d5fa8';
       const INK = '#1f2933';
       const MUTED = '#667085';
       const LINE = '#e4e7ec';
@@ -13083,118 +13082,118 @@ ${bodyHtml}
       const change =
         last && prev && prev.revenue ? ((last.revenue - prev.revenue) / prev.revenue) * 100 : null;
 
-      const kpi = (label, value, note) =>
-        '<td width="25%" valign="top" style="padding:0 4px;">' +
+      const kpi = (label, value) =>
+        '<td width="33%" valign="top" style="padding:0 4px;">' +
         '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f8fc;border:1px solid ' +
         LINE +
         ';border-top:3px solid ' +
-        BLUE +
-        ';">' +
-        '<tr><td style="padding:12px 10px;' +
+        NAVY +
+        ';"><tr><td style="padding:12px 10px;' +
         font +
-        '">' +
-        '<div style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:' +
+        '"><div style="font-size:11px;letter-spacing:.6px;text-transform:uppercase;color:' +
         MUTED +
         ';">' +
         e(label) +
-        '</div>' +
-        '<div style="font-size:21px;font-weight:700;color:' +
+        '</div><div style="font-size:21px;font-weight:700;color:' +
         NAVY +
         ';padding-top:4px;">' +
         e(value) +
-        '</div>' +
-        (note
-          ? '<div style="font-size:11px;color:' + MUTED + ';padding-top:2px;">' + e(note) + '</div>'
-          : '') +
-        '</td></tr></table></td>';
+        '</div></td></tr></table></td>';
 
-      const bar = (part, whole, color) => {
-        const pct = whole ? Math.max(0, Math.min(100, (part / whole) * 100)) : 0;
-        const w = Math.max(pct, 1);
-        return (
-          '<table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-          '<td width="' +
-          w.toFixed(1) +
-          '%" height="8" bgcolor="' +
-          color +
-          '" style="background:' +
-          color +
-          ';font-size:0;line-height:0;">&nbsp;</td>' +
-          '<td height="8" style="font-size:0;line-height:0;">&nbsp;</td></tr></table>'
-        );
-      };
-
-      const section = (title) =>
-        '<tr><td style="padding:26px 28px 8px;' +
+      // Each section gets its own coloured heading band; the data underneath is a plain table.
+      const section = (title, color) =>
+        '<tr><td style="padding:24px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="' +
+        color +
+        '" style="background:' +
+        color +
+        ';padding:9px 14px;' +
         font +
-        '"><div style="font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:' +
-        NAVY +
-        ';border-bottom:2px solid ' +
-        NAVY +
-        ';padding-bottom:6px;">' +
+        'font-size:13px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:#ffffff;">' +
         e(title) +
-        '</div></td></tr>';
+        '</td></tr></table></td></tr>';
 
-      const shareTable = (rows, labelFor, color) => {
-        const rowMax = Math.max(1, ...rows.map((r) => r.revenue || 0));
-        return (
-          '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
-          font +
-          'font-size:13px;color:' +
-          INK +
-          ';">' +
-          rows
-            .map(
-              (r) =>
-                '<tr><td width="34%" style="padding:7px 8px 7px 0;border-bottom:1px solid ' +
-                LINE +
-                ';">' +
-                e(labelFor(r)) +
-                '</td>' +
-                '<td width="30%" style="padding:7px 8px;border-bottom:1px solid ' +
-                LINE +
-                ';">' +
-                bar(r.revenue, rowMax, color) +
-                '</td>' +
-                '<td width="22%" align="right" style="padding:7px 0 7px 8px;border-bottom:1px solid ' +
-                LINE +
-                ';font-weight:600;">AED ' +
-                rdMoney(r.revenue) +
-                '</td>' +
-                '<td width="14%" align="right" style="padding:7px 0 7px 8px;border-bottom:1px solid ' +
-                LINE +
-                ';color:' +
-                MUTED +
-                ';">' +
-                rdPercent(r.revenue, total) +
-                '</td></tr>',
-            )
-            .join('') +
-          '</table></td></tr>'
+      const wrap = (inner) =>
+        '<tr><td style="padding:4px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
+        font +
+        'font-size:13px;color:' +
+        INK +
+        ';">' +
+        inner +
+        '</table></td></tr>';
+
+      const cell = (align, extra) =>
+        'padding:8px 0 8px ' +
+        (align === 'right' ? '12px' : '0') +
+        ';border-bottom:1px solid ' +
+        LINE +
+        ';' +
+        (extra || '');
+
+      const shareTable = (rows, labelFor) =>
+        wrap(
+          '<tr><td style="' +
+            cell(
+              'left',
+              'color:' + MUTED + ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+            ) +
+            '">&nbsp;</td><td align="right" style="' +
+            cell(
+              'right',
+              'color:' + MUTED + ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+            ) +
+            '">Revenue</td><td align="right" style="' +
+            cell(
+              'right',
+              'color:' + MUTED + ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+            ) +
+            '">Share</td></tr>' +
+            rows
+              .map(
+                (r) =>
+                  '<tr><td style="' +
+                  cell('left') +
+                  '">' +
+                  e(labelFor(r)) +
+                  '</td><td align="right" style="' +
+                  cell('right', 'font-weight:600;') +
+                  '">AED ' +
+                  rdMoney(r.revenue) +
+                  '</td><td align="right" width="70" style="' +
+                  cell('right', 'color:' + MUTED + ';') +
+                  '">' +
+                  rdPercent(r.revenue, total) +
+                  '</td></tr>',
+              )
+              .join(''),
         );
-      };
 
       const trend = d.periods.slice(-6);
-      const trendMax = Math.max(1, ...trend.map((p) => p.revenue || 0));
       const trendRows = trend
-        .map(
-          (p) =>
-            '<tr><td width="22%" style="padding:6px 8px 6px 0;border-bottom:1px solid ' +
-            LINE +
-            ';">' +
+        .map((p, i) => {
+          const before = i > 0 ? trend[i - 1] : d.periods[d.periods.length - trend.length - 1];
+          const delta =
+            before && before.revenue ? ((p.revenue - before.revenue) / before.revenue) * 100 : null;
+          return (
+            '<tr><td style="' +
+            cell('left') +
+            '">' +
             e(rdLabel('period', p.key)) +
-            '</td>' +
-            '<td width="48%" style="padding:6px 8px;border-bottom:1px solid ' +
-            LINE +
-            ';">' +
-            bar(p.revenue, trendMax, NAVY) +
-            '</td>' +
-            '<td width="30%" align="right" style="padding:6px 0 6px 8px;border-bottom:1px solid ' +
-            LINE +
-            ';font-weight:600;">AED ' +
+            '</td><td align="right" style="' +
+            cell('right', 'font-weight:600;') +
+            '">AED ' +
             rdMoney(p.revenue) +
-            '</td></tr>',
-        )
+            '</td><td align="right" width="90" style="' +
+            cell(
+              'right',
+              'font-weight:600;color:' + (delta === null ? MUTED : delta >= 0 ? GREEN : RED) + ';',
+            ) +
+            '">' +
+            (delta === null
+              ? '&ndash;'
+              : (delta >= 0 ? '&#9650; +' : '&#9660; ') + delta.toFixed(1) + '%') +
+            '</td></tr>'
+          );
+        })
         .join('');
 
       const headlineNote =
@@ -13222,26 +13221,22 @@ ${bodyHtml}
         ? d.open
             .map(
               (x) =>
-                '<tr><td style="padding:7px 0;border-bottom:1px solid ' +
-                LINE +
-                ';">' +
+                '<tr><td style="' +
+                cell('left') +
+                '">' +
                 e(x.label) +
-                '</td>' +
-                '<td align="right" style="padding:7px 0;border-bottom:1px solid ' +
-                LINE +
-                ';color:' +
-                MUTED +
-                ';">' +
+                '</td><td align="right" style="' +
+                cell('right', 'color:' + MUTED + ';') +
+                '">' +
                 rdMoney(x.jobs) +
-                ' jobs</td>' +
-                '<td align="right" style="padding:7px 0 7px 12px;border-bottom:1px solid ' +
-                LINE +
-                ';font-weight:600;">AED ' +
+                ' jobs</td><td align="right" style="' +
+                cell('right', 'font-weight:600;') +
+                '">AED ' +
                 rdMoney(x.revenue) +
                 '</td></tr>',
             )
             .join('')
-        : '<tr><td style="padding:7px 0;color:' + GREEN + ';">No open items &#10003;</td></tr>';
+        : '<tr><td style="padding:8px 0;color:' + GREEN + ';">No open items &#10003;</td></tr>';
 
       return (
         '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Service revenue summary</title></head>' +
@@ -13250,20 +13245,17 @@ ${bodyHtml}
         '<table role="presentation" width="640" cellpadding="0" cellspacing="0" style="width:100%;max-width:640px;background:#ffffff;border:1px solid ' +
         LINE +
         ';">' +
-        // header
         '<tr><td bgcolor="' +
         NAVY +
         '" style="background:' +
         NAVY +
         ';padding:26px 28px;' +
         font +
-        '">' +
-        '<div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a9c2e6;">Jacky&#39;s Distribution &middot; After-Sales Service</div>' +
+        '"><div style="font-size:12px;letter-spacing:1.4px;text-transform:uppercase;color:#a9c2e6;">Jacky&#39;s Distribution &middot; After-Sales Service</div>' +
         '<div style="font-size:24px;font-weight:700;color:#ffffff;padding-top:6px;">Service Revenue Summary</div>' +
         '<div style="font-size:14px;color:#d6e3f5;padding-top:6px;">' +
         e(periodLabel()) +
         '</div></td></tr>' +
-        // intro
         '<tr><td style="padding:22px 28px 6px;' +
         font +
         'font-size:14px;line-height:1.55;color:' +
@@ -13273,38 +13265,47 @@ ${bodyHtml}
         '</strong>.' +
         (headlineNote ? ' Latest month: ' + headlineNote : '') +
         '</td></tr>' +
-        // KPIs
         '<tr><td style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
-        kpi('Revenue', 'AED ' + rdMoney(d.t.revenue), '') +
-        kpi('Jobs', rdMoney(d.t.jobs), '') +
-        kpi('Units', rdMoney(d.t.qty), '') +
-        kpi('Avg per job', 'AED ' + rdMoney(d.t.jobs ? d.t.revenue / d.t.jobs : 0), '') +
+        kpi('Revenue', 'AED ' + rdMoney(d.t.revenue)) +
+        kpi('Jobs', rdMoney(d.t.jobs)) +
+        kpi('Units', rdMoney(d.t.qty)) +
         '</tr></table></td></tr>' +
-        section('Revenue by job type') +
-        shareTable(d.byType, (r) => rdLabel('jobType', r.key), BLUE) +
-        section('Revenue by sales channel') +
-        shareTable(d.byChannel, (r) => r.key, '#0e7490') +
-        section('Top 5 customers') +
-        shareTable(d.customers, (r, i) => r.key, '#7c3aed') +
+        section('Revenue by job type', '#1d5fa8') +
+        shareTable(d.byType, (r) => rdLabel('jobType', r.key)) +
+        section('Revenue by sales channel', '#0e7490') +
+        shareTable(d.byChannel, (r) => r.key) +
+        section('Revenue by salesman', '#7c3aed') +
+        shareTable(d.salesPeople, (r) => r.key || 'Not assigned') +
         (trend.length > 1
-          ? section('Monthly trend (last ' + trend.length + ' months)') +
-            '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
-            font +
-            'font-size:13px;color:' +
-            INK +
-            ';">' +
-            trendRows +
-            '</table></td></tr>'
+          ? section('Monthly trend (last ' + trend.length + ' months)', '#0f766e') +
+            wrap(
+              '<tr><td style="' +
+                cell(
+                  'left',
+                  'color:' +
+                    MUTED +
+                    ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+                ) +
+                '">Month</td><td align="right" style="' +
+                cell(
+                  'right',
+                  'color:' +
+                    MUTED +
+                    ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+                ) +
+                '">Revenue</td><td align="right" style="' +
+                cell(
+                  'right',
+                  'color:' +
+                    MUTED +
+                    ';font-size:11px;text-transform:uppercase;letter-spacing:.5px;',
+                ) +
+                '">vs prior</td></tr>' +
+                trendRows,
+            )
           : '') +
-        section('Items for finance review') +
-        '<tr><td style="padding:6px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="' +
-        font +
-        'font-size:13px;color:' +
-        INK +
-        ';">' +
-        reviewRows +
-        '</table></td></tr>' +
-        // footer
+        section('Items for finance review', '#b45309') +
+        wrap(reviewRows) +
         '<tr><td style="padding:26px 28px 24px;' +
         font +
         'font-size:13px;line-height:1.55;color:' +
@@ -13316,8 +13317,7 @@ ${bodyHtml}
         font +
         'font-size:11px;line-height:1.5;color:' +
         MUTED +
-        ';">' +
-        'Basis: figures are the Revenue calculated in the master Service Dashboard workbook (' +
+        ';">Basis: figures are the Revenue calculated in the master Service Dashboard workbook (' +
         e(d.source) +
         (d.uploadedAt ? ', uploaded ' + e(formatDate(d.uploadedAt)) : '') +
         '); management analysis, not an ERP ledger extract. Generated from the Service Portal on ' +
