@@ -1463,6 +1463,26 @@
         text-align: center;
         line-height: 1.3rem;
       }
+      .dl-group {
+        border: 1px solid #dfe5ee;
+        border-radius: 10px;
+        padding: 0.8rem 1rem;
+        background: #fff;
+        margin-bottom: 1rem;
+      }
+      .dl-group h3 {
+        margin: 0 0 0.5rem;
+        font-size: 0.95rem;
+        color: var(--navy);
+      }
+      .dl-group h3 span {
+        color: #6b7a90;
+        font-weight: 400;
+        font-size: 0.85rem;
+      }
+      .dl-unassigned h3 {
+        color: #9a5b00;
+      }
       .ad-card {
         border: 1px solid #dfe5ee;
         border-radius: 10px;
@@ -3709,6 +3729,18 @@
                 <span class="nav-badge" id="awaitingDraftsCount" hidden></span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="dailyListNav"
+                hidden
+                aria-label="Daily schedule"
+                title="Daily schedule"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
+                <span class="nav-label">Daily schedule</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Records</p>
               <button
                 class="dashboard-link"
@@ -5750,6 +5782,18 @@
                   changes. Times are Dubai time.
                 </p>
                 <div data-calc-root="activity-log">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="dailyListWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Each day's appointments, grouped by technician or by branch. Print the list for
+                  the day, or one appointment sheet per job for the technicians to take out.
+                </p>
+                <div data-calc-root="daily-list">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>

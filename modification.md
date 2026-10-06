@@ -2165,3 +2165,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - New API: GET /api/schedules/awaiting (scheduler.read). Promote and cancel use the existing endpoints, which are already logged in the Activity log.
 
 **Needs you:** restart, then create a draft (API) and check it appears, promotes and cancels.
+
+## Modification #57 — Technician daily list, batch print and appointment sheets, monthly export with TAT
+
+**Date:** 2026-10-06 · **Scope:** anyone with appointments.read (list, print); reports.read (export) · no migration · restart
+
+**What changed**
+- New **Daily schedule** page (Service desk): pick a day or range (Today / Tomorrow buttons), group by **Technician** or **Branch**, optionally include cancelled. Jobs without a technician are highlighted and counted.
+- **Print list:** one page per day and technician (or branch) with customer, address, item, fault, warranty and a "Done" box. **Print appointment sheets:** one A4 sheet per appointment (details, fault, blank Work done / Parts used, technician and customer signatures), in the same order. Each row also has a single **Sheet** button.
+- **Reports:** new **Pick a month** range for the monthly export. The Scheduler report gains Complaint No, Complaint Logged, **TAT (days)** and **Days Open**; Service Job Cards gain Finalised At and **TAT (days)**.
+- TAT is counted in Dubai calendar days from when the complaint was logged (appointment booked, if none) to when the appointment was closed or the job card finalised. Cancelled appointments get no TAT; open ones show Days Open instead.
+- New API: GET /api/appointments/daily-list (appointments.read, max 31 days).
+- WhatsApp / mailto confirmations (item 6) are parked.
+
+**Needs you:** restart, open Daily schedule for a day with appointments, print the list and the sheets, then export a month from Reports and check the TAT column. Please confirm TAT should start at complaint logged (not at booking).

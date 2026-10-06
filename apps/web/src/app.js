@@ -673,6 +673,7 @@
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
+    $('#dailyListNav').hidden = !hasPermission('appointments.read');
     if (hasPermission('scheduler.read')) {
       apiRequest('/api/schedules/awaiting')
         .then((result) => {
@@ -8879,6 +8880,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    'daily-list': {
+      navId: 'dailyListNav',
+      workspaceId: 'dailyListWorkspace',
+      heading: 'Daily schedule',
+      description: 'Appointments by day, grouped by technician or branch, with print.',
+      permission: 'appointments.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderDailyList(root),
+    },
     'awaiting-drafts': {
       navId: 'awaitingDraftsNav',
       workspaceId: 'awaitingDraftsWorkspace',
@@ -9047,7 +9058,329 @@ ${bodyHtml}
     );
   }
 
-  // ---------- Awaiting drafts (modification #56) ----------
+  // ---------- Daily schedule: technician list, batch print, sheets (modification #57) ----------
+  function dlDayLabel(ymd) {
+    const [year, month, day] = ymd.split('-').map(Number);
+    return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  function dlGroupLabel(row, by) {
+    if (by === 'branch') return row.branchName || row.region || 'No branch';
+    return row.technicianName || 'Unassigned';
+  }
+
+  function dlGroups(rows, by) {
+    const map = new Map();
+    rows.forEach((row) => {
+      const label = dlGroupLabel(row, by);
+      const key = row.appointmentDate + '|' + label;
+      if (!map.has(key)) map.set(key, { date: row.appointmentDate, label, rows: [] });
+      map.get(key).rows.push(row);
+    });
+    const unassigned = (group) =>
+      group.label === 'Unassigned' || group.label === 'No branch' ? 1 : 0;
+    return [...map.values()].sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        unassigned(a) - unassigned(b) ||
+        a.label.localeCompare(b.label),
+    );
+  }
+
+  function dlRangeLabel(from, to) {
+    return from === to ? dlDayLabel(from) : dlDayLabel(from) + ' to ' + dlDayLabel(to);
+  }
+
+  function dlPrintList(rows, by, from, to) {
+    const groups = dlGroups(rows, by);
+    const body = groups
+      .map((group, index) => {
+        const lines = group.rows
+          .map(
+            (row, i) =>
+              '<tr><td>' +
+              (i + 1) +
+              '</td><td>' +
+              escapeHtml(row.appointmentReference) +
+              '</td><td><strong>' +
+              escapeHtml(row.customerName) +
+              '</strong><br>' +
+              escapeHtml(row.contactNumber || '') +
+              '</td><td>' +
+              escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—') +
+              '</td><td>' +
+              escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
+              '</td><td>' +
+              escapeHtml(row.faultDescription) +
+              '</td><td>' +
+              escapeHtml(row.jobWarranty || '—') +
+              '</td><td>' +
+              escapeHtml(
+                by === 'branch' ? row.technicianName || 'Unassigned' : row.branchName || '—',
+              ) +
+              '</td><td style="width:44px"></td></tr>',
+          )
+          .join('');
+        return (
+          '<div' +
+          (index ? ' style="page-break-before:always"' : '') +
+          '><h2>' +
+          escapeHtml(dlDayLabel(group.date) + ' — ' + group.label) +
+          ' (' +
+          group.rows.length +
+          (group.rows.length === 1 ? ' job' : ' jobs') +
+          ')</h2><table><thead><tr><th>#</th><th>Appointment</th><th>Customer</th><th>Address</th><th>Item</th><th>Fault</th><th>Warranty</th><th>' +
+          (by === 'branch' ? 'Technician' : 'Branch') +
+          '</th><th>Done</th></tr></thead><tbody>' +
+          lines +
+          '</tbody></table></div>'
+        );
+      })
+      .join('');
+    openPrintWindow(
+      printDocumentShell(
+        'Daily schedule',
+        printDocHeadWithLogo(
+          (by === 'branch' ? 'Daily schedule by branch' : 'Technician daily list') +
+            ' — ' +
+            rows.length +
+            ' appointments',
+          dlRangeLabel(from, to),
+        ) + body,
+      ),
+    );
+  }
+
+  function dlSheetBody(row, first) {
+    return (
+      '<div' +
+      (first ? '' : ' style="page-break-before:always"') +
+      '>' +
+      printDocHeadWithLogo('Appointment sheet', row.appointmentReference) +
+      printFieldGrid([
+        ['Appointment date', dlDayLabel(row.appointmentDate)],
+        ['Technician', row.technicianName || 'Unassigned'],
+        ['Customer', row.customerName],
+        ['Contact number', row.contactNumber],
+        ['Address', row.address],
+        ['Region', row.region],
+        ['Branch / school', row.branchName],
+        [
+          'School contact',
+          [row.schoolContactPerson, row.schoolContactNumber].filter(Boolean).join(' · '),
+        ],
+        ['Brand / model', [row.brand, row.model].filter(Boolean).join(' ')],
+        ['Item code', row.itemCode],
+        ['Warranty', row.jobWarranty],
+        ['Sales order', row.salesOrderNumber],
+        ['Complaint', row.complaintReference],
+        ['Status', row.status],
+      ]) +
+      '<div class="block-label">Fault reported</div><div class="block">' +
+      escapeHtml(row.faultDescription) +
+      '</div><div class="block-label">Work done</div><div class="block" style="min-height:90px"></div>' +
+      '<div class="block-label">Parts used</div><div class="block" style="min-height:60px"></div>' +
+      '<div class="sign-row"><div class="sign-box">Technician — name / signature / date</div><div class="sign-box">Customer — name / signature / date</div></div></div>'
+    );
+  }
+
+  function dlPrintSheets(rows, by) {
+    const ordered = dlGroups(rows, by).flatMap((group) => group.rows);
+    openPrintWindow(
+      printDocumentShell(
+        'Appointment sheets',
+        ordered.map((row, index) => dlSheetBody(row, index === 0)).join(''),
+      ),
+    );
+  }
+
+  async function renderDailyList(root) {
+    const today = pgYmd(new Date());
+    const state = {
+      from: today,
+      to: today,
+      by: 'technician',
+      includeCancelled: false,
+      rows: [],
+      truncated: false,
+      error: '',
+    };
+    root.innerHTML =
+      '<div class="rc-section rd-filter-card"><div class="rd-report-toolbar" data-dl-bar></div></div>' +
+      '<div data-dl-results></div>';
+    const bar = root.querySelector('[data-dl-bar]');
+    const results = root.querySelector('[data-dl-results]');
+
+    function drawBar() {
+      bar.innerHTML =
+        '<div class="th-field"><label>From<input type="date" data-dl="from" value="' +
+        state.from +
+        '" /></label></div><div class="th-field"><label>To<input type="date" data-dl="to" value="' +
+        state.to +
+        '" /></label></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="0">Today</button></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="1">Tomorrow</button></div>' +
+        '<div class="th-field"><label>Group by<select data-dl="by"><option value="technician"' +
+        (state.by === 'technician' ? ' selected' : '') +
+        '>Technician</option><option value="branch"' +
+        (state.by === 'branch' ? ' selected' : '') +
+        '>Branch</option></select></label></div>' +
+        '<div class="th-field"><label><input type="checkbox" data-dl="cancelled"' +
+        (state.includeCancelled ? ' checked' : '') +
+        ' /> Include cancelled</label></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-dl-print-list' +
+        (state.rows.length ? '' : ' disabled') +
+        '>Print list</button></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-print-sheets' +
+        (state.rows.length ? '' : ' disabled') +
+        '>Print appointment sheets</button></div>';
+      const control = (name) => bar.querySelector('[data-dl="' + name + '"]');
+      ['from', 'to'].forEach((name) =>
+        control(name).addEventListener('change', (event) => {
+          state[name] = event.target.value;
+          if (name === 'from' && state.to < state.from) state.to = state.from;
+          load();
+        }),
+      );
+      bar.querySelectorAll('[data-dl-day]').forEach((button) =>
+        button.addEventListener('click', () => {
+          const day = new Date();
+          day.setDate(day.getDate() + Number(button.dataset.dlDay));
+          state.from = state.to = pgYmd(day);
+          load();
+        }),
+      );
+      control('by').addEventListener('change', (event) => {
+        state.by = event.target.value;
+        drawResults();
+        drawBar();
+      });
+      control('cancelled').addEventListener('change', (event) => {
+        state.includeCancelled = event.target.checked;
+        load();
+      });
+      bar
+        .querySelector('[data-dl-print-list]')
+        ?.addEventListener('click', () => dlPrintList(state.rows, state.by, state.from, state.to));
+      bar
+        .querySelector('[data-dl-print-sheets]')
+        ?.addEventListener('click', () => dlPrintSheets(state.rows, state.by));
+    }
+
+    function drawResults() {
+      if (state.error) {
+        results.innerHTML = '<p class="form-note pg-error">' + escapeHtml(state.error) + '</p>';
+        return;
+      }
+      if (!state.rows.length) {
+        results.innerHTML = '<p class="empty-state">No appointments in this range.</p>';
+        return;
+      }
+      const groups = dlGroups(state.rows, state.by);
+      const unassigned = state.rows.filter((row) => !row.technicianId).length;
+      results.innerHTML =
+        '<p class="form-note">' +
+        state.rows.length +
+        (state.rows.length === 1 ? ' appointment' : ' appointments') +
+        ' in ' +
+        groups.length +
+        (groups.length === 1 ? ' group' : ' groups') +
+        (unassigned ? ' &middot; <strong>' + unassigned + ' without a technician</strong>' : '') +
+        (state.truncated ? ' &middot; showing the first 1,000 only &mdash; narrow the dates' : '') +
+        '</p>' +
+        groups
+          .map((group) => {
+            const open = group.label === 'Unassigned' || group.label === 'No branch';
+            const lines = group.rows
+              .map(
+                (row) =>
+                  '<tr><td>' +
+                  escapeHtml(row.appointmentReference) +
+                  '</td><td><strong>' +
+                  escapeHtml(row.customerName) +
+                  '</strong><br>' +
+                  escapeHtml(row.contactNumber || '') +
+                  '</td><td>' +
+                  escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—') +
+                  '</td><td>' +
+                  escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
+                  '</td><td class="pg-cell" title="' +
+                  escapeHtml(row.faultDescription) +
+                  '">' +
+                  escapeHtml(row.faultDescription) +
+                  '</td><td>' +
+                  escapeHtml(
+                    state.by === 'branch'
+                      ? row.technicianName || 'Unassigned'
+                      : row.branchName || '—',
+                  ) +
+                  '</td><td><span class="status ' +
+                  statusClass(row.status) +
+                  '">' +
+                  escapeHtml(row.status) +
+                  '</span></td><td><button class="button-link" type="button" data-dl-sheet="' +
+                  escapeHtml(row.id) +
+                  '">Sheet</button></td></tr>',
+              )
+              .join('');
+            return (
+              '<section class="dl-group' +
+              (open ? ' dl-unassigned' : '') +
+              '"><h3>' +
+              escapeHtml(dlDayLabel(group.date) + ' — ' + group.label) +
+              ' <span>' +
+              group.rows.length +
+              (group.rows.length === 1 ? ' job' : ' jobs') +
+              '</span></h3><table class="rc-table"><thead><tr><th>Appointment</th><th>Customer</th><th>Address</th><th>Item</th><th>Fault</th><th>' +
+              (state.by === 'branch' ? 'Technician' : 'Branch') +
+              '</th><th>Status</th><th></th></tr></thead><tbody>' +
+              lines +
+              '</tbody></table></section>'
+            );
+          })
+          .join('');
+      results.querySelectorAll('[data-dl-sheet]').forEach((button) =>
+        button.addEventListener('click', () => {
+          const row = state.rows.find((entry) => entry.id === button.dataset.dlSheet);
+          if (row) {
+            openPrintWindow(printDocumentShell('Appointment sheet', dlSheetBody(row, true)));
+          }
+        }),
+      );
+    }
+
+    async function load() {
+      results.innerHTML = '<p class="form-note">Loading appointments&hellip;</p>';
+      try {
+        const result = await apiRequest(
+          '/api/appointments/daily-list?' +
+            new URLSearchParams({
+              from: state.from,
+              to: state.to,
+              includeCancelled: String(state.includeCancelled),
+            }),
+        );
+        state.rows = result.rows;
+        state.truncated = result.truncated;
+        state.error = '';
+      } catch (error) {
+        state.rows = [];
+        state.error = error.message;
+      }
+      drawBar();
+      drawResults();
+    }
+
+    drawBar();
+    await load();
+  }
+
+  // ---------- Awaiting drafts (modification #56) ----------  // ---------- Awaiting drafts (modification #56) ----------
   async function renderAwaitingDrafts(root) {
     root.innerHTML = '<p class="form-note">Loading drafts&hellip;</p>';
     let drafts;
@@ -9290,11 +9623,13 @@ ${bodyHtml}
       loading: false,
       downloading: false,
       error: '',
+      month: month.from.slice(0, 7),
     };
 
     const RANGES = [
       ['month', 'This month'],
       ['last-month', 'Last month'],
+      ['pick-month', 'Pick a month'],
       ['ytd', 'Year to date'],
       ['custom', 'Custom range'],
       ['all', 'All dates'],
@@ -9309,6 +9644,12 @@ ${bodyHtml}
     const results = root.querySelector('[data-pg-results]');
 
     const current = () => types.find((entry) => entry.type === state.type);
+
+    function applyMonth(value) {
+      const [year, monthNumber] = value.split('-').map(Number);
+      state.from = pgYmd(new Date(year, monthNumber - 1, 1));
+      state.to = pgYmd(new Date(year, monthNumber, 0));
+    }
 
     function params(extra) {
       return rdQs({
@@ -9354,6 +9695,11 @@ ${bodyHtml}
             '</option>',
         ).join('') +
         '</select></label></div>' +
+        (state.range === 'pick-month'
+          ? '<div class="th-field"><label>Month<input type="month" data-pg="month" value="' +
+            escapeHtml(state.month) +
+            '" /></label></div>'
+          : '') +
         '<div class="th-field"><label>From<input type="date" data-pg="from" value="' +
         escapeHtml(state.from) +
         '"' +
@@ -9381,7 +9727,9 @@ ${bodyHtml}
       });
       control('range').addEventListener('change', (event) => {
         state.range = event.target.value;
-        if (state.range !== 'custom' && state.range !== 'all') {
+        if (state.range === 'pick-month') {
+          applyMonth(state.month);
+        } else if (state.range !== 'custom' && state.range !== 'all') {
           const range = pgRangeFor(state.range);
           state.from = range.from;
           state.to = range.to;
@@ -9405,6 +9753,14 @@ ${bodyHtml}
           state.page = 1;
           load();
         }, 350);
+      });
+      control('month')?.addEventListener('change', (event) => {
+        if (!event.target.value) return;
+        state.month = event.target.value;
+        applyMonth(state.month);
+        state.page = 1;
+        drawBar();
+        load();
       });
       bar.querySelector('[data-pg-refresh]').addEventListener('click', () => load());
       bar.querySelector('[data-pg-download]').addEventListener('click', download);
@@ -12082,6 +12438,7 @@ ${bodyHtml}
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
+  $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));

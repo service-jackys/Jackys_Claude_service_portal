@@ -37,6 +37,25 @@ const created = (table: string): ReportColumn => ({
   kind: 'datetime',
 });
 
+// Turnaround time (modification.md #57), counted in Dubai calendar days from
+// when the complaint was logged (or the appointment was booked, if it has no
+// complaint) to when the appointment was closed. TAT is only filled for closed
+// appointments; Days Open only for ones still open (cancelled ones get neither).
+const TAT_LOGGED = 'COALESCE(complaints.submitted_at, appointments.created_at)';
+const dubaiDay = (expr: string) => `timezone('Asia/Dubai', ${expr})::date`;
+const APPOINTMENT_TAT = `CASE WHEN appointments.closed_at IS NOT NULL AND appointments.status <> 'Cancelled'
+  THEN ${dubaiDay('appointments.closed_at')} - ${dubaiDay(TAT_LOGGED)} END`;
+const APPOINTMENT_DAYS_OPEN = `CASE WHEN appointments.closed_at IS NULL AND appointments.status <> 'Cancelled'
+  THEN ${dubaiDay('now()')} - ${dubaiDay(TAT_LOGGED)} END`;
+
+// Job card TAT: complaint logged (else job card date) to the job card being
+// finalised, in Dubai calendar days.
+const JOB_CARD_TAT = `CASE WHEN service_job_cards.finalized_at IS NOT NULL
+  THEN ${dubaiDay('service_job_cards.finalized_at')} - COALESCE(
+    ${dubaiDay('complaints.submitted_at')},
+    service_job_cards.job_card_date,
+    ${dubaiDay('service_job_cards.created_at')}) END`;
+
 export const REPORT_DEFINITIONS: ReportDefinition[] = [
   {
     type: 'quotation',
@@ -245,7 +264,9 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     label: 'Service Job Cards',
     description: 'Job cards with parts, charges and final status.',
     permission: 'service_job_card.read',
-    from: 'service_job_cards',
+    from: `service_job_cards
+      LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
+      LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
     dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
     dateLabel: 'Job card date',
     referenceExpr: 'service_job_cards.job_card_reference',
@@ -293,6 +314,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { label: 'Sales Channel', expr: 'service_job_cards.sales_channel' },
       { label: 'Workflow Status', expr: 'service_job_cards.status' },
       { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Finalised At', expr: 'service_job_cards.finalized_at', kind: 'datetime' },
+      { label: 'TAT (days)', expr: JOB_CARD_TAT, kind: 'number' },
       created('service_job_cards'),
     ],
   },
@@ -302,7 +325,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     description: 'Appointments with customer, technician and status.',
     permission: 'appointments.read',
     from: `appointments
-      LEFT JOIN technicians ON technicians.id = appointments.technician_id`,
+      LEFT JOIN technicians ON technicians.id = appointments.technician_id
+      LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
     dateExpr: 'appointments.appointment_date',
     dateLabel: 'Appointment date',
     referenceExpr: 'appointments.appointment_reference',
@@ -331,7 +355,11 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { label: 'Job Warranty', expr: 'appointments.job_warranty' },
       { label: 'Sales Order No', expr: 'appointments.sales_order_number' },
       { label: 'Technician', expr: 'technicians.name' },
+      { label: 'Complaint No', expr: 'complaints.complaint_reference' },
+      { label: 'Complaint Logged', expr: TAT_LOGGED, kind: 'datetime' },
       { label: 'Closed At', expr: 'appointments.closed_at', kind: 'datetime' },
+      { label: 'TAT (days)', expr: APPOINTMENT_TAT, kind: 'number' },
+      { label: 'Days Open', expr: APPOINTMENT_DAYS_OPEN, kind: 'number' },
       created('appointments'),
     ],
   },

@@ -44,6 +44,8 @@ import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
+import { createDailyListHandlers } from '../daily-list/routes.js';
+import { createDailyListService } from '../daily-list/service.js';
 import { createRoleHandlers } from '../roles/routes.js';
 import { createRoleService } from '../roles/service.js';
 import { createAuditHandlers } from '../audit/routes.js';
@@ -547,6 +549,9 @@ export function createRouteCatalog(
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
+  const dailyListHandlers = pool
+    ? createDailyListHandlers(createDailyListService(pool), requirePermission)
+    : unavailableHandlers(['list']);
   const roleHandlers = pool
     ? createRoleHandlers(createRoleService(pool), requirePermission)
     : unavailableHandlers(['matrix', 'update']);
@@ -1562,6 +1567,21 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: salesChannelHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/appointments/daily-list',
+        operationId: 'listDailyAppointments',
+        tags: ['Appointments'],
+        summary: 'Appointments for a day range with technician and branch, for the daily list',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'from', in: 'query', required: true, schema: { type: 'string' } },
+          { name: 'to', in: 'query', required: true, schema: { type: 'string' } },
+          { name: 'includeCancelled', in: 'query', schema: { type: 'string' } },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: dailyListHandlers.list,
       },
       {
         method: 'get' as const,
