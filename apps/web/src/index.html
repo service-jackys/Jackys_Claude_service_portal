@@ -1791,6 +1791,17 @@
         font-family: ui-monospace, Consolas, monospace;
         font-size: 0.76rem;
       }
+      .nav-child {
+        display: none !important;
+      }
+      .group-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line, #d7e0ea);
+      }
       .rd-budget-table th,
       .rd-budget-table td {
         text-align: right;
@@ -4081,7 +4092,7 @@
               </button>
               <p class="nav-group-label">Management</p>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="vasAdminNav"
                 hidden
@@ -4093,7 +4104,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="rateCardAdminNav"
                 hidden
@@ -4105,7 +4116,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="dandiAdminNav"
                 hidden
@@ -4117,7 +4128,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="amcAdminNav"
                 hidden
@@ -4129,7 +4140,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="thomsonAdminNav"
                 hidden
@@ -4141,7 +4152,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="revenueDashNav"
                 hidden
@@ -4153,7 +4164,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="budgetDashNav"
                 hidden
@@ -4165,7 +4176,7 @@
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <button
-                class="dashboard-link"
+                class="dashboard-link nav-child"
                 type="button"
                 id="budgetVarNav"
                 hidden
@@ -4174,6 +4185,30 @@
               >
                 <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
                 <span class="nav-label">Budget Variance</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="pricingMastersNav"
+                hidden
+                aria-label="Pricing Masters"
+                title="Pricing Masters"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                <span class="nav-label">Pricing Masters</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="financeNav"
+                hidden
+                aria-label="Finance"
+                title="Finance"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
+                <span class="nav-label">Finance</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
               <p class="nav-group-label">Quote Calculators</p>

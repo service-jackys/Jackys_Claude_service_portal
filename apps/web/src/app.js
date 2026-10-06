@@ -669,6 +669,8 @@
     $('#revenueDashNav').hidden = !canReadRevenue;
     $('#budgetDashNav').hidden = !canReadRevenue;
     $('#budgetVarNav').hidden = !canReadRevenue;
+    $('#financeNav').hidden = !canReadRevenue;
+    $('#pricingMastersNav').hidden = !canReadPricingConfig;
     $('#reportsNav').hidden = !hasPermission('reports.read');
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
@@ -14430,6 +14432,76 @@ ${bodyHtml}
   $('#revenueDashNav')?.addEventListener('click', () => setWorkspaceMode('revenue-dashboard'));
   $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
   $('#budgetVarNav')?.addEventListener('click', () => setWorkspaceMode('budget-variance'));
+
+  // ---- Sidebar groups (#65): one entry, tabs inside --------------------------
+  // The member pages and their workspaces are unchanged; their own sidebar
+  // buttons are hidden (.nav-child) and a tab strip on each page switches
+  // between the members.
+  const NAV_GROUPS = {
+    finance: {
+      navId: 'financeNav',
+      members: [
+        ['revenue-dashboard', 'Service Revenue Dashboard'],
+        ['budget-dashboard', 'Budget vs Actual'],
+        ['budget-variance', 'Budget Variance'],
+      ],
+    },
+    pricing: {
+      navId: 'pricingMastersNav',
+      members: [
+        ['vas-admin', 'VAS Pricing Master'],
+        ['rate-card-admin', 'Rate Card Admin'],
+        ['dandi-admin', 'D+I Admin Entry'],
+        ['amc-admin', 'AMC Admin Rates'],
+        ['thomson-admin', 'Thomson Pricing Admin'],
+      ],
+    },
+  };
+  const navGroupLast = {};
+  function navGroupOf(mode) {
+    return Object.entries(NAV_GROUPS).find(([, g]) => g.members.some((m) => m[0] === mode));
+  }
+  function syncNavGroups(mode) {
+    const found = navGroupOf(mode);
+    Object.entries(NAV_GROUPS).forEach(([key, g]) => {
+      const nav = document.getElementById(g.navId);
+      if (nav) nav.setAttribute('aria-current', found && found[0] === key ? 'page' : 'false');
+    });
+    if (!found) return;
+    const [key, group] = found;
+    navGroupLast[key] = mode;
+    const workspaceId =
+      PRICING_ADMIN_PAGES[mode]?.workspaceId || PRICING_CALC_PAGES[mode]?.workspaceId;
+    const body = workspaceId && document.querySelector('#' + workspaceId + ' .card-body');
+    if (!body) return;
+    let strip = body.querySelector(':scope > .group-tabs');
+    if (!strip) {
+      strip = document.createElement('div');
+      strip.className = 'group-tabs';
+      body.insertBefore(strip, body.firstChild);
+    }
+    strip.innerHTML = '';
+    group.members.forEach(([memberMode, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'button ' + (memberMode === mode ? 'button-primary' : 'button-outline');
+      b.textContent = label;
+      b.addEventListener('click', () => setWorkspaceMode(memberMode));
+      strip.appendChild(b);
+    });
+  }
+  const setWorkspaceModeBase = setWorkspaceMode;
+  setWorkspaceMode = function (mode) {
+    setWorkspaceModeBase(mode);
+    syncNavGroups(mode);
+  };
+  $('#financeNav')?.addEventListener('click', () =>
+    setWorkspaceMode(navGroupLast.finance || NAV_GROUPS.finance.members[0][0]),
+  );
+  $('#pricingMastersNav')?.addEventListener('click', () =>
+    setWorkspaceMode(navGroupLast.pricing || NAV_GROUPS.pricing.members[0][0]),
+  );
+
   $('#rateCardNav')?.addEventListener('click', () => setWorkspaceMode('rate-card'));
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));

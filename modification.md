@@ -2281,3 +2281,14 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Original phasing percentages are a placeholder (Jul 8% ... Jun 6% as in the workbook, middle months assumed); please confirm in the Budget versions tab.
 
 **Needs you:** run `npm run db:migrate` (030), restart, hard-refresh.
+
+
+## Modification #65 — Sidebar grouped: Finance and Pricing Masters
+
+**Date:** 2026-10-06 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- The sidebar had grown too long. Eight entries are now two: **Finance** (Service Revenue Dashboard, Budget vs Actual, Budget Variance) and **Pricing Masters** (VAS Pricing Master, Rate Card Admin, D+I Admin Entry, AMC Admin Rates, Thomson Pricing Admin).
+- Each page shows a tab strip at the top to switch between its group's pages; the sidebar entry stays highlighted while you are in the group, and reopens the last tab you used. The pages, permissions and data are unchanged (Finance needs revenue_dashboard.read, Pricing Masters needs pricing_config.read).
+
+**Needs you:** hard-refresh. No restart or migration.
