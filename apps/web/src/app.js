@@ -668,6 +668,7 @@
     const canReadRevenue = hasPermission('revenue_dashboard.read');
     $('#revenueDashNav').hidden = !canReadRevenue;
     $('#budgetDashNav').hidden = !canReadRevenue;
+    $('#budgetVarNav').hidden = !canReadRevenue;
     $('#reportsNav').hidden = !hasPermission('reports.read');
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
@@ -9816,6 +9817,15 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderBudgetDashboard(root),
     },
+    'budget-variance': {
+      navId: 'budgetVarNav',
+      workspaceId: 'budgetVarWorkspace',
+      heading: 'Budget Variance',
+      description: 'Budget by revenue stream compared with actual revenue on closed months.',
+      permission: 'revenue_dashboard.read',
+      domains: [],
+      load: (root) => renderBudgetVariance(root),
+    },
     'rate-card': {
       navId: 'rateCardNav',
       workspaceId: 'rateCardWorkspace',
@@ -10913,6 +10923,9 @@ ${bodyHtml}
     'auth.password_changed': 'Password changed',
     'auth.password_reset': 'Password reset by admin',
     'report.exported': 'Report downloaded',
+    'budget_variance.config_saved': 'Stream mapping / settings saved',
+    'budget_variance.version_created': 'Budget version created',
+    'budget_variance.version_updated': 'Budget version updated',
     'revenue_dashboard.imported': 'Revenue workbook uploaded',
     'revenue_dashboard.viewed': 'Revenue dashboard viewed',
     'revenue_dashboard.exported': 'Revenue report downloaded',
@@ -13648,6 +13661,575 @@ ${bodyHtml}
     await draw();
   }
 
+  // ---- Budget Variance (#64): versions, stream mapping, variance on closed months ----
+  const BV_SOURCE_LABELS = {
+    excel_job_type: 'Job type in the master workbook',
+    portal_vas: 'Portal: VAS sales',
+    portal_amc: 'Portal: AMC contracts',
+    portal_rate_card: 'Portal: Rate card sales',
+    portal_thomson: 'Portal: Thomson sales',
+  };
+  async function renderBudgetVariance(root, state) {
+    const st = state || { tab: 'variance', versionId: '' };
+    const canWrite = hasPermission('revenue_dashboard.write');
+    root.innerHTML = '<p class="form-note">Loading&hellip;</p>';
+    let cfg;
+    let data;
+    try {
+      cfg = await apiRequest('/api/budget-variance/config');
+      data = await apiRequest(
+        '/api/budget-variance/variance' + (st.versionId ? '?versionId=' + st.versionId : ''),
+      );
+    } catch (error) {
+      root.innerHTML =
+        '<p class="form-note">' + escapeHtml(error.message || 'Could not load.') + '</p>';
+      return;
+    }
+    const reload = () => renderBudgetVariance(root, st);
+    root.innerHTML = '';
+    const tabs = document.createElement('div');
+    tabs.className = 'form-row';
+    [
+      ['variance', 'Variance'],
+      ['versions', 'Budget versions'],
+      ['mapping', 'Stream mapping & settings'],
+    ].forEach(([key, label]) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'button ' + (st.tab === key ? 'button-primary' : 'button-outline');
+      b.textContent = label;
+      b.addEventListener('click', () => {
+        st.tab = key;
+        reload();
+      });
+      tabs.appendChild(b);
+    });
+    root.appendChild(tabs);
+    const body = document.createElement('div');
+    root.appendChild(body);
+    const monthLabel = (p) => RD_MONTHS[Number(p.slice(5, 7)) - 1] + ' ' + p.slice(2, 4);
+    const varCls = (v) => (v < 0 ? 'rd-neg' : 'rd-pos');
+    const versionOptions = cfg.versions
+      .map(
+        (v) =>
+          '<option value="' +
+          v.id +
+          '"' +
+          (data.version && v.id === data.version.id ? ' selected' : '') +
+          '>' +
+          escapeHtml(v.name + ' (' + v.status + (v.isActive ? ', active' : '') + ')') +
+          '</option>',
+      )
+      .join('');
+
+    if (st.tab === 'variance') {
+      if (!data.version) {
+        body.innerHTML =
+          '<p class="form-note">No budget version yet. Create one under Budget versions.</p>';
+        return;
+      }
+      const m = data.months;
+      const closedCount = m.filter((x) => x.closed).length;
+      const tot = data.streams.reduce(
+        (t, s) => ({
+          budget: t.budget + s.closed.budget,
+          actual: t.actual + s.closed.actual,
+          fy: t.fy + s.fullYear.budget,
+        }),
+        { budget: 0, actual: 0, fy: 0 },
+      );
+      const dim = (i) => (m[i].closed ? '' : ' style="opacity:.55;font-style:italic"');
+      let html =
+        '<div class="form-row"><label>Budget version <select id="bvVersion">' +
+        versionOptions +
+        '</select></label></div>' +
+        rdKpis([
+          ['Full-year budget (ex-VAT)', 'AED ' + rdMoney(tot.fy), data.version.name],
+          [
+            'Budget, closed months',
+            'AED ' + rdMoney(tot.budget),
+            closedCount + ' of 12 months closed',
+          ],
+          [
+            'Actual, closed months',
+            'AED ' + rdMoney(tot.actual),
+            'Workbook upload + portal records',
+          ],
+          [
+            'Variance',
+            'AED ' + rdMoney(tot.actual - tot.budget),
+            tot.actual < tot.budget ? 'Behind budget' : 'Ahead of budget',
+          ],
+          ['Achievement', rdPercent(tot.actual, tot.budget), 'Closed months only'],
+        ]);
+      html +=
+        '<p class="form-note">Only closed months count in the totals' +
+        (data.settings.includeRunning
+          ? ' (the running month is included by setting)'
+          : '; months not yet closed are shown faded') +
+        '. Budget is the version annual figure phased across the fiscal year; VAT-inclusive streams are restated ex-VAT at ' +
+        Math.round(data.settings.vatRate * 100) +
+        '%.</p>';
+      html +=
+        '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>Stream</th><th>Measure</th>' +
+        m.map((x, i) => '<th' + dim(i) + '>' + monthLabel(x.period) + '</th>').join('') +
+        '<th>Closed total</th></tr></thead><tbody>';
+      data.streams.forEach((s) => {
+        const line = (label, first, fn, total, cls) =>
+          '<tr><td>' +
+          (first ? '<strong>' + escapeHtml(s.name) + '</strong>' : '') +
+          '</td><td>' +
+          label +
+          '</td>' +
+          s.months
+            .map(
+              (c, i) =>
+                '<td' + dim(i) + (cls ? ' class="' + cls(c) + '"' : '') + '>' + fn(c) + '</td>',
+            )
+            .join('') +
+          '<td><strong>' +
+          total +
+          '</strong></td></tr>';
+        html += line('Budget', true, (c) => rdMoney(c.budget), rdMoney(s.closed.budget));
+        html += line('Actual', false, (c) => rdMoney(c.actual), rdMoney(s.closed.actual));
+        html += line(
+          'Variance',
+          false,
+          (c) => rdMoney(c.actual - c.budget),
+          rdMoney(s.closed.actual - s.closed.budget),
+          (c) => varCls(c.actual - c.budget),
+        );
+        if (data.settings.compareQuantity) {
+          html += line(
+            'Qty budget / actual',
+            false,
+            (c) =>
+              c.budgetQty || c.actualQty
+                ? Math.round(c.budgetQty) + ' / ' + Math.round(c.actualQty)
+                : '',
+            Math.round(s.closed.budgetQty) + ' / ' + Math.round(s.closed.actualQty),
+          );
+        }
+      });
+      html += '</tbody></table></div>';
+      if (data.unmapped.length) {
+        html +=
+          '<p class="form-note rd-banner rd-banner-empty">Not in any stream (add a mapping): ' +
+          data.unmapped.map((u) => escapeHtml(u.source) + ' AED ' + rdMoney(u.revenue)).join(', ') +
+          '</p>';
+      }
+      if (!data.revenueBatch) {
+        html +=
+          '<p class="form-note">No revenue workbook is uploaded; only portal records (VAS, AMC, rate card, Thomson) count as actuals.</p>';
+      }
+      body.innerHTML = html;
+      body.querySelector('#bvVersion').addEventListener('change', (e) => {
+        st.versionId = e.target.value;
+        reload();
+      });
+      return;
+    }
+
+    if (st.tab === 'versions') {
+      let html =
+        '<div class="table-wrap"><table><thead><tr><th>Name</th><th>Kind</th><th>Fiscal year</th><th>Status</th><th>Active</th><th></th></tr></thead><tbody>' +
+        cfg.versions
+          .map(
+            (v) =>
+              '<tr><td>' +
+              escapeHtml(v.name) +
+              '</td><td>' +
+              v.kind +
+              '</td><td>Jul ' +
+              v.fiscalYear +
+              ' - Jun ' +
+              (v.fiscalYear + 1) +
+              '</td><td>' +
+              v.status +
+              '</td><td>' +
+              (v.isActive ? 'Yes' : '') +
+              '</td><td><button class="button button-outline" type="button" data-bv-open="' +
+              v.id +
+              '">Open</button></td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      if (canWrite) {
+        html +=
+          '<h3>New version</h3><div class="form-row"><label>Name <input id="bvNewName" placeholder="Revised budget Q2" /></label>' +
+          '<label>Kind <select id="bvNewKind"><option value="revised">Revised</option><option value="forecast">Forecast</option><option value="original">Original</option></select></label>' +
+          '<label>Fiscal year starts (July of) <input id="bvNewFy" type="number" value="' +
+          (data.version ? data.version.fiscalYear : 2026) +
+          '" /></label>' +
+          '<label>Copy from <select id="bvNewCopy"><option value="">(blank)</option>' +
+          versionOptions.replace(/ selected/, '') +
+          '</select></label>' +
+          '<button class="button button-primary" type="button" id="bvNewBtn">Create</button></div><p class="form-note" id="bvMsg"></p>';
+      }
+      html += '<div id="bvEditor"></div>';
+      body.innerHTML = html;
+      body
+        .querySelectorAll('[data-bv-open]')
+        .forEach((b) =>
+          b.addEventListener('click', () =>
+            bvOpenVersion(body.querySelector('#bvEditor'), cfg, b.dataset.bvOpen, canWrite, reload),
+          ),
+        );
+      body.querySelector('#bvNewBtn')?.addEventListener('click', async () => {
+        const msg = body.querySelector('#bvMsg');
+        try {
+          const payload = {
+            name: body.querySelector('#bvNewName').value.trim(),
+            kind: body.querySelector('#bvNewKind').value,
+            fiscalYear: Number(body.querySelector('#bvNewFy').value),
+          };
+          const copy = body.querySelector('#bvNewCopy').value;
+          if (copy) payload.copyFromVersionId = copy;
+          await apiRequest('/api/budget-variance/versions', {
+            method: 'POST',
+            body: JSON.stringify(payload),
+          });
+          reload();
+        } catch (e) {
+          msg.textContent = e.message;
+        }
+      });
+      return;
+    }
+
+    // Stream mapping and settings.
+    const set = Object.fromEntries(cfg.settings.map((x) => [x.key, x.value]));
+    const streamOpts = (sel) =>
+      cfg.streams
+        .map(
+          (s) =>
+            '<option value="' +
+            s.code +
+            '"' +
+            (s.code === sel ? ' selected' : '') +
+            '>' +
+            escapeHtml(s.name) +
+            '</option>',
+        )
+        .join('');
+    const kindOpts = (sel) =>
+      Object.entries(BV_SOURCE_LABELS)
+        .map(
+          ([k, l]) =>
+            '<option value="' +
+            k +
+            '"' +
+            (k === sel ? ' selected' : '') +
+            '>' +
+            escapeHtml(l) +
+            '</option>',
+        )
+        .join('');
+    const dis = canWrite ? '' : ' disabled';
+    let html =
+      '<h3>Which records feed which stream</h3><p class="form-note">Each job type from the master workbook, and each portal record type, is mapped to one revenue stream. A new product or job type needs a new row here, not a code change.</p>' +
+      '<div class="table-wrap"><table id="bvMapTable"><thead><tr><th>Source</th><th>Job type (workbook only)</th><th>Stream</th><th>Notes</th><th></th></tr></thead><tbody>' +
+      cfg.mappings.map((mp) => bvMapRow(mp, kindOpts, streamOpts, dis)).join('') +
+      '</tbody></table></div>';
+    if (cfg.unmappedJobTypes.length) {
+      html +=
+        '<p class="form-note rd-banner rd-banner-empty">Job types in the uploaded workbook with no mapping: ' +
+        cfg.unmappedJobTypes
+          .map((u) => escapeHtml(u.jobType) + ' (AED ' + rdMoney(u.revenue) + ')')
+          .join(', ') +
+        '</p>';
+    }
+    if (canWrite)
+      html +=
+        '<button class="button button-outline" type="button" id="bvAddMap">Add mapping</button>';
+    html +=
+      '<h3>Revenue streams</h3><div class="table-wrap"><table id="bvStreamTable"><thead><tr><th>Code</th><th>Name</th><th>Order</th><th>Active</th></tr></thead><tbody>' +
+      cfg.streams
+        .map(
+          (s) =>
+            '<tr data-code="' +
+            s.code +
+            '"><td>' +
+            s.code +
+            '</td><td><input data-f="name" value="' +
+            escapeHtml(s.name) +
+            '"' +
+            dis +
+            ' /></td><td><input data-f="sortOrder" type="number" style="width:70px" value="' +
+            s.sortOrder +
+            '"' +
+            dis +
+            ' /></td><td><input data-f="isActive" type="checkbox"' +
+            (s.isActive ? ' checked' : '') +
+            dis +
+            ' /></td></tr>',
+        )
+        .join('') +
+      '</tbody></table></div>';
+    if (canWrite) {
+      html +=
+        '<div class="form-row"><label>New stream code <input id="bvNewStreamCode" placeholder="extended_warranty" /></label> <label>Name <input id="bvNewStreamName" /></label> <button class="button button-outline" type="button" id="bvAddStream">Add stream</button></div>';
+    }
+    html +=
+      '<h3>Settings</h3><div class="form-row">' +
+      '<label>Fiscal year starts in month (7 = July) <input id="bvSetFiscal" type="number" min="1" max="12" value="' +
+      set.fiscal_start_month +
+      '"' +
+      dis +
+      ' /></label>' +
+      '<label>VAT rate (0.05 = 5%) <input id="bvSetVat" type="number" step="0.01" value="' +
+      set.vat_rate +
+      '"' +
+      dis +
+      ' /></label>' +
+      '<label>Months counted <select id="bvSetMonths"' +
+      dis +
+      '><option value="closed"' +
+      (set.variance_months === 'closed' ? ' selected' : '') +
+      '>Closed months only</option><option value="all"' +
+      (set.variance_months === 'all' ? ' selected' : '') +
+      '>Include running month</option></select></label>' +
+      '<label><input id="bvSetQty" type="checkbox"' +
+      (set.compare_quantity ? ' checked' : '') +
+      dis +
+      ' /> Compare quantity too</label></div>';
+    if (canWrite) {
+      html +=
+        '<button class="button button-primary" type="button" id="bvSaveCfg">Save mapping and settings</button> <span class="form-note" id="bvCfgMsg"></span>';
+    }
+    body.innerHTML = html;
+    if (!canWrite) return;
+    const tbody = body.querySelector('#bvMapTable tbody');
+    const msg = body.querySelector('#bvCfgMsg');
+    body.querySelector('#bvAddMap').addEventListener('click', () => {
+      tbody.insertAdjacentHTML(
+        'beforeend',
+        bvMapRow(
+          {
+            sourceKind: 'excel_job_type',
+            matchValue: '',
+            streamCode: cfg.streams[0].code,
+            notes: '',
+          },
+          kindOpts,
+          streamOpts,
+          '',
+        ),
+      );
+    });
+    body.querySelector('#bvMapTable').addEventListener('click', (e) => {
+      if (e.target.matches('[data-del]')) e.target.closest('tr').remove();
+    });
+    body.querySelector('#bvAddStream').addEventListener('click', async () => {
+      const code = body.querySelector('#bvNewStreamCode').value.trim();
+      const name = body.querySelector('#bvNewStreamName').value.trim();
+      try {
+        await apiRequest('/api/budget-variance/config', {
+          method: 'PUT',
+          body: JSON.stringify({
+            streams: [{ code, name, sortOrder: cfg.streams.length + 1, isActive: true }],
+          }),
+        });
+        reload();
+      } catch (e) {
+        msg.textContent = e.message;
+      }
+    });
+    body.querySelector('#bvSaveCfg').addEventListener('click', async () => {
+      const mappings = [...tbody.querySelectorAll('tr')].map((tr) => ({
+        sourceKind: tr.querySelector('[data-f=sourceKind]').value,
+        matchValue: tr.querySelector('[data-f=matchValue]').value.trim() || '*',
+        streamCode: tr.querySelector('[data-f=streamCode]').value,
+        notes: tr.querySelector('[data-f=notes]').value.trim() || null,
+      }));
+      const streams = [...body.querySelectorAll('#bvStreamTable tbody tr')].map((tr) => {
+        const orig = cfg.streams.find((s) => s.code === tr.dataset.code);
+        return {
+          code: tr.dataset.code,
+          name: tr.querySelector('[data-f=name]').value.trim(),
+          sortOrder: Number(tr.querySelector('[data-f=sortOrder]').value),
+          isActive: tr.querySelector('[data-f=isActive]').checked,
+          notes: orig.notes,
+        };
+      });
+      try {
+        await apiRequest('/api/budget-variance/config', {
+          method: 'PUT',
+          body: JSON.stringify({
+            streams,
+            mappings,
+            settings: {
+              fiscal_start_month: Number(body.querySelector('#bvSetFiscal').value),
+              vat_rate: Number(body.querySelector('#bvSetVat').value),
+              variance_months: body.querySelector('#bvSetMonths').value,
+              compare_quantity: body.querySelector('#bvSetQty').checked,
+            },
+          }),
+        });
+        reload();
+      } catch (e) {
+        msg.textContent = e.message;
+      }
+    });
+  }
+  function bvMapRow(m, kindOpts, streamOpts, dis) {
+    return (
+      '<tr><td><select data-f="sourceKind"' +
+      dis +
+      '>' +
+      kindOpts(m.sourceKind) +
+      '</select></td>' +
+      '<td><input data-f="matchValue" value="' +
+      escapeHtml(m.matchValue === '*' ? '' : m.matchValue) +
+      '" placeholder="CSIDI"' +
+      dis +
+      ' /></td>' +
+      '<td><select data-f="streamCode"' +
+      dis +
+      '>' +
+      streamOpts(m.streamCode) +
+      '</select></td>' +
+      '<td><input data-f="notes" value="' +
+      escapeHtml(m.notes || '') +
+      '"' +
+      dis +
+      ' /></td>' +
+      '<td>' +
+      (dis ? '' : '<button class="button button-outline" type="button" data-del>Remove</button>') +
+      '</td></tr>'
+    );
+  }
+  async function bvOpenVersion(host, cfg, id, canWrite, reload) {
+    host.innerHTML = '<p class="form-note">Loading&hellip;</p>';
+    let d;
+    try {
+      d = await apiRequest('/api/budget-variance/versions/' + id);
+    } catch (e) {
+      host.textContent = e.message;
+      return;
+    }
+    const v = d.version;
+    const locked = v.status !== 'draft' || !canWrite;
+    const dis = locked ? ' disabled' : '';
+    const by = Object.fromEntries(d.streams.map((s) => [s.streamCode, s]));
+    const months = [
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+    ];
+    let html =
+      '<h3>' +
+      escapeHtml(v.name) +
+      ' <small>(' +
+      v.status +
+      (v.isActive ? ', active' : '') +
+      ')</small></h3>' +
+      (v.status === 'draft'
+        ? ''
+        : '<p class="form-note">Approved and archived budgets are locked. To change numbers, create a revised version copied from this one.</p>') +
+      '<div class="table-wrap"><table id="bvStreamBudget"><thead><tr><th>Stream</th><th>Annual revenue (AED)</th><th>Annual volume</th><th>VAT-inclusive</th></tr></thead><tbody>' +
+      cfg.streams
+        .filter((s) => s.isActive)
+        .map((s) => {
+          const x = by[s.code] || { annualRevenue: 0, annualVolume: 0, vatInclusive: false };
+          return (
+            '<tr data-code="' +
+            s.code +
+            '"><td>' +
+            escapeHtml(s.name) +
+            '</td><td><input data-f="rev" type="number" step="0.01" value="' +
+            Number(x.annualRevenue) +
+            '"' +
+            dis +
+            ' /></td><td><input data-f="vol" type="number" step="0.01" value="' +
+            Number(x.annualVolume) +
+            '"' +
+            dis +
+            ' /></td><td><input data-f="vat" type="checkbox"' +
+            (x.vatInclusive ? ' checked' : '') +
+            dis +
+            ' /></td></tr>'
+          );
+        })
+        .join('') +
+      '</tbody></table></div><h4>Monthly phasing (% of the year, fiscal order)</h4><div class="form-row" id="bvPhasing">' +
+      months
+        .map(
+          (mn, i) =>
+            '<label>' +
+            mn +
+            ' <input data-i="' +
+            i +
+            '" type="number" step="0.1" style="width:70px" value="' +
+            (v.phasing[i] * 100).toFixed(2) +
+            '"' +
+            dis +
+            ' /></label>',
+        )
+        .join('') +
+      '</div><p class="form-note" id="bvPhaseNote"></p>';
+    if (canWrite) {
+      html +=
+        (v.status === 'draft'
+          ? '<button class="button button-primary" type="button" id="bvSaveV">Save draft</button> <button class="button button-outline" type="button" id="bvApprove">Approve</button> '
+          : '') +
+        (v.status !== 'archived' && !v.isActive
+          ? '<button class="button button-outline" type="button" id="bvActivate">Make active for its fiscal year</button> '
+          : '') +
+        (v.status !== 'archived'
+          ? '<button class="button button-outline" type="button" id="bvArchive">Archive</button>'
+          : '');
+    }
+    html += ' <span class="form-note" id="bvVMsg"></span>';
+    host.innerHTML = html;
+    const phasing = () =>
+      [...host.querySelectorAll('#bvPhasing input')].map((i) => Number(i.value) / 100);
+    const sumNote = () => {
+      const t = phasing().reduce((a, b) => a + b, 0) * 100;
+      host.querySelector('#bvPhaseNote').textContent = 'Phasing total: ' + t.toFixed(2) + '%';
+    };
+    host.querySelector('#bvPhasing').addEventListener('input', sumNote);
+    sumNote();
+    const send = async (payload) => {
+      try {
+        await apiRequest('/api/budget-variance/versions/' + id, {
+          method: 'PUT',
+          body: JSON.stringify(payload),
+        });
+        reload();
+      } catch (e) {
+        host.querySelector('#bvVMsg').textContent = e.message;
+      }
+    };
+    const numbers = () => ({
+      phasing: phasing(),
+      streams: [...host.querySelectorAll('#bvStreamBudget tbody tr')].map((tr) => ({
+        streamCode: tr.dataset.code,
+        annualRevenue: Number(tr.querySelector('[data-f=rev]').value || 0),
+        annualVolume: Number(tr.querySelector('[data-f=vol]').value || 0),
+        vatInclusive: tr.querySelector('[data-f=vat]').checked,
+      })),
+    });
+    host.querySelector('#bvSaveV')?.addEventListener('click', () => send(numbers()));
+    host.querySelector('#bvApprove')?.addEventListener('click', () => {
+      if (confirm('Approve this budget? It becomes read-only.'))
+        send({ ...numbers(), status: 'approved' });
+    });
+    host.querySelector('#bvActivate')?.addEventListener('click', () => send({ makeActive: true }));
+    host.querySelector('#bvArchive')?.addEventListener('click', () => {
+      if (confirm('Archive this budget?')) send({ status: 'archived' });
+    });
+  }
+
   async function renderBudgetDashboard(root) {
     root.innerHTML = '<p class="form-note">Loading budget data&hellip;</p>';
     let data;
@@ -13847,6 +14429,7 @@ ${bodyHtml}
   $('#vasCalcNav')?.addEventListener('click', () => setWorkspaceMode('vas-calc'));
   $('#revenueDashNav')?.addEventListener('click', () => setWorkspaceMode('revenue-dashboard'));
   $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
+  $('#budgetVarNav')?.addEventListener('click', () => setWorkspaceMode('budget-variance'));
   $('#rateCardNav')?.addEventListener('click', () => setWorkspaceMode('rate-card'));
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));

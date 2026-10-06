@@ -57,6 +57,8 @@ import { createStockMasterHandlers } from '../stock-master/routes.js';
 import { createStockMasterService } from '../stock-master/service.js';
 import { createReportHandlers } from '../reports/routes.js';
 import { createReportService } from '../reports/service.js';
+import { createBudgetVarianceHandlers } from '../budget-variance/routes.js';
+import { createBudgetVarianceService } from '../budget-variance/service.js';
 import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
 import { createRevenueDashboardService } from '../revenue-dashboard/service.js';
 import { createAttachmentHandlers } from '../attachments/routes.js';
@@ -82,6 +84,9 @@ export type RouteDefinition = {
     | 'updateStaffUser'
     | 'changePassword'
     | 'rolePermissions'
+    | 'budgetVarianceConfig'
+    | 'budgetVersionCreate'
+    | 'budgetVersionUpdate'
     | 'publicComplaint'
     | 'complaintNotes'
     | 'complaintStatus'
@@ -578,6 +583,16 @@ export function createRouteCatalog(
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
+  const budgetVarianceHandlers = pool
+    ? createBudgetVarianceHandlers(createBudgetVarianceService(pool), requirePermission)
+    : unavailableHandlers([
+        'config',
+        'saveConfig',
+        'variance',
+        'createVersion',
+        'version',
+        'updateVersion',
+      ]);
   const revenueDashboardHandlers = pool
     ? createRevenueDashboardHandlers(createRevenueDashboardService(pool), requirePermission)
     : {
@@ -2500,6 +2515,72 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: revenueDashboardHandlers.budget,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/budget-variance/config',
+        operationId: 'getBudgetVarianceConfig',
+        tags: ['Revenue Dashboard'],
+        summary: 'Revenue streams, stream mappings, settings and budget versions',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: budgetVarianceHandlers.config,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/budget-variance/config',
+        operationId: 'saveBudgetVarianceConfig',
+        tags: ['Revenue Dashboard'],
+        summary: 'Save streams, the stream mapping table and/or settings (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'budgetVarianceConfig' as const,
+        responses: [200, 400, 401, 403, 409, 500],
+        handlers: budgetVarianceHandlers.saveConfig,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/budget-variance/variance',
+        operationId: 'getBudgetVariance',
+        tags: ['Revenue Dashboard'],
+        summary: 'Budget vs actual revenue by stream and fiscal month for a budget version',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'versionId', in: 'query', schema: { type: 'string' } }],
+        responses: [200, 401, 403, 500],
+        handlers: budgetVarianceHandlers.variance,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/budget-variance/versions',
+        operationId: 'createBudgetVersion',
+        tags: ['Revenue Dashboard'],
+        summary: 'Create a budget version, optionally copying another (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'budgetVersionCreate' as const,
+        responses: [201, 400, 401, 403, 404, 500],
+        handlers: budgetVarianceHandlers.createVersion,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/budget-variance/versions/{versionId}',
+        operationId: 'getBudgetVersion',
+        tags: ['Revenue Dashboard'],
+        summary: 'One budget version with its per-stream budget',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'versionId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: budgetVarianceHandlers.version,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/budget-variance/versions/{versionId}',
+        operationId: 'updateBudgetVersion',
+        tags: ['Revenue Dashboard'],
+        summary: 'Edit, approve, archive or activate a budget version (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'budgetVersionUpdate' as const,
+        parameters: [{ name: 'versionId', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: budgetVarianceHandlers.updateVersion,
       },
       {
         method: 'post' as const,

@@ -57,6 +57,30 @@ const requestBodies = {
       },
     },
   },
+  budgetVarianceConfig: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
+  budgetVersionCreate: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
+  budgetVersionUpdate: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
   rolePermissions: {
     required: true,
     content: {

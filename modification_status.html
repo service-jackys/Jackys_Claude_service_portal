@@ -2749,6 +2749,38 @@
           <li>Hard-refresh. No restart or migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#64 &mdash; Budget versions, stream mapping and variance</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-06 &middot; migration 030 &middot; restart</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New Budget Variance page: variance by stream and fiscal month on closed months, budget
+            versions (draft, approved, active, archived) and an editable stream mapping and settings
+            tab.
+          </li>
+          <li>
+            Actuals from the workbook upload plus portal VAS, rate card and Thomson sales. Fiscal
+            year is July to June; PMC budget restated ex-VAT.
+          </li>
+        </ul>
+        <div class="section-label">Not done yet</div>
+        <ul>
+          <li>
+            Job card revenue (no billed amount in the portal), AMC revenue (sold plan not recorded,
+            #11), current-vs-proposed rate scenarios, and confirmation of the monthly phasing.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm run db:migrate (030), restart and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

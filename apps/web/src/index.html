@@ -4164,6 +4164,18 @@
                 <span class="nav-label">Budget vs Actual</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="budgetVarNav"
+                hidden
+                aria-label="Budget Variance"
+                title="Budget Variance"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                <span class="nav-label">Budget Variance</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Quote Calculators</p>
               <button
                 class="dashboard-link"
@@ -6074,6 +6086,18 @@
                   workbook, month by month.
                 </p>
                 <div data-calc-root="budget-dashboard">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="budgetVarWorkspace" hidden>
+              <div class="card-body">
+                <p class="form-note">
+                  Budget by revenue stream against actual revenue, month by month on closed months.
+                  Budget versions, the stream mapping and the fiscal calendar are all editable data.
+                </p>
+                <div data-calc-root="budget-variance">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>

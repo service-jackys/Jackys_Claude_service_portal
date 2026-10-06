@@ -2262,3 +2262,22 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - The two end-to-end tests that clicked Apply filters no longer do.
 
 **Needs you:** hard-refresh. No restart or migration needed.
+
+
+## Modification #64 — Budget versions, stream mapping and variance on closed months (Priority 5: #14, #16, #17, #18; #15 partly)
+
+**Date:** 2026-10-06 · **Scope:** revenue_dashboard.read / write · **migration 030** · restart
+
+**What changed**
+- New **Budget Variance** page (Admin menu) with three tabs. **Variance**: budget vs actual revenue by stream and fiscal month (Jul-Jun), with quantity budget/actual, totals on closed months only (the running month is shown faded). **Budget versions**: original / revised / forecast per fiscal year; draft is editable, approved is locked (create a revised copy to change numbers), one active version per fiscal year, archive. **Stream mapping & settings**: which workbook job type or portal record feeds which stream, the stream list, fiscal start month, VAT rate, closed-months rule. All of it is data, so new job types, streams or a new budget version need no code change.
+- Seeded from the finance meeting: streams Warranty Repairs (CSIJW), Non-Warranty (CSIJO), Del + Install (CSIDI), Delivery only (CSIDO, its own stream, per trip), Installation (CSIII), Inspections / Visits, Projects / Thomson (CSOSC, rate card, Thomson), Standard PMC / AMC, VAS; the original FY 2026-27 budget per stream; VAT 5%; PMC budget restated ex-VAT; revenue variance only.
+- Actuals now come from the master workbook upload plus portal records that carry a price: VAS sales (plan fee), rate card sales, Thomson sales. Job types with no mapping are listed so nothing is silently dropped.
+- Budget defects (#18): the stream budget no longer depends on the workbook's P&L sheet (defects 3, 4, 5 and the YTD-vs-full-year comparison in 2 are avoided because variance compares closed-month budget with closed-month actual). Hard-coded overrides and monthly phasing are now an editable phasing row per version. The workbook's OPEX excluding staff travel and insurance (defect 1) is outside revenue variance and is declared, not fixed.
+
+**Not done yet (needs a decision or data)**
+- Job cards carry no billed amount in the portal (CSIJW/CSIJO/CSIDI come from the Excel/ERP), so those streams still need the workbook upload until ERP data arrives.
+- AMC contracts: the saved contract keeps the appliance schedule value and three plan prices but not which plan was sold, so AMC revenue cannot be counted yet. This is the pending #11 (quote-to-contract link and plan selector).
+- Current-rate vs proposed-rate side by side (needs the Revenue_Rates table from Service_Dashboard_Master_ACC_NEW_CSIII.xlsm).
+- Original phasing percentages are a placeholder (Jul 8% ... Jun 6% as in the workbook, middle months assumed); please confirm in the Budget versions tab.
+
+**Needs you:** run `npm run db:migrate` (030), restart, hard-refresh.
