@@ -7703,21 +7703,33 @@ ${bodyHtml}
     return input.closest('.field') || input.parentElement;
   }
 
+  // The hint is a tooltip (info icon beside the label and the input's title),
+  // not text in the form body.
   function setPickerHint(modelInput, kind, code) {
     const wrap = pickerFieldWrap(modelInput);
-    let hint = wrap.querySelector('.sm-hint');
-    if (!hint) {
-      hint = document.createElement('small');
-      hint.className = 'sm-hint';
-      wrap.appendChild(hint);
-    }
-    hint.dataset.kind = kind;
-    hint.textContent =
+    const text =
       kind === 'found'
         ? 'Stock master item ' + code + ' — related fields were filled; you can still edit them.'
         : kind === 'manual'
           ? 'Not in the stock master — it will be saved as typed.'
           : PICKER_HINT;
+    const label = wrap.querySelector('label');
+    let tip = label?.querySelector('.tooltip');
+    if (!tip && label) {
+      tip = document.createElement('span');
+      tip.className = 'tooltip';
+      tip.tabIndex = 0;
+      tip.innerHTML =
+        '<span class="tooltip-icon" aria-hidden="true">i</span>' +
+        '<span class="tooltip-bubble" role="tooltip"></span>';
+      label.appendChild(tip);
+    }
+    if (tip) {
+      tip.dataset.kind = kind;
+      tip.querySelector('.tooltip-bubble').textContent = text;
+    }
+    const old = wrap.querySelector('.sm-hint');
+    if (old) old.remove();
   }
 
   function clearItemPickerMarks(container) {

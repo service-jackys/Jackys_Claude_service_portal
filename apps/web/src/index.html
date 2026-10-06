@@ -1525,6 +1525,7 @@
       }
       .sm-autofilled > label::after {
         content: 'auto-filled';
+        white-space: nowrap;
         margin-left: 8px;
         padding: 1px 8px;
         border-radius: 999px;
@@ -1534,17 +1535,11 @@
         font-weight: 600;
         vertical-align: middle;
       }
-      .sm-hint {
-        display: block;
-        margin-top: 4px;
-        font-size: 0.8em;
-        color: #5b6672;
+      .tooltip[data-kind='found'] .tooltip-icon {
+        background: #166534;
       }
-      .sm-hint[data-kind='found'] {
-        color: #166534;
-      }
-      .sm-hint[data-kind='manual'] {
-        color: #b45309;
+      .tooltip[data-kind='manual'] .tooltip-icon {
+        background: #b45309;
       }
       .sm-head {
         padding: 6px 10px;
