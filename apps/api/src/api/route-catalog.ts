@@ -53,6 +53,8 @@ import { createAuditService } from '../audit/service.js';
 import { recordAuthEvent } from '../audit/record.js';
 import { createRateCardViewHandlers } from '../rate-card-view/routes.js';
 import { createRateCardViewService } from '../rate-card-view/service.js';
+import { createStockMasterHandlers } from '../stock-master/routes.js';
+import { createStockMasterService } from '../stock-master/service.js';
 import { createReportHandlers } from '../reports/routes.js';
 import { createReportService } from '../reports/service.js';
 import { createRevenueDashboardHandlers } from '../revenue-dashboard/routes.js';
@@ -558,6 +560,9 @@ export function createRouteCatalog(
   const rateCardViewHandlers = pool
     ? createRateCardViewHandlers(createRateCardViewService(pool), requirePermission)
     : unavailableHandlers(['view']);
+  const stockMasterHandlers = pool
+    ? createStockMasterHandlers(createStockMasterService(pool), requirePermission)
+    : unavailableHandlers(['upload', 'status', 'search']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -2156,6 +2161,46 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: rateCardViewHandlers.view,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/stock/upload',
+        operationId: 'uploadStockMaster',
+        tags: ['Stock Master'],
+        summary:
+          'Upload the ERP Current Stock Valuation (.xlsx) for one channel (multipart/form-data: file, channel=JDI|JMS|TGE)',
+        security: 'bearerAuth' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: stockMasterHandlers.upload,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/stock/status',
+        operationId: 'getStockMasterStatus',
+        tags: ['Stock Master'],
+        summary: 'Last upload, item counts and not-seen counts per channel',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: stockMasterHandlers.status,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/stock/items',
+        operationId: 'searchStockItems',
+        tags: ['Stock Master'],
+        summary: 'Search unique stock items by item code or description (MDA and SDA groups)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'q', in: 'query', required: true, schema: { type: 'string', maxLength: 80 } },
+          {
+            name: 'limit',
+            in: 'query',
+            required: false,
+            schema: { type: 'integer', minimum: 1, maximum: 50 },
+          },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: stockMasterHandlers.search,
       },
       {
         method: 'get' as const,

@@ -2179,3 +2179,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - WhatsApp / mailto confirmations (item 6) are parked.
 
 **Needs you:** restart, open Daily schedule for a day with appointments, print the list and the sheets, then export a month from Reports and check the TAT column. Please confirm TAT should start at complaint logged (not at booking).
+
+## Modification #58 — Stock master and item-code lookup
+
+**Date:** 2026-10-06 · **Scope:** upload and status need stock.write (admin only, can be granted in Roles & permissions); item search needs stock.read (all roles) · migration 028 · restart
+
+**What changed**
+- New **Stock master** page (Admin): pick the channel (JDI, JMS or TGE), choose the ERP "Current Stock Valuation" .xlsx, upload. Title rows above the header and the "Summary:" footer are ignored; the header row is found by looking for ItemCode.
+- Two tables: `stock_positions` keeps the exact ERP columns, one row per location per item, and is replaced for that channel on every upload. `stock_items` is the unique list by ItemCode (ItemDesc, Grade, MainGroup, Group, SubGroup, Brand, TYPE) used for search.
+- Newest upload wins when channels disagree about an item; the upload report lists every changed item, marks the ones last written by another channel, and shows file warnings. Items missing from a newer file are kept and counted as "not in the latest file".
+- Item search (code or part of the description, MDA and SDA only) on: New request (Serial number or item code, fills Brand and Model), Warranty approvals (Item description) and the VAS sale form (Item code and Item description).
+- Stock, WAC and Value are stored but not used anywhere yet.
+- New API: POST /api/stock/upload (multipart: file, channel), GET /api/stock/status, GET /api/stock/items?q=. Uploads are written to the Activity log (stock.uploaded).
+
+**Needs you:** `npm run db:migrate` (028), restart, hard-refresh. Upload the three ERP files, then type a code on New request.

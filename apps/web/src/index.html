@@ -1515,6 +1515,103 @@
         color: #9a5b00;
         font-size: 0.8rem;
       }
+      /* Stock master (#58): upload page and the item-code lookup dropdown. */
+      .sm-host {
+        position: relative;
+      }
+      .sm-suggest {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        z-index: 40;
+        max-height: 280px;
+        overflow-y: auto;
+        background: var(--surface, #fff);
+        border: 1px solid var(--line, #d7dbe0);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.16);
+      }
+      .sm-hit {
+        display: grid;
+        grid-template-columns: minmax(90px, auto) 1fr;
+        gap: 2px 10px;
+        width: 100%;
+        padding: 8px 10px;
+        text-align: left;
+        background: none;
+        border: 0;
+        border-bottom: 1px solid var(--line, #eceff2);
+        cursor: pointer;
+        font: inherit;
+        color: inherit;
+      }
+      .sm-hit:last-child {
+        border-bottom: 0;
+      }
+      .sm-hit:hover,
+      .sm-hit.is-active {
+        background: var(--blue-soft, #eef3fb);
+      }
+      .sm-hit em {
+        grid-column: 2;
+        font-style: normal;
+        font-size: 0.8em;
+        opacity: 0.7;
+      }
+      .sm-channels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 12px;
+        margin: 14px 0;
+      }
+      .sm-channel {
+        border: 1px solid var(--line, #d7dbe0);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+      .sm-channel h4 {
+        margin: 0 0 6px;
+      }
+      .sm-channel p {
+        margin: 2px 0;
+      }
+      .sm-warn {
+        color: #b45309;
+        font-size: 0.9em;
+      }
+      .sm-upload {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin: 10px 0;
+      }
+      .sm-upload select,
+      .sm-upload input {
+        width: auto;
+        flex: 1 1 240px;
+      }
+      .sm-details {
+        margin: 8px 0;
+      }
+      .sm-details ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+        max-height: 320px;
+        overflow-y: auto;
+        font-size: 0.9em;
+      }
+      .sm-tag {
+        background: #fef3c7;
+        border-radius: 999px;
+        padding: 1px 8px;
+        font-size: 0.8em;
+      }
+      .sm-summary {
+        margin: 6px 0;
+      }
+
       .rcv-banner {
         display: flex;
         flex-wrap: wrap;
@@ -3889,6 +3986,18 @@
                 <span class="nav-label">Roles &amp; permissions</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link"
+                type="button"
+                id="stockMasterNav"
+                hidden
+                aria-label="Stock master"
+                title="Stock master"
+              >
+                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                <span class="nav-label">Stock master</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Management</p>
               <button
                 class="dashboard-link"
@@ -5722,6 +5831,14 @@
                 <section class="detail-action-card pricing-config-card" data-calc-root="vas-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
+              </div>
+            </div>
+
+            <div class="card" id="stockMasterWorkspace" hidden>
+              <div class="card-body">
+                <div data-calc-root="stock-master">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
               </div>
             </div>
 

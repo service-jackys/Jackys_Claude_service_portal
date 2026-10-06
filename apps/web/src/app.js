@@ -672,6 +672,7 @@
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
+    $('#stockMasterNav').hidden = !hasPermission('stock.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
     if (hasPermission('scheduler.read')) {
@@ -7427,6 +7428,14 @@ ${bodyHtml}
 
     const saveButton = saleHost.querySelector('[data-vs-save]');
     const printButton = saleHost.querySelector('[data-vs-print]');
+    const vsCode = saleHost.querySelector('[data-vs-item-code]');
+    const vsDesc = saleHost.querySelector('[data-vs-item-description]');
+    const vsPick = (item) => {
+      setFieldValue(vsCode, item.itemCode);
+      setFieldValue(vsDesc, item.itemDesc);
+    };
+    attachStockLookup(vsCode, vsPick);
+    attachStockLookup(vsDesc, vsPick);
     const messageHost = saleHost.querySelector('[data-vs-message]');
     let savedSale = null;
 
@@ -7603,6 +7612,310 @@ ${bodyHtml}
       dandi.maxUnits +
       ' units per quote.</p></section>'
     );
+  }
+
+  // --- Stock master ---------------------------------------------------------
+  // Item lookup: type an item code (or part of the description) and pick a hit
+  // to fill the related fields. Reads /api/stock/items (MDA and SDA only).
+  function attachStockLookup(input, onPick) {
+    if (!input || input.dataset.stockLookup) return;
+    input.dataset.stockLookup = '1';
+    input.setAttribute('autocomplete', 'off');
+    const parent = input.parentElement;
+    parent.classList.add('sm-host');
+    const list = document.createElement('div');
+    list.className = 'sm-suggest';
+    list.hidden = true;
+    list.setAttribute('role', 'listbox');
+    parent.appendChild(list);
+    let timer = null;
+    let sequence = 0;
+    let hits = [];
+    let active = -1;
+
+    function close() {
+      list.hidden = true;
+      active = -1;
+    }
+    function highlight() {
+      list.querySelectorAll('.sm-hit').forEach((el, index) => {
+        el.classList.toggle('is-active', index === active);
+      });
+    }
+    function pick(index) {
+      const item = hits[index];
+      if (!item) return;
+      close();
+      onPick(item);
+    }
+    function show() {
+      if (hits.length === 0) {
+        close();
+        return;
+      }
+      list.innerHTML = hits
+        .map(
+          (item, index) =>
+            '<button type="button" class="sm-hit" role="option" data-index="' +
+            index +
+            '"><strong>' +
+            escapeHtml(item.itemCode) +
+            '</strong><span>' +
+            escapeHtml(item.itemDesc) +
+            '</span><em>' +
+            escapeHtml([item.brand, item.groupName, item.subGroup].filter(Boolean).join(' · ')) +
+            '</em></button>',
+        )
+        .join('');
+      list.hidden = false;
+      active = -1;
+    }
+    async function search() {
+      const term = input.value.trim();
+      if (term.length < 2 || !hasPermission('stock.read')) {
+        close();
+        return;
+      }
+      const mine = ++sequence;
+      try {
+        const data = await apiRequest(
+          '/api/stock/items?q=' + encodeURIComponent(term) + '&limit=10',
+        );
+        if (mine !== sequence) return;
+        hits = data.items;
+        show();
+      } catch {
+        close();
+      }
+    }
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(search, 220);
+    });
+    input.addEventListener('keydown', (event) => {
+      if (list.hidden) return;
+      if (event.key === 'ArrowDown') {
+        event.preventDefault();
+        active = Math.min(active + 1, hits.length - 1);
+        highlight();
+      } else if (event.key === 'ArrowUp') {
+        event.preventDefault();
+        active = Math.max(active - 1, 0);
+        highlight();
+      } else if (event.key === 'Enter' && active >= 0) {
+        event.preventDefault();
+        pick(active);
+      } else if (event.key === 'Escape') {
+        close();
+      }
+    });
+    list.addEventListener('mousedown', (event) => {
+      const button = event.target.closest('.sm-hit');
+      if (!button) return;
+      event.preventDefault();
+      pick(Number(button.dataset.index));
+    });
+    input.addEventListener('blur', () => setTimeout(close, 120));
+  }
+
+  function setFieldValue(input, value) {
+    if (!input || value === null || value === undefined) return;
+    input.value = value;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  function initStockLookups() {
+    attachStockLookup($('#newComplaintSerialOrItemCode'), (item) => {
+      setFieldValue($('#newComplaintSerialOrItemCode'), item.itemCode);
+      setFieldValue($('#newComplaintBrand'), item.brand);
+      setFieldValue($('#newComplaintModel'), item.itemDesc.slice(0, 120));
+    });
+    attachStockLookup($('#waItemDescription'), (item) => {
+      setFieldValue($('#waItemDescription'), item.itemDesc.slice(0, 300));
+    });
+  }
+
+  function smDate(value) {
+    return value ? new Date(value).toLocaleString('en-GB') : '—';
+  }
+
+  function smReport(upload) {
+    const report = upload.report || {};
+    const parts = [];
+    parts.push(
+      '<p class="sm-summary"><strong>' +
+        escapeHtml(upload.channel) +
+        '</strong> · ' +
+        escapeHtml(upload.fileName) +
+        ' · ' +
+        upload.rowCount +
+        ' rows · ' +
+        upload.itemCount +
+        ' unique items · <strong>' +
+        upload.newItems +
+        ' new</strong> · ' +
+        upload.changedItems +
+        ' changed' +
+        (report.conflictCount
+          ? ' (' + report.conflictCount + ' differ from another channel)'
+          : '') +
+        '</p>',
+    );
+    if (report.changes && report.changes.length) {
+      parts.push(
+        '<details class="sm-details"' +
+          (report.conflictCount ? ' open' : '') +
+          '><summary>Changed items (' +
+          report.changeCount +
+          (report.changes.length < report.changeCount
+            ? ', showing first ' + report.changes.length
+            : '') +
+          ')</summary><ul>' +
+          report.changes
+            .map(
+              (change) =>
+                '<li><strong>' +
+                escapeHtml(change.itemCode) +
+                '</strong>' +
+                (change.conflict
+                  ? ' <span class="sm-tag">was ' + escapeHtml(change.previousChannel) + '</span>'
+                  : '') +
+                change.fields
+                  .map(
+                    (field) =>
+                      '<div>' +
+                      escapeHtml(field.field) +
+                      ': ' +
+                      escapeHtml(field.from ?? '—') +
+                      ' → ' +
+                      escapeHtml(field.to ?? '—') +
+                      '</div>',
+                  )
+                  .join('') +
+                '</li>',
+            )
+            .join('') +
+          '</ul></details>',
+      );
+    }
+    if (report.warnings && report.warnings.length) {
+      parts.push(
+        '<details class="sm-details"><summary>Warnings (' +
+          report.warningCount +
+          ')</summary><ul>' +
+          report.warnings.map((warning) => '<li>' + escapeHtml(warning) + '</li>').join('') +
+          '</ul></details>',
+      );
+    }
+    return parts.join('');
+  }
+
+  async function renderStockMasterPage(root) {
+    root.innerHTML = '<p class="form-note">Loading&hellip;</p>';
+    let status;
+    try {
+      status = await apiRequest('/api/stock/status');
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const channelNames = {
+      JDI: 'JDI · Jacky’s Distribution & Innovation',
+      JMS: 'JMS · Jacky’s Electronics (Corporate)',
+      TGE: 'TGE · Thomson Gulf Electronics',
+    };
+    root.innerHTML =
+      '<div class="rcv-banner"><strong>Stock master</strong><span>' +
+      status.totalItems +
+      ' unique items · ' +
+      status.searchableItems +
+      ' searchable (MDA and SDA)</span></div>' +
+      '<div class="sm-channels">' +
+      status.channels
+        .map(
+          (channel) =>
+            '<div class="sm-channel"><h4>' +
+            escapeHtml(channel.channel) +
+            '</h4>' +
+            (channel.lastUpload
+              ? '<p>' +
+                channel.itemCount +
+                ' items · ' +
+                channel.positionRows +
+                ' location rows</p><p class="form-note">Uploaded ' +
+                escapeHtml(smDate(channel.lastUpload.uploadedAt)) +
+                (channel.lastUpload.uploadedByName
+                  ? ' by ' + escapeHtml(channel.lastUpload.uploadedByName)
+                  : '') +
+                '</p>' +
+                (channel.notSeenCount
+                  ? '<p class="sm-warn">' +
+                    channel.notSeenCount +
+                    ' item(s) not in the latest file (kept)</p>'
+                  : '')
+              : '<p class="form-note">No upload yet.</p>') +
+            '</div>',
+        )
+        .join('') +
+      '</div>' +
+      '<section class="detail-action-card"><h4>Upload ERP stock file</h4>' +
+      '<p class="form-note">Choose the channel, then the “Current Stock Valuation” .xlsx exported from the ERP. ' +
+      'Each upload replaces that channel’s location rows and updates the unique item list; items that are no longer in the file are kept.</p>' +
+      '<div class="sm-upload"><select data-sm-channel aria-label="Channel">' +
+      '<option value="">Select channel…</option>' +
+      Object.entries(channelNames)
+        .map(([code, label]) => '<option value="' + code + '">' + escapeHtml(label) + '</option>')
+        .join('') +
+      '</select><input type="file" accept=".xlsx" data-sm-file />' +
+      '<button class="button button-primary" type="button" data-sm-upload>Upload</button></div>' +
+      '<p class="form-note" data-sm-msg role="status"></p><div data-sm-report></div></section>' +
+      '<section class="detail-action-card"><h4>Recent uploads</h4>' +
+      (status.recentUploads.length
+        ? status.recentUploads
+            .map(
+              (upload) =>
+                '<details class="sm-details"><summary>' +
+                escapeHtml(upload.channel) +
+                ' · ' +
+                escapeHtml(upload.fileName) +
+                ' · ' +
+                escapeHtml(smDate(upload.uploadedAt)) +
+                '</summary>' +
+                smReport(upload) +
+                '</details>',
+            )
+            .join('')
+        : '<p class="form-note">Nothing uploaded yet.</p>') +
+      '</section>';
+    const button = root.querySelector('[data-sm-upload]');
+    const msg = root.querySelector('[data-sm-msg]');
+    button.addEventListener('click', async () => {
+      const channel = root.querySelector('[data-sm-channel]').value;
+      const file = root.querySelector('[data-sm-file]').files[0];
+      if (!channel) {
+        msg.textContent = 'Select the channel this file belongs to.';
+        return;
+      }
+      if (!file) {
+        msg.textContent = 'Choose the .xlsx file first.';
+        return;
+      }
+      button.disabled = true;
+      msg.textContent = 'Uploading and reading the file…';
+      try {
+        const form = new FormData();
+        form.append('channel', channel);
+        form.append('file', file);
+        const result = await apiUploadRequest('/api/stock/upload', form);
+        await renderStockMasterPage(root);
+        const fresh = root.querySelector('[data-sm-report]');
+        fresh.innerHTML = smReport(result.upload);
+        root.querySelector('[data-sm-msg]').textContent = 'Upload complete.';
+      } catch (error) {
+        msg.textContent = error.message || 'The upload failed.';
+        button.disabled = false;
+      }
+    });
   }
 
   async function renderRateCardPage(root) {
@@ -8869,6 +9182,16 @@ ${bodyHtml}
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderRateCardPage(root),
+    },
+    'stock-master': {
+      navId: 'stockMasterNav',
+      workspaceId: 'stockMasterWorkspace',
+      heading: 'Stock master',
+      description: 'Upload the ERP stock file; items are searched by item code on the forms.',
+      permission: 'stock.write',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderStockMasterPage(root),
     },
     reports: {
       navId: 'reportsNav',
@@ -12438,6 +12761,8 @@ ${bodyHtml}
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
+  $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
+  initStockLookups();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));

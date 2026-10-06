@@ -2578,6 +2578,41 @@
           </li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#58 &mdash; Stock master and item-code lookup</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">
+          2026-10-06 &middot; Scope: stock.write (admin) uploads, stock.read searches · migration
+          028 · restart
+        </p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            New Stock master page: choose JDI, JMS or TGE, upload the ERP Current Stock Valuation
+            .xlsx. Title rows and the Summary footer are ignored.
+          </li>
+          <li>
+            Exact ERP columns kept per channel and location; a unique-by-ItemCode list drives the
+            search. Newest upload wins, conflicts and changes are reported, missing items are kept.
+          </li>
+          <li>
+            Item search (MDA and SDA) on New request, Warranty approvals and the VAS sale form,
+            filling brand, description and related fields.
+          </li>
+          <li>Stock, WAC and Value are stored but unused for now.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>
+            npm run db:migrate (028), restart, hard-refresh, upload the three files, then try the
+            search on New request.
+          </li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
