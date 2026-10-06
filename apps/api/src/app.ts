@@ -108,17 +108,25 @@ export function createApp() {
           400,
           'invalid-request',
           'Invalid request',
-          'The request body is invalid.',
+          'The request is invalid: ' +
+            error.issues
+              .map(
+                (issue) => (issue.path.length ? issue.path.join('.') + ': ' : '') + issue.message,
+              )
+              .join('; '),
         );
         return;
       }
       console.error(error);
+      // Staff-only application: show the real reason plus the request id so a
+      // failure can be reported and traced without opening the server log.
+      const reason = (error instanceof Error ? error.message : String(error)).slice(0, 300);
       problem(
         response,
         500,
         'internal-error',
         'Internal Server Error',
-        'An unexpected error occurred.',
+        `An unexpected error occurred: ${reason}`,
       );
     },
   );

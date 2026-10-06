@@ -2801,6 +2801,31 @@
           <li>Hard-refresh. No restart or migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#66 &mdash; Walk-in fields, stream mapping save fix, clearer errors</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-06 &middot; migration 031 &middot; restart</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>
+            Walk-in job card now has customer type, email, region, B2B branch / school lookup, site
+            contact, sales order no., salesman, sales channel and technician, like New request and
+            appointments.
+          </li>
+          <li>
+            Fixed the error when saving Stream mapping &amp; settings. Server errors now show the
+            actual reason.
+          </li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm run db:migrate (031) and restart.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

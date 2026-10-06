@@ -53,6 +53,11 @@ export type ServiceJobCardRecord = {
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
+  customerType: string | null;
+  customerEmail: string | null;
+  region: string | null;
+  b2bBranchSchool: string | null;
+  salesOrderNumber: string | null;
   legacyReference: string | null;
   itemCode: string | null;
   mainGroup: string | null;
@@ -112,6 +117,11 @@ export type ServiceJobCardContent = {
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
+  customerType: string | null;
+  customerEmail: string | null;
+  region: string | null;
+  b2bBranchSchool: string | null;
+  salesOrderNumber: string | null;
   legacyReference: string | null;
   itemCode: string | null;
   mainGroup: string | null;
@@ -166,6 +176,11 @@ const columns = `
   service_job_cards.school_contact_person AS "schoolContactPerson",
   service_job_cards.school_contact_number AS "schoolContactNumber",
   service_job_cards.customer_number AS "customerNumber",
+  COALESCE(service_job_cards.customer_type, appointments.customer_type) AS "customerType",
+  COALESCE(service_job_cards.customer_email, appointments.customer_email) AS "customerEmail",
+  COALESCE(service_job_cards.region, appointments.region) AS "region",
+  COALESCE(service_job_cards.b2b_branch_school, appointments.b2b_branch_school) AS "b2bBranchSchool",
+  COALESCE(service_job_cards.sales_order_number, appointments.sales_order_number) AS "salesOrderNumber",
   service_job_cards.legacy_reference AS "legacyReference",
   service_job_cards.item_code AS "itemCode",
   service_job_cards.main_group AS "mainGroup",
@@ -207,7 +222,8 @@ export async function insertServiceJobCard(
        invoice_no, delivery_date, technician_name, brand, salesman, sales_channel, job_final_status,
        school_contact_person, school_contact_number, customer_number, legacy_reference,
        item_code, main_group, group_name, sub_group, item_in_master, serial_no, purchase_date,
-       accessories_received, condition_notes, intake_at
+       accessories_received, condition_notes, intake_at,
+       customer_type, customer_email, region, b2b_branch_school, sales_order_number
      ) VALUES (
        $1, $2, $3, $4, $4,
        $5, $6, $7, $8, $9,
@@ -217,7 +233,8 @@ export async function insertServiceJobCard(
        $23, $24, $25, $26, $27, $28, $29,
        $30, $31, $32, $33,
        $34, $35, $36, $37, $38, $39, $40,
-       $41, $42, $43
+       $41, $42, $43,
+       $44, $45, $46, $47, $48
      )
      RETURNING id`,
     [
@@ -264,6 +281,11 @@ export async function insertServiceJobCard(
       c.accessoriesReceived,
       c.conditionNotes,
       input.intakeAt ?? null,
+      c.customerType,
+      c.customerEmail,
+      c.region,
+      c.b2bBranchSchool,
+      c.salesOrderNumber,
     ],
   );
   const jobCard = await findServiceJobCardById(client, result.rows[0].id);
@@ -289,7 +311,9 @@ export async function updateServiceJobCardContent(
          legacy_reference = $29, updated_by = $30,
          item_code = $31, main_group = $32, group_name = $33, sub_group = $34,
          item_in_master = $35, serial_no = $36, purchase_date = $37,
-         accessories_received = $38, condition_notes = $39, updated_at = now()
+         accessories_received = $38, condition_notes = $39,
+         customer_type = $40, customer_email = $41, region = $42, b2b_branch_school = $43,
+         sales_order_number = $44, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -332,6 +356,11 @@ export async function updateServiceJobCardContent(
       content.purchaseDate,
       content.accessoriesReceived,
       content.conditionNotes,
+      content.customerType,
+      content.customerEmail,
+      content.region,
+      content.b2bBranchSchool,
+      content.salesOrderNumber,
     ],
   );
   if (!result.rows[0]) return null;

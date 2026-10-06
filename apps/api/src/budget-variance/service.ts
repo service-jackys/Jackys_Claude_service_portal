@@ -212,7 +212,6 @@ export function createBudgetVarianceService(pool: Pool) {
         actorProfileId: profileId,
         action: 'budget_variance.config_saved',
         targetType: 'revenue_settings',
-        targetId: 'config',
         metadata: {
           streams: data.streams?.length ?? 0,
           mappings: data.mappings?.length ?? 0,

@@ -322,6 +322,11 @@ const jobCardContentFields = {
   schoolContactPerson: optionalText(500),
   schoolContactNumber: optionalText(100),
   customerNumber: optionalText(100),
+  customerType: z.enum(['B2C', 'B2B']).optional(),
+  customerEmail: optionalText(320),
+  region: optionalText(80),
+  b2bBranchSchool: optionalText(300),
+  salesOrderNumber: optionalText(100),
   // Picked from the salesmen / sales_channels master lists on the UI, both
   // stored as plain text -- see modification.md #8.
   salesman: optionalText(200),
@@ -350,7 +355,22 @@ export const walkInJobCardCreateSchema = z
         message: 'Customer name is required.',
       });
     }
-    if (!value.customerContact) {
+    if (!value.customerType) {
+      context.addIssue({
+        code: 'custom',
+        path: ['customerType'],
+        message: 'Select the customer type (B2C or B2B).',
+      });
+    }
+    if (value.customerType === 'B2B') {
+      if (!value.customerContact && !value.b2bBranchSchool) {
+        context.addIssue({
+          code: 'custom',
+          path: ['b2bBranchSchool'],
+          message: 'Enter the B2B branch / school or a contact number.',
+        });
+      }
+    } else if (!value.customerContact) {
       context.addIssue({
         code: 'custom',
         path: ['customerContact'],

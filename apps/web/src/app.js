@@ -1034,6 +1034,16 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
+  const REGION_LIST = [
+    'Dubai',
+    'Sharjah',
+    'Ajman',
+    'Ras Al Khaimah',
+    'Fujairah',
+    'Umm Al Quwain',
+    'Abu Dhabi',
+    'Al Ain',
+  ];
   function jobCardFieldsHtml(prefix) {
     return `
       <div class="field-grid">
@@ -1080,6 +1090,13 @@
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job final status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+      </div>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
+        <div class="field"><label for="${prefix}CustomerEmail">Email address</label><input type="email" id="${prefix}CustomerEmail" maxlength="320"></div>
+        <div class="field"><label for="${prefix}Region">Region</label><select id="${prefix}Region"><option value="">Select region</option>${REGION_LIST.map((r) => `<option>${r}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}B2bBranchSchool">B2B Branch / School</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300"></div>
+        <div class="field"><label for="${prefix}SalesOrderNumber">Sales order no.</label><input type="text" id="${prefix}SalesOrderNumber" maxlength="100"></div>
       </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
@@ -1258,6 +1275,11 @@
     $(`#${prefix}SchoolContactPerson`).value = content.schoolContactPerson || '';
     $(`#${prefix}SchoolContactNumber`).value = content.schoolContactNumber || '';
     $(`#${prefix}CustomerNumber`).value = content.customerNumber || '';
+    $(`#${prefix}CustomerType`).value = content.customerType || '';
+    $(`#${prefix}CustomerEmail`).value = content.customerEmail || '';
+    $(`#${prefix}Region`).value = content.region || '';
+    $(`#${prefix}B2bBranchSchool`).value = content.b2bBranchSchool || '';
+    $(`#${prefix}SalesOrderNumber`).value = content.salesOrderNumber || '';
     $(`#${prefix}LegacyReference`).value = content.legacyReference || '';
     jobCardPartsState[prefix] = (content.parts || []).map((part) => ({
       partNo: part.partNo || '',
@@ -1309,6 +1331,11 @@
       schoolContactPerson: $(`#${prefix}SchoolContactPerson`).value.trim() || undefined,
       schoolContactNumber: $(`#${prefix}SchoolContactNumber`).value.trim() || undefined,
       customerNumber: $(`#${prefix}CustomerNumber`).value.trim() || undefined,
+      customerType: $(`#${prefix}CustomerType`).value || undefined,
+      customerEmail: $(`#${prefix}CustomerEmail`).value.trim() || undefined,
+      region: $(`#${prefix}Region`).value || undefined,
+      b2bBranchSchool: $(`#${prefix}B2bBranchSchool`).value.trim() || undefined,
+      salesOrderNumber: $(`#${prefix}SalesOrderNumber`).value.trim() || undefined,
       legacyReference: $(`#${prefix}LegacyReference`).value.trim() || undefined,
     };
   }
@@ -2035,6 +2062,10 @@ ${bodyHtml}
         ['Site contact person', jobCard.schoolContactPerson],
         ['Site contact number', jobCard.schoolContactNumber],
         ['Customer number', jobCard.customerNumber],
+        ['Customer type', jobCard.customerType],
+        ['Region', jobCard.region],
+        ['B2B branch / school', jobCard.b2bBranchSchool],
+        ['Sales order no.', jobCard.salesOrderNumber],
       ])}
       <div class="sign-row">
         <div class="sign-box">Technician signature</div>
@@ -8326,14 +8357,34 @@ ${bodyHtml}
       '<div class="wi-dup" data-wi-dup hidden></div>' +
       '<form id="walkInForm" novalidate>' +
       '<section class="detail-action-card"><h4>Customer</h4><div class="field-grid">' +
+      '<div class="field"><label for="wiCustomerType">Customer type <span class="required">*</span></label><select id="wiCustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select><span class="field-error" data-error-for="wiCustomerType"></span></div>' +
       '<div class="field"><label for="wiCustomerName">Customer name <span class="required">*</span></label><input id="wiCustomerName" maxlength="200" /><span class="field-error" data-error-for="wiCustomerName"></span></div>' +
       '<div class="field"><label for="wiCustomerContact">Contact number <span class="required">*</span> ' +
       tip(
         'Used to warn you if this customer already has an open complaint, appointment or walk-in card.',
       ) +
       '</label><input id="wiCustomerContact" type="tel" maxlength="50" /><span class="field-error" data-error-for="wiCustomerContact"></span></div>' +
+      '<div class="field"><label for="wiCustomerEmail">Email address</label><input id="wiCustomerEmail" type="email" maxlength="320" /></div>' +
       '<div class="field"><label for="wiCustomerAddress">Address</label><input id="wiCustomerAddress" maxlength="500" /></div>' +
+      '<div class="field"><label for="wiRegion">Region</label><select id="wiRegion"><option value="">Select region</option>' +
+      REGION_LIST.map((r) => '<option>' + r + '</option>').join('') +
+      '</select></div>' +
       '<div class="field"><label for="wiCustomerNumber">Customer number</label><input id="wiCustomerNumber" maxlength="100" /></div>' +
+      '</div>' +
+      '<div class="field-grid" id="wiB2bFields" hidden>' +
+      '<div class="field"><label for="wiB2bLookup">Look up B2B Branch / School ' +
+      tip('Picks the branch, sales order no. and salesman together.') +
+      '</label><input id="wiB2bLookup" type="text" autocomplete="off" placeholder="Start typing a branch or school name…" /></div>' +
+      '<ul id="wiB2bResults" class="b2b-branch-results field-wide" hidden></ul>' +
+      '<div class="field"><label for="wiB2bBranchSchool">B2B Branch / School <span class="required">*</span></label><input id="wiB2bBranchSchool" maxlength="300" /><span class="field-error" data-error-for="wiB2bBranchSchool"></span></div>' +
+      '<div class="field"><label for="wiSchoolContactPerson">Site contact person</label><input id="wiSchoolContactPerson" maxlength="500" /></div>' +
+      '<div class="field"><label for="wiSchoolContactNumber">Site contact number</label><input id="wiSchoolContactNumber" type="tel" maxlength="100" /></div>' +
+      '</div></section>' +
+      '<section class="detail-action-card"><h4>Sales and handling</h4><div class="field-grid">' +
+      '<div class="field"><label for="wiSalesOrderNumber">Sales order no.</label><input id="wiSalesOrderNumber" maxlength="100" /></div>' +
+      '<div class="field"><label for="wiSalesman">Salesman</label><select id="wiSalesman"><option value="">Select a salesman</option></select></div>' +
+      '<div class="field"><label for="wiSalesChannel">Sales channel</label><select id="wiSalesChannel"><option value="">Select a sales channel</option></select></div>' +
+      '<div class="field"><label for="wiTechnician">Technician (optional)</label><select id="wiTechnician"><option value="">Assign later</option></select></div>' +
       '</div></section>' +
       '<section class="detail-action-card"><h4>Item brought in</h4><div class="field-grid">' +
       '<div class="field"><label for="wiBrand">Brand ' +
@@ -8383,8 +8434,18 @@ ${bodyHtml}
       ${printFieldGrid([
         ['Received on', intake],
         ['Customer name', jobCard.customerName],
+        ['Customer type', jobCard.customerType],
         ['Contact', jobCard.customerContact],
+        ['Email', jobCard.customerEmail],
         ['Address', jobCard.customerAddress],
+        ['Region', jobCard.region],
+        ['B2B branch / school', jobCard.b2bBranchSchool],
+        [
+          'Site contact',
+          [jobCard.schoolContactPerson, jobCard.schoolContactNumber].filter(Boolean).join(' · '),
+        ],
+        ['Sales order no.', jobCard.salesOrderNumber],
+        ['Salesman', jobCard.salesman],
       ])}
       <h2>Item received</h2>
       ${printFieldGrid([
@@ -8429,6 +8490,73 @@ ${bodyHtml}
       mainGroup: $$('wiMainGroup'),
       group: $$('wiGroup'),
       subGroup: $$('wiSubGroup'),
+    });
+
+    // Customer type: B2B shows the branch / school block and makes the contact
+    // number optional, exactly like the New request form.
+    const b2bBox = $$('wiB2bFields');
+    $$('wiCustomerType').addEventListener('change', () => {
+      b2bBox.hidden = $$('wiCustomerType').value !== 'B2B';
+    });
+    populateSelectOptions('#wiSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#wiSalesChannel', salesChannelOptions, 'Select a sales channel');
+    if (hasPermission('technicians.read')) {
+      apiRequest('/api/technicians?active=true&page=1&pageSize=100')
+        .then((result) => {
+          populateSelectOptions('#wiTechnician', result.technicians || [], 'Assign later');
+        })
+        .catch(() => {});
+    } else {
+      $$('wiTechnician').disabled = true;
+    }
+    let b2bSequence = 0;
+    let b2bTimer = null;
+    const b2bResults = $$('wiB2bResults');
+    $$('wiB2bLookup').addEventListener('input', (event) => {
+      const query = event.target.value.trim();
+      clearTimeout(b2bTimer);
+      if (query.length < 2) {
+        b2bResults.hidden = true;
+        return;
+      }
+      b2bTimer = setTimeout(async () => {
+        const mine = ++b2bSequence;
+        try {
+          const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(query));
+          if (mine !== b2bSequence) return;
+          const branches = result.branches || [];
+          b2bResults.innerHTML = branches
+            .map(
+              (branch, index) =>
+                '<li><button type="button" data-i="' +
+                index +
+                '"><span class="branch-name">' +
+                escapeHtml(branch.branchName) +
+                '</span><br><span class="branch-code">Cust_Code ' +
+                escapeHtml(branch.custCode) +
+                (branch.salesman ? ' · ' + escapeHtml(branch.salesman) : '') +
+                '</span></button></li>',
+            )
+            .join('');
+          b2bResults.hidden = branches.length === 0;
+          b2bResults.dataset.branches = JSON.stringify(branches);
+        } catch {
+          b2bResults.hidden = true;
+        }
+      }, 250);
+    });
+    b2bResults.addEventListener('click', (event) => {
+      const button = event.target.closest('button[data-i]');
+      if (!button) return;
+      const branch = JSON.parse(b2bResults.dataset.branches || '[]')[Number(button.dataset.i)];
+      if (!branch) return;
+      $$('wiB2bBranchSchool').value = branch.branchName;
+      if (branch.lastSalesOrderNumber) $$('wiSalesOrderNumber').value = branch.lastSalesOrderNumber;
+      if (branch.salesman) {
+        populateSelectOptions('#wiSalesman', salesmenOptions, 'Select a salesman', branch.salesman);
+      }
+      b2bResults.hidden = true;
+      $$('wiB2bLookup').value = '';
     });
 
     // Duplicate check on the phone number (does not block, only informs).
@@ -8500,8 +8628,20 @@ ${bodyHtml}
           valid = false;
         }
       };
+      need('wiCustomerType', 'Select the customer type.');
       need('wiCustomerName', 'Enter the customer name.');
-      need('wiCustomerContact', 'Enter a contact number.');
+      if ($$('wiCustomerType').value === 'B2B') {
+        if (!$$('wiB2bBranchSchool').value.trim() && !$$('wiCustomerContact').value.trim()) {
+          showFieldError(
+            form,
+            'wiB2bBranchSchool',
+            'Enter the branch / school or a contact number.',
+          );
+          valid = false;
+        }
+      } else {
+        need('wiCustomerContact', 'Enter a contact number.');
+      }
       need('wiComplaint', 'Describe the fault.');
       if (!$$('wiModelNo').value.trim() && !$$('wiItemDescription').value.trim()) {
         showFieldError(form, 'wiModelNo', 'Enter the model, item code or description.');
@@ -8514,6 +8654,19 @@ ${bodyHtml}
         customerContact: value('wiCustomerContact'),
         customerAddress: value('wiCustomerAddress'),
         customerNumber: value('wiCustomerNumber'),
+        customerType: value('wiCustomerType'),
+        customerEmail: value('wiCustomerEmail'),
+        region: value('wiRegion'),
+        b2bBranchSchool:
+          $$('wiCustomerType').value === 'B2B' ? value('wiB2bBranchSchool') : undefined,
+        schoolContactPerson:
+          $$('wiCustomerType').value === 'B2B' ? value('wiSchoolContactPerson') : undefined,
+        schoolContactNumber:
+          $$('wiCustomerType').value === 'B2B' ? value('wiSchoolContactNumber') : undefined,
+        salesOrderNumber: value('wiSalesOrderNumber'),
+        salesman: value('wiSalesman'),
+        salesChannel: value('wiSalesChannel'),
+        technicianName: value('wiTechnician'),
         brand: value('wiBrand'),
         modelNo: value('wiModelNo'),
         itemDescription: value('wiItemDescription'),

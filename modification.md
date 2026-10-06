@@ -2292,3 +2292,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Each page shows a tab strip at the top to switch between its group's pages; the sidebar entry stays highlighted while you are in the group, and reopens the last tab you used. The pages, permissions and data are unchanged (Finance needs revenue_dashboard.read, Pricing Masters needs pricing_config.read).
 
 **Needs you:** hard-refresh. No restart or migration.
+
+
+## Modification #66 — Walk-in job card matches the complaint / appointment fields; clearer error messages; fix for saving stream mapping
+
+**Date:** 2026-10-06 · **Scope:** service_job_card.write, revenue_dashboard.write · **migration 031** · restart
+
+**What changed**
+- **Walk-in job card** now captures everything the New request form and appointment scheduling capture: customer type (B2C / B2B, required), email, region, B2B branch / school with the same master-list lookup (it also fills the sales order no. and salesman), site contact person and number, sales order no., salesman, sales channel and an optional technician. For B2B the contact number becomes optional when a branch / school is given, as in New request. These fields are also on the service job card edit form, the job card print and the walk-in intake receipt. Appointment-sourced cards show the appointment's own values for the new fields.
+- **Bug fix:** saving Stream mapping & settings failed with "An unexpected error occurred" because the audit entry used a non-numeric target id. Fixed.
+- **Errors:** an unexpected server error now shows its real reason in the message (first 300 characters), and an invalid request lists which fields are wrong, instead of the generic text.
+
+**Needs you:** run `npm run db:migrate` (031) and restart.
