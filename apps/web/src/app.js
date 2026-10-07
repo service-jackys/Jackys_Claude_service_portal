@@ -6178,6 +6178,52 @@ ${bodyHtml}
     event.preventDefault();
     await saveJobCardContent();
   });
+  // Quotations and Inspections: "Created ..." and "New ..." are tabs on one page
+  // instead of the list and the create form stacked together (modification #73).
+  function initWorkspaceTabs(workspaceId, tabsId, createButtonId, cancelButtonId, panelId) {
+    const workspace = $('#' + workspaceId);
+    const tabs = $('#' + tabsId);
+    const panel = $('#' + panelId);
+    const createButton = $('#' + createButtonId);
+    if (!workspace || !tabs || !panel || !createButton) return;
+    const newTab = tabs.querySelector('[data-tab="new"]');
+    const sync = () => {
+      const tab = panel.hidden ? 'list' : 'new';
+      workspace.dataset.tab = tab;
+      tabs.querySelectorAll('.ws-tab').forEach((button) => {
+        const active = button.dataset.tab === tab;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', String(active));
+      });
+      newTab.hidden = createButton.hidden;
+    };
+    new MutationObserver(sync).observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+    new MutationObserver(sync).observe(createButton, {
+      attributes: true,
+      attributeFilter: ['hidden'],
+    });
+    tabs.addEventListener('click', (event) => {
+      const button = event.target.closest('.ws-tab');
+      if (!button) return;
+      if (button.dataset.tab === 'new' && panel.hidden) createButton.click();
+      if (button.dataset.tab === 'list' && !panel.hidden) $('#' + cancelButtonId).click();
+    });
+    sync();
+  }
+  initWorkspaceTabs(
+    'quotationWorkspace',
+    'quotationTabs',
+    'createQuotationButton',
+    'cancelQuotationCreateButton',
+    'quotationCreatePanel',
+  );
+  initWorkspaceTabs(
+    'inspectionWorkspace',
+    'inspectionTabs',
+    'createInspectionButton',
+    'cancelInspectionCreateButton',
+    'inspectionCreatePanel',
+  );
   $('#closeJobCardDetailButton').addEventListener('click', () => {
     $('#jobCardDetail').hidden = true;
   });

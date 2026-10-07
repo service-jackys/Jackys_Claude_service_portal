@@ -2385,3 +2385,14 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Quotations and Inspections (lists and the new / edit forms) use the same compact look as the other entry pages: smaller labels, inputs, buttons and table text, tighter spacing, and card sections.
 
 **Needs you:** hard-refresh only.
+
+
+## Modification #73 — Tabs on Quotations and Inspections
+
+**Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- Quotations and Inspections now have two tabs on the same page: **Created quotations / inspections** (the searchable list, and the details of the one you open) and **New quotation / inspection** (the entry form). They no longer show stacked together.
+- Saving or cancelling a new record returns to the Created tab. The New tab is hidden for users who cannot create records.
+
+**Needs you:** hard-refresh only.

@@ -3034,6 +3034,48 @@
       #jobCardWorkspace .inbox-tools input[type='search'] {
         max-width: 340px;
       }
+      /* ---- Workspace tabs (modification #73): Created / New on Quotations and Inspections ---- */
+      .ws-tabs {
+        display: flex;
+        gap: 4px;
+        margin: 0 0 0.8rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .ws-tab {
+        margin-bottom: -1px;
+        padding: 0.45rem 0.9rem;
+        border: 0;
+        border-bottom: 2px solid transparent;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .ws-tab:hover {
+        color: var(--ink);
+      }
+      .ws-tab.is-active {
+        color: var(--blue);
+        border-bottom-color: var(--blue);
+      }
+      .ws-tab[hidden] {
+        display: none;
+      }
+      #quotationWorkspace[data-tab='new'] .inbox-tools,
+      #quotationWorkspace[data-tab='new'] .table-wrap,
+      #quotationWorkspace[data-tab='new'] #quotationsEmpty,
+      #quotationWorkspace[data-tab='new'] #quotationDetail,
+      #inspectionWorkspace[data-tab='new'] .inbox-tools,
+      #inspectionWorkspace[data-tab='new'] .table-wrap,
+      #inspectionWorkspace[data-tab='new'] #inspectionsEmpty,
+      #inspectionWorkspace[data-tab='new'] #inspectionDetail {
+        display: none;
+      }
+      #createQuotationButton,
+      #createInspectionButton {
+        display: none;
+      }
       /* ---- Detail sections (modification #70): CRM-style record view ---- */
       .detail-sections {
         display: grid;
@@ -6442,6 +6484,25 @@
             </div>
             <div class="card" id="quotationWorkspace" hidden>
               <div class="card-body">
+                <div class="ws-tabs" role="tablist" id="quotationTabs">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="ws-tab is-active"
+                    data-tab="list"
+                    aria-selected="true"
+                  >
+                    Created quotations</button
+                  ><button
+                    type="button"
+                    role="tab"
+                    class="ws-tab"
+                    data-tab="new"
+                    aria-selected="false"
+                  >
+                    New quotation
+                  </button>
+                </div>
                 <div class="inbox-tools">
                   <label class="visually-hidden" for="quotationSearch">Search quotations</label>
                   <input
@@ -6579,6 +6640,25 @@
             </div>
             <div class="card" id="inspectionWorkspace" hidden>
               <div class="card-body">
+                <div class="ws-tabs" role="tablist" id="inspectionTabs">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="ws-tab is-active"
+                    data-tab="list"
+                    aria-selected="true"
+                  >
+                    Created inspections</button
+                  ><button
+                    type="button"
+                    role="tab"
+                    class="ws-tab"
+                    data-tab="new"
+                    aria-selected="false"
+                  >
+                    New inspection
+                  </button>
+                </div>
                 <div class="inbox-tools">
                   <label class="visually-hidden" for="inspectionSearch">Search inspections</label>
                   <input
