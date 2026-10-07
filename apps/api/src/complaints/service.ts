@@ -4,6 +4,7 @@ import {
   b2bBranchLinkSchema,
   complaintListQuerySchema,
   complaintNotesSchema,
+  complaintAutomaticStatuses,
   complaintSchedulingTransitions,
   complaintStatusUpdateSchema,
   publicComplaintSchema,
@@ -154,6 +155,14 @@ export function createComplaintService(pool: Pool) {
     return withTransaction(pool, async (client) => {
       const current = await findComplaintById(client, id, true);
       if (!current) throw new ComplaintServiceError('not-found', 'The complaint was not found.');
+      if (complaintAutomaticStatuses.includes(data.status)) {
+        throw new ComplaintServiceError(
+          'invalid-transition',
+          data.status === 'Scheduled'
+            ? 'A complaint becomes Scheduled only when an appointment with a technician is booked. Use the Schedule appointment tab.'
+            : 'A complaint closes automatically when its appointment is completed. Complete the appointment instead.',
+        );
+      }
       if (!complaintSchedulingTransitions[current.status].includes(data.status)) {
         throw new ComplaintServiceError(
           'invalid-transition',

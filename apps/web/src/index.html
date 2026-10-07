@@ -2774,6 +2774,46 @@
       .ap-count:empty {
         display: none;
       }
+      /* ---- Guided complaint workflow (modification #69) ---- */
+      .next-step {
+        margin: 14px 0;
+        padding: 12px 14px 12px 16px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--blue);
+        border-radius: 10px;
+      }
+      .next-step.is-warn {
+        border-left-color: var(--st-progress, #b5750a);
+      }
+      .next-step.is-done {
+        border-left-color: var(--st-completed, #176b4d);
+      }
+      .next-step-kicker {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .next-step-title {
+        margin: 2px 0 4px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--ink);
+      }
+      .next-step-text {
+        margin: 0;
+        font-size: 0.82rem;
+        line-height: 1.45;
+        color: var(--ink);
+      }
+      .next-step-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 10px;
+      }
       .history {
         margin: 1.4rem 0 0;
         padding: 0;
@@ -5308,6 +5348,7 @@
                     </button>
                   </div>
                   <div class="detail-grid" id="detailGrid"></div>
+                  <div class="next-step" id="complaintNextStep" hidden></div>
                   <div class="detail-actions" id="complaintActions" hidden>
                     <div
                       class="action-tab-nav"
@@ -5439,11 +5480,16 @@
                         role="tabpanel"
                       >
                         <h4 id="statusHeading">Update status</h4>
-                        <p>Choose the next status allowed by the current workflow.</p>
+                        <p>
+                          Pick where this complaint goes next. Scheduled and Closed are set
+                          automatically: booking an appointment schedules it, completing the
+                          appointment closes it.
+                        </p>
                         <form id="statusForm" novalidate>
                           <div class="field">
                             <label for="complaintNextStatus">Next status</label>
                             <select id="complaintNextStatus" name="status"></select>
+                            <span class="form-note" id="complaintStatusHint"></span>
                             <span class="field-error" data-error-for="complaintNextStatus"></span>
                           </div>
                           <div class="field">

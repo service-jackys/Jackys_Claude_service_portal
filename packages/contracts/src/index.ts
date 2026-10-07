@@ -987,12 +987,17 @@ export const technicianListQuerySchema = z
 export const complaintSchedulingTransitions: Record<ComplaintStatus, readonly ComplaintStatus[]> = {
   New: ['Under Review', 'Cancelled'],
   'Under Review': ['Pending Information', 'Ready for Scheduling', 'Cancelled'],
-  'Pending Information': ['Under Review', 'Cancelled'],
+  'Pending Information': ['Under Review', 'Ready for Scheduling', 'Cancelled'],
   'Ready for Scheduling': ['Scheduled', 'Cancelled'],
   Scheduled: ['Closed', 'Cancelled', 'Ready for Scheduling'],
   Closed: [],
   Cancelled: [],
 };
+
+// Statuses the system sets by itself. Staff can never pick these by hand:
+// Scheduled is set when an appointment with a technician is booked, and
+// Closed when that appointment is completed (modification.md #69).
+export const complaintAutomaticStatuses: readonly ComplaintStatus[] = ['Scheduled', 'Closed'];
 
 export const appointmentTransitions: Record<AppointmentStatus, readonly AppointmentStatus[]> = {
   Scheduled: ['In Progress', 'Cancelled'],

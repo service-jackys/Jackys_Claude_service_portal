@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   appointmentScheduleUpdateSchema,
+  complaintAutomaticStatuses,
   complaintSchedulingTransitions,
   serviceJobCardStatusSchema,
   serviceJobCardStatusTransitions,
@@ -57,6 +58,10 @@ test('complaint status transitions keep scheduling recovery explicit', () => {
   ]);
   assert.deepEqual(complaintSchedulingTransitions.Closed, []);
   assert.deepEqual(complaintSchedulingTransitions.Cancelled, []);
+});
+
+test('Scheduled and Closed are set by the system, never picked by hand', () => {
+  assert.deepEqual([...complaintAutomaticStatuses], ['Scheduled', 'Closed']);
 });
 
 test('service job-card status contract and transitions are explicit', () => {

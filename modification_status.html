@@ -2879,6 +2879,25 @@
           <li>Hard-refresh. No restart or migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#69 &mdash; Guided complaint workflow</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-07 &middot; API + web &middot; restart + hard-refresh</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Scheduled and Closed are system-set only: booking an appointment schedules, completing it closes. The API rejects manual attempts.</li>
+          <li>Pending Information can go straight to Ready for Scheduling; the status list no longer ping-pongs.</li>
+          <li>Next step card with one-click buttons and tooltips on every stage; orphan Scheduled complaints get a Reopen scheduling button.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart the server and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

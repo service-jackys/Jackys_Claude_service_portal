@@ -217,15 +217,31 @@
   let scheduleB2bBranchSearchSequence = 0;
   let scheduleB2bBranchSearchDebounce = null;
 
+  // Manual moves only. Scheduled (appointment booked) and Closed (appointment
+  // completed) are set by the system and are deliberately not listed here.
   const complaintTransitions = {
     New: ['Under Review', 'Cancelled'],
-    'Under Review': ['Pending Information', 'Ready for Scheduling', 'Cancelled'],
-    'Pending Information': ['Under Review', 'Cancelled'],
-    'Ready for Scheduling': ['Scheduled', 'Cancelled'],
-    Scheduled: ['Closed', 'Cancelled', 'Ready for Scheduling'],
+    'Under Review': ['Ready for Scheduling', 'Pending Information', 'Cancelled'],
+    'Pending Information': ['Under Review', 'Ready for Scheduling', 'Cancelled'],
+    'Ready for Scheduling': ['Cancelled'],
+    Scheduled: ['Ready for Scheduling', 'Cancelled'],
     Closed: [],
     Cancelled: [],
   };
+  const COMPLAINT_STATUS_HINTS = {
+    'Under Review': 'Staff are checking the details and the warranty classification.',
+    'Pending Information':
+      'Waiting for the customer to send something missing, for example the invoice.',
+    'Ready for Scheduling':
+      'Everything needed is in. Next you book a date and a technician in the Schedule appointment tab.',
+    Cancelled: 'Ends the complaint without service. This cannot be undone.',
+  };
+  const WORKFLOW_STAGE_TIPS = [
+    'Register and review the complaint, check the warranty and collect any missing information.',
+    'Book a date and an available technician. The complaint becomes Scheduled automatically.',
+    'Created from the completed appointment: record the work done, parts and costs.',
+    'Closed automatically once the appointment and job card are completed.',
+  ];
   const appointmentTransitions = {
     Scheduled: ['In Progress', 'Cancelled'],
     'In Progress': ['Completed', 'Cancelled'],
@@ -454,7 +470,7 @@
         index < WORKFLOW_STAGES.length - 1
           ? '<span class="stepper-connector" aria-hidden="true"></span>'
           : '';
-      return `<div class="stepper-item ${state}"><span class="stepper-dot" aria-hidden="true">${dot}</span><span class="stepper-label">${escapeHtml(label)}</span></div>${connector}`;
+      return `<div class="stepper-item ${state}" title="${escapeHtml(WORKFLOW_STAGE_TIPS[index] || '')}"><span class="stepper-dot" aria-hidden="true">${dot}</span><span class="stepper-label">${escapeHtml(label)}</span></div>${connector}`;
     }).join('');
   }
 
@@ -5103,12 +5119,144 @@ ${bodyHtml}
     $('#complaintWarranty').dataset.saved = complaint.warrantyClassification || '';
     const nextStatuses = complaintTransitions[complaint.status] || [];
     $('#complaintNextStatus').innerHTML = nextStatuses.length
-      ? nextStatuses
-          .map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`)
+      ? '<option value="">Select the next status…</option>' +
+        nextStatuses
+          .map(
+            (status) =>
+              `<option value="${escapeHtml(status)}" title="${escapeHtml(COMPLAINT_STATUS_HINTS[status] || '')}">${escapeHtml(status)}</option>`,
+          )
           .join('')
       : '<option value="">No further transitions</option>';
     $('#complaintNextStatus').disabled = nextStatuses.length === 0;
     $('#updateStatusButton').disabled = nextStatuses.length === 0;
+    $('#complaintStatusHint').textContent = '';
+    $('#complaintStatusReason').value = '';
+    $('#notesActionTab').title = 'Record internal notes and the warranty classification.';
+    $('#statusActionTab').title = 'Move the complaint to its next stage.';
+    $('#scheduleActionTab').title = canSchedule
+      ? 'Book a date and an available technician.'
+      : 'Available once the status is Ready for Scheduling.';
+  }
+
+  $('#complaintNextStatus').addEventListener('change', (event) => {
+    $('#complaintStatusHint').textContent = COMPLAINT_STATUS_HINTS[event.target.value] || '';
+  });
+
+  async function changeComplaintStatus(status, reason, button) {
+    setBusy(button, true, 'Updating…');
+    try {
+      await apiRequest('/api/complaints/' + encodeURIComponent(currentComplaintId) + '/status', {
+        method: 'PATCH',
+        body: JSON.stringify({ status, reason: reason || undefined }),
+      });
+      await loadComplaintDetail(currentComplaintId);
+      await loadComplaints();
+      setMessage('#workspaceMessage', `Complaint moved to ${status}.`, true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      if (button) setBusy(button, false);
+    }
+  }
+
+  // "What to do next" card above the action tabs: says where the complaint is,
+  // what the next step is, and offers that step as a button.
+  function renderComplaintGuide(complaint, appointment) {
+    const box = $('#complaintNextStep');
+    const canEdit = hasPermission('complaints.write');
+    const canBook = hasPermission('appointments.write') && hasPermission('technicians.read');
+    const ref = appointment ? appointment.appointmentReference : '';
+    const guides = {
+      New: {
+        title: 'Start the review',
+        text: 'A new complaint has arrived. Read the details and record the warranty classification in Notes, then move it to Under Review.',
+        buttons: canEdit ? [['Start review', 'status', 'Under Review']] : [],
+      },
+      'Under Review': {
+        title: 'Check the details, then decide',
+        text: 'Confirm the customer details and warranty classification (Notes tab). If something is missing, mark it Pending Information. If everything is in, mark it Ready for Scheduling.',
+        buttons: canEdit
+          ? [
+              ['Ready for Scheduling', 'status', 'Ready for Scheduling'],
+              ['Pending Information', 'status', 'Pending Information', true],
+            ]
+          : [],
+      },
+      'Pending Information': {
+        title: 'Waiting for the customer',
+        text: 'Chase the missing information (add a note of what was asked). When it arrives, mark the complaint Ready for Scheduling, or send it back to Under Review.',
+        buttons: canEdit
+          ? [
+              ['Information received: Ready for Scheduling', 'status', 'Ready for Scheduling'],
+              ['Back to Under Review', 'status', 'Under Review', true],
+            ]
+          : [],
+        warn: true,
+      },
+      'Ready for Scheduling': {
+        title: 'Book the appointment',
+        text: 'Open the Schedule appointment tab, choose a date and an available technician, and save. The complaint moves to Scheduled by itself once the appointment exists.',
+        buttons: canBook ? [['Go to Schedule appointment', 'tab', 'scheduleAction']] : [],
+      },
+      Scheduled: appointment
+        ? {
+            title: 'Appointment booked',
+            text: `Appointment ${ref} is ${appointment.status}. This complaint closes automatically when the technician completes it. To redo the booking, use Update status and choose Ready for Scheduling (this cancels the appointment).`,
+            buttons: [['Open appointment ' + ref, 'appointment', appointment.id]],
+            done: true,
+          }
+        : {
+            title: 'No appointment found',
+            text: 'This complaint is marked Scheduled but has no active appointment, so nothing is booked. Reopen scheduling and book a technician.',
+            buttons: canEdit ? [['Reopen scheduling', 'status', 'Ready for Scheduling']] : [],
+            warn: true,
+          },
+      Closed: {
+        title: 'Complete',
+        text: 'The appointment was completed and this complaint is closed. Nothing more to do.',
+        buttons: [],
+        done: true,
+      },
+      Cancelled: {
+        title: 'Cancelled',
+        text: 'This complaint was cancelled and is locked.',
+        buttons: [],
+        done: true,
+      },
+    };
+    const guide = guides[complaint.status];
+    if (!guide) {
+      box.hidden = true;
+      return;
+    }
+    box.className = 'next-step' + (guide.warn ? ' is-warn' : guide.done ? ' is-done' : '');
+    box.innerHTML = `<div class="next-step-kicker">Next step</div><div class="next-step-title">${escapeHtml(guide.title)}</div><p class="next-step-text">${escapeHtml(guide.text)}</p>${
+      guide.buttons.length
+        ? `<div class="next-step-actions">${guide.buttons
+            .map(
+              ([label, kind, value, secondary], index) =>
+                `<button type="button" class="button ${secondary ? 'button-outline' : 'button-primary'}" data-guide="${index}">${escapeHtml(label)}</button>`,
+            )
+            .join('')}</div>`
+        : ''
+    }`;
+    box.hidden = false;
+    box.querySelectorAll('[data-guide]').forEach((button) => {
+      const [, kind, value] = guide.buttons[Number(button.dataset.guide)];
+      button.addEventListener('click', () => {
+        if (kind === 'status') changeComplaintStatus(value, '', button);
+        else if (kind === 'tab') activateActionTab(value);
+        else if (kind === 'appointment') {
+          setWorkspaceMode('appointments');
+          loadAppointmentDetail(value);
+        }
+      });
+    });
   }
 
   // Staff-only matching of a complaint's free-text B2B Branch / School to the
@@ -5337,6 +5485,7 @@ ${bodyHtml}
       const result = await apiRequest('/api/complaints/' + encodeURIComponent(id));
       const complaint = result.complaint;
       renderComplaintActions(complaint);
+      renderComplaintGuide(complaint, result.appointment);
       $('#detailHeading').textContent = complaint.complaintReference || 'Complaint details';
       $('#detailStatus').innerHTML =
         `<span class="status ${statusClass(complaint.status)}">${escapeHtml(complaint.status)}</span>`;
@@ -5467,36 +5616,14 @@ ${bodyHtml}
     clearErrors(form);
     const status = $('#complaintNextStatus').value;
     if (!status) {
-      showFieldError(
-        form,
-        'complaintNextStatus',
-        'There are no valid next statuses for this complaint.',
-      );
+      showFieldError(form, 'complaintNextStatus', 'Select the status this complaint moves to.');
       return;
     }
-    const button = $('#updateStatusButton');
-    setBusy(button, true, 'Updating…');
-    try {
-      await apiRequest('/api/complaints/' + encodeURIComponent(currentComplaintId) + '/status', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status,
-          reason: $('#complaintStatusReason').value.trim() || undefined,
-        }),
-      });
-      await loadComplaintDetail(currentComplaintId);
-      await loadComplaints();
-      setMessage('#workspaceMessage', 'Complaint status updated.', true);
-    } catch (error) {
-      if (error.status === 401) {
-        await signOut(false);
-        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
-      } else {
-        setMessage('#workspaceMessage', error.message);
-      }
-    } finally {
-      setBusy(button, false);
-    }
+    await changeComplaintStatus(
+      status,
+      $('#complaintStatusReason').value.trim(),
+      $('#updateStatusButton'),
+    );
   });
 
   $('#scheduleForm').addEventListener('submit', async (event) => {

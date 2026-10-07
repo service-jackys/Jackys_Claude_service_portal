@@ -2334,3 +2334,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **All appointments table** restyled: smaller type, uppercase column headers, compact rows with hover, customer name with the contact number beneath, technician shown by name with initials (the list showed a raw technician id before), status as a coloured pill, and a row count next to the title. The appointment list API now also returns `technicianName`.
 
 **Needs you:** hard-refresh only.
+
+
+## Modification #69 — Guided complaint workflow (no more skipping scheduling)
+
+**Date:** 2026-10-07 · **Scope:** complaints.write · API + web · no migration · restart + hard-refresh
+
+**What changed**
+- **Scheduled and Closed can no longer be set by hand.** The API rejects them (409). A complaint becomes Scheduled only when an appointment with a technician is booked, and Closed only when that appointment is completed.
+- Pending Information can now go straight to Ready for Scheduling.
+- The Update status list starts on "Select the next status…", with the forward step listed first, so one click no longer ping-pongs between Under Review and Pending Information. Each option has a hint.
+- A **Next step** card on every complaint says what to do now and offers one-click buttons (Start review, Ready for Scheduling, Go to Schedule appointment, Open appointment). Tooltips were added to the workflow stepper, the action tabs and the status options.
+- A Scheduled complaint with no appointment (left over from the old bug) shows a warning and a "Reopen scheduling" button.
+
+**Needs you:** restart the server, hard-refresh.
