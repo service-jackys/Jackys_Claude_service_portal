@@ -2375,3 +2375,13 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **Fixed:** the New request form stayed on screen under Walk-in job card, Daily schedule and the admin pages after you had opened New request. It is now hidden when you move to another page.
 
 **Needs you:** hard-refresh only.
+
+
+## Modification #72 — Compact Quotations and Inspections
+
+**Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- Quotations and Inspections (lists and the new / edit forms) use the same compact look as the other entry pages: smaller labels, inputs, buttons and table text, tighter spacing, and card sections.
+
+**Needs you:** hard-refresh only.
