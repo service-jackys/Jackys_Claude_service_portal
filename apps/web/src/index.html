@@ -2814,6 +2814,177 @@
         gap: 8px;
         margin-top: 10px;
       }
+      /* ---- Compact entry forms (modification #71): New request, Walk-in, Daily schedule, Job cards ---- */
+      #newComplaintWorkspace .card-body,
+      #walkInWorkspace .card-body,
+      #dailyListWorkspace .card-body,
+      #jobCardWorkspace .card-body {
+        padding: clamp(0.9rem, 2vw, 1.2rem);
+      }
+      #newComplaintWorkspace .form-note,
+      #walkInWorkspace .form-note,
+      #dailyListWorkspace .form-note,
+      #jobCardWorkspace .form-note {
+        font-size: 0.76rem;
+        margin: 0 0 0.6rem;
+      }
+      #newComplaintWorkspace .field-grid,
+      #walkInWorkspace .field-grid,
+      #dailyListWorkspace .field-grid,
+      #jobCardWorkspace .field-grid {
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 0.55rem 0.85rem;
+        margin-bottom: 0.5rem;
+      }
+      #newComplaintWorkspace .field,
+      #walkInWorkspace .field,
+      #dailyListWorkspace .field,
+      #jobCardWorkspace .field {
+        gap: 0.22rem;
+      }
+      #newComplaintWorkspace label,
+      #walkInWorkspace label,
+      #dailyListWorkspace label,
+      #jobCardWorkspace label {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: var(--muted);
+      }
+      #newComplaintWorkspace input,
+      #newComplaintWorkspace select,
+      #newComplaintWorkspace textarea,
+      #walkInWorkspace input,
+      #walkInWorkspace select,
+      #walkInWorkspace textarea,
+      #dailyListWorkspace input,
+      #dailyListWorkspace select,
+      #dailyListWorkspace textarea,
+      #jobCardWorkspace input,
+      #jobCardWorkspace select,
+      #jobCardWorkspace textarea {
+        min-height: 32px;
+        padding: 0.34rem 0.6rem;
+        border-radius: 6px;
+        font-size: 0.8rem;
+      }
+      #newComplaintWorkspace textarea,
+      #walkInWorkspace textarea,
+      #dailyListWorkspace textarea,
+      #jobCardWorkspace textarea {
+        min-height: 64px;
+      }
+      #newComplaintWorkspace .field-error,
+      #walkInWorkspace .field-error,
+      #dailyListWorkspace .field-error,
+      #jobCardWorkspace .field-error {
+        min-height: 0;
+        font-size: 0.7rem;
+      }
+      #newComplaintWorkspace .field-error:empty,
+      #walkInWorkspace .field-error:empty,
+      #dailyListWorkspace .field-error:empty,
+      #jobCardWorkspace .field-error:empty {
+        display: none;
+      }
+      #newComplaintWorkspace .detail-action-card,
+      #walkInWorkspace .detail-action-card,
+      #dailyListWorkspace .detail-action-card,
+      #jobCardWorkspace .detail-action-card {
+        padding: 0.65rem 0.85rem 0.35rem;
+        margin-bottom: 0.6rem;
+        border-radius: 10px;
+        background: var(--surface);
+      }
+      #newComplaintWorkspace .detail-action-card > h4,
+      #walkInWorkspace .detail-action-card > h4,
+      #dailyListWorkspace .detail-action-card > h4,
+      #jobCardWorkspace .detail-action-card > h4 {
+        margin: 0 0 0.5rem;
+        padding-left: 0.5rem;
+        border-left: 3px solid var(--blue);
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+        line-height: 1.2;
+      }
+      #newComplaintWorkspace .rcv-banner,
+      #walkInWorkspace .rcv-banner,
+      #dailyListWorkspace .rcv-banner,
+      #jobCardWorkspace .rcv-banner {
+        margin-bottom: 0.7rem;
+        padding: 0.55rem 0.9rem;
+        border-radius: 10px;
+      }
+      #newComplaintWorkspace .rcv-banner strong,
+      #walkInWorkspace .rcv-banner strong,
+      #dailyListWorkspace .rcv-banner strong,
+      #jobCardWorkspace .rcv-banner strong {
+        font-size: 0.88rem;
+      }
+      #newComplaintWorkspace .rcv-banner span,
+      #walkInWorkspace .rcv-banner span,
+      #dailyListWorkspace .rcv-banner span,
+      #jobCardWorkspace .rcv-banner span {
+        font-size: 0.74rem;
+      }
+      #newComplaintWorkspace .button,
+      #walkInWorkspace .button,
+      #dailyListWorkspace .button,
+      #jobCardWorkspace .button {
+        min-height: 34px;
+        padding: 0.36rem 0.85rem;
+        border-radius: 8px;
+        font-size: 0.78rem;
+      }
+      #newComplaintWorkspace .form-footer,
+      #walkInWorkspace .form-footer,
+      #dailyListWorkspace .form-footer,
+      #jobCardWorkspace .form-footer {
+        margin-top: 0.5rem;
+      }
+      #newComplaintWorkspace .table-wrap table,
+      #walkInWorkspace .table-wrap table,
+      #dailyListWorkspace .table-wrap table,
+      #jobCardWorkspace .table-wrap table {
+        font-size: 0.8rem;
+      }
+      #newComplaintWorkspace th,
+      #walkInWorkspace th,
+      #dailyListWorkspace th,
+      #jobCardWorkspace th {
+        font-size: 0.68rem;
+        padding: 0.55rem 0.7rem;
+      }
+      #newComplaintWorkspace td,
+      #walkInWorkspace td,
+      #dailyListWorkspace td,
+      #jobCardWorkspace td {
+        padding: 0.5rem 0.7rem;
+      }
+      #newComplaintWorkspace .status,
+      #walkInWorkspace .status,
+      #dailyListWorkspace .status,
+      #jobCardWorkspace .status {
+        padding: 0.16rem 0.5rem;
+        font-size: 0.68rem;
+      }
+      #jobCardWorkspace .inbox-tools input,
+      #jobCardWorkspace .inbox-tools select {
+        max-width: 260px;
+      }
+      #newComplaintWorkspace input[type='checkbox'],
+      #walkInWorkspace input[type='checkbox'],
+      #dailyListWorkspace input[type='checkbox'],
+      #jobCardWorkspace input[type='checkbox'] {
+        width: auto;
+        min-height: 0;
+        padding: 0;
+      }
+      #jobCardWorkspace .inbox-tools input[type='search'] {
+        max-width: 340px;
+      }
       /* ---- Detail sections (modification #70): CRM-style record view ---- */
       .detail-sections {
         display: grid;

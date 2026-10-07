@@ -2363,3 +2363,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **Detail views redesigned** as CRM-style cards for the complaint, appointment and job card: a summary strip, then Customer, Product, Warranty and sales, Service record, Spare parts and charges (parts table and totals), Origin (complaint and appointment trail) and Record. Every captured field shows, with "Not provided" when empty. The appointment shows the technician name.
 
 **Needs you:** run `npm run db:migrate` (033), restart the server, hard-refresh.
+
+
+## Modification #71 — Compact entry forms and job-card list
+
+**Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- **New request, Walk-in job card, Daily schedule and the job-card editor** now use smaller labels, inputs and buttons, tighter spacing, and card sections with a small blue-tab heading, so each page fits far more on screen.
+- **Service job cards list** uses the same small table text and compact status pills as the Complaint inbox.
+- **Fixed:** the New request form stayed on screen under Walk-in job card, Daily schedule and the admin pages after you had opened New request. It is now hidden when you move to another page.
+
+**Needs you:** hard-refresh only.

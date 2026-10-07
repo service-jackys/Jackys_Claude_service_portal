@@ -7761,6 +7761,7 @@ ${bodyHtml}
       'technicianWorkspace',
       'teamAccountWorkspace',
       'masterDataWorkspace',
+      'newComplaintWorkspace',
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.hidden = true;
@@ -10760,6 +10761,7 @@ ${bodyHtml}
       'technicianWorkspace',
       'teamAccountWorkspace',
       'masterDataWorkspace',
+      'newComplaintWorkspace',
     ].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.hidden = true;
