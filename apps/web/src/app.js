@@ -248,12 +248,6 @@
     Completed: [],
     Cancelled: [],
   };
-  const jobCardTransitions = {
-    Open: ['In Progress', 'Cancelled'],
-    'In Progress': ['Completed', 'Cancelled'],
-    Completed: [],
-    Cancelled: [],
-  };
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
 
@@ -1036,7 +1030,15 @@
   // set (packages/contracts jobCardContentFields / docs/code.gs HEADERS_BY_TYPE
   // ['service-job-card']), so one template and one set of handlers, parameterized
   // by prefix, drive both panels instead of duplicating the markup and logic.
-  const jobFinalStatusOptions = ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'];
+  const jobFinalStatusOptions = [
+    'WIP',
+    'Spare pending',
+    'BER',
+    'Rejected',
+    'Repair Completed',
+    'Delivered',
+    'Cancelled',
+  ];
   const jobCardPartsState = { jcc: [], jce: [], jcq: [] };
 
   function parseNumber(value) {
@@ -1111,7 +1113,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
-        <div class="field"><label for="${prefix}JobFinalStatus">Job final status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}JobFinalStatus">Job status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select><span class="form-note">The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.</span></div>
       </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
@@ -2064,7 +2066,7 @@ ${bodyHtml}
         ['Salesman', jobCard.salesman],
         ['Sales channel', jobCard.salesChannel],
         ['Job final status', jobCard.jobFinalStatus],
-        ['Status', jobCard.status],
+        ['Status', jobCard.jobFinalStatus || jobCard.status],
       ])}
       ${printTextBlock('Complaint', jobCard.complaint)}
       ${printTextBlock('Service rendered', jobCard.serviceRendered)}
@@ -2267,7 +2269,7 @@ ${bodyHtml}
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span></td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
@@ -3994,23 +3996,258 @@ ${bodyHtml}
     $('#dashAmcContractTiles').innerHTML = '';
   }
 
+  function isJobCardLocked(jobCard) {
+    return (
+      ['Delivered', 'Cancelled'].includes(jobCard.jobFinalStatus) ||
+      jobCard.status === 'Cancelled' ||
+      (jobCard.status === 'Completed' && ['WIP', 'Spare pending'].includes(jobCard.jobFinalStatus))
+    );
+  }
+
+  function isAdminUser() {
+    return currentUser?.role === 'admin' || currentUser?.permissions?.includes('*');
+  }
+
   function renderJobCardActions(jobCard) {
-    const canWrite = hasPermission('service_job_card.write');
-    const terminal = jobCard.status === 'Completed' || jobCard.status === 'Cancelled';
-    $('#jobCardActions').hidden = !canWrite || terminal;
-    $('#jobCardContentAction').hidden = !canWrite || terminal;
-    $('#jobCardStatusAction').hidden = !canWrite || terminal;
-    if (canWrite && !terminal) fillJobCardForm('jce', jobCard);
-    const nextStatuses = jobCardTransitions[jobCard.status] || [];
-    $('#jobCardNextStatus').innerHTML = nextStatuses.length
-      ? nextStatuses
-          .map((status) => `<option value="${escapeHtml(status)}">${escapeHtml(status)}</option>`)
-          .join('')
-      : '<option value="">No further transitions</option>';
-    $('#jobCardNextStatus').disabled = nextStatuses.length === 0;
-    $('#updateJobCardStatusButton').disabled = nextStatuses.length === 0;
-    $('#jobCardStatusReason').value = '';
-    clearErrors($('#jobCardStatusForm'));
+    const editable =
+      hasPermission('service_job_card.write') && (!isJobCardLocked(jobCard) || isAdminUser());
+    $('#jobCardActions').hidden = !editable;
+    $('#jobCardContentAction').hidden = !editable;
+    if (editable) fillJobCardForm('jce', jobCard);
+  }
+
+  function renderJobCardGuide(jobCard) {
+    const box = $('#jobCardNextStep');
+    const guides = {
+      WIP: {
+        title: 'Work in progress',
+        text: 'Record the service rendered, spare parts used and charges in Job card details. When the repair is done set the job status to Repair Completed. If you are waiting for parts use Spare pending; if it cannot be repaired use BER or Rejected.',
+      },
+      'Spare pending': {
+        title: 'Waiting for spare parts',
+        text: 'Add the parts once they arrive, then set the job status back to WIP, or straight to Repair Completed if the repair is finished.',
+        warn: true,
+      },
+      'Repair Completed': {
+        title: 'Ready for delivery',
+        text: 'Enter the invoice number and delivery date, hand the item to the customer, then set the job status to Delivered.',
+      },
+      BER: {
+        title: 'Beyond economical repair',
+        text: 'Return the item to the customer, then set the job status to Delivered to close the job.',
+        warn: true,
+      },
+      Rejected: {
+        title: 'Job rejected',
+        text: 'Return the item to the customer, then set the job status to Delivered to close the job.',
+        warn: true,
+      },
+      Delivered: {
+        title: 'Delivered to customer',
+        text: isAdminUser()
+          ? 'This job is closed. As an administrator you can still edit it.'
+          : 'This job is closed and locked. Only an administrator can edit it.',
+        done: true,
+      },
+      Cancelled: {
+        title: 'Job cancelled',
+        text: isAdminUser()
+          ? 'This job is cancelled. As an administrator you can still edit it.'
+          : 'This job is cancelled and locked. Only an administrator can edit it.',
+        warn: true,
+      },
+    };
+    const guide = guides[jobCard.jobFinalStatus];
+    if (!guide) {
+      box.hidden = true;
+      return;
+    }
+    box.className = 'next-step' + (guide.warn ? ' is-warn' : guide.done ? ' is-done' : '');
+    box.innerHTML = `<div class="next-step-kicker">Next step</div><div class="next-step-title">${escapeHtml(guide.title)}</div><p class="next-step-text">${escapeHtml(guide.text)}</p>`;
+    box.hidden = false;
+  }
+
+  // ---- CRM-style detail sections shared by complaint, appointment and job card
+  function detailValueHtml(value, kind) {
+    if (value === null || value === undefined || value === '') {
+      return '<span class="ds-empty">Not provided</span>';
+    }
+    const text = escapeHtml(value);
+    if (kind === 'pill') return `<span class="status ${statusClass(value)}">${text}</span>`;
+    if (kind === 'money') return `<span class="ds-money">AED ${text}</span>`;
+    if (kind === 'phone') {
+      return `<a href="tel:${escapeHtml(String(value).replace(/[^\d+]/g, ''))}">${text}</a>`;
+    }
+    if (kind === 'email') return `<a href="mailto:${text}">${text}</a>`;
+    return text;
+  }
+
+  function renderDetailSections(selector, sections) {
+    const element = $(selector);
+    element.className = 'detail-sections';
+    element.innerHTML = sections
+      .map((section) => {
+        if (section.strip) {
+          return `<div class="ds-strip">${section.strip
+            .map(
+              ([label, value, kind]) =>
+                `<div class="ds-kpi"><small>${escapeHtml(label)}</small><strong>${detailValueHtml(value, kind)}</strong></div>`,
+            )
+            .join('')}</div>`;
+        }
+        const body =
+          section.html ||
+          `<dl class="ds-grid">${section.items
+            .map(
+              ([label, value, kind]) =>
+                `<div class="ds-item${kind === 'wide' ? ' ds-wide' : ''}"><dt>${escapeHtml(label)}</dt><dd>${detailValueHtml(value, kind)}</dd></div>`,
+            )
+            .join('')}</dl>`;
+        return `<section class="ds-card"><header class="ds-head"><h5>${escapeHtml(section.title)}</h5>${section.meta ? `<span class="ds-meta">${escapeHtml(section.meta)}</span>` : ''}</header>${body}</section>`;
+      })
+      .join('');
+  }
+
+  function jobCardPartsHtml(jobCard) {
+    const parts = jobCard.parts || [];
+    const rows = parts
+      .map(
+        (part) =>
+          `<tr><td>${escapeHtml(part.partNo || '—')}</td><td>${escapeHtml(part.description || '—')}</td><td class="num">${escapeHtml(part.qty)}</td><td class="num">${money(part.unitPrice)}</td><td class="num">${money(Number(part.qty) * Number(part.unitPrice))}</td></tr>`,
+      )
+      .join('');
+    const table = parts.length
+      ? `<table class="ds-table"><thead><tr><th>Part no.</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead><tbody>${rows}</tbody></table>`
+      : '<p class="ds-note">No spare parts recorded.</p>';
+    const totals = `<dl class="ds-grid">${[
+      ['Parts total', money(jobCard.totalCost), 'money'],
+      ['Service charge', money(jobCard.serviceCharge), 'money'],
+      ['Grand total', money(jobCard.grandTotal), 'money'],
+      [
+        'Amount chargeable',
+        jobCard.amountChargeable == null ? null : money(jobCard.amountChargeable),
+        'money',
+      ],
+    ]
+      .map(
+        ([label, value, kind]) =>
+          `<div class="ds-item"><dt>${escapeHtml(label)}</dt><dd>${detailValueHtml(value, kind)}</dd></div>`,
+      )
+      .join('')}</dl>`;
+    return table + totals;
+  }
+
+  function renderJobCardDetailSections(jobCard) {
+    const dateOnly = (value) => (value ? String(value).slice(0, 10) : '');
+    renderDetailSections('#jobCardDetailGrid', [
+      {
+        strip: [
+          ['Job status', jobCard.jobFinalStatus, 'pill'],
+          ['Warranty', jobCard.warrantyStatus],
+          ['Customer type', jobCard.customerType],
+          ['Technician', jobCard.technicianName || jobCard.appointmentTechnicianName],
+          ['Grand total', money(jobCard.grandTotal), 'money'],
+        ],
+      },
+      {
+        title: 'Customer',
+        items: [
+          ['Customer', jobCard.customerName],
+          ['Customer type', jobCard.customerType],
+          ['Contact', jobCard.customerContact, 'phone'],
+          ['Email', jobCard.customerEmail, 'email'],
+          ['Customer number', jobCard.customerNumber],
+          ['Region', jobCard.region],
+          ['B2B branch / school', jobCard.b2bBranchSchool],
+          ['Site contact person', jobCard.schoolContactPerson],
+          ['Site contact number', jobCard.schoolContactNumber, 'phone'],
+          ['Address', jobCard.customerAddress, 'wide'],
+        ],
+      },
+      {
+        title: 'Product',
+        items: [
+          ['Brand', jobCard.brand],
+          ['Model', jobCard.modelNo],
+          ['Item code', jobCard.itemCode],
+          ['Main group', jobCard.mainGroup],
+          ['Group', jobCard.groupName],
+          ['Sub group', jobCard.subGroup],
+          ['Serial number', jobCard.serialNo],
+          ['Purchase date', jobCard.purchaseDate],
+          [
+            'In stock master',
+            jobCard.itemInMaster === null || jobCard.itemInMaster === undefined
+              ? ''
+              : jobCard.itemInMaster
+                ? 'Yes'
+                : 'No (typed in)',
+          ],
+          ['Item description', jobCard.itemDescription, 'wide'],
+          ['Accessories received', jobCard.accessoriesReceived, 'wide'],
+          ['Condition at drop-off', jobCard.conditionNotes, 'wide'],
+        ],
+      },
+      {
+        title: 'Warranty and sales',
+        items: [
+          ['Warranty status', jobCard.warrantyStatus],
+          ['Warranty classification', jobCard.warrantyClassification],
+          ['Appointment warranty', jobCard.appointmentJobWarranty],
+          ['Sales order no.', jobCard.salesOrderNumber],
+          ['Salesman', jobCard.salesman],
+          ['Sales channel', jobCard.salesChannel],
+          ['Invoice no.', jobCard.invoiceNo],
+          ['Delivery date', jobCard.deliveryDate],
+        ],
+      },
+      {
+        title: 'Service record',
+        items: [
+          ['Technician', jobCard.technicianName || jobCard.appointmentTechnicianName],
+          ['Job card date', jobCard.jobCardDate],
+          ['Work started', jobCard.periodFrom ? formatDate(jobCard.periodFrom) : ''],
+          ['Work ended', jobCard.periodTo ? formatDate(jobCard.periodTo) : ''],
+          ['Time consumed (hours)', jobCard.timeConsumedHours],
+          ['Job status', jobCard.jobFinalStatus, 'pill'],
+          ['Complaint reported', jobCard.complaint, 'wide'],
+          ['Fault at booking', jobCard.faultDescription, 'wide'],
+          ['Service rendered', jobCard.serviceRendered, 'wide'],
+        ],
+      },
+      {
+        title: 'Spare parts and charges',
+        meta: `${(jobCard.parts || []).length} part${(jobCard.parts || []).length === 1 ? '' : 's'}`,
+        html: jobCardPartsHtml(jobCard),
+      },
+      {
+        title: 'Origin',
+        items: [
+          ['Source', jobCard.sourceType],
+          ['Complaint', jobCard.complaintReference],
+          ['Complaint status', jobCard.complaintStatus],
+          [
+            'Complaint logged',
+            jobCard.complaintSubmittedAt ? formatDate(jobCard.complaintSubmittedAt) : '',
+          ],
+          ['Appointment', jobCard.appointmentReference],
+          ['Appointment status', jobCard.appointmentStatus],
+          ['Appointment date', jobCard.appointmentDate],
+          ['Quotation', jobCard.quotationReference],
+          ['Received (walk-in)', jobCard.intakeAt ? formatDate(jobCard.intakeAt) : ''],
+          ['Legacy reference', jobCard.legacyReference],
+          ['CCE notes', jobCard.cceNotes, 'wide'],
+        ],
+      },
+      {
+        title: 'Record',
+        items: [
+          ['Created', formatDate(jobCard.createdAt)],
+          ['Last updated', formatDate(jobCard.updatedAt)],
+          ['Closed at', jobCard.finalizedAt ? formatDate(jobCard.finalizedAt) : ''],
+        ],
+      },
+    ]);
   }
 
   async function loadJobCardDetail(id) {
@@ -4022,10 +4259,11 @@ ${bodyHtml}
       currentJobCardId = jobCard.id;
       currentJobCard = jobCard;
       renderJobCardActions(jobCard);
+      renderJobCardGuide(jobCard);
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
       $('#jobCardDetailStatus').innerHTML =
-        `<span class="status ${statusClass(jobCard.status)}">${escapeHtml(jobCard.status)}</span>`;
+        `<span class="status ${statusClass(jobCard.jobFinalStatus)}">${escapeHtml(jobCard.jobFinalStatus)}</span>`;
       renderWorkflowStepper(
         'jobCardWorkflowStepper',
         workflowStageForJobCardStatus(jobCard.status),
@@ -4054,46 +4292,7 @@ ${bodyHtml}
         });
       }
       renderWorkflowLinks('jobCardWorkflowLinks', jobCardWorkflowLinks);
-      const details = [
-        ['Source', jobCard.sourceType],
-        ['Appointment', jobCard.appointmentReference],
-        ['Customer', jobCard.customerName],
-        ['Contact', jobCard.customerContact],
-        ['Brand / model', [jobCard.brand, jobCard.modelNo].filter(Boolean).join(' ')],
-        ['Item description', jobCard.itemDescription],
-        [
-          'Group / sub group',
-          [jobCard.mainGroup, jobCard.groupName, jobCard.subGroup].filter(Boolean).join(' › '),
-        ],
-        ['Serial number', jobCard.serialNo],
-        ['Accessories received', jobCard.accessoriesReceived],
-        ['Condition at drop-off', jobCard.conditionNotes],
-        ['Received (walk-in)', jobCard.intakeAt ? formatDate(jobCard.intakeAt) : ''],
-        ['Appointment date', jobCard.appointmentDate],
-        ['Fault description', jobCard.faultDescription],
-        ['Complaint', jobCard.complaint],
-        ['Service rendered', jobCard.serviceRendered],
-        ['Technician', jobCard.technicianName],
-        ['Job final status', jobCard.jobFinalStatus],
-        ['Time consumed (hours)', jobCard.timeConsumedHours],
-        ['Total cost (AED)', jobCard.totalCost],
-        ['Service charge (AED)', jobCard.serviceCharge],
-        ['Grand total (AED)', jobCard.grandTotal],
-        ['Amount chargeable (AED)', jobCard.amountChargeable],
-        ['Invoice no.', jobCard.invoiceNo],
-        ['Delivery date', jobCard.deliveryDate],
-        ['Legacy reference', jobCard.legacyReference],
-        ['Finalized at', formatDate(jobCard.finalizedAt)],
-        ['Finalized by', jobCard.finalizedBy],
-        ['Created', formatDate(jobCard.createdAt)],
-        ['Updated', formatDate(jobCard.updatedAt)],
-      ];
-      $('#jobCardDetailGrid').innerHTML = details
-        .map(
-          ([label, value]) =>
-            `<div class="detail-item"><small>${escapeHtml(label)}</small><p>${escapeHtml(value || '—')}</p></div>`,
-        )
-        .join('');
+      renderJobCardDetailSections(jobCard);
       $('#jobCardHistoryList').innerHTML =
         (result.history || [])
           .map(
@@ -4364,53 +4563,6 @@ ${bodyHtml}
         setMessage('#workspaceMessage', 'You are not authorized to edit service job cards.');
       } else if (error.status === 400 || error.status === 404 || error.status === 409) {
         await loadJobCardDetail(currentJobCardId);
-        setMessage('#workspaceMessage', error.message);
-      } else {
-        setMessage('#workspaceMessage', error.message);
-      }
-    } finally {
-      setBusy(button, false);
-    }
-  }
-
-  async function updateJobCardStatus() {
-    const form = $('#jobCardStatusForm');
-    clearErrors(form);
-    const status = $('#jobCardNextStatus').value;
-    if (!status) {
-      showFieldError(
-        form,
-        'jobCardNextStatus',
-        'There are no valid next statuses for this job card.',
-      );
-      return;
-    }
-    const button = $('#updateJobCardStatusButton');
-    setBusy(button, true, 'Updating…');
-    try {
-      await apiRequest('/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/status', {
-        method: 'PATCH',
-        body: JSON.stringify({
-          status,
-          reason: $('#jobCardStatusReason').value.trim() || undefined,
-        }),
-      });
-      await loadJobCardDetail(currentJobCardId);
-      await loadJobCards();
-      setMessage('#workspaceMessage', 'Service job-card status updated.', true);
-    } catch (error) {
-      if (error.status === 401) {
-        await signOut(false);
-        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
-      } else if (error.status === 403) {
-        $('#jobCardActions').hidden = true;
-        setMessage(
-          '#workspaceMessage',
-          'You are not authorized to update service job-card status.',
-        );
-      } else if (error.status === 404 || error.status === 409) {
-        await loadJobCardDetail(currentJobCardId);
-        await loadJobCards();
         setMessage('#workspaceMessage', error.message);
       } else {
         setMessage('#workspaceMessage', error.message);
@@ -4734,36 +4886,67 @@ ${bodyHtml}
         'appointmentWorkflowStepper',
         workflowStageForAppointmentStatus(appointment.status),
       );
-      const details = [
-        ['Customer', appointment.customerName],
-        ['Contact', appointment.contactNumber],
-        ['Email', appointment.customerEmail],
-        ['Complaint', appointment.complaintReference],
-        ['Appointment', appointmentDateTime(appointment)],
-        ['Technician', appointment.technicianId || 'Unassigned'],
-        ['Region', appointment.region],
-        ['Address', appointment.address],
-        ['Brand', appointment.brand],
-        ['Model', appointment.model],
-        ['Item code', appointment.itemCode],
-        ['Warranty', appointment.jobWarranty],
-        ['Sales order', appointment.salesOrderNumber],
-        ['Salesman', appointment.salesman],
-        ['B2B Branch / School', appointment.b2bBranchSchool],
-        ['Site contact person', appointment.schoolContactPerson],
-        ['Site contact number', appointment.schoolContactNumber],
-        ['Customer number', appointment.customerNumber],
-        ['Sub group', appointment.subGroup],
-        ['Description', appointment.faultDescription],
-        ['Created', formatDate(appointment.createdAt)],
-        ['Updated', formatDate(appointment.updatedAt)],
-      ];
-      $('#appointmentDetailGrid').innerHTML = details
-        .map(
-          ([label, value]) =>
-            `<div class="detail-item"><small>${escapeHtml(label)}</small><p>${escapeHtml(value || '—')}</p></div>`,
-        )
-        .join('');
+      renderDetailSections('#appointmentDetailGrid', [
+        {
+          strip: [
+            ['Status', appointment.status, 'pill'],
+            ['Date', appointmentDateTime(appointment)],
+            ['Technician', appointment.technicianName || 'Unassigned'],
+            ['Warranty', appointment.jobWarranty],
+            ['Complaint', appointment.complaintReference],
+          ],
+        },
+        {
+          title: 'Customer',
+          items: [
+            ['Customer', appointment.customerName],
+            ['Customer type', appointment.customerType],
+            ['Contact', appointment.contactNumber, 'phone'],
+            ['Email', appointment.customerEmail, 'email'],
+            ['Customer number', appointment.customerNumber],
+            ['Region', appointment.region],
+            ['B2B branch / school', appointment.b2bBranchSchool],
+            ['Site contact person', appointment.schoolContactPerson],
+            ['Site contact number', appointment.schoolContactNumber, 'phone'],
+            ['Address', appointment.address, 'wide'],
+          ],
+        },
+        {
+          title: 'Product',
+          items: [
+            ['Brand', appointment.brand],
+            ['Model', appointment.model],
+            ['Item code', appointment.itemCode],
+            ['Sub group', appointment.subGroup],
+          ],
+        },
+        {
+          title: 'Warranty and sales',
+          items: [
+            ['Job warranty', appointment.jobWarranty],
+            ['Sales order no.', appointment.salesOrderNumber],
+            ['Salesman', appointment.salesman],
+          ],
+        },
+        {
+          title: 'Visit',
+          items: [
+            ['Appointment', appointment.appointmentReference],
+            ['Appointment date', appointmentDateTime(appointment)],
+            ['Technician', appointment.technicianName || 'Unassigned'],
+            ['Complaint', appointment.complaintReference],
+            ['Fault description', appointment.faultDescription, 'wide'],
+          ],
+        },
+        {
+          title: 'Record',
+          items: [
+            ['Created', formatDate(appointment.createdAt)],
+            ['Last updated', formatDate(appointment.updatedAt)],
+            ['Closed at', appointment.closedAt ? formatDate(appointment.closedAt) : ''],
+          ],
+        },
+      ]);
       $('#appointmentHistoryList').innerHTML =
         (result.history || [])
           .map(
@@ -5512,32 +5695,57 @@ ${bodyHtml}
         });
       }
       renderWorkflowLinks('complaintWorkflowLinks', complaintWorkflowLinks);
-      const details = [
-        ['Customer', complaint.customerName],
-        ['Type', complaint.customerType],
-        ['Contact', complaint.contactNumber],
-        ['Email', complaint.customerEmail],
-        ['Region', complaint.region],
-        ['Address', complaint.address],
-        ['Brand', complaint.brand],
-        ['Model', complaint.model],
-        ['Serial or item code', complaint.serialOrItemCode],
-        ['Sales order', complaint.salesOrderNumber],
-        ['Warranty classification', complaint.warrantyClassification],
-        ['B2B Branch / School', complaint.b2bBranchSchool],
-        ['Site contact person', complaint.schoolContactPerson],
-        ['Site contact number', complaint.schoolContactNumber],
-        ['Customer number', complaint.customerNumber],
-        ['Description', complaint.description],
-        ['Submitted', formatDate(complaint.submittedAt)],
-        ['Updated', formatDate(complaint.updatedAt)],
-      ];
-      $('#detailGrid').innerHTML = details
-        .map(
-          ([label, value]) =>
-            `<div class="detail-item"><small>${escapeHtml(label)}</small><p>${escapeHtml(value || '—')}</p></div>`,
-        )
-        .join('');
+      renderDetailSections('#detailGrid', [
+        {
+          strip: [
+            ['Status', complaint.status, 'pill'],
+            ['Warranty classification', complaint.warrantyClassification],
+            ['Customer type', complaint.customerType],
+            ['Region', complaint.region],
+            ['Logged', formatDate(complaint.submittedAt)],
+          ],
+        },
+        {
+          title: 'Customer',
+          items: [
+            ['Customer', complaint.customerName],
+            ['Customer type', complaint.customerType],
+            ['Contact', complaint.contactNumber, 'phone'],
+            ['Email', complaint.customerEmail, 'email'],
+            ['Customer number', complaint.customerNumber],
+            ['Region', complaint.region],
+            ['B2B branch / school', complaint.b2bBranchSchool],
+            ['Site contact person', complaint.schoolContactPerson],
+            ['Site contact number', complaint.schoolContactNumber, 'phone'],
+            ['Address', complaint.address, 'wide'],
+          ],
+        },
+        {
+          title: 'Product',
+          items: [
+            ['Brand', complaint.brand],
+            ['Model', complaint.model],
+            ['Serial or item code', complaint.serialOrItemCode],
+            ['Sales order no.', complaint.salesOrderNumber],
+          ],
+        },
+        {
+          title: 'Complaint',
+          items: [
+            ['Warranty classification', complaint.warrantyClassification],
+            ['Status', complaint.status, 'pill'],
+            ['Description', complaint.description, 'wide'],
+            ['CCE notes', complaint.cceNotes, 'wide'],
+          ],
+        },
+        {
+          title: 'Record',
+          items: [
+            ['Submitted', formatDate(complaint.submittedAt)],
+            ['Last updated', formatDate(complaint.updatedAt)],
+          ],
+        },
+      ]);
       $('#historyList').innerHTML =
         (result.history || [])
           .map(
@@ -5969,10 +6177,6 @@ ${bodyHtml}
   $('#jobCardContentForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await saveJobCardContent();
-  });
-  $('#jobCardStatusForm').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    await updateJobCardStatus();
   });
   $('#closeJobCardDetailButton').addEventListener('click', () => {
     $('#jobCardDetail').hidden = true;

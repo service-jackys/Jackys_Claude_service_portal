@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+  serviceJobCardStatusForFinal,
+  jobFinalStatuses,
   appointmentScheduleUpdateSchema,
   complaintAutomaticStatuses,
   complaintSchedulingTransitions,
@@ -78,4 +80,13 @@ test('service job-card status contract and transitions are explicit', () => {
     serviceJobCardStatusUpdateSchema.safeParse({ status: 'Completed', unexpected: true }).success,
     false,
   );
+});
+
+test('job final status drives the internal job-card status', () => {
+  assert.ok(jobFinalStatuses.includes('Delivered'));
+  assert.equal(serviceJobCardStatusForFinal('WIP', 'Open'), 'Open');
+  assert.equal(serviceJobCardStatusForFinal('Spare pending', 'Completed'), 'In Progress');
+  assert.equal(serviceJobCardStatusForFinal('Repair Completed', 'In Progress'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('Delivered', 'Completed'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('Cancelled', 'Open'), 'Cancelled');
 });

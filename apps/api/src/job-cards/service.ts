@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  jobFinalStatusesLocked,
+  jobFinalStatusesReadyToDeliver,
+  serviceJobCardStatusForFinal,
   serviceJobCardStatusTransitions,
   serviceJobCardStatusUpdateSchema,
   serviceJobCardCreateSchema,
@@ -20,9 +23,11 @@ import {
   insertServiceJobCardHistory,
   listServiceJobCardHistory,
   listServiceJobCards,
+  setServiceJobCardFinalStatus,
   updateServiceJobCardContent,
   updateServiceJobCardStatus,
   type ServiceJobCardContent,
+  type ServiceJobCardRecord,
 } from '../../../../packages/db/src/job-cards.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
@@ -51,6 +56,18 @@ export class ServiceJobCardError extends Error {
   ) {
     super(message);
   }
+}
+
+// Delivered and Cancelled job cards are locked; an old-style Completed card
+// that never got a final outcome is treated as locked too. Administrators can
+// still edit a locked card.
+function isJobCardLocked(card: Pick<ServiceJobCardRecord, 'status' | 'jobFinalStatus'>): boolean {
+  return (
+    jobFinalStatusesLocked.includes(card.jobFinalStatus) ||
+    card.status === 'Cancelled' ||
+    (card.status === 'Completed' &&
+      (card.jobFinalStatus === 'WIP' || card.jobFinalStatus === 'Spare pending'))
+  );
 }
 
 function isUniqueViolation(error: unknown): boolean {
@@ -553,6 +570,7 @@ export function createServiceJobCardService(pool: Pool) {
     input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
+    isAdmin = false,
   ) {
     const overrides = serviceJobCardUpdateSchema.parse(input ?? {});
     return withTransaction(pool, async (client) => {
@@ -560,10 +578,21 @@ export function createServiceJobCardService(pool: Pool) {
       if (!current) {
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
       }
-      if (current.status === 'Completed' || current.status === 'Cancelled') {
+      if (isJobCardLocked(current) && !isAdmin) {
         throw new ServiceJobCardError(
           'terminal-job-card',
-          `A job card in ${current.status} can no longer be edited.`,
+          `A ${current.jobFinalStatus} job card is locked. Only an administrator can edit it.`,
+        );
+      }
+      const nextFinal = overrides.jobFinalStatus ?? current.jobFinalStatus;
+      if (
+        nextFinal === 'Delivered' &&
+        current.jobFinalStatus !== 'Delivered' &&
+        !jobFinalStatusesReadyToDeliver.includes(current.jobFinalStatus)
+      ) {
+        throw new ServiceJobCardError(
+          'invalid-transition',
+          'Set the job status to Repair Completed (or BER / Rejected) before marking it Delivered.',
         );
       }
       const content = mergeContent(
@@ -613,9 +642,34 @@ export function createServiceJobCardService(pool: Pool) {
         },
         overrides,
       );
-      const jobCard = await updateServiceJobCardContent(client, id, content, profileId);
+      if (nextFinal === 'Delivered' && !content.deliveryDate) {
+        content.deliveryDate = new Date().toISOString().slice(0, 10);
+      }
+      let jobCard = await updateServiceJobCardContent(client, id, content, profileId);
       if (!jobCard)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      if (nextFinal !== current.jobFinalStatus) {
+        const nextStatus = serviceJobCardStatusForFinal(nextFinal, current.status);
+        if (nextStatus !== current.status) {
+          await updateServiceJobCardStatus(
+            client,
+            id,
+            { status: nextStatus },
+            profileId,
+            nextStatus === 'Completed' || nextStatus === 'Cancelled',
+          );
+        }
+        await insertServiceJobCardHistory(
+          client,
+          id,
+          current.jobFinalStatus,
+          nextFinal,
+          profileId,
+          undefined,
+          requestId,
+        );
+        jobCard = (await findServiceJobCardById(client, id)) ?? jobCard;
+      }
       await insertAuditEvent(client, {
         actorProfileId: profileId,
         action: 'job_card.content_updated',
@@ -704,6 +758,8 @@ export function createServiceJobCardService(pool: Pool) {
       const result = await updateServiceJobCardStatus(client, id, data, profileId, finalized);
       if (!result)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      if (data.status === 'Completed') await setServiceJobCardFinalStatus(client, id, 'Delivered');
+      if (data.status === 'Cancelled') await setServiceJobCardFinalStatus(client, id, 'Cancelled');
       await insertServiceJobCardHistory(
         client,
         id,

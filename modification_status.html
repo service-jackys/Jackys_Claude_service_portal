@@ -2898,6 +2898,25 @@
           <li>Restart the server and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#70 &mdash; One job status and full-detail views</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-07 &middot; API + web &middot; migration 033 &middot; restart + hard-refresh</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Job final status is the only job-card status; Delivered and Cancelled added; the separate status form is removed.</li>
+          <li>Delivered and Cancelled cards are locked; only an administrator can edit them.</li>
+          <li>Complaint, appointment and job card detail views redesigned as CRM-style sections showing every captured field, including warranty, sales channel, spare parts and amounts.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm run db:migrate (033), restart the server and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -259,13 +259,38 @@ const dateSchema = z
 // diagnostic field a CCE sets as work progresses, not the workflow-lock state.
 export const jobFinalStatuses = [
   'WIP',
+  'Spare pending',
   'BER',
   'Rejected',
   'Repair Completed',
-  'Spare pending',
+  'Delivered',
+  'Cancelled',
 ] as const;
 export const jobFinalStatusSchema = z.enum(jobFinalStatuses);
 export type JobFinalStatus = (typeof jobFinalStatuses)[number];
+
+// Job final status is the one status users see on a job card. Delivered and
+// Cancelled lock the card: after that only an administrator can edit it.
+export const jobFinalStatusesLocked: readonly JobFinalStatus[] = ['Delivered', 'Cancelled'];
+// Outcomes that must be reached before a job can be marked Delivered.
+export const jobFinalStatusesReadyToDeliver: readonly JobFinalStatus[] = [
+  'Repair Completed',
+  'BER',
+  'Rejected',
+];
+
+// The internal workflow status (used by the dashboard and TAT) follows the
+// job final status; nobody sets it by hand any more.
+export function serviceJobCardStatusForFinal(
+  final: JobFinalStatus,
+  current: ServiceJobCardStatus,
+): ServiceJobCardStatus {
+  if (final === 'Cancelled') return 'Cancelled';
+  if (final === 'WIP' || final === 'Spare pending') {
+    return current === 'Open' ? 'Open' : 'In Progress';
+  }
+  return 'Completed';
+}
 
 export const jobCardPartSchema = z
   .object({

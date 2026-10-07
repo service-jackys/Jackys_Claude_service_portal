@@ -22,6 +22,14 @@ export type ServiceJobCardRecord = {
   complaintReference: string | null;
   appointmentDate: string | null;
   faultDescription: string | null;
+  // Context carried from the complaint and appointment (read-only here).
+  warrantyClassification?: string | null;
+  complaintStatus?: string | null;
+  complaintSubmittedAt?: Date | null;
+  cceNotes?: string | null;
+  appointmentJobWarranty?: string | null;
+  appointmentStatus?: string | null;
+  appointmentTechnicianName?: string | null;
   status: ServiceJobCardStatus;
   finalizedAt: Date | null;
   finalizedBy: string | null;
@@ -77,8 +85,8 @@ export type ServiceJobCardRecord = {
 
 export type ServiceJobCardStatusHistoryRecord = {
   id: string;
-  fromStatus: ServiceJobCardStatus | null;
-  toStatus: ServiceJobCardStatus;
+  fromStatus: string | null;
+  toStatus: string;
   changedBy: string | null;
   reason: string | null;
   requestId: string | null;
@@ -145,6 +153,13 @@ const columns = `
   complaints.complaint_reference AS "complaintReference",
   appointments.appointment_date::text AS "appointmentDate",
   appointments.fault_description AS "faultDescription",
+  complaints.warranty_classification AS "warrantyClassification",
+  complaints.status AS "complaintStatus",
+  complaints.submitted_at AS "complaintSubmittedAt",
+  complaints.cce_notes AS "cceNotes",
+  appointments.job_warranty AS "appointmentJobWarranty",
+  appointments.status AS "appointmentStatus",
+  (SELECT t.name FROM technicians t WHERE t.id = appointments.technician_id) AS "appointmentTechnicianName",
   service_job_cards.status,
   service_job_cards.finalized_at AS "finalizedAt",
   service_job_cards.finalized_by AS "finalizedBy",
@@ -435,7 +450,13 @@ export async function listServiceJobCards(
     values.push(value);
     return `$${values.length}`;
   };
-  if (query.status) filters.push(`service_job_cards.status = ${add(query.status)}`);
+  if (query.status) {
+    // The filter offers job final statuses; the old workflow names still work.
+    const column = ['Open', 'In Progress', 'Completed'].includes(query.status)
+      ? 'status'
+      : 'job_final_status';
+    filters.push(`service_job_cards.${column} = ${add(query.status)}`);
+  }
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(
@@ -488,11 +509,22 @@ export async function updateServiceJobCardStatus(
   return { jobCard, previousStatus };
 }
 
+export async function setServiceJobCardFinalStatus(
+  client: PoolClient,
+  id: string,
+  jobFinalStatus: JobFinalStatus,
+): Promise<void> {
+  await client.query('UPDATE service_job_cards SET job_final_status = $2 WHERE id = $1', [
+    id,
+    jobFinalStatus,
+  ]);
+}
+
 export async function insertServiceJobCardHistory(
   client: PoolClient,
   jobCardId: string,
-  fromStatus: ServiceJobCardStatus | null,
-  toStatus: ServiceJobCardStatus,
+  fromStatus: string | null,
+  toStatus: string,
   changedBy: string,
   reason: string | undefined,
   requestId: string,

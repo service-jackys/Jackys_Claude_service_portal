@@ -2348,3 +2348,18 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - A Scheduled complaint with no appointment (left over from the old bug) shows a warning and a "Reopen scheduling" button.
 
 **Needs you:** restart the server, hard-refresh.
+
+
+## Modification #70 — One job status (with Delivered) and full-detail record views
+
+**Date:** 2026-10-07 · **Scope:** service_job_card.write · API + web · migration 033 · restart + hard-refresh
+
+**What changed**
+- **One status per job card.** "Job final status" is now the only status, shown as "Job status". The separate "Update job-card status" form is gone. The internal Open / In Progress / Completed / Cancelled value (used by the dashboard and TAT) now follows it automatically.
+- New statuses: **Delivered** (item handed to the customer) and **Cancelled**. Full list: WIP, Spare pending, BER, Rejected, Repair Completed, Delivered, Cancelled.
+- A job can be marked Delivered only from Repair Completed, BER or Rejected. If no delivery date is set, today's date is filled in.
+- **Delivered and Cancelled cards are locked**: only an administrator can edit them (the API enforces it). Old job cards that were Completed became Delivered, and Cancelled stayed Cancelled (migration 033).
+- The history now lists job-status changes, the list shows and filters by job status, and a Next step card says what to do at each stage.
+- **Detail views redesigned** as CRM-style cards for the complaint, appointment and job card: a summary strip, then Customer, Product, Warranty and sales, Service record, Spare parts and charges (parts table and totals), Origin (complaint and appointment trail) and Record. Every captured field shows, with "Not provided" when empty. The appointment shows the technician name.
+
+**Needs you:** run `npm run db:migrate` (033), restart the server, hard-refresh.

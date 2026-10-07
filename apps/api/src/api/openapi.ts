@@ -686,7 +686,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             salesChannel: { type: 'string', minLength: 1, maxLength: 200 },
             jobFinalStatus: {
               type: 'string',
-              enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],
+              enum: [
+                'WIP',
+                'Spare pending',
+                'BER',
+                'Rejected',
+                'Repair Completed',
+                'Delivered',
+                'Cancelled',
+              ],
             },
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
@@ -738,7 +746,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             salesChannel: { type: 'string', minLength: 1, maxLength: 200 },
             jobFinalStatus: {
               type: 'string',
-              enum: ['WIP', 'BER', 'Rejected', 'Repair Completed', 'Spare pending'],
+              enum: [
+                'WIP',
+                'Spare pending',
+                'BER',
+                'Rejected',
+                'Repair Completed',
+                'Delivered',
+                'Cancelled',
+              ],
             },
             schoolContactPerson: { type: 'string', minLength: 1, maxLength: 500 },
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },

@@ -138,6 +138,7 @@ export function createServiceJobCardHandlers(
               request.body,
               auth.profileId,
               request.header('x-request-id') ?? undefined,
+              auth.roles?.includes('admin') || auth.permissions?.includes('*'),
             ),
           });
         } catch (error) {
