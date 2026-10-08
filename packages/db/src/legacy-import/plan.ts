@@ -537,14 +537,10 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
     const createdAt = toTimestamp(r.get('Timestamp')) ?? new Date();
     let jcDate = toDate(r.get('Job Card Date')) ?? toDate(j.jcDate);
     if (!jcDate) {
-      jcDate = dubaiDate(createdAt);
-      issue(
-        'ServiceJobCards',
-        r.row,
-        ref,
-        'warn',
-        `No job card date; used the sheet timestamp date ${jcDate}.`,
-      );
+      // Decided with the owner: job cards with a blank date are test or
+      // abandoned entries and are left out.
+      issue('ServiceJobCards', r.row, ref, 'info', 'No job card date; skipped (not imported).');
+      continue;
     }
     const sourceRef = text(r.get('Source Ref No') ?? j.sourceRefNo, 40);
     let appointmentRef: string | null = null;

@@ -25,7 +25,7 @@ Every fix is written to the issues report. Nothing is changed silently.
 |---|---|
 | Job card JSON in the wrong column | Finds the JSON by content, so the column position does not matter. |
 | Two date formats | Reads both. Sheet times are treated as Dubai time. |
-| Job card with no date | Uses the date of the sheet's own timestamp and flags it. |
+| Job card with no date | Skipped, not imported (JC-017 to JC-020 in the current export). Listed in the issues report. |
 | Phone numbers missing the leading 0, extra spaces, two numbers in one cell | Standardises to local format (`0501234567`), keeps both numbers joined with " / ". Anything it cannot place is kept as typed and flagged. |
 | Money typed as text ("AED 325.50") | Converted to numbers. |
 | "Under Warranty" / "Out of Warranty" | Mapped to In Warranty / Out Warranty. Billing type is set from it (CSIJW / CSIJO). |
