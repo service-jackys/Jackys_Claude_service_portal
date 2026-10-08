@@ -644,9 +644,28 @@ export const amcContractWriteSchema = z
 export type AmcContractWriteInput = z.infer<typeof amcContractWriteSchema>;
 export type AmcContractPlanComputation = z.infer<typeof amcContractPlanComputationSchema>;
 
+export const amcContractStatuses = ['Quote', 'Sold', 'Lost'] as const;
+
+// Moves a saved AMC record between Quote, Sold (with the plan the customer
+// took) and Lost. Sold copies that plan's price at that moment.
+export const amcContractStatusSchema = z.discriminatedUnion('status', [
+  z
+    .object({
+      status: z.literal('Sold'),
+      planKey: amcContractPlanKeySchema,
+      soldDate: dateSchema,
+      contractRef: optionalText(120),
+    })
+    .strict(),
+  z.object({ status: z.literal('Lost'), reason: optionalText(300) }).strict(),
+  z.object({ status: z.literal('Quote') }).strict(),
+]);
+export type AmcContractStatusInput = z.infer<typeof amcContractStatusSchema>;
+
 export const amcContractListQuerySchema = z
   .object({
     search: z.string().trim().min(1).max(200).optional(),
+    status: z.enum(amcContractStatuses).optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })

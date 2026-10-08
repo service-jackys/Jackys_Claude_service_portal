@@ -112,6 +112,7 @@ export type RouteDefinition = {
     | 'inspection'
     | 'vasSale'
     | 'amcContract'
+    | 'amcContractStatus'
     | 'rateCardSale'
     | 'thomsonSale'
     | 'warrantyApprovalCreate'
@@ -564,6 +565,10 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        setStatus: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -2286,6 +2291,11 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         parameters: paginationParameters.concat([
           { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['Quote', 'Sold', 'Lost'] },
+          },
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: amcContractHandlers.list,
@@ -2311,6 +2321,18 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: amcContractHandlers.detail,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/amc-contracts/{id}/status',
+        operationId: 'changeAmcContractStatus',
+        tags: ['AMC Contracts'],
+        summary: 'Mark an AMC record Sold (with the plan taken), Lost, or back to Quote',
+        security: 'bearerAuth' as const,
+        requestBody: 'amcContractStatus' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: amcContractHandlers.setStatus,
       },
       {
         method: 'get' as const,

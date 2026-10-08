@@ -41,6 +41,14 @@ export type AmcContractRecord = {
   plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
+  status: 'Quote' | 'Sold' | 'Lost';
+  soldPlanKey: string | null;
+  soldPlanLabel: string | null;
+  soldPriceExclVat: string | null;
+  soldPriceInclVat: string | null;
+  soldDate: string | null;
+  soldAt: Date | null;
+  lostReason: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -75,6 +83,14 @@ const columns = `
   plans,
   commencement_date::text AS "commencementDate",
   contract_ref AS "contractRef",
+  status,
+  sold_plan_key AS "soldPlanKey",
+  sold_plan_label AS "soldPlanLabel",
+  sold_price_excl_vat AS "soldPriceExclVat",
+  sold_price_incl_vat AS "soldPriceInclVat",
+  sold_date::text AS "soldDate",
+  sold_at AS "soldAt",
+  lost_reason AS "lostReason",
   created_at AS "createdAt",
   updated_at AS "updatedAt",
   created_by AS "createdBy",
@@ -133,7 +149,7 @@ export async function findAmcContractById(
 
 export async function listAmcContracts(
   client: PoolClient,
-  query: { search?: string; page: number; pageSize: number },
+  query: { search?: string; status?: string; page: number; pageSize: number },
 ) {
   const values: unknown[] = [];
   const filters: string[] = [];
@@ -146,6 +162,9 @@ export async function listAmcContracts(
     filters.push(
       `(amc_contract_reference ILIKE ${parameter} OR client_name ILIKE ${parameter} OR attention_to ILIKE ${parameter} OR contract_ref ILIKE ${parameter})`,
     );
+  }
+  if (query.status) {
+    filters.push(`status = ${add(query.status)}`);
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const count = await client.query<{ total: string }>(
@@ -161,4 +180,65 @@ export async function listAmcContracts(
     values,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
+}
+
+export type AmcStatusChange =
+  | { status: 'Sold'; planKey: string; soldDate: string; contractRef: string | null }
+  | { status: 'Lost'; reason: string | null }
+  | { status: 'Quote' };
+
+// Moves a saved AMC record between Quote, Sold and Lost. Sold copies the
+// chosen plan's label and prices out of the stored plans so the sale value is
+// fixed at that moment. Returns null when the record does not exist, and
+// 'no-plan' when the record has no such plan.
+export async function changeAmcContractStatus(
+  client: PoolClient,
+  id: string,
+  change: AmcStatusChange,
+  profileId: string,
+): Promise<AmcContractRecord | 'no-plan' | null> {
+  const current = await findAmcContractById(client, id);
+  if (!current) return null;
+  if (change.status === 'Sold') {
+    const plan = current.plans.find((p) => p.planKey === change.planKey);
+    if (!plan) return 'no-plan';
+    await client.query(
+      `UPDATE amc_contracts
+       SET status = 'Sold', sold_plan_key = $2, sold_plan_label = $3,
+           sold_price_excl_vat = $4, sold_price_incl_vat = $5, sold_date = $6::date,
+           sold_at = now(), sold_by = $7, lost_reason = NULL,
+           contract_ref = COALESCE($8, contract_ref),
+           updated_at = now(), updated_by = $7
+       WHERE id = $1`,
+      [
+        id,
+        plan.planKey,
+        plan.planLabel,
+        plan.priceExclVat,
+        plan.priceInclVat,
+        change.soldDate,
+        profileId,
+        change.contractRef,
+      ],
+    );
+  } else if (change.status === 'Lost') {
+    await client.query(
+      `UPDATE amc_contracts
+       SET status = 'Lost', lost_reason = $2, sold_plan_key = NULL, sold_plan_label = NULL,
+           sold_price_excl_vat = NULL, sold_price_incl_vat = NULL, sold_date = NULL,
+           sold_at = NULL, sold_by = NULL, updated_at = now(), updated_by = $3
+       WHERE id = $1`,
+      [id, change.reason, profileId],
+    );
+  } else {
+    await client.query(
+      `UPDATE amc_contracts
+       SET status = 'Quote', lost_reason = NULL, sold_plan_key = NULL, sold_plan_label = NULL,
+           sold_price_excl_vat = NULL, sold_price_incl_vat = NULL, sold_date = NULL,
+           sold_at = NULL, sold_by = NULL, updated_at = now(), updated_by = $2
+       WHERE id = $1`,
+      [id, profileId],
+    );
+  }
+  return findAmcContractById(client, id);
 }

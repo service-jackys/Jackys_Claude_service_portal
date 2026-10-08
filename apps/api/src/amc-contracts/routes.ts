@@ -5,6 +5,10 @@ import { AmcContractServiceError, type AmcContractService } from './service.js';
 
 function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): void {
   if (!(error instanceof AmcContractServiceError)) throw error;
+  if (error.code === 'no-plan') {
+    problem(response, 400, 'amc-plan-not-found', 'Bad Request', error.message);
+    return;
+  }
   problem(response, 404, 'not-found', 'Not Found', error.message);
 }
 
@@ -56,6 +60,28 @@ export function createAmcContractHandlers(
       async (request, response, next) => {
         try {
           response.json({ amcContract: await service.detail(String(request.params.id)) });
+        } catch (error) {
+          if (error instanceof AmcContractServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    setStatus: [
+      requirePermission('amc_contract.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            amcContract: await service.setStatus(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
         } catch (error) {
           if (error instanceof AmcContractServiceError) {
             serviceError(error, response);

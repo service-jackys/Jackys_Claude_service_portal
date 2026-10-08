@@ -3007,6 +3007,24 @@
           <li>Restart the server and hard-refresh. No migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#76 &mdash; AMC sold plan (#11) and job-card billing as revenue</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-08 &middot; API + web + migration 035</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>AMC Issued: Quote / Sold / Lost with the plan sold and sold date; Sold contracts count as AMC revenue (ex-VAT, contract start month).</li>
+          <li>Budget Variance settings: option to count CSIJW / CSIJO from portal job-card billing instead of the workbook (off by default, no double counting).</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm run db:migrate (035), restart, hard-refresh. Mark earlier AMC records Sold with their plan.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

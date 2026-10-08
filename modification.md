@@ -2428,3 +2428,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Dark-mode colours for the status labels.
 
 **Needs you:** restart the server, hard-refresh. Billing shows for anyone who can read service job cards.
+
+
+## Modification #76 — AMC quote to sold contract with plan sold (#11), and job-card billing as a revenue source
+
+**Date:** 2026-10-08 · **Scope:** API + web + **migration 035** · restart + hard-refresh
+
+**What changed**
+- **AMC Issued tab** now shows a status for every saved AMC record: **Quote** (default), **Sold** or **Lost**. Pick the plan the customer took, choose the sold date and press **Sold**: the plan's price (ex-VAT and incl. VAT) is copied onto the record and fixed. **Lost** (with an optional reason) and **Reopen** take it back out. New endpoint `PATCH /api/amc-contracts/{id}/status`; the list accepts `?status=`. Every change is in the Activity log.
+- **AMC revenue now counts.** Only Sold contracts count, at the sold plan's ex-VAT price, in the contract's start month (commencement date), under the Standard PMC / AMC stream on Budget vs Actual / Budget Variance.
+- **Job cards as a revenue source.** New settings checkbox on Budget Variance → Stream mapping & settings: "Count CSIJW / CSIJO from portal job-card billing". Off by default. When on, warranty (CSIJW) and non-warranty (CSIJO) revenue comes from job-card billed amounts (ex-VAT) on the invoice date, for jobs that are invoiced or delivered, and the workbook rows for those two job types are ignored so nothing is counted twice. The two job-card sources map to the Warranty and Non-Warranty streams like any other source.
+
+**Note:** AMC records saved before this change are Quotes, because the plan sold was never recorded. Mark each one that was sold, with its plan and date, for it to count as revenue.
+
+**Needs you:** run `npm run db:migrate` (035), restart, hard-refresh.

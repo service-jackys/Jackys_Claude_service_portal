@@ -40,6 +40,8 @@ const SOURCE_KINDS = [
   'portal_amc',
   'portal_rate_card',
   'portal_thomson',
+  'portal_job_csijw',
+  'portal_job_csijo',
 ] as const;
 
 const phasingSchema = z
@@ -56,6 +58,7 @@ const configSchema = z.object({
       vat_rate: z.number().min(0).max(1).optional(),
       variance_months: z.enum(['closed', 'all']).optional(),
       amc_recognition: z.enum(['start']).optional(),
+      portal_job_card_revenue: z.boolean().optional(),
       compare_quantity: z.boolean().optional(),
     })
     .optional(),
@@ -364,7 +367,9 @@ export function createBudgetVarianceService(pool: Pool) {
       const [fy, fm] = months[11]!.period.split('-').map(Number) as [number, number];
       const fromDate = months[0]!.period + '-01';
       const toDate = fm === 12 ? `${fy + 1}-01-01` : `${fy}-${String(fm + 1).padStart(2, '0')}-01`;
-      const actual = await actualRevenue(client, revenueBatch?.id ?? null, fromDate, toDate);
+      const actual = await actualRevenue(client, revenueBatch?.id ?? null, fromDate, toDate, {
+        portalJobCards: settings.portal_job_card_revenue === true,
+      });
 
       const mapIndex = new Map(
         mappings.map((m) => [m.sourceKind + '|' + m.matchValue, m.streamCode]),

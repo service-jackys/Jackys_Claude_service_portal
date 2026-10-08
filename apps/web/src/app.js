@@ -9691,7 +9691,7 @@ ${bodyHtml}
       '</section>' +
       '<section data-ac-panel="issued" hidden>' +
       '<h4>AMC Issued</h4>' +
-      '<p class="form-note">Every AMC contract saved from the calculator above, with all 3 plans’ numbers stored. Pick a plan and Print to generate that plan’s certificate.</p>' +
+      '<p class="form-note">Every AMC contract saved from the calculator above, with all 3 plans’ numbers stored. Pick a plan and Print to generate that plan’s certificate. A saved record is a Quote until you pick the plan the customer took and press Sold; only Sold contracts count as AMC revenue (ex-VAT, in the contract start month).</p>' +
       '<div data-ac-issued></div>' +
       '</section>' +
       '</div>';
@@ -9945,6 +9945,7 @@ ${bodyHtml}
         '<p class="form-note">You don\'t have permission to view issued AMC contracts.</p>';
       return;
     }
+    const canChangeStatus = hasPermission('amc_contract.write');
     host.innerHTML = '<p class="form-note">Loading issued AMC contracts&hellip;</p>';
     try {
       const response = await apiRequest('/api/amc-contracts?pageSize=100');
@@ -9955,12 +9956,15 @@ ${bodyHtml}
       }
       host.innerHTML =
         '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Reference</th><th>Issued</th><th>Client</th><th>Total appliances</th><th>Plan to print</th><th>Price incl. VAT</th><th></th>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Total appliances</th><th>Status</th><th>Plan</th><th>Price incl. VAT</th><th></th>' +
         '</tr></thead><tbody>' +
         contracts
           .map((c) => {
             const plans = c.plans || [];
-            const defaultPlan = plans[plans.length - 1] || plans[0];
+            const defaultPlan =
+              (c.soldPlanKey && plans.find((p) => p.planKey === c.soldPlanKey)) ||
+              plans[plans.length - 1] ||
+              plans[0];
             return (
               '<tr>' +
               '<td>' +
@@ -9971,6 +9975,22 @@ ${bodyHtml}
               escapeHtml(c.clientName || '—') +
               '</td><td>' +
               escapeHtml(String(c.totalCount)) +
+              '</td><td><span class="status ' +
+              (c.status === 'Sold' ? 'status-ok' : c.status === 'Lost' ? '' : 'status-warn') +
+              '">' +
+              escapeHtml(c.status || 'Quote') +
+              '</span>' +
+              (c.status === 'Sold'
+                ? '<br><small>' +
+                  escapeHtml(c.soldPlanLabel || '') +
+                  ' &middot; ' +
+                  escapeHtml(c.soldDate || '') +
+                  ' &middot; ' +
+                  money(c.soldPriceExclVat) +
+                  ' ex-VAT</small>'
+                : c.status === 'Lost' && c.lostReason
+                  ? '<br><small>' + escapeHtml(c.lostReason) + '</small>'
+                  : '') +
               '</td><td><select data-ac-plan-select="' +
               escapeHtml(c.id) +
               '">' +
@@ -9994,6 +10014,21 @@ ${bodyHtml}
               '<button type="button" class="button button-outline" data-ac-reprint="' +
               escapeHtml(c.id) +
               '">Print</button>' +
+              (canChangeStatus
+                ? c.status === 'Quote' || !c.status
+                  ? ' <input type="date" data-ac-sold-date="' +
+                    escapeHtml(c.id) +
+                    '" value="' +
+                    escapeHtml(pgYmd(new Date())) +
+                    '" title="Sold date"> <button type="button" class="button button-primary" data-ac-status="Sold" data-ac-id="' +
+                    escapeHtml(c.id) +
+                    '" title="Mark as sold with the plan selected">Sold</button> <button type="button" class="button button-outline" data-ac-status="Lost" data-ac-id="' +
+                    escapeHtml(c.id) +
+                    '">Lost</button>'
+                  : ' <button type="button" class="button button-outline" data-ac-status="Quote" data-ac-id="' +
+                    escapeHtml(c.id) +
+                    '">Reopen</button>'
+                : '') +
               '</td></tr>'
             );
           })
@@ -10007,6 +10042,33 @@ ${bodyHtml}
             contract && contract.plans && contract.plans.find((p) => p.planKey === select.value);
           const cell = host.querySelector('[data-ac-price-cell="' + id + '"]');
           if (cell && plan) cell.textContent = money(plan.priceInclVat) + ' AED';
+        });
+      });
+      host.querySelectorAll('[data-ac-status]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-ac-id');
+          const status = button.getAttribute('data-ac-status');
+          const payload = { status };
+          if (status === 'Sold') {
+            const select = host.querySelector('[data-ac-plan-select="' + id + '"]');
+            const date = host.querySelector('[data-ac-sold-date="' + id + '"]');
+            payload.planKey = select ? select.value : '';
+            payload.soldDate = date ? date.value : '';
+          } else if (status === 'Lost') {
+            const reason = window.prompt('Why was this AMC quote lost? (optional)') || '';
+            if (reason.trim()) payload.reason = reason.trim();
+          }
+          button.disabled = true;
+          try {
+            await apiRequest('/api/amc-contracts/' + id + '/status', {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            });
+            await loadAmcIssuedList(host);
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message || 'Could not change the status.');
+            button.disabled = false;
+          }
         });
       });
       host.querySelectorAll('[data-ac-reprint]').forEach((button) => {
@@ -15677,6 +15739,8 @@ ${bodyHtml}
     portal_amc: 'Portal: AMC contracts',
     portal_rate_card: 'Portal: Rate card sales',
     portal_thomson: 'Portal: Thomson sales',
+    portal_job_csijw: 'Portal: warranty job cards (CSIJW)',
+    portal_job_csijo: 'Portal: non-warranty job cards (CSIJO)',
   };
   async function renderBudgetVariance(root, state) {
     const st = state || { tab: 'variance', versionId: '' };
@@ -16001,7 +16065,11 @@ ${bodyHtml}
       '<label><input id="bvSetQty" type="checkbox"' +
       (set.compare_quantity ? ' checked' : '') +
       dis +
-      ' /> Compare quantity too</label></div>';
+      ' /> Compare quantity too</label>' +
+      '<label><input id="bvSetJobCards" type="checkbox"' +
+      (set.portal_job_card_revenue ? ' checked' : '') +
+      dis +
+      ' /> Count CSIJW / CSIJO from portal job-card billing (ignores those two job types in the workbook upload)</label></div>';
     if (canWrite) {
       html +=
         '<button class="button button-primary" type="button" id="bvSaveCfg">Save mapping and settings</button> <span class="form-note" id="bvCfgMsg"></span>';
@@ -16072,6 +16140,7 @@ ${bodyHtml}
               vat_rate: Number(body.querySelector('#bvSetVat').value),
               variance_months: body.querySelector('#bvSetMonths').value,
               compare_quantity: body.querySelector('#bvSetQty').checked,
+              portal_job_card_revenue: body.querySelector('#bvSetJobCards').checked,
             },
           }),
         });

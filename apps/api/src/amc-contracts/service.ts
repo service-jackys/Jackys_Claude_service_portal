@@ -3,9 +3,11 @@ import type { Pool } from 'pg';
 import {
   amcContractWriteSchema,
   amcContractListQuerySchema,
+  amcContractStatusSchema,
   type AmcContractWriteInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
+  changeAmcContractStatus,
   findAmcContractById,
   insertAmcContract,
   listAmcContracts,
@@ -17,7 +19,7 @@ import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class AmcContractServiceError extends Error {
   constructor(
-    public readonly code: 'not-found',
+    public readonly code: 'not-found' | 'no-plan',
     message: string,
   ) {
     super(message);
@@ -88,6 +90,7 @@ export function createAmcContractService(pool: Pool) {
     try {
       return listAmcContracts(client, {
         search: data.search,
+        status: data.status,
         page: data.page,
         pageSize: data.pageSize,
       });
@@ -108,7 +111,54 @@ export function createAmcContractService(pool: Pool) {
     }
   }
 
-  return { create, list, detail };
+  async function setStatus(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const change = amcContractStatusSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const result = await changeAmcContractStatus(
+        client,
+        id,
+        change.status === 'Sold'
+          ? {
+              status: 'Sold',
+              planKey: change.planKey,
+              soldDate: change.soldDate,
+              contractRef: change.contractRef ?? null,
+            }
+          : change.status === 'Lost'
+            ? { status: 'Lost', reason: change.reason ?? null }
+            : { status: 'Quote' },
+        profileId,
+      );
+      if (result === null)
+        throw new AmcContractServiceError('not-found', 'The AMC contract was not found.');
+      if (result === 'no-plan')
+        throw new AmcContractServiceError(
+          'no-plan',
+          'This AMC record does not have the chosen plan.',
+        );
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'amc_contract.status_changed',
+        targetType: 'amc_contract',
+        targetId: result.id,
+        metadata: {
+          amcContractReference: result.amcContractReference,
+          status: result.status,
+          soldPlanKey: result.soldPlanKey,
+          soldPriceExclVat: result.soldPriceExclVat,
+        },
+        requestId,
+      });
+      return result;
+    });
+  }
+
+  return { create, list, detail, setStatus };
 }
 
 export type AmcContractService = ReturnType<typeof createAmcContractService>;

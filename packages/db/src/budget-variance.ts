@@ -257,6 +257,7 @@ export async function actualRevenue(
   revenueBatchId: string | null,
   fromDate: string,
   toDate: string,
+  options: { portalJobCards?: boolean } = {},
 ) {
   const rows: ActualRow[] = [];
   if (revenueBatchId) {
@@ -267,6 +268,7 @@ export async function actualRevenue(
        FROM revenue_lines
        WHERE batch_id = $1 AND year IS NOT NULL AND month_no BETWEEN 1 AND 12
          AND make_date(year, month_no, 1) >= $2::date AND make_date(year, month_no, 1) < $3::date
+         ${options.portalJobCards ? `AND upper(job_type) NOT IN ('CSIJW', 'CSIJO')` : ''}
        GROUP BY 1, 2, 3`,
       [revenueBatchId, fromDate, toDate],
     );
@@ -283,6 +285,26 @@ export async function actualRevenue(
        SELECT 'portal_rate_card', ${day('sale_date')}, total_value, 1 FROM rate_card_sales
        UNION ALL
        SELECT 'portal_thomson', ${day('sale_date')}, total_price, 1 FROM thomson_sales
+       UNION ALL
+       -- AMC: counted at the contract start month (commencement date), ex-VAT,
+       -- using the price of the plan that was sold.
+       SELECT 'portal_amc', COALESCE(commencement_date, sold_date), sold_price_excl_vat, 1
+       FROM amc_contracts WHERE status = 'Sold'
+       ${
+         options.portalJobCards
+           ? `UNION ALL
+       -- Job cards: billed amount (ex-VAT) when invoiced or delivered, on the invoice date.
+       SELECT CASE billing_job_type WHEN 'CSIJW' THEN 'portal_job_csijw' ELSE 'portal_job_csijo' END,
+              COALESCE(invoice_date, delivery_date, job_card_date,
+                       timezone('Asia/Dubai', created_at)::date),
+              COALESCE(amount_chargeable, grand_total), 1
+       FROM service_job_cards
+       WHERE COALESCE(amount_chargeable, grand_total) > 0
+         AND job_final_status <> 'Cancelled'
+         AND billing_job_type IN ('CSIJW', 'CSIJO')
+         AND (invoice_no IS NOT NULL OR job_final_status = 'Delivered')`
+           : ''
+       }
      ) x
      WHERE d >= $1::date AND d < $2::date
      GROUP BY 1, 3`,

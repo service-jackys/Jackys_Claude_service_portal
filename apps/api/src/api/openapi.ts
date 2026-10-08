@@ -273,6 +273,14 @@ const requestBodies = {
       },
     },
   },
+  amcContractStatus: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/AmcContractStatusRequest' },
+      },
+    },
+  },
   amcContract: {
     required: true,
     content: {
@@ -568,6 +576,18 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 200 },
             active: { type: 'boolean' },
+          },
+        },
+        AmcContractStatusRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['Quote', 'Sold', 'Lost'] },
+            planKey: { type: 'string', enum: ['basic-rm', 'standard-pmc', 'premium-pmc'] },
+            soldDate: { type: 'string', format: 'date' },
+            contractRef: { type: 'string', minLength: 1, maxLength: 120 },
+            reason: { type: 'string', minLength: 1, maxLength: 300 },
           },
         },
         BillingRuleRequest: {
