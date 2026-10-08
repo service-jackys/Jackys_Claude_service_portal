@@ -2396,3 +2396,20 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Saving or cancelling a new record returns to the Created tab. The New tab is hidden for users who cannot create records.
 
 **Needs you:** hard-refresh only.
+
+
+## Modification #74 — Warranty, billing, invoices and out-of-warranty tracking
+
+**Date:** 2026-10-08 · **Scope:** API + web + migration 034
+
+**What changed**
+- **Warranty status at New request** (In / Out), changeable by staff.
+- **Final warranty status on the job card.** If it differs from the registered status, billing follows the final status. A reason is required for the change.
+- **Job type is derived:** CSIJW (in warranty, billed to the sales channel; Raneesh Jose + GEMS branch bills to JDI via an admin rule) and CSIJO (out of warranty; choose Customer or Sales channel).
+- **Payment by, ERP invoice number and date, payment mode (cash / online / bank transfer) and a payment confirmation** are recorded on the job card. Amount is entered on the job card; the portal does not issue invoices.
+- **Delivery gate:** a job with an amount cannot move to Delivered until payment is handled (customer payer needs invoice no. plus confirmed payment; channel-billed jobs deliver straight away). Cards already Delivered are not affected.
+- **Invoices page** (Job invoices tab and Billing rules tab) with filters and a Record button.
+- **Dashboard:** new "Out of warranty jobs" section (pending delivery stages).
+- **Reports:** Job Invoices and Sales Channel Reconciliation.
+
+**Needs you:** run `npm run db:migrate` (applies 034), restart the server, hard-refresh.

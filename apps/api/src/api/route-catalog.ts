@@ -26,6 +26,8 @@ import { createSalesmanHandlers } from '../salesmen/routes.js';
 import { createSalesmanService } from '../salesmen/service.js';
 import { createSalesChannelHandlers } from '../sales-channels/routes.js';
 import { createSalesChannelService } from '../sales-channels/service.js';
+import { createInvoiceHandlers } from '../invoices/routes.js';
+import { createInvoiceService } from '../invoices/service.js';
 import { createAppointmentHandlers } from '../appointments/routes.js';
 import { createAppointmentService } from '../appointments/service.js';
 import { createScheduleHandlers } from '../schedules/routes.js';
@@ -97,6 +99,7 @@ export type RouteDefinition = {
     | 'availability'
     | 'salesman'
     | 'salesChannel'
+    | 'billingRule'
     | 'appointment'
     | 'appointmentAssignment'
     | 'appointmentSchedule'
@@ -373,6 +376,30 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const invoiceHandlers = pool
+    ? createInvoiceHandlers(createInvoiceService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        summary: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        listRules: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        createRule: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        updateRule: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1607,6 +1634,76 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: salesChannelHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/invoices',
+        operationId: 'listJobInvoices',
+        tags: ['Billing'],
+        summary: 'List jobs that carry an amount, by job type and payment status',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'type', in: 'query', schema: { type: 'string', enum: ['CSIJW', 'CSIJO'] } },
+          {
+            name: 'paymentBy',
+            in: 'query',
+            schema: { type: 'string', enum: ['Sales channel', 'Customer'] },
+          },
+          {
+            name: 'paymentStatus',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['Paid', 'Awaiting invoice', 'Awaiting payment', 'Channel', 'Unassigned'],
+            },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: invoiceHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/invoices/summary',
+        operationId: 'getInvoiceSummary',
+        tags: ['Billing'],
+        summary: 'Totals by job type and payment stage, and out-of-warranty jobs pending delivery',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: invoiceHandlers.summary,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/billing-rules',
+        operationId: 'listBillingRules',
+        tags: ['Billing'],
+        summary: 'List the rules that decide which sales channel is billed',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: invoiceHandlers.listRules,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/billing-rules',
+        operationId: 'createBillingRule',
+        tags: ['Billing'],
+        summary: 'Add a billing rule (super admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'billingRule' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: invoiceHandlers.createRule,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/billing-rules/{id}',
+        operationId: 'updateBillingRule',
+        tags: ['Billing'],
+        summary: 'Update or deactivate a billing rule (super admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'billingRule' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: invoiceHandlers.updateRule,
       },
       {
         method: 'get' as const,

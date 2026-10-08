@@ -92,8 +92,8 @@ export async function insertComplaint(
        complaint_reference, customer_type, customer_name, contact_number,
        customer_email, address, region, brand, model, serial_or_item_code, description,
        sales_order_number, b2b_branch_school, school_contact_person,
-       school_contact_number, customer_number
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       school_contact_number, customer_number, warranty_classification
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
      RETURNING ${complaintColumns}`,
     [
       reference,
@@ -112,6 +112,7 @@ export async function insertComplaint(
       input.schoolContactPerson ?? null,
       input.schoolContactNumber ?? null,
       input.customerNumber ?? null,
+      input.warrantyClassification ?? null,
     ],
   );
   return result.rows[0];

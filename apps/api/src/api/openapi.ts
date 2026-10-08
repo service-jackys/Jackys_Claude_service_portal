@@ -161,6 +161,14 @@ const requestBodies = {
       },
     },
   },
+  billingRule: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/BillingRuleRequest' },
+      },
+    },
+  },
   salesChannel: {
     required: true,
     content: {
@@ -468,6 +476,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             schoolContactNumber: { type: 'string', minLength: 1, maxLength: 100 },
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
             salesOrderNumber: { type: 'string', minLength: 1, maxLength: 100 },
+            warrantyClassification: { type: 'string', enum: ['In Warranty', 'Out Warranty'] },
           },
         },
         B2bBranchLinkRequest: {
@@ -559,6 +568,18 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 200 },
             active: { type: 'boolean' },
+          },
+        },
+        BillingRuleRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['billToChannel'],
+          properties: {
+            salesman: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
+            branchKeyword: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
+            billToChannel: { type: 'string', minLength: 1, maxLength: 200 },
+            active: { type: 'boolean' },
+            notes: { type: 'string', maxLength: 500, nullable: true },
           },
         },
         SalesChannelRequest: {
@@ -705,6 +726,14 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 300 },
             salesOrderNumber: { type: 'string', minLength: 1, maxLength: 100 },
             legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
+            finalWarrantyStatus: { type: 'string', enum: ['In Warranty', 'Out Warranty'] },
+            warrantyOverrideReason: { type: 'string', minLength: 1, maxLength: 1000 },
+            paymentBy: { type: 'string', enum: ['Sales channel', 'Customer'] },
+            billToChannel: { type: 'string', maxLength: 200 },
+            invoiceDate: { type: 'string', format: 'date' },
+            paymentMode: { type: 'string', enum: ['Cash', 'Online', 'Bank transfer', 'Card'] },
+            paymentReference: { type: 'string', minLength: 1, maxLength: 200 },
+            paymentConfirmed: { type: 'boolean' },
           },
         },
         ServiceJobCardUpdateRequest: {
@@ -765,6 +794,14 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             b2bBranchSchool: { type: 'string', minLength: 1, maxLength: 300 },
             salesOrderNumber: { type: 'string', minLength: 1, maxLength: 100 },
             legacyReference: { type: 'string', minLength: 1, maxLength: 120 },
+            finalWarrantyStatus: { type: 'string', enum: ['In Warranty', 'Out Warranty'] },
+            warrantyOverrideReason: { type: 'string', minLength: 1, maxLength: 1000 },
+            paymentBy: { type: 'string', enum: ['Sales channel', 'Customer'] },
+            billToChannel: { type: 'string', maxLength: 200 },
+            invoiceDate: { type: 'string', format: 'date' },
+            paymentMode: { type: 'string', enum: ['Cash', 'Online', 'Bank transfer', 'Card'] },
+            paymentReference: { type: 'string', minLength: 1, maxLength: 200 },
+            paymentConfirmed: { type: 'boolean' },
           },
         },
         ServiceJobCardStatusRequest: {

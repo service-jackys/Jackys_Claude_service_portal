@@ -38,7 +38,14 @@ export function createComplaintHandlers(
         }
         Promise.resolve()
           .then(() =>
-            service.submit(request.body, undefined, request.header('x-request-id') ?? undefined),
+            service.submit(
+              // The warranty status is a staff decision; the public form never sets it.
+              request.body && typeof request.body === 'object'
+                ? { ...request.body, warrantyClassification: undefined }
+                : request.body,
+              undefined,
+              request.header('x-request-id') ?? undefined,
+            ),
           )
           .then((complaint) => response.status(201).json({ complaint }))
           .catch(next);

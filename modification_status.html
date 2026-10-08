@@ -2970,6 +2970,25 @@
           <li>Hard-refresh. No restart or migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#74 &mdash; Warranty, billing, invoices and out-of-warranty tracking</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-08 &middot; API + web + migration 034</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Warranty status at New request; final warranty status and reason on the job card; billing follows the final status.</li>
+          <li>CSIJW / CSIJO job type, payment by, ERP invoice number, payment mode and confirmation; Delivered is blocked until payment is handled.</li>
+          <li>Invoices page with Billing rules (JDI rule), dashboard Out of warranty jobs, and two new reports.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm run db:migrate (034), restart the server, hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

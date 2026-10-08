@@ -24,12 +24,15 @@ import {
   listServiceJobCardHistory,
   listServiceJobCards,
   setServiceJobCardFinalStatus,
+  updateServiceJobCardBilling,
   updateServiceJobCardContent,
   updateServiceJobCardStatus,
   type ServiceJobCardContent,
   type ServiceJobCardRecord,
 } from '../../../../packages/db/src/job-cards.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
+import { listActiveBillingRules } from '../../../../packages/db/src/billing-rules.js';
+import { billedAmount, deliveryBlockReason, normalizeWarranty, resolveBilling } from './billing.js';
 import {
   findAppointmentById,
   type AppointmentRecord,
@@ -51,7 +54,8 @@ export class ServiceJobCardError extends Error {
       | 'quotation-ineligible'
       | 'duplicate'
       | 'invalid-transition'
-      | 'terminal-job-card',
+      | 'terminal-job-card'
+      | 'billing-blocked',
     message: string,
   ) {
     super(message);
@@ -226,6 +230,44 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
   };
 }
 
+const billingKeys = [
+  'finalWarrantyStatus',
+  'warrantyOverrideReason',
+  'paymentBy',
+  'billToChannel',
+  'invoiceDate',
+  'paymentMode',
+  'paymentReference',
+  'paymentConfirmed',
+] as const;
+
+type BillingOverrides = {
+  finalWarrantyStatus?: 'In Warranty' | 'Out Warranty';
+  warrantyOverrideReason?: string;
+  paymentBy?: 'Sales channel' | 'Customer';
+  billToChannel?: string;
+  invoiceDate?: string;
+  paymentMode?: 'Cash' | 'Online' | 'Bank transfer' | 'Card';
+  paymentReference?: string;
+  paymentConfirmed?: boolean;
+};
+
+/** Separates the warranty/billing inputs from the plain job-card content. */
+function splitBilling<T extends Record<string, unknown>>(
+  data: T,
+): { billing: BillingOverrides; rest: Omit<T, (typeof billingKeys)[number]> } {
+  const billing: Record<string, unknown> = {};
+  const rest: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    if ((billingKeys as readonly string[]).includes(key)) billing[key] = value;
+    else rest[key] = value;
+  }
+  return {
+    billing: billing as BillingOverrides,
+    rest: rest as Omit<T, (typeof billingKeys)[number]>,
+  };
+}
+
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
@@ -300,13 +342,117 @@ export function createServiceJobCardService(pool: Pool) {
     }
   }
 
+  /** Resolves and stores the warranty/billing fields for a job card, then enforces the delivery gate. */
+  async function applyBilling(
+    client: Parameters<typeof findServiceJobCardById>[0],
+    before: ServiceJobCardRecord | null,
+    saved: ServiceJobCardRecord,
+    billing: BillingOverrides,
+    profileId: string,
+    enforceDelivery: boolean,
+  ): Promise<ServiceJobCardRecord> {
+    const rules = await listActiveBillingRules(client);
+    const previousEffective = before
+      ? (normalizeWarranty(before.finalWarrantyStatus) ?? normalizeWarranty(before.warrantyStatus))
+      : null;
+    const finalWarrantyStatus = billing.finalWarrantyStatus ?? before?.finalWarrantyStatus ?? null;
+    const resolution = resolveBilling({
+      warrantyStatus: saved.warrantyStatus,
+      finalWarrantyStatus,
+      customerType: saved.customerType,
+      salesman: saved.salesman,
+      salesChannel: saved.salesChannel,
+      b2bBranchSchool: saved.b2bBranchSchool,
+      paymentBy:
+        billing.paymentBy ??
+        // Moving from In Warranty (always channel) to Out Warranty re-applies the default payer.
+        (previousEffective === 'In Warranty' ? undefined : (before?.paymentBy as never)),
+      billToOverride:
+        billing.billToChannel !== undefined
+          ? billing.billToChannel
+          : before?.billToOverridden
+            ? before.billToChannel
+            : undefined,
+      rules,
+    });
+    if (
+      resolution.warrantyChanged &&
+      !(billing.warrantyOverrideReason ?? before?.warrantyOverrideReason)
+    ) {
+      throw new ServiceJobCardError(
+        'billing-blocked',
+        'The final warranty status differs from the registered one. Enter the reason (for example customer-induced damage or misuse).',
+      );
+    }
+    const paymentConfirmedNow =
+      billing.paymentConfirmed ?? (before?.paymentConfirmedAt ? true : undefined);
+    const paymentMode = billing.paymentMode ?? before?.paymentMode ?? null;
+    if (billing.paymentConfirmed === true) {
+      if (resolution.paymentBy !== 'Customer') {
+        throw new ServiceJobCardError(
+          'billing-blocked',
+          'Only a job paid by the customer needs a payment confirmation.',
+        );
+      }
+      if (!saved.invoiceNo) {
+        throw new ServiceJobCardError(
+          'billing-blocked',
+          'Record the invoice number before confirming the payment.',
+        );
+      }
+      if (!paymentMode) {
+        throw new ServiceJobCardError(
+          'billing-blocked',
+          'Select the payment mode (cash, online, bank transfer or card) before confirming the payment.',
+        );
+      }
+    }
+    await updateServiceJobCardBilling(
+      client,
+      saved.id,
+      {
+        finalWarrantyStatus,
+        warrantyOverrideReason: resolution.warrantyChanged
+          ? (billing.warrantyOverrideReason ?? before?.warrantyOverrideReason ?? null)
+          : null,
+        paymentBy: resolution.paymentBy,
+        billToChannel: resolution.billToChannel,
+        billToOverridden: resolution.billToOverridden,
+        billingJobType: resolution.billingJobType,
+        invoiceDate: billing.invoiceDate ?? before?.invoiceDate ?? null,
+        paymentMode,
+        paymentReference: billing.paymentReference ?? before?.paymentReference ?? null,
+        paymentConfirmed: billing.paymentConfirmed,
+      },
+      profileId,
+    );
+    const refreshed = (await findServiceJobCardById(client, saved.id)) ?? saved;
+    if (enforceDelivery) {
+      const reason = deliveryBlockReason({
+        amount: billedAmount({
+          amountChargeable:
+            refreshed.amountChargeable === null ? null : Number(refreshed.amountChargeable),
+          grandTotal: Number(refreshed.grandTotal),
+        }),
+        billingJobType: refreshed.billingJobType,
+        paymentBy: refreshed.paymentBy,
+        invoiceNo: refreshed.invoiceNo,
+        paymentConfirmed: Boolean(refreshed.paymentConfirmedAt) && paymentConfirmedNow !== false,
+      });
+      if (reason) throw new ServiceJobCardError('billing-blocked', reason);
+    }
+    return refreshed;
+  }
+
   async function createFromQuotation(
     quotationId: string,
     input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
   ) {
-    const overrides = serviceJobCardCreateSchema.parse(input ?? {});
+    const { billing, rest: overrides } = splitBilling(
+      serviceJobCardCreateSchema.parse(input ?? {}),
+    );
     return withTransaction(pool, async (client) => {
       const quotation = await findQuotationById(client, quotationId, true);
       if (!quotation) {
@@ -341,6 +487,14 @@ export function createServiceJobCardService(pool: Pool) {
         }
         throw error;
       }
+      jobCard = await applyBilling(
+        client,
+        null,
+        jobCard,
+        billing,
+        profileId,
+        jobCard.jobFinalStatus === 'Delivered',
+      );
       await insertServiceJobCardHistory(
         client,
         jobCard.id,
@@ -384,7 +538,9 @@ export function createServiceJobCardService(pool: Pool) {
     profileId: string,
     requestId: string = randomUUID(),
   ) {
-    const overrides = serviceJobCardCreateSchema.parse(input ?? {});
+    const { billing, rest: overrides } = splitBilling(
+      serviceJobCardCreateSchema.parse(input ?? {}),
+    );
     return withTransaction(pool, async (client) => {
       const appointment = await findAppointmentById(client, appointmentId, true);
       if (!appointment) {
@@ -430,6 +586,14 @@ export function createServiceJobCardService(pool: Pool) {
         }
         throw error;
       }
+      jobCard = await applyBilling(
+        client,
+        null,
+        jobCard,
+        billing,
+        profileId,
+        jobCard.jobFinalStatus === 'Delivered',
+      );
       await insertServiceJobCardHistory(
         client,
         jobCard.id,
@@ -483,7 +647,7 @@ export function createServiceJobCardService(pool: Pool) {
   }
 
   async function createWalkIn(input: unknown, profileId: string, requestId: string = randomUUID()) {
-    const data = walkInJobCardCreateSchema.parse(input ?? {});
+    const { billing, rest: data } = splitBilling(walkInJobCardCreateSchema.parse(input ?? {}));
     return withTransaction(pool, async (client) => {
       const intakeAt = new Date();
       const today = intakeAt.toISOString().slice(0, 10);
@@ -535,7 +699,7 @@ export function createServiceJobCardService(pool: Pool) {
         data,
       );
       const jobCardReference = await allocateWalkInJobCardReference(client, today);
-      const jobCard = await insertServiceJobCard(client, {
+      let jobCard = await insertServiceJobCard(client, {
         jobCardReference,
         appointmentId: null,
         quotationId: null,
@@ -544,6 +708,14 @@ export function createServiceJobCardService(pool: Pool) {
         content,
         intakeAt,
       });
+      jobCard = await applyBilling(
+        client,
+        null,
+        jobCard,
+        billing,
+        profileId,
+        jobCard.jobFinalStatus === 'Delivered',
+      );
       await insertServiceJobCardHistory(
         client,
         jobCard.id,
@@ -572,7 +744,9 @@ export function createServiceJobCardService(pool: Pool) {
     requestId: string = randomUUID(),
     isAdmin = false,
   ) {
-    const overrides = serviceJobCardUpdateSchema.parse(input ?? {});
+    const { billing, rest: overrides } = splitBilling(
+      serviceJobCardUpdateSchema.parse(input ?? {}),
+    );
     return withTransaction(pool, async (client) => {
       const current = await findServiceJobCardById(client, id, true);
       if (!current) {
@@ -648,6 +822,14 @@ export function createServiceJobCardService(pool: Pool) {
       let jobCard = await updateServiceJobCardContent(client, id, content, profileId);
       if (!jobCard)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      jobCard = await applyBilling(
+        client,
+        current,
+        jobCard,
+        billing,
+        profileId,
+        nextFinal === 'Delivered' && current.jobFinalStatus !== 'Delivered',
+      );
       if (nextFinal !== current.jobFinalStatus) {
         const nextStatus = serviceJobCardStatusForFinal(nextFinal, current.status);
         if (nextStatus !== current.status) {
@@ -753,6 +935,20 @@ export function createServiceJobCardService(pool: Pool) {
             : 'invalid-transition',
           `A job card in ${current.status} cannot transition to ${data.status}.`,
         );
+      }
+      if (data.status === 'Completed') {
+        const reason = deliveryBlockReason({
+          amount: billedAmount({
+            amountChargeable:
+              current.amountChargeable === null ? null : Number(current.amountChargeable),
+            grandTotal: Number(current.grandTotal),
+          }),
+          billingJobType: current.billingJobType,
+          paymentBy: current.paymentBy,
+          invoiceNo: current.invoiceNo,
+          paymentConfirmed: Boolean(current.paymentConfirmedAt),
+        });
+        if (reason) throw new ServiceJobCardError('billing-blocked', reason);
       }
       const finalized = data.status === 'Completed' || data.status === 'Cancelled';
       const result = await updateServiceJobCardStatus(client, id, data, profileId, finalized);

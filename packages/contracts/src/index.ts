@@ -68,6 +68,9 @@ export const publicComplaintSchema = z
     schoolContactNumber: optionalText(100),
     customerNumber: optionalText(100),
     salesOrderNumber: optionalText(100),
+    // Staff set the warranty status when they register the request (the
+    // public form never sends it; the public route drops it).
+    warrantyClassification: z.enum(['In Warranty', 'Out Warranty']).optional(),
   })
   .strict()
   .superRefine((value, ctx) => {
@@ -211,6 +214,20 @@ export const technicianWriteSchema = z
 // Salesmen and Sales Channels: small admin-managed master lists (see
 // modification.md #8). Sales Channel write is deliberately restricted to
 // the admin role only at the permission-grant level (super-admin option).
+export const billingRuleWriteSchema = z
+  .object({
+    salesman: z.string().trim().min(1).max(200).nullish(),
+    branchKeyword: z.string().trim().min(1).max(200).nullish(),
+    billToChannel: z.string().trim().min(1).max(200),
+    active: z.boolean().optional(),
+    notes: z.string().trim().max(500).nullish(),
+  })
+  .strict()
+  .refine((value) => Boolean(value.salesman) || Boolean(value.branchKeyword), {
+    message: 'Enter a salesman, a branch keyword, or both.',
+  });
+export type BillingRuleWriteInput = z.infer<typeof billingRuleWriteSchema>;
+
 export const salesmanWriteSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
@@ -266,6 +283,11 @@ export const jobFinalStatuses = [
   'Delivered',
   'Cancelled',
 ] as const;
+export const warrantyStatuses = ['In Warranty', 'Out Warranty'] as const;
+export const paymentByOptions = ['Sales channel', 'Customer'] as const;
+export const paymentModes = ['Cash', 'Online', 'Bank transfer', 'Card'] as const;
+export const billingJobTypes = ['CSIJW', 'CSIJO'] as const;
+
 export const jobFinalStatusSchema = z.enum(jobFinalStatuses);
 export type JobFinalStatus = (typeof jobFinalStatuses)[number];
 
@@ -356,6 +378,20 @@ const jobCardContentFields = {
   // stored as plain text -- see modification.md #8.
   salesman: optionalText(200),
   salesChannel: optionalText(200),
+  // Warranty and billing (migration 034). The warranty status above is what
+  // was registered at the start; the final status is what the technician
+  // confirms after inspecting the item and is what billing follows.
+  finalWarrantyStatus: z.enum(['In Warranty', 'Out Warranty']).optional(),
+  warrantyOverrideReason: optionalText(1000),
+  paymentBy: z.enum(['Sales channel', 'Customer']).optional(),
+  // Empty string = clear a manual override and go back to the automatic rule.
+  billToChannel: z.string().trim().max(200).optional(),
+  invoiceDate: dateSchema.optional(),
+  paymentMode: z.enum(['Cash', 'Online', 'Bank transfer', 'Card']).optional(),
+  paymentReference: optionalText(200),
+  // true records that the payment was received (stamped with who and when);
+  // false clears a confirmation made in error.
+  paymentConfirmed: z.boolean().optional(),
   // Optional free-text reference to a corresponding document in the legacy
   // Google Sheets/Apps Script system, printed alongside this record's own
   // reference (see "Add print views and legacy-reference preservation",

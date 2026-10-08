@@ -58,6 +58,18 @@ export type ServiceJobCardRecord = {
   salesman: string | null;
   salesChannel: string | null;
   jobFinalStatus: JobFinalStatus;
+  // Warranty and billing (migration 034).
+  finalWarrantyStatus: string | null;
+  warrantyOverrideReason: string | null;
+  paymentBy: string | null;
+  billToChannel: string | null;
+  billToOverridden: boolean;
+  billingJobType: string | null;
+  invoiceDate: string | null;
+  paymentMode: string | null;
+  paymentReference: string | null;
+  paymentConfirmedAt: Date | null;
+  paymentConfirmedBy: string | null;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
@@ -188,6 +200,17 @@ const columns = `
   service_job_cards.salesman,
   service_job_cards.sales_channel AS "salesChannel",
   service_job_cards.job_final_status AS "jobFinalStatus",
+  service_job_cards.final_warranty_status AS "finalWarrantyStatus",
+  service_job_cards.warranty_override_reason AS "warrantyOverrideReason",
+  service_job_cards.payment_by AS "paymentBy",
+  service_job_cards.bill_to_channel AS "billToChannel",
+  service_job_cards.bill_to_overridden AS "billToOverridden",
+  service_job_cards.billing_job_type AS "billingJobType",
+  service_job_cards.invoice_date::text AS "invoiceDate",
+  service_job_cards.payment_mode AS "paymentMode",
+  service_job_cards.payment_reference AS "paymentReference",
+  service_job_cards.payment_confirmed_at AS "paymentConfirmedAt",
+  service_job_cards.payment_confirmed_by AS "paymentConfirmedBy",
   service_job_cards.school_contact_person AS "schoolContactPerson",
   service_job_cards.school_contact_number AS "schoolContactNumber",
   service_job_cards.customer_number AS "customerNumber",
@@ -679,4 +702,55 @@ export async function listAppointmentsAwaitingJobCard(
     values,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
+}
+
+export type JobCardBillingUpdate = {
+  finalWarrantyStatus: string | null;
+  warrantyOverrideReason: string | null;
+  paymentBy: string | null;
+  billToChannel: string | null;
+  billToOverridden: boolean;
+  billingJobType: string | null;
+  invoiceDate: string | null;
+  paymentMode: string | null;
+  paymentReference: string | null;
+  // undefined leaves the confirmation untouched; true stamps it; false clears it.
+  paymentConfirmed?: boolean;
+};
+
+export async function updateServiceJobCardBilling(
+  client: PoolClient,
+  id: string,
+  billing: JobCardBillingUpdate,
+  profileId: string,
+): Promise<void> {
+  await client.query(
+    `UPDATE service_job_cards
+     SET final_warranty_status = $2, warranty_override_reason = $3, payment_by = $4,
+         bill_to_channel = $5, bill_to_overridden = $6, billing_job_type = $7, invoice_date = $8,
+         payment_mode = $9, payment_reference = $10,
+         payment_confirmed_at = CASE
+           WHEN $11::boolean IS NULL THEN payment_confirmed_at
+           WHEN $11::boolean THEN COALESCE(payment_confirmed_at, now())
+           ELSE NULL END,
+         payment_confirmed_by = CASE
+           WHEN $11::boolean IS NULL THEN payment_confirmed_by
+           WHEN $11::boolean THEN COALESCE(payment_confirmed_by, $12::bigint)
+           ELSE NULL END
+     WHERE id = $1`,
+    [
+      id,
+      billing.finalWarrantyStatus,
+      billing.warrantyOverrideReason,
+      billing.paymentBy,
+      billing.billToChannel,
+      billing.billToOverridden,
+      billing.billingJobType,
+      billing.invoiceDate,
+      billing.paymentMode,
+      billing.paymentReference,
+      billing.paymentConfirmed ?? null,
+      profileId,
+    ],
+  );
 }

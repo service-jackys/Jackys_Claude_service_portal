@@ -689,6 +689,7 @@
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
+    $('#invoicesNav').hidden = !hasPermission('service_job_card.read');
     if (hasPermission('scheduler.read')) {
       apiRequest('/api/schedules/awaiting')
         .then((result) => {
@@ -1023,6 +1024,13 @@
     populateSelectOptions('#jccSalesChannel', salesChannelOptions, 'Select a sales channel');
     populateSelectOptions('#jceSalesChannel', salesChannelOptions, 'Select a sales channel');
     populateSelectOptions('#jcqSalesChannel', salesChannelOptions, 'Select a sales channel');
+    ['jcc', 'jce', 'jcq'].forEach((prefix) =>
+      populateSelectOptions(
+        `#${prefix}BillToChannel`,
+        salesChannelOptions,
+        'Auto (billing rule / sales channel)',
+      ),
+    );
   }
 
   // ---- Service job card content form (create-prefill panel with prefix 'jcc',
@@ -1115,6 +1123,18 @@
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select><span class="form-note">The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.</span></div>
       </div>
+      <h5>Warranty and billing</h5>
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}FinalWarrantyStatus">Final warranty status</label><select id="${prefix}FinalWarrantyStatus"><option value="">Same as registered warranty</option><option>In Warranty</option><option>Out Warranty</option></select><span class="form-note">Set after inspection. If it differs from the registered warranty (for example customer-induced damage or misuse), billing follows this one.</span></div>
+        <div class="field" id="${prefix}WarrantyReasonField" hidden><label for="${prefix}WarrantyOverrideReason">Reason for the change</label><input type="text" id="${prefix}WarrantyOverrideReason" maxlength="1000" placeholder="Required when the final warranty differs"></div>
+        <div class="field"><label for="${prefix}PaymentBy">Payment by</label><select id="${prefix}PaymentBy"><option value="">Automatic</option><option>Sales channel</option><option>Customer</option></select><span class="form-note">In warranty is always billed to the sales channel. For out of warranty choose who pays.</span></div>
+        <div class="field"><label for="${prefix}BillToChannel">Bill to channel</label><select id="${prefix}BillToChannel"><option value="">Auto (billing rule / sales channel)</option></select></div>
+        <div class="field"><label for="${prefix}BillingJobType">Job type</label><input type="text" id="${prefix}BillingJobType" readonly></div>
+        <div class="field"><label for="${prefix}InvoiceDate">Invoice date</label><input type="date" id="${prefix}InvoiceDate"></div>
+        <div class="field"><label for="${prefix}PaymentMode">Payment mode</label><select id="${prefix}PaymentMode"><option value="">Select mode</option><option>Cash</option><option>Online</option><option>Bank transfer</option><option>Card</option></select></div>
+        <div class="field"><label for="${prefix}PaymentReference">Payment reference</label><input type="text" id="${prefix}PaymentReference" maxlength="200" placeholder="Receipt or transaction no."></div>
+        <div class="field"><label class="check-label"><input type="checkbox" id="${prefix}PaymentConfirmed"> Payment received and confirmed</label><span class="form-note" id="${prefix}PaymentConfirmedNote">A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.</span></div>
+      </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
         <div class="field"><label for="${prefix}CustomerEmail">Email address</label><input type="email" id="${prefix}CustomerEmail" maxlength="320"></div>
@@ -1129,6 +1149,35 @@
         <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
       </div>
     `;
+  }
+
+  // Shows the job type and payer that the billing rules will apply, as the
+  // user edits the warranty fields (the server recomputes on save).
+  function normalizeWarrantyText(value) {
+    const text = String(value || '')
+      .trim()
+      .toLowerCase();
+    if (!text) return '';
+    if (/\bout\b|non[- ]?warranty|expired/.test(text)) return 'Out Warranty';
+    if (/warranty/.test(text)) return 'In Warranty';
+    return '';
+  }
+
+  function refreshBillingPreview(prefix) {
+    const registered = normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
+    const finalValue = $(`#${prefix}FinalWarrantyStatus`).value;
+    const effective = finalValue || registered;
+    const changed = Boolean(finalValue && registered && finalValue !== registered);
+    $(`#${prefix}WarrantyReasonField`).hidden = !changed;
+    const paymentBy = $(`#${prefix}PaymentBy`);
+    paymentBy.disabled = effective === 'In Warranty';
+    if (effective === 'In Warranty') paymentBy.value = 'Sales channel';
+    $(`#${prefix}BillingJobType`).value =
+      effective === 'In Warranty'
+        ? 'CSIJW - Warranty repair'
+        : effective === 'Out Warranty'
+          ? 'CSIJO - Non-warranty repair'
+          : 'Set the warranty status';
   }
 
   function initJobCardForms() {
@@ -1150,6 +1199,9 @@
         renderJobCardParts(prefix);
       });
       $(`#${prefix}ServiceCharge`).addEventListener('input', () => recalcJobCardTotals(prefix));
+      [`#${prefix}FinalWarrantyStatus`, `#${prefix}WarrantyStatus`].forEach((selector) =>
+        $(selector).addEventListener('input', () => refreshBillingPreview(prefix)),
+      );
       $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
       $(`#${prefix}PeriodTo`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
     });
@@ -1296,6 +1348,24 @@
       ? content.deliveryDate.slice(0, 10)
       : '';
     $(`#${prefix}JobFinalStatus`).value = content.jobFinalStatus || 'WIP';
+    $(`#${prefix}FinalWarrantyStatus`).value = content.finalWarrantyStatus || '';
+    $(`#${prefix}WarrantyOverrideReason`).value = content.warrantyOverrideReason || '';
+    $(`#${prefix}PaymentBy`).value = content.paymentBy || '';
+    populateSelectOptions(
+      `#${prefix}BillToChannel`,
+      salesChannelOptions,
+      'Auto (billing rule / sales channel)',
+      content.billToOverridden ? content.billToChannel || '' : '',
+    );
+    $(`#${prefix}InvoiceDate`).value = content.invoiceDate ? content.invoiceDate.slice(0, 10) : '';
+    $(`#${prefix}PaymentMode`).value = content.paymentMode || '';
+    $(`#${prefix}PaymentReference`).value = content.paymentReference || '';
+    $(`#${prefix}PaymentConfirmed`).checked = Boolean(content.paymentConfirmedAt);
+    $(`#${prefix}PaymentConfirmed`).dataset.saved = content.paymentConfirmedAt ? '1' : '';
+    $(`#${prefix}PaymentConfirmedNote`).textContent = content.paymentConfirmedAt
+      ? `Confirmed ${new Date(content.paymentConfirmedAt).toLocaleString()}. Untick to undo a mistake.`
+      : 'A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.';
+    refreshBillingPreview(prefix);
     $(`#${prefix}SchoolContactPerson`).value = content.schoolContactPerson || '';
     $(`#${prefix}SchoolContactNumber`).value = content.schoolContactNumber || '';
     $(`#${prefix}CustomerNumber`).value = content.customerNumber || '';
@@ -1352,6 +1422,20 @@
       invoiceNo: $(`#${prefix}InvoiceNo`).value.trim() || undefined,
       deliveryDate: $(`#${prefix}DeliveryDate`).value || undefined,
       jobFinalStatus: $(`#${prefix}JobFinalStatus`).value || undefined,
+      finalWarrantyStatus: $(`#${prefix}FinalWarrantyStatus`).value || undefined,
+      warrantyOverrideReason: $(`#${prefix}WarrantyOverrideReason`).value.trim() || undefined,
+      paymentBy: $(`#${prefix}PaymentBy`).value || undefined,
+      billToChannel: $(`#${prefix}BillToChannel`).value,
+      invoiceDate: $(`#${prefix}InvoiceDate`).value || undefined,
+      paymentMode: $(`#${prefix}PaymentMode`).value || undefined,
+      paymentReference: $(`#${prefix}PaymentReference`).value.trim() || undefined,
+      // Only send a confirmation when it changed, so saving an unrelated edit
+      // never re-stamps who confirmed the payment.
+      paymentConfirmed:
+        $(`#${prefix}PaymentConfirmed`).checked ===
+        Boolean($(`#${prefix}PaymentConfirmed`).dataset.saved)
+          ? undefined
+          : $(`#${prefix}PaymentConfirmed`).checked,
       schoolContactPerson: $(`#${prefix}SchoolContactPerson`).value.trim() || undefined,
       schoolContactNumber: $(`#${prefix}SchoolContactNumber`).value.trim() || undefined,
       customerNumber: $(`#${prefix}CustomerNumber`).value.trim() || undefined,
@@ -2062,6 +2146,9 @@ ${bodyHtml}
         ['Accessories received', jobCard.accessoriesReceived],
         ['Condition at drop-off', jobCard.conditionNotes],
         ['Warranty status', jobCard.warrantyStatus],
+        ['Final warranty status', jobCard.finalWarrantyStatus],
+        ['Job type', jobCard.billingJobType],
+        ['Payment by', jobCard.paymentBy],
         ['Technician', jobCard.technicianName],
         ['Salesman', jobCard.salesman],
         ['Sales channel', jobCard.salesChannel],
@@ -3073,6 +3160,7 @@ ${bodyHtml}
       model: $('#newComplaintModel').value.trim(),
       serialOrItemCode: $('#newComplaintSerialOrItemCode').value.trim(),
       description: $('#newComplaintDescription').value.trim(),
+      warrantyClassification: $('#newComplaintWarranty').value,
       b2bBranchSchool: $('#newComplaintB2bBranchSchool').value.trim(),
       schoolContactPerson: $('#newComplaintSchoolContactPerson').value.trim(),
       schoolContactNumber: $('#newComplaintSchoolContactNumber').value.trim(),
@@ -3597,6 +3685,7 @@ ${bodyHtml}
     inspections: () => setWorkspaceMode('inspections'),
     vasSales: () => setWorkspaceMode('vas-calc'),
     amcContracts: () => setWorkspaceMode('amc-calc'),
+    outOfWarranty: () => setWorkspaceMode('invoices'),
     rateCardSales: () => setWorkspaceMode('reports'),
     thomsonSales: () => setWorkspaceMode('thomson-calc'),
   };
@@ -3607,6 +3696,7 @@ ${bodyHtml}
     ['dashComplaintTiles', 'complaints'],
     ['dashAppointmentTiles', 'appointments'],
     ['dashJobCardTiles', 'jobCards'],
+    ['dashOutOfWarrantyTiles', 'outOfWarranty'],
     ['dashQuotationInspectionTiles', null],
     ['dashWarrantyApprovalTiles', 'warrantyApprovals'],
     ['dashVasSaleTiles', null],
@@ -3631,6 +3721,35 @@ ${bodyHtml}
       tile.click();
     });
   });
+
+  // Out-of-warranty (CSIJO) jobs that are not delivered yet, by where the money
+  // stands. Read from the invoices summary; hidden if the user cannot see it.
+  async function renderOutOfWarrantyTiles() {
+    const group = $('#dashOutOfWarrantyGroup');
+    if (!group) return;
+    if (!hasPermission('service_job_card.read')) {
+      group.hidden = true;
+      return;
+    }
+    try {
+      const result = await apiRequest('/api/invoices/summary');
+      const stages = result.summary.outOfWarrantyPendingDelivery || [];
+      const byStage = {};
+      stages.forEach((row) => {
+        byStage[row.stage] = row.jobs;
+      });
+      const total = stages.reduce((sum, row) => sum + row.jobs, 0);
+      const amount = stages.reduce((sum, row) => sum + row.amount, 0);
+      $('#dashOutOfWarrantyTiles').innerHTML = dashboardTilesHtml(
+        byStage,
+        [['Pending delivery (AED ' + amount.toLocaleString('en-AE') + ')', total]],
+        (stage) => stage,
+      );
+      group.hidden = false;
+    } catch {
+      group.hidden = true;
+    }
+  }
 
   function renderDashboard(summary) {
     $('#dashComplaintTiles').innerHTML = dashboardTilesHtml(
@@ -3657,6 +3776,7 @@ ${bodyHtml}
       (status) => status,
     );
     $('#dashJobCardBars').innerHTML = dashboardBarsHtml(summary.jobCards.byStatus);
+    renderOutOfWarrantyTiles();
     $('#dashQuotationInspectionTiles').innerHTML = dashboardTilesHtml({}, [
       ['Quotations (total)', summary.quotations.total, 'quotations:total'],
       ['Quotations (this month)', summary.quotations.thisMonth, 'quotations:month'],
@@ -3990,6 +4110,7 @@ ${bodyHtml}
     $('#dashComplaintTiles').innerHTML = '';
     $('#dashAppointmentTiles').innerHTML = '';
     $('#dashJobCardTiles').innerHTML = '';
+    $('#dashOutOfWarrantyTiles').innerHTML = '';
     $('#dashQuotationInspectionTiles').innerHTML = '';
     $('#dashWarrantyApprovalTiles').innerHTML = '';
     $('#dashVasSaleTiles').innerHTML = '';
@@ -4137,13 +4258,22 @@ ${bodyHtml}
     return table + totals;
   }
 
+  function billingJobTypeLabel(type) {
+    return type === 'CSIJW'
+      ? 'CSIJW - Warranty repair'
+      : type === 'CSIJO'
+        ? 'CSIJO - Non-warranty repair'
+        : '';
+  }
+
   function renderJobCardDetailSections(jobCard) {
     const dateOnly = (value) => (value ? String(value).slice(0, 10) : '');
     renderDetailSections('#jobCardDetailGrid', [
       {
         strip: [
           ['Job status', jobCard.jobFinalStatus, 'pill'],
-          ['Warranty', jobCard.warrantyStatus],
+          ['Job type', jobCard.billingJobType],
+          ['Warranty', jobCard.finalWarrantyStatus || jobCard.warrantyStatus],
           ['Customer type', jobCard.customerType],
           ['Technician', jobCard.technicianName || jobCard.appointmentTechnicianName],
           ['Grand total', money(jobCard.grandTotal), 'money'],
@@ -4191,14 +4321,35 @@ ${bodyHtml}
       {
         title: 'Warranty and sales',
         items: [
-          ['Warranty status', jobCard.warrantyStatus],
+          ['Registered warranty', jobCard.warrantyStatus],
+          ['Final warranty', jobCard.finalWarrantyStatus || jobCard.warrantyStatus],
+          ['Reason for change', jobCard.warrantyOverrideReason, 'wide'],
           ['Warranty classification', jobCard.warrantyClassification],
           ['Appointment warranty', jobCard.appointmentJobWarranty],
           ['Sales order no.', jobCard.salesOrderNumber],
           ['Salesman', jobCard.salesman],
           ['Sales channel', jobCard.salesChannel],
-          ['Invoice no.', jobCard.invoiceNo],
           ['Delivery date', jobCard.deliveryDate],
+        ],
+      },
+      {
+        title: 'Billing and payment',
+        items: [
+          ['Job type', billingJobTypeLabel(jobCard.billingJobType)],
+          ['Payment by', jobCard.paymentBy],
+          ['Bill to channel', jobCard.billToChannel],
+          ['Invoice no.', jobCard.invoiceNo],
+          ['Invoice date', jobCard.invoiceDate],
+          ['Payment mode', jobCard.paymentMode],
+          ['Payment reference', jobCard.paymentReference],
+          [
+            'Payment confirmed',
+            jobCard.paymentConfirmedAt
+              ? formatDate(jobCard.paymentConfirmedAt)
+              : jobCard.paymentBy === 'Customer'
+                ? 'Not yet'
+                : '',
+          ],
         ],
       },
       {
@@ -10741,6 +10892,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    invoices: {
+      navId: 'invoicesNav',
+      workspaceId: 'invoicesWorkspace',
+      heading: 'Invoices',
+      description: 'Jobs with an amount, by job type and payment stage.',
+      permission: 'service_job_card.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderInvoices(root),
+    },
     'daily-list': {
       navId: 'dailyListNav',
       workspaceId: 'dailyListWorkspace',
@@ -11059,6 +11220,391 @@ ${bodyHtml}
         ordered.map((row, index) => dlSheetBody(row, index === 0)).join(''),
       ),
     );
+  }
+
+  // --- Invoices page -------------------------------------------------------
+  // Every job that carries an amount, by job type (CSIJW warranty, CSIJO
+  // non-warranty) and payment stage. Finance/CCE record the ERP invoice number
+  // and confirm customer payments here; a customer-paid job can be delivered
+  // only after that. A second tab holds the billing rules (which sales channel
+  // is billed), editable by the super admin.
+  async function renderInvoices(root) {
+    const state = {
+      tab: 'invoices',
+      type: '',
+      paymentStatus: '',
+      search: '',
+      rows: [],
+      summary: null,
+      rules: [],
+      selected: null,
+      message: '',
+      error: '',
+    };
+    const canRecord = hasPermission('service_job_card.write');
+    const canEditRules = hasPermission('sales_channels.write');
+    const aed = (value) =>
+      'AED ' +
+      (Number(value) || 0).toLocaleString('en-AE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    const typeLabel = (type) =>
+      type === 'CSIJW'
+        ? 'CSIJW Warranty'
+        : type === 'CSIJO'
+          ? 'CSIJO Non-warranty'
+          : type || 'Unclassified';
+    const statusClass = (status) =>
+      status === 'Paid'
+        ? 'status-ok'
+        : status === 'Awaiting invoice' || status === 'Awaiting payment'
+          ? 'status-warn'
+          : '';
+
+    root.innerHTML =
+      '<div class="ws-tabs" role="tablist">' +
+      '<button type="button" role="tab" class="ws-tab is-active" data-inv-tab="invoices" aria-selected="true">Job invoices</button>' +
+      '<button type="button" role="tab" class="ws-tab" data-inv-tab="rules" aria-selected="false">Billing rules</button>' +
+      '</div><div data-inv-message class="form-note" role="status"></div><div data-inv-body></div>';
+    const body = root.querySelector('[data-inv-body]');
+    const messageEl = root.querySelector('[data-inv-message]');
+
+    function say(text, isError) {
+      messageEl.textContent = text || '';
+      messageEl.className = 'form-note' + (isError ? ' form-note-error' : '');
+    }
+
+    function tiles() {
+      const s = state.summary;
+      if (!s) return '';
+      const typeTiles = s.byType
+        .map(
+          (t) =>
+            '<div class="dash-tile"><span class="dash-tile-label">' +
+            escapeHtml(typeLabel(t.billingJobType)) +
+            '</span><strong>' +
+            t.jobs +
+            ' jobs</strong><span>' +
+            aed(t.amount) +
+            '</span></div>',
+        )
+        .join('');
+      const stageTiles = s.byPaymentStatus
+        .map(
+          (t) =>
+            '<button type="button" class="dash-tile dash-tile-click" data-inv-stage="' +
+            escapeHtml(t.paymentStatus) +
+            '"><span class="dash-tile-label">' +
+            escapeHtml(t.paymentStatus) +
+            '</span><strong>' +
+            t.jobs +
+            ' jobs</strong><span>' +
+            aed(t.amount) +
+            '</span></button>',
+        )
+        .join('');
+      return '<div class="dash-tiles">' + typeTiles + stageTiles + '</div>';
+    }
+
+    function recordPanel() {
+      const row = state.selected;
+      if (!row) return '';
+      const lockedNote =
+        row.paymentBy === 'Customer'
+          ? 'The customer pays for this job: confirm the payment so it can be delivered.'
+          : 'This job is billed to ' +
+            escapeHtml(row.billToChannel || 'the sales channel') +
+            '. No payment confirmation is needed; finance bills it through the ledger.';
+      return (
+        '<div class="detail-action-card" data-inv-record>' +
+        '<h4>Invoice and payment: ' +
+        escapeHtml(row.jobCardReference) +
+        '</h4>' +
+        '<p class="form-note">' +
+        lockedNote +
+        '</p>' +
+        '<div class="field-grid">' +
+        '<div class="field"><label>Invoice no.<input type="text" data-rec="invoiceNo" maxlength="120" value="' +
+        escapeHtml(row.invoiceNo || '') +
+        '"></label></div>' +
+        '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate" value="' +
+        escapeHtml((row.invoiceDate || '').slice(0, 10)) +
+        '"></label></div>' +
+        '<div class="field"><label>Payment mode<select data-rec="paymentMode"><option value="">Select mode</option>' +
+        ['Cash', 'Online', 'Bank transfer', 'Card']
+          .map(
+            (m) => '<option' + (row.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
+          )
+          .join('') +
+        '</select></label></div>' +
+        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200" value="' +
+        escapeHtml(row.paymentReference || '') +
+        '"></label></div>' +
+        (row.paymentBy === 'Customer'
+          ? '<div class="field"><label class="check-label"><input type="checkbox" data-rec="paymentConfirmed"' +
+            (row.paymentConfirmedAt ? ' checked' : '') +
+            '> Payment received and confirmed</label></div>'
+          : '') +
+        '</div>' +
+        '<div class="form-footer"><span></span><button class="button button-outline" type="button" data-rec-cancel>Close</button><button class="button button-primary" type="button" data-rec-save>Save</button></div>' +
+        '</div>'
+      );
+    }
+
+    function drawInvoices() {
+      const rows = state.rows
+        .map(
+          (r) =>
+            '<tr><td><button class="table-link" type="button" data-inv-open="' +
+            escapeHtml(r.id) +
+            '">' +
+            escapeHtml(r.jobCardReference) +
+            '</button></td>' +
+            '<td>' +
+            escapeHtml(typeLabel(r.billingJobType)) +
+            '</td>' +
+            '<td><strong>' +
+            escapeHtml(r.customerName || '') +
+            '</strong></td>' +
+            '<td>' +
+            escapeHtml(r.paymentBy || '—') +
+            (r.billToChannel ? '<br><small>' + escapeHtml(r.billToChannel) + '</small>' : '') +
+            '</td>' +
+            '<td class="num">' +
+            aed(r.amount) +
+            '</td>' +
+            '<td>' +
+            escapeHtml(r.invoiceNo || '—') +
+            '</td>' +
+            '<td>' +
+            escapeHtml(r.paymentMode || '—') +
+            '</td>' +
+            '<td><span class="status ' +
+            statusClass(r.paymentStatus) +
+            '">' +
+            escapeHtml(r.paymentStatus) +
+            '</span></td>' +
+            '<td>' +
+            escapeHtml(r.jobFinalStatus) +
+            '</td>' +
+            (canRecord
+              ? '<td><button class="button button-outline" type="button" data-inv-record-open="' +
+                escapeHtml(r.id) +
+                '">Record</button></td>'
+              : '') +
+            '</tr>',
+        )
+        .join('');
+      body.innerHTML =
+        tiles() +
+        '<div class="rc-section rd-filter-card"><div class="rd-report-toolbar">' +
+        '<div class="th-field"><label>Search<input type="search" data-inv-filter="search" value="' +
+        escapeHtml(state.search) +
+        '" placeholder="Job card, customer, invoice, channel"></label></div>' +
+        '<div class="th-field"><label>Job type<select data-inv-filter="type"><option value="">All</option><option value="CSIJW"' +
+        (state.type === 'CSIJW' ? ' selected' : '') +
+        '>CSIJW Warranty</option><option value="CSIJO"' +
+        (state.type === 'CSIJO' ? ' selected' : '') +
+        '>CSIJO Non-warranty</option></select></label></div>' +
+        '<div class="th-field"><label>Payment stage<select data-inv-filter="paymentStatus"><option value="">All</option>' +
+        ['Awaiting invoice', 'Awaiting payment', 'Paid', 'Channel', 'Unassigned']
+          .map(
+            (v) =>
+              '<option' + (state.paymentStatus === v ? ' selected' : '') + '>' + v + '</option>',
+          )
+          .join('') +
+        '</select></label></div>' +
+        '</div><p class="form-note">For Excel, use Reports: Job Invoices, or Sales Channel Reconciliation for finance.</p></div>' +
+        recordPanel() +
+        '<div class="table-wrap"><table><thead><tr><th>Job card</th><th>Type</th><th>Customer</th><th>Payment by / bill to</th><th class="num">Amount</th><th>Invoice</th><th>Mode</th><th>Stage</th><th>Job status</th>' +
+        (canRecord ? '<th></th>' : '') +
+        '</tr></thead><tbody>' +
+        (rows ||
+          '<tr><td colspan="10" class="empty-state">No jobs with an amount match these filters.</td></tr>') +
+        '</tbody></table></div>';
+
+      body.querySelectorAll('[data-inv-filter]').forEach((el) => {
+        el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'change', () => {
+          state[el.dataset.invFilter] = el.value;
+          loadInvoices();
+        });
+      });
+      body.querySelectorAll('[data-inv-stage]').forEach((el) =>
+        el.addEventListener('click', () => {
+          state.paymentStatus = el.dataset.invStage;
+          loadInvoices();
+        }),
+      );
+      body.querySelectorAll('[data-inv-open]').forEach((el) =>
+        el.addEventListener('click', () => {
+          setWorkspaceMode('job-cards');
+          loadJobCardDetail(el.dataset.invOpen);
+        }),
+      );
+      body.querySelectorAll('[data-inv-record-open]').forEach((el) =>
+        el.addEventListener('click', () => {
+          state.selected = state.rows.find((r) => r.id === el.dataset.invRecordOpen) || null;
+          drawInvoices();
+          body.querySelector('[data-inv-record]')?.scrollIntoView({ block: 'nearest' });
+        }),
+      );
+      body.querySelector('[data-rec-cancel]')?.addEventListener('click', () => {
+        state.selected = null;
+        drawInvoices();
+      });
+      body.querySelector('[data-rec-save]')?.addEventListener('click', saveRecord);
+    }
+
+    async function saveRecord() {
+      const row = state.selected;
+      if (!row) return;
+      const field = (name) => body.querySelector('[data-rec="' + name + '"]');
+      const payload = {};
+      const text = (name) => field(name).value.trim();
+      if (text('invoiceNo')) payload.invoiceNo = text('invoiceNo');
+      if (text('invoiceDate')) payload.invoiceDate = text('invoiceDate');
+      if (text('paymentMode')) payload.paymentMode = text('paymentMode');
+      if (text('paymentReference')) payload.paymentReference = text('paymentReference');
+      const confirmBox = field('paymentConfirmed');
+      if (confirmBox && confirmBox.checked !== Boolean(row.paymentConfirmedAt)) {
+        payload.paymentConfirmed = confirmBox.checked;
+      }
+      try {
+        await apiRequest('/api/job-cards/' + encodeURIComponent(row.id), {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        state.selected = null;
+        say('Saved ' + row.jobCardReference + '.');
+        await loadInvoices();
+      } catch (error) {
+        say(error.message, true);
+      }
+    }
+
+    async function loadInvoices() {
+      try {
+        const params = new URLSearchParams({ page: '1', pageSize: '100' });
+        if (state.search) params.set('search', state.search);
+        if (state.type) params.set('type', state.type);
+        if (state.paymentStatus) params.set('paymentStatus', state.paymentStatus);
+        const [list, summary] = await Promise.all([
+          apiRequest('/api/invoices?' + params),
+          apiRequest('/api/invoices/summary'),
+        ]);
+        state.rows = list.invoices || [];
+        state.summary = summary.summary;
+        drawInvoices();
+      } catch (error) {
+        body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
+      }
+    }
+
+    // ---- Billing rules tab ----
+    function drawRules() {
+      const rows = state.rules
+        .map(
+          (r) =>
+            '<tr><td>' +
+            escapeHtml(r.salesman || 'Any') +
+            '</td><td>' +
+            escapeHtml(r.branchKeyword || 'Any') +
+            '</td><td><strong>' +
+            escapeHtml(r.billToChannel) +
+            '</strong></td><td>' +
+            (r.active ? 'Active' : 'Off') +
+            '</td><td>' +
+            escapeHtml(r.notes || '') +
+            '</td>' +
+            (canEditRules
+              ? '<td><button class="button button-outline" type="button" data-rule-toggle="' +
+                escapeHtml(r.id) +
+                '">' +
+                (r.active ? 'Turn off' : 'Turn on') +
+                '</button></td>'
+              : '') +
+            '</tr>',
+        )
+        .join('');
+      body.innerHTML =
+        '<p class="form-note">When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any) and the B2B branch / school name contains the keyword (blank = any). With no match, the job\'s own sales channel is billed.</p>' +
+        '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
+        (canEditRules ? '<th></th>' : '') +
+        '</tr></thead><tbody>' +
+        (rows || '<tr><td colspan="6" class="empty-state">No rules yet.</td></tr>') +
+        '</tbody></table></div>' +
+        (canEditRules
+          ? '<div class="detail-action-card"><h4>Add a rule</h4><div class="field-grid">' +
+            '<div class="field"><label>Salesman<input type="text" data-rule="salesman" maxlength="200"></label></div>' +
+            '<div class="field"><label>Branch / school contains<input type="text" data-rule="branchKeyword" maxlength="200" placeholder="e.g. GEMS"></label></div>' +
+            '<div class="field"><label>Bill to channel<select data-rule="billToChannel"><option value="">Select channel</option>' +
+            salesChannelOptions.map((c) => '<option>' + escapeHtml(c.name) + '</option>').join('') +
+            '</select></label></div>' +
+            '<div class="field"><label>Notes<input type="text" data-rule="notes" maxlength="500"></label></div>' +
+            '</div><div class="form-footer"><span></span><button class="button button-primary" type="button" data-rule-add>Add rule</button></div></div>'
+          : '<p class="form-note">Only the super admin can change billing rules.</p>');
+      body.querySelector('[data-rule-add]')?.addEventListener('click', async () => {
+        const val = (name) => body.querySelector('[data-rule="' + name + '"]').value.trim();
+        const payload = { billToChannel: val('billToChannel') };
+        if (val('salesman')) payload.salesman = val('salesman');
+        if (val('branchKeyword')) payload.branchKeyword = val('branchKeyword');
+        if (val('notes')) payload.notes = val('notes');
+        try {
+          await apiRequest('/api/billing-rules', { method: 'POST', body: JSON.stringify(payload) });
+          say('Rule added.');
+          await loadRules();
+        } catch (error) {
+          say(error.message, true);
+        }
+      });
+      body.querySelectorAll('[data-rule-toggle]').forEach((el) =>
+        el.addEventListener('click', async () => {
+          const rule = state.rules.find((r) => r.id === el.dataset.ruleToggle);
+          if (!rule) return;
+          try {
+            await apiRequest('/api/billing-rules/' + encodeURIComponent(rule.id), {
+              method: 'PATCH',
+              body: JSON.stringify({
+                salesman: rule.salesman,
+                branchKeyword: rule.branchKeyword,
+                billToChannel: rule.billToChannel,
+                notes: rule.notes,
+                active: !rule.active,
+              }),
+            });
+            await loadRules();
+          } catch (error) {
+            say(error.message, true);
+          }
+        }),
+      );
+    }
+
+    async function loadRules() {
+      try {
+        const result = await apiRequest('/api/billing-rules');
+        state.rules = result.billingRules || [];
+        drawRules();
+      } catch (error) {
+        body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
+      }
+    }
+
+    root.querySelectorAll('[data-inv-tab]').forEach((tab) =>
+      tab.addEventListener('click', () => {
+        state.tab = tab.dataset.invTab;
+        root.querySelectorAll('[data-inv-tab]').forEach((other) => {
+          const active = other === tab;
+          other.classList.toggle('is-active', active);
+          other.setAttribute('aria-selected', String(active));
+        });
+        say('');
+        if (state.tab === 'rules') loadRules();
+        else loadInvoices();
+      }),
+    );
+    await loadInvoices();
   }
 
   async function renderDailyList(root) {
@@ -15384,6 +15930,7 @@ ${bodyHtml}
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
+  $('#invoicesNav')?.addEventListener('click', () => setWorkspaceMode('invoices'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));

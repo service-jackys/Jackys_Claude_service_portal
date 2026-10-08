@@ -333,6 +333,140 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
+    type: 'job-invoice',
+    label: 'Job Invoices',
+    description: 'Every job with an amount: job type, who pays, invoice and payment confirmation.',
+    permission: 'service_job_card.read',
+    from: `(SELECT * FROM service_job_cards
+        WHERE COALESCE(amount_chargeable, grand_total) > 0
+          AND job_final_status <> 'Cancelled') AS service_job_cards
+      LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
+      LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
+    dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
+    dateLabel: 'Job card date',
+    referenceExpr: 'service_job_cards.job_card_reference',
+    orderBy:
+      'service_job_cards.billing_job_type ASC NULLS LAST, service_job_cards.job_card_date DESC NULLS LAST, service_job_cards.id DESC',
+    searchExprs: [
+      'service_job_cards.job_card_reference',
+      'service_job_cards.customer_name',
+      'service_job_cards.invoice_no',
+      'service_job_cards.bill_to_channel',
+    ],
+    columns: [
+      { label: 'Number', expr: 'service_job_cards.job_card_reference' },
+      { label: 'Job Card Date', expr: 'service_job_cards.job_card_date', kind: 'date' },
+      { label: 'Job Type', expr: 'service_job_cards.billing_job_type' },
+      { label: 'Bill To Channel', expr: 'service_job_cards.bill_to_channel' },
+      { label: 'Payment By', expr: 'service_job_cards.payment_by' },
+      { label: 'Customer Type', expr: 'service_job_cards.customer_type' },
+      { label: 'Customer Name', expr: 'service_job_cards.customer_name' },
+      { label: 'B2B Branch / School', expr: 'service_job_cards.b2b_branch_school' },
+      { label: 'Salesman', expr: 'service_job_cards.salesman' },
+      { label: 'Sales Channel', expr: 'service_job_cards.sales_channel' },
+      { label: 'Item Code', expr: 'service_job_cards.item_code' },
+      { label: 'Model No', expr: 'service_job_cards.model_no' },
+      { label: 'Registered Warranty', expr: 'service_job_cards.warranty_status' },
+      { label: 'Final Warranty', expr: 'service_job_cards.final_warranty_status' },
+      { label: 'Warranty Change Reason', expr: 'service_job_cards.warranty_override_reason' },
+      { label: 'Service Charge (AED)', expr: 'service_job_cards.service_charge', kind: 'money' },
+      { label: 'Parts (AED)', expr: 'service_job_cards.total_cost', kind: 'money' },
+      {
+        label: 'Billed Amount (AED)',
+        expr: 'COALESCE(service_job_cards.amount_chargeable, service_job_cards.grand_total)',
+        kind: 'money',
+      },
+      { label: 'Invoice No', expr: 'service_job_cards.invoice_no' },
+      { label: 'Invoice Date', expr: 'service_job_cards.invoice_date', kind: 'date' },
+      { label: 'Payment Mode', expr: 'service_job_cards.payment_mode' },
+      { label: 'Payment Reference', expr: 'service_job_cards.payment_reference' },
+      {
+        label: 'Payment Confirmed At',
+        expr: 'service_job_cards.payment_confirmed_at',
+        kind: 'datetime',
+      },
+      {
+        label: 'Payment Stage',
+        expr: `CASE
+          WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.payment_confirmed_at IS NOT NULL THEN 'Paid'
+          WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.invoice_no IS NULL THEN 'Awaiting invoice'
+          WHEN service_job_cards.payment_by = 'Customer' THEN 'Awaiting payment'
+          WHEN service_job_cards.payment_by = 'Sales channel' THEN 'Billed to channel'
+          ELSE 'Payer not chosen' END`,
+      },
+      { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Delivery Date', expr: 'service_job_cards.delivery_date', kind: 'date' },
+    ],
+  },
+  {
+    type: 'channel-reconciliation',
+    label: 'Sales Channel Reconciliation',
+    description:
+      'Jobs billed to a sales channel (warranty CSIJW and out-of-warranty CSIJO), grouped by channel for finance.',
+    permission: 'service_job_card.read',
+    from: `(SELECT * FROM service_job_cards
+        WHERE COALESCE(amount_chargeable, grand_total) > 0
+          AND job_final_status <> 'Cancelled'
+          AND payment_by = 'Sales channel') AS service_job_cards
+      LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
+      LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
+    dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
+    dateLabel: 'Job card date',
+    referenceExpr: 'service_job_cards.job_card_reference',
+    orderBy:
+      'service_job_cards.bill_to_channel ASC NULLS LAST, service_job_cards.billing_job_type ASC, service_job_cards.job_card_date DESC NULLS LAST, service_job_cards.id DESC',
+    searchExprs: [
+      'service_job_cards.job_card_reference',
+      'service_job_cards.customer_name',
+      'service_job_cards.invoice_no',
+      'service_job_cards.bill_to_channel',
+    ],
+    columns: [
+      { label: 'Number', expr: 'service_job_cards.job_card_reference' },
+      { label: 'Job Card Date', expr: 'service_job_cards.job_card_date', kind: 'date' },
+      { label: 'Job Type', expr: 'service_job_cards.billing_job_type' },
+      { label: 'Bill To Channel', expr: 'service_job_cards.bill_to_channel' },
+      { label: 'Payment By', expr: 'service_job_cards.payment_by' },
+      { label: 'Customer Type', expr: 'service_job_cards.customer_type' },
+      { label: 'Customer Name', expr: 'service_job_cards.customer_name' },
+      { label: 'B2B Branch / School', expr: 'service_job_cards.b2b_branch_school' },
+      { label: 'Salesman', expr: 'service_job_cards.salesman' },
+      { label: 'Sales Channel', expr: 'service_job_cards.sales_channel' },
+      { label: 'Item Code', expr: 'service_job_cards.item_code' },
+      { label: 'Model No', expr: 'service_job_cards.model_no' },
+      { label: 'Registered Warranty', expr: 'service_job_cards.warranty_status' },
+      { label: 'Final Warranty', expr: 'service_job_cards.final_warranty_status' },
+      { label: 'Warranty Change Reason', expr: 'service_job_cards.warranty_override_reason' },
+      { label: 'Service Charge (AED)', expr: 'service_job_cards.service_charge', kind: 'money' },
+      { label: 'Parts (AED)', expr: 'service_job_cards.total_cost', kind: 'money' },
+      {
+        label: 'Billed Amount (AED)',
+        expr: 'COALESCE(service_job_cards.amount_chargeable, service_job_cards.grand_total)',
+        kind: 'money',
+      },
+      { label: 'Invoice No', expr: 'service_job_cards.invoice_no' },
+      { label: 'Invoice Date', expr: 'service_job_cards.invoice_date', kind: 'date' },
+      { label: 'Payment Mode', expr: 'service_job_cards.payment_mode' },
+      { label: 'Payment Reference', expr: 'service_job_cards.payment_reference' },
+      {
+        label: 'Payment Confirmed At',
+        expr: 'service_job_cards.payment_confirmed_at',
+        kind: 'datetime',
+      },
+      {
+        label: 'Payment Stage',
+        expr: `CASE
+          WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.payment_confirmed_at IS NOT NULL THEN 'Paid'
+          WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.invoice_no IS NULL THEN 'Awaiting invoice'
+          WHEN service_job_cards.payment_by = 'Customer' THEN 'Awaiting payment'
+          WHEN service_job_cards.payment_by = 'Sales channel' THEN 'Billed to channel'
+          ELSE 'Payer not chosen' END`,
+      },
+      { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Delivery Date', expr: 'service_job_cards.delivery_date', kind: 'date' },
+    ],
+  },
+  {
     type: 'scheduler',
     label: 'Scheduler (Appointments)',
     description: 'Appointments with customer, technician and status.',
