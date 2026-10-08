@@ -9,7 +9,7 @@
     "build": "tsc -p tsconfig.json",
     "start": "node dist/apps/api/src/server.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "tsx --test tests/**/*.test.ts",
+    "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "test:e2e": "playwright test",
     "db:migrate": "tsx packages/db/src/migrate.ts",
     "format:check": "prettier --check ."
