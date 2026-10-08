@@ -11,7 +11,7 @@ test.describe('staff access boundary', () => {
     const complaint = {
       id: '101',
       complaintReference: 'JSC-20260926-0001',
-      customerType: 'individual',
+      customerType: 'B2C',
       customerName: 'Local Test Customer',
       contactNumber: '0500000000',
       description: 'Test complaint',
@@ -98,7 +98,7 @@ test.describe('staff access boundary', () => {
     await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Existing note');
     await page.getByLabel('Notes', { exact: true }).fill('Followed up with customer.');
     await page.getByRole('button', { name: 'Save notes' }).click();
-    await expect(page.locator('#workspaceMessage')).toHaveText('Notes saved.');
+    await expect(page.locator('#workspaceMessage')).toHaveText('Complaint updated.');
     expect(notesBody).toEqual({ notes: 'Followed up with customer.' });
 
     // The complaint's action cards are vertical tabs now (modification.md #4)
@@ -107,7 +107,7 @@ test.describe('staff access boundary', () => {
     await page.locator('#complaintNextStatus').selectOption('Under Review');
     await page.locator('#complaintStatusReason').fill('Initial review started.');
     await page.locator('#statusForm').getByRole('button', { name: 'Update status' }).click();
-    await expect(page.locator('#workspaceMessage')).toHaveText('Complaint status updated.');
+    await expect(page.locator('#workspaceMessage')).toHaveText('Complaint moved to Under Review.');
     expect(statusBody).toEqual({ status: 'Under Review', reason: 'Initial review started.' });
     expect(detailRequests).toBeGreaterThanOrEqual(3);
 
@@ -128,7 +128,7 @@ test.describe('staff access boundary', () => {
     const complaint = {
       id: '101',
       complaintReference: 'JSC-20260926-0001',
-      customerType: 'individual',
+      customerType: 'B2C',
       customerName: 'Local Test Customer',
       contactNumber: '0500000000',
       description: 'Test complaint',
@@ -226,7 +226,7 @@ test.describe('staff access boundary', () => {
     expect(technicianUrls.at(-1)).toContain('availableDate=2026-10-05');
 
     await page.locator('#technicianId').selectOption('7');
-    await page.getByRole('button', { name: 'Schedule appointment' }).click();
+    await page.getByRole('button', { name: 'Schedule appointment', exact: true }).click();
     await expect(page.locator('#workspaceMessage')).toHaveText(
       'Appointment APT-2026-00001 scheduled successfully.',
     );
@@ -243,7 +243,7 @@ test.describe('staff access boundary', () => {
     const complaint = {
       id: '101',
       complaintReference: 'JSC-20260926-0001',
-      customerType: 'individual',
+      customerType: 'B2C',
       customerName: 'Local Test Customer',
       contactNumber: '0500000000',
       description: 'Test complaint',
@@ -310,7 +310,7 @@ test.describe('staff access boundary', () => {
     const complaint = {
       id: '101',
       complaintReference: 'JSC-20260926-0001',
-      customerType: 'individual',
+      customerType: 'B2C',
       customerName: 'Local Test Customer',
       contactNumber: '0500000000',
       description: 'Test complaint',
@@ -384,7 +384,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Service requests' }).click();
     await page.getByRole('button', { name: 'JSC-20260926-0001' }).click();
 
-    await page.getByRole('button', { name: 'Schedule appointment' }).click();
+    await page.getByRole('button', { name: 'Schedule appointment', exact: true }).click();
     await expect(page.locator('[data-error-for="appointmentDate"]')).toHaveText(
       'Select an appointment date.',
     );
@@ -396,7 +396,7 @@ test.describe('staff access boundary', () => {
     await page.locator('#appointmentDate').fill('2026-10-05');
     await page.getByRole('button', { name: 'Find available technicians' }).click();
     await page.locator('#technicianId').selectOption('7');
-    await page.getByRole('button', { name: 'Schedule appointment' }).click();
+    await page.getByRole('button', { name: 'Schedule appointment', exact: true }).click();
     await expect(page.locator('#workspaceMessage')).toHaveText(
       'The technician already has an appointment at the requested time.',
     );
@@ -514,7 +514,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
 
-    await expect(page.getByRole('heading', { name: 'Appointments' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'APT-2026-00001' })).toBeVisible();
     await page.locator('#appointmentSearch').fill('APT-2026');
     await page.locator('#appointmentStatusFilter').selectOption('Scheduled');
@@ -528,10 +528,16 @@ test.describe('staff access boundary', () => {
     // term. Find the filtered-list one specifically by its "from" value
     // instead of assuming it's whichever request happened last.
     await expect
-      .poll(() => appointmentListUrls.some((url) => url.includes('from=2026-10-01')))
+      .poll(() =>
+        appointmentListUrls.some(
+          (url) => url.includes('from=2026-10-01') && url.includes('to=2026-10-31'),
+        ),
+      )
       .toBe(true);
     const filteredUrl = new URL(
-      appointmentListUrls.find((url) => url.includes('from=2026-10-01'))!,
+      appointmentListUrls.find(
+        (url) => url.includes('from=2026-10-01') && url.includes('to=2026-10-31'),
+      )!,
     );
     expect(filteredUrl.searchParams.get('search')).toBe('APT-2026');
     expect(filteredUrl.searchParams.get('status')).toBe('Scheduled');
@@ -894,7 +900,7 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('readonly@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('heading', { name: 'Appointments' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await expect(page.locator('#appointmentActions')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Download calendar file' })).toBeVisible();
@@ -1265,6 +1271,7 @@ test.describe('service job-card workspace', () => {
     contactNumber: '0500000000',
     faultDescription: 'The appliance does not start.',
     status: 'Open',
+    jobFinalStatus: 'WIP',
     finalizedAt: null,
     finalizedBy: null,
     createdAt: '2026-09-26T08:00:00.000Z',
@@ -1272,7 +1279,7 @@ test.describe('service job-card workspace', () => {
   };
 
   test('lists, filters, opens, and updates a job card with history', async ({ page }) => {
-    let status = 'Open';
+    let finalStatus = 'WIP';
     let statusBody: unknown = null;
     const listUrls: string[] = [];
     const history = [
@@ -1313,7 +1320,7 @@ test.describe('service job-card workspace', () => {
         await route.fulfill({
           contentType: 'application/json',
           body: JSON.stringify({
-            jobCards: [{ ...openJobCard, status }],
+            jobCards: [{ ...openJobCard, jobFinalStatus: finalStatus }],
             pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
           }),
         });
@@ -1322,16 +1329,19 @@ test.describe('service job-card workspace', () => {
       if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify({ jobCard: { ...openJobCard, status }, history }),
+          body: JSON.stringify({
+            jobCard: { ...openJobCard, jobFinalStatus: finalStatus },
+            history,
+          }),
         });
         return;
       }
-      if (url.pathname === '/api/job-cards/701/status' && request.method() === 'PATCH') {
+      if (url.pathname === '/api/job-cards/701' && request.method() === 'PATCH') {
         statusBody = request.postDataJSON();
-        status = (statusBody as { status: string }).status;
+        finalStatus = (statusBody as { jobFinalStatus: string }).jobFinalStatus;
         await route.fulfill({
           contentType: 'application/json',
-          body: JSON.stringify({ jobCard: { ...openJobCard, status } }),
+          body: JSON.stringify({ jobCard: { ...openJobCard, jobFinalStatus: finalStatus } }),
         });
         return;
       }
@@ -1346,25 +1356,24 @@ test.describe('service job-card workspace', () => {
     await expect(page.getByRole('heading', { name: 'Service job cards' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'JBC-2026-00001' })).toBeVisible();
     await page.locator('#jobCardSearch').fill('JBC-2026');
-    await page.locator('#jobCardStatusFilter').selectOption('Open');
+    await page.locator('#jobCardStatusFilter').selectOption('WIP');
     await expect.poll(() => listUrls.at(-1)).toContain('search=JBC-2026');
-    expect(new URL(listUrls.at(-1)!).searchParams.get('status')).toBe('Open');
+    expect(new URL(listUrls.at(-1)!).searchParams.get('status')).toBe('WIP');
 
     await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
     await expect(page.locator('#jobCardDetail')).toBeVisible();
     await expect(page.locator('#jobCardDetailGrid')).toContainText('Job Card Customer');
     await expect(page.locator('#jobCardHistoryList')).toContainText('Job card created.');
 
-    await page.locator('#jobCardNextStatus').selectOption('In Progress');
-    await page.locator('#jobCardStatusReason').fill('Technician started work.');
-    await page.locator('#jobCardStatusForm').getByRole('button', { name: 'Update status' }).click();
-    await expect(page.locator('#workspaceMessage')).toHaveText('Service job-card status updated.');
-    expect(statusBody).toEqual({ status: 'In Progress', reason: 'Technician started work.' });
-    await expect(page.locator('#jobCardDetailStatus')).toContainText('In Progress');
+    await page.locator('#jceJobFinalStatus').selectOption('Spare pending');
+    await page.locator('#jobCardContentForm').getByRole('button', { name: /Save/ }).click();
+    await expect(page.locator('#workspaceMessage')).toHaveText('Service job-card details saved.');
+    expect(statusBody).toMatchObject({ jobFinalStatus: 'Spare pending' });
+    await expect(page.locator('#jobCardDetailStatus')).toContainText('Spare pending');
   });
 
   test('keeps terminal job cards read-only for a read-only user', async ({ page }) => {
-    const terminalJobCard = { ...openJobCard, status: 'Completed' };
+    const terminalJobCard = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
 
     await page.route('**/api/**', async (route) => {
       const request = route.request();
@@ -1414,8 +1423,54 @@ test.describe('service job-card workspace', () => {
     await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
 
     await expect(page.locator('#jobCardActions')).toBeHidden();
-    await expect(page.locator('#jobCardNextStatus')).toBeDisabled();
   });
+
+  for (const { role, permissions, editable } of [
+    {
+      role: 'staff',
+      permissions: ['service_job_card.read', 'service_job_card.write'],
+      editable: false,
+    },
+    {
+      role: 'admin',
+      permissions: ['service_job_card.read', 'service_job_card.write'],
+      editable: true,
+    },
+  ]) {
+    test(`locks a Delivered job card for ${role} editing`, async ({ page }) => {
+      const delivered = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
+      await page.route('**/api/**', async (route) => {
+        const request = route.request();
+        const url = new URL(request.url());
+        const json = (body: unknown) =>
+          route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+        if (url.pathname === '/api/auth/login') return json({ token: 'test-token' });
+        if (url.pathname === '/api/auth/me') {
+          return json({
+            user: { name: 'Lock Tester', email: 'lock@jackys.com', role, permissions },
+          });
+        }
+        if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+          return json({ jobCards: [delivered] });
+        }
+        if (url.pathname === '/api/job-cards/701' && request.method() === 'GET') {
+          return json({ jobCard: delivered, history: [] });
+        }
+        await route.continue();
+      });
+
+      await page.goto('/portal/');
+      await page.locator('#loginEmail').fill('lock@jackys.com');
+      await page.locator('#loginPassword').fill('local-password-1234');
+      await page.getByRole('button', { name: 'Sign in' }).click();
+      await page.getByRole('button', { name: 'JBC-2026-00001' }).click();
+
+      await expect(page.locator('#jobCardDetail')).toBeVisible();
+      await expect(page.locator('#jobCardDetailStatus')).toContainText('Delivered');
+      if (editable) await expect(page.locator('#jobCardActions')).toBeVisible();
+      else await expect(page.locator('#jobCardActions')).toBeHidden();
+    });
+  }
 
   test('shows no workspace access without job-card permission', async ({ page }) => {
     let jobCardRequests = 0;
@@ -2341,7 +2396,7 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
 
     // The job-card list also links straight to its appointment.
     await page.getByRole('button', { name: 'Service job cards' }).click();
-    await page.getByRole('button', { name: 'APT-2026-00099' }).click();
+    await page.locator('#jobCardsBody button.table-link', { hasText: 'APT-2026-00099' }).click();
     await expect(page.locator('#appointmentDetail')).toBeVisible();
   });
 });

@@ -66,7 +66,7 @@ test(
     try {
       const customer = await customerService.create(
         {
-          customerType: 'individual',
+          customerType: 'B2C',
           name: 'Phase3 Integration Customer',
           contactNumber: '0500000300',
           email: `customer-${randomUUID()}@example.test`,
@@ -104,12 +104,13 @@ test(
 
       const complaint = await complaintService.submit(
         {
-          customerType: 'individual',
+          customerType: 'B2C',
           customerName: 'Phase3 Linked Customer',
           contactNumber: '0500000301',
           description: 'Phase3 linked scheduling complaint',
           region: 'Dubai',
         },
+        undefined,
         'phase3-complaint',
       );
       complaintIds.push(complaint.id);
@@ -170,12 +171,13 @@ test(
       // no longer make sense once appointments have no time component).
       const conflictComplaint = await complaintService.submit(
         {
-          customerType: 'individual',
+          customerType: 'B2C',
           customerName: 'Phase4 Conflict Customer',
           contactNumber: '0500000310',
           description: 'Phase4 conflict appointment',
           region: 'Dubai',
         },
+        undefined,
         'phase4-conflict-complaint',
       );
       complaintIds.push(conflictComplaint.id);
@@ -322,12 +324,13 @@ test(
 
       const draftComplaint = await complaintService.submit(
         {
-          customerType: 'individual',
+          customerType: 'B2C',
           customerName: 'Phase3 Draft Customer',
           contactNumber: '0500000302',
           description: 'Phase3 draft scheduling complaint',
           region: 'Dubai',
         },
+        undefined,
         'phase3-draft-complaint',
       );
       complaintIds.push(draftComplaint.id);
@@ -343,7 +346,9 @@ test(
           {
             complaintId: draftComplaint.id,
             technicianId: technician.id,
-            appointmentDate: date,
+            // A different day: the completed appointment above still counts
+            // toward this technician's one-per-day cap on `date`.
+            appointmentDate: addDays(date, 7),
             appointmentTime: '10:00',
           },
         ],
@@ -475,12 +480,13 @@ test(
 
       const complaint = await complaintService.submit(
         {
-          customerType: 'individual',
+          customerType: 'B2C',
           customerName: 'Reopen Scheduling Customer',
           contactNumber: '0500000900',
           description: 'Complaint that gets manually reopened for scheduling',
           region: 'Dubai',
         },
+        undefined,
         'reopen-complaint',
       );
       complaintIds.push(complaint.id);

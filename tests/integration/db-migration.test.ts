@@ -86,7 +86,7 @@ test(
       const complaint = await client.query<{ id: string }>(
         `INSERT INTO complaints (
          complaint_reference, customer_type, customer_name, contact_number, description
-       ) VALUES ('CMP-260924-901', 'individual', 'Migration Customer', '0500000000', 'Migration test complaint')
+       ) VALUES ('CMP-260924-901', 'B2C', 'Migration Customer', '0500000000', 'Migration test complaint')
        RETURNING id`,
       );
       complaintId = complaint.rows[0].id;
@@ -112,7 +112,7 @@ test(
         `INSERT INTO appointments (
          appointment_reference, complaint_id, customer_type, customer_name,
          contact_number, fault_description, appointment_date
-       ) VALUES ('APT-2026-90001', $1, 'individual', 'Migration Customer',
+       ) VALUES ('APT-2026-90001', $1, 'B2C', 'Migration Customer',
          '0500000000', 'Migration test fault', '2026-09-25')`,
         [complaintId],
       );
@@ -121,7 +121,7 @@ test(
           `INSERT INTO appointments (
            appointment_reference, complaint_id, customer_type, customer_name,
            contact_number, fault_description, appointment_date
-         ) VALUES ('APT-2026-90002', $1, 'individual', 'Migration Customer',
+         ) VALUES ('APT-2026-90002', $1, 'B2C', 'Migration Customer',
            '0500000000', 'Second active appointment', '2026-09-26')`,
           [complaintId],
         ),
@@ -138,7 +138,7 @@ test(
         `INSERT INTO appointments (
          appointment_reference, complaint_id, customer_type, customer_name,
          contact_number, fault_description, appointment_date
-       ) VALUES ('APT-2026-90002', $1, 'individual', 'Migration Customer',
+       ) VALUES ('APT-2026-90002', $1, 'B2C', 'Migration Customer',
          '0500000000', 'Rebooked test fault', '2026-09-26')`,
         [complaintId],
       );
@@ -147,7 +147,7 @@ test(
       await client.query(
         `INSERT INTO complaints (
          complaint_reference, customer_type, customer_name, contact_number, description
-       ) VALUES ('CMP-260924-902', 'individual', 'Rollback Customer', '0500000001', 'Rollback test')`,
+       ) VALUES ('CMP-260924-902', 'B2C', 'Rollback Customer', '0500000001', 'Rollback test')`,
       );
       await client.query('ROLLBACK');
       const rolledBack = await client.query(

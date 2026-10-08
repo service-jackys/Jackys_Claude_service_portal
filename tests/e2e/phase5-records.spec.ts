@@ -109,7 +109,7 @@ test.describe('quotations workspace', () => {
     await expect(page.getByRole('heading', { name: 'Quotations' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'QTN-2026-00001' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'New quotation' }).click();
+    await page.getByRole('tab', { name: 'New quotation' }).click();
     await expect(page.locator('#quotationCreatePanel')).toBeVisible();
     await page.locator('#qtcCustomerName').fill('Quotation Customer');
     await page
@@ -206,7 +206,7 @@ test.describe('inspections workspace', () => {
     await expect(page.getByRole('heading', { name: 'Inspections' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'INS-2026-00001' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'New inspection' }).click();
+    await page.getByRole('tab', { name: 'New inspection' }).click();
     await expect(page.locator('#inspectionCreatePanel')).toBeVisible();
     await page.locator('#iqcCustomerName').fill('Inspection Customer');
     await page
@@ -659,7 +659,7 @@ test.describe('workflow stepper', () => {
   const complaint = {
     id: '101',
     complaintReference: 'JSC-20260926-0001',
-    customerType: 'individual',
+    customerType: 'B2C',
     customerName: 'Local Test Customer',
     contactNumber: '0500000000',
     description: 'Test complaint',

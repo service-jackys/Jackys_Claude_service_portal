@@ -13,12 +13,12 @@ const databaseUrl = process.env.DATABASE_URL;
 
 function futureDate(): string {
   const date = new Date();
-  date.setUTCDate(date.getUTCDate() + 14);
+  date.setUTCDate(date.getUTCDate() + 21);
   return date.toISOString().slice(0, 10);
 }
 
 test(
-  'Phase5 job cards link appointments, enforce terminal locks, and record history and audit events',
+  'Job final status: Delivered only from ready statuses, then locked to non-admins',
   { skip: !databaseUrl, concurrency: false },
   async (context) => {
     try {
@@ -34,111 +34,104 @@ test(
     const pool = createDbPool(databaseUrl);
     const appointmentService = createAppointmentService(pool);
     const jobCardService = createServiceJobCardService(pool);
-    const profileEmail = `phase5-job-card-${randomUUID()}@example.test`;
     let profileId: string | undefined;
     let appointmentId: string | undefined;
     let jobCardId: string | undefined;
 
     try {
       const profile = await pool.query<{ id: string }>(
-        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Phase5 Job Card Integration') RETURNING id`,
-        [profileEmail],
+        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Job status integration') RETURNING id`,
+        [`job-status-${randomUUID()}@example.test`],
       );
       profileId = profile.rows[0].id;
 
       const appointment = await appointmentService.create(
         {
           customerType: 'B2C',
-          customerName: 'Phase5 Job Card Customer',
-          contactNumber: '0500000500',
-          faultDescription: 'Phase5 job-card integration appointment',
+          customerName: 'Job Status Customer',
+          contactNumber: '0500000600',
+          faultDescription: 'Job status integration appointment',
           appointmentDate: futureDate(),
         },
         profileId,
-        'phase5-appointment-create',
+        'job-status-appt-create',
       );
       appointmentId = appointment.id;
-
       await appointmentService.changeStatus(
         appointment.id,
         { status: 'In Progress' },
         profileId,
-        'phase5-appt-progress',
+        'job-status-appt-progress',
       );
       await appointmentService.changeStatus(
         appointment.id,
         { status: 'Completed', reason: 'Visit done' },
         profileId,
-        'phase5-appt-complete',
+        'job-status-appt-complete',
       );
 
       const created = await jobCardService.create(
         appointment.id,
         {},
         profileId,
-        'phase5-job-card-create',
+        'job-status-create',
       );
       jobCardId = created.id;
-      assert.match(created.jobCardReference, /^JBC-\d{4}-\d{5}$/);
       assert.equal(created.status, 'Open');
-      assert.equal(created.appointmentId, appointment.id);
 
+      // WIP -> Delivered is not allowed.
       await assert.rejects(
-        jobCardService.create(appointment.id, {}, profileId, 'phase5-job-card-duplicate'),
-        (error: unknown) => error instanceof ServiceJobCardError && error.code === 'duplicate',
-      );
-
-      const inProgress = await jobCardService.changeStatus(
-        created.id,
-        { status: 'In Progress', reason: 'Technician started work' },
-        profileId,
-        'phase5-job-card-progress',
-      );
-      assert.equal(inProgress.status, 'In Progress');
-
-      const completed = await jobCardService.changeStatus(
-        created.id,
-        { status: 'Completed', reason: 'Service completed' },
-        profileId,
-        'phase5-job-card-complete',
-      );
-      assert.equal(completed.status, 'Completed');
-      assert.equal(completed.finalizedBy, profileId);
-      assert.ok(completed.finalizedAt);
-
-      await assert.rejects(
-        jobCardService.changeStatus(
+        jobCardService.updateContent(
           created.id,
-          { status: 'Open' },
+          { jobFinalStatus: 'Delivered' },
           profileId,
-          'phase5-job-card-terminal-rejection',
+          'job-status-early-delivery',
+        ),
+        (error: unknown) =>
+          error instanceof ServiceJobCardError && error.code === 'invalid-transition',
+      );
+
+      // Repair Completed derives the legacy status and is still editable.
+      const repaired = await jobCardService.updateContent(
+        created.id,
+        { jobFinalStatus: 'Repair Completed' },
+        profileId,
+        'job-status-repaired',
+      );
+      assert.equal(repaired.jobFinalStatus, 'Repair Completed');
+
+      // Repair Completed -> Delivered works and fills the delivery date.
+      const delivered = await jobCardService.updateContent(
+        created.id,
+        { jobFinalStatus: 'Delivered' },
+        profileId,
+        'job-status-delivered',
+      );
+      assert.equal(delivered.jobFinalStatus, 'Delivered');
+      assert.equal(delivered.status, 'Completed');
+      assert.ok(delivered.deliveryDate);
+
+      // Delivered cards are locked for non-admins.
+      await assert.rejects(
+        jobCardService.updateContent(
+          created.id,
+          { conditionNotes: 'late edit' },
+          profileId,
+          'job-status-locked',
         ),
         (error: unknown) =>
           error instanceof ServiceJobCardError && error.code === 'terminal-job-card',
       );
 
-      const detail = await jobCardService.detail(created.id);
-      assert.deepEqual(
-        detail.history.map((entry) => [entry.fromStatus, entry.toStatus, entry.reason]),
-        [
-          [null, 'Open', 'Created'],
-          ['Open', 'In Progress', 'Technician started work'],
-          ['In Progress', 'Completed', 'Service completed'],
-        ],
+      // Admins may still edit.
+      const edited = await jobCardService.updateContent(
+        created.id,
+        { conditionNotes: 'admin edit' },
+        profileId,
+        'job-status-admin-edit',
+        true,
       );
-
-      const audits = await pool.query<{ action: string; requestId: string }>(
-        `SELECT action, request_id AS "requestId"
-         FROM audit_events
-         WHERE target_type = 'service_job_card' AND target_id = $1
-         ORDER BY occurred_at ASC, id ASC`,
-        [created.id],
-      );
-      assert.deepEqual(audits.rows, [
-        { action: 'job_card.created', requestId: 'phase5-job-card-create' },
-        { action: 'job_card.status_changed', requestId: 'phase5-job-card-progress' },
-        { action: 'job_card.status_changed', requestId: 'phase5-job-card-complete' },
-      ]);
+      assert.equal(edited.conditionNotes, 'admin edit');
     } finally {
       if (jobCardId) {
         await pool.query(

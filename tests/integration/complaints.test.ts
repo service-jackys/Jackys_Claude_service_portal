@@ -10,7 +10,7 @@ import {
 const databaseUrl = process.env.DATABASE_URL;
 
 const baseComplaint = {
-  customerType: 'individual' as const,
+  customerType: 'B2C' as const,
   customerName: 'Phase2 Integration Customer',
   contactNumber: '0500000100',
   customerEmail: 'phase2@example.test',
@@ -76,6 +76,15 @@ test(
         service.changeStatus(first.id, { status: 'Closed' }, profileId),
         (error: unknown) =>
           error instanceof ComplaintServiceError && error.code === 'invalid-transition',
+      );
+
+      // Scheduled is system-only: it comes from booking an appointment.
+      await assert.rejects(
+        service.changeStatus(first.id, { status: 'Scheduled' }, profileId),
+        (error: unknown) =>
+          error instanceof ComplaintServiceError &&
+          error.code === 'invalid-transition' &&
+          /appointment/i.test(error.message),
       );
 
       const detail = await service.detail(first.id);
