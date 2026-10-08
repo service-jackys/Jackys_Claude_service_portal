@@ -455,12 +455,12 @@ much more specific and useful signal than the earlier timeout.
 
 ### Phase 7: Historical migration and reconciliation
 
-- [ ] Define the approved historical data scope and ownership.
-- [ ] Prepare a documented import and reconciliation process.
-- [ ] Validate source data quality, duplicates, identifiers, dates, and status mappings.
+- [x] Define the approved historical data scope and ownership. (Technicians, appointments, job cards, quotations, inspections, Thomson proposals from the live "Jackys Distribution" sheet; AMC, VAS, complaints, B2B, users, logs and config tabs are out of scope.)
+- [x] Prepare a documented import and reconciliation process. (`npm run import:sheets`, `npm run db:clear-test-data`, `docs/migration/GOOGLE_SHEET_MIGRATION.md`; modification #77.)
+- [x] Validate source data quality, duplicates, identifiers, dates, and status mappings. (Profiled the real export; every fix is listed in the importer's issues report.)
 - [ ] Import only approved data into a controlled staging environment first.
 - [ ] Reconcile counts and key records with the Apps Script source.
-- [ ] Keep this work not started until the data migration decision is approved.
+- [ ] Run the real import: only after end-to-end testing is finished and test entries are cleared (parked by the owner on 2026-10-08).
 
 ### Phase 8: Security, staging, and production readiness
 

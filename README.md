@@ -666,5 +666,6 @@ docker compose down -v
 - `docs/DEVELOPMENT_PLAN.md` — planned phases through cutover and rollback.
 - `docs/PARITY_REVIEW_2026-09-28.md` — the field/workflow comparison against the live Apps Script system.
 - `docs/architecture/target-architecture.md` — architecture and safety baseline.
+- `docs/migration/GOOGLE_SHEET_MIGRATION.md` — step-by-step runbook for clearing test data and loading the live Google Sheet (parked until testing is finished).
 
 Phase4 web journeys are implemented and browser-verified locally. They include public complaint registration, local staff sign-in, complaint inbox and updates, technician lookup, appointment scheduling and assignment, calendar views, ICS download, rescheduling, status transitions, terminal-state handling, and authorization/recovery states. Phase5 currently includes the protected service job-card workspace with appointment-linked creation, queue search/filtering, detail/history, status transitions, terminal locks, permission gating, and recovery states. Manual Phase5 verification is documented in `testing_guide.md`; the full integration suite still requires safe resolution of the existing migration checksum mismatch before the bounded slice is committed.

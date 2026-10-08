@@ -12,6 +12,8 @@
     "test": "tsx --test --test-concurrency=1 tests/**/*.test.ts",
     "test:e2e": "playwright test",
     "db:migrate": "tsx packages/db/src/migrate.ts",
+    "db:clear-test-data": "tsx packages/db/src/clear-test-data.ts",
+    "import:sheets": "tsx packages/db/src/import-sheets.ts",
     "format:check": "prettier --check ."
   },
   "dependencies": {

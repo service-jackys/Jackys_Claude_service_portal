@@ -2442,3 +2442,18 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Note:** AMC records saved before this change are Quotes, because the plan sold was never recorded. Mark each one that was sold, with its plan and date, for it to count as revenue.
 
 **Needs you:** run `npm run db:migrate` (035), restart, hard-refresh.
+
+
+## Modification #77 — Google Sheet migration tooling and test-data cleaner (prepared, parked)
+
+**Date:** 2026-10-08 · **Scope:** tooling only (no screens, no migration, nothing runs at start-up)
+
+**What changed**
+- `npm run import:sheets` reads an exported "Jackys Distribution" .xlsx and loads technicians, appointments, job cards, quotations, inspections and Thomson proposals. Default is a **dry run** that writes nothing and saves an issues report (`exports/import-report`). `--apply` needs `--confirm <database name>` and `--as <admin email>`, writes in one transaction, compares counts and money totals with the sheet and rolls back on any mismatch. `--verify` repeats the comparison later. Re-running skips what is already imported (legacy_references).
+- Sheet problems are fixed in the importer and listed in the report: shifted JSON column, mixed date formats, phone numbers (leading 0, two numbers in a cell), text money, warranty wording, technician and brand spellings, junk invoice numbers, missing close times, a second job card on the same appointment (imported as an unlinked walk-in and flagged, or left out with `--duplicates skip`).
+- Not migrated: complaints, B2B customers, users, role access, activity log, AMC, VAS, the pricing admin tabs. Drive links of job-card photos are added to the job card's condition notes.
+- `npm run db:clear-test-data` shows (dry run) or removes (`--apply --confirm <database name>`) all transactional test entries and keeps logins, roles, B2B branches, salesmen, sales channels, pricing, billing rules, stock master and the budget/revenue workbook data. `--technicians` also clears the technician master.
+- Runbook: `docs/migration/GOOGLE_SHEET_MIGRATION.md`.
+- Checked on a scratch database loaded from your real export: 149 appointments, 123 job cards, 8 quotations, 4 inspections, 3 Thomson proposals imported with matching counts and totals; second run created nothing. 7 unit tests and 1 integration test added.
+
+**Needs you:** nothing now. Run it only when end-to-end testing is done: dry run, review the issues CSV, clear test data, import, verify. Decide what to do with the 8 job cards that duplicate an appointment's job card.
