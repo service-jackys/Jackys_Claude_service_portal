@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import { createInvoiceService } from '../../apps/api/src/invoices/service.js';
 import { createAppointmentService } from '../../apps/api/src/appointments/service.js';
 import {
   ServiceJobCardError,
@@ -197,6 +198,37 @@ test(
         'billing-channel-delivered',
       );
       assert.equal(channelDelivered.jobFinalStatus, 'Delivered');
+
+      // Accounts ledger: the paid customer job and the channel job both show,
+      // each with its bill-to party, stage and amount; totals cover the filter.
+      const invoiceService = createInvoiceService(pool);
+      const paid = await invoiceService.ledger({ search: card.jobCardReference });
+      assert.equal(paid.rows.length, 1);
+      assert.equal(paid.rows[0].stage, 'Paid');
+      assert.equal(paid.rows[0].payer, 'Customer');
+      assert.equal(paid.rows[0].billTo, 'Billing Customer');
+      assert.equal(paid.rows[0].invoiceNo, 'INV-BILL-1');
+      assert.equal(paid.totals.billedAmount, 120);
+      const viaChannel = await invoiceService.ledger({ search: channelCard.jobCardReference });
+      assert.equal(viaChannel.rows.length, 1);
+      assert.equal(viaChannel.rows[0].stage, 'Not invoiced');
+      assert.equal(viaChannel.rows[0].billedAmount, 300);
+      assert.equal(viaChannel.statement.length, 1);
+      assert.equal(viaChannel.statement[0].nonWarrantyAmount, 300);
+      assert.equal(viaChannel.statement[0].notInvoicedAmount, 300);
+      const stageOnly = await invoiceService.ledger({
+        stage: 'Paid',
+        search: card.jobCardReference,
+      });
+      assert.equal(stageOnly.total, 1);
+      const exported = await invoiceService.exportLedger(
+        { search: card.jobCardReference },
+        profileId,
+        'billing-export',
+      );
+      assert.equal(exported.rows, 1);
+      assert.match(exported.fileName, /^Billing_/);
+      await pool.query(`DELETE FROM audit_events WHERE request_id = 'billing-export'`);
     } finally {
       for (const id of jobCardIds) {
         await pool.query(

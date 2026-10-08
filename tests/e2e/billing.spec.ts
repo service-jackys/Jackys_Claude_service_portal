@@ -158,4 +158,120 @@ test.describe('warranty and billing', () => {
     await expect(page.getByText('Only the super admin can change billing rules.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add rule' })).toHaveCount(0);
   });
+
+  test('Billing page shows the accounts ledger, statement and allocation, and downloads Excel', async ({
+    page,
+  }) => {
+    let exportUrl = '';
+    const ledger = {
+      rows: [
+        {
+          id: '901',
+          jobCardReference: 'JBC-2026-00901',
+          jobCardDate: '2026-10-02',
+          deliveryDate: null,
+          billingJobType: 'CSIJW',
+          registeredWarranty: 'In Warranty',
+          finalWarranty: 'In Warranty',
+          warrantyChangeReason: null,
+          payer: 'Sales channel',
+          billTo: 'JDI',
+          customerName: 'GEMS School',
+          customerType: 'B2B',
+          b2bBranchSchool: 'GEMS Branch',
+          salesman: 'Raneesh Jose',
+          salesChannel: 'Dubai B2B',
+          region: 'Dubai',
+          salesOrderNumber: 'SO-1',
+          itemCode: 'HIS-RF-001',
+          brand: 'Hisense',
+          mainGroup: 'Home Appliances',
+          groupName: 'Refrigerators',
+          subGroup: 'Side by side',
+          modelNo: 'RS-1',
+          serialNo: 'SN123',
+          technicianName: 'Tech',
+          serviceCharge: 120,
+          partsCost: 380,
+          grandTotal: 500,
+          adjustment: 0,
+          billedAmount: 500,
+          invoiceNo: null,
+          invoiceDate: null,
+          paymentMode: null,
+          paymentReference: null,
+          paymentConfirmedAt: null,
+          stage: 'Not invoiced',
+          jobFinalStatus: 'Repair Completed',
+        },
+      ],
+      total: 1,
+      page: 1,
+      pageSize: 50,
+      totals: {
+        jobs: 1,
+        serviceCharge: 120,
+        partsCost: 380,
+        adjustment: 0,
+        billedAmount: 500,
+        invoicedAmount: 0,
+        notInvoicedAmount: 500,
+      },
+      statement: [
+        {
+          billTo: 'JDI',
+          jobs: 1,
+          warrantyAmount: 500,
+          nonWarrantyAmount: 0,
+          billedAmount: 500,
+          invoicedAmount: 0,
+          notInvoicedAmount: 500,
+          paidAmount: 0,
+        },
+      ],
+      allocation: [
+        {
+          brand: 'Hisense',
+          mainGroup: 'Home Appliances',
+          groupName: 'Refrigerators',
+          jobs: 1,
+          serviceCharge: 120,
+          partsCost: 380,
+          billedAmount: 500,
+        },
+      ],
+      billToOptions: ['JDI'],
+      stages: ['Not invoiced', 'Paid'],
+    };
+    await mockApi(page, ['service_job_card.read'], (url) => {
+      if (url.pathname === '/api/billing/ledger') return ledger;
+      return undefined;
+    });
+    await page.route('**/api/billing/export**', async (route) => {
+      exportUrl = route.request().url();
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        body: 'xlsx',
+      });
+    });
+    await signIn(page);
+    await page.locator('#billingNav').dispatchEvent('click');
+    await expect(page.getByRole('heading', { name: 'Billing', exact: true })).toBeVisible();
+    await expect(page.getByText('JBC-2026-00901')).toBeVisible();
+    await expect(page.locator('.acc-table .status', { hasText: 'Not invoiced' })).toBeVisible();
+    await expect(page.getByText('Total, all 1 matching jobs')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Record' })).toHaveCount(0);
+
+    await page.getByRole('tab', { name: 'Bill-to statement' }).click();
+    await expect(page.getByRole('cell', { name: 'JDI', exact: true })).toBeVisible();
+    await page.getByRole('tab', { name: 'Cost allocation' }).click();
+    await expect(page.getByText('Subtotal Hisense')).toBeVisible();
+
+    const downloadPromise = page.waitForEvent('download');
+    await page.getByRole('button', { name: 'Download Excel' }).click();
+    const download = await downloadPromise;
+    expect(download.suggestedFilename()).toMatch(/^Billing_.*\.xlsx$/);
+    expect(exportUrl).toContain('/api/billing/export');
+  });
 });

@@ -383,6 +383,14 @@ export function createRouteCatalog(
   const invoiceHandlers = pool
     ? createInvoiceHandlers(createInvoiceService(pool), requirePermission)
     : {
+        ledger: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        exportLedger: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -1661,6 +1669,53 @@ export function createRouteCatalog(
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: invoiceHandlers.list,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/billing/ledger',
+        operationId: 'getBillingLedger',
+        tags: ['Billing'],
+        summary:
+          'Accounts ledger of billed jobs with totals, bill-to statement and cost allocation',
+        security: 'bearerAuth' as const,
+        parameters: paginationParameters.concat([
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'type', in: 'query', schema: { type: 'string', enum: ['CSIJW', 'CSIJO'] } },
+          {
+            name: 'payer',
+            in: 'query',
+            schema: { type: 'string', enum: ['Sales channel', 'Customer'] },
+          },
+          { name: 'billTo', in: 'query', schema: { type: 'string' } },
+          { name: 'stage', in: 'query', schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ]),
+        responses: [200, 400, 401, 403, 500],
+        handlers: invoiceHandlers.ledger,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/billing/export',
+        operationId: 'exportBillingLedger',
+        tags: ['Billing'],
+        summary: 'Download the billing ledger, bill-to statement and cost allocation as Excel',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'from', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'to', in: 'query', schema: { type: 'string', format: 'date' } },
+          { name: 'type', in: 'query', schema: { type: 'string', enum: ['CSIJW', 'CSIJO'] } },
+          {
+            name: 'payer',
+            in: 'query',
+            schema: { type: 'string', enum: ['Sales channel', 'Customer'] },
+          },
+          { name: 'billTo', in: 'query', schema: { type: 'string' } },
+          { name: 'stage', in: 'query', schema: { type: 'string' } },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ],
+        responses: [200, 401, 403, 404, 500],
+        handlers: invoiceHandlers.exportLedger,
       },
       {
         method: 'get' as const,

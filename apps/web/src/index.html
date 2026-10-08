@@ -3084,6 +3084,174 @@
         background: #fff1d6;
         color: #8a5a00;
       }
+      .acc-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 8px 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface, #fff);
+      }
+      .acc-bar .th-field {
+        margin: 0;
+      }
+      .acc-bar label {
+        font-size: 0.68rem;
+      }
+      .acc-bar select,
+      .acc-bar input {
+        min-height: 30px;
+        padding: 4px 8px;
+        font-size: 0.76rem;
+      }
+      .acc-table .button {
+        padding: 2px 9px;
+        min-height: 0;
+        font-size: 0.68rem;
+      }
+      .acc-bar .acc-search {
+        flex: 1 1 220px;
+      }
+      .acc-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 1px;
+        margin-bottom: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--line);
+      }
+      .acc-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        padding: 8px 12px;
+        background: var(--surface, #fff);
+      }
+      .acc-kpi span {
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--muted);
+      }
+      .acc-kpi strong {
+        font-size: 0.95rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .acc-kpi-main strong {
+        color: var(--blue);
+      }
+      .acc-kpi-warn strong {
+        color: #8a5a00;
+      }
+      .acc-wrap {
+        max-height: 68vh;
+        overflow: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+      }
+      .acc-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        font-size: 0.74rem;
+      }
+      .acc-table th,
+      .acc-table td {
+        padding: 5px 8px;
+        border-bottom: 1px solid var(--line);
+        white-space: nowrap;
+        vertical-align: top;
+        text-align: left;
+      }
+      .acc-table thead th {
+        position: sticky;
+        top: 0;
+        z-index: 2;
+        background: #1f3a5f;
+        color: #fff;
+        font-size: 0.68rem;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .acc-table th.num,
+      .acc-table td.num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .acc-table tbody tr:nth-child(even) td {
+        background: rgba(31, 58, 95, 0.035);
+      }
+      .acc-table tbody tr:hover td {
+        background: rgba(11, 107, 203, 0.08);
+      }
+      .acc-table .acc-sticky {
+        position: sticky;
+        left: 0;
+        background: var(--surface, #fff);
+        z-index: 1;
+      }
+      .acc-table thead .acc-sticky {
+        z-index: 3;
+        background: #1f3a5f;
+      }
+      .acc-table tfoot td {
+        position: sticky;
+        bottom: 0;
+        background: #eef2f7;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        border-top: 1px solid var(--line);
+      }
+      .acc-table tfoot tr.acc-grand td {
+        background: #dfe7f1;
+        border-top: 2px solid #1f3a5f;
+      }
+      .acc-table tr.acc-subtotal td {
+        background: #eef2f7;
+        font-weight: 700;
+      }
+      .acc-table small {
+        color: var(--muted);
+      }
+      .acc-neg {
+        color: #b3261e;
+      }
+      [data-theme='dark'] .acc-bar,
+      [data-theme='dark'] .acc-kpi,
+      [data-theme='dark'] .acc-table .acc-sticky {
+        background: var(--surface, #1b2430);
+      }
+      [data-theme='dark'] .acc-table thead th,
+      [data-theme='dark'] .acc-table thead .acc-sticky {
+        background: #0f2540;
+      }
+      [data-theme='dark'] .acc-table tfoot td,
+      [data-theme='dark'] .acc-table tr.acc-subtotal td {
+        background: #1d2a3a;
+      }
+      [data-theme='dark'] .acc-table tfoot tr.acc-grand td {
+        background: #243649;
+      }
+      [data-theme='dark'] .acc-table tbody tr:nth-child(even) td {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      [data-theme='dark'] .acc-neg {
+        color: #ff8a80;
+      }
+      [data-theme='dark'] .status.status-ok {
+        background: #123d27;
+        color: #8fe3b2;
+      }
+      [data-theme='dark'] .status.status-warn {
+        background: #4a3610;
+        color: #ffd27a;
+      }
       .ws-tabs {
         display: flex;
         gap: 4px;
@@ -5635,6 +5803,20 @@
                 <span class="nav-label">Finance</span>
                 <span class="nav-arrow" aria-hidden="true">→</span>
               </button>
+              <button
+                class="dashboard-link nav-child"
+                type="button"
+                id="billingNav"
+                hidden
+                aria-label="Billing"
+                title="Billing"
+              >
+                <svg class="nav-icon" aria-hidden="true">
+                  <use href="#icon-clipboard-check"></use>
+                </svg>
+                <span class="nav-label">Billing</span>
+                <span class="nav-arrow" aria-hidden="true">→</span>
+              </button>
               <p class="nav-group-label">Quote Calculators</p>
               <button
                 class="dashboard-link"
@@ -7612,6 +7794,14 @@
                   changes. Times are Dubai time.
                 </p>
                 <div data-calc-root="activity-log">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="billingWorkspace" hidden>
+              <div class="card-body">
+                <div data-calc-root="billing">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>

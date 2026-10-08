@@ -690,6 +690,7 @@
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
     $('#invoicesNav').hidden = !hasPermission('service_job_card.read');
+    $('#billingNav').hidden = !hasPermission('service_job_card.read');
     if (hasPermission('scheduler.read')) {
       apiRequest('/api/schedules/awaiting')
         .then((result) => {
@@ -10902,6 +10903,17 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderInvoices(root),
     },
+    billing: {
+      navId: 'billingNav',
+      workspaceId: 'billingWorkspace',
+      heading: 'Billing',
+      description:
+        'Accounts view: billed jobs, bill-to statement and cost allocation for ERP billing.',
+      permission: 'service_job_card.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderBilling(root),
+    },
     'daily-list': {
       navId: 'dailyListNav',
       workspaceId: 'dailyListWorkspace',
@@ -11228,6 +11240,581 @@ ${bodyHtml}
   // and confirm customer payments here; a customer-paid job can be delivered
   // only after that. A second tab holds the billing rules (which sales channel
   // is billed), editable by the super admin.
+  // --- Billing (Management): accounts view of billed jobs -------------------
+  // Ledger of every job with an amount, bill-to statement per channel /
+  // customer, and cost allocation by brand and product group, with an Excel
+  // download of all three. Invoice numbers are the ERP's; the portal records
+  // them (Record button) but never issues invoices.
+  async function renderBilling(root) {
+    const canRecord = hasPermission('service_job_card.write');
+    const range = pgRangeFor('ytd');
+    const state = {
+      tab: 'ledger',
+      range: 'ytd',
+      from: range.from,
+      to: range.to,
+      type: '',
+      payer: '',
+      billTo: '',
+      stage: '',
+      search: '',
+      page: 1,
+      data: null,
+      selected: null,
+      downloading: false,
+    };
+    const money = (value) => {
+      const n = Number(value) || 0;
+      const text = Math.abs(n).toLocaleString('en-AE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      return n < 0 ? '<span class="acc-neg">(' + text + ')</span>' : text;
+    };
+    const plain = (value) => escapeHtml(value === null || value === undefined ? '' : value);
+    const stageClass = (stage) =>
+      stage === 'Paid'
+        ? 'status-ok'
+        : stage === 'Not invoiced' || stage === 'Invoiced, awaiting payment'
+          ? 'status-warn'
+          : '';
+    const RANGES = [
+      ['month', 'This month'],
+      ['last-month', 'Last month'],
+      ['ytd', 'Year to date'],
+      ['custom', 'Custom'],
+      ['all', 'All dates'],
+    ];
+
+    root.innerHTML =
+      '<div class="acc-bar" data-acc-bar></div>' +
+      '<div class="form-note" data-acc-msg role="status"></div>' +
+      '<div data-acc-kpi></div>' +
+      '<div class="ws-tabs" role="tablist">' +
+      '<button type="button" role="tab" class="ws-tab is-active" data-acc-tab="ledger" aria-selected="true">Billing ledger</button>' +
+      '<button type="button" role="tab" class="ws-tab" data-acc-tab="statement" aria-selected="false">Bill-to statement</button>' +
+      '<button type="button" role="tab" class="ws-tab" data-acc-tab="allocation" aria-selected="false">Cost allocation</button>' +
+      '</div><div data-acc-body></div>';
+    const bar = root.querySelector('[data-acc-bar]');
+    const msg = root.querySelector('[data-acc-msg]');
+    const kpi = root.querySelector('[data-acc-kpi]');
+    const body = root.querySelector('[data-acc-body]');
+
+    function say(text, isError) {
+      msg.textContent = text || '';
+      msg.className = 'form-note' + (isError ? ' form-note-error' : '');
+    }
+    const query = (extra) =>
+      rdQs({
+        from: state.range === 'all' ? '' : state.from,
+        to: state.range === 'all' ? '' : state.to,
+        type: state.type,
+        payer: state.payer,
+        billTo: state.billTo,
+        stage: state.stage,
+        search: state.search,
+        ...extra,
+      });
+
+    function drawBar() {
+      const d = state.data;
+      const opt = (value, label, current) =>
+        '<option value="' +
+        escapeHtml(value) +
+        '"' +
+        (value === current ? ' selected' : '') +
+        '>' +
+        escapeHtml(label) +
+        '</option>';
+      bar.innerHTML =
+        '<div class="th-field"><label>Period<select data-acc="range">' +
+        RANGES.map(([v, l]) => opt(v, l, state.range)).join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>From<input type="date" data-acc="from" value="' +
+        escapeHtml(state.from) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        '></label></div>' +
+        '<div class="th-field"><label>To<input type="date" data-acc="to" value="' +
+        escapeHtml(state.to) +
+        '"' +
+        (state.range === 'custom' ? '' : ' disabled') +
+        '></label></div>' +
+        '<div class="th-field"><label>Job type<select data-acc="type">' +
+        opt('', 'All', state.type) +
+        opt('CSIJW', 'CSIJW Warranty', state.type) +
+        opt('CSIJO', 'CSIJO Non-warranty', state.type) +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Payment by<select data-acc="payer">' +
+        opt('', 'All', state.payer) +
+        opt('Sales channel', 'Sales channel', state.payer) +
+        opt('Customer', 'Customer', state.payer) +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Bill to<select data-acc="billTo">' +
+        opt('', 'All', state.billTo) +
+        ((d && d.billToOptions) || []).map((p) => opt(p, p, state.billTo)).join('') +
+        '</select></label></div>' +
+        '<div class="th-field"><label>Stage<select data-acc="stage">' +
+        opt('', 'All', state.stage) +
+        ((d && d.stages) || []).map((s) => opt(s, s, state.stage)).join('') +
+        '</select></label></div>' +
+        '<div class="th-field acc-search"><label>Search<input type="search" data-acc="search" placeholder="Job card, invoice, customer, item, serial" value="' +
+        escapeHtml(state.search) +
+        '"></label></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-acc-download' +
+        (state.downloading ? ' disabled' : '') +
+        '>' +
+        (state.downloading ? 'Preparing&hellip;' : 'Download Excel') +
+        '</button></div>';
+      const ctl = (name) => bar.querySelector('[data-acc="' + name + '"]');
+      ctl('range').addEventListener('change', (event) => {
+        state.range = event.target.value;
+        if (state.range !== 'custom' && state.range !== 'all') {
+          const r = pgRangeFor(state.range);
+          state.from = r.from;
+          state.to = r.to;
+        }
+        state.page = 1;
+        load();
+      });
+      ['from', 'to', 'type', 'payer', 'billTo', 'stage'].forEach((name) =>
+        ctl(name).addEventListener('change', (event) => {
+          state[name] = event.target.value;
+          state.page = 1;
+          load();
+        }),
+      );
+      let timer = null;
+      ctl('search').addEventListener('input', (event) => {
+        state.search = event.target.value.trim();
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          state.page = 1;
+          load(true);
+        }, 350);
+      });
+      bar.querySelector('[data-acc-download]').addEventListener('click', download);
+    }
+
+    function drawKpi() {
+      const t = state.data && state.data.totals;
+      if (!t) {
+        kpi.innerHTML = '';
+        return;
+      }
+      const cell = (label, value, cls) =>
+        '<div class="acc-kpi ' +
+        (cls || '') +
+        '"><span>' +
+        label +
+        '</span><strong>' +
+        value +
+        '</strong></div>';
+      kpi.innerHTML =
+        '<div class="acc-kpis">' +
+        cell('Jobs', String(t.jobs)) +
+        cell('Service charge', money(t.serviceCharge)) +
+        cell('Parts', money(t.partsCost)) +
+        cell('Adjustment', money(t.adjustment)) +
+        cell('Billed (AED)', money(t.billedAmount), 'acc-kpi-main') +
+        cell('Invoiced in ERP', money(t.invoicedAmount)) +
+        cell(
+          'Not yet invoiced',
+          money(t.notInvoicedAmount),
+          t.notInvoicedAmount > 0 ? 'acc-kpi-warn' : '',
+        ) +
+        '</div>';
+    }
+
+    function recordPanel() {
+      const row = state.selected;
+      if (!row) return '';
+      return (
+        '<div class="detail-action-card" data-acc-record><h4>ERP invoice and payment: ' +
+        plain(row.jobCardReference) +
+        ' &middot; bill to ' +
+        plain(row.billTo) +
+        ' &middot; AED ' +
+        money(row.billedAmount) +
+        '</h4><div class="field-grid">' +
+        '<div class="field"><label>ERP invoice no.<input type="text" data-rec="invoiceNo" maxlength="120" value="' +
+        plain(row.invoiceNo) +
+        '"></label></div>' +
+        '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate" value="' +
+        plain((row.invoiceDate || '').slice(0, 10)) +
+        '"></label></div>' +
+        '<div class="field"><label>Payment mode<select data-rec="paymentMode"><option value="">Select mode</option>' +
+        ['Cash', 'Online', 'Bank transfer', 'Card']
+          .map(
+            (m) => '<option' + (row.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
+          )
+          .join('') +
+        '</select></label></div>' +
+        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200" value="' +
+        plain(row.paymentReference) +
+        '"></label></div>' +
+        (row.payer === 'Customer'
+          ? '<div class="field"><label class="check-label"><input type="checkbox" data-rec="paymentConfirmed"' +
+            (row.paymentConfirmedAt ? ' checked' : '') +
+            '> Payment received and confirmed</label></div>'
+          : '') +
+        '</div><div class="form-footer"><span></span><button class="button button-outline" type="button" data-rec-cancel>Close</button><button class="button button-primary" type="button" data-rec-save>Save</button></div></div>'
+      );
+    }
+
+    function ledgerHtml() {
+      const d = state.data;
+      const rows = d.rows;
+      const pageSum = (key) => rows.reduce((sum, r) => sum + (Number(r[key]) || 0), 0);
+      const totalPages = Math.max(1, Math.ceil(d.total / d.pageSize));
+      const body = rows
+        .map(
+          (r) =>
+            '<tr><td class="acc-sticky"><button class="table-link" type="button" data-acc-open="' +
+            plain(r.id) +
+            '">' +
+            plain(r.jobCardReference) +
+            '</button></td>' +
+            '<td>' +
+            plain(r.jobCardDate) +
+            '</td><td>' +
+            plain(r.billingJobType || '') +
+            '</td><td>' +
+            plain(r.registeredWarranty) +
+            (r.finalWarranty && r.finalWarranty !== r.registeredWarranty
+              ? '<br><small title="' +
+                plain(r.warrantyChangeReason) +
+                '">&rarr; ' +
+                plain(r.finalWarranty) +
+                '</small>'
+              : '') +
+            '</td><td><strong>' +
+            plain(r.billTo) +
+            '</strong><br><small>' +
+            plain(r.payer || 'Payer not chosen') +
+            '</small></td><td>' +
+            plain(r.customerName) +
+            (r.b2bBranchSchool ? '<br><small>' + plain(r.b2bBranchSchool) + '</small>' : '') +
+            '</td><td>' +
+            plain(r.salesOrderNumber) +
+            (r.salesman ? '<br><small>' + plain(r.salesman) + '</small>' : '') +
+            '</td><td>' +
+            plain(r.itemCode) +
+            '</td><td>' +
+            plain(r.brand) +
+            '</td><td>' +
+            plain(r.modelNo) +
+            (r.serialNo ? '<br><small>S/N ' + plain(r.serialNo) + '</small>' : '') +
+            '</td><td>' +
+            plain([r.mainGroup, r.groupName, r.subGroup].filter(Boolean).join(' / ')) +
+            '</td><td class="num">' +
+            money(r.serviceCharge) +
+            '</td><td class="num">' +
+            money(r.partsCost) +
+            '</td><td class="num">' +
+            money(r.adjustment) +
+            '</td><td class="num"><strong>' +
+            money(r.billedAmount) +
+            '</strong></td><td>' +
+            plain(r.invoiceNo || '') +
+            (r.invoiceDate ? '<br><small>' + plain(r.invoiceDate) + '</small>' : '') +
+            '</td><td>' +
+            plain(r.paymentMode) +
+            (r.paymentReference ? '<br><small>' + plain(r.paymentReference) + '</small>' : '') +
+            '</td><td><span class="status ' +
+            stageClass(r.stage) +
+            '">' +
+            plain(r.stage) +
+            '</span></td><td>' +
+            plain(r.jobFinalStatus) +
+            '</td>' +
+            (canRecord
+              ? '<td><button class="button button-outline" type="button" data-acc-record-open="' +
+                plain(r.id) +
+                '">Record</button></td>'
+              : '') +
+            '</tr>',
+        )
+        .join('');
+      const t = d.totals;
+      return (
+        recordPanel() +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (AED)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th>' +
+        (canRecord ? '<th></th>' : '') +
+        '</tr></thead><tbody>' +
+        (body ||
+          '<tr><td colspan="20" class="empty-state">No billed jobs match these filters.</td></tr>') +
+        '</tbody><tfoot><tr><td class="acc-sticky" colspan="11">Page total (' +
+        rows.length +
+        ' jobs)</td><td class="num">' +
+        money(pageSum('serviceCharge')) +
+        '</td><td class="num">' +
+        money(pageSum('partsCost')) +
+        '</td><td class="num">' +
+        money(pageSum('adjustment')) +
+        '</td><td class="num">' +
+        money(pageSum('billedAmount')) +
+        '</td><td colspan="' +
+        (canRecord ? 5 : 4) +
+        '"></td></tr><tr class="acc-grand"><td class="acc-sticky" colspan="11">Total, all ' +
+        t.jobs +
+        ' matching jobs</td><td class="num">' +
+        money(t.serviceCharge) +
+        '</td><td class="num">' +
+        money(t.partsCost) +
+        '</td><td class="num">' +
+        money(t.adjustment) +
+        '</td><td class="num">' +
+        money(t.billedAmount) +
+        '</td><td colspan="' +
+        (canRecord ? 5 : 4) +
+        '"></td></tr></tfoot></table></div>' +
+        '<div class="rd-pager"><button class="button button-outline" type="button" data-acc-prev' +
+        (d.page <= 1 ? ' disabled' : '') +
+        '>Previous</button><span class="form-note">Page ' +
+        d.page +
+        ' of ' +
+        totalPages +
+        '</span><button class="button button-outline" type="button" data-acc-next' +
+        (d.page >= totalPages ? ' disabled' : '') +
+        '>Next</button></div>'
+      );
+    }
+
+    function statementHtml() {
+      const rows = state.data.statement;
+      const sum = (key) => rows.reduce((s, r) => s + (Number(r[key]) || 0), 0);
+      return (
+        '<p class="form-note">One line per party that receives a bill: the sales channel (or the channel a billing rule redirects to), or the customer when the customer pays. Use these totals for the ERP billing run; open a party to see its jobs.</p>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (AED)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
+        (rows
+          .map(
+            (r) =>
+              '<tr><td><strong>' +
+              plain(r.billTo) +
+              '</strong></td><td class="num">' +
+              r.jobs +
+              '</td><td class="num">' +
+              money(r.warrantyAmount) +
+              '</td><td class="num">' +
+              money(r.nonWarrantyAmount) +
+              '</td><td class="num"><strong>' +
+              money(r.billedAmount) +
+              '</strong></td><td class="num">' +
+              money(r.invoicedAmount) +
+              '</td><td class="num">' +
+              money(r.notInvoicedAmount) +
+              '</td><td class="num">' +
+              money(r.paidAmount) +
+              '</td><td><button class="button button-outline" type="button" data-acc-party="' +
+              plain(r.billTo) +
+              '">Jobs</button></td></tr>',
+          )
+          .join('') ||
+          '<tr><td colspan="9" class="empty-state">Nothing to bill for these filters.</td></tr>') +
+        '</tbody><tfoot><tr class="acc-grand"><td>Total</td><td class="num">' +
+        sum('jobs') +
+        '</td><td class="num">' +
+        money(sum('warrantyAmount')) +
+        '</td><td class="num">' +
+        money(sum('nonWarrantyAmount')) +
+        '</td><td class="num">' +
+        money(sum('billedAmount')) +
+        '</td><td class="num">' +
+        money(sum('invoicedAmount')) +
+        '</td><td class="num">' +
+        money(sum('notInvoicedAmount')) +
+        '</td><td class="num">' +
+        money(sum('paidAmount')) +
+        '</td><td></td></tr></tfoot></table></div>'
+      );
+    }
+
+    function allocationHtml() {
+      const rows = state.data.allocation;
+      const sum = (list, key) => list.reduce((s, r) => s + (Number(r[key]) || 0), 0);
+      const brands = [...new Set(rows.map((r) => r.brand))];
+      const lines = brands
+        .map((brand) => {
+          const list = rows.filter((r) => r.brand === brand);
+          return (
+            list
+              .map(
+                (r) =>
+                  '<tr><td>' +
+                  plain(r.brand) +
+                  '</td><td>' +
+                  plain(r.mainGroup) +
+                  '</td><td>' +
+                  plain(r.groupName) +
+                  '</td><td class="num">' +
+                  r.jobs +
+                  '</td><td class="num">' +
+                  money(r.serviceCharge) +
+                  '</td><td class="num">' +
+                  money(r.partsCost) +
+                  '</td><td class="num">' +
+                  money(r.billedAmount) +
+                  '</td></tr>',
+              )
+              .join('') +
+            '<tr class="acc-subtotal"><td colspan="3">Subtotal ' +
+            plain(brand) +
+            '</td><td class="num">' +
+            sum(list, 'jobs') +
+            '</td><td class="num">' +
+            money(sum(list, 'serviceCharge')) +
+            '</td><td class="num">' +
+            money(sum(list, 'partsCost')) +
+            '</td><td class="num">' +
+            money(sum(list, 'billedAmount')) +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      return (
+        '<p class="form-note">Billed amount split by brand, main group and group (from the stock master on each job card) for ERP cost allocation. Jobs without an item code show as Unassigned.</p>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Brand</th><th>Main group</th><th>Group</th><th class="num">Jobs</th><th class="num">Service charge</th><th class="num">Parts</th><th class="num">Billed (AED)</th></tr></thead><tbody>' +
+        (lines ||
+          '<tr><td colspan="7" class="empty-state">Nothing to allocate for these filters.</td></tr>') +
+        '</tbody><tfoot><tr class="acc-grand"><td colspan="3">Total</td><td class="num">' +
+        sum(rows, 'jobs') +
+        '</td><td class="num">' +
+        money(sum(rows, 'serviceCharge')) +
+        '</td><td class="num">' +
+        money(sum(rows, 'partsCost')) +
+        '</td><td class="num">' +
+        money(sum(rows, 'billedAmount')) +
+        '</td></tr></tfoot></table></div>'
+      );
+    }
+
+    function drawBody() {
+      if (!state.data) return;
+      body.innerHTML =
+        state.tab === 'statement'
+          ? statementHtml()
+          : state.tab === 'allocation'
+            ? allocationHtml()
+            : ledgerHtml();
+      body.querySelectorAll('[data-acc-open]').forEach((el) =>
+        el.addEventListener('click', () => {
+          setWorkspaceMode('job-cards');
+          loadJobCardDetail(el.dataset.accOpen);
+        }),
+      );
+      body.querySelectorAll('[data-acc-record-open]').forEach((el) =>
+        el.addEventListener('click', () => {
+          state.selected = state.data.rows.find((r) => r.id === el.dataset.accRecordOpen) || null;
+          drawBody();
+          body.querySelector('[data-acc-record]')?.scrollIntoView({ block: 'nearest' });
+        }),
+      );
+      body.querySelectorAll('[data-acc-party]').forEach((el) =>
+        el.addEventListener('click', () => {
+          state.billTo = el.dataset.accParty;
+          state.tab = 'ledger';
+          syncTabs();
+          state.page = 1;
+          load();
+        }),
+      );
+      body.querySelector('[data-rec-cancel]')?.addEventListener('click', () => {
+        state.selected = null;
+        drawBody();
+      });
+      body.querySelector('[data-rec-save]')?.addEventListener('click', saveRecord);
+      body.querySelector('[data-acc-prev]')?.addEventListener('click', () => {
+        state.page = Math.max(1, state.page - 1);
+        load(true);
+      });
+      body.querySelector('[data-acc-next]')?.addEventListener('click', () => {
+        state.page += 1;
+        load(true);
+      });
+    }
+
+    function syncTabs() {
+      root.querySelectorAll('[data-acc-tab]').forEach((tab) => {
+        const on = tab.dataset.accTab === state.tab;
+        tab.classList.toggle('is-active', on);
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+    root.querySelectorAll('[data-acc-tab]').forEach((tab) =>
+      tab.addEventListener('click', () => {
+        state.tab = tab.dataset.accTab;
+        syncTabs();
+        drawBody();
+      }),
+    );
+
+    async function saveRecord() {
+      const row = state.selected;
+      if (!row) return;
+      const field = (name) => body.querySelector('[data-rec="' + name + '"]');
+      const value = (name) => field(name).value.trim();
+      const payload = {};
+      if (value('invoiceNo')) payload.invoiceNo = value('invoiceNo');
+      if (value('invoiceDate')) payload.invoiceDate = value('invoiceDate');
+      if (value('paymentMode')) payload.paymentMode = value('paymentMode');
+      if (value('paymentReference')) payload.paymentReference = value('paymentReference');
+      const box = field('paymentConfirmed');
+      if (box && box.checked !== Boolean(row.paymentConfirmedAt)) {
+        payload.paymentConfirmed = box.checked;
+      }
+      try {
+        await apiRequest('/api/job-cards/' + encodeURIComponent(row.id), {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        state.selected = null;
+        say('Saved ' + row.jobCardReference + '.');
+        await load(true);
+      } catch (error) {
+        say(error.message, true);
+      }
+    }
+
+    async function download() {
+      state.downloading = true;
+      drawBar();
+      say('');
+      try {
+        const blob = await apiBlobRequest('/api/billing/export?' + query({}));
+        const label = state.range === 'all' ? 'All' : state.from + '_to_' + state.to;
+        rdDownloadBlob(blob, 'Billing_' + label + '.xlsx');
+        say('Downloaded Billing_' + label + '.xlsx (ledger, bill-to statement, cost allocation).');
+      } catch (error) {
+        say(error.message, true);
+      } finally {
+        state.downloading = false;
+        drawBar();
+      }
+    }
+
+    async function load(keepBar) {
+      if (state.range === 'custom' && state.from && state.to && state.to < state.from) {
+        say('The To date must be on or after the From date.', true);
+        return;
+      }
+      try {
+        state.data = await apiRequest(
+          '/api/billing/ledger?' + query({ page: state.page, pageSize: 50 }),
+        );
+        if (!keepBar) drawBar();
+        drawKpi();
+        drawBody();
+      } catch (error) {
+        body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
+      }
+    }
+
+    drawBar();
+    await load(true);
+    drawBar();
+  }
+
   async function renderInvoices(root) {
     const state = {
       tab: 'invoices',
@@ -15931,6 +16518,7 @@ ${bodyHtml}
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
   $('#invoicesNav')?.addEventListener('click', () => setWorkspaceMode('invoices'));
+  $('#billingNav')?.addEventListener('click', () => setWorkspaceMode('billing'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));

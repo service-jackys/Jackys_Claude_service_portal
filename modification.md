@@ -2413,3 +2413,18 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **Reports:** Job Invoices and Sales Channel Reconciliation.
 
 **Needs you:** run `npm run db:migrate` (applies 034), restart the server, hard-refresh.
+
+
+## Modification #75 — Billing page for the accounts department
+
+**Date:** 2026-10-08 · **Scope:** API + web · no migration · restart + hard-refresh
+
+**What changed**
+- **New Management → Billing page**, laid out like an accounts system: a filter bar (period, job type, payment by, bill to, stage, search), a totals strip (jobs, service charge, parts, adjustment, billed, invoiced in ERP, not yet invoiced) and three tabs.
+- **Billing ledger:** one line per billed job with job type, registered vs final warranty, bill-to party, customer / branch, sales order and salesman, item code, brand, model and serial, main / group / sub group, service, parts, adjustment, billed amount, ERP invoice no. and date, payment mode and reference, stage and job status. Page total and grand total rows. Accounts can record the ERP invoice number and payment on a line (Record).
+- **Bill-to statement:** one line per channel (or customer when the customer pays) with warranty and non-warranty amounts, billed, invoiced, not yet invoiced and paid, for the ERP billing run. "Jobs" opens that party's ledger.
+- **Cost allocation:** billed amount split by brand, main group and group with brand subtotals.
+- **Download Excel:** one workbook with the ledger, bill-to statement and cost allocation sheets for the current filters. Each download is logged in the Activity log.
+- Dark-mode colours for the status labels.
+
+**Needs you:** restart the server, hard-refresh. Billing shows for anyone who can read service job cards.

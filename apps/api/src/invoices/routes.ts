@@ -8,6 +8,41 @@ export function createInvoiceHandlers(
   requirePermission: (permission: string) => RequestHandler,
 ): Record<string, RequestHandler[]> {
   return {
+    ledger: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.ledger(request.query));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    exportLedger: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const result = await service.exportLedger(
+            request.query,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', `attachment; filename="${result.fileName}"`)
+            .set('X-Report-Rows', String(result.rows))
+            .set('Access-Control-Expose-Headers', 'Content-Disposition, X-Report-Rows')
+            .send(result.buffer);
+        } catch (error) {
+          if (error instanceof InvoiceServiceError) {
+            problem(response, 404, 'billing-no-rows', 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     list: [
       requirePermission('service_job_card.read'),
       async (request, response, next) => {
