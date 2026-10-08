@@ -2457,3 +2457,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Checked on a scratch database loaded from your real export: 149 appointments, 119 job cards, 8 quotations, 4 inspections, 3 Thomson proposals imported with matching counts and totals; second run created nothing. 7 unit tests and 1 integration test added.
 
 **Needs you:** nothing now. Run it only when end-to-end testing is done: dry run, review the issues CSV, clear test data, import, verify. Duplicates decision made: keep the 5 remaining duplicate-appointment cards as flagged walk-ins.
+
+
+## Modification #78 — MDA bills the rate card charge; payment fields only for customer-paid jobs; channel by default in the ledger
+
+**Date:** 2026-10-08 · **Scope:** API + web · no migration · restart + hard-refresh
+
+**What changed**
+- **MDA service charge.** When a job card's main group (product category) is MDA, the service charge is always the Rate Card's "MDA – Standard" amount, in warranty and out of warranty, whatever the billing rule, channel or payer, and it replaces any typed charge. It is read from the live rate card on every save, so a rate change applies to the next save. On the form the service charge fills in and locks as soon as the item is picked or the main group is MDA. Spare parts are added on top. Other groups keep the typed charge.
+- **Payment fields.** Payment mode, payment reference and payment confirmed are greyed out unless the customer pays (Payment by = Customer, or Automatic on a B2C out-of-warranty job). Same on the Billing and Invoices record panels.
+- **Ledger.** Anyone who is not the paying customer is billed through the channel, so jobs with no payer recorded now show as billed to the channel (stage Not invoiced / Invoiced to channel) instead of "Payer not chosen". The Payer = Sales channel filter includes them. A job with a service charge or spare parts is in the ledger automatically (billed amount = service charge + parts, or the amount chargeable).
+- Tests: unit, integration (MDA in and out of warranty, ledger payer) and two end-to-end checks.
+
+**Needs you:** restart and hard-refresh. No migration. Existing MDA job cards pick up the rate card charge the next time they are saved.

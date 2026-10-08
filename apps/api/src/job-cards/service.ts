@@ -32,7 +32,15 @@ import {
 } from '../../../../packages/db/src/job-cards.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { listActiveBillingRules } from '../../../../packages/db/src/billing-rules.js';
-import { billedAmount, deliveryBlockReason, normalizeWarranty, resolveBilling } from './billing.js';
+import {
+  billedAmount,
+  deliveryBlockReason,
+  isMdaGroup,
+  mdaStandardRate,
+  normalizeWarranty,
+  resolveBilling,
+} from './billing.js';
+import { createPricingConfigService } from '../pricing-config/service.js';
 import {
   findAppointmentById,
   type AppointmentRecord,
@@ -271,13 +279,18 @@ function splitBilling<T extends Record<string, unknown>>(
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
+  mdaRate: number | null = null,
 ): ServiceJobCardContent {
   const merged: ServiceJobCardContent = {
     ...defaults,
     ...Object.fromEntries(Object.entries(overrides).filter(([, value]) => value !== undefined)),
   } as ServiceJobCardContent;
   const parts = merged.parts ?? [];
-  const serviceCharge = merged.serviceCharge ?? 0;
+  // Major appliances (MDA) are always charged the rate card's "MDA – Standard"
+  // service charge, in warranty and out of warranty, whatever the billing rule
+  // or channel. It replaces any typed service charge.
+  const serviceCharge =
+    isMdaGroup(merged.mainGroup) && mdaRate !== null ? mdaRate : (merged.serviceCharge ?? 0);
   const { totalCost, grandTotal } = computeTotals(parts, serviceCharge);
   merged.parts = parts;
   merged.serviceCharge = serviceCharge;
@@ -291,6 +304,14 @@ function mergeContent(
 }
 
 export function createServiceJobCardService(pool: Pool) {
+  const pricing = createPricingConfigService(pool);
+  // The service charge MDA jobs bill, read from the live rate card so a price
+  // change there applies to the next save.
+  async function mdaRate(): Promise<number | null> {
+    const rateCard = await pricing.get('rate_card');
+    return mdaStandardRate(rateCard.payload as Parameters<typeof mdaStandardRate>[0]);
+  }
+
   async function prefill(appointmentId: string) {
     const client = await pool.connect();
     try {
@@ -465,7 +486,7 @@ export function createServiceJobCardService(pool: Pool) {
         );
       }
 
-      const content = mergeContent(defaultsFromQuotation(quotation), overrides);
+      const content = mergeContent(defaultsFromQuotation(quotation), overrides, await mdaRate());
       const scopeDate = quotation.quotationDate ?? new Date().toISOString().slice(0, 10);
       const jobCardReference = await allocateJobCardReference(client, scopeDate);
       let jobCard;
@@ -564,6 +585,7 @@ export function createServiceJobCardService(pool: Pool) {
       const content = mergeContent(
         defaultsFromAppointment(appointment, technicianName, salesChannel),
         overrides,
+        await mdaRate(),
       );
 
       const jobCardReference = await allocateJobCardReference(client, appointment.appointmentDate);
@@ -697,6 +719,7 @@ export function createServiceJobCardService(pool: Pool) {
           conditionNotes: null,
         },
         data,
+        await mdaRate(),
       );
       const jobCardReference = await allocateWalkInJobCardReference(client, today);
       let jobCard = await insertServiceJobCard(client, {
@@ -815,6 +838,7 @@ export function createServiceJobCardService(pool: Pool) {
           conditionNotes: current.conditionNotes,
         },
         overrides,
+        await mdaRate(),
       );
       if (nextFinal === 'Delivered' && !content.deliveryDate) {
         content.deliveryDate = new Date().toISOString().slice(0, 10);

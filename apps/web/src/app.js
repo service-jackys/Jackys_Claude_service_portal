@@ -1115,7 +1115,7 @@
       <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
       <div class="field-grid">
         <div class="field"><label for="${prefix}TotalCost">Total cost (AED)</label><input type="text" id="${prefix}TotalCost" readonly></div>
-        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED)</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"></div>
+        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED)</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"><span class="form-note" id="${prefix}ServiceChargeNote" hidden>Major appliances (MDA) are charged the rate card &ldquo;MDA &ndash; Standard&rdquo; amount, in or out of warranty.</span></div>
         <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
         <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (AED)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
       </div>
@@ -1164,6 +1164,49 @@
     return '';
   }
 
+  // The rate card's "MDA – Standard" service charge, read once and reused.
+  let mdaRatePromise = null;
+  function loadMdaRate() {
+    if (!mdaRatePromise) {
+      mdaRatePromise = apiRequest('/api/rate-card')
+        .then((data) => {
+          for (const section of data.sections || []) {
+            for (const activity of section.activities || []) {
+              const name = String(activity.name)
+                .replace(/[\u2012-\u2015\u2212]/g, '-')
+                .trim()
+                .toLowerCase();
+              if (name === 'mda - standard') return Number(activity.rate);
+            }
+          }
+          return null;
+        })
+        .catch(() => null);
+    }
+    return mdaRatePromise;
+  }
+
+  // Major appliances (MDA) bill the rate card charge, in or out of warranty, so
+  // the service charge is filled in and locked while the main group is MDA.
+  function refreshMdaServiceCharge(prefix) {
+    const field = $(`#${prefix}ServiceCharge`);
+    const note = $(`#${prefix}ServiceChargeNote`);
+    if (!field) return;
+    const isMda = ($(`#${prefix}MainGroup`).value || '').trim().toUpperCase() === 'MDA';
+    note.hidden = !isMda;
+    if (!isMda) {
+      field.readOnly = false;
+      return;
+    }
+    loadMdaRate().then((rate) => {
+      const stillMda = ($(`#${prefix}MainGroup`).value || '').trim().toUpperCase() === 'MDA';
+      if (!stillMda || rate === null) return;
+      field.value = rate;
+      field.readOnly = true;
+      recalcJobCardTotals(prefix);
+    });
+  }
+
   function refreshBillingPreview(prefix) {
     const registered = normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
     const finalValue = $(`#${prefix}FinalWarrantyStatus`).value;
@@ -1173,6 +1216,18 @@
     const paymentBy = $(`#${prefix}PaymentBy`);
     paymentBy.disabled = effective === 'In Warranty';
     if (effective === 'In Warranty') paymentBy.value = 'Sales channel';
+    // Payment mode, reference and confirmation only apply when the customer pays.
+    const customerPays =
+      paymentBy.value === 'Customer' ||
+      (!paymentBy.value &&
+        effective === 'Out Warranty' &&
+        $(`#${prefix}CustomerType`).value === 'B2C');
+    ['PaymentMode', 'PaymentReference', 'PaymentConfirmed'].forEach((name) => {
+      const input = $(`#${prefix}${name}`);
+      input.disabled = !customerPays;
+      input.title = customerPays ? '' : 'Only used when the customer pays';
+    });
+    refreshMdaServiceCharge(prefix);
     $(`#${prefix}BillingJobType`).value =
       effective === 'In Warranty'
         ? 'CSIJW - Warranty repair'
@@ -1194,13 +1249,20 @@
         mainGroup: $(`#${prefix}MainGroup`),
         group: $(`#${prefix}GroupName`),
         subGroup: $(`#${prefix}SubGroup`),
+        onFilled: () => refreshBillingPreview(prefix),
       });
       $(`#${prefix}AddPartButton`).addEventListener('click', () => {
         jobCardPartsState[prefix].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
         renderJobCardParts(prefix);
       });
       $(`#${prefix}ServiceCharge`).addEventListener('input', () => recalcJobCardTotals(prefix));
-      [`#${prefix}FinalWarrantyStatus`, `#${prefix}WarrantyStatus`].forEach((selector) =>
+      [
+        `#${prefix}FinalWarrantyStatus`,
+        `#${prefix}WarrantyStatus`,
+        `#${prefix}PaymentBy`,
+        `#${prefix}CustomerType`,
+        `#${prefix}MainGroup`,
+      ].forEach((selector) =>
         $(selector).addEventListener('input', () => refreshBillingPreview(prefix)),
       );
       $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
@@ -8797,6 +8859,7 @@ ${bodyHtml}
       if (model) setItemPickerState(model, true, item.itemCode);
       else if (desc) desc.dataset.inMaster = 'true';
       state.filling = false;
+      if (fields.onFilled) fields.onFilled();
     }
 
     function makeDropdown(input, getHits, renderHeader) {
@@ -11505,14 +11568,18 @@ ${bodyHtml}
         '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate" value="' +
         plain((row.invoiceDate || '').slice(0, 10)) +
         '"></label></div>' +
-        '<div class="field"><label>Payment mode<select data-rec="paymentMode"><option value="">Select mode</option>' +
+        '<div class="field"><label>Payment mode<select data-rec="paymentMode"' +
+        (row.payer === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
+        '><option value="">Select mode</option>' +
         ['Cash', 'Online', 'Bank transfer', 'Card']
           .map(
             (m) => '<option' + (row.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
           )
           .join('') +
         '</select></label></div>' +
-        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200" value="' +
+        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200"' +
+        (row.payer === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
+        ' value="' +
         plain(row.paymentReference) +
         '"></label></div>' +
         (row.payer === 'Customer'
@@ -11980,14 +12047,18 @@ ${bodyHtml}
         '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate" value="' +
         escapeHtml((row.invoiceDate || '').slice(0, 10)) +
         '"></label></div>' +
-        '<div class="field"><label>Payment mode<select data-rec="paymentMode"><option value="">Select mode</option>' +
+        '<div class="field"><label>Payment mode<select data-rec="paymentMode"' +
+        (row.paymentBy === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
+        '><option value="">Select mode</option>' +
         ['Cash', 'Online', 'Bank transfer', 'Card']
           .map(
             (m) => '<option' + (row.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
           )
           .join('') +
         '</select></label></div>' +
-        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200" value="' +
+        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200"' +
+        (row.paymentBy === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
+        ' value="' +
         escapeHtml(row.paymentReference || '') +
         '"></label></div>' +
         (row.paymentBy === 'Customer'

@@ -3044,6 +3044,25 @@
           <li>Nothing now. After end-to-end testing: dry run, review, clear test data, import, verify. Duplicates decided: undated cards skipped, the rest kept.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#78 &mdash; MDA rate card charge, payment fields, channel billing</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-08 &middot; API + web &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>MDA jobs always bill the Rate Card &ldquo;MDA &ndash; Standard&rdquo; service charge, in or out of warranty; spare parts are added on top.</li>
+          <li>Payment mode, reference and confirmation are greyed out unless the customer pays.</li>
+          <li>Ledger bills anyone who is not the paying customer to the channel by default.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart and hard-refresh. Existing MDA job cards update when next saved.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

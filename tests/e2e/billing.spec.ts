@@ -274,4 +274,137 @@ test.describe('warranty and billing', () => {
     expect(download.suggestedFilename()).toMatch(/^Billing_.*\.xlsx$/);
     expect(exportUrl).toContain('/api/billing/export');
   });
+
+  test('Billing record panel greys out payment fields unless the customer pays', async ({
+    page,
+  }) => {
+    const row = (id: string, ref: string, payer: string) => ({
+      id,
+      jobCardReference: ref,
+      jobCardDate: '2026-10-02',
+      deliveryDate: null,
+      billingJobType: 'CSIJO',
+      registeredWarranty: 'Out Warranty',
+      finalWarranty: 'Out Warranty',
+      warrantyChangeReason: null,
+      payer,
+      billTo: payer === 'Customer' ? 'Walk In Customer' : 'JDI',
+      customerName: 'Walk In Customer',
+      customerType: 'B2C',
+      b2bBranchSchool: '',
+      salesman: null,
+      salesChannel: 'JDI',
+      region: 'Dubai',
+      salesOrderNumber: null,
+      itemCode: 'ITM-1',
+      brand: 'Venus',
+      mainGroup: 'MDA',
+      groupName: 'Refrigerators',
+      subGroup: null,
+      modelNo: 'M1',
+      serialNo: null,
+      technicianName: 'Tech',
+      serviceCharge: 100,
+      partsCost: 0,
+      grandTotal: 100,
+      adjustment: 0,
+      billedAmount: 100,
+      invoiceNo: null,
+      invoiceDate: null,
+      paymentMode: null,
+      paymentReference: null,
+      paymentConfirmedAt: null,
+      stage: 'Not invoiced',
+      jobFinalStatus: 'Repair Completed',
+    });
+    const ledger = {
+      rows: [row('1', 'JBC-2026-00911', 'Sales channel'), row('2', 'JBC-2026-00912', 'Customer')],
+      total: 2,
+      page: 1,
+      pageSize: 50,
+      totals: {
+        jobs: 2,
+        serviceCharge: 200,
+        partsCost: 0,
+        adjustment: 0,
+        billedAmount: 200,
+        invoicedAmount: 0,
+        notInvoicedAmount: 200,
+      },
+      statement: [],
+      allocation: [],
+      billToOptions: ['JDI'],
+      stages: ['Not invoiced', 'Paid'],
+    };
+    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
+      if (url.pathname === '/api/billing/ledger') return ledger;
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#billingNav').dispatchEvent('click');
+    await expect(page.getByText('JBC-2026-00911')).toBeVisible();
+    const records = page.getByRole('button', { name: 'Record' });
+    await records.nth(0).click();
+    await expect(page.locator('[data-acc-record] [data-rec="paymentMode"]')).toBeDisabled();
+    await expect(page.locator('[data-acc-record] [data-rec="paymentReference"]')).toBeDisabled();
+    await records.nth(1).click();
+    await expect(page.locator('[data-acc-record] [data-rec="paymentMode"]')).toBeEnabled();
+    await expect(page.locator('[data-acc-record] [data-rec="paymentReference"]')).toBeEnabled();
+  });
+
+  test('Job card form locks the MDA service charge and greys payment mode', async ({ page }) => {
+    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
+      if (url.pathname === '/api/rate-card') {
+        return {
+          sections: [
+            {
+              key: 'warranty_repairs',
+              label: 'Warranty Repairs',
+              activities: [
+                { name: 'SDA', rate: 50 },
+                { name: 'MDA \u2013 Standard', rate: 100 },
+              ],
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    await signIn(page);
+    // The form fields exist in the page even before a job card is opened.
+    const state = await page.evaluate(async () => {
+      const set = (id: string, value: string) => {
+        const el = document.getElementById(id) as HTMLInputElement | HTMLSelectElement;
+        el.value = value;
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      const read = (id: string) => document.getElementById(id) as HTMLInputElement;
+      const wait = () => new Promise((resolve) => setTimeout(resolve, 300));
+      set('jccFinalWarrantyStatus', 'Out Warranty');
+      set('jccCustomerType', 'B2B');
+      set('jccPaymentBy', 'Sales channel');
+      const channelDisabled = read('jccPaymentMode').disabled;
+      set('jccPaymentBy', 'Customer');
+      const customerDisabled = read('jccPaymentMode').disabled;
+      set('jccServiceCharge', '7');
+      set('jccMainGroup', 'MDA');
+      await wait();
+      const mda = {
+        value: read('jccServiceCharge').value,
+        locked: read('jccServiceCharge').readOnly,
+      };
+      set('jccMainGroup', 'SDA');
+      await wait();
+      return {
+        channelDisabled,
+        customerDisabled,
+        mda,
+        sdaLocked: read('jccServiceCharge').readOnly,
+      };
+    });
+    expect(state.channelDisabled).toBe(true);
+    expect(state.customerDisabled).toBe(false);
+    expect(state.mda).toEqual({ value: '100', locked: true });
+    expect(state.sdaLocked).toBe(false);
+  });
 });

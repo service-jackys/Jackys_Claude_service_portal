@@ -6,9 +6,9 @@ import type { PoolClient } from 'pg';
 // otherwise service charge plus parts (the same rule as the delivery gate).
 const BILLED = 'COALESCE(j.amount_chargeable, j.grand_total)';
 
-// Where the job is in the accounts flow.
+// Where the job is in the accounts flow. Anyone who is not the paying customer
+// is billed through the sales channel, including jobs with no payer recorded.
 const STAGE = `CASE
-  WHEN j.payment_by IS NULL THEN 'Payer not chosen'
   WHEN j.payment_by = 'Customer' AND j.payment_confirmed_at IS NOT NULL THEN 'Paid'
   WHEN j.invoice_no IS NULL THEN 'Not invoiced'
   WHEN j.payment_by = 'Customer' THEN 'Invoiced, awaiting payment'
@@ -24,7 +24,6 @@ export const BILLING_STAGES = [
   'Invoiced, awaiting payment',
   'Invoiced to channel',
   'Paid',
-  'Payer not chosen',
 ] as const;
 
 export type BillingLedgerQuery = {
@@ -119,7 +118,8 @@ function where(query: BillingLedgerQuery) {
   if (query.from) add(`${date} >= $n::date`, query.from);
   if (query.to) add(`${date} <= $n::date`, query.to);
   if (query.type) add('j.billing_job_type = $n', query.type);
-  if (query.payer) add('j.payment_by = $n', query.payer);
+  if (query.payer === 'Sales channel') clauses.push(`j.payment_by IS DISTINCT FROM 'Customer'`);
+  else if (query.payer) add('j.payment_by = $n', query.payer);
   if (query.billTo) add(`${BILL_TO} = $n`, query.billTo);
   if (query.stage) add(`${STAGE} = $n`, query.stage);
   if (query.search) {
@@ -154,7 +154,7 @@ export async function queryBillingLedger(
             j.warranty_status AS "registeredWarranty",
             COALESCE(j.final_warranty_status, j.warranty_status) AS "finalWarranty",
             j.warranty_override_reason AS "warrantyChangeReason",
-            j.payment_by AS payer, ${BILL_TO} AS "billTo",
+            COALESCE(j.payment_by, 'Sales channel') AS payer, ${BILL_TO} AS "billTo",
             j.customer_name AS "customerName", j.customer_type AS "customerType",
             COALESCE(j.b2b_branch_school, '') AS "b2bBranchSchool", j.salesman,
             j.sales_channel AS "salesChannel", j.region,

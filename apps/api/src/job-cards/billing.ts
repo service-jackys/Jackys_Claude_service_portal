@@ -141,3 +141,26 @@ export function deliveryBlockReason(card: {
   }
   return null;
 }
+
+/** Major domestic appliances: the product category (main group) is MDA. */
+export function isMdaGroup(mainGroup: string | null | undefined): boolean {
+  return (mainGroup ?? '').trim().toUpperCase() === 'MDA';
+}
+
+/** The "MDA – Standard" activity rate in the rate card, or null when it is missing. */
+export function mdaStandardRate(
+  sections: { activities: { name: string; rate: number }[] }[],
+): number | null {
+  const wanted = 'mda - standard';
+  for (const section of sections) {
+    for (const activity of section.activities) {
+      const name = activity.name
+        .replace(/[\u2012-\u2015\u2212]/g, '-')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+      if (name === wanted) return Number(activity.rate);
+    }
+  }
+  return null;
+}

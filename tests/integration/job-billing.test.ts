@@ -7,6 +7,8 @@ import {
   ServiceJobCardError,
   createServiceJobCardService,
 } from '../../apps/api/src/job-cards/service.js';
+import { mdaStandardRate } from '../../apps/api/src/job-cards/billing.js';
+import { createPricingConfigService } from '../../apps/api/src/pricing-config/service.js';
 import { createDbPool } from '../../packages/db/src/client.js';
 import { migrate } from '../../packages/db/src/migrate.js';
 
@@ -229,6 +231,59 @@ test(
       assert.equal(exported.rows, 1);
       assert.match(exported.fileName, /^Billing_/);
       await pool.query(`DELETE FROM audit_events WHERE request_id = 'billing-export'`);
+
+      // Major appliances (MDA) bill the rate card's "MDA – Standard" charge, in
+      // or out of warranty, whatever service charge was typed.
+      const rateCard = await createPricingConfigService(pool).get('rate_card');
+      const mdaRate = mdaStandardRate(rateCard.payload as Parameters<typeof mdaStandardRate>[0]);
+      assert.ok(mdaRate && mdaRate > 0, 'the rate card has an MDA – Standard rate');
+      const mdaCard = await makeCard({});
+      const mda = await jobCardService.updateContent(
+        mdaCard.id,
+        {
+          mainGroup: 'MDA',
+          serviceCharge: 5,
+          parts: [{ partNo: 'P1', description: 'Fan', qty: 2, unitPrice: 10 }],
+        },
+        profileId,
+        'billing-mda',
+      );
+      assert.equal(Number(mda.serviceCharge), mdaRate);
+      assert.equal(
+        Number(mda.grandTotal),
+        mdaRate + 20,
+        'parts are added on top of the rate card charge',
+      );
+      const mdaOow = await jobCardService.updateContent(
+        mdaCard.id,
+        { finalWarrantyStatus: 'Out Warranty', warrantyOverrideReason: 'Misuse', serviceCharge: 1 },
+        profileId,
+        'billing-mda-oow',
+      );
+      assert.equal(Number(mdaOow.serviceCharge), mdaRate, 'same charge out of warranty');
+      // In the ledger by default, billed to the channel when the customer does not pay.
+      await pool.query(`UPDATE service_job_cards SET payment_by = NULL WHERE id = $1`, [
+        mdaCard.id,
+      ]);
+      const mdaLedger = await invoiceService.ledger({ search: mdaCard.jobCardReference });
+      assert.equal(mdaLedger.rows.length, 1);
+      assert.equal(mdaLedger.rows[0].billedAmount, mdaRate + 20);
+      assert.equal(mdaLedger.rows[0].payer, 'Sales channel');
+      assert.equal(mdaLedger.rows[0].stage, 'Not invoiced');
+      const channelOnly = await invoiceService.ledger({
+        payer: 'Sales channel',
+        search: mdaCard.jobCardReference,
+      });
+      assert.equal(channelOnly.total, 1);
+      // Other product groups keep the typed service charge.
+      const sdaCard = await makeCard({});
+      const sda = await jobCardService.updateContent(
+        sdaCard.id,
+        { mainGroup: 'SDA', serviceCharge: 33 },
+        profileId,
+        'billing-sda',
+      );
+      assert.equal(Number(sda.serviceCharge), 33);
     } finally {
       for (const id of jobCardIds) {
         await pool.query(

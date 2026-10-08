@@ -3,6 +3,8 @@ import test from 'node:test';
 import {
   billedAmount,
   deliveryBlockReason,
+  isMdaGroup,
+  mdaStandardRate,
   matchBillingRule,
   normalizeWarranty,
   resolveBilling,
@@ -133,4 +135,22 @@ test('the billed amount is the chargeable amount, else service charge plus parts
   assert.equal(billedAmount({ amountChargeable: 80, grandTotal: 200 }), 80);
   assert.equal(billedAmount({ amountChargeable: null, grandTotal: 200 }), 200);
   assert.equal(billedAmount({ amountChargeable: 0, grandTotal: 200 }), 0);
+});
+
+test('MDA product group bills the rate card MDA – Standard charge', () => {
+  assert.equal(isMdaGroup('MDA'), true);
+  assert.equal(isMdaGroup(' mda '), true);
+  assert.equal(isMdaGroup('SDA'), false);
+  assert.equal(isMdaGroup(null), false);
+  const sections = [
+    {
+      activities: [
+        { name: 'SDA', rate: 50 },
+        { name: 'MDA \u2013 Standard', rate: 100 },
+      ],
+    },
+    { activities: [{ name: 'MDA \u2013 Gas Charging', rate: 200 }] },
+  ];
+  assert.equal(mdaStandardRate(sections), 100);
+  assert.equal(mdaStandardRate([{ activities: [{ name: 'SDA', rate: 50 }] }]), null);
 });
