@@ -1096,11 +1096,28 @@
   ];
   function jobCardFieldsHtml(prefix) {
     return `
+      <div class="jc-sections">
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Customer</h5></header>
+        <div class="jc-sec-body">
       <div class="field-grid">
-        <div class="field"><label for="${prefix}Date">Job card date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
         <div class="field"><label for="${prefix}CustomerContact">Customer contact</label><input type="text" id="${prefix}CustomerContact" maxlength="50"></div>
         <div class="field"><label for="${prefix}CustomerAddress">Customer address</label><input type="text" id="${prefix}CustomerAddress" maxlength="500"></div>
+        <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
+        <div class="field"><label for="${prefix}CustomerEmail">Email address</label><input type="email" id="${prefix}CustomerEmail" maxlength="320"></div>
+        <div class="field"><label for="${prefix}Region">Region</label><select id="${prefix}Region"><option value="">Select region</option>${REGION_LIST.map((r) => `<option>${r}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}B2bBranchSchool">B2B Branch / School</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300"></div>
+        <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
+        <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
+        <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
+      </div>
+        </div>
+      </section>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Product</h5></header>
+        <div class="jc-sec-body">
+      <div class="field-grid">
         <div class="field"><label for="${prefix}ItemDescription">Item description</label><input type="text" id="${prefix}ItemDescription" maxlength="300"></div>
         <div class="field"><label for="${prefix}ModelNo">Model no. (item code) <span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">Type an item code or description to search the stock master, or pick a brand first to list only its models. Picking a result fills brand, description, group and sub group.</span></span></label><input type="text" id="${prefix}ModelNo" maxlength="120" autocomplete="off"></div>
         <div class="field"><label for="${prefix}Brand">Brand</label><input type="text" id="${prefix}Brand" maxlength="120" autocomplete="off"></div>
@@ -1111,10 +1128,25 @@
         <div class="field"><label for="${prefix}PurchaseDate">Purchase date <span class="warranty-pill" id="${prefix}WarrantyDaysPill" hidden></span></label><input type="date" id="${prefix}PurchaseDate"></div>
         <input type="hidden" id="${prefix}ItemCode">
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
+      </div>
+        </div>
+      </section>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Job details</h5></header>
+        <div class="jc-sec-body">
+      <div class="field-grid">
+        <div class="field"><label for="${prefix}Date">Job card date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
         <div class="field"><label for="${prefix}Salesman">Salesman</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
         <div class="field"><label for="${prefix}SalesChannel">Sales channel</label><select id="${prefix}SalesChannel"><option value="">Select a sales channel</option></select></div>
+        <div class="field"><label for="${prefix}SalesOrderNumber">Sales order no.</label><input type="text" id="${prefix}SalesOrderNumber" maxlength="100"></div>
+        <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
       </div>
+        </div>
+      </section>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Service</h5></header>
+        <div class="jc-sec-body">
       <div class="field"><label for="${prefix}Complaint">Complaint</label><textarea id="${prefix}Complaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}ServiceRendered">Service rendered</label><textarea id="${prefix}ServiceRendered" maxlength="10000"></textarea></div>
       <div class="field-grid">
@@ -1122,8 +1154,12 @@
         <div class="field"><label for="${prefix}PeriodTo">Period to</label><input type="datetime-local" id="${prefix}PeriodTo"></div>
         <div class="field"><label for="${prefix}TimeConsumed">Time consumed (hours)</label><input type="text" id="${prefix}TimeConsumed" readonly></div>
       </div>
+        </div>
+      </section>
       <div class="jc-post-create" id="${prefix}PostCreate"${prefix === 'jce' ? '' : ' hidden'}>
-      <h5>Parts used</h5>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Parts and charges</h5></header>
+        <div class="jc-sec-body">
       <div class="table-wrap">
         <table>
           <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
@@ -1137,12 +1173,21 @@
         <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
         <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (AED)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
       </div>
+        </div>
+      </section>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Status and delivery</h5></header>
+        <div class="jc-sec-body">
       <div class="field-grid">
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
       </div>
-      <h5>Warranty and billing</h5>
+        </div>
+      </section>
+      <section class="jc-sec">
+        <header class="ds-head"><h5>Warranty and billing</h5></header>
+        <div class="jc-sec-body">
       <div class="field-grid">
         <div class="field"><label for="${prefix}FinalWarrantyStatus">Final warranty status ${tipHtml(`Set after inspection. If it differs from the registered warranty (for example customer-induced damage or misuse), billing follows this one.`)}</label><select id="${prefix}FinalWarrantyStatus"><option value="">Same as registered warranty</option><option>In Warranty</option><option>Out Warranty</option></select></div>
         <div class="field" id="${prefix}WarrantyReasonField" hidden><label for="${prefix}WarrantyOverrideReason">Reason for the change</label><input type="text" id="${prefix}WarrantyOverrideReason" maxlength="1000" placeholder="Required when the final warranty differs"></div>
@@ -1154,18 +1199,8 @@
         <div class="field"><label for="${prefix}PaymentReference">Payment reference</label><input type="text" id="${prefix}PaymentReference" maxlength="200" placeholder="Receipt or transaction no."></div>
         <div class="field"><label class="check-label"><input type="checkbox" id="${prefix}PaymentConfirmed"> Payment received and confirmed ${tipHtml(`A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.`, '', `id="${prefix}PaymentConfirmedNote"`)}</label></div>
       </div>
-      <div class="field-grid">
-        <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
-        <div class="field"><label for="${prefix}CustomerEmail">Email address</label><input type="email" id="${prefix}CustomerEmail" maxlength="320"></div>
-        <div class="field"><label for="${prefix}Region">Region</label><select id="${prefix}Region"><option value="">Select region</option>${REGION_LIST.map((r) => `<option>${r}</option>`).join('')}</select></div>
-        <div class="field"><label for="${prefix}B2bBranchSchool">B2B Branch / School</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300"></div>
-        <div class="field"><label for="${prefix}SalesOrderNumber">Sales order no.</label><input type="text" id="${prefix}SalesOrderNumber" maxlength="100"></div>
-      </div>
-      <div class="field-grid">
-        <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
-        <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
-        <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
-        <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
+        </div>
+      </section>
       </div>
       </div>
     `;

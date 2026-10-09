@@ -5123,6 +5123,31 @@
           transition: none;
         }
       }
+      /* Edit job form: one titled card per section (modification #85). */
+      .jc-sections {
+        display: grid;
+        gap: 14px;
+      }
+      .jc-sec,
+      .jc-post-create {
+        display: grid;
+        gap: 14px;
+      }
+      .jc-post-create[hidden] {
+        display: none;
+      }
+      .jc-sec {
+        display: block;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .jc-sec > .ds-head {
+        border-radius: 12px 12px 0 0;
+      }
+      .jc-sec-body {
+        padding: 12px 14px 4px;
+      }
     </style>
   </head>
   <body>

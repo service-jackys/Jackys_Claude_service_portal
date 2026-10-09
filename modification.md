@@ -2559,3 +2559,14 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - The active item in the left menu has a solid accent bar and a light highlight. The current workflow step and the selected calendar day use a plain solid marker. No glows anywhere.
 
 **Needs you:** hard-refresh.
+
+
+## Modification #85 — Edit job form split into section cards
+
+**Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- The **Edit job** tab is no longer one long form. It is split into titled section cards, the same way the read-only Job card tab is: **Customer**, **Product**, **Job details** (job card date, technician, salesman, sales channel, sales order no., legacy reference), **Service** (complaint, service rendered, period), **Parts and charges**, **Status and delivery**, and **Warranty and billing**.
+- Fields only moved between cards; nothing was added or removed, and saving works as before. When a job card is first created, the last three cards stay hidden until the card exists (as in #82).
+
+**Needs you:** hard-refresh.
