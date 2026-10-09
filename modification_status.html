@@ -3063,6 +3063,25 @@
           <li>Restart and hard-refresh. Existing MDA job cards update when next saved.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#79 &mdash; Calendar day select, WhatsApp and email from appointments</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-09 &middot; API + web &middot; migration 036</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Calendar dates are clickable: the list shows only that day, with a Show all dates button.</li>
+          <li>Scheduled and In Progress appointments get a Message button: customer booked / rescheduled and technician new job, by WhatsApp (wa.me) or email (mailto). Staff press Send in their own app.</li>
+          <li>Every prepared message is recorded with who, when and the text. No delivery confirmation (that needs the paid WhatsApp API).</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate (036), restart, hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -11,6 +11,7 @@ import { createDbPool } from './client.js';
 const TRANSACTIONAL = [
   'complaint_status_history',
   'appointment_status_history',
+  'appointment_messages',
   'service_job_card_status_history',
   'job_card_attachments',
   'service_job_cards',

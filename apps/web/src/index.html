@@ -2512,6 +2512,77 @@
         font-size: 0.75rem;
         font-weight: 700;
         color: var(--ink);
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .cal-day:hover {
+        background: color-mix(in srgb, var(--blue) 14%, transparent);
+      }
+      .cal-day:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+      }
+      .cal-card .calendar-cell[data-calendar-date] {
+        cursor: pointer;
+      }
+      .cal-card .calendar-cell.is-selected {
+        box-shadow: inset 0 0 0 2px var(--blue);
+        background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+      }
+      .calendar-cell.is-selected .cal-day {
+        background: var(--blue);
+        color: #fff;
+      }
+      .ap-daybar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin: 0.5rem 0;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        font-weight: 600;
+        background: color-mix(in srgb, var(--blue) 10%, var(--surface));
+      }
+      .ap-daybar[hidden] {
+        display: none;
+      }
+      .ap-actions {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .ap-msg-btn {
+        min-height: 32px;
+        padding: 0.2rem 0.7rem;
+      }
+      .msg-draft {
+        padding: 0.75rem 0;
+        border-top: 1px solid var(--line, #d9dee7);
+      }
+      .msg-draft-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+      }
+      .msg-draft-actions {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .msg-note {
+        margin: 0.35rem 0 0;
+        font-size: 0.85rem;
+        opacity: 0.8;
+      }
+      .msg-preview {
+        margin: 0.5rem 0 0;
+        white-space: pre-wrap;
+        font: inherit;
+        font-size: 0.875rem;
       }
       .calendar-cell-today .cal-day {
         background: var(--blue);
@@ -8155,6 +8226,16 @@
                 <h3 class="cal-list-title">
                   All appointments <span class="ap-count" id="appointmentListCount"></span>
                 </h3>
+                <div class="ap-daybar" id="appointmentDayBar" hidden>
+                  <span id="appointmentDayLabel" aria-live="polite"></span>
+                  <button
+                    class="button button-outline"
+                    type="button"
+                    id="appointmentDayClearButton"
+                  >
+                    Show all dates
+                  </button>
+                </div>
                 <div class="table-wrap ap-list">
                   <table>
                     <caption class="visually-hidden">
@@ -8168,6 +8249,7 @@
                         <th>Technician</th>
                         <th>Status</th>
                         <th>Region</th>
+                        <th><span class="visually-hidden">Actions</span></th>
                       </tr>
                     </thead>
                     <tbody id="appointmentsBody"></tbody>
@@ -8330,6 +8412,22 @@
                       Download calendar file
                     </button>
                   </div>
+                  <section
+                    class="detail-action-card"
+                    id="appointmentMessagePanel"
+                    aria-labelledby="appointmentMessageHeading"
+                    hidden
+                  >
+                    <h4 id="appointmentMessageHeading">Send message</h4>
+                    <p id="appointmentMessageIntro">
+                      Opens WhatsApp or your email app with the message ready. Check it, then press
+                      Send there. The portal records that it was prepared but cannot confirm
+                      delivery.
+                    </p>
+                    <div id="appointmentMessageDrafts"></div>
+                    <h5>Messages prepared</h5>
+                    <ol class="history" id="appointmentMessageHistory"></ol>
+                  </section>
                   <section
                     class="detail-action-card"
                     id="jobCardCreatePanel"

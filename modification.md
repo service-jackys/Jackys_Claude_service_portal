@@ -2470,3 +2470,22 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Tests: unit, integration (MDA in and out of warranty, ledger payer) and two end-to-end checks.
 
 **Needs you:** restart and hard-refresh. No migration. Existing MDA job cards pick up the rate card charge the next time they are saved.
+
+
+## Modification #79 — Clickable calendar days; WhatsApp and email messages from an appointment
+
+**Date:** 2026-10-09 · **Scope:** API + web + migration 036 · run `npm run db:migrate`, restart, hard-refresh
+
+**What changed**
+- **Calendar day select.** Each calendar date is now a button. Click a date (or the empty space in its box) and the appointment list below shows only that day; the date is highlighted and a bar shows "Friday 9 October 2026: 2 appointments" with a **Show all dates** button. Clicking the selected date again also clears it. The selection is simply From = To in the date filters, so the filters, list and calendar always agree. The month grid keeps showing every appointment.
+- **Message action.** Appointments that are Scheduled or In Progress get a **Message** button in the list (people with edit access only). It opens the appointment with a new **Send message** panel: customer "appointment booked", customer "appointment rescheduled", and technician "new job assigned". Each has a **WhatsApp** and an **Email** button, plus a text preview.
+- **How it sends.** WhatsApp opens `wa.me` with the number and text filled in (UAE numbers are normalised to +971; the first number is used if a cell has two). Email opens a mailto draft. Staff press Send in their own WhatsApp or mail app, so the message goes from whichever number or mailbox is signed in there (use the service centre's). The portal cannot confirm delivery.
+- A channel with no recipient (no customer email, technician with no phone or email, no technician assigned) is greyed out with the reason.
+- Completed and Cancelled appointments show no message actions. Their earlier message history stays visible.
+- **History.** Every prepared message is saved (who, when, channel, recipient, text) in the new `appointment_messages` table (migration 036), shown under "Messages prepared", and written to the Activity log as `appointment.message_prepared`.
+- API: `GET /api/appointments/{id}/messages` (drafts + history), `POST /api/appointments/{id}/messages` (records it and returns the link).
+- Tests: 7 unit, 1 integration, 4 end-to-end. `db:clear-test-data` also clears the new table.
+
+**Not included:** automatic sending and delivery status. That needs the paid WhatsApp Business Cloud API (Meta verification, approved templates, public HTTPS); the message text and history built here carry over to it. A "cancelled" notice is not offered because cancelled appointments show no actions.
+
+**Needs you:** run `npm.cmd run db:migrate` (036), restart, hard-refresh.

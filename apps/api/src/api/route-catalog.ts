@@ -102,6 +102,7 @@ export type RouteDefinition = {
     | 'billingRule'
     | 'appointment'
     | 'appointmentAssignment'
+    | 'appointmentMessage'
     | 'appointmentSchedule'
     | 'appointmentStatus'
     | 'draftSchedule'
@@ -433,6 +434,14 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         ics: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        messages: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        prepareMessage: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -1835,6 +1844,29 @@ export function createRouteCatalog(
         responseContentType: 'text/calendar',
         responses: [200, 401, 403, 404, 500],
         handlers: appointmentHandlers.ics,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/appointments/{id}/messages',
+        operationId: 'getAppointmentMessages',
+        tags: ['Appointments'],
+        summary: 'Message drafts and history for an appointment',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: appointmentHandlers.messages,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/appointments/{id}/messages',
+        operationId: 'prepareAppointmentMessage',
+        tags: ['Appointments'],
+        summary: 'Record a WhatsApp or email message prepared from an appointment',
+        security: 'bearerAuth' as const,
+        requestBody: 'appointmentMessage' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [201, 400, 401, 403, 404, 409, 500],
+        handlers: appointmentHandlers.prepareMessage,
       },
       {
         method: 'patch' as const,

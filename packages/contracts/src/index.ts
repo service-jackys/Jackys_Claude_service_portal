@@ -993,6 +993,19 @@ export const appointmentAssignmentSchema = z
     technicianId: z.string().regex(/^\d+$/).nullable(),
   })
   .strict();
+export const appointmentMessageTemplates = [
+  'customer_booked',
+  'customer_rescheduled',
+  'technician_assigned',
+] as const;
+export const appointmentMessageChannels = ['whatsapp', 'email'] as const;
+export const appointmentMessageCreateSchema = z
+  .object({
+    template: z.enum(appointmentMessageTemplates),
+    channel: z.enum(appointmentMessageChannels),
+  })
+  .strict();
+export type AppointmentMessageCreateInput = z.infer<typeof appointmentMessageCreateSchema>;
 export const appointmentScheduleUpdateSchema = z.object({ appointmentDate: dateSchema }).strict();
 export type AppointmentScheduleUpdateInput = z.infer<typeof appointmentScheduleUpdateSchema>;
 export const appointmentStatusUpdateSchema = z

@@ -201,6 +201,14 @@ const requestBodies = {
       },
     },
   },
+  appointmentMessage: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/AppointmentMessageRequest' },
+      },
+    },
+  },
   appointmentSchedule: {
     required: true,
     content: {
@@ -667,6 +675,18 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           additionalProperties: false,
           required: ['technicianId'],
           properties: { technicianId: { type: ['string', 'null'], pattern: '^\\d+$' } },
+        },
+        AppointmentMessageRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['template', 'channel'],
+          properties: {
+            template: {
+              type: 'string',
+              enum: ['customer_booked', 'customer_rescheduled', 'technician_assigned'],
+            },
+            channel: { type: 'string', enum: ['whatsapp', 'email'] },
+          },
         },
         AppointmentScheduleRequest: {
           type: 'object',

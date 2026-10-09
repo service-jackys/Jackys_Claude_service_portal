@@ -13,7 +13,8 @@ function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): 
           error.code === 'technician-conflict' ||
           error.code === 'active-appointment-conflict' ||
           error.code === 'complaint-not-schedulable' ||
-          error.code === 'terminal-appointment'
+          error.code === 'terminal-appointment' ||
+          error.code === 'message-unavailable'
         ? 409
         : 500;
   const type =
@@ -101,6 +102,44 @@ export function createAppointmentHandlers(
       async (request, response, next) => {
         try {
           response.type('text/calendar').send(await service.ics(String(request.params.id)));
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    messages: [
+      requirePermission('appointments.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.messages(String(request.params.id)));
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    prepareMessage: [
+      requirePermission('appointments.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response
+            .status(201)
+            .json(
+              await service.prepareMessage(
+                String(request.params.id),
+                request.body,
+                auth.profileId,
+                request.header('x-request-id') ?? undefined,
+              ),
+            );
         } catch (error) {
           if (error instanceof AppointmentServiceError) {
             serviceError(error, response);

@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import { createAppointmentIcs } from './ics.js';
+import { buildMessageDrafts, canSendMessages, messageLink } from './messages.js';
 import {
   appointmentAssignmentSchema,
+  appointmentMessageCreateSchema,
   appointmentCreateSchema,
   appointmentListQuerySchema,
   appointmentScheduleUpdateSchema,
@@ -17,6 +19,8 @@ import {
   insertAppointment,
   insertAppointmentHistory,
   listAppointmentHistory,
+  insertAppointmentMessage,
+  listAppointmentMessages,
   listAppointments,
   updateAppointmentAssignment,
   updateAppointmentSchedule,
@@ -45,7 +49,8 @@ export class AppointmentServiceError extends Error {
       | 'technician-daily-cap-reached'
       | 'active-appointment-conflict'
       | 'complaint-not-schedulable'
-      | 'terminal-appointment',
+      | 'terminal-appointment'
+      | 'message-unavailable',
     message: string,
   ) {
     super(message);
@@ -278,6 +283,91 @@ export function createAppointmentService(pool: Pool) {
     }
   }
 
+  async function messageContext(client: PoolClient, id: string) {
+    const appointment = await findAppointmentById(client, id);
+    if (!appointment)
+      throw new AppointmentServiceError('not-found', 'The appointment was not found.');
+    const technician = appointment.technicianId
+      ? await findTechnicianById(client, appointment.technicianId)
+      : null;
+    const drafts = buildMessageDrafts(
+      appointment,
+      technician
+        ? { name: technician.name, phone: technician.phone, email: technician.email }
+        : null,
+    );
+    return { appointment, drafts };
+  }
+
+  // Drafts + history for the Send message panel. Closed appointments get no
+  // drafts (the screen shows no actions for them); history stays readable.
+  async function messages(id: string) {
+    const client = await pool.connect();
+    try {
+      const { appointment, drafts } = await messageContext(client, id);
+      return {
+        canSend: canSendMessages(appointment.status),
+        drafts: canSendMessages(appointment.status) ? drafts : [],
+        history: await listAppointmentMessages(client, id),
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Records that a message was prepared and opened, and returns the link to open.
+  async function prepareMessage(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = appointmentMessageCreateSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const { appointment, drafts } = await messageContext(client, id);
+      if (!canSendMessages(appointment.status)) {
+        throw new AppointmentServiceError(
+          'terminal-appointment',
+          `A ${appointment.status} appointment cannot be messaged.`,
+        );
+      }
+      const draft = drafts.find((item) => item.template === data.template);
+      const link = draft ? messageLink(data.channel, draft) : null;
+      if (!draft || !link) {
+        throw new AppointmentServiceError(
+          'message-unavailable',
+          (data.channel === 'whatsapp'
+            ? draft?.whatsappUnavailableReason
+            : draft?.emailUnavailableReason) ?? 'This message cannot be prepared.',
+        );
+      }
+      const message = await insertAppointmentMessage(client, {
+        appointmentId: id,
+        template: draft.template,
+        channel: data.channel,
+        recipientType: draft.recipientType,
+        recipient: link.recipient,
+        subject: data.channel === 'email' ? draft.subject : null,
+        body: draft.body,
+        sentBy: profileId,
+      });
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'appointment.message_prepared',
+        targetType: 'appointment',
+        targetId: id,
+        metadata: {
+          appointmentReference: appointment.appointmentReference,
+          template: draft.template,
+          channel: data.channel,
+          recipientType: draft.recipientType,
+        },
+        requestId,
+      });
+      return { message, url: link.url };
+    });
+  }
+
   async function assign(
     id: string,
     input: unknown,
@@ -469,7 +559,18 @@ export function createAppointmentService(pool: Pool) {
     });
   }
 
-  return { create, list, detail, history, ics, assign, reschedule, changeStatus };
+  return {
+    create,
+    list,
+    detail,
+    history,
+    ics,
+    messages,
+    prepareMessage,
+    assign,
+    reschedule,
+    changeStatus,
+  };
 }
 
 export type AppointmentService = ReturnType<typeof createAppointmentService>;

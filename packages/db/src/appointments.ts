@@ -267,3 +267,78 @@ export async function listAppointments(client: PoolClient, query: Record<string,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
 }
+
+export type AppointmentMessageRecord = {
+  id: string;
+  appointmentId: string;
+  template: string;
+  channel: string;
+  recipientType: string;
+  recipient: string;
+  subject: string | null;
+  body: string;
+  sentBy: string | null;
+  sentByName: string | null;
+  createdAt: Date;
+};
+
+const messageColumns = `
+  m.id::text,
+  m.appointment_id::text AS "appointmentId",
+  m.template,
+  m.channel,
+  m.recipient_type AS "recipientType",
+  m.recipient,
+  m.subject,
+  m.body,
+  m.sent_by::text AS "sentBy",
+  (SELECT p.display_name FROM profiles p WHERE p.id = m.sent_by) AS "sentByName",
+  m.created_at AS "createdAt"
+`;
+
+export async function insertAppointmentMessage(
+  client: PoolClient,
+  input: {
+    appointmentId: string;
+    template: string;
+    channel: string;
+    recipientType: string;
+    recipient: string;
+    subject: string | null;
+    body: string;
+    sentBy: string;
+  },
+): Promise<AppointmentMessageRecord> {
+  const result = await client.query<{ id: string }>(
+    `INSERT INTO appointment_messages (
+       appointment_id, template, channel, recipient_type, recipient, subject, body, sent_by
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id::text`,
+    [
+      input.appointmentId,
+      input.template,
+      input.channel,
+      input.recipientType,
+      input.recipient,
+      input.subject,
+      input.body,
+      input.sentBy,
+    ],
+  );
+  const rows = await client.query<AppointmentMessageRecord>(
+    `SELECT ${messageColumns} FROM appointment_messages m WHERE m.id = $1`,
+    [result.rows[0]!.id],
+  );
+  return rows.rows[0]!;
+}
+
+export async function listAppointmentMessages(
+  client: PoolClient,
+  appointmentId: string,
+): Promise<AppointmentMessageRecord[]> {
+  const result = await client.query<AppointmentMessageRecord>(
+    `SELECT ${messageColumns} FROM appointment_messages m
+     WHERE m.appointment_id = $1 ORDER BY m.created_at DESC, m.id DESC LIMIT 50`,
+    [appointmentId],
+  );
+  return result.rows;
+}

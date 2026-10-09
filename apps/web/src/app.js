@@ -4794,8 +4794,39 @@ ${bodyHtml}
       : date.toLocaleDateString(undefined, { dateStyle: 'medium' });
   }
 
+  // The selected calendar day is simply From = To = that day, so the list, the
+  // date filters and the calendar highlight can never disagree.
+  function selectedAppointmentDay() {
+    const from = $('#appointmentFrom').value;
+    return from && from === $('#appointmentTo').value ? from : '';
+  }
+
+  function toggleAppointmentDay(key) {
+    const clear = selectedAppointmentDay() === key;
+    $('#appointmentFrom').value = clear ? '' : key;
+    $('#appointmentTo').value = clear ? '' : key;
+    loadAppointments();
+  }
+
+  function clearAppointmentDay() {
+    $('#appointmentFrom').value = '';
+    $('#appointmentTo').value = '';
+    loadAppointments();
+  }
+
+  function updateAppointmentDayBar(count) {
+    const day = selectedAppointmentDay();
+    const bar = $('#appointmentDayBar');
+    bar.hidden = !day;
+    if (!day) return;
+    const label = localDate(day).toLocaleDateString('en-GB', { dateStyle: 'full' });
+    $('#appointmentDayLabel').textContent =
+      `${label}: ${count} appointment${count === 1 ? '' : 's'}`;
+  }
+
   function renderAppointments(appointments) {
     const body = $('#appointmentsBody');
+    const canMessage = hasPermission('appointments.write');
     const initials = (name) =>
       String(name)
         .split(/\s+/)
@@ -4806,14 +4837,25 @@ ${bodyHtml}
     body.innerHTML = appointments
       .map((appointment) => {
         const key = CAL_STATUS_KEY[appointment.status] || 'scheduled';
+        const messageable =
+          canMessage &&
+          (appointment.status === 'Scheduled' || appointment.status === 'In Progress');
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = appointments.length ? String(appointments.length) : '';
     $('#appointmentsEmpty').hidden = appointments.length > 0;
+    updateAppointmentDayBar(appointments.length);
+    body
+      .querySelectorAll('[data-appointment-message]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          loadAppointmentDetail(button.dataset.appointmentMessage, { focusMessages: true }),
+        ),
+      );
     body
       .querySelectorAll('[data-appointment-id]')
       .forEach((button) =>
@@ -4860,6 +4902,7 @@ ${bodyHtml}
       .map((day) => `<div class="calendar-cell-header">${day}</div>`)
       .join('');
     const todayKey = dateInputValue(new Date());
+    const selectedDay = selectedAppointmentDay();
     const cells = Array.from({ length: days }, (_, index) => {
       const date = shiftDate(range.start, index);
       const key = dateInputValue(date);
@@ -4876,7 +4919,9 @@ ${bodyHtml}
           ? `<button class="cal-more" type="button" data-cal-more="${key}">+${all.length - limit} more</button>`
           : '';
       const outside = calendarView === 'month' && date.getMonth() !== calendarCursor.getMonth();
-      return `<div class="calendar-cell${key === todayKey ? ' calendar-cell-today' : ''}${outside ? ' is-outside' : ''}" data-calendar-date="${key}"><span class="cal-day">${date.getDate()}</span>${events}${more}</div>`;
+      const selected = key === selectedDay;
+      const dayLabel = date.toLocaleDateString('en-GB', { dateStyle: 'full' });
+      return `<div class="calendar-cell${key === todayKey ? ' calendar-cell-today' : ''}${outside ? ' is-outside' : ''}${selected ? ' is-selected' : ''}" data-calendar-date="${key}"><button class="cal-day" type="button" data-cal-day="${key}" aria-pressed="${selected}" aria-label="${selected ? 'Selected, click to show all dates: ' : 'Show only appointments on '}${escapeHtml(dayLabel)}" title="${selected ? 'Click to show all dates' : 'Show only this day'}">${date.getDate()}</button>${events}${more}</div>`;
     }).join('');
     calendar.className = `calendar-grid calendar-${calendarView}`;
     calendar.setAttribute('aria-label', `${calendarTitle(range)} appointment calendar`);
@@ -4910,6 +4955,11 @@ ${bodyHtml}
         });
       }
     });
+    calendar
+      .querySelectorAll('[data-cal-day]')
+      .forEach((button) =>
+        button.addEventListener('click', () => toggleAppointmentDay(button.dataset.calDay)),
+      );
     calendar.querySelectorAll('[data-cal-more]').forEach((button) =>
       button.addEventListener('click', () => {
         calendarCursor = localDate(button.dataset.calMore);
@@ -4918,6 +4968,12 @@ ${bodyHtml}
       }),
     );
     calendar.querySelectorAll('[data-calendar-date]').forEach((cell) => {
+      // A click on empty space in a day also selects it; chips and "+n more"
+      // keep their own behaviour.
+      cell.addEventListener('click', (event) => {
+        if (event.target.closest('button')) return;
+        toggleAppointmentDay(cell.dataset.calendarDate);
+      });
       cell.addEventListener('dragover', (event) => {
         if (canWrite) event.preventDefault();
       });
@@ -4990,7 +5046,7 @@ ${bodyHtml}
     if (to) params.set('to', to);
     setMessage('#workspaceMessage', '', false);
     $('#appointmentsBody').innerHTML =
-      '<tr><td colspan="6" class="empty-state">Loading appointments…</td></tr>';
+      '<tr><td colspan="7" class="empty-state">Loading appointments…</td></tr>';
     try {
       const result = await apiRequest('/api/appointments?' + params);
       renderAppointments(result.appointments || []);
@@ -5083,7 +5139,95 @@ ${bodyHtml}
     }
   }
 
-  async function loadAppointmentDetail(id) {
+  // WhatsApp / email messages prepared from an appointment. The portal builds
+  // the text and opens wa.me or the mail app; staff press Send there.
+  const MESSAGE_CHANNEL_LABEL = { whatsapp: 'WhatsApp', email: 'Email' };
+
+  async function loadAppointmentMessages(id) {
+    const panel = $('#appointmentMessagePanel');
+    panel.hidden = true;
+    if (!hasPermission('appointments.read')) return;
+    let result;
+    try {
+      result = await apiRequest('/api/appointments/' + encodeURIComponent(id) + '/messages');
+    } catch {
+      return;
+    }
+    const canWrite = hasPermission('appointments.write');
+    const drafts = canWrite ? result.drafts || [] : [];
+    const history = result.history || [];
+    if (!drafts.length && !history.length) return;
+    panel.hidden = false;
+    panel.dataset.appointmentId = id;
+    $('#appointmentMessageIntro').hidden = !drafts.length;
+    $('#appointmentMessageDrafts').innerHTML = drafts
+      .map((draft, index) => {
+        const button = (channel, reason, ok) =>
+          `<button class="button button-outline" type="button" data-message-template="${draft.template}" data-message-channel="${channel}"${ok ? '' : ' disabled'} title="${escapeHtml(ok ? 'Open ' + MESSAGE_CHANNEL_LABEL[channel] + ' with this message' : reason || '')}">${MESSAGE_CHANNEL_LABEL[channel]}</button>`;
+        const reasons = [draft.whatsappUnavailableReason, draft.emailUnavailableReason]
+          .filter((reason, position, all) => reason && all.indexOf(reason) === position)
+          .join(' ');
+        return `<div class="msg-draft"><div class="msg-draft-head"><div><strong>${escapeHtml(draft.label)}</strong><span class="ap-sub">${escapeHtml([draft.recipientName, draft.phone].filter(Boolean).join(' · ') || 'No recipient')}</span></div><div class="msg-draft-actions">${button('whatsapp', draft.whatsappUnavailableReason, Boolean(draft.whatsappNumber))}${button('email', draft.emailUnavailableReason, Boolean(draft.email))}</div></div>${reasons ? `<p class="msg-note">${escapeHtml(reasons)}</p>` : ''}${draft.body ? `<details><summary>Preview message</summary><pre class="msg-preview">${escapeHtml(draft.body)}</pre></details>` : ''}</div>`;
+      })
+      .join('');
+    $('#appointmentMessageHistory').innerHTML =
+      history
+        .map(
+          (entry) =>
+            `<li><time>${escapeHtml(formatDate(entry.createdAt))}</time><div><strong>${escapeHtml(MESSAGE_CHANNEL_LABEL[entry.channel] || entry.channel)} to ${escapeHtml(entry.recipientType)}</strong> <span>${escapeHtml(entry.recipient)}</span><br><span>${escapeHtml(entry.template.replaceAll('_', ' '))}${entry.sentByName ? ' · by ' + escapeHtml(entry.sentByName) : ''}</span></div></li>`,
+        )
+        .join('') || '<li style="grid-column: 1 / -1"><span>No messages prepared yet.</span></li>';
+    $('#appointmentMessageDrafts')
+      .querySelectorAll('[data-message-template]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          sendAppointmentMessage(
+            id,
+            button.dataset.messageTemplate,
+            button.dataset.messageChannel,
+            button,
+          ),
+        ),
+      );
+  }
+
+  async function sendAppointmentMessage(id, template, channel, button) {
+    setBusy(button, true, 'Opening…');
+    setMessage('#workspaceMessage', '', false);
+    try {
+      const result = await apiRequest('/api/appointments/' + encodeURIComponent(id) + '/messages', {
+        method: 'POST',
+        body: JSON.stringify({ template, channel }),
+      });
+      const link = document.createElement('a');
+      link.href = result.url;
+      if (channel === 'whatsapp') {
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+      }
+      document.body.append(link);
+      link.click();
+      link.remove();
+      setBusy(button, false);
+      await loadAppointmentMessages(id);
+      setMessage(
+        '#workspaceMessage',
+        `${MESSAGE_CHANNEL_LABEL[channel]} opened with the message. Press Send there to deliver it.`,
+        false,
+      );
+    } catch (error) {
+      setBusy(button, false);
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+        await loadAppointmentMessages(id);
+      }
+    }
+  }
+
+  async function loadAppointmentDetail(id, options = {}) {
     if (!hasPermission('appointments.read')) return;
     setMessage('#workspaceMessage', '', false);
     try {
@@ -5207,7 +5351,12 @@ ${bodyHtml}
       if (hasPermission('appointments.write') && hasPermission('technicians.read')) {
         await loadAppointmentTechnicians(appointment);
       }
-      $('#appointmentDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      await loadAppointmentMessages(appointment.id);
+      if (options.focusMessages && !$('#appointmentMessagePanel').hidden) {
+        $('#appointmentMessagePanel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        $('#appointmentDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -6482,6 +6631,7 @@ ${bodyHtml}
     setWorkspaceMode('appointments');
   });
   $('#downloadAppointmentIcsButton').addEventListener('click', downloadAppointmentIcs);
+  $('#appointmentDayClearButton').addEventListener('click', clearAppointmentDay);
   $('#complaintSearch').addEventListener('keydown', (event) => {
     if (event.key === 'Enter') loadComplaints();
   });
