@@ -8692,7 +8692,33 @@
                     class="visually-hidden"
                     for="appointmentTo"
                     >Appointments to</label
-                  ><input id="appointmentTo" type="date" />
+                  ><input id="appointmentTo" type="date" /><label
+                    class="visually-hidden"
+                    for="appointmentTechnicianFilter"
+                    >Filter by technician</label
+                  ><select id="appointmentTechnicianFilter">
+                    <option value="">All technicians</option></select
+                  ><button
+                    class="button button-outline"
+                    type="button"
+                    id="appointmentPrintListButton"
+                  >
+                    Print list</button
+                  ><button
+                    class="button button-outline"
+                    type="button"
+                    id="appointmentPrintSheetsButton"
+                  >
+                    Print sheets
+                  </button>
+                  <span class="tooltip tooltip-below" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Prints the scheduled appointments in the From and To dates (today when empty)
+                      for the chosen technician. A technician must be assigned to every appointment
+                      before it can be printed.</span
+                    ></span
+                  >
                 </div>
                 <div class="cal-card">
                   <div class="calendar-toolbar" aria-label="Appointment calendar controls">

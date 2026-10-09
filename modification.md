@@ -2585,3 +2585,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Tests: end-to-end checks that the customer copy has no amounts, that the technician filter and tick boxes control what prints, and that printouts carry the logo.
 
 **Needs you:** restart the API and hard-refresh.
+
+
+## Modification #87 — Scheduled-only daily list, technician check before printing, print from Appointments, reschedule notice only when rescheduled
+
+**Date:** 2026-10-09 · **Scope:** web and API · no migration · restart and hard-refresh
+
+**What changed**
+- **Daily schedule shows only Scheduled appointments.** Completed, In Progress and Cancelled ones are no longer listed, and the "Include cancelled" option is gone.
+- **Technician must be assigned before printing.** If any appointment about to be printed (list, sheets, a single Sheet, or the Print button on the appointment details page) has no technician, a pop-up "Technician not assigned" lists those appointments. Clicking one opens it so a technician can be assigned; the print is not done until every printed appointment has a technician.
+- **Print from the Appointments page.** The Appointments page now has a **Technician** filter (it also filters the list and the calendar) and **Print list** / **Print sheets** buttons. They print the scheduled appointments between the From and To dates (today when empty) for the chosen technician (all technicians when none), using the same list and sheets as the Daily schedule, and the same technician check.
+- **"Customer: appointment rescheduled" message** is offered in the Send message panel only after the appointment's date has actually been changed. Before that, only "appointment booked" and the technician message appear.
+
+**Needs you:** restart the API and hard-refresh.

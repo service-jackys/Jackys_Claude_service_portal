@@ -345,3 +345,20 @@ export async function listAppointmentMessages(
   );
   return result.rows;
 }
+
+// True when the appointment's date has been changed after it was booked
+// (a schedule change is recorded in the audit log by the reschedule action).
+export async function appointmentWasRescheduled(
+  client: PoolClient,
+  appointmentId: string,
+): Promise<boolean> {
+  const result = await client.query(
+    `SELECT 1 FROM audit_events
+      WHERE action = 'appointment.schedule_changed'
+        AND target_type = 'appointment'
+        AND target_id = $1::bigint
+      LIMIT 1`,
+    [appointmentId],
+  );
+  return (result.rowCount ?? 0) > 0;
+}

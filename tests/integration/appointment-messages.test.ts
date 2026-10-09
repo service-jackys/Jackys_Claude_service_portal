@@ -63,7 +63,9 @@ test(
 
       const before = await service.messages(created.id);
       assert.equal(before.canSend, true);
-      assert.equal(before.drafts.length, 3);
+      // The rescheduled notice is only offered once the date has been changed.
+      assert.equal(before.drafts.length, 2);
+      assert.ok(!before.drafts.some((draft) => draft.template === 'customer_rescheduled'));
       assert.equal(before.history.length, 0);
 
       const sent = await service.prepareMessage(
@@ -89,6 +91,11 @@ test(
         [created.id],
       );
       assert.equal(audit.rowCount, 2);
+
+      await service.reschedule(created.id, { appointmentDate: '2099-01-07' }, profileId);
+      const rescheduled = await service.messages(created.id);
+      assert.equal(rescheduled.drafts.length, 3);
+      assert.ok(rescheduled.drafts.some((draft) => draft.template === 'customer_rescheduled'));
 
       // A channel with no recipient is refused and nothing is recorded.
       const noEmail = await service.create(

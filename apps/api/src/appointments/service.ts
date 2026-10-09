@@ -20,6 +20,7 @@ import {
   insertAppointmentHistory,
   listAppointmentHistory,
   insertAppointmentMessage,
+  appointmentWasRescheduled,
   listAppointmentMessages,
   listAppointments,
   updateAppointmentAssignment,
@@ -324,12 +325,13 @@ export function createAppointmentService(pool: Pool) {
     const technician = appointment.technicianId
       ? await findTechnicianById(client, appointment.technicianId)
       : null;
+    const rescheduled = await appointmentWasRescheduled(client, id);
     const drafts = buildMessageDrafts(
       appointment,
       technician
         ? { name: technician.name, phone: technician.phone, email: technician.email }
         : null,
-    );
+    ).filter((draft) => rescheduled || draft.template !== 'customer_rescheduled');
     return { appointment, drafts };
   }
 

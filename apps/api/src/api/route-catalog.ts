@@ -1784,7 +1784,6 @@ export function createRouteCatalog(
         parameters: [
           { name: 'from', in: 'query', required: true, schema: { type: 'string' } },
           { name: 'to', in: 'query', required: true, schema: { type: 'string' } },
-          { name: 'includeCancelled', in: 'query', schema: { type: 'string' } },
         ],
         responses: [200, 400, 401, 403, 500],
         handlers: dailyListHandlers.list,

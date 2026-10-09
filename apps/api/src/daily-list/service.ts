@@ -11,10 +11,6 @@ export const dailyListQuerySchema = z
   .object({
     from: isoDate,
     to: isoDate,
-    includeCancelled: z
-      .enum(['true', 'false'])
-      .default('false')
-      .transform((value) => value === 'true'),
   })
   .refine((value) => value.to >= value.from, { message: 'The To date must not be before From.' })
   .refine((value) => Date.parse(value.to) - Date.parse(value.from) <= 31 * 86_400_000, {
@@ -26,12 +22,7 @@ export function createDailyListService(pool: Pool) {
     const parsed = dailyListQuerySchema.parse(query);
     const client = await pool.connect();
     try {
-      const result = await listDailyAppointments(
-        client,
-        parsed.from,
-        parsed.to,
-        parsed.includeCancelled,
-      );
+      const result = await listDailyAppointments(client, parsed.from, parsed.to);
       return { from: parsed.from, to: parsed.to, ...result };
     } finally {
       client.release();

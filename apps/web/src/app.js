@@ -5244,6 +5244,8 @@ ${bodyHtml}
     });
     const status = $('#appointmentStatusFilter').value;
     const search = $('#appointmentSearch').value.trim();
+    const calendarTechnician = $('#appointmentTechnicianFilter').value;
+    if (calendarTechnician) params.set('technicianId', calendarTechnician);
     if (status) params.set('status', status);
     if (search) params.set('search', search);
     $('#appointmentCalendar').innerHTML = '<div class="calendar-empty">Loading calendar…</div>';
@@ -5278,14 +5280,70 @@ ${bodyHtml}
     }
   }
 
+  // Technician filter for the Appointments page (also drives the print buttons).
+  let appointmentTechniciansLoaded = false;
+  async function loadAppointmentTechnicianFilter() {
+    if (appointmentTechniciansLoaded || !hasPermission('technicians.read')) return;
+    try {
+      const result = await apiRequest('/api/technicians?page=1&pageSize=200');
+      const select = $('#appointmentTechnicianFilter');
+      const current = select.value;
+      select.innerHTML =
+        '<option value="">All technicians</option>' +
+        (result.technicians || [])
+          .map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`)
+          .join('');
+      select.value = current;
+      appointmentTechniciansLoaded = true;
+    } catch {
+      // The filter simply stays on "All technicians".
+    }
+  }
+
+  // Print the scheduled visits in the chosen date range (and technician), the
+  // same list and sheets as the Daily schedule page.
+  async function printAppointmentRange(kind) {
+    const today = pgYmd(new Date());
+    const from = $('#appointmentFrom').value || $('#appointmentTo').value || today;
+    const to = $('#appointmentTo').value || from;
+    const technicianId = $('#appointmentTechnicianFilter').value;
+    const button = $(
+      kind === 'list' ? '#appointmentPrintListButton' : '#appointmentPrintSheetsButton',
+    );
+    setBusy(button, true, 'Loading…');
+    try {
+      const result = await apiRequest(
+        '/api/appointments/daily-list?' + new URLSearchParams({ from, to }),
+      );
+      const rows = (result.rows || []).filter(
+        (row) => !technicianId || row.technicianId === technicianId,
+      );
+      if (!rows.length) {
+        setMessage('#workspaceMessage', 'No scheduled appointments in that date range.', false);
+        return;
+      }
+      setMessage('#workspaceMessage', '', false);
+      if (!dlPrintAllowed(rows)) return;
+      if (kind === 'list') dlPrintList(rows, 'technician', from, to);
+      else dlPrintSheets(rows, 'technician');
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message, false);
+    } finally {
+      setBusy(button, false);
+    }
+  }
+
   async function loadAppointments() {
     if (!hasPermission('appointments.read')) return;
     clearWorkspaceRecovery();
+    loadAppointmentTechnicianFilter();
     const params = new URLSearchParams({ page: '1', pageSize: '50' });
     const search = $('#appointmentSearch').value.trim();
     const status = $('#appointmentStatusFilter').value;
     const from = $('#appointmentFrom').value;
     const to = $('#appointmentTo').value;
+    const technicianId = $('#appointmentTechnicianFilter').value;
+    if (technicianId) params.set('technicianId', technicianId);
     if (search) params.set('search', search);
     if (status) params.set('status', status);
     if (from) params.set('from', from);
@@ -6630,7 +6688,12 @@ ${bodyHtml}
     '#appointmentStatusFilter',
     '#appointmentFrom',
     '#appointmentTo',
+    '#appointmentTechnicianFilter',
   ]);
+  $('#appointmentPrintListButton').addEventListener('click', () => printAppointmentRange('list'));
+  $('#appointmentPrintSheetsButton').addEventListener('click', () =>
+    printAppointmentRange('sheets'),
+  );
   bindLiveFilters(loadQuotations, '#quotationSearch');
   bindLiveFilters(loadInspections, '#inspectionSearch');
   bindLiveFilters(loadWarrantyApprovals, '#warrantyApprovalSearch', [
@@ -6747,6 +6810,7 @@ ${bodyHtml}
   $('#printAppointmentButton').addEventListener('click', () => {
     const a = currentAppointment;
     if (!a) return;
+    if (!dlPrintAllowed([a])) return;
     // Same sheet the Daily schedule prints, built from the open appointment.
     openPrintWindow(
       printDocumentShell(
@@ -11738,6 +11802,57 @@ ${bodyHtml}
     );
   }
 
+  // Printing sends a technician out, so every appointment being printed must
+  // have one. When some do not, a pop-up lists them; clicking one opens it so a
+  // technician can be assigned, and the print is not done.
+  function dlPrintAllowed(rows) {
+    const missing = rows.filter((row) => !row.technicianId);
+    if (!missing.length) return true;
+    const dialog = document.createElement('dialog');
+    dialog.className = 'pw-dialog print-choice';
+    dialog.setAttribute('aria-labelledby', 'noTechTitle');
+    dialog.innerHTML =
+      '<h3 id="noTechTitle">Technician not assigned</h3>' +
+      '<p>' +
+      missing.length +
+      (missing.length === 1 ? ' appointment has' : ' appointments have') +
+      ' no technician assigned. Open each one, assign a technician, then print again.</p>' +
+      missing
+        .slice(0, 12)
+        .map(
+          (row) =>
+            '<button type="button" class="button button-outline print-choice-option" data-open-appointment="' +
+            escapeHtml(row.id) +
+            '"><strong>' +
+            escapeHtml(row.appointmentReference) +
+            '</strong><span>' +
+            escapeHtml(
+              [row.customerName, row.appointmentDate ? dlDayLabel(row.appointmentDate) : '']
+                .filter(Boolean)
+                .join(' \u00b7 '),
+            ) +
+            '</span></button>',
+        )
+        .join('') +
+      (missing.length > 12 ? '<p>and ' + (missing.length - 12) + ' more.</p>' : '') +
+      '<div class="form-footer"><button type="button" class="button" data-print-cancel>Close</button></div>';
+    dialog.addEventListener('click', (event) => {
+      const open = event.target.closest('[data-open-appointment]');
+      if (open) {
+        const id = open.dataset.openAppointment;
+        dialog.close();
+        setWorkspaceMode('appointments');
+        loadAppointmentDetail(id);
+      } else if (event.target.closest('[data-print-cancel]')) {
+        dialog.close();
+      }
+    });
+    dialog.addEventListener('close', () => dialog.remove());
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    return false;
+  }
+
   function dlTechnicianOptions(rows, selected) {
     const byId = new Map();
     rows.forEach((row) => {
@@ -12862,7 +12977,6 @@ ${bodyHtml}
       from: today,
       to: today,
       by: 'technician',
-      includeCancelled: false,
       technician: '',
       selected: new Set(),
       rows: [],
@@ -12909,9 +13023,6 @@ ${bodyHtml}
         '<div class="th-field"><label>Technician<select data-dl="technician">' +
         dlTechnicianOptions(state.rows, state.technician) +
         '</select></label></div>' +
-        '<div class="th-field"><label><input type="checkbox" data-dl="cancelled"' +
-        (state.includeCancelled ? ' checked' : '') +
-        ' /> Include cancelled</label></div>' +
         '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-dl-print-list' +
         (visibleRows().length ? '' : ' disabled') +
         '>Print list (' +
@@ -12948,18 +13059,14 @@ ${bodyHtml}
         drawBar();
         drawResults();
       });
-      control('cancelled').addEventListener('change', (event) => {
-        state.includeCancelled = event.target.checked;
-        load();
+      bar.querySelector('[data-dl-print-list]')?.addEventListener('click', () => {
+        const rows = printableRows();
+        if (dlPrintAllowed(rows)) dlPrintList(rows, state.by, state.from, state.to);
       });
-      bar
-        .querySelector('[data-dl-print-list]')
-        ?.addEventListener('click', () =>
-          dlPrintList(printableRows(), state.by, state.from, state.to),
-        );
-      bar
-        .querySelector('[data-dl-print-sheets]')
-        ?.addEventListener('click', () => dlPrintSheets(printableRows(), state.by));
+      bar.querySelector('[data-dl-print-sheets]')?.addEventListener('click', () => {
+        const rows = printableRows();
+        if (dlPrintAllowed(rows)) dlPrintSheets(rows, state.by);
+      });
     }
 
     function drawResults() {
@@ -13066,7 +13173,7 @@ ${bodyHtml}
       results.querySelectorAll('[data-dl-sheet]').forEach((button) =>
         button.addEventListener('click', () => {
           const row = state.rows.find((entry) => entry.id === button.dataset.dlSheet);
-          if (row) {
+          if (row && dlPrintAllowed([row])) {
             openPrintWindow(printDocumentShell('Appointment sheet', dlSheetBody(row, true)));
           }
         }),
@@ -13077,12 +13184,7 @@ ${bodyHtml}
       results.innerHTML = '<p class="form-note">Loading appointments&hellip;</p>';
       try {
         const result = await apiRequest(
-          '/api/appointments/daily-list?' +
-            new URLSearchParams({
-              from: state.from,
-              to: state.to,
-              includeCancelled: String(state.includeCancelled),
-            }),
+          '/api/appointments/daily-list?' + new URLSearchParams({ from: state.from, to: state.to }),
         );
         state.rows = result.rows;
         state.truncated = result.truncated;

@@ -51,7 +51,7 @@ const jobCard = {
   invoiceNo: 'INV-999',
 };
 
-async function signIn(page: Page) {
+async function signIn(page: Page, dailyRows: unknown[] = rows) {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown) =>
@@ -62,13 +62,25 @@ async function signIn(page: Page) {
         user: { name: 'Tester', email: 't@jackys.com', role: 'admin', permissions: ['*'] },
       });
     if (url.pathname === '/api/appointments/daily-list')
-      return json({ rows, truncated: false, from: '2026-10-09', to: '2026-10-09' });
+      return json({ rows: dailyRows, truncated: false, from: '2026-10-09', to: '2026-10-09' });
     if (url.pathname === '/api/job-cards' && route.request().method() === 'GET')
       return json({
         jobCards: [jobCard],
         pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
       });
     if (url.pathname === '/api/job-cards/701') return json({ jobCard, history: [] });
+    if (url.pathname === '/api/technicians')
+      return json({
+        technicians: [
+          { id: 'tech-a', name: 'Tech A' },
+          { id: 'tech-b', name: 'Tech B' },
+        ],
+      });
+    if (url.pathname === '/api/appointments' && route.request().method() === 'GET')
+      return json({
+        appointments: [],
+        pagination: { page: 1, pageSize: 50, total: 0, totalPages: 0 },
+      });
     return json({});
   });
   await page.addInitScript(() => {
@@ -138,5 +150,52 @@ test.describe('printing', () => {
     expect(html).not.toContain('APT-2026-00003');
     expect(html).toContain('class="logo"');
     expect(html).toContain('Complaint source');
+  });
+
+  test('printing is blocked until every appointment has a technician', async ({ page }) => {
+    const unassigned = {
+      ...rows[0]!,
+      id: '9',
+      appointmentReference: 'APT-2026-00009',
+      technicianId: null,
+      technicianName: null,
+    };
+    await signIn(page, [rows[0]!, unassigned]);
+    await page.locator('#dailyListNav').dispatchEvent('click');
+    await expect(page.locator('[data-dl-pick]')).toHaveCount(2);
+    await page.locator('[data-dl-print-list]').click();
+    const dialog = page.locator('dialog.print-choice');
+    await expect(dialog).toContainText('Technician not assigned');
+    await expect(dialog).toContainText('APT-2026-00009');
+    await expect(dialog).not.toContainText('APT-2026-00001');
+    // Choosing the appointment opens it so a technician can be assigned.
+    await dialog.locator('[data-open-appointment="9"]').click();
+    await expect(dialog).toHaveCount(0);
+    await expect(page.locator('#appointmentWorkspace')).toBeVisible();
+  });
+
+  test('daily schedule lists scheduled jobs only (no cancelled option)', async ({ page }) => {
+    await signIn(page);
+    await page.locator('#dailyListNav').dispatchEvent('click');
+    await expect(page.locator('[data-dl-pick]')).toHaveCount(4);
+    await expect(page.locator('[data-dl="cancelled"]')).toHaveCount(0);
+  });
+
+  test('appointments page prints a date range for one technician', async ({ page }) => {
+    await signIn(page);
+    await page.locator('#appointmentsNav').dispatchEvent('click');
+    await expect(page.locator('#appointmentTechnicianFilter')).toBeVisible();
+    await page.locator('#appointmentFrom').fill('2026-10-09');
+    await page.locator('#appointmentTo').fill('2026-10-10');
+    await page.locator('#appointmentTechnicianFilter').selectOption('tech-b');
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('#appointmentPrintSheetsButton').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('load').catch(() => {});
+    const html = await popup.content();
+    expect(html).toContain('APT-2026-00003');
+    expect(html).toContain('APT-2026-00004');
+    expect(html).not.toContain('APT-2026-00001');
+    expect(html).toContain('class="logo"');
   });
 });

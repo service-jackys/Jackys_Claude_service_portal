@@ -1,7 +1,8 @@
 import type { PoolClient } from 'pg';
 
 // Technician daily list / batch print (modification.md #57): the appointments
-// for a day range with everything a field sheet needs, in one query.
+// for a day range with everything a field sheet needs, in one query. Only
+// Scheduled appointments are listed: a visit that is still to happen.
 export type DailyListRow = {
   id: string;
   appointmentReference: string;
@@ -37,7 +38,6 @@ export async function listDailyAppointments(
   client: PoolClient,
   from: string,
   to: string,
-  includeCancelled: boolean,
 ): Promise<{ rows: DailyListRow[]; truncated: boolean }> {
   const result = await client.query<DailyListRow>(
     `SELECT a.id::text AS id,
@@ -71,10 +71,10 @@ export async function listDailyAppointments(
      LEFT JOIN branches b ON b.id = a.branch_id
      LEFT JOIN complaints c ON c.id = a.complaint_id
      WHERE a.appointment_date BETWEEN $1::date AND $2::date
-       AND ($3::boolean OR a.status <> 'Cancelled')
+       AND a.status = 'Scheduled'
      ORDER BY a.appointment_date, t.name NULLS LAST, a.id
      LIMIT ${DAILY_LIST_LIMIT + 1}`,
-    [from, to, includeCancelled],
+    [from, to],
   );
   const truncated = result.rows.length > DAILY_LIST_LIMIT;
   return { rows: truncated ? result.rows.slice(0, DAILY_LIST_LIMIT) : result.rows, truncated };
