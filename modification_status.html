@@ -3082,6 +3082,26 @@
           <li>Run npm.cmd run db:migrate (036), restart, hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#80 &mdash; New request books an appointment directly</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-09 &middot; API + web &middot; migration 037</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>New request now books an appointment (APT- reference) directly: no complaint record, no CMP- reference, no inbox step.</li>
+          <li>New Complaint source field: Email, WhatsApp, Phone or Salesman; Salesman shows the salesmen master dropdown. Appointment date is required, technician optional.</li>
+          <li>B2B request via a salesman: warns (does not block) when the salesman differs from the B2B branch master.</li>
+          <li>Public request form and Complaint inbox unchanged.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate (037), restart, hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

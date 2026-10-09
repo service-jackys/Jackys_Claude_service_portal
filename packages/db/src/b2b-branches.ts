@@ -112,3 +112,17 @@ export async function upsertB2bBranch(
   );
   return result.rows[0];
 }
+
+// Exact (case-insensitive) match on the branch / school name, used for the
+// advisory salesman check on staff-entered requests.
+export async function findB2bBranchByName(
+  client: PoolClient,
+  name: string,
+): Promise<B2bBranchRecord | null> {
+  const result = await client.query<B2bBranchRecord>(
+    `SELECT ${b2bBranchColumns} FROM b2b_branches
+     WHERE lower(trim(b2b_branches.branch_name)) = lower(trim($1)) LIMIT 1`,
+    [name],
+  );
+  return result.rows[0] ?? null;
+}

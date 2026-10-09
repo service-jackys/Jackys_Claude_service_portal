@@ -563,6 +563,14 @@
         background: #fff4f4;
         color: #8c2020;
       }
+      .field[hidden] {
+        display: none;
+      }
+      .notice-warning {
+        border: 1px solid #e6c36a;
+        background: #fff8e6;
+        color: #7a5a00;
+      }
       .notice-success {
         border: 1px solid #a9d9c5;
         background: #effaf4;
@@ -7239,15 +7247,22 @@
               <div class="card-body">
                 <div id="newComplaintMessage" class="notice notice-error" role="alert" hidden></div>
                 <div id="newComplaintSuccess" class="notice notice-success" role="status" hidden>
-                  <strong>Service request registered.</strong>
+                  <strong>Appointment booked.</strong>
                   <p class="success-reference" id="newComplaintReference"></p>
+                  <p id="newComplaintSuccessNote"></p>
+                  <div
+                    id="newComplaintWarning"
+                    class="notice notice-warning"
+                    role="alert"
+                    hidden
+                  ></div>
                   <div class="form-footer">
                     <button
                       class="button button-outline"
                       type="button"
                       id="openNewComplaintInInboxButton"
                     >
-                      Open in inbox
+                      Open appointment
                     </button>
                     <button class="button button-primary" type="button" id="registerAnotherButton">
                       Register another
@@ -7256,12 +7271,60 @@
                 </div>
                 <div id="newComplaintFields">
                   <p class="form-note">
-                    Use this when a customer calls or emails in, instead of directing them to the
-                    public request form. Fields marked with <span class="required">*</span> are
-                    required.
+                    Use this when a request reaches you by email, WhatsApp, phone or through a
+                    salesman. It books the appointment directly: there is no complaint reference and
+                    it does not go through the complaint inbox. Fields marked with
+                    <span class="required">*</span> are required.
                   </p>
                   <form id="newComplaintForm" novalidate>
                     <div class="field-grid">
+                      <div class="field">
+                        <label for="newComplaintSource"
+                          >Complaint source <span class="required">*</span></label
+                        >
+                        <select id="newComplaintSource" required>
+                          <option value="">How did it reach us?</option>
+                          <option value="Email">Email</option>
+                          <option value="WhatsApp">WhatsApp</option>
+                          <option value="Phone">Phone</option>
+                          <option value="Salesman">Salesman</option>
+                        </select>
+                        <span class="field-error" data-error-for="newComplaintSource"></span>
+                      </div>
+                      <div class="field" id="newComplaintSalesmanField" hidden>
+                        <label for="newComplaintSalesman"
+                          >Salesman <span class="required">*</span></label
+                        >
+                        <select id="newComplaintSalesman">
+                          <option value="">Select a salesman</option>
+                        </select>
+                        <span class="field-error" data-error-for="newComplaintSalesman"></span>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintAppointmentDate"
+                          >Appointment date <span class="required">*</span></label
+                        >
+                        <input id="newComplaintAppointmentDate" type="date" required />
+                        <span
+                          class="field-error"
+                          data-error-for="newComplaintAppointmentDate"
+                        ></span>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintTechnician">Technician</label>
+                        <select id="newComplaintTechnician">
+                          <option value="">Assign later</option>
+                        </select>
+                        <span class="form-note"
+                          >Optional. Respects the technician's daily cap.</span
+                        >
+                      </div>
+                      <div
+                        id="newComplaintSourceWarning"
+                        class="notice notice-warning field-wide"
+                        role="status"
+                        hidden
+                      ></div>
                       <div class="field">
                         <label for="newComplaintCustomerType"
                           >Customer type <span class="required">*</span></label
@@ -7403,7 +7466,7 @@
                         type="submit"
                         id="submitNewComplaintButton"
                       >
-                        Register request
+                        Book appointment
                       </button>
                     </div>
                   </form>

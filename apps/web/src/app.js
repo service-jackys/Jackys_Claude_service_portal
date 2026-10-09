@@ -662,7 +662,7 @@
     $('#appointmentsNav').hidden = !hasPermission('appointments.read');
     $('#techniciansNav').hidden = !hasPermission('technicians.read');
     $('#teamAccountsNav').hidden = !hasPermission('admin.users');
-    $('#newRequestNav').hidden = !hasPermission('complaints.write');
+    $('#newRequestNav').hidden = !hasPermission('appointments.write');
     $('#masterDataNav').hidden = !hasPermission('salesmen.write');
     const canReadPricingConfig = hasPermission('pricing_config.read');
     $('#vasAdminNav').hidden = !canReadPricingConfig;
@@ -760,7 +760,7 @@
     if (mode === 'dashboard' && !hasPermission('dashboard.read')) return;
     if (mode === 'technicians' && !hasPermission('technicians.read')) return;
     if (mode === 'team-accounts' && !hasPermission('admin.users')) return;
-    if (mode === 'new-request' && !hasPermission('complaints.write')) return;
+    if (mode === 'new-request' && !hasPermission('appointments.write')) return;
     if (mode === 'master-data' && !hasPermission('salesmen.write')) return;
     workspaceMode = mode;
     const serviceRequests = mode === 'service-requests';
@@ -876,6 +876,7 @@
                           : 'Review incoming service requests and open their history.';
     $('#complaintStatusFilter').value = serviceRequests ? 'Ready for Scheduling' : '';
     $('#complaintStatusFilter').disabled = serviceRequests;
+    if (newRequest) loadNewRequestTechnicians();
     if (appointments) {
       loadAppointments();
     } else if (jobCards) {
@@ -1019,6 +1020,7 @@
       }
     }
     populateSelectOptions('#scheduleSalesman', salesmenOptions, 'Select a salesman');
+    populateSelectOptions('#newComplaintSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jccSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jceSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#jcqSalesman', salesmenOptions, 'Select a salesman');
@@ -3151,6 +3153,10 @@ ${bodyHtml}
     $('#newComplaintB2bBranchResults').hidden = true;
     delete $('#newComplaintB2bBranchResults').dataset.branches;
     $('#newComplaintB2bBranchSearchMessage').textContent = '';
+    delete $('#newComplaintB2bBranchSchool').dataset.branchSalesman;
+    $('#newComplaintSalesmanField').hidden = true;
+    $('#newComplaintSourceWarning').hidden = true;
+    $('#newComplaintWarning').hidden = true;
     $('#newComplaintSuccess').hidden = true;
     $('#newComplaintFields').hidden = false;
     setMessage('#newComplaintMessage', '', false);
@@ -3203,6 +3209,8 @@ ${bodyHtml}
     const branch = branches[Number(button.dataset.branchIndex)];
     if (!branch) return;
     $('#newComplaintB2bBranchSchool').value = branch.branchName;
+    $('#newComplaintB2bBranchSchool').dataset.branchSalesman = branch.salesman || '';
+    updateNewRequestSourceWarning();
     if (branch.lastSalesOrderNumber)
       $('#newComplaintSalesOrderNumber').value = branch.lastSalesOrderNumber;
     $('#newComplaintB2bBranchResults').hidden = true;
@@ -3211,8 +3219,16 @@ ${bodyHtml}
       `Filled from the master list (Cust_Code ${branch.custCode}).`;
   });
 
+  // Staff New request books an appointment directly (modification.md #80):
+  // no complaint record and no CMP- reference. Field names are mapped to the
+  // appointment API here.
   function newComplaintFormData() {
+    const source = $('#newComplaintSource').value;
     const fields = {
+      complaintSource: source,
+      salesman: source === 'Salesman' ? $('#newComplaintSalesman').value : '',
+      appointmentDate: $('#newComplaintAppointmentDate').value,
+      technicianId: $('#newComplaintTechnician').value,
       customerType: $('#newComplaintCustomerType').value,
       customerName: $('#newComplaintCustomerName').value.trim(),
       contactNumber: $('#newComplaintContactNumber').value.trim(),
@@ -3221,9 +3237,9 @@ ${bodyHtml}
       region: $('#newComplaintRegion').value,
       brand: $('#newComplaintBrand').value.trim(),
       model: $('#newComplaintModel').value.trim(),
-      serialOrItemCode: $('#newComplaintSerialOrItemCode').value.trim(),
-      description: $('#newComplaintDescription').value.trim(),
-      warrantyClassification: $('#newComplaintWarranty').value,
+      itemCode: $('#newComplaintSerialOrItemCode').value.trim(),
+      faultDescription: $('#newComplaintDescription').value.trim(),
+      jobWarranty: $('#newComplaintWarranty').value,
       b2bBranchSchool: $('#newComplaintB2bBranchSchool').value.trim(),
       schoolContactPerson: $('#newComplaintSchoolContactPerson').value.trim(),
       schoolContactNumber: $('#newComplaintSchoolContactNumber').value.trim(),
@@ -3232,13 +3248,25 @@ ${bodyHtml}
     };
     // Optional fields left blank must be OMITTED, not sent as "" -- the
     // server's Zod schema treats each as .optional() but still .min(1)
-    // when present (matches apps/web/src/complaints.js's public form).
+    // when present.
     return Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== ''));
   }
 
   function validateNewComplaintForm(data, form) {
     clearErrors(form);
     let valid = true;
+    if (!data.complaintSource) {
+      showFieldError(form, 'newComplaintSource', 'Select how the request reached us.');
+      valid = false;
+    }
+    if (data.complaintSource === 'Salesman' && !data.salesman) {
+      showFieldError(form, 'newComplaintSalesman', 'Pick the salesman.');
+      valid = false;
+    }
+    if (!data.appointmentDate) {
+      showFieldError(form, 'newComplaintAppointmentDate', 'Pick the appointment date.');
+      valid = false;
+    }
     if (!data.customerType) {
       showFieldError(form, 'newComplaintCustomerType', 'Select a customer type.');
       valid = false;
@@ -3247,7 +3275,7 @@ ${bodyHtml}
       showFieldError(form, 'newComplaintCustomerName', 'Enter the customer name.');
       valid = false;
     }
-    if (!data.description) {
+    if (!data.faultDescription) {
       showFieldError(form, 'newComplaintDescription', 'Describe the issue.');
       valid = false;
     }
@@ -3262,6 +3290,60 @@ ${bodyHtml}
     return valid;
   }
 
+  async function loadNewRequestTechnicians() {
+    const select = $('#newComplaintTechnician');
+    if (!hasPermission('technicians.read')) {
+      select.disabled = true;
+      return;
+    }
+    const current = select.value;
+    try {
+      const result = await apiRequest('/api/technicians?active=true&page=1&pageSize=100');
+      select.innerHTML =
+        '<option value="">Assign later</option>' +
+        (result.technicians || [])
+          .map((t) => `<option value="${escapeHtml(t.id)}">${escapeHtml(t.name)}</option>`)
+          .join('');
+      select.value = current;
+    } catch {
+      // Technician is optional; leave "Assign later" as the only choice.
+    }
+  }
+
+  // Advisory only: for a B2B request that came through a salesman, compare the
+  // chosen salesman with the one the B2B branch master lists for the school.
+  function updateNewRequestSourceWarning() {
+    const note = $('#newComplaintSourceWarning');
+    const listed = $('#newComplaintB2bBranchSchool').dataset.branchSalesman || '';
+    const chosen = $('#newComplaintSalesman').value;
+    const mismatch =
+      $('#newComplaintSource').value === 'Salesman' &&
+      $('#newComplaintCustomerType').value !== 'B2C' &&
+      listed &&
+      chosen &&
+      listed.trim().toLowerCase() !== chosen.trim().toLowerCase();
+    note.hidden = !mismatch;
+    note.textContent = mismatch
+      ? `The B2B branch master lists ${listed} as the salesman for this school, but you picked ${chosen}. You can still book it; please check the source.`
+      : '';
+  }
+
+  function applyNewComplaintSourceGating() {
+    const isSalesman = $('#newComplaintSource').value === 'Salesman';
+    $('#newComplaintSalesmanField').hidden = !isSalesman;
+    if (!isSalesman) $('#newComplaintSalesman').value = '';
+    updateNewRequestSourceWarning();
+  }
+
+  $('#newComplaintSource').addEventListener('change', applyNewComplaintSourceGating);
+  $('#newComplaintSalesman').addEventListener('change', updateNewRequestSourceWarning);
+  $('#newComplaintCustomerType').addEventListener('change', updateNewRequestSourceWarning);
+  $('#newComplaintB2bBranchSchool').addEventListener('input', () => {
+    // A hand-typed school no longer matches the master list entry that was picked.
+    delete $('#newComplaintB2bBranchSchool').dataset.branchSalesman;
+    updateNewRequestSourceWarning();
+  });
+
   $('#newComplaintForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -3269,14 +3351,22 @@ ${bodyHtml}
     setMessage('#newComplaintMessage', '', false);
     if (!validateNewComplaintForm(data, form)) return;
     const button = $('#submitNewComplaintButton');
-    setBusy(button, true, 'Registering…');
+    setBusy(button, true, 'Booking…');
     try {
-      const result = await apiRequest('/api/complaints', {
+      const result = await apiRequest('/api/appointments', {
         method: 'POST',
         body: JSON.stringify(data),
       });
+      const appointment = result.appointment || {};
       $('#newComplaintReference').textContent =
-        result.complaint?.complaintReference || 'Reference created';
+        appointment.appointmentReference || 'Reference created';
+      $('#openNewComplaintInInboxButton').dataset.appointmentId = appointment.id || '';
+      $('#newComplaintSuccessNote').textContent = appointment.appointmentDate
+        ? `Booked for ${appointment.appointmentDate}${appointment.technicianName ? ' with ' + appointment.technicianName : ', technician not assigned yet'}.`
+        : '';
+      const warnings = result.warnings || [];
+      $('#newComplaintWarning').hidden = warnings.length === 0;
+      $('#newComplaintWarning').textContent = warnings.join(' ');
       $('#newComplaintSuccess').hidden = false;
       $('#newComplaintFields').hidden = true;
     } catch (error) {
@@ -3284,7 +3374,7 @@ ${bodyHtml}
         await signOut(false);
         setMessage('#authMessage', 'Your session has expired. Please sign in again.');
       } else if (error.status === 403) {
-        setMessage('#newComplaintMessage', 'You are not authorized to register service requests.');
+        setMessage('#newComplaintMessage', 'You are not authorized to book appointments.');
       } else {
         setMessage('#newComplaintMessage', error.message);
       }
@@ -3296,12 +3386,9 @@ ${bodyHtml}
   $('#registerAnotherButton').addEventListener('click', resetNewComplaintForm);
 
   $('#openNewComplaintInInboxButton').addEventListener('click', () => {
-    const reference = $('#newComplaintReference').textContent.trim();
-    setWorkspaceMode('complaints');
-    if (reference && reference !== 'Reference created') {
-      $('#complaintSearch').value = reference;
-      loadComplaints();
-    }
+    const id = $('#openNewComplaintInInboxButton').dataset.appointmentId;
+    setWorkspaceMode('appointments');
+    if (id) loadAppointmentDetail(id);
   });
 
   // ---- Salesmen / Sales channels (modification.md #14, edit/deactivate
@@ -5252,6 +5339,7 @@ ${bodyHtml}
             ['Technician', appointment.technicianName || 'Unassigned'],
             ['Warranty', appointment.jobWarranty],
             ['Complaint', appointment.complaintReference],
+            ['Complaint source', appointment.complaintSource],
           ],
         },
         {

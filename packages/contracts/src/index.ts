@@ -931,6 +931,10 @@ export const technicianAvailabilitySchema = z
     }
   });
 
+export const complaintSources = ['Email', 'WhatsApp', 'Phone', 'Salesman'] as const;
+export const complaintSourceSchema = z.enum(complaintSources);
+export type ComplaintSource = z.infer<typeof complaintSourceSchema>;
+
 export const appointmentCreateSchema = z
   .object({
     complaintId: z.string().regex(/^\d+$/).optional(),
@@ -962,10 +966,18 @@ export const appointmentCreateSchema = z
     // as plain text (matches how b2bBranchSchool works) -- see
     // modification.md #8.
     salesman: optionalText(200),
+    // How the request reached the service centre (staff New request).
+    complaintSource: complaintSourceSchema.optional(),
     appointmentDate: dateSchema,
   })
   .strict()
   .superRefine((value, context) => {
+    if (value.complaintSource === 'Salesman' && !value.salesman) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Pick the salesman when the complaint source is Salesman.',
+      });
+    }
     const standaloneFields = [
       value.customerType,
       value.customerName,
@@ -979,11 +991,20 @@ export const appointmentCreateSchema = z
         message: 'Linked appointments cannot include standalone customer fields.',
       });
     }
-    if (!value.complaintId && standaloneFields.some((field) => field === undefined)) {
+    // A B2B contact number is optional, matching the complaint form (the site
+    // contact can be filled in later).
+    const contactMissing = value.contactNumber === undefined && value.customerType !== 'B2B';
+    if (
+      !value.complaintId &&
+      (value.customerType === undefined ||
+        value.customerName === undefined ||
+        value.faultDescription === undefined ||
+        contactMissing)
+    ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          'Standalone appointments require customerType, customerName, contactNumber, and faultDescription.',
+          'Standalone appointments require customerType, customerName, contactNumber (optional for B2B), and faultDescription.',
       });
     }
   });

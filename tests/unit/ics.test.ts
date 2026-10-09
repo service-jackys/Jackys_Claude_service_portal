@@ -29,6 +29,7 @@ const appointment: AppointmentRecord = {
   customerNumber: null,
   subGroup: null,
   salesman: null,
+  complaintSource: null,
   appointmentDate: '2026-09-25',
   status: 'Scheduled',
   closedAt: null,

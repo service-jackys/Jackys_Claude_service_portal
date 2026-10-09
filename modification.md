@@ -2489,3 +2489,20 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Not included:** automatic sending and delivery status. That needs the paid WhatsApp Business Cloud API (Meta verification, approved templates, public HTTPS); the message text and history built here carry over to it. A "cancelled" notice is not offered because cancelled appointments show no actions.
 
 **Needs you:** run `npm.cmd run db:migrate` (036), restart, hard-refresh.
+
+
+## Modification #80 — New request books an appointment directly, with a Complaint source
+
+**Date:** 2026-10-09 · **Scope:** API + web + migration 037 · run `npm.cmd run db:migrate`, restart, hard-refresh
+
+**What changed**
+- **New request no longer creates a complaint.** The staff New request screen (for requests that arrive by email, WhatsApp, phone or through a salesman) now books an appointment straight away. There is no CMP- reference and it does not go through the Complaint inbox. The reference is the appointment number (APT-YYYY-NNNNN), and the job then follows the usual path: appointment, job card, billing.
+- **Complaint source** (required): Email, WhatsApp, Phone or Salesman. Choosing Salesman shows a **Salesman** dropdown from the salesmen master list, and it is required. The source is stored on the appointment (`complaint_source`) and shown in the appointment details.
+- **Appointment date** (required) and **Technician** (optional) are now on the form. The technician's daily cap still applies.
+- **B2B check (advisory).** For a B2B request with source Salesman, if the chosen salesman is not the one the B2B branch master lists for that school, the form shows a warning as soon as both are chosen, and again after booking. It never blocks the booking, since billing runs from the service job card. B2C is never checked.
+- B2B contact number stays optional, as on the complaint form.
+- The public request form and the Complaint inbox are unchanged: customer self-service requests still create CMP- complaints and are scheduled from the inbox. Appointments created from a complaint have no source.
+- The New request menu item and screen now need appointment edit access (was complaint edit access).
+- Tests: 1 integration test (source saved, no complaint created, Salesman needs a salesman, warning on mismatch, none on match or B2C) and 2 end-to-end tests; the old end-to-end New request test was rewritten.
+
+**Needs you:** run `npm.cmd run db:migrate` (037), restart, hard-refresh. The CMP-261009-001 test request you created stays in the Complaint inbox as it was.

@@ -59,18 +59,37 @@ const invoiceRow = {
 };
 
 test.describe('warranty and billing', () => {
-  test('New request sends the warranty status chosen by staff', async ({ page }) => {
+  test('New request books an appointment directly with source and warranty', async ({ page }) => {
     let posted: Record<string, unknown> | null = null;
-    await mockApi(page, ['complaints.read', 'complaints.write'], (url, method, body) => {
-      if (url.pathname === '/api/complaints' && method === 'POST') {
-        posted = body as Record<string, unknown>;
-        return { complaint: { id: '1', complaintReference: 'CMP-261008-001' } };
-      }
-      if (url.pathname === '/api/complaints') return { complaints: [], pagination: {} };
-      return undefined;
-    });
+    let complaintsPosted = false;
+    await mockApi(
+      page,
+      ['appointments.read', 'appointments.write', 'complaints.write'],
+      (url, method, body) => {
+        if (url.pathname === '/api/complaints' && method === 'POST') complaintsPosted = true;
+        if (url.pathname === '/api/appointments' && method === 'POST') {
+          posted = body as Record<string, unknown>;
+          return {
+            appointment: {
+              id: '77',
+              appointmentReference: 'APT-2026-00077',
+              appointmentDate: '2026-10-12',
+              technicianName: null,
+            },
+            warnings: [],
+          };
+        }
+        if (url.pathname === '/api/appointments') {
+          return { appointments: [], pagination: { page: 1, pageSize: 100, total: 0 } };
+        }
+        return undefined;
+      },
+    );
     await signIn(page);
     await page.locator('#newRequestNav').dispatchEvent('click');
+    await page.locator('#newComplaintSource').selectOption('WhatsApp');
+    await expect(page.locator('#newComplaintSalesmanField')).toBeHidden();
+    await page.locator('#newComplaintAppointmentDate').fill('2026-10-12');
     await page.locator('#newComplaintCustomerType').selectOption('B2C');
     await page.locator('#newComplaintCustomerName').fill('Warranty Customer');
     await page.locator('#newComplaintContactNumber').fill('0500000001');
@@ -78,7 +97,81 @@ test.describe('warranty and billing', () => {
     await page.locator('#newComplaintDescription').fill('Does not start');
     await page.locator('#submitNewComplaintButton').click();
     await expect.poll(() => posted).not.toBeNull();
-    expect(posted).toMatchObject({ warrantyClassification: 'In Warranty' });
+    expect(posted).toMatchObject({
+      complaintSource: 'WhatsApp',
+      appointmentDate: '2026-10-12',
+      jobWarranty: 'In Warranty',
+      faultDescription: 'Does not start',
+    });
+    expect(posted).not.toHaveProperty('salesman');
+    await expect(page.locator('#newComplaintReference')).toHaveText('APT-2026-00077');
+    expect(complaintsPosted).toBe(false);
+  });
+
+  test('New request needs a salesman when the source is Salesman and warns on a B2B mismatch', async ({
+    page,
+  }) => {
+    let posted: Record<string, unknown> | null = null;
+    await mockApi(
+      page,
+      ['appointments.read', 'appointments.write', 'salesmen.read'],
+      (url, method, body) => {
+        if (url.pathname === '/api/salesmen') {
+          return {
+            salesmen: [
+              { id: '1', name: 'Rahul', active: true },
+              { id: '2', name: 'Anil', active: true },
+            ],
+          };
+        }
+        if (url.pathname === '/api/b2b-branches') {
+          return {
+            branches: [
+              {
+                custCode: 'C100',
+                branchName: 'Green School',
+                salesman: 'Rahul',
+                salesChannel: null,
+              },
+            ],
+          };
+        }
+        if (url.pathname === '/api/appointments' && method === 'POST') {
+          posted = body as Record<string, unknown>;
+          return {
+            appointment: { id: '78', appointmentReference: 'APT-2026-00078' },
+            warnings: ['The B2B branch master lists Rahul as the salesman for Green School.'],
+          };
+        }
+        if (url.pathname === '/api/appointments') {
+          return { appointments: [], pagination: { page: 1, pageSize: 100, total: 0 } };
+        }
+        return undefined;
+      },
+    );
+    await signIn(page);
+    await page.locator('#newRequestNav').dispatchEvent('click');
+    await page.locator('#newComplaintSource').selectOption('Salesman');
+    await expect(page.locator('#newComplaintSalesmanField')).toBeVisible();
+    await page.locator('#newComplaintAppointmentDate').fill('2026-10-12');
+    await page.locator('#newComplaintCustomerType').selectOption('B2B');
+    await page.locator('#newComplaintCustomerName').fill('Green School');
+    await page.locator('#newComplaintDescription').fill('Fridge not cooling');
+
+    await page.locator('#submitNewComplaintButton').click();
+    await expect(page.locator('[data-error-for="newComplaintSalesman"]')).toContainText('Pick');
+    expect(posted).toBeNull();
+
+    await page.locator('#newComplaintB2bBranchSearchInput').fill('Green');
+    await page.locator('#newComplaintB2bBranchResults button').first().click();
+    await page.locator('#newComplaintSalesman').selectOption('Anil');
+    await expect(page.locator('#newComplaintSourceWarning')).toBeVisible();
+    await expect(page.locator('#newComplaintSourceWarning')).toContainText('Rahul');
+
+    await page.locator('#submitNewComplaintButton').click();
+    await expect.poll(() => posted).not.toBeNull();
+    expect(posted).toMatchObject({ complaintSource: 'Salesman', salesman: 'Anil' });
+    await expect(page.locator('#newComplaintWarning')).toContainText('Rahul');
   });
 
   test('Invoices page lists jobs with an amount and records invoice and payment', async ({

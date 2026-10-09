@@ -26,6 +26,7 @@ import {
   updateAppointmentSchedule,
   updateAppointmentStatus,
 } from '../../../../packages/db/src/appointments.js';
+import { findB2bBranchByName } from '../../../../packages/db/src/b2b-branches.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
   findComplaintById,
@@ -278,6 +279,39 @@ export function createAppointmentService(pool: Pool) {
       if (!appointment)
         throw new AppointmentServiceError('not-found', 'The appointment was not found.');
       return createAppointmentIcs(appointment);
+    } finally {
+      client.release();
+    }
+  }
+
+  // Advisory only: a B2B request that came through a salesman should name the
+  // salesman the B2B branch master lists for that school. A mismatch never
+  // blocks the booking (billing runs from the service job card), it just
+  // tells staff to double check.
+  async function sourceWarnings(appointment: {
+    customerType: string;
+    complaintSource: string | null;
+    salesman: string | null;
+    b2bBranchSchool: string | null;
+  }): Promise<string[]> {
+    if (
+      appointment.complaintSource !== 'Salesman' ||
+      !appointment.salesman ||
+      !appointment.b2bBranchSchool ||
+      appointment.customerType === 'B2C'
+    ) {
+      return [];
+    }
+    const client = await pool.connect();
+    try {
+      const branch = await findB2bBranchByName(client, appointment.b2bBranchSchool);
+      if (!branch?.salesman) return [];
+      if (branch.salesman.trim().toLowerCase() === appointment.salesman.trim().toLowerCase()) {
+        return [];
+      }
+      return [
+        `The B2B branch master lists ${branch.salesman} as the salesman for ${branch.branchName}, but this request came through ${appointment.salesman}. The request was saved; please check the source.`,
+      ];
     } finally {
       client.release();
     }
@@ -567,6 +601,7 @@ export function createAppointmentService(pool: Pool) {
     ics,
     messages,
     prepareMessage,
+    sourceWarnings,
     assign,
     reschedule,
     changeStatus,

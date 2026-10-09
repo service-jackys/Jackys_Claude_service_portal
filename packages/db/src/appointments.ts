@@ -33,6 +33,7 @@ export type AppointmentRecord = {
   customerNumber: string | null;
   subGroup: string | null;
   salesman: string | null;
+  complaintSource: string | null;
   appointmentDate: string;
   status: AppointmentStatus;
   closedAt: Date | null;
@@ -77,6 +78,7 @@ const columns = `
   appointments.customer_number AS "customerNumber",
   appointments.sub_group AS "subGroup",
   appointments.salesman,
+  appointments.complaint_source AS "complaintSource",
   appointments.appointment_date::text AS "appointmentDate",
   appointments.status,
   appointments.closed_at AS "closedAt",
@@ -102,8 +104,8 @@ export async function insertAppointment(
       customer_type, customer_name, contact_number, customer_email, address, region,
       brand, model, item_code, fault_description, job_warranty, sales_order_number,
       b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
-      salesman, appointment_date, created_by
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25)
+      salesman, appointment_date, created_by, complaint_source
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
     RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [
       input.appointmentReference,
@@ -131,6 +133,7 @@ export async function insertAppointment(
       input.salesman ?? null,
       input.appointmentDate,
       input.createdBy ?? null,
+      input.complaintSource ?? null,
     ],
   );
   return result.rows[0];

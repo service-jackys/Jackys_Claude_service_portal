@@ -53,13 +53,14 @@ export function createAppointmentHandlers(
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
-          response.status(201).json({
-            appointment: await service.create(
-              request.body,
-              auth.profileId,
-              request.header('x-request-id') ?? undefined,
-            ),
-          });
+          const appointment = await service.create(
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .status(201)
+            .json({ appointment, warnings: await service.sourceWarnings(appointment) });
         } catch (error) {
           if (error instanceof AppointmentServiceError) {
             serviceError(error, response);

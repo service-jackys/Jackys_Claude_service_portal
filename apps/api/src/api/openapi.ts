@@ -667,6 +667,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             customerNumber: { type: 'string', minLength: 1, maxLength: 100 },
             subGroup: { type: 'string', minLength: 1, maxLength: 120 },
             salesman: { type: 'string', minLength: 1, maxLength: 200 },
+            complaintSource: { type: 'string', enum: ['Email', 'WhatsApp', 'Phone', 'Salesman'] },
             appointmentDate: { type: 'string', format: 'date' },
           },
         },
