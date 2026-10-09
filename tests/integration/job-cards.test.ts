@@ -118,6 +118,8 @@ test(
       );
 
       const detail = await jobCardService.detail(created.id);
+      // Period from is stamped with the creation time by the server.
+      assert.ok(detail.jobCard.periodFrom, 'period from is set when the job card is created');
       assert.deepEqual(
         detail.history.map((entry) => [entry.fromStatus, entry.toStatus, entry.reason]),
         [

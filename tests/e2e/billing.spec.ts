@@ -445,6 +445,43 @@ test.describe('warranty and billing', () => {
     await expect(page.locator('[data-acc-record] [data-rec="paymentReference"]')).toBeEnabled();
   });
 
+  test('Job card form: period from locked, warranty days pill, post-create sections hidden', async ({
+    page,
+  }) => {
+    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], () => undefined);
+    await signIn(page);
+    const state = await page.evaluate(() => {
+      const el = (id: string) => document.getElementById(id) as HTMLInputElement;
+      const set = (id: string, value: string) => {
+        el(id).value = value;
+        el(id).dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      const pill = () => document.getElementById('jccWarrantyDaysPill') as HTMLElement;
+      const before = pill().hidden;
+      const d = new Date();
+      d.setDate(d.getDate() - 65);
+      const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      set('jccPurchaseDate', iso);
+      const recent = pill().textContent;
+      set('jccPurchaseDate', '2000-01-01');
+      const old = { text: pill().textContent, expired: pill().classList.contains('is-expired') };
+      return {
+        before,
+        recent,
+        old,
+        periodReadonly: el('jccPeriodFrom').readOnly,
+        createHidden: (document.getElementById('jccPostCreate') as HTMLElement).hidden,
+        editHidden: (document.getElementById('jcePostCreate') as HTMLElement).hidden,
+      };
+    });
+    expect(state.before).toBe(true);
+    expect(state.recent).toMatch(/^\d+ warranty days? left$/);
+    expect(state.old).toEqual({ text: 'Warranty expired', expired: true });
+    expect(state.periodReadonly).toBe(true);
+    expect(state.createHidden).toBe(true);
+    expect(state.editHidden).toBe(false);
+  });
+
   test('Job card form locks the MDA service charge and greys payment mode', async ({ page }) => {
     await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
       if (url.pathname === '/api/rate-card') {

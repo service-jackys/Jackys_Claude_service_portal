@@ -1100,7 +1100,7 @@
         <div class="field"><label for="${prefix}GroupName">Group</label><input type="text" id="${prefix}GroupName" maxlength="120"></div>
         <div class="field"><label for="${prefix}SubGroup">Sub group</label><input type="text" id="${prefix}SubGroup" maxlength="120"></div>
         <div class="field"><label for="${prefix}SerialNo">Serial number</label><input type="text" id="${prefix}SerialNo" maxlength="120"></div>
-        <div class="field"><label for="${prefix}PurchaseDate">Purchase date</label><input type="date" id="${prefix}PurchaseDate"></div>
+        <div class="field"><label for="${prefix}PurchaseDate">Purchase date <span class="warranty-pill" id="${prefix}WarrantyDaysPill" hidden></span></label><input type="date" id="${prefix}PurchaseDate"></div>
         <input type="hidden" id="${prefix}ItemCode">
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
@@ -1110,10 +1110,11 @@
       <div class="field"><label for="${prefix}Complaint">Complaint</label><textarea id="${prefix}Complaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}ServiceRendered">Service rendered</label><textarea id="${prefix}ServiceRendered" maxlength="10000"></textarea></div>
       <div class="field-grid">
-        <div class="field"><label for="${prefix}PeriodFrom">Period from</label><input type="datetime-local" id="${prefix}PeriodFrom"></div>
+        <div class="field"><label for="${prefix}PeriodFrom">Period from ${tipHtml(`Set automatically to the time the job card was created. It cannot be changed.`)}</label><input type="datetime-local" id="${prefix}PeriodFrom" readonly></div>
         <div class="field"><label for="${prefix}PeriodTo">Period to</label><input type="datetime-local" id="${prefix}PeriodTo"></div>
         <div class="field"><label for="${prefix}TimeConsumed">Time consumed (hours)</label><input type="text" id="${prefix}TimeConsumed" readonly></div>
       </div>
+      <div class="jc-post-create" id="${prefix}PostCreate"${prefix === 'jce' ? '' : ' hidden'}>
       <h5>Parts used</h5>
       <div class="table-wrap">
         <table>
@@ -1157,6 +1158,7 @@
         <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
+      </div>
       </div>
     `;
   }
@@ -1274,6 +1276,7 @@
       ].forEach((selector) =>
         $(selector).addEventListener('input', () => refreshBillingPreview(prefix)),
       );
+      $(`#${prefix}PurchaseDate`).addEventListener('input', () => refreshWarrantyDaysPill(prefix));
       $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
       $(`#${prefix}PeriodTo`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
     });
@@ -1353,6 +1356,25 @@
     $(`#${prefix}GrandTotal`).value = money(totalCost + serviceCharge);
   }
 
+  // Warranty is one year from the purchase date; the pill shows the days left.
+  function refreshWarrantyDaysPill(prefix) {
+    const pill = $(`#${prefix}WarrantyDaysPill`);
+    const value = $(`#${prefix}PurchaseDate`).value;
+    if (!value) {
+      pill.hidden = true;
+      return;
+    }
+    const [y, m, d] = value.split('-').map(Number);
+    const end = Date.UTC(y + 1, m - 1, d);
+    const now = new Date();
+    const today = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+    const days = Math.round((end - today) / 86400000);
+    pill.hidden = false;
+    pill.classList.toggle('is-expired', days <= 0);
+    pill.textContent =
+      days > 0 ? `${days} warranty day${days === 1 ? '' : 's'} left` : 'Warranty expired';
+  }
+
   function calcJobCardTimeConsumed(prefix) {
     const fromValue = $(`#${prefix}PeriodFrom`).value;
     const toValue = $(`#${prefix}PeriodTo`).value;
@@ -1380,6 +1402,7 @@
     $(`#${prefix}PurchaseDate`).value = content.purchaseDate
       ? content.purchaseDate.slice(0, 10)
       : '';
+    refreshWarrantyDaysPill(prefix);
     $(`#${prefix}ItemCode`).value = content.itemCode || '';
     [
       `#${prefix}ModelNo`,
@@ -1411,7 +1434,9 @@
     );
     $(`#${prefix}Complaint`).value = content.complaint || '';
     $(`#${prefix}ServiceRendered`).value = content.serviceRendered || '';
-    $(`#${prefix}PeriodFrom`).value = toDateTimeLocal(content.periodFrom);
+    $(`#${prefix}PeriodFrom`).value = toDateTimeLocal(
+      content.periodFrom || (prefix === 'jce' ? '' : new Date()),
+    );
     $(`#${prefix}PeriodTo`).value = toDateTimeLocal(content.periodTo);
     $(`#${prefix}ServiceCharge`).value = content.serviceCharge || 0;
     $(`#${prefix}AmountChargeable`).value = content.amountChargeable ?? '';

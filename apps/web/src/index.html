@@ -3626,6 +3626,31 @@
       .history strong {
         color: var(--navy);
       }
+      #jobCardActions > .detail-action-card {
+        flex: 1 1 auto;
+        width: 100%;
+        min-width: 0;
+      }
+      .jc-post-create[hidden] {
+        display: none;
+      }
+      .warranty-pill {
+        display: inline-block;
+        margin-left: 0.4rem;
+        padding: 0.05rem 0.5rem;
+        border-radius: 999px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        background: #e3f4ea;
+        color: #17653a;
+      }
+      .warranty-pill.is-expired {
+        background: #fbe4e4;
+        color: #9b1c1c;
+      }
+      .warranty-pill[hidden] {
+        display: none;
+      }
       .detail-actions[hidden] {
         display: none;
       }

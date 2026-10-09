@@ -2520,3 +2520,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Test: an end-to-end check that the New request form has no inline help text and shows the tooltip on hover.
 
 **Needs you:** hard-refresh only.
+
+
+## Modification #82 — Service job card: locked Period from, warranty days pill, full-width card, sections after creation
+
+**Date:** 2026-10-09 · **Scope:** web and API · no migration · restart and hard-refresh
+
+**What changed**
+- **Period from** is now set automatically to the time the job card is created and cannot be edited (the field is read-only and the server ignores any value sent for it). An (i) tooltip explains this. It applies to job cards from an appointment, from a quotation and walk-in job cards. Older cards with no value stay blank.
+- **Purchase date** now shows a pill beside its label with the warranty days remaining (one year from the purchase date), for example "300 warranty days left", or "Warranty expired" in red. It updates as the date is typed.
+- **Job card details** card on an open job card now uses the full width like the cards above it (it was shrinking to its content, about 408 px wide).
+- **Create service job card** (from an appointment or a quotation) now shows only the details sections before the job card exists. Parts used, totals, job status, warranty and billing and everything below appear after the card is created, when the job is in WIP and moves on from there.
+- Tests: 1 end-to-end test (Period from locked, pill values, create form hides the later sections, open job card still shows them) and an integration assertion that Period from is stamped on creation.
+
+**Needs you:** restart the API and hard-refresh.
