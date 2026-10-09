@@ -2506,3 +2506,17 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Tests: 1 integration test (source saved, no complaint created, Salesman needs a salesman, warning on mismatch, none on match or B2C) and 2 end-to-end tests; the old end-to-end New request test was rewritten.
 
 **Needs you:** run `npm.cmd run db:migrate` (037), restart, hard-refresh. The CMP-261009-001 test request you created stays in the Complaint inbox as it was.
+
+
+## Modification #81 — Help text is a tooltip everywhere, not a line on the page
+
+**Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- Every static help or explanation line in the portal is now an (i) tooltip: hover or tab to the icon to read it. Field help sits beside the field label (for example Warranty status, Technician, Job status, Final warranty status, Payment by, Payment confirmed, Service charge on MDA jobs). Section help sits beside the section heading (the pricing admin tables, the calculators' Issued tabs, Transport, Additional Services, Upload ERP stock file, Refresh data). Page-level explanations are an "About this page" (i) at the top right of the page.
+- This covers the New request form, Salesmen and channels, the pricing admin pages, the VAS / AMC / Thomson calculators, Rate card, Reports, Activity log, Daily schedule, Awaiting drafts, Roles and permissions, Revenue and Budget dashboards, Technicians, Team logins, Invoices, Billing rules, stock upload, the password dialogs, and the message panel on appointments.
+- Left as normal text on purpose: loading messages, errors, empty states ("No ... yet"), permission messages, save confirmations, validation and live warnings, and counts. Those report what is happening now rather than explain a field.
+- Standing rule from here on: new help text is added as a tooltip (`tipHtml()` in the script, or the `tooltip` markup in the page), never as an inline line.
+- Test: an end-to-end check that the New request form has no inline help text and shows the tooltip on hover.
+
+**Needs you:** hard-refresh only.

@@ -251,6 +251,13 @@
   const $ = (selector) => document.querySelector(selector);
   const $$ = (selector) => [...document.querySelectorAll(selector)];
 
+  // Help text is shown as an (i) tooltip next to the label or heading it
+  // explains, never as a line of text on the page. `text` is trusted static
+  // markup (entities such as &amp; are fine).
+  function tipHtml(text, wrapperAttrs = '', bubbleAttrs = '') {
+    return `<span class="tooltip" tabindex="0" ${wrapperAttrs}><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip" ${bubbleAttrs}>${text}</span></span>`;
+  }
+
   function escapeHtml(value) {
     return String(value ?? '').replace(
       /[&<>'"]/g,
@@ -868,7 +875,7 @@
                   : teamAccounts
                     ? 'Add teammate logins so they can test the portal with their own accounts.'
                     : newRequest
-                      ? 'Register a service request for a customer who called or emailed in.'
+                      ? 'Book an appointment for a request that came by email, WhatsApp, phone or through a salesman.'
                       : masterData
                         ? 'Manage the Salesman and Sales Channel dropdowns.'
                         : serviceRequests
@@ -1117,26 +1124,26 @@
       <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
       <div class="field-grid">
         <div class="field"><label for="${prefix}TotalCost">Total cost (AED)</label><input type="text" id="${prefix}TotalCost" readonly></div>
-        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED)</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"><span class="form-note" id="${prefix}ServiceChargeNote" hidden>Major appliances (MDA) are charged the rate card &ldquo;MDA &ndash; Standard&rdquo; amount, in or out of warranty.</span></div>
+        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED) ${tipHtml(`Major appliances (MDA) are charged the rate card &ldquo;MDA &ndash; Standard&rdquo; amount, in or out of warranty.`, `id="${prefix}ServiceChargeNote" hidden`)}</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"></div>
         <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
         <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (AED)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
       </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
-        <div class="field"><label for="${prefix}JobFinalStatus">Job status</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select><span class="form-note">The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.</span></div>
+        <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
       </div>
       <h5>Warranty and billing</h5>
       <div class="field-grid">
-        <div class="field"><label for="${prefix}FinalWarrantyStatus">Final warranty status</label><select id="${prefix}FinalWarrantyStatus"><option value="">Same as registered warranty</option><option>In Warranty</option><option>Out Warranty</option></select><span class="form-note">Set after inspection. If it differs from the registered warranty (for example customer-induced damage or misuse), billing follows this one.</span></div>
+        <div class="field"><label for="${prefix}FinalWarrantyStatus">Final warranty status ${tipHtml(`Set after inspection. If it differs from the registered warranty (for example customer-induced damage or misuse), billing follows this one.`)}</label><select id="${prefix}FinalWarrantyStatus"><option value="">Same as registered warranty</option><option>In Warranty</option><option>Out Warranty</option></select></div>
         <div class="field" id="${prefix}WarrantyReasonField" hidden><label for="${prefix}WarrantyOverrideReason">Reason for the change</label><input type="text" id="${prefix}WarrantyOverrideReason" maxlength="1000" placeholder="Required when the final warranty differs"></div>
-        <div class="field"><label for="${prefix}PaymentBy">Payment by</label><select id="${prefix}PaymentBy"><option value="">Automatic</option><option>Sales channel</option><option>Customer</option></select><span class="form-note">In warranty is always billed to the sales channel. For out of warranty choose who pays.</span></div>
+        <div class="field"><label for="${prefix}PaymentBy">Payment by ${tipHtml(`In warranty is always billed to the sales channel. For out of warranty choose who pays.`)}</label><select id="${prefix}PaymentBy"><option value="">Automatic</option><option>Sales channel</option><option>Customer</option></select></div>
         <div class="field"><label for="${prefix}BillToChannel">Bill to channel</label><select id="${prefix}BillToChannel"><option value="">Auto (billing rule / sales channel)</option></select></div>
         <div class="field"><label for="${prefix}BillingJobType">Job type</label><input type="text" id="${prefix}BillingJobType" readonly></div>
         <div class="field"><label for="${prefix}InvoiceDate">Invoice date</label><input type="date" id="${prefix}InvoiceDate"></div>
         <div class="field"><label for="${prefix}PaymentMode">Payment mode</label><select id="${prefix}PaymentMode"><option value="">Select mode</option><option>Cash</option><option>Online</option><option>Bank transfer</option><option>Card</option></select></div>
         <div class="field"><label for="${prefix}PaymentReference">Payment reference</label><input type="text" id="${prefix}PaymentReference" maxlength="200" placeholder="Receipt or transaction no."></div>
-        <div class="field"><label class="check-label"><input type="checkbox" id="${prefix}PaymentConfirmed"> Payment received and confirmed</label><span class="form-note" id="${prefix}PaymentConfirmedNote">A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.</span></div>
+        <div class="field"><label class="check-label"><input type="checkbox" id="${prefix}PaymentConfirmed"> Payment received and confirmed ${tipHtml(`A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.`, '', `id="${prefix}PaymentConfirmedNote"`)}</label></div>
       </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
@@ -5246,7 +5253,7 @@ ${bodyHtml}
     if (!drafts.length && !history.length) return;
     panel.hidden = false;
     panel.dataset.appointmentId = id;
-    $('#appointmentMessageIntro').hidden = !drafts.length;
+    $('#appointmentMessageIntro').closest('.tooltip').hidden = !drafts.length;
     $('#appointmentMessageDrafts').innerHTML = drafts
       .map((draft, index) => {
         const button = (channel, reason, ok) =>
@@ -5254,7 +5261,7 @@ ${bodyHtml}
         const reasons = [draft.whatsappUnavailableReason, draft.emailUnavailableReason]
           .filter((reason, position, all) => reason && all.indexOf(reason) === position)
           .join(' ');
-        return `<div class="msg-draft"><div class="msg-draft-head"><div><strong>${escapeHtml(draft.label)}</strong><span class="ap-sub">${escapeHtml([draft.recipientName, draft.phone].filter(Boolean).join(' · ') || 'No recipient')}</span></div><div class="msg-draft-actions">${button('whatsapp', draft.whatsappUnavailableReason, Boolean(draft.whatsappNumber))}${button('email', draft.emailUnavailableReason, Boolean(draft.email))}</div></div>${reasons ? `<p class="msg-note">${escapeHtml(reasons)}</p>` : ''}${draft.body ? `<details><summary>Preview message</summary><pre class="msg-preview">${escapeHtml(draft.body)}</pre></details>` : ''}</div>`;
+        return `<div class="msg-draft"><div class="msg-draft-head"><div><strong>${escapeHtml(draft.label)}${reasons ? ' ' + tipHtml(escapeHtml(reasons)) : ''}</strong><span class="ap-sub">${escapeHtml([draft.recipientName, draft.phone].filter(Boolean).join(' · ') || 'No recipient')}</span></div><div class="msg-draft-actions">${button('whatsapp', draft.whatsappUnavailableReason, Boolean(draft.whatsappNumber))}${button('email', draft.emailUnavailableReason, Boolean(draft.email))}</div></div>${draft.body ? `<details><summary>Preview message</summary><pre class="msg-preview">${escapeHtml(draft.body)}</pre></details>` : ''}</div>`;
       })
       .join('');
     $('#appointmentMessageHistory').innerHTML =
@@ -7172,8 +7179,11 @@ ${bodyHtml}
       const tableHost = document.createElement('div');
       tableHost.className = 'detail-action-card';
       tableHost.innerHTML =
-        '<h4>VAS Plan Pricing Table</h4>' +
-        '<p class="form-note">Every plan’s rate, minimum fee, deductible, service fee, claims allowed and coverage &amp; terms &mdash; one row per plan, matching the workbook exactly. The 1-Year Damage Insurance service fee shown to customers is always computed from the claim-fee rule below instead of the text stored here.</p>';
+        '<h4>VAS Plan Pricing Table ' +
+        tipHtml(
+          'Every plan’s rate, minimum fee, deductible, service fee, claims allowed and coverage &amp; terms &mdash; one row per plan, matching the workbook exactly. The 1-Year Damage Insurance service fee shown to customers is always computed from the claim-fee rule below instead of the text stored here.',
+        ) +
+        '</h4>';
       const tableFields = document.createElement('div');
       tableHost.appendChild(tableFields);
 
@@ -7940,7 +7950,11 @@ ${bodyHtml}
       const appliancesHost = document.createElement('div');
       appliancesHost.className = 'detail-action-card pc-span-full';
       appliancesHost.innerHTML =
-        '<h4>Appliance Rates</h4><p class="form-note">Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.</p>';
+        '<h4>Appliance Rates ' +
+        tipHtml(
+          'Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.',
+        ) +
+        '</h4>';
       grid.appendChild(appliancesHost);
       const appliancesTable = document.createElement('div');
       appliancesHost.appendChild(appliancesTable);
@@ -8494,7 +8508,11 @@ ${bodyHtml}
     const bands = data.vas_price_bands;
     const params = data.vas_pricing_params;
     container.innerHTML =
-      '<p class="form-note">Enter the appliance selling price and pick a plan to see the customer-facing quote. Switch to "VAS Issued" to find and reprint any previously saved sale.</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Enter the appliance selling price and pick a plan to see the customer-facing quote. Switch to "VAS Issued" to find and reprint any previously saved sale.',
+      ) +
+      '</div>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="VAS Quote Calculator sections">' +
       '<button type="button" class="action-tab active" data-vc-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
       '<button type="button" class="action-tab" data-vc-tab="issued" role="tab" aria-selected="false">VAS Issued</button>' +
@@ -8517,15 +8535,19 @@ ${bodyHtml}
       '</div>' +
       '<p><button type="button" class="button button-outline" data-vc-clear>Clear</button></p>' +
       '<div data-vc-output></div>' +
-      '<h4 style="margin-top: 1.5rem">Quick Price — All 4 Plans at Once</h4>' +
-      '<p class="form-note">Same selling price above, every plan’s fee side by side.</p>' +
+      '<h4 style="margin-top: 1.5rem">Quick Price — All 4 Plans at Once ' +
+      tipHtml('Same selling price above, every plan’s fee side by side.') +
+      '</h4>' +
       '<div data-vc-quick></div>' +
       '<h4 style="margin-top: 1.5rem">Issue a VAS Sale — Customer Certificate</h4>' +
       '<div data-vc-sale></div>' +
       '</section>' +
       '<section data-vc-panel="issued" hidden>' +
-      '<h4>VAS Issued</h4>' +
-      '<p class="form-note">Every VAS sale saved from the calculator above. Print re-opens that exact certificate.</p>' +
+      '<h4>VAS Issued ' +
+      tipHtml(
+        'Every VAS sale saved from the calculator above. Print re-opens that exact certificate.',
+      ) +
+      '</h4>' +
       '<div data-vc-issued></div>' +
       '</section>' +
       '</div>';
@@ -8755,7 +8777,11 @@ ${bodyHtml}
       return;
     }
     saleHost.innerHTML =
-      '<p class="form-note">Uses the plan and selling price selected above. Fill in the customer &amp; appliance details, save the sale, then print the certificate.</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Uses the plan and selling price selected above. Fill in the customer &amp; appliance details, save the sale, then print the certificate.',
+      ) +
+      '</div>' +
       '<div class="field-grid">' +
       calcField('Customer name', '<input type="text" data-vs-customer-name />') +
       calcField('Contact number', '<input type="text" data-vs-contact-number />') +
@@ -8948,18 +8974,24 @@ ${bodyHtml}
       '<div><h4>Quantity discount</h4><table class="rc-table"><thead><tr><th>Units</th><th class="num">Discount</th></tr></thead><tbody>' +
       tierRows +
       '</tbody></table></div>' +
-      '<div><h4>Transport per trip (AED)</h4><table class="rc-table"><thead><tr><th>Region</th><th class="num">Round trip</th></tr></thead><tbody>' +
+      '<div><h4>Transport per trip (AED) ' +
+      tipHtml(
+        withTransport
+          ? 'Transport is always added to Delivery &amp; Installation quotes.'
+          : 'Transport is added only when the job needs a separate trip.',
+      ) +
+      '</h4><table class="rc-table"><thead><tr><th>Region</th><th class="num">Round trip</th></tr></thead><tbody>' +
       transport +
-      '</tbody></table><p class="form-note">' +
-      (withTransport
-        ? 'Transport is always added to Delivery &amp; Installation quotes.'
-        : 'Transport is added only when the job needs a separate trip.') +
-      '</p></div></div>' +
-      '<p class="form-note">Minimum rate per unit: ' +
-      money(dandi.minUnitRate) +
-      ' AED &middot; up to ' +
-      dandi.maxUnits +
-      ' units per quote.</p></section>'
+      '</tbody></table></div></div>' +
+      '<div class="card-help"><span>Quote limits</span>' +
+      tipHtml(
+        'Minimum rate per unit: ' +
+          money(dandi.minUnitRate) +
+          ' AED &middot; up to ' +
+          dandi.maxUnits +
+          ' units per quote.',
+      ) +
+      '</div></section>'
     );
   }
 
@@ -9454,9 +9486,12 @@ ${bodyHtml}
         )
         .join('') +
       '</div>' +
-      '<section class="detail-action-card"><h4>Upload ERP stock file</h4>' +
-      '<p class="form-note">Choose the channel, then the “Current Stock Valuation” .xlsx exported from the ERP. ' +
-      'Each upload replaces that channel’s location rows and updates the unique item list; items that are no longer in the file are kept.</p>' +
+      '<section class="detail-action-card"><h4>Upload ERP stock file ' +
+      tipHtml(
+        'Choose the channel, then the “Current Stock Valuation” .xlsx exported from the ERP. ' +
+          'Each upload replaces that channel’s location rows and updates the unique item list; items that are no longer in the file are kept.',
+      ) +
+      '</h4>' +
       '<div class="sm-upload"><select data-sm-channel aria-label="Channel">' +
       '<option value="">Select channel…</option>' +
       Object.entries(channelNames)
@@ -9871,7 +9906,11 @@ ${bodyHtml}
           '<section class="detail-action-card wi-done"><h4>Walk-in job card opened</h4>' +
           '<p class="wi-ref">' +
           escapeHtml(jobCard.jobCardReference) +
-          '</p><p class="form-note">Print the intake receipt for the customer to sign, then hand the item to the technician.</p>' +
+          '</p><div class="card-help"><span>Next step</span>' +
+          tipHtml(
+            'Print the intake receipt for the customer to sign, then hand the item to the technician.',
+          ) +
+          '</div>' +
           '<p><button class="button button-primary" type="button" data-wi-print>Print intake receipt</button> ' +
           '<button class="button button-outline" type="button" data-wi-open>Open job card</button> ' +
           '<button class="button button-outline" type="button" data-wi-new>New walk-in</button></p></section>';
@@ -9916,7 +9955,11 @@ ${bodyHtml}
       '</div>' +
       rcModeCard('Delivery & Installations', data.dandi.modes.dandi, data.dandi, true) +
       rcModeCard('Installations', data.dandi.modes.install, data.dandi, false) +
-      '<p class="form-note">Delivery &amp; Installations and Installations are priced from the factors in D+I Admin Entry, so the figures above are starting points rather than final quotes.</p>';
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Delivery &amp; Installations and Installations are priced from the factors in D+I Admin Entry, so the figures above are starting points rather than final quotes.',
+      ) +
+      '</div>';
   }
 
   // --- AMC ------------------------------------------------------------------
@@ -9948,7 +9991,11 @@ ${bodyHtml}
     const appliances = [];
 
     container.innerHTML =
-      '<p class="form-note">Add each appliance type covered by this contract one at a time (nothing is pre-filled from the admin catalog), enter its quantity and unit value, then read the Basic RM / Standard PMC / Premium PMC contract prices below. Saving stores all 3 plans together; you pick which one to print afterwards. Switch to "AMC Issued" to find and reprint any previously saved contract.</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Add each appliance type covered by this contract one at a time (nothing is pre-filled from the admin catalog), enter its quantity and unit value, then read the Basic RM / Standard PMC / Premium PMC contract prices below. Saving stores all 3 plans together; you pick which one to print afterwards. Switch to "AMC Issued" to find and reprint any previously saved contract.',
+      ) +
+      '</div>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="AMC Quote Calculator sections">' +
       '<button type="button" class="action-tab active" data-ac-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
       '<button type="button" class="action-tab" data-ac-tab="issued" role="tab" aria-selected="false">AMC Issued</button>' +
@@ -9991,8 +10038,11 @@ ${bodyHtml}
       '</div>' +
       '</section>' +
       '<section data-ac-panel="issued" hidden>' +
-      '<h4>AMC Issued</h4>' +
-      '<p class="form-note">Every AMC contract saved from the calculator above, with all 3 plans’ numbers stored. Pick a plan and Print to generate that plan’s certificate. A saved record is a Quote until you pick the plan the customer took and press Sold; only Sold contracts count as AMC revenue (ex-VAT, in the contract start month).</p>' +
+      '<h4>AMC Issued ' +
+      tipHtml(
+        'Every AMC contract saved from the calculator above, with all 3 plans’ numbers stored. Pick a plan and Print to generate that plan’s certificate. A saved record is a Quote until you pick the plan the customer took and press Sold; only Sold contracts count as AMC revenue (ex-VAT, in the contract start month).',
+      ) +
+      '</h4>' +
       '<div data-ac-issued></div>' +
       '</section>' +
       '</div>';
@@ -10411,7 +10461,11 @@ ${bodyHtml}
       return;
     }
     saleHost.innerHTML =
-      '<p class="form-note">Fill in the client &amp; site details and save the contract — all 3 plans’ numbers are stored together, and you pick which one to print below (or any time from "AMC Issued").</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Fill in the client &amp; site details and save the contract — all 3 plans’ numbers are stored together, and you pick which one to print below (or any time from "AMC Issued").',
+      ) +
+      '</div>' +
       '<div class="field-grid">' +
       calcField('Contract period', '<input type="text" value="1 Year" data-as-period />') +
       calcField('Client', '<input type="text" data-as-client />') +
@@ -10640,7 +10694,11 @@ ${bodyHtml}
     let lastComputed = null;
 
     container.innerHTML =
-      '<p class="form-note">Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly. Switch to "Thomson Issued" to find and reprint any previously saved sale.</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly. Switch to "Thomson Issued" to find and reprint any previously saved sale.',
+      ) +
+      '</div>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="Thomson Quote Calculator sections">' +
       '<button type="button" class="action-tab active" data-th-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
       '<button type="button" class="action-tab" data-th-tab="issued" role="tab" aria-selected="false">Thomson Issued</button>' +
@@ -10686,24 +10744,28 @@ ${bodyHtml}
       '</div>' +
       '</div>' +
       '<div class="detail-action-card">' +
-      '<h4>Transport</h4>' +
+      '<h4>Transport ' +
+      tipHtml(
+        'The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).',
+      ) +
+      '</h4>' +
       calcField(
         'Customer transport share %',
         '<input type="number" min="0" max="100" step="1" value="0" data-tcc-transport-share />',
       ) +
-      '<p class="form-note">The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).</p>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
-      '<div class="card-row-header"><h4>Additional Services</h4>' +
+      '<div class="card-row-header"><h4>Additional Services ' +
+      tipHtml(
+        canAmendAddons
+          ? 'Rates come from Thomson Pricing Admin. Amend them below to override for this quote only — this never changes the saved admin defaults.'
+          : 'Rates used in this quote, set in Thomson Pricing Admin.',
+      ) +
+      '</h4>' +
       (canAmendAddons
         ? '<button class="button button-outline" type="button" data-tcc-addons-reset>Reset to admin defaults</button>'
         : '') +
       '</div>' +
-      '<p class="form-note">' +
-      (canAmendAddons
-        ? 'Rates come from Thomson Pricing Admin. Amend them below to override for this quote only — this never changes the saved admin defaults.'
-        : 'Rates used in this quote, set in Thomson Pricing Admin.') +
-      '</p>' +
       '<div data-tcc-addons></div>' +
       '</div>' +
       '<div class="detail-action-card pc-span-full">' +
@@ -10717,8 +10779,11 @@ ${bodyHtml}
       '</div>' +
       '</section>' +
       '<section data-th-panel="issued" hidden>' +
-      '<h4>Thomson Issued</h4>' +
-      '<p class="form-note">Every Thomson sale saved from the calculator above. Print re-opens that exact quotation.</p>' +
+      '<h4>Thomson Issued ' +
+      tipHtml(
+        'Every Thomson sale saved from the calculator above. Print re-opens that exact quotation.',
+      ) +
+      '</h4>' +
       '<div data-tcc-issued></div>' +
       '</section>' +
       '</div>';
@@ -11070,7 +11135,11 @@ ${bodyHtml}
       return;
     }
     saleHost.innerHTML =
-      '<p class="form-note">Uses the project lines built above. Fill in the client details and save the sale, then print the quotation.</p>' +
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Uses the project lines built above. Fill in the client details and save the sale, then print the quotation.',
+      ) +
+      '</div>' +
       '<div class="field-grid">' +
       calcField('Client', '<input type="text" data-ths-client />') +
       calcField('Contact number', '<input type="text" data-ths-contact-number />') +
@@ -11952,7 +12021,11 @@ ${bodyHtml}
       const rows = state.data.statement;
       const sum = (key) => rows.reduce((s, r) => s + (Number(r[key]) || 0), 0);
       return (
-        '<p class="form-note">One line per party that receives a bill: the sales channel (or the channel a billing rule redirects to), or the customer when the customer pays. Use these totals for the ERP billing run; open a party to see its jobs.</p>' +
+        '<div class="card-help"><span>About this section</span>' +
+        tipHtml(
+          'One line per party that receives a bill: the sales channel (or the channel a billing rule redirects to), or the customer when the customer pays. Use these totals for the ERP billing run; open a party to see its jobs.',
+        ) +
+        '</div>' +
         '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (AED)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
         (rows
           .map(
@@ -12040,7 +12113,11 @@ ${bodyHtml}
         })
         .join('');
       return (
-        '<p class="form-note">Billed amount split by brand, main group and group (from the stock master on each job card) for ERP cost allocation. Jobs without an item code show as Unassigned.</p>' +
+        '<div class="card-help"><span>About this section</span>' +
+        tipHtml(
+          'Billed amount split by brand, main group and group (from the stock master on each job card) for ERP cost allocation. Jobs without an item code show as Unassigned.',
+        ) +
+        '</div>' +
         '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Brand</th><th>Main group</th><th>Group</th><th class="num">Jobs</th><th class="num">Service charge</th><th class="num">Parts</th><th class="num">Billed (AED)</th></tr></thead><tbody>' +
         (lines ||
           '<tr><td colspan="7" class="empty-state">Nothing to allocate for these filters.</td></tr>') +
@@ -12373,7 +12450,11 @@ ${bodyHtml}
           )
           .join('') +
         '</select></label></div>' +
-        '</div><p class="form-note">For Excel, use Reports: Job Invoices, or Sales Channel Reconciliation for finance.</p></div>' +
+        '</div><div class="card-help"><span>Need Excel?</span>' +
+        tipHtml(
+          'For Excel, use Reports: Job Invoices, or Sales Channel Reconciliation for finance.',
+        ) +
+        '</div></div>' +
         recordPanel() +
         '<div class="table-wrap"><table><thead><tr><th>Job card</th><th>Type</th><th>Customer</th><th>Payment by / bill to</th><th class="num">Amount</th><th>Invoice</th><th>Mode</th><th>Stage</th><th>Job status</th>' +
         (canRecord ? '<th></th>' : '') +
@@ -12486,7 +12567,11 @@ ${bodyHtml}
         )
         .join('');
       body.innerHTML =
-        '<p class="form-note">When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any) and the B2B branch / school name contains the keyword (blank = any). With no match, the job\'s own sales channel is billed.</p>' +
+        '<div class="card-help"><span>About this section</span>' +
+        tipHtml(
+          "When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any) and the B2B branch / school name contains the keyword (blank = any). With no match, the job's own sales channel is billed.",
+        ) +
+        '</div>' +
         '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
         (canEditRules ? '<th></th>' : '') +
         '</tr></thead><tbody>' +
@@ -12917,7 +13002,11 @@ ${bodyHtml}
       '</tr></thead><tbody>' +
       rows +
       '</tbody></table></div>' +
-      '<p class="form-note">Rows marked with an amber edge (admin.*) control who can manage logins and permissions &mdash; grant them with care.</p>';
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Rows marked with an amber edge (admin.*) control who can manage logins and permissions &mdash; grant them with care.',
+      ) +
+      '</div>';
     const saveButton = root.querySelector('[data-rm-save]');
     const discardButton = root.querySelector('[data-rm-discard]');
     const status = root.querySelector('[data-rm-status]');
@@ -13767,9 +13856,13 @@ ${bodyHtml}
     const card = document.createElement('div');
     card.className = 'rd-upload';
     card.innerHTML =
-      '<strong>Refresh data</strong><span class="form-note">Upload the latest ' +
-      escapeHtml(label) +
-      '. The newest upload replaces what the dashboard shows; earlier uploads are kept as history.</span>' +
+      '<strong>Refresh data ' +
+      tipHtml(
+        'Upload the latest ' +
+          escapeHtml(label) +
+          '. The newest upload replaces what the dashboard shows; earlier uploads are kept as history.',
+      ) +
+      '</strong>' +
       '<input type="file" accept=".xlsx,.xlsm" data-rd-file />' +
       '<button class="button" type="button" data-rd-upload>Upload</button>' +
       '<span class="form-note" data-rd-upload-msg></span>';
@@ -14585,7 +14678,11 @@ ${bodyHtml}
               .join('') +
             '</tbody></table></div>',
         ) +
-        '<p class="form-note rd-pad">Revenue is the figure calculated in the master workbook (rate card, RWR/BER flat charge and tiered delivery pricing already applied).</p>';
+        '<div class="card-help rd-pad"><span>About this view</span>' +
+        tipHtml(
+          'Revenue is the figure calculated in the master workbook (rate card, RWR/BER flat charge and tiered delivery pricing already applied).',
+        ) +
+        '</div>';
 
       const c = (id) => body.querySelector('#' + id);
       await rdDrawChart(
@@ -15064,7 +15161,9 @@ ${bodyHtml}
         rdSection(
           'Monthly management report &mdash; revenue (AED) with change vs prior month',
           rdMatrixTable(m, 'period', 'revenue', { title: 'Month', change: true, drill: true }) +
-            '<p class="form-note rd-pad">Click a month to drill into its job types, customers and jobs.</p>',
+            '<div class="card-help rd-pad"><span>About this view</span>' +
+            tipHtml('Click a month to drill into its job types, customers and jobs.') +
+            '</div>',
         );
       bindJump(reportBody, 'period', 'jobType');
       await rdDrawChart(
@@ -15120,7 +15219,11 @@ ${bodyHtml}
         rdSection(
           'Accounts Review &mdash; count of qty by month and job type',
           rdMatrixTable(m, 'period', 'qty', { title: 'Month', drill: true }) +
-            '<p class="form-note rd-pad">Same layout as the workbook&rsquo;s Accounts Review pivot (Count of Qty), recalculated live from the uploaded data.</p>',
+            '<div class="card-help rd-pad"><span>About this view</span>' +
+            tipHtml(
+              'Same layout as the workbook&rsquo;s Accounts Review pivot (Count of Qty), recalculated live from the uploaded data.',
+            ) +
+            '</div>',
         );
       bindJump(reportBody, 'period', 'jobType');
       await rdDrawChart(
@@ -15315,7 +15418,11 @@ ${bodyHtml}
       reportBody.innerHTML =
         rdSection(
           'Finance &amp; data-quality checks',
-          '<p class="form-note rd-pad">Jobs in the selected period that finance should review before the revenue is relied on. Click a check to see the individual jobs.</p>' +
+          '<div class="card-help rd-pad"><span>About this view</span>' +
+            tipHtml(
+              'Jobs in the selected period that finance should review before the revenue is relied on. Click a check to see the individual jobs.',
+            ) +
+            '</div>' +
             '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Check</th><th class="num">Jobs</th><th class="num">Revenue at stake (AED)</th><th class="num">% of revenue</th><th>What it means</th><th></th></tr></thead><tbody>' +
             rows
               .map(
@@ -15346,7 +15453,11 @@ ${bodyHtml}
               .join('') +
             '</tbody></table></div>',
         ) +
-        '<p class="form-note rd-pad">A job can appear under several checks, so the rows overlap and should not be added together.</p>';
+        '<div class="card-help rd-pad"><span>About this view</span>' +
+        tipHtml(
+          'A job can appear under several checks, so the rows overlap and should not be added together.',
+        ) +
+        '</div>';
       reportBody.querySelectorAll('[data-rd-exc]').forEach((row) => {
         if (!row.classList.contains('is-drill')) return;
         row.addEventListener('click', () =>
@@ -16145,13 +16256,17 @@ ${bodyHtml}
           ['Achievement', rdPercent(tot.actual, tot.budget), 'Closed months only'],
         ]);
       html +=
-        '<p class="form-note">Only closed months count in the totals' +
-        (data.settings.includeRunning
-          ? ' (the running month is included by setting)'
-          : '; months not yet closed are shown faded') +
-        '. Budget is the version annual figure phased across the fiscal year; VAT-inclusive streams are restated ex-VAT at ' +
-        Math.round(data.settings.vatRate * 100) +
-        '%.</p>';
+        '<div class="card-help"><span>How these figures work</span>' +
+        tipHtml(
+          'Only closed months count in the totals' +
+            (data.settings.includeRunning
+              ? ' (the running month is included by setting)'
+              : '; months not yet closed are shown faded') +
+            '. Budget is the version annual figure phased across the fiscal year; VAT-inclusive streams are restated ex-VAT at ' +
+            Math.round(data.settings.vatRate * 100) +
+            '%.',
+        ) +
+        '</div>';
       html +=
         '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>Stream</th><th>Measure</th>' +
         m.map((x, i) => '<th' + dim(i) + '>' + monthLabel(x.period) + '</th>').join('') +
@@ -16309,7 +16424,11 @@ ${bodyHtml}
         .join('');
     const dis = canWrite ? '' : ' disabled';
     let html =
-      '<h3>Which records feed which stream</h3><p class="form-note">Each job type from the master workbook, and each portal record type, is mapped to one revenue stream. A new product or job type needs a new row here, not a code change.</p>' +
+      '<h3>Which records feed which stream ' +
+      tipHtml(
+        'Each job type from the master workbook, and each portal record type, is mapped to one revenue stream. A new product or job type needs a new row here, not a code change.',
+      ) +
+      '</h3>' +
       '<div class="table-wrap"><table id="bvMapTable"><thead><tr><th>Source</th><th>Job type (workbook only)</th><th>Stream</th><th>Notes</th><th></th></tr></thead><tbody>' +
       cfg.mappings.map((mp) => bvMapRow(mp, kindOpts, streamOpts, dis)).join('') +
       '</tbody></table></div>';
@@ -16764,7 +16883,11 @@ ${bodyHtml}
       rdSection(
         'Budget vs actual by month',
         compare +
-          '<p class="form-note rd-pad">Actuals come from the uploaded revenue workbook. The latest month can be partial until its data is complete.</p>',
+          '<div class="card-help rd-pad"><span>About this view</span>' +
+          tipHtml(
+            'Actuals come from the uploaded revenue workbook. The latest month can be partial until its data is complete.',
+          ) +
+          '</div>',
       ) +
       rdSection('Budget P&amp;L', pl);
     root.appendChild(rest);

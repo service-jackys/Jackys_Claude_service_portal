@@ -529,6 +529,68 @@
         border: 6px solid transparent;
         border-top-color: var(--navy-deep);
       }
+      .tooltip-bubble {
+        font-weight: 400;
+        font-style: normal;
+        text-transform: none;
+        letter-spacing: normal;
+        text-align: left;
+        white-space: normal;
+        cursor: default;
+      }
+      .tooltip[hidden] {
+        display: none;
+      }
+      .tooltip-below .tooltip-bubble {
+        top: calc(100% + 0.5rem);
+        bottom: auto;
+        left: 0;
+        transform: translateY(-4px);
+      }
+      .tooltip-below .tooltip-bubble::after {
+        top: auto;
+        bottom: 100%;
+        left: 0.6rem;
+        transform: none;
+        border-top-color: transparent;
+        border-bottom-color: var(--navy-deep);
+      }
+      .tooltip-below:hover .tooltip-bubble,
+      .tooltip-below:focus .tooltip-bubble,
+      .tooltip-below:focus-within .tooltip-bubble {
+        transform: translateY(0);
+      }
+      .card-help {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.15rem;
+        margin: 0 0 0.5rem;
+        font-size: 0.78rem;
+        color: var(--muted, #5b6b82);
+      }
+      .card-help .tooltip-bubble {
+        top: calc(100% + 0.5rem);
+        bottom: auto;
+        left: auto;
+        right: -0.4rem;
+        transform: translateY(-4px);
+        max-width: min(360px, 80vw);
+      }
+      .card-help .tooltip-bubble::after {
+        top: auto;
+        bottom: 100%;
+        left: auto;
+        right: 0.7rem;
+        transform: none;
+        border-top-color: transparent;
+        border-bottom-color: var(--navy-deep);
+      }
+      .card-help .tooltip:hover .tooltip-bubble,
+      .card-help .tooltip:focus .tooltip-bubble,
+      .card-help .tooltip:focus-within .tooltip-bubble {
+        transform: translateY(0);
+      }
       .tooltip:hover .tooltip-bubble,
       .tooltip:focus .tooltip-bubble,
       .tooltip:focus-within .tooltip-bubble {
@@ -7270,12 +7332,18 @@
                   </div>
                 </div>
                 <div id="newComplaintFields">
-                  <p class="form-note">
-                    Use this when a request reaches you by email, WhatsApp, phone or through a
-                    salesman. It books the appointment directly: there is no complaint reference and
-                    it does not go through the complaint inbox. Fields marked with
-                    <span class="required">*</span> are required.
-                  </p>
+                  <div class="card-help">
+                    <span>About this page</span
+                    ><span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Use this when a request reaches you by email, WhatsApp, phone or through a
+                        salesman. It books the appointment directly: there is no complaint reference
+                        and it does not go through the complaint inbox. Fields marked with
+                        <span class="required">*</span> are required.</span
+                      ></span
+                    >
+                  </div>
                   <form id="newComplaintForm" novalidate>
                     <div class="field-grid">
                       <div class="field">
@@ -7311,13 +7379,17 @@
                         ></span>
                       </div>
                       <div class="field">
-                        <label for="newComplaintTechnician">Technician</label>
+                        <label for="newComplaintTechnician"
+                          >Technician<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Optional. Respects the technician's daily cap.</span
+                            ></span
+                          ></label
+                        >
                         <select id="newComplaintTechnician">
                           <option value="">Assign later</option>
                         </select>
-                        <span class="form-note"
-                          >Optional. Respects the technician's daily cap.</span
-                        >
                       </div>
                       <div
                         id="newComplaintSourceWarning"
@@ -7388,8 +7460,11 @@
                       <div class="field field-wide">
                         <label for="newComplaintB2bBranchSearchInput"
                           >Look up B2B Branch / School
-                          <span class="form-note-inline"
-                            >(picks the branch, customer number and sales order no. together)</span
+                          <span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >picks the branch, customer number and sales order no. together</span
+                            ></span
                           ></label
                         >
                         <input
@@ -7438,15 +7513,20 @@
                         <input id="newComplaintSerialOrItemCode" maxlength="120" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintWarranty">Warranty status</label>
+                        <label for="newComplaintWarranty"
+                          >Warranty status<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The technician can still change the final warranty on the job
+                              card.</span
+                            ></span
+                          ></label
+                        >
                         <select id="newComplaintWarranty">
                           <option value="">Not known yet</option>
                           <option value="In Warranty">In Warranty (invoice within 1 year)</option>
                           <option value="Out Warranty">Out of Warranty</option>
                         </select>
-                        <span class="form-note"
-                          >The technician can still change the final warranty on the job card.</span
-                        >
                       </div>
                       <div class="field field-wide">
                         <label for="newComplaintDescription"
@@ -7476,12 +7556,18 @@
 
             <div class="card" id="masterDataWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Manage the Salesmen dropdown used on the Schedule appointment form and job cards,
-                  and the Sales Channel each salesman belongs to. Edit a name or channel inline and
-                  click Save, or use Deactivate/Reactivate to hide an entry from the dropdowns
-                  without deleting it.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Manage the Salesmen dropdown used on the Schedule appointment form and job
+                      cards, and the Sales Channel each salesman belongs to. Edit a name or channel
+                      inline and click Save, or use Deactivate/Reactivate to hide an entry from the
+                      dropdowns without deleting it.</span
+                    ></span
+                  >
+                </div>
                 <section class="detail-action-card" aria-labelledby="salesmenHeading">
                   <h4 id="salesmenHeading">Salesmen</h4>
                   <div class="table-wrap">
@@ -7544,21 +7630,31 @@
 
             <div class="card" id="vasAdminWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Admin entry for VAS price banding &amp; split. Values load from the Excel workbook
-                  by default; save your own values here, or revert to the Excel default at any time.
-                  Every change is logged and can be restored later.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Admin entry for VAS price banding &amp; split. Values load from the Excel
+                      workbook by default; save your own values here, or revert to the Excel default
+                      at any time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
 
                 <section
                   class="detail-action-card pricing-config-card"
                   data-pc-domain="vas_price_bands"
                   style="margin-bottom: 16px"
                 >
-                  <h4>VAS Price Bands</h4>
-                  <p class="form-note">
-                    Order value bands used to look up the base VAS fee percentage.
-                  </p>
+                  <h4>
+                    VAS Price Bands<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Order value bands used to look up the base VAS fee percentage.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7596,10 +7692,15 @@
                   data-pc-domain="vas_pricing_params"
                   style="margin-bottom: 16px"
                 >
-                  <h4>VAS Pricing Parameters</h4>
-                  <p class="form-note">
-                    Rates, minimum fees, deductibles and claim fees for each VAS plan type.
-                  </p>
+                  <h4>
+                    VAS Pricing Parameters<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Rates, minimum fees, deductibles and claim fees for each VAS plan
+                        type.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7636,22 +7737,32 @@
 
             <div class="card" id="rateCardAdminWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Admin entry for the Rate Card. Values load from the Excel workbook by default;
-                  save your own values here, or revert to the Excel default at any time. Every
-                  change is logged and can be restored later.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Admin entry for the Rate Card. Values load from the Excel workbook by
+                      default; save your own values here, or revert to the Excel default at any
+                      time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
 
                 <section
                   class="detail-action-card pricing-config-card"
                   data-pc-domain="rate_card"
                   style="margin-bottom: 16px"
                 >
-                  <h4>Rate Card Sections</h4>
-                  <p class="form-note">
-                    Warranty, non-warranty, delivery, installation and inspection activity rates.
-                    Add or remove sections and activities as needed.
-                  </p>
+                  <h4>
+                    Rate Card Sections<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Warranty, non-warranty, delivery, installation and inspection activity
+                        rates. Add or remove sections and activities as needed.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7688,22 +7799,32 @@
 
             <div class="card" id="dandiAdminWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Admin entry for Delivery &amp; Installation pricing. Values load from the Excel
-                  workbook by default; save your own values here, or revert to the Excel default at
-                  any time. Every change is logged and can be restored later.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Admin entry for Delivery &amp; Installation pricing. Values load from the
+                      Excel workbook by default; save your own values here, or revert to the Excel
+                      default at any time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
 
                 <section
                   class="detail-action-card pricing-config-card"
                   data-pc-domain="dandi_pricing"
                   style="margin-bottom: 16px"
                 >
-                  <h4>Delivery &amp; Installation Pricing</h4>
-                  <p class="form-note">
-                    Crew loading factors, per-appliance load capacities and labor minutes, and
-                    per-region D+I / Install rates and discount tiers.
-                  </p>
+                  <h4>
+                    Delivery &amp; Installation Pricing<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Crew loading factors, per-appliance load capacities and labor minutes, and
+                        per-region D+I / Install rates and discount tiers.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7740,22 +7861,32 @@
 
             <div class="card" id="amcAdminWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Admin entry for the AMC rate section. Values load from the Excel workbook by
-                  default; save your own values here, or revert to the Excel default at any time.
-                  Every change is logged and can be restored later.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Admin entry for the AMC rate section. Values load from the Excel workbook by
+                      default; save your own values here, or revert to the Excel default at any
+                      time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
 
                 <section
                   class="detail-action-card pricing-config-card"
                   data-pc-domain="amc_pricing"
                   style="margin-bottom: 16px"
                 >
-                  <h4>AMC Rate Configuration</h4>
-                  <p class="form-note">
-                    AMC plan percentages, risk uplift, technician cost assumptions, visit tiers and
-                    the appliance list used to size AMC contracts.
-                  </p>
+                  <h4>
+                    AMC Rate Configuration<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >AMC plan percentages, risk uplift, technician cost assumptions, visit tiers
+                        and the appliance list used to size AMC contracts.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7792,22 +7923,32 @@
 
             <div class="card" id="thomsonAdminWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Admin entry for Thomson pricing. Values load from the Excel workbook by default;
-                  save your own values here, or revert to the Excel default at any time. Every
-                  change is logged and can be restored later.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Admin entry for Thomson pricing. Values load from the Excel workbook by
+                      default; save your own values here, or revert to the Excel default at any
+                      time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
 
                 <section
                   class="detail-action-card pricing-config-card"
                   data-pc-domain="thomson_pricing"
                   style="margin-bottom: 16px"
                 >
-                  <h4>Thomson Pricing Configuration</h4>
-                  <p class="form-note">
-                    Region round-trip costs, per-appliance Base rates (the 50+/150+/300+/500+ tiers
-                    are always derived from Base) and add-on pricing.
-                  </p>
+                  <h4>
+                    Thomson Pricing Configuration<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Region round-trip costs, per-appliance Base rates (the 50+/150+/300+/500+
+                        tiers are always derived from Base) and add-on pricing.</span
+                      ></span
+                    >
+                  </h4>
                   <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
                   <div data-pc-fields></div>
                   <div class="form-footer">
@@ -7844,11 +7985,18 @@
 
             <div class="card" id="vasCalcWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Stand-alone VAS quote calculator using the same admin-configured price bands and
-                  pricing parameters as VAS Price Banding &amp; Split. Quotes a price live from that
-                  data, and lets you issue and save an actual VAS sale with a printable certificate.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Stand-alone VAS quote calculator using the same admin-configured price bands
+                      and pricing parameters as VAS Price Banding &amp; Split. Quotes a price live
+                      from that data, and lets you issue and save an actual VAS sale with a
+                      printable certificate.</span
+                    ></span
+                  >
+                </div>
                 <section class="detail-action-card pricing-config-card" data-calc-root="vas-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
@@ -7881,12 +8029,18 @@
 
             <div class="card" id="amcCalcWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Stand-alone AMC contract quote calculator using the same admin-configured formula
-                  as AMC Admin Rate Section. Quotes Basic RM / Standard PMC / Premium PMC live from
-                  that data, and lets you issue and save an actual AMC contract with a printable
-                  certificate.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Stand-alone AMC contract quote calculator using the same admin-configured
+                      formula as AMC Admin Rate Section. Quotes Basic RM / Standard PMC / Premium
+                      PMC live from that data, and lets you issue and save an actual AMC contract
+                      with a printable certificate.</span
+                    ></span
+                  >
+                </div>
                 <section class="detail-action-card pricing-config-card" data-calc-root="amc-calc">
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
@@ -7895,11 +8049,17 @@
 
             <div class="card" id="thomsonCalcWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Stand-alone Thomson project quote calculator using the same admin-configured rates
-                  as Thomson Pricing Admin. This does not save or create any record &mdash; it only
-                  computes a price.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Stand-alone Thomson project quote calculator using the same admin-configured
+                      rates as Thomson Pricing Admin. This does not save or create any record
+                      &mdash; it only computes a price.</span
+                    ></span
+                  >
+                </div>
                 <section
                   class="detail-action-card pricing-config-card"
                   data-calc-root="thomson-calc"
@@ -7911,10 +8071,17 @@
 
             <div class="card" id="reportsWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Pick a record type and a date range, preview the matching records, then download
-                  them as an Excel workbook. Every download is written to the Activity log.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Pick a record type and a date range, preview the matching records, then
+                      download them as an Excel workbook. Every download is written to the Activity
+                      log.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="reports">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -7923,10 +8090,16 @@
 
             <div class="card" id="activityLogWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Who did what, and when: sign-ins, record changes, report downloads and pricing
-                  changes. Times are Dubai time.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Who did what, and when: sign-ins, record changes, report downloads and
+                      pricing changes. Times are Dubai time.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="activity-log">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -7951,10 +8124,17 @@
 
             <div class="card" id="dailyListWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Each day's appointments, grouped by technician or by branch. Print the list for
-                  the day, or one appointment sheet per job for the technicians to take out.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Each day's appointments, grouped by technician or by branch. Print the list
+                      for the day, or one appointment sheet per job for the technicians to take
+                      out.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="daily-list">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -7963,10 +8143,17 @@
 
             <div class="card" id="awaitingDraftsWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Draft schedules that have been prepared but not yet confirmed. Promote a draft to
-                  turn each job in it into an appointment, or cancel it if it is no longer needed.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Draft schedules that have been prepared but not yet confirmed. Promote a
+                      draft to turn each job in it into an appointment, or cancel it if it is no
+                      longer needed.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="awaiting-drafts">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -7975,11 +8162,17 @@
 
             <div class="card" id="rolesWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Choose what each role can open and do. Changes apply the next time that person
-                  opens a screen, and every change is written to the Activity log. The Administrator
-                  role always has everything and cannot be edited.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Choose what each role can open and do. Changes apply the next time that
+                      person opens a screen, and every change is written to the Activity log. The
+                      Administrator role always has everything and cannot be edited.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="roles">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -7988,11 +8181,17 @@
 
             <div class="card" id="revenueDashWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Commercial revenue reporting from the master Service Dashboard workbook, kept
-                  separate from the operational dashboard. Until ERP data access exists, an admin
-                  uploads the workbook to refresh these figures.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Commercial revenue reporting from the master Service Dashboard workbook, kept
+                      separate from the operational dashboard. Until ERP data access exists, an
+                      admin uploads the workbook to refresh these figures.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="revenue-dashboard">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -8001,10 +8200,16 @@
 
             <div class="card" id="budgetDashWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  The prepared service budget compared with actual revenue from the uploaded revenue
-                  workbook, month by month.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >The prepared service budget compared with actual revenue from the uploaded
+                      revenue workbook, month by month.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="budget-dashboard">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -8013,10 +8218,17 @@
 
             <div class="card" id="budgetVarWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Budget by revenue stream against actual revenue, month by month on closed months.
-                  Budget versions, the stream mapping and the fiscal calendar are all editable data.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Budget by revenue stream against actual revenue, month by month on closed
+                      months. Budget versions, the stream mapping and the fiscal calendar are all
+                      editable data.</span
+                    ></span
+                  >
+                </div>
                 <div data-calc-root="budget-variance">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
@@ -8025,10 +8237,16 @@
 
             <div class="card" id="technicianWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Manage the technician roster and each technician's daily appointment cap (the
-                  maximum number of appointments they can be assigned on any one day).
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Manage the technician roster and each technician's daily appointment cap (the
+                      maximum number of appointments they can be assigned on any one day).</span
+                    ></span
+                  >
+                </div>
                 <div class="table-wrap">
                   <table>
                     <caption class="visually-hidden">
@@ -8124,12 +8342,19 @@
 
             <div class="card" id="teamAccountWorkspace" hidden>
               <div class="card-body">
-                <p class="form-note">
-                  Add a login for a teammate so they can test the portal with their own account
-                  instead of sharing the administrator login. Change a teammate's role or turn their
-                  login off from the table below (you can't change your own). A new login, or one
-                  you reset the password for, must choose its own password at the next sign-in.
-                </p>
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Add a login for a teammate so they can test the portal with their own account
+                      instead of sharing the administrator login. Change a teammate's role or turn
+                      their login off from the table below (you can't change your own). A new login,
+                      or one you reset the password for, must choose its own password at the next
+                      sign-in.</span
+                    ></span
+                  >
+                </div>
                 <div class="table-wrap">
                   <table>
                     <caption class="visually-hidden">
@@ -8481,12 +8706,17 @@
                     aria-labelledby="appointmentMessageHeading"
                     hidden
                   >
-                    <h4 id="appointmentMessageHeading">Send message</h4>
-                    <p id="appointmentMessageIntro">
-                      Opens WhatsApp or your email app with the message ready. Check it, then press
-                      Send there. The portal records that it was prepared but cannot confirm
-                      delivery.
-                    </p>
+                    <h4 id="appointmentMessageHeading">
+                      Send message
+                      <span class="tooltip" tabindex="0"
+                        ><span class="tooltip-icon" aria-hidden="true">i</span
+                        ><span class="tooltip-bubble" role="tooltip" id="appointmentMessageIntro"
+                          >Opens WhatsApp or your email app with the message ready. Check it, then
+                          press Send there. The portal records that it was prepared but cannot
+                          confirm delivery.</span
+                        ></span
+                      >
+                    </h4>
                     <div id="appointmentMessageDrafts"></div>
                     <h5>Messages prepared</h5>
                     <ol class="history" id="appointmentMessageHistory"></ol>
@@ -8540,10 +8770,16 @@
     <script src="/portal/app.js" defer></script>
     <dialog class="pw-dialog" id="passwordDialog" aria-labelledby="passwordDialogTitle">
       <form id="passwordForm" novalidate>
-        <h3 id="passwordDialogTitle">Change password</h3>
-        <p class="form-note" id="passwordDialogNote">
-          Use at least 12 characters. Other devices signed in with your old password are signed out.
-        </p>
+        <h3>
+          <span id="passwordDialogTitle">Change password</span>
+          <span class="tooltip tooltip-below" tabindex="0"
+            ><span class="tooltip-icon" aria-hidden="true">i</span
+            ><span class="tooltip-bubble" role="tooltip" id="passwordDialogNote"
+              >Use at least 12 characters. Other devices signed in with your old password are signed
+              out.</span
+            ></span
+          >
+        </h3>
         <p class="notice notice-error" id="passwordMessage" role="alert" hidden></p>
         <div class="field">
           <label for="pwCurrent">Current password</label>
@@ -8570,8 +8806,13 @@
     </dialog>
     <dialog class="pw-dialog" id="resetPasswordDialog" aria-labelledby="resetPasswordTitle">
       <form id="resetPasswordForm" novalidate>
-        <h3 id="resetPasswordTitle">Reset password</h3>
-        <p class="form-note" id="resetPasswordNote"></p>
+        <h3>
+          <span id="resetPasswordTitle">Reset password</span>
+          <span class="tooltip tooltip-below" tabindex="0"
+            ><span class="tooltip-icon" aria-hidden="true">i</span
+            ><span class="tooltip-bubble" role="tooltip" id="resetPasswordNote"></span
+          ></span>
+        </h3>
         <p class="notice notice-error" id="resetPasswordMessage" role="alert" hidden></p>
         <div class="field">
           <label for="resetPasswordValue">Temporary password</label>
