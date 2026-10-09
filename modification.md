@@ -2549,13 +2549,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Needs you:** hard-refresh.
 
 
-## Modification #84 — Clear highlight for the active tab everywhere
+## Modification #84 — Clear active-tab marker everywhere
 
 **Date:** 2026-10-09 · **Scope:** web only (styling) · no migration · hard-refresh
 
 **What changed**
-- The active tab now stands out the same way across the whole portal. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a tinted top, a thicker underline and a soft glow. Pill and segment tabs (calendar view switch, Reports pills, the vertical action tabs, the sign-in tabs) get a glow ring. The active item in the left menu gets a lighter accent bar and a glow.
-- The same glow now also marks the current step in the workflow stepper, the selected day on the calendar, the active search result, and any other tab control in the portal.
-- Colours follow the portal palette (blue; red for Reports sub-tabs). Animation is skipped for users who prefer reduced motion.
+- The active tab is now marked the same clean way across the whole portal, with no glows or ring borders. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a solid thicker underline, bold text and a light tint. Pill and segment tabs keep their solid filled look. The active item in the left menu gets a solid accent bar and a light highlight. The current step in the workflow stepper and the selected calendar day use a plain solid marker.
+- Colours follow the portal palette (blue; red for Reports sub-tabs).
 
 **Needs you:** hard-refresh.
