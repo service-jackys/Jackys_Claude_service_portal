@@ -2555,6 +2555,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **What changed**
 - The active tab is now marked the same clean way across the whole portal, with no glows or ring borders. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a solid thicker underline, bold text and a light tint. Pill and segment tabs keep their solid filled look. The active item in the left menu gets a solid accent bar and a light highlight. The current step in the workflow stepper and the selected calendar day use a plain solid marker.
+- The amber box that appeared around a tab (the sign-in page tabs included) was the portal-wide keyboard focus outline. Tabs now show keyboard focus as a light tint with an underline, and every other control uses a slim blue focus ring instead of the thick amber one.
 - Colours follow the portal palette (blue; red for Reports sub-tabs).
 
 **Needs you:** hard-refresh.
