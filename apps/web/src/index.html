@@ -5002,54 +5002,109 @@
         background: var(--surface-soft);
       }
 
-      /* Active tab marker, one clean look everywhere (modification #84).
-         No glows or rings: a solid underline for underline tabs, a solid
-         fill for pill and segment tabs, a solid accent bar for the side menu. */
+      /* Segmented tabs, one look everywhere (modification #84): the tabs sit in
+         a grey track and the active one is a raised white chip. */
+      :root {
+        --seg-track: #dbe4ee;
+        --seg-chip: #ffffff;
+        --seg-chip-ink: var(--navy);
+      }
+      [data-theme='dark'] {
+        --seg-track: rgb(255 255 255 / 8%);
+        --seg-chip: rgb(255 255 255 / 16%);
+        --seg-chip-ink: #fff;
+      }
+      .ws-tabs,
+      .dash-tabs,
+      .rd-subtabs,
+      .auth-tabs,
+      .vc-tab-nav,
+      .action-tab-nav {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 2px;
+        padding: 4px;
+        margin: 0 0 1rem;
+        max-width: 100%;
+        background: var(--seg-track);
+        border: 0;
+        border-radius: 10px;
+      }
+      .action-tab-nav {
+        flex-direction: column;
+        flex: 0 0 200px;
+        align-self: flex-start;
+        padding-right: 4px;
+      }
       .ws-tab,
       .dash-tab,
-      .rd-subtab-btn {
+      .rd-subtab-btn,
+      .auth-tab,
+      .vc-tab-nav .action-tab,
+      .action-tab-nav .action-tab {
+        min-height: 0;
+        margin: 0;
+        padding: 0.45rem 1rem;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font-size: 0.82rem;
+        font-weight: 700;
         transition:
+          background-color 0.15s ease,
           color 0.15s ease,
-          border-color 0.15s ease,
-          background-color 0.15s ease;
+          box-shadow 0.15s ease;
+      }
+      .ws-tab:hover,
+      .dash-tab:hover,
+      .rd-subtab-btn:hover,
+      .auth-tab:hover,
+      .action-tab:hover {
+        background: rgb(255 255 255 / 55%);
+        color: var(--ink);
       }
       .ws-tab.is-active,
       .dash-tab.is-active,
-      .rd-subtab-btn.active {
-        color: var(--blue);
+      .rd-subtab-btn.active,
+      .auth-tab[aria-selected='true'],
+      .vc-tab-nav .action-tab.active,
+      .action-tab-nav .action-tab.active {
+        background: var(--seg-chip);
+        color: var(--seg-chip-ink);
         font-weight: 800;
-        border-bottom-width: 3px;
-        border-bottom-color: var(--blue);
-        background: var(--blue-soft);
+        box-shadow: 0 1px 3px rgb(16 43 78 / 18%);
       }
-      .rd-subtab-btn.active {
-        color: var(--red);
-        border-bottom-color: var(--red);
-        background: #fdf0f0;
+      .action-tab-nav {
+        border-right: 0;
       }
       .cal-seg-btn.is-active,
-      .rd-mpill.active,
-      .action-tab.active,
-      .auth-tab[aria-selected='true'] {
+      .rd-mpill.active {
         box-shadow: none;
       }
       body.is-authenticated .dashboard-link[aria-current='page'] {
         background: rgb(255 255 255 / 12%);
         box-shadow: inset 3px 0 0 #6cb6ee;
       }
-      /* Tabs show keyboard focus as a tint and underline, not a boxed outline. */
+      /* Keyboard focus on a tab is a slim blue ring around the chip. */
       .ws-tab:focus-visible,
       .dash-tab:focus-visible,
       .rd-subtab-btn:focus-visible,
       .auth-tab:focus-visible,
       .cal-seg-btn:focus-visible,
       .action-tab:focus-visible {
-        outline: none;
-        background: var(--blue-soft);
-        border-bottom-color: var(--blue);
+        outline: 2px solid var(--blue);
+        outline-offset: -2px;
       }
-      .action-tab:focus-visible {
-        border-bottom-color: transparent;
+      @media (prefers-reduced-motion: reduce) {
+        .ws-tab,
+        .dash-tab,
+        .rd-subtab-btn,
+        .auth-tab,
+        .action-tab {
+          transition: none;
+        }
       }
       .workflow-stepper .stepper-item.is-current .stepper-dot {
         box-shadow: none;
