@@ -2534,3 +2534,16 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Tests: 1 end-to-end test (Period from locked, pill values, create form hides the later sections, open job card still shows them) and an integration assertion that Period from is stamped on creation.
 
 **Needs you:** restart the API and hard-refresh.
+
+
+## Modification #83 — Job card page split into two tabs; sign-in lands on the dashboard
+
+**Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
+
+**What changed**
+- **Service job card page now has two tabs.** "Job card" is the read-only view (the summary details, attachments and job-card history). "Edit job" is the editing form (guidance box and Job card details). The two no longer sit one under the other on the same page.
+- A job opens on **Edit job** unless its status is **Delivered**, in which case it opens on **Job card** (read-only). Delivered jobs can still be edited by an admin through the Edit job tab. Users without edit access see only the Job card tab.
+- **Sign-in always lands on the Dashboard** for anyone who has dashboard access (and at least one other workspace); it no longer opens the Complaint inbox. Users without dashboard access land as before.
+- Tests: one new end-to-end check for the two tabs; existing end-to-end tests updated for the new landing page and tab layout.
+
+**Needs you:** hard-refresh.

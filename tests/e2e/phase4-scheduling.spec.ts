@@ -31,6 +31,10 @@ async function installStaffApi(
   let detailRequests = 0;
 
   await page.route('**/api/**', async (route) => {
+    if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+      await route.fulfill({ contentType: 'application/json', body: '{}' });
+      return;
+    }
     const request = route.request();
     const url = new URL(request.url());
     if (url.pathname === '/api/auth/login') {
@@ -136,6 +140,8 @@ async function signInAndOpenAppointments(page: import('@playwright/test').Page) 
   await page.locator('#loginEmail').fill('scheduler@jackys.com');
   await page.locator('#loginPassword').fill('local-password-1234');
   await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('#staff-workspace')).toBeVisible();
+  await page.locator('#complaintsNav').dispatchEvent('click');
   await page.getByRole('button', { name: 'Appointments', exact: true }).click();
 }
 

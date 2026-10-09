@@ -577,6 +577,8 @@ test.describe('service job-card attachments', () => {
     await expect(page.locator('#jobCardDetail')).toBeVisible();
     await expect(page.locator('#jobCardAttachmentsList')).toContainText('No attachments yet.');
 
+    // Attachments live on the read-only Job card tab.
+    await page.locator('#jobCardViewTabs [data-jc-view="view"]').click();
     await page.setInputFiles('#jobCardAttachmentFile', {
       name: 'inspection-photo.pdf',
       mimeType: 'application/pdf',

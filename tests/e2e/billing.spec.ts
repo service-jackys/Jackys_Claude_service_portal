@@ -445,6 +445,26 @@ test.describe('warranty and billing', () => {
     await expect(page.locator('[data-acc-record] [data-rec="paymentReference"]')).toBeEnabled();
   });
 
+  test('Job card page: Edit tab shows the form, Job card tab shows the read-only view', async ({
+    page,
+  }) => {
+    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], () => undefined);
+    await signIn(page);
+    const state = await page.evaluate(() => {
+      const detail = document.getElementById('jobCardDetail') as HTMLElement;
+      detail.hidden = false;
+      (document.getElementById('jobCardActions') as HTMLElement).hidden = false;
+      const shown = (id: string) =>
+        getComputedStyle(document.getElementById(id) as HTMLElement).display !== 'none';
+      detail.dataset.jcView = 'edit';
+      const edit = { grid: shown('jobCardDetailGrid'), actions: shown('jobCardActions') };
+      detail.dataset.jcView = 'view';
+      return { edit, view: { grid: shown('jobCardDetailGrid'), actions: shown('jobCardActions') } };
+    });
+    expect(state.edit).toEqual({ grid: false, actions: true });
+    expect(state.view).toEqual({ grid: true, actions: false });
+  });
+
   test('Job card form: period from locked, warranty days pill, post-create sections hidden', async ({
     page,
   }) => {

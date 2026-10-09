@@ -3626,6 +3626,18 @@
       .history strong {
         color: var(--navy);
       }
+      /* Job card page has two views: read-only "Job card" and "Edit job". */
+      #jobCardDetail[data-jc-view='edit'] #jobCardDetailGrid,
+      #jobCardDetail[data-jc-view='edit'] .jc-view-only,
+      #jobCardDetail[data-jc-view='view'] #jobCardActions,
+      #jobCardDetail[data-jc-view='view'] #jobCardNextStep {
+        display: none;
+      }
+      #jobCardDetail[data-jc-view='edit'] #jobCardActions {
+        margin-top: 0;
+        border-top: 0;
+        padding-top: 0;
+      }
       #jobCardActions > .detail-action-card {
         flex: 1 1 auto;
         width: 100%;
@@ -6862,6 +6874,32 @@
                       </button>
                     </div>
                   </div>
+                  <div
+                    class="ws-tabs"
+                    role="tablist"
+                    id="jobCardViewTabs"
+                    aria-label="Job card view"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      class="ws-tab"
+                      data-jc-view="view"
+                      aria-selected="false"
+                    >
+                      Job card
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      class="ws-tab"
+                      data-jc-view="edit"
+                      aria-selected="false"
+                      hidden
+                    >
+                      Edit job
+                    </button>
+                  </div>
                   <div class="next-step" id="jobCardNextStep" hidden></div>
                   <div class="detail-grid" id="jobCardDetailGrid"></div>
                   <div class="detail-actions" id="jobCardActions" hidden>
@@ -6886,26 +6924,28 @@
                       </form>
                     </section>
                   </div>
-                  <h4>Attachments</h4>
-                  <ul class="history" id="jobCardAttachmentsList"></ul>
-                  <div class="inbox-tools" id="jobCardAttachmentUpload" hidden>
-                    <label class="visually-hidden" for="jobCardAttachmentFile"
-                      >Choose a photo or PDF to attach</label
-                    >
-                    <input
-                      id="jobCardAttachmentFile"
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
-                    /><button
-                      class="button button-secondary"
-                      type="button"
-                      id="uploadJobCardAttachmentButton"
-                    >
-                      Upload attachment
-                    </button>
+                  <div class="jc-view-only">
+                    <h4>Attachments</h4>
+                    <ul class="history" id="jobCardAttachmentsList"></ul>
+                    <div class="inbox-tools" id="jobCardAttachmentUpload" hidden>
+                      <label class="visually-hidden" for="jobCardAttachmentFile"
+                        >Choose a photo or PDF to attach</label
+                      >
+                      <input
+                        id="jobCardAttachmentFile"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,image/heic,application/pdf"
+                      /><button
+                        class="button button-secondary"
+                        type="button"
+                        id="uploadJobCardAttachmentButton"
+                      >
+                        Upload attachment
+                      </button>
+                    </div>
+                    <h4>Job-card history</h4>
+                    <ol class="history" id="jobCardHistoryList"></ol>
                   </div>
-                  <h4>Job-card history</h4>
-                  <ol class="history" id="jobCardHistoryList"></ol>
                 </div>
               </div>
             </div>

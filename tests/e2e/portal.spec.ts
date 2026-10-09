@@ -22,6 +22,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -93,6 +97,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
+    await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260926-0001' }).click();
 
     await expect(page.getByLabel('Notes', { exact: true })).toHaveValue('Existing note');
@@ -139,6 +145,10 @@ test.describe('staff access boundary', () => {
     const technician = { id: '7', name: 'Aisha Technician', active: true, region: 'Dubai' };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -214,6 +224,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Service requests' }).click();
     await page.getByRole('button', { name: 'JSC-20260926-0001' }).click();
 
@@ -252,6 +264,10 @@ test.describe('staff access boundary', () => {
     let technicianRequests = 0;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -318,6 +334,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -381,6 +401,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('scheduler@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Service requests' }).click();
     await page.getByRole('button', { name: 'JSC-20260926-0001' }).click();
 
@@ -450,6 +472,10 @@ test.describe('staff access boundary', () => {
     ];
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -512,6 +538,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('scheduler@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
 
     await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
@@ -571,6 +599,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -656,6 +688,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('admin@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
 
@@ -699,6 +733,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -752,6 +790,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('admin@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
 
@@ -772,6 +812,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -833,6 +877,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('admin@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     const downloadPromise = page.waitForEvent('download');
@@ -855,6 +901,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -911,6 +961,10 @@ test.describe('staff access boundary', () => {
     let appointmentRequests = 0;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -967,6 +1021,10 @@ test.describe('staff access boundary', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1037,6 +1095,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('admin@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Appointments', exact: true }).click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.locator('#appointmentTechnician').selectOption('8');
@@ -1092,6 +1152,10 @@ test.describe('staff access boundary', () => {
       const appointmentListRequests: string[] = [];
 
       await page.route('**/api/**', async (route) => {
+        if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+          await route.fulfill({ contentType: 'application/json', body: '{}' });
+          return;
+        }
         const request = route.request();
         const url = new URL(request.url());
         if (url.pathname === '/api/auth/login') {
@@ -1154,6 +1218,10 @@ test.describe('staff access boundary', () => {
 
   test('shows every protected navigation entry for a wildcard admin', async ({ page }) => {
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1191,6 +1259,8 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('admin@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
 
     await expect(page.getByRole('button', { name: 'Complaint inbox', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Service requests', exact: true })).toBeVisible();
@@ -1202,6 +1272,10 @@ test.describe('staff access boundary', () => {
     let appointmentListRequests = 0;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1292,6 +1366,10 @@ test.describe('service job-card workspace', () => {
     ];
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1376,6 +1454,10 @@ test.describe('service job-card workspace', () => {
     const terminalJobCard = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1440,6 +1522,10 @@ test.describe('service job-card workspace', () => {
     test(`locks a Delivered job card for ${role} editing`, async ({ page }) => {
       const delivered = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
       await page.route('**/api/**', async (route) => {
+        if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+          await route.fulfill({ contentType: 'application/json', body: '{}' });
+          return;
+        }
         const request = route.request();
         const url = new URL(request.url());
         const json = (body: unknown) =>
@@ -1467,8 +1553,17 @@ test.describe('service job-card workspace', () => {
 
       await expect(page.locator('#jobCardDetail')).toBeVisible();
       await expect(page.locator('#jobCardDetailStatus')).toContainText('Delivered');
-      if (editable) await expect(page.locator('#jobCardActions')).toBeVisible();
-      else await expect(page.locator('#jobCardActions')).toBeHidden();
+      // Delivered jobs open on the read-only Job card tab.
+      await expect(page.locator('#jobCardActions')).toBeHidden();
+      await expect(page.locator('#jobCardDetailGrid')).toBeVisible();
+      const editTab = page.locator('#jobCardViewTabs [data-jc-view="edit"]');
+      if (editable) {
+        await editTab.click();
+        await expect(page.locator('#jobCardActions')).toBeVisible();
+        await expect(page.locator('#jobCardDetailGrid')).toBeHidden();
+      } else {
+        await expect(editTab).toBeHidden();
+      }
     });
   }
 
@@ -1476,6 +1571,10 @@ test.describe('service job-card workspace', () => {
     let jobCardRequests = 0;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1530,6 +1629,10 @@ test.describe('service job-card workspace', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1655,6 +1758,10 @@ test.describe('service job-card workspace', () => {
 
   test('returns to sign in after the job-card queue returns unauthorized', async ({ page }) => {
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1702,6 +1809,10 @@ test.describe('service job-card workspace', () => {
 
   test('shows retry recovery when the job-card queue returns forbidden', async ({ page }) => {
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1761,6 +1872,10 @@ test.describe('service job-card workspace', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1867,6 +1982,10 @@ test.describe('service job-card workspace', () => {
 
   test('shows recovery after a job-card detail request returns not found', async ({ page }) => {
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -1944,6 +2063,10 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     let linkedComplaint = complaint;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -2018,6 +2141,8 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
+    await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260929-0002' }).click();
 
     // The complaint's action cards are vertical tabs now (modification.md #4).
@@ -2062,6 +2187,10 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     let linkedComplaint = complaint;
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -2124,6 +2253,8 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
+    await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260929-0003' }).click();
 
     await page.getByRole('tab', { name: 'B2B Branch match' }).click();
@@ -2153,6 +2284,10 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -2205,6 +2340,8 @@ test.describe('B2B Branch / School staff linking (modification.md #2)', () => {
     await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.getByRole('button', { name: 'JSC-20260929-0004' }).click();
 
@@ -2259,6 +2396,10 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
     };
 
     await page.route('**/api/**', async (route) => {
+      if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
+        await route.fulfill({ contentType: 'application/json', body: '{}' });
+        return;
+      }
       const request = route.request();
       const url = new URL(request.url());
       if (url.pathname === '/api/auth/login') {
@@ -2364,6 +2505,8 @@ test.describe('Workflow links across Complaint / Appointment / Job card (modific
     await page.locator('#loginEmail').fill('vysakh.raju@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#complaintsNav').dispatchEvent('click');
     await expect(page.locator('#staff-workspace')).toBeVisible();
 
     // Complaint detail -> click through to the Appointment.

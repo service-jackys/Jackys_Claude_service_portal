@@ -532,7 +532,15 @@
     document.body.classList.add('is-authenticated');
     renderUser();
     loadMasterDataOptions();
-    if (hasPermission('appointments.read') && !hasPermission('complaints.read')) {
+    // Signed-in users always land on the dashboard when they can see it.
+    if (
+      hasPermission('dashboard.read') &&
+      (hasPermission('complaints.read') ||
+        hasPermission('appointments.read') ||
+        hasPermission('service_job_card.read'))
+    ) {
+      setWorkspaceMode('dashboard');
+    } else if (hasPermission('appointments.read') && !hasPermission('complaints.read')) {
       setWorkspaceMode('appointments');
     } else if (hasPermission('complaints.read')) {
       setWorkspaceMode('complaints');
@@ -1248,6 +1256,10 @@
   }
 
   function initJobCardForms() {
+    $('#jobCardViewTabs').addEventListener('click', (event) => {
+      const tab = event.target.closest('[data-jc-view]');
+      if (tab && !tab.hidden) setJobCardView(tab.dataset.jcView);
+    });
     $('#jobCardCreateFields').innerHTML = jobCardFieldsHtml('jcc');
     $('#jobCardContentFields').innerHTML = jobCardFieldsHtml('jce');
     $('#quotationJobCardCreateFields').innerHTML = jobCardFieldsHtml('jcq');
@@ -4317,6 +4329,20 @@ ${bodyHtml}
     $('#jobCardActions').hidden = !editable;
     $('#jobCardContentAction').hidden = !editable;
     if (editable) fillJobCardForm('jce', jobCard);
+    // Delivered jobs open read-only; every other editable job opens in Edit.
+    $('#jobCardViewTabs [data-jc-view="edit"]').hidden = !editable;
+    setJobCardView(editable && jobCard.jobFinalStatus !== 'Delivered' ? 'edit' : 'view');
+  }
+
+  function setJobCardView(view) {
+    $('#jobCardDetail').dataset.jcView = view;
+    $('#jobCardViewTabs')
+      .querySelectorAll('.ws-tab')
+      .forEach((tab) => {
+        const active = tab.dataset.jcView === view;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
   }
 
   function renderJobCardGuide(jobCard) {
