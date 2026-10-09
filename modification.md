@@ -2555,6 +2555,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **What changed**
 - The active tab now stands out the same way across the whole portal. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a tinted top, a thicker underline and a soft glow. Pill and segment tabs (calendar view switch, Reports pills, the vertical action tabs, the sign-in tabs) get a glow ring. The active item in the left menu gets a lighter accent bar and a glow.
+- The same glow now also marks the current step in the workflow stepper, the selected day on the calendar, the active search result, and any other tab control in the portal.
 - Colours follow the portal palette (blue; red for Reports sub-tabs). Animation is skipped for users who prefer reduced motion.
 
 **Needs you:** hard-refresh.

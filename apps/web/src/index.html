@@ -5057,6 +5057,24 @@
           transition: none;
         }
       }
+
+      /* Same active-state glow for the remaining "you are here" markers. */
+      :where([role='tab'][aria-selected='true']) {
+        box-shadow: 0 6px 14px -8px rgb(23 105 170 / 70%);
+      }
+      .workflow-stepper .stepper-item.is-current .stepper-dot {
+        box-shadow:
+          0 0 0 4px var(--blue-soft),
+          0 0 14px 2px rgb(23 105 170 / 55%);
+      }
+      .cal-card .calendar-cell.is-selected {
+        box-shadow:
+          inset 0 0 0 2px var(--blue),
+          0 6px 16px -6px rgb(23 105 170 / 65%);
+      }
+      .sm-hit.is-active {
+        box-shadow: 0 0 0 2px rgb(23 105 170 / 35%);
+      }
     </style>
   </head>
   <body>
