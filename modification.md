@@ -2547,3 +2547,14 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Tests: one new end-to-end check for the two tabs; existing end-to-end tests updated for the new landing page and tab layout.
 
 **Needs you:** hard-refresh.
+
+
+## Modification #84 — Clear highlight for the active tab everywhere
+
+**Date:** 2026-10-09 · **Scope:** web only (styling) · no migration · hard-refresh
+
+**What changed**
+- The active tab now stands out the same way across the whole portal. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a tinted top, a thicker underline and a soft glow. Pill and segment tabs (calendar view switch, Reports pills, the vertical action tabs, the sign-in tabs) get a glow ring. The active item in the left menu gets a lighter accent bar and a glow.
+- Colours follow the portal palette (blue; red for Reports sub-tabs). Animation is skipped for users who prefer reduced motion.
+
+**Needs you:** hard-refresh.
