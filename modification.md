@@ -2598,3 +2598,9 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - **"Customer: appointment rescheduled" message** is offered in the Send message panel only after the appointment's date has actually been changed. Before that, only "appointment booked" and the technician message appear.
 
 **Needs you:** restart the API and hard-refresh.
+
+## Modification #88 — Compact filter boxes on Appointments
+
+The filter bar on the Appointments page (search, status, From, To, technician, Print list, Print sheets) now uses the same compact entry boxes and buttons as New request and Job cards: shorter height, smaller text, fixed widths so the controls sit on one row.
+
+**Needs you:** hard-refresh. No restart or migration.
