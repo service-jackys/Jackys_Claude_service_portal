@@ -2549,13 +2549,13 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Needs you:** hard-refresh.
 
 
-## Modification #84 — Clear active-tab marker everywhere
+## Modification #84 — Segmented tabs across the portal
 
 **Date:** 2026-10-09 · **Scope:** web only (styling) · no migration · hard-refresh
 
 **What changed**
-- The active tab is now marked the same clean way across the whole portal, with no glows or ring borders. Underline tabs (job card, quotation and invoice tabs, dashboard tabs, Reports sub-tabs) get a solid thicker underline, bold text and a light tint. Pill and segment tabs keep their solid filled look. The active item in the left menu gets a solid accent bar and a light highlight. The current step in the workflow stepper and the selected calendar day use a plain solid marker.
-- The amber box that appeared around a tab (the sign-in page tabs included) was the portal-wide keyboard focus outline. Tabs now show keyboard focus as a light tint with an underline, and every other control uses a slim blue focus ring instead of the thick amber one.
-- Colours follow the portal palette (blue; red for Reports sub-tabs).
+- Every tab bar in the portal now uses the same segmented look: the tabs sit in a light grey track and the active tab is a raised white chip with bold navy text. This covers the job card Job card / Edit job tabs, quotation and invoice tabs, billing tabs, dashboard Overview / Kanban tabs, Reports sub-tabs, the calculators' tabs, the vertical action tabs and the sign-in / first-time setup tabs. Dark theme has its own track and chip colours.
+- Keyboard focus on a tab is a slim blue ring around the chip. The earlier amber focus box was replaced with a blue ring portal-wide.
+- The active item in the left menu has a solid accent bar and a light highlight. The current workflow step and the selected calendar day use a plain solid marker. No glows anywhere.
 
 **Needs you:** hard-refresh.

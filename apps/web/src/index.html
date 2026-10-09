@@ -105,8 +105,8 @@
         opacity: 0.62;
       }
       :focus-visible {
-        outline: 3px solid #f6bd4b;
-        outline-offset: 3px;
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
       }
       .skip-link {
         position: absolute;
@@ -5037,11 +5037,19 @@
         background: rgb(255 255 255 / 12%);
         box-shadow: inset 3px 0 0 #6cb6ee;
       }
+      /* Tabs show keyboard focus as a tint and underline, not a boxed outline. */
       .ws-tab:focus-visible,
       .dash-tab:focus-visible,
+      .rd-subtab-btn:focus-visible,
+      .auth-tab:focus-visible,
+      .cal-seg-btn:focus-visible,
       .action-tab:focus-visible {
-        outline: 2px solid var(--blue);
-        outline-offset: 2px;
+        outline: none;
+        background: var(--blue-soft);
+        border-bottom-color: var(--blue);
+      }
+      .action-tab:focus-visible {
+        border-bottom-color: transparent;
       }
       .workflow-stepper .stepper-item.is-current .stepper-dot {
         box-shadow: none;
