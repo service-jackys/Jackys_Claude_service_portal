@@ -199,6 +199,7 @@
 
   let currentComplaintId = null;
   let currentAppointmentId = null;
+  let currentAppointment = null;
   let currentJobCardId = null;
   let currentJobCard = null;
   let lastLoadedJobCards = [];
@@ -1938,7 +1939,7 @@
   .doc-head .legacy-ref { font-size: 11px; color: #666; margin-top: 2px; }
   .doc-head .printed-at { font-size: 10px; color: #888; margin-top: 6px; }
   h2 { font-size: 12.5px; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; color: #17324d; }
-  .doc-head .logo { height: 42px; display: block; margin-bottom: 4px; }
+  .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
   .cert-feebox { background: #17324d; color: #fff; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
@@ -1981,7 +1982,18 @@ ${bodyHtml}
     return `<div class="block-label">${escapeHtml(label)}</div><div class="block">${escapeHtml(value || '\u2014')}</div>`;
   }
 
-  function printLineItemsTable(items) {
+  function printLineItemsTable(items, withPrices = true) {
+    if (!withPrices) {
+      const plain = (items || [])
+        .map(
+          (item) =>
+            `<tr><td>${escapeHtml(item.partNo || '')}</td><td>${escapeHtml(item.description || '')}</td><td class="num">${escapeHtml(String(item.qty ?? 0))}</td></tr>`,
+        )
+        .join('');
+      return `<table><thead><tr><th>Part no.</th><th>Description</th><th class="num">Qty</th></tr></thead><tbody>${
+        plain || '<tr><td colspan="3" style="text-align:center;color:#888;">No parts used</td></tr>'
+      }</tbody></table>`;
+    }
     const rows = (items || [])
       .map(
         (item) =>
@@ -1993,10 +2005,12 @@ ${bodyHtml}
     }</tbody></table>`;
   }
 
-  function printDocHead(companyTitle, docTitle, reference, legacyReference) {
+  // Every printed document carries the JDI logo (same artwork as the portal
+  // header); the company-name argument is kept for the callers' signature.
+  function printDocHead(_companyTitle, docTitle, reference, legacyReference) {
     return `<div class="doc-head">
       <div>
-        <div class="company">${escapeHtml(companyTitle)}</div>
+        <img class="logo" src="${JDI_LOGO_DATA_URI}" alt="Jacky's Distribution LLC" />
         <div class="title">${escapeHtml(docTitle)}</div>
       </div>
       <div class="ref">
@@ -2268,10 +2282,49 @@ ${bodyHtml}
     printWindow.addEventListener('load', () => printWindow.print());
   }
 
-  function printJobCard(jobCard) {
+  // Small "which copy?" chooser used before printing. Resolves to the chosen
+  // value, or null when the user cancels.
+  function askPrintVariant(title, choices) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog print-choice';
+      dialog.innerHTML =
+        `<h3>${escapeHtml(title)}</h3>` +
+        choices
+          .map(
+            (choice) =>
+              `<button type="button" class="button button-outline print-choice-option" data-print-choice="${escapeHtml(choice.value)}"><strong>${escapeHtml(choice.label)}</strong><span>${escapeHtml(choice.note)}</span></button>`,
+          )
+          .join('') +
+        '<div class="form-footer"><button type="button" class="button" data-print-cancel>Cancel</button></div>';
+      let result = null;
+      dialog.addEventListener('click', (event) => {
+        const option = event.target.closest('[data-print-choice]');
+        if (option) {
+          result = option.dataset.printChoice;
+          dialog.close();
+        } else if (event.target.closest('[data-print-cancel]')) {
+          dialog.close();
+        }
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve(result);
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
+  // variant 'internal': the full job card with parts prices, charges and billing
+  // (for the sales team and accounts). variant 'customer': the copy handed to
+  // the customer (B2C or B2B) -- no amounts, prices, billing or sales details.
+  function printJobCard(jobCard, variant = 'internal') {
     if (!jobCard) return;
+    const customerCopy = variant === 'customer';
+    const internalOnly = (pairs) => (customerCopy ? [] : pairs);
     const body = `
-      ${printDocHead("Jacky's Distribution LLC", 'Service Job Card', jobCard.jobCardReference, jobCard.legacyReference)}
+      ${printDocHead("Jacky's Distribution LLC", customerCopy ? 'Service Job Card \u2014 Customer copy' : 'Service Job Card', jobCard.jobCardReference, jobCard.legacyReference)}
       <h2>Job details</h2>
       ${printFieldGrid([
         ['Appointment ref.', jobCard.appointmentReference],
@@ -2291,27 +2344,35 @@ ${bodyHtml}
         ['Condition at drop-off', jobCard.conditionNotes],
         ['Warranty status', jobCard.warrantyStatus],
         ['Final warranty status', jobCard.finalWarrantyStatus],
-        ['Job type', jobCard.billingJobType],
-        ['Payment by', jobCard.paymentBy],
+        ...internalOnly([
+          ['Job type', jobCard.billingJobType],
+          ['Payment by', jobCard.paymentBy],
+        ]),
         ['Technician', jobCard.technicianName],
-        ['Salesman', jobCard.salesman],
-        ['Sales channel', jobCard.salesChannel],
+        ...internalOnly([
+          ['Salesman', jobCard.salesman],
+          ['Sales channel', jobCard.salesChannel],
+        ]),
         ['Job final status', jobCard.jobFinalStatus],
         ['Status', jobCard.jobFinalStatus || jobCard.status],
       ])}
       ${printTextBlock('Complaint', jobCard.complaint)}
       ${printTextBlock('Service rendered', jobCard.serviceRendered)}
       <h2>Parts used</h2>
-      ${printLineItemsTable(jobCard.parts)}
-      <table class="totals">
+      ${printLineItemsTable(jobCard.parts, !customerCopy)}
+      ${
+        customerCopy
+          ? ''
+          : `<table class="totals">
         <tr><td>Total cost (AED)</td><td class="num">${money(jobCard.totalCost || 0)}</td></tr>
         <tr><td>Service charge (AED)</td><td class="num">${money(jobCard.serviceCharge || 0)}</td></tr>
         <tr class="grand"><td>Grand total (AED)</td><td class="num">${money(jobCard.grandTotal || 0)}</td></tr>
         ${jobCard.amountChargeable != null ? `<tr><td>Amount chargeable (AED)</td><td class="num">${money(jobCard.amountChargeable)}</td></tr>` : ''}
-      </table>
-      <h2>Invoice / delivery</h2>
+      </table>`
+      }
+      <h2>${customerCopy ? 'Delivery' : 'Invoice / delivery'}</h2>
       ${printFieldGrid([
-        ['Invoice no.', jobCard.invoiceNo],
+        ...internalOnly([['Invoice no.', jobCard.invoiceNo]]),
         ['Delivery date', jobCard.deliveryDate],
         ['Time consumed (hours)', jobCard.timeConsumedHours],
         ['Site contact person', jobCard.schoolContactPerson],
@@ -2320,14 +2381,19 @@ ${bodyHtml}
         ['Customer type', jobCard.customerType],
         ['Region', jobCard.region],
         ['B2B branch / school', jobCard.b2bBranchSchool],
-        ['Sales order no.', jobCard.salesOrderNumber],
+        ...internalOnly([['Sales order no.', jobCard.salesOrderNumber]]),
       ])}
       <div class="sign-row">
         <div class="sign-box">Technician signature</div>
         <div class="sign-box">Customer signature</div>
       </div>
     `;
-    openPrintWindow(printDocumentShell(`Service Job Card ${jobCard.jobCardReference || ''}`, body));
+    openPrintWindow(
+      printDocumentShell(
+        `Service Job Card ${jobCard.jobCardReference || ''}${customerCopy ? ' (customer copy)' : ''}`,
+        body,
+      ),
+    );
   }
 
   function printQuotation(quotation) {
@@ -5414,6 +5480,7 @@ ${bodyHtml}
       const result = await apiRequest('/api/appointments/' + encodeURIComponent(id));
       const appointment = result.appointment;
       currentAppointmentId = appointment.id;
+      currentAppointment = appointment;
       $('#createJobCardButton').hidden = true;
       renderAppointmentActions(appointment);
       $('#appointmentDetailHeading').textContent =
@@ -6677,6 +6744,17 @@ ${bodyHtml}
   $('#teamAccountsNav').addEventListener('click', () => setWorkspaceMode('team-accounts'));
   $('#newRequestNav').addEventListener('click', () => setWorkspaceMode('new-request'));
   $('#masterDataNav').addEventListener('click', () => setWorkspaceMode('master-data'));
+  $('#printAppointmentButton').addEventListener('click', () => {
+    const a = currentAppointment;
+    if (!a) return;
+    // Same sheet the Daily schedule prints, built from the open appointment.
+    openPrintWindow(
+      printDocumentShell(
+        `Appointment ${a.appointmentReference || ''}`,
+        dlSheetBody({ ...a, branchName: a.b2bBranchSchool }, true),
+      ),
+    );
+  });
   $('#closeAppointmentDetailButton').addEventListener('click', () => {
     $('#appointmentDetail').hidden = true;
   });
@@ -6771,7 +6849,22 @@ ${bodyHtml}
   $('#closeJobCardDetailButton').addEventListener('click', () => {
     $('#jobCardDetail').hidden = true;
   });
-  $('#printJobCardButton').addEventListener('click', () => printJobCard(currentJobCard));
+  $('#printJobCardButton').addEventListener('click', async () => {
+    if (!currentJobCard) return;
+    const variant = await askPrintVariant('Print service job card', [
+      {
+        value: 'customer',
+        label: 'Customer copy',
+        note: 'For the customer (B2C or B2B). No amounts, prices, billing or sales details.',
+      },
+      {
+        value: 'internal',
+        label: 'Internal copy',
+        note: 'For the sales team and accounts. Includes parts prices, charges and billing.',
+      },
+    ]);
+    if (variant) printJobCard(currentJobCard, variant);
+  });
   $('#appointmentScheduleForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await rescheduleAppointment(
@@ -11645,6 +11738,27 @@ ${bodyHtml}
     );
   }
 
+  function dlTechnicianOptions(rows, selected) {
+    const byId = new Map();
+    rows.forEach((row) => {
+      if (row.technicianId) byId.set(row.technicianId, row.technicianName || row.technicianId);
+    });
+    const options = [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    const opt = (value, label) =>
+      '<option value="' +
+      escapeHtml(value) +
+      '"' +
+      (selected === value ? ' selected' : '') +
+      '>' +
+      escapeHtml(label) +
+      '</option>';
+    return (
+      opt('', 'All technicians') +
+      options.map(([id, name]) => opt(id, name)).join('') +
+      (rows.some((row) => !row.technicianId) ? opt('__none', 'Unassigned') : '')
+    );
+  }
+
   function dlRangeLabel(from, to) {
     return from === to ? dlDayLabel(from) : dlDayLabel(from) + ' to ' + dlDayLabel(to);
   }
@@ -11719,7 +11833,10 @@ ${bodyHtml}
         ['Appointment date', dlDayLabel(row.appointmentDate)],
         ['Technician', row.technicianName || 'Unassigned'],
         ['Customer', row.customerName],
+        ['Customer type', row.customerType],
         ['Contact number', row.contactNumber],
+        ['Email', row.customerEmail],
+        ['Customer number', row.customerNumber],
         ['Address', row.address],
         ['Region', row.region],
         ['Branch / school', row.branchName],
@@ -11729,8 +11846,11 @@ ${bodyHtml}
         ],
         ['Brand / model', [row.brand, row.model].filter(Boolean).join(' ')],
         ['Item code', row.itemCode],
+        ['Sub group', row.subGroup],
         ['Warranty', row.jobWarranty],
         ['Sales order', row.salesOrderNumber],
+        ['Salesman', row.salesman],
+        ['Complaint source', row.complaintSource],
         ['Complaint', row.complaintReference],
         ['Status', row.status],
       ]) +
@@ -12743,10 +12863,29 @@ ${bodyHtml}
       to: today,
       by: 'technician',
       includeCancelled: false,
+      technician: '',
+      selected: new Set(),
       rows: [],
       truncated: false,
       error: '',
     };
+    // Rows after the technician filter, and the rows a print button acts on:
+    // the ticked ones, or every visible one when nothing is ticked.
+    function visibleRows() {
+      if (!state.technician) return state.rows;
+      if (state.technician === '__none') return state.rows.filter((row) => !row.technicianId);
+      return state.rows.filter((row) => row.technicianId === state.technician);
+    }
+    function printableRows() {
+      const visible = visibleRows();
+      const ticked = visible.filter((row) => state.selected.has(row.id));
+      return ticked.length ? ticked : visible;
+    }
+    function printScopeLabel() {
+      const visible = visibleRows();
+      const ticked = visible.filter((row) => state.selected.has(row.id)).length;
+      return ticked ? ticked + ' selected' : 'all ' + visible.length;
+    }
     root.innerHTML =
       '<div class="rc-section rd-filter-card"><div class="rd-report-toolbar" data-dl-bar></div></div>' +
       '<div data-dl-results></div>';
@@ -12767,15 +12906,22 @@ ${bodyHtml}
         '>Technician</option><option value="branch"' +
         (state.by === 'branch' ? ' selected' : '') +
         '>Branch</option></select></label></div>' +
+        '<div class="th-field"><label>Technician<select data-dl="technician">' +
+        dlTechnicianOptions(state.rows, state.technician) +
+        '</select></label></div>' +
         '<div class="th-field"><label><input type="checkbox" data-dl="cancelled"' +
         (state.includeCancelled ? ' checked' : '') +
         ' /> Include cancelled</label></div>' +
         '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-dl-print-list' +
-        (state.rows.length ? '' : ' disabled') +
-        '>Print list</button></div>' +
+        (visibleRows().length ? '' : ' disabled') +
+        '>Print list (' +
+        printScopeLabel() +
+        ')</button></div>' +
         '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-print-sheets' +
-        (state.rows.length ? '' : ' disabled') +
-        '>Print appointment sheets</button></div>';
+        (visibleRows().length ? '' : ' disabled') +
+        '>Print appointment sheets (' +
+        printScopeLabel() +
+        ')</button></div>';
       const control = (name) => bar.querySelector('[data-dl="' + name + '"]');
       ['from', 'to'].forEach((name) =>
         control(name).addEventListener('change', (event) => {
@@ -12797,16 +12943,23 @@ ${bodyHtml}
         drawResults();
         drawBar();
       });
+      control('technician').addEventListener('change', (event) => {
+        state.technician = event.target.value;
+        drawBar();
+        drawResults();
+      });
       control('cancelled').addEventListener('change', (event) => {
         state.includeCancelled = event.target.checked;
         load();
       });
       bar
         .querySelector('[data-dl-print-list]')
-        ?.addEventListener('click', () => dlPrintList(state.rows, state.by, state.from, state.to));
+        ?.addEventListener('click', () =>
+          dlPrintList(printableRows(), state.by, state.from, state.to),
+        );
       bar
         .querySelector('[data-dl-print-sheets]')
-        ?.addEventListener('click', () => dlPrintSheets(state.rows, state.by));
+        ?.addEventListener('click', () => dlPrintSheets(printableRows(), state.by));
     }
 
     function drawResults() {
@@ -12814,16 +12967,17 @@ ${bodyHtml}
         results.innerHTML = '<p class="form-note pg-error">' + escapeHtml(state.error) + '</p>';
         return;
       }
-      if (!state.rows.length) {
+      const rowsNow = visibleRows();
+      if (!rowsNow.length) {
         results.innerHTML = '<p class="empty-state">No appointments in this range.</p>';
         return;
       }
-      const groups = dlGroups(state.rows, state.by);
-      const unassigned = state.rows.filter((row) => !row.technicianId).length;
+      const groups = dlGroups(rowsNow, state.by);
+      const unassigned = rowsNow.filter((row) => !row.technicianId).length;
       results.innerHTML =
         '<p class="form-note">' +
-        state.rows.length +
-        (state.rows.length === 1 ? ' appointment' : ' appointments') +
+        rowsNow.length +
+        (rowsNow.length === 1 ? ' appointment' : ' appointments') +
         ' in ' +
         groups.length +
         (groups.length === 1 ? ' group' : ' groups') +
@@ -12836,7 +12990,13 @@ ${bodyHtml}
             const lines = group.rows
               .map(
                 (row) =>
-                  '<tr><td>' +
+                  '<tr><td><input type="checkbox" data-dl-pick="' +
+                  escapeHtml(row.id) +
+                  '" aria-label="Select ' +
+                  escapeHtml(row.appointmentReference) +
+                  '"' +
+                  (state.selected.has(row.id) ? ' checked' : '') +
+                  ' /></td><td>' +
                   escapeHtml(row.appointmentReference) +
                   '</td><td><strong>' +
                   escapeHtml(row.customerName) +
@@ -12873,7 +13033,11 @@ ${bodyHtml}
               ' <span>' +
               group.rows.length +
               (group.rows.length === 1 ? ' job' : ' jobs') +
-              '</span></h3><table class="rc-table"><thead><tr><th>Appointment</th><th>Customer</th><th>Address</th><th>Item</th><th>Fault</th><th>' +
+              '</span></h3><table class="rc-table"><thead><tr><th><input type="checkbox" data-dl-pick-group="' +
+              escapeHtml(group.rows.map((row) => row.id).join(',')) +
+              '" aria-label="Select all in this group"' +
+              (group.rows.every((row) => state.selected.has(row.id)) ? ' checked' : '') +
+              ' /></th><th>Appointment</th><th>Customer</th><th>Address</th><th>Item</th><th>Fault</th><th>' +
               (state.by === 'branch' ? 'Technician' : 'Branch') +
               '</th><th>Status</th><th></th></tr></thead><tbody>' +
               lines +
@@ -12881,6 +13045,24 @@ ${bodyHtml}
             );
           })
           .join('');
+      results.querySelectorAll('[data-dl-pick]').forEach((box) =>
+        box.addEventListener('change', () => {
+          if (box.checked) state.selected.add(box.dataset.dlPick);
+          else state.selected.delete(box.dataset.dlPick);
+          drawBar();
+          drawResults();
+        }),
+      );
+      results.querySelectorAll('[data-dl-pick-group]').forEach((box) =>
+        box.addEventListener('change', () => {
+          box.dataset.dlPickGroup.split(',').forEach((id) => {
+            if (box.checked) state.selected.add(id);
+            else state.selected.delete(id);
+          });
+          drawBar();
+          drawResults();
+        }),
+      );
       results.querySelectorAll('[data-dl-sheet]').forEach((button) =>
         button.addEventListener('click', () => {
           const row = state.rows.find((entry) => entry.id === button.dataset.dlSheet);
@@ -12909,6 +13091,14 @@ ${bodyHtml}
         state.rows = [];
         state.error = error.message;
       }
+      const ids = new Set(state.rows.map((row) => row.id));
+      state.selected = new Set([...state.selected].filter((id) => ids.has(id)));
+      if (
+        state.technician &&
+        state.technician !== '__none' &&
+        !state.rows.some((row) => row.technicianId === state.technician)
+      )
+        state.technician = '';
       drawBar();
       drawResults();
     }

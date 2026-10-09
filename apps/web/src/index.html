@@ -5148,6 +5148,28 @@
       .jc-sec-body {
         padding: 12px 14px 4px;
       }
+      /* Print choice dialog (modification #86). */
+      .print-choice {
+        max-width: 420px;
+      }
+      .print-choice-option {
+        display: block;
+        width: 100%;
+        margin: 0 0 10px;
+        padding: 12px 14px;
+        text-align: left;
+      }
+      .print-choice-option strong {
+        display: block;
+        color: var(--navy);
+      }
+      .print-choice-option span {
+        display: block;
+        margin-top: 2px;
+        font-size: 0.78rem;
+        font-weight: 500;
+        color: var(--muted);
+      }
     </style>
   </head>
   <body>
@@ -8776,13 +8798,22 @@
                         hidden
                       ></div>
                     </div>
-                    <button
-                      class="button button-outline"
-                      type="button"
-                      id="closeAppointmentDetailButton"
-                    >
-                      Close details
-                    </button>
+                    <div>
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="printAppointmentButton"
+                      >
+                        Print
+                      </button>
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="closeAppointmentDetailButton"
+                      >
+                        Close details
+                      </button>
+                    </div>
                   </div>
                   <div class="detail-grid" id="appointmentDetailGrid"></div>
                   <div class="detail-actions" id="appointmentActions" hidden>

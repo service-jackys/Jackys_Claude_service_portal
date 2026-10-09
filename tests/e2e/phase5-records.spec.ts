@@ -650,10 +650,14 @@ test.describe('service job-card attachments', () => {
       window.print = () => {};
     });
     const popupPromise = page.waitForEvent('popup');
-    await page.getByRole('button', { name: 'Print' }).click();
+    await page.getByRole('button', { name: 'Print', exact: true }).click();
+    await page.locator('[data-print-choice="internal"]').click();
     const popup = await popupPromise;
     await popup.waitForLoadState('load').catch(() => {});
     await expect.poll(() => popup.content()).toContain('JBC-2026-00001');
+    // The internal copy carries the amounts and the JDI logo.
+    await expect.poll(() => popup.content()).toContain('Grand total (AED)');
+    await expect.poll(() => popup.content()).toContain('class="logo"');
   });
 });
 

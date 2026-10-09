@@ -2570,3 +2570,18 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - Fields only moved between cards; nothing was added or removed, and saving works as before. When a job card is first created, the last three cards stay hidden until the card exists (as in #82).
 
 **Needs you:** hard-refresh.
+
+
+## Modification #86 — Printing: customer copy, technician batch print, appointment print, logo
+
+**Date:** 2026-10-09 · **Scope:** web and API (daily list fields) · no migration · restart and hard-refresh
+
+**What changed**
+- **Service job card print now asks which copy.** Print opens a small chooser: **Customer copy** (for the customer, B2C or B2B: no amounts at all. The parts list shows part number, description and quantity only; no prices, totals, service charge, amount chargeable, invoice number, job type, payer, salesman, sales channel or sales order number) and **Internal copy** (the full job card with prices, charges and billing, for the sales team and accounts).
+- **Daily schedule batch printing.** New **Technician** filter (All technicians, one technician, or Unassigned). Every appointment has a tick box, and each technician/branch group has a tick-all box. **Print list** and **Print appointment sheets** print only the ticked appointments; when nothing is ticked they print everything currently shown. The button labels show the scope, for example "Print list (3 selected)". So for a day with several visits you can filter to one technician, tick two jobs and print, then filter to the next technician and do the same.
+- **Print one appointment.** The appointment details page has a **Print** button. The "Sheet" button on the daily schedule still prints a single sheet too.
+- **Appointment sheet carries every captured detail:** appointment date, technician, customer name and type, contact number, email, customer number, address, region, branch / school and site contact, brand / model, item code, sub group, warranty, sales order, salesman, complaint source, complaint reference, status and the fault reported, plus blank Work done and Parts used boxes and signature lines.
+- **JDI logo on every printout.** The same logo as the portal header now sits at the top of every printed document (job card, quotation, inspection, intake receipt, certificates, daily list and appointment sheets).
+- Tests: end-to-end checks that the customer copy has no amounts, that the technician filter and tick boxes control what prints, and that printouts carry the logo.
+
+**Needs you:** restart the API and hard-refresh.

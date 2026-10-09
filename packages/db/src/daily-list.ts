@@ -24,6 +24,11 @@ export type DailyListRow = {
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   complaintReference: string | null;
+  customerEmail: string | null;
+  customerNumber: string | null;
+  subGroup: string | null;
+  salesman: string | null;
+  complaintSource: string | null;
 };
 
 export const DAILY_LIST_LIMIT = 1000;
@@ -55,7 +60,12 @@ export async function listDailyAppointments(
             COALESCE(b.name, a.b2b_branch_school) AS "branchName",
             a.school_contact_person AS "schoolContactPerson",
             a.school_contact_number AS "schoolContactNumber",
-            c.complaint_reference AS "complaintReference"
+            c.complaint_reference AS "complaintReference",
+            a.customer_email AS "customerEmail",
+            a.customer_number AS "customerNumber",
+            a.sub_group AS "subGroup",
+            a.salesman,
+            a.complaint_source AS "complaintSource"
      FROM appointments a
      LEFT JOIN technicians t ON t.id = a.technician_id
      LEFT JOIN branches b ON b.id = a.branch_id
