@@ -2628,3 +2628,12 @@ Clicking "Awaiting job card" on the Dashboard opened the Service job cards page 
 The Service job cards block on the Dashboard counted job cards by the record status (Open / Completed / Cancelled), so WIP, Spare pending, BER, Rejected, Repair Completed and Delivered never appeared. It now counts by job status, the same value the Service job cards list filters on, shown in workflow order (WIP, Spare pending, BER, Rejected, Repair Completed, Delivered, Cancelled). Clicking a tile opens the list filtered to that status. Test: tests/integration/dashboard-job-status.test.ts.
 
 **Needs you:** restart the API and hard-refresh. No migration.
+
+## Modification #92 — Edit job: master fields highlighted and Product section auto-fills
+
+- **Edit job now shows the green "from master" highlight.** Opening a saved job card asks the API which fields match the B2B branch, salesman and stock masters (`masterFields` on the job card detail response) and highlights them, as the create panel does.
+- **Product section auto-fills.** The stock lookup used to need the exact item code, so a typed model such as "vg352cs" matched nothing and Main group, Group and Sub group stayed blank. It now tries the exact code, then a single unambiguous match on the typed model (narrowed by brand). On Edit, blank item fields are filled from the stock master (`masterFill`) and highlighted; nothing is saved until you press Save. The same lookup now runs when a job card is created, so new cards are saved with these values.
+- Test: tests/integration/job-card-master-prefill.test.ts (detail fill) and an e2e check in tests/e2e/phase5-records.spec.ts.
+- If a model matches more than one stock item, nothing is filled; pick the item with the Model no. search on the form.
+
+**Needs you:** restart the API and hard-refresh. No migration.

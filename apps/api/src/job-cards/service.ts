@@ -49,7 +49,7 @@ import { findQuotationById, type QuotationRecord } from '../../../../packages/db
 import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
 import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
 import { findB2bBranchByName } from '../../../../packages/db/src/b2b-branches.js';
-import { findStockItemByCode } from '../../../../packages/db/src/stock-master.js';
+import { findStockItemByCode, searchStockItems } from '../../../../packages/db/src/stock-master.js';
 import {
   allocateJobCardReference,
   allocateWalkInJobCardReference,
@@ -130,73 +130,153 @@ async function resolveSalesChannelForSalesman(
   return record?.salesChannel ?? null;
 }
 
+type MasterClient = Parameters<typeof findSalesmanByName>[0];
+
+function sameText(a: string | null | undefined, b: string | null | undefined): boolean {
+  return (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+}
+
+/** Finds the stock master item for a job: the exact item code first, then a
+ *  single unambiguous match on the typed model / code (narrowed by brand when
+ *  that helps). Returns null when nothing, or more than one item, matches. */
+async function resolveStockItem(
+  client: MasterClient,
+  code: string | null | undefined,
+  brand: string | null | undefined,
+) {
+  const term = (code ?? '').trim();
+  if (!term) return null;
+  const exact = await findStockItemByCode(client, term);
+  if (exact) return exact;
+  for (const narrowBy of [brand?.trim() || undefined, undefined]) {
+    const hits = await searchStockItems(client, { query: term, limit: 5, brand: narrowBy });
+    if (hits.length === 1) return hits[0];
+    const prefixed = hits.filter((hit) =>
+      hit.itemCode.toUpperCase().startsWith(term.toUpperCase()),
+    );
+    if (prefixed.length === 1) return prefixed[0];
+    if (hits.length > 1) return null;
+  }
+  return null;
+}
+
+type MasterInput = Pick<
+  ServiceJobCardContent,
+  | 'b2bBranchSchool'
+  | 'customerType'
+  | 'customerNumber'
+  | 'salesOrderNumber'
+  | 'salesman'
+  | 'salesChannel'
+  | 'itemCode'
+  | 'modelNo'
+  | 'brand'
+  | 'itemDescription'
+  | 'mainGroup'
+  | 'groupName'
+  | 'subGroup'
+>;
+
+type MasterContext = {
+  /** Fields whose value came from (or matches) a master -- highlighted green. */
+  masterFields: string[];
+  /** Values the stock master supplies for fields that are still blank. */
+  masterFill: Partial<MasterInput>;
+};
+
+/** Works out which job card fields a master supplies, and the stock master
+ *  values for blank item fields. Used when a job card is created and again when
+ *  an existing one is opened for editing. Nothing is written here. */
+async function masterContextFor(
+  client: MasterClient,
+  content: MasterInput,
+): Promise<MasterContext> {
+  const masterFields = new Set<string>();
+  const masterFill: Partial<MasterInput> = {};
+
+  const branch =
+    content.b2bBranchSchool && content.customerType !== 'B2C'
+      ? await findB2bBranchByName(client, content.b2bBranchSchool)
+      : null;
+  if (branch) {
+    masterFields.add('b2bBranchSchool');
+    if (sameText(content.customerNumber, branch.custCode)) masterFields.add('customerNumber');
+    if (sameText(content.salesOrderNumber, branch.lastSalesOrderNumber)) {
+      masterFields.add('salesOrderNumber');
+    }
+  }
+  if (content.salesman) {
+    const record = await findSalesmanByName(client, content.salesman);
+    if (record || (branch && sameText(content.salesman, branch.salesman))) {
+      masterFields.add('salesman');
+    }
+    if (record?.salesChannel && sameText(content.salesChannel, record.salesChannel)) {
+      masterFields.add('salesChannel');
+    }
+  }
+
+  const item = await resolveStockItem(client, content.itemCode || content.modelNo, content.brand);
+  if (item) {
+    masterFields.add('modelNo');
+    if (!content.modelNo) masterFill.modelNo = item.itemCode;
+    if (!content.itemCode) masterFill.itemCode = item.itemCode;
+    const itemFields = {
+      brand: item.brand,
+      itemDescription: item.itemDesc,
+      mainGroup: item.mainGroup,
+      groupName: item.groupName,
+      subGroup: item.subGroup,
+    } as const;
+    for (const key of Object.keys(itemFields) as Array<keyof typeof itemFields>) {
+      const value = itemFields[key];
+      if (!value) continue;
+      if (!content[key]) {
+        masterFill[key] = value;
+        masterFields.add(key);
+      } else if (sameText(content[key], value)) {
+        masterFields.add(key);
+      }
+    }
+  }
+  return { masterFields: [...masterFields], masterFill };
+}
+
 /** Fills the job card defaults from the masters and reports which fields came
  *  from a master, so the form can highlight them. The B2B branch master wins
  *  for the salesman and sales channel; the stock master fills the item fields.
  *  Everything stays editable on the form. */
 async function enrichDefaultsFromMasters(
-  client: Parameters<typeof findSalesmanByName>[0],
+  client: MasterClient,
   appointment: AppointmentRecord,
   defaults: ServiceJobCardContent,
 ): Promise<{ content: ServiceJobCardContent; masterFields: string[] }> {
   const content: ServiceJobCardContent = { ...defaults };
-  const masterFields = new Set<string>();
-  const same = (a: string | null | undefined, b: string | null | undefined) =>
-    (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
-
   const branch =
     appointment.b2bBranchSchool && appointment.customerType !== 'B2C'
       ? await findB2bBranchByName(client, appointment.b2bBranchSchool)
       : null;
   if (branch) {
-    masterFields.add('b2bBranchSchool');
     if (!content.customerNumber) content.customerNumber = branch.custCode;
-    if (same(content.customerNumber, branch.custCode)) masterFields.add('customerNumber');
     if (!content.salesOrderNumber && branch.lastSalesOrderNumber) {
       content.salesOrderNumber = branch.lastSalesOrderNumber;
-      masterFields.add('salesOrderNumber');
     }
-    if (branch.salesman) {
-      content.salesman = branch.salesman;
-      masterFields.add('salesman');
-    }
+    if (branch.salesman) content.salesman = branch.salesman;
   }
   if (content.salesman) {
     const record = await findSalesmanByName(client, content.salesman);
-    if (record) {
-      masterFields.add('salesman');
-      content.salesChannel = record.salesChannel ?? content.salesChannel;
-      if (record.salesChannel) masterFields.add('salesChannel');
-    }
+    if (record?.salesChannel) content.salesChannel = record.salesChannel;
   }
-  if (!content.salesChannel && branch?.salesChannel) {
-    content.salesChannel = branch.salesChannel;
-    masterFields.add('salesChannel');
-  }
+  if (!content.salesChannel && branch?.salesChannel) content.salesChannel = branch.salesChannel;
 
-  const code = appointment.itemCode || appointment.model;
-  const item = code ? await findStockItemByCode(client, code) : null;
-  if (item) {
-    content.itemCode = item.itemCode;
-    content.itemInMaster = true;
-    masterFields.add('itemCode');
-    masterFields.add('modelNo');
-    if (!content.modelNo) content.modelNo = item.itemCode;
-    const fill = (
-      key: 'brand' | 'itemDescription' | 'mainGroup' | 'groupName' | 'subGroup',
-      value: string | null,
-    ) => {
-      if (!value) return;
-      if (!content[key]) content[key] = value;
-      if (same(content[key], value)) masterFields.add(key);
-    };
-    fill('brand', item.brand);
-    fill('itemDescription', item.itemDesc);
-    fill('mainGroup', item.mainGroup);
-    fill('groupName', item.groupName);
-    fill('subGroup', item.subGroup);
+  const context = await masterContextFor(client, content);
+  const filled = { ...content, ...context.masterFill };
+  if (Object.keys(context.masterFill).length || context.masterFields.includes('modelNo')) {
+    const item = await resolveStockItem(client, filled.itemCode || filled.modelNo, filled.brand);
+    if (item) filled.itemCode = item.itemCode;
+    filled.itemInMaster = Boolean(item) || filled.itemInMaster;
   }
-  return { content, masterFields: [...masterFields] };
+  const after = await masterContextFor(client, filled);
+  return { content: filled, masterFields: after.masterFields };
 }
 
 /** Default job-card content pulled from a completed appointment, matching the live
@@ -1002,7 +1082,8 @@ export function createServiceJobCardService(pool: Pool) {
       if (!jobCard)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
       const history = await listServiceJobCardHistory(client, id);
-      return { jobCard, history };
+      const master = await masterContextFor(client, jobCard);
+      return { jobCard, history, ...master };
     } finally {
       client.release();
     }

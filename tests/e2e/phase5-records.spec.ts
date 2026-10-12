@@ -560,6 +560,80 @@ test.describe('operational dashboard', () => {
     await expect(page.locator('#jobCardsBody')).toContainText('APT-2026-00099');
     await expect(page.locator('#jobCardsBody')).not.toContainText('Delivered Customer');
   });
+
+  test('Edit job highlights master fields and fills blank item fields from the stock master', async ({
+    page,
+  }) => {
+    const card = {
+      id: '801',
+      jobCardReference: 'JBC-2026-00801',
+      appointmentReference: 'APT-2026-00801',
+      appointmentDate: '2026-10-05',
+      customerName: 'Master Customer',
+      contactNumber: '0500000000',
+      faultDescription: 'Does not start.',
+      status: 'Open',
+      jobFinalStatus: 'WIP',
+      brand: 'VENUS',
+      modelNo: 'vg352cs',
+      itemDescription: 'VENUS vg352cs',
+      salesman: 'Master Salesman',
+      parts: [],
+      createdAt: '2026-10-05T08:00:00.000Z',
+      updatedAt: '2026-10-05T08:00:00.000Z',
+    };
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['service_job_card.read', 'service_job_card.write'],
+          'Job Operator',
+          'jobs@jackys.com',
+        )
+      )
+        return;
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            jobCards: [card],
+            pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/801' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            jobCard: card,
+            history: [],
+            masterFields: ['salesman', 'modelNo', 'brand', 'mainGroup', 'groupName', 'subGroup'],
+            masterFill: {
+              itemCode: 'VG352CSDX',
+              mainGroup: 'MDA',
+              groupName: 'COOKING',
+              subGroup: 'GAS COOKER',
+            },
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await signIn(page, 'jobs@jackys.com');
+    await page.getByRole('button', { name: 'JBC-2026-00801' }).click();
+    await expect(page.locator('#jceMainGroup')).toHaveValue('MDA');
+    await expect(page.locator('#jceGroupName')).toHaveValue('COOKING');
+    await expect(page.locator('#jceSubGroup')).toHaveValue('GAS COOKER');
+    await expect(page.locator('#jceMainGroup')).toHaveClass(/master-filled/);
+    await expect(page.locator('#jceBrand')).toHaveClass(/master-filled/);
+    await expect(page.locator('#jceSalesman')).toHaveClass(/master-filled/);
+    await expect(page.locator('#jceSerialNo')).not.toHaveClass(/master-filled/);
+  });
 });
 
 test.describe('service job-card attachments', () => {

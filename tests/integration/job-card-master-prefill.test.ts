@@ -88,3 +88,82 @@ test(
     }
   },
 );
+
+test(
+  'saved job card detail fills blank item fields from the stock master and marks master fields',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const suffix = randomUUID().slice(0, 8).toUpperCase();
+    const typedModel = `VGT${suffix}`;
+    const itemCode = `${typedModel}DX`;
+    let profileId: string | undefined;
+    try {
+      const profile = await pool.query<{ id: string }>(
+        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Master detail') RETURNING id`,
+        [`master-detail-${suffix}@example.test`],
+      );
+      profileId = profile.rows[0].id;
+      await pool.query(
+        `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, sub_group, brand, last_channel)
+         VALUES ($1, 'Test cooker', 'MDA', 'COOKING', 'GAS COOKER', 'VENUS', 'JDI')`,
+        [itemCode],
+      );
+      const appointmentService = createAppointmentService(pool);
+      const jobCardService = createServiceJobCardService(pool);
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + 21);
+      const appointment = await appointmentService.create(
+        {
+          customerType: 'B2C',
+          customerName: 'Master Detail Customer',
+          contactNumber: '0500000888',
+          faultDescription: 'Master detail test',
+          appointmentDate: date.toISOString().slice(0, 10),
+          brand: 'VENUS',
+          model: typedModel.toLowerCase(),
+        },
+        profileId,
+        'master-detail-create',
+      );
+      await appointmentService.changeStatus(
+        appointment.id,
+        { status: 'In Progress' },
+        profileId,
+        'master-detail-progress',
+      );
+      await appointmentService.changeStatus(
+        appointment.id,
+        { status: 'Completed', reason: 'Visit done' },
+        profileId,
+        'master-detail-complete',
+      );
+      const created = await jobCardService.create(appointment.id, {}, profileId, 'md-create');
+      // Cards created before this lookup existed have blank item groups.
+      assert.equal((await jobCardService.detail(created.id)).jobCard.mainGroup, 'MDA');
+      await pool.query(
+        `UPDATE service_job_cards SET main_group = NULL, group_name = NULL, sub_group = NULL WHERE id = $1`,
+        [created.id],
+      );
+      const detail = await jobCardService.detail(created.id);
+      assert.equal(detail.masterFill.mainGroup, 'MDA');
+      assert.equal(detail.masterFill.groupName, 'COOKING');
+      assert.equal(detail.masterFill.subGroup, 'GAS COOKER');
+      assert.ok(detail.masterFields.includes('modelNo'));
+      assert.ok(detail.masterFields.includes('brand'));
+      assert.ok(detail.masterFields.includes('mainGroup'));
+    } finally {
+      await pool.query(`DELETE FROM stock_items WHERE item_code = $1`, [itemCode]);
+      await pool.end();
+    }
+  },
+);

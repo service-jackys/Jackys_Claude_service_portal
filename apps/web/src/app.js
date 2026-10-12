@@ -1466,6 +1466,25 @@
     });
   }
 
+  // For a saved job card opened in Edit: the stock master fills item fields that
+  // are still blank (nothing is saved until the form is saved), then every field
+  // a master supplies is highlighted.
+  function applyMasterContext(prefix, context) {
+    const fill = context?.masterFill || {};
+    const fieldIds = { ...MASTER_FIELD_IDS, itemCode: 'ItemCode' };
+    Object.entries(fill).forEach(([key, value]) => {
+      const input = $(`#${prefix}${fieldIds[key]}`);
+      if (!input || input.value || !value) return;
+      const max = Number(input.getAttribute('maxlength')) || 0;
+      input.value = max ? String(value).slice(0, max) : String(value);
+    });
+    if (fill.itemCode || (context?.masterFields || []).includes('modelNo')) {
+      const model = $(`#${prefix}ModelNo`);
+      setItemPickerState(model, true, $(`#${prefix}ItemCode`).value || model.value);
+    }
+    markMasterFields(prefix, [...(context?.masterFields || []), ...Object.keys(fill)]);
+  }
+
   function fillJobCardForm(prefix, content) {
     $(`#${prefix}Date`).value = (content.jobCardDate || '').slice(0, 10);
     $(`#${prefix}CustomerName`).value = content.customerName || '';
@@ -4759,6 +4778,7 @@ ${bodyHtml}
       currentJobCardId = jobCard.id;
       currentJobCard = jobCard;
       renderJobCardActions(jobCard);
+      if (!$('#jobCardActions').hidden) applyMasterContext('jce', result);
       renderJobCardGuide(jobCard);
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
