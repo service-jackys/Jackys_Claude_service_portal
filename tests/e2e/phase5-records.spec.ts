@@ -671,6 +671,24 @@ test.describe('quotation and inspection forms', () => {
         });
         return;
       }
+      if (url.pathname === '/api/stock/items') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            items: [
+              {
+                itemCode: 'VG352CSDX',
+                itemDesc: 'VENUS GAS COOKER 3 BURNER',
+                brand: 'VENUS',
+                mainGroup: 'MDA',
+                groupName: 'COOKING',
+                subGroup: 'GAS COOKER',
+              },
+            ],
+          }),
+        });
+        return;
+      }
       await route.continue();
     });
     await signIn(page, 'sales@jackys.com');
@@ -682,6 +700,15 @@ test.describe('quotation and inspection forms', () => {
     await page.locator('#qtcAddProductButton').click();
     await expect(page.locator('#qtcProductsBody tr')).toHaveCount(1);
     await expect(page.locator('#qtcProductsBody tr').first()).toBeVisible();
+    await page.locator('#qtcProductsBody [data-field="partNo"]').fill('VG352');
+    await expect(page.locator('#qtcProductsBodyCodes option')).toHaveCount(1);
+    await page.locator('#qtcProductsBody [data-field="partNo"]').fill('VG352CSDX');
+    await expect(page.locator('#qtcProductsBody [data-field="description"]')).toHaveValue(
+      'VENUS GAS COOKER 3 BURNER',
+    );
+    await expect(page.locator('#qtcProductsBody [data-field="partNo"]')).toHaveClass(
+      /master-filled/,
+    );
     await page.locator('#qtcAddPartButton').click();
     await expect(page.locator('#qtcPartsBody tr').first()).toBeVisible();
 

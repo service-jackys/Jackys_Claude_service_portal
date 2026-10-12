@@ -2653,3 +2653,11 @@ Test: tests/integration/job-card-master-prefill.test.ts (Delivered save sets the
 - Test: tests/e2e/phase5-records.spec.ts ("Add product shows a visible row and Project name suggests B2B master names").
 
 **Needs you:** restart the API (the branch search permission changed) and hard-refresh. No migration.
+
+## Modification #95 — Quotation and Inspection product rows pick items from the stock master
+
+In the Products table of both Quotations and Inspections, the Part no. and Description boxes of each row now suggest items from the stock master as you type (two letters or more). Picking an item (or typing a code or description that matches one) fills both boxes and shades them green as "from the stock master". Anything typed that is not in the master stays as a manual entry. The stock search is now open to quotation and inspection users as well as stock users (the API permission changed). Parts and Faulty parts rows are unchanged.
+
+Test: tests/e2e/phase5-records.spec.ts (product row picks an item from the stock master).
+
+**Needs you:** restart the API and hard-refresh. No migration. The stock master has no prices, so Unit price is still typed by hand.

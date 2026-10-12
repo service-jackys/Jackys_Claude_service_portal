@@ -1353,14 +1353,14 @@
   // the caller can recompute whatever totals depend on this table.
   const lineItemsState = jobCardPartsState;
 
-  function renderLineItemsTable(stateKey, bodyId, onChange) {
+  function renderLineItemsTable(stateKey, bodyId, onChange, itemLookup = false) {
     const body = $(`#${bodyId}`);
     const items = lineItemsState[stateKey];
     body.innerHTML = items
       .map(
         (item, idx) => `<tr data-idx="${idx}">
-          <td><input type="text" value="${escapeHtml(item.partNo)}" data-field="partNo" maxlength="120"></td>
-          <td><input type="text" value="${escapeHtml(item.description)}" data-field="description" maxlength="300"></td>
+          <td><input type="text" value="${escapeHtml(item.partNo)}" data-field="partNo" maxlength="120"${item.fromMaster ? ' class="master-filled"' : ''}></td>
+          <td><input type="text" value="${escapeHtml(item.description)}" data-field="description" maxlength="300"${item.fromMaster ? ' class="master-filled"' : ''}></td>
           <td><input type="number" min="0" value="${item.qty}" data-field="qty" style="width:70px;"></td>
           <td><input type="number" min="0" step="0.01" value="${item.unitPrice}" data-field="unitPrice" style="width:90px;"></td>
           <td>${money((item.qty || 0) * (item.unitPrice || 0))}</td>
@@ -1384,10 +1384,104 @@
     body.querySelectorAll('[data-remove-part]').forEach((button) => {
       button.addEventListener('click', () => {
         items.splice(Number(button.dataset.removePart), 1);
-        renderLineItemsTable(stateKey, bodyId, onChange);
+        renderLineItemsTable(stateKey, bodyId, onChange, itemLookup);
       });
     });
+    if (itemLookup) attachStockItemLookup(body, items, onChange);
     onChange();
+  }
+
+  // Product rows: Part no. and Description suggest items from the stock master.
+  // Picking an item fills both (green = loaded from the master); typing anything
+  // else is kept as a manual entry.
+  function attachStockItemLookup(body, items, onChange) {
+    const wrap = body.closest('.table-wrap') || body.parentElement;
+    const codesId = `${body.id}Codes`;
+    const namesId = `${body.id}Names`;
+    let codes = wrap.querySelector(`#${codesId}`);
+    let names = wrap.querySelector(`#${namesId}`);
+    if (!codes) {
+      codes = document.createElement('datalist');
+      codes.id = codesId;
+      wrap.appendChild(codes);
+    }
+    if (!names) {
+      names = document.createElement('datalist');
+      names.id = namesId;
+      wrap.appendChild(names);
+    }
+    const known = new Map();
+    const lookup = (term) => {
+      const key = term.trim().toLowerCase();
+      for (const item of known.values()) {
+        if (item.itemCode.toLowerCase() === key || item.itemDesc.toLowerCase() === key) return item;
+      }
+      return null;
+    };
+    let timer = null;
+    let seq = 0;
+    body.querySelectorAll('tr').forEach((row) => {
+      const partNo = row.querySelector('[data-field="partNo"]');
+      const description = row.querySelector('[data-field="description"]');
+      partNo.setAttribute('list', codesId);
+      description.setAttribute('list', namesId);
+      partNo.setAttribute('autocomplete', 'off');
+      description.setAttribute('autocomplete', 'off');
+      const idx = Number(row.dataset.idx);
+      const search = (input) => {
+        clearTimeout(timer);
+        const term = input.value.trim();
+        if (term.length < 2) return;
+        timer = setTimeout(async () => {
+          const mine = ++seq;
+          try {
+            const data = await apiRequest(
+              '/api/stock/items?' + new URLSearchParams({ q: term, limit: '12' }),
+            );
+            if (mine !== seq) return;
+            (data.items || []).forEach((item) => known.set(item.itemCode, item));
+            codes.innerHTML = (data.items || [])
+              .map(
+                (item) =>
+                  `<option value="${escapeHtml(item.itemCode)}" label="${escapeHtml(item.itemDesc)}"></option>`,
+              )
+              .join('');
+            names.innerHTML = (data.items || [])
+              .map(
+                (item) =>
+                  `<option value="${escapeHtml(item.itemDesc)}" label="${escapeHtml(item.itemCode)}"></option>`,
+              )
+              .join('');
+          } catch {
+            codes.innerHTML = '';
+            names.innerHTML = '';
+          }
+        }, 250);
+      };
+      const pick = (input) => {
+        const item = lookup(input.value);
+        if (!item) return;
+        partNo.value = item.itemCode;
+        description.value = item.itemDesc;
+        items[idx].partNo = item.itemCode;
+        items[idx].description = item.itemDesc;
+        items[idx].fromMaster = true;
+        [partNo, description].forEach((field) => {
+          field.classList.add('master-filled');
+          field.title = 'Filled from the stock master';
+        });
+        onChange();
+      };
+      [partNo, description].forEach((input) => {
+        input.addEventListener('input', () => {
+          input.classList.remove('master-filled');
+          items[idx].fromMaster = false;
+          search(input);
+          pick(input);
+        });
+        input.addEventListener('change', () => pick(input));
+      });
+    });
   }
 
   function renderJobCardParts(prefix) {
@@ -1765,14 +1859,14 @@
         qty: 1,
         unitPrice: 0,
       });
-      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
     });
     $(`#${prefix}AddPartButton`).addEventListener('click', () => {
       lineItemsState[`${prefix}Parts`].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
       renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
     });
     $(`#${prefix}LabourAmount`).addEventListener('input', recalc);
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
     renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
   }
 
@@ -1816,7 +1910,7 @@
       qty: item.qty || 0,
       unitPrice: item.unitPrice || 0,
     }));
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc);
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
     renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
   }
 
@@ -1915,7 +2009,7 @@
         qty: 1,
         unitPrice: 0,
       });
-      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {}, true);
     });
     $(`#${prefix}AddFaultyPartButton`).addEventListener('click', () => {
       lineItemsState[`${prefix}FaultyParts`].push({
@@ -1926,7 +2020,7 @@
       });
       renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
     });
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {}, true);
     renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
   }
 
@@ -1964,7 +2058,7 @@
       qty: item.qty || 0,
       unitPrice: item.unitPrice || 0,
     }));
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {});
+    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, () => {}, true);
     renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
   }
 

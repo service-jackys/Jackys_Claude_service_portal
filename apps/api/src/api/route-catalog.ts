@@ -634,7 +634,11 @@ export function createRouteCatalog(
     ? createRateCardViewHandlers(createRateCardViewService(pool), requirePermission)
     : unavailableHandlers(['view']);
   const stockMasterHandlers = pool
-    ? createStockMasterHandlers(createStockMasterService(pool), requirePermission)
+    ? createStockMasterHandlers(
+        createStockMasterService(pool),
+        requirePermission,
+        requireAnyPermission,
+      )
     : unavailableHandlers(['upload', 'status', 'search', 'facets']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)

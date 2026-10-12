@@ -17,6 +17,8 @@ const upload = multer({
 export function createStockMasterHandlers(
   service: StockMasterService,
   requirePermission: (permission: string) => RequestHandler,
+  requireAnyPermission: (permissions: string[]) => RequestHandler = (permissions) =>
+    requirePermission(permissions[0]),
 ): Record<string, RequestHandler[]> {
   return {
     upload: [
@@ -69,7 +71,8 @@ export function createStockMasterHandlers(
       },
     ],
     search: [
-      requirePermission('stock.read'),
+      // Also used by the Quotation / Inspection product pickers.
+      requireAnyPermission(['stock.read', 'quotation.write', 'inspection.write']),
       async (request, response, next) => {
         try {
           response.setHeader('Cache-Control', 'no-store');
