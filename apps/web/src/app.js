@@ -1181,7 +1181,7 @@
         <div class="jc-sec-body">
       <div class="field-grid">
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
-        <div class="field"><label for="${prefix}DeliveryDate">Delivery date</label><input type="date" id="${prefix}DeliveryDate"></div>
+        <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
       </div>
         </div>
@@ -1484,6 +1484,18 @@
     }
     markMasterFields(prefix, [...(context?.masterFields || []), ...Object.keys(fill)]);
   }
+
+  // Choosing Delivered shows today's date in Delivery date straight away; the
+  // server records it too when the card is saved, so it is never left blank.
+  document.addEventListener('change', (event) => {
+    const select = event.target;
+    if (!(select instanceof HTMLSelectElement) || !/JobFinalStatus$/.test(select.id)) return;
+    if (select.value !== 'Delivered') return;
+    const date = $(`#${select.id.replace(/JobFinalStatus$/, 'DeliveryDate')}`);
+    if (date && !date.value) {
+      date.value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(new Date());
+    }
+  });
 
   function fillJobCardForm(prefix, content) {
     $(`#${prefix}Date`).value = (content.jobCardDate || '').slice(0, 10);

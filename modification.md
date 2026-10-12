@@ -2637,3 +2637,11 @@ The Service job cards block on the Dashboard counted job cards by the record sta
 - If a model matches more than one stock item, nothing is filled; pick the item with the Model no. search on the form.
 
 **Needs you:** restart the API and hard-refresh. No migration.
+
+## Modification #93 — Delivery date captured automatically when a job is Delivered
+
+The delivery date is now recorded by the system whenever a job card becomes Delivered and no date was entered: when the job is saved as Delivered, when a card is created already Delivered, and when the card is closed through the status change. It uses the Dubai date (previously the update path used the UTC date). On the form, choosing Delivered shows today's date in Delivery date straight away, and an (i) tooltip explains it can still be changed to record a different delivery day. A date typed by hand is never overwritten.
+
+Test: tests/integration/job-card-master-prefill.test.ts (Delivered save sets the Dubai date).
+
+**Needs you:** restart the API and hard-refresh. No migration. Cards already Delivered with a blank date are not changed.

@@ -167,3 +167,74 @@ test(
     }
   },
 );
+
+test(
+  'a job saved as Delivered gets its delivery date from the system',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const suffix = randomUUID().slice(0, 8);
+    let profileId: string | undefined;
+    try {
+      const profile = await pool.query<{ id: string }>(
+        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Delivery date') RETURNING id`,
+        [`delivery-date-${suffix}@example.test`],
+      );
+      profileId = profile.rows[0].id;
+      const appointmentService = createAppointmentService(pool);
+      const jobCardService = createServiceJobCardService(pool);
+      const date = new Date();
+      date.setUTCDate(date.getUTCDate() + 22);
+      const appointment = await appointmentService.create(
+        {
+          customerType: 'B2C',
+          customerName: 'Delivery Date Customer',
+          contactNumber: '0500000999',
+          faultDescription: 'Delivery date test',
+          appointmentDate: date.toISOString().slice(0, 10),
+        },
+        profileId,
+        'dd-create',
+      );
+      await appointmentService.changeStatus(
+        appointment.id,
+        { status: 'In Progress' },
+        profileId,
+        'dd-p',
+      );
+      await appointmentService.changeStatus(
+        appointment.id,
+        { status: 'Completed', reason: 'Visit done' },
+        profileId,
+        'dd-c',
+      );
+      const created = await jobCardService.create(appointment.id, {}, profileId, 'dd-job');
+      assert.equal(created.deliveryDate, null);
+      await jobCardService.updateContent(
+        created.id,
+        { jobFinalStatus: 'Repair Completed', paymentBy: 'Sales channel' },
+        profileId,
+        'dd-rc',
+      );
+      const delivered = await jobCardService.updateContent(
+        created.id,
+        { jobFinalStatus: 'Delivered', paymentBy: 'Sales channel' },
+        profileId,
+        'dd-del',
+      );
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(new Date());
+      assert.equal(delivered.deliveryDate, today);
+    } finally {
+      await pool.end();
+    }
+  },
+);

@@ -543,6 +543,17 @@ export async function setServiceJobCardFinalStatus(
   ]);
 }
 
+export async function setServiceJobCardDeliveryDateIfBlank(
+  client: PoolClient,
+  id: string,
+  deliveryDate: string,
+): Promise<void> {
+  await client.query(
+    'UPDATE service_job_cards SET delivery_date = $2 WHERE id = $1 AND delivery_date IS NULL',
+    [id, deliveryDate],
+  );
+}
+
 export async function insertServiceJobCardHistory(
   client: PoolClient,
   jobCardId: string,

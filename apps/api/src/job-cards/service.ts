@@ -24,6 +24,7 @@ import {
   listServiceJobCardHistory,
   listServiceJobCards,
   setServiceJobCardFinalStatus,
+  setServiceJobCardDeliveryDateIfBlank,
   updateServiceJobCardBilling,
   updateServiceJobCardContent,
   updateServiceJobCardStatus,
@@ -427,6 +428,13 @@ function splitBilling<T extends Record<string, unknown>>(
   };
 }
 
+/** Today's date in the business time zone (Dubai), as YYYY-MM-DD. */
+function businessToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.BUSINESS_TIMEZONE || 'Asia/Dubai',
+  }).format(new Date());
+}
+
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
@@ -451,6 +459,11 @@ function mergeContent(
     isMdaGroup(merged.mainGroup) && mdaRate !== null ? mdaRate : (merged.serviceCharge ?? 0);
   const { totalCost, grandTotal } = computeTotals(parts, serviceCharge);
   if (createdAt) merged.periodFrom = createdAt;
+  // The delivery date is captured by the system when the job is Delivered,
+  // unless a date was entered by hand.
+  if (merged.jobFinalStatus === 'Delivered' && !merged.deliveryDate) {
+    merged.deliveryDate = businessToday();
+  }
   merged.parts = parts;
   merged.serviceCharge = serviceCharge;
   merged.totalCost = totalCost;
@@ -1014,7 +1027,7 @@ export function createServiceJobCardService(pool: Pool) {
         await mdaRate(),
       );
       if (nextFinal === 'Delivered' && !content.deliveryDate) {
-        content.deliveryDate = new Date().toISOString().slice(0, 10);
+        content.deliveryDate = businessToday();
       }
       let jobCard = await updateServiceJobCardContent(client, id, content, profileId);
       if (!jobCard)
@@ -1152,7 +1165,10 @@ export function createServiceJobCardService(pool: Pool) {
       const result = await updateServiceJobCardStatus(client, id, data, profileId, finalized);
       if (!result)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
-      if (data.status === 'Completed') await setServiceJobCardFinalStatus(client, id, 'Delivered');
+      if (data.status === 'Completed') {
+        await setServiceJobCardFinalStatus(client, id, 'Delivered');
+        await setServiceJobCardDeliveryDateIfBlank(client, id, businessToday());
+      }
       if (data.status === 'Cancelled') await setServiceJobCardFinalStatus(client, id, 'Cancelled');
       await insertServiceJobCardHistory(
         client,
