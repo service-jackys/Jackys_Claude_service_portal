@@ -62,6 +62,7 @@ export function createWarrantyApprovalService(pool: Pool) {
         customerName = customerName ?? quotation.customerName;
         contactNumber = contactNumber ?? quotation.contactNumber;
         itemDescription = itemDescription ?? quotation.projectName;
+        warrantyStatus = warrantyStatus ?? quotation.warrantyStatus;
         estimatedCost = estimatedCost ?? (Number(quotation.grandTotal) || null);
       } else if (data.inspectionId) {
         const inspection = await findInspectionById(client, data.inspectionId);

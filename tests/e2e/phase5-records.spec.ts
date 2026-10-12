@@ -295,6 +295,7 @@ test.describe('warranty approvals workspace', () => {
               customerName: 'Beta School',
               contactNumber: '0509998888',
               projectName: 'Beta Campus',
+              warrantyStatus: 'Out Warranty',
               grandTotal: '1200.00',
             },
           ],
@@ -327,6 +328,7 @@ test.describe('warranty approvals workspace', () => {
     await expect(page.locator('#waJobCardRef')).toHaveValue('');
     await expect(page.locator('#waCustomerName')).toHaveValue('Beta School');
     await expect(page.locator('#waItemDescription')).toHaveValue('Beta Campus');
+    await expect(page.locator('#waWarrantyStatus')).toHaveValue('Out Warranty');
     await expect(page.locator('#waEstimatedCost')).toHaveValue('1200');
 
     await page

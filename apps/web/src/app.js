@@ -1770,6 +1770,7 @@
         <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
         <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+        <div class="field"><label for="${prefix}WarrantyStatus">Warranty status ${tipHtml('The service job warranty status. Out-of-warranty approval requests raised from this quotation pull it in automatically.')}</label><select id="${prefix}WarrantyStatus"><option value="">Select</option><option>In Warranty</option><option>Out Warranty</option></select></div>
       </div>
       <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}TechnicalDiagnosis">Technical diagnosis</label><textarea id="${prefix}TechnicalDiagnosis" maxlength="10000"></textarea></div>
@@ -1880,6 +1881,7 @@
     $(`#${prefix}TechnicianName`).value = q.technicianName || '';
     $(`#${prefix}CustomerComplaint`).value = q.customerComplaint || '';
     $(`#${prefix}TechnicalDiagnosis`).value = q.technicalDiagnosis || '';
+    $(`#${prefix}WarrantyStatus`).value = q.warrantyStatus || '';
     $(`#${prefix}LabourAmount`).value = q.labourAmount || 0;
     $(`#${prefix}PreparedBy`).value = q.preparedBy || '';
     $(`#${prefix}PreparedDate`).value = (q.preparedDate || '').slice(0, 10);
@@ -1925,6 +1927,7 @@
       technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
       customerComplaint: $(`#${prefix}CustomerComplaint`).value.trim() || undefined,
       technicalDiagnosis: $(`#${prefix}TechnicalDiagnosis`).value.trim() || undefined,
+      warrantyStatus: $(`#${prefix}WarrantyStatus`).value || undefined,
       products: lineItemsState[`${prefix}Products`].map((item) => ({
         partNo: item.partNo,
         description: item.description,
@@ -1958,7 +1961,7 @@
         <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
         <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
-        <div class="field"><label for="${prefix}WarrantyStatus">Warranty status</label><input type="text" id="${prefix}WarrantyStatus" maxlength="50"></div>
+        <div class="field"><label for="${prefix}WarrantyStatus">Warranty status ${tipHtml('The service job warranty status. Out-of-warranty approval requests raised from a quotation or job pull it in automatically.')}</label><select id="${prefix}WarrantyStatus"><option value="">Select</option><option>In Warranty</option><option>Out Warranty</option></select></div>
       </div>
       <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}VisualFindings">Visual findings</label><textarea id="${prefix}VisualFindings" maxlength="10000"></textarea></div>
@@ -2032,7 +2035,14 @@
     $(`#${prefix}SiteLocation`).value = i.siteLocation || '';
     $(`#${prefix}DateOfCollection`).value = (i.dateOfCollection || '').slice(0, 10);
     $(`#${prefix}TechnicianName`).value = i.technicianName || '';
-    $(`#${prefix}WarrantyStatus`).value = i.warrantyStatus || '';
+    const warrantySelect = $(`#${prefix}WarrantyStatus`);
+    if (
+      i.warrantyStatus &&
+      ![...warrantySelect.options].some((o) => o.value === i.warrantyStatus)
+    ) {
+      warrantySelect.add(new Option(i.warrantyStatus, i.warrantyStatus));
+    }
+    warrantySelect.value = i.warrantyStatus || '';
     $(`#${prefix}CustomerComplaint`).value = i.customerComplaint || '';
     $(`#${prefix}VisualFindings`).value = i.visualFindings || '';
     $(`#${prefix}TechnicalDiagnosis`).value = i.technicalDiagnosis || '';
@@ -2071,7 +2081,7 @@
       siteLocation: $(`#${prefix}SiteLocation`).value.trim() || undefined,
       dateOfCollection: $(`#${prefix}DateOfCollection`).value || undefined,
       technicianName: $(`#${prefix}TechnicianName`).value.trim() || undefined,
-      warrantyStatus: $(`#${prefix}WarrantyStatus`).value.trim() || undefined,
+      warrantyStatus: $(`#${prefix}WarrantyStatus`).value || undefined,
       customerComplaint: $(`#${prefix}CustomerComplaint`).value.trim() || undefined,
       visualFindings: $(`#${prefix}VisualFindings`).value.trim() || undefined,
       technicalDiagnosis: $(`#${prefix}TechnicalDiagnosis`).value.trim() || undefined,
@@ -2599,6 +2609,7 @@ ${bodyHtml}
         ['Site / location', quotation.siteLocation],
         ['Date of collection', quotation.dateOfCollection],
         ['Technician', quotation.technicianName],
+        ['Warranty status', quotation.warrantyStatus],
       ])}
       ${printTextBlock('Customer complaint', quotation.customerComplaint)}
       ${printTextBlock('Technical diagnosis', quotation.technicalDiagnosis)}
@@ -4059,7 +4070,7 @@ ${bodyHtml}
         waCustomerName: row.customerName,
         waContactNumber: row.contactNumber,
         waItemDescription: row.projectName,
-        waWarrantyStatus: '',
+        waWarrantyStatus: row.warrantyStatus,
         waEstimatedCost: Number(row.grandTotal) || '',
       }),
     },

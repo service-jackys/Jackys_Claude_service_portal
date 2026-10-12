@@ -2678,3 +2678,11 @@ Warranty approvals now has two tabs, **Approval requests** and **New approval re
 
 **Needs you:** hard-refresh. No restart or migration.
 
+## Modification #98 — Warranty status on Quotations and Inspections
+
+Quotations and Inspections now have a **Warranty status** drop-down (In Warranty / Out Warranty), with an (i) tooltip, next to Technician. Quotations store it for the first time (migration 039); Inspections already stored it as free text and now use the same drop-down (any older value already saved is kept and shown). It appears on the printed quotation as well. In **Warranty approvals → New approval request**, picking a quotation now pulls its warranty status into the Warranty status box (as picking a job card already did); the server also fills it from the quotation if left blank.
+
+Test: tests/e2e/phase5-records.spec.ts (quotation pick fills warranty status).
+
+**Needs you:** run `npm.cmd run db:migrate` (039), restart the API, hard-refresh.
+

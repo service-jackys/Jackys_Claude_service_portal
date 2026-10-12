@@ -14,6 +14,7 @@ export type QuotationRecord = {
   technicianName: string | null;
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
+  warrantyStatus: string | null;
   products: JobCardPart[];
   parts: JobCardPart[];
   labourAmount: string;
@@ -42,6 +43,7 @@ export type QuotationContent = {
   technicianName: string | null;
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
+  warrantyStatus: string | null;
   products: JobCardPart[];
   parts: JobCardPart[];
   labourAmount: number;
@@ -68,6 +70,7 @@ const columns = `
   technician_name AS "technicianName",
   customer_complaint AS "customerComplaint",
   technical_diagnosis AS "technicalDiagnosis",
+  warranty_status AS "warrantyStatus",
   products,
   parts,
   labour_amount AS "labourAmount",
@@ -96,13 +99,13 @@ export async function insertQuotation(
        project_name, site_location, date_of_collection, technician_name, customer_complaint,
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
-       legacy_reference, created_by, updated_by
+       legacy_reference, warranty_status, created_by, updated_by
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $23, $23
+       $22, $23, $24, $24
      )
      RETURNING id`,
     [
@@ -128,6 +131,7 @@ export async function insertQuotation(
       c.customerSignature,
       c.signatureDate,
       c.legacyReference,
+      c.warrantyStatus,
       input.createdBy,
     ],
   );
@@ -149,7 +153,7 @@ export async function updateQuotation(
          customer_complaint = $10, technical_diagnosis = $11, products = $12, parts = $13,
          labour_amount = $14, grand_total = $15, prepared_by = $16, prepared_date = $17,
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
-         legacy_reference = $22, updated_by = $23, updated_at = now()
+         legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -175,6 +179,7 @@ export async function updateQuotation(
       content.customerSignature,
       content.signatureDate,
       content.legacyReference,
+      content.warrantyStatus,
       profileId,
     ],
   );

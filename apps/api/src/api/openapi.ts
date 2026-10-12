@@ -894,6 +894,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             technicianName: { type: 'string', minLength: 1, maxLength: 120 },
             customerComplaint: { type: 'string', minLength: 1, maxLength: 10000 },
             technicalDiagnosis: { type: 'string', minLength: 1, maxLength: 10000 },
+            warrantyStatus: { type: 'string', enum: ['In Warranty', 'Out Warranty'] },
             products: {
               type: 'array',
               maxItems: 50,

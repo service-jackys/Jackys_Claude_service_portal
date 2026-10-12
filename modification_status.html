@@ -3417,6 +3417,24 @@
           <li>Hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#98 &mdash; Warranty status on Quotations and Inspections</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-12 &middot; web, API and migration 039</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Warranty status drop-down (In / Out Warranty) on Quotations and Inspections, with a tooltip; shown on the printed quotation.</li>
+          <li>Approval requests pull the warranty status from the picked quotation (and from a job card, as before).</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate, restart the API and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

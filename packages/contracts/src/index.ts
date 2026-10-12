@@ -476,6 +476,7 @@ export const quotationWriteSchema = z
     technicianName: optionalText(120),
     customerComplaint: optionalText(10000),
     technicalDiagnosis: optionalText(10000),
+    warrantyStatus: z.enum(warrantyStatuses).optional(),
     products: z.array(jobCardPartSchema).max(50).optional(),
     parts: z.array(jobCardPartSchema).max(50).optional(),
     labourAmount: z.number().min(0).max(10000000).optional(),
