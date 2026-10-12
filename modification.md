@@ -2622,3 +2622,9 @@ When a service job card is created from a completed appointment, the form now lo
 Clicking "Awaiting job card" on the Dashboard opened the Service job cards page with the filter set correctly, but the list showed all job cards. Opening the page and the tile click each started a load; the slower all-status response arrived last and overwrote the filtered list. The job card list now ignores any load that has been superseded by a newer one. Regression test added in tests/e2e/phase5-records.spec.ts (it fails without the fix).
 
 **Needs you:** hard-refresh. No restart or migration.
+
+## Modification #91 — Dashboard Service job cards now show WIP and the other job statuses
+
+The Service job cards block on the Dashboard counted job cards by the record status (Open / Completed / Cancelled), so WIP, Spare pending, BER, Rejected, Repair Completed and Delivered never appeared. It now counts by job status, the same value the Service job cards list filters on, shown in workflow order (WIP, Spare pending, BER, Rejected, Repair Completed, Delivered, Cancelled). Clicking a tile opens the list filtered to that status. Test: tests/integration/dashboard-job-status.test.ts.
+
+**Needs you:** restart the API and hard-refresh. No migration.

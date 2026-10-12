@@ -38,6 +38,27 @@ async function statusCounts(
   return { byStatus, total };
 }
 
+const JOB_STATUS_ORDER = [
+  'WIP',
+  'Spare pending',
+  'BER',
+  'Rejected',
+  'Repair Completed',
+  'Delivered',
+  'Cancelled',
+];
+
+/** Workflow order for the job status tiles, unknown statuses last. */
+function orderJobStatuses(byStatus: StatusCounts): StatusCounts {
+  const rank = (status: string) => {
+    const index = JOB_STATUS_ORDER.indexOf(status);
+    return index === -1 ? JOB_STATUS_ORDER.length : index;
+  };
+  return Object.fromEntries(
+    Object.entries(byStatus).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)),
+  );
+}
+
 async function simpleTotal(client: PoolClient, table: string): Promise<number> {
   const result = await client.query<{ count: string }>(
     `SELECT count(*)::text AS count FROM ${table}`,
@@ -89,7 +110,9 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
         `SELECT count(*)::text AS count FROM appointments WHERE appointment_date = current_date`,
       )
       .then((result) => Number(result.rows[0].count)),
-    statusCounts(client, 'service_job_cards'),
+    // Job cards are tracked by their job status (WIP, Spare pending, ..., Delivered),
+    // the same value the Service job cards list filters on.
+    statusCounts(client, 'service_job_cards', 'job_final_status'),
     client
       .query<{ count: string }>(
         `SELECT count(*)::text AS count FROM appointments
@@ -115,7 +138,11 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
   return {
     complaints,
     appointments: { ...appointments, today: appointmentsToday },
-    jobCards: { ...jobCards, awaitingCreation: jobCardsAwaiting },
+    jobCards: {
+      ...jobCards,
+      byStatus: orderJobStatuses(jobCards.byStatus),
+      awaitingCreation: jobCardsAwaiting,
+    },
     quotations: { total: quotationsTotal, thisMonth: quotationsMonth },
     inspections: { total: inspectionsTotal, thisMonth: inspectionsMonth },
     warrantyApprovals,
