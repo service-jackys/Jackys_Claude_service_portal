@@ -3452,6 +3452,26 @@
           <li>Run npm.cmd run db:migrate.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#100 &mdash; Customer approval workflow</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-12 &middot; web, API and migration 041</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>New job status "Customer approval pending" (drop-down, filter, dashboard tile, job guide). Approval requests list only these jobs.</li>
+          <li>Approval status shows in the Quotations list and detail and in a Customer approval section on the job card, with links between job, quotation and approval request.</li>
+          <li>Jobs made from a quotation start in Customer approval pending and move to WIP automatically when the customer approves.</li>
+          <li>Manual approval: record Phone / Email / WhatsApp / In person / Other on the approval request; moving a job to WIP by hand opens a pop-up for the method, note and optional attachment.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate, restart the API and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

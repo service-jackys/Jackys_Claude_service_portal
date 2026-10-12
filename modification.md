@@ -2692,3 +2692,23 @@ Creating a warranty approval request failed with "new row for relation reference
 
 **Needs you:** run `npm.cmd run db:migrate` (038, 039 and 040 if not yet run). No restart needed beyond that.
 
+## Modification #100 — Customer approval workflow (new job status "Customer approval pending")
+
+**New job status.** "Customer approval pending" sits before WIP. It appears in the job status drop-down, the Service job cards filter, the dashboard job tiles (click to open the filtered list) and the job guide.
+
+**Out-of-warranty approval request.** The Job card box now lists only jobs in Customer approval pending (no longer WIP). Picking a quotation works as before.
+
+**Approval result shows everywhere.**
+- Quotations: new Approval column in the list; the quotation detail shows the status, how it was given and a link to the approval request.
+- Service job card: a new Customer approval section, plus links in the header to the approval request and the quotation. The approval request links back to its job card and quotation.
+
+**Job cards made from a quotation** start in Customer approval pending (they start in WIP only if the quotation's approval request is already Approved). When the customer approves, through the link or recorded by staff, the job moves to WIP by itself and the history notes it. A declined request leaves the job where it is.
+
+**Manual approvals.**
+- On a pending approval request there is now "Record the customer's decision": Approved or Declined, how it was given (Phone, Email, WhatsApp, In person, Other), who gave it and notes. Customer-link decisions are recorded as "Customer link".
+- Moving a job from Customer approval pending to WIP by hand opens a pop-up asking how the customer approved (required), a note, and an optional attachment. The attachment is saved to the job card first, then the job moves to WIP. The way it was approved is stored as an approved request, so the job and quotation show it. The API refuses the move without a method.
+
+Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warranty-approval-sources.test.ts, tests/e2e/phase5-records.spec.ts (pop-up; quotation approval display), tests/contracts.test.ts.
+
+**Needs you:** run `npm.cmd run db:migrate` (038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs keep their status; only new quotation jobs start in Customer approval pending.
+

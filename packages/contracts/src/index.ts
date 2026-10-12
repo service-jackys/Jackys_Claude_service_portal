@@ -275,6 +275,7 @@ const dateSchema = z
 // A separate concept from serviceJobCardStatuses above: this is the outcome/
 // diagnostic field a CCE sets as work progresses, not the workflow-lock state.
 export const jobFinalStatuses = [
+  'Customer approval pending',
   'WIP',
   'Spare pending',
   'BER',
@@ -283,6 +284,19 @@ export const jobFinalStatuses = [
   'Delivered',
   'Cancelled',
 ] as const;
+// How an approval was given: the customer's own link, or recorded by staff
+// when the customer approved by another channel.
+export const approvalMethods = [
+  'Customer link',
+  'Phone',
+  'Email',
+  'WhatsApp',
+  'In person',
+  'Other',
+] as const;
+export const manualApprovalMethods = ['Phone', 'Email', 'WhatsApp', 'In person', 'Other'] as const;
+export type ApprovalMethod = (typeof approvalMethods)[number];
+
 export const warrantyStatuses = ['In Warranty', 'Out Warranty'] as const;
 export const paymentByOptions = ['Sales channel', 'Customer'] as const;
 export const paymentModes = ['Cash', 'Online', 'Bank transfer', 'Card'] as const;
@@ -308,7 +322,7 @@ export function serviceJobCardStatusForFinal(
   current: ServiceJobCardStatus,
 ): ServiceJobCardStatus {
   if (final === 'Cancelled') return 'Cancelled';
-  if (final === 'WIP' || final === 'Spare pending') {
+  if (final === 'Customer approval pending' || final === 'WIP' || final === 'Spare pending') {
     return current === 'Open' ? 'Open' : 'In Progress';
   }
   return 'Completed';
@@ -455,7 +469,15 @@ export const walkInJobCardCreateSchema = z
   });
 export type WalkInJobCardCreateInput = z.infer<typeof walkInJobCardCreateSchema>;
 
-export const serviceJobCardUpdateSchema = z.object(jobCardContentFields).strict();
+// approvalMethod / approvalNotes accompany a manual move from "Customer approval
+// pending" to WIP: how the customer approved when they did not use the link.
+export const serviceJobCardUpdateSchema = z
+  .object({
+    ...jobCardContentFields,
+    approvalMethod: z.enum(manualApprovalMethods).optional(),
+    approvalNotes: optionalText(2000),
+  })
+  .strict();
 export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchema>;
 
 // Quotation and inspection records (Phase 5 -- docs/DEVELOPMENT_PLAN.md),
@@ -903,6 +925,19 @@ export const warrantyApprovalListQuerySchema = z
 // Submitted by the customer through the unauthenticated approval link --
 // deliberately a small, separate shape from the create schema above (no
 // reference to internal record ids, no cost editing).
+// Staff record an approval or refusal the customer gave outside the link.
+export const warrantyApprovalManualDecisionSchema = z
+  .object({
+    decision: z.enum(['Approved', 'Declined']),
+    method: z.enum(manualApprovalMethods),
+    decidedByName: optionalText(200),
+    decisionNotes: optionalText(2000),
+  })
+  .strict();
+export type WarrantyApprovalManualDecisionInput = z.infer<
+  typeof warrantyApprovalManualDecisionSchema
+>;
+
 export const warrantyApprovalDecisionSchema = z
   .object({
     decision: z.enum(['Approved', 'Declined']),

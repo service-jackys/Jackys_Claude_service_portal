@@ -86,6 +86,11 @@ test('job final status drives the internal job-card status', () => {
   assert.ok(jobFinalStatuses.includes('Delivered'));
   assert.equal(serviceJobCardStatusForFinal('WIP', 'Open'), 'Open');
   assert.equal(serviceJobCardStatusForFinal('Spare pending', 'Completed'), 'In Progress');
+  assert.equal(serviceJobCardStatusForFinal('Customer approval pending', 'Open'), 'Open');
+  assert.equal(
+    serviceJobCardStatusForFinal('Customer approval pending', 'In Progress'),
+    'In Progress',
+  );
   assert.equal(serviceJobCardStatusForFinal('Repair Completed', 'In Progress'), 'Completed');
   assert.equal(serviceJobCardStatusForFinal('Delivered', 'Completed'), 'Completed');
   assert.equal(serviceJobCardStatusForFinal('Cancelled', 'Open'), 'Cancelled');

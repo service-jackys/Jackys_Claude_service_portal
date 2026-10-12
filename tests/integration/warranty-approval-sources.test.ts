@@ -9,7 +9,7 @@ import { migrate } from '../../packages/db/src/migrate.js';
 const databaseUrl = process.env.DATABASE_URL;
 
 test(
-  'approval requests accept a quotation source and the job picker lists WIP or out-of-warranty jobs',
+  'approval requests accept a quotation source and the job picker lists only jobs awaiting customer approval',
   { skip: !databaseUrl, concurrency: false },
   async (context) => {
     try {
@@ -24,14 +24,14 @@ test(
     const pool = createDbPool(databaseUrl);
     const client = await pool.connect();
     const suffix = String(Math.floor(Math.random() * 90000) + 10000);
-    const wip = `WJC-2098-${suffix}`;
-    const delivered = `WJC-2097-${suffix}`;
+    const pending = `WJC-2098-${suffix}`;
+    const inProgress = `WJC-2097-${suffix}`;
     const quotationReference = `QO-2098-${suffix}`;
     try {
       await client.query(
         `INSERT INTO service_job_cards (job_card_reference, source_type, job_final_status, status)
-         VALUES ($1, 'Walk-in', 'WIP', 'Open'), ($2, 'Walk-in', 'Delivered', 'Open')`,
-        [wip, delivered],
+         VALUES ($1, 'Walk-in', 'Customer approval pending', 'Open'), ($2, 'Walk-in', 'WIP', 'Open')`,
+        [pending, inProgress],
       );
       const picker = await listServiceJobCards(client, {
         forApproval: true,
@@ -39,8 +39,8 @@ test(
         pageSize: 100,
       });
       const references = picker.items.map((row) => row.jobCardReference);
-      assert.ok(references.includes(wip));
-      assert.ok(!references.includes(delivered));
+      assert.ok(references.includes(pending));
+      assert.ok(!references.includes(inProgress));
 
       const allocated = await allocateWarrantyApprovalReference(client, '2098-01-01');
       assert.match(allocated, /^WA-2098-\d{5}$/);
@@ -75,7 +75,7 @@ test(
       await client.query(`DELETE FROM profiles WHERE id = $1`, [profile.rows[0].id]);
     } finally {
       await client.query(`DELETE FROM service_job_cards WHERE job_card_reference = ANY($1)`, [
-        [wip, delivered],
+        [pending, inProgress],
       ]);
       client.release();
       await pool.end();

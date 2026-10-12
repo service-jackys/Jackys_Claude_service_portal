@@ -3665,6 +3665,8 @@
         background: color-mix(in srgb, var(--st-progress) 16%, transparent);
         color: var(--st-progress);
       }
+      .status-customer-approval-pending,
+      .status-pending,
       .status-spare-pending {
         background: color-mix(in srgb, var(--warning) 18%, transparent);
         color: var(--warning);
@@ -7067,6 +7069,7 @@
                   ><select id="jobCardStatusFilter">
                     <option value="">All statuses</option>
                     <option value="awaiting-job-card">Awaiting job card</option>
+                    <option>Customer approval pending</option>
                     <option>WIP</option>
                     <option>Spare pending</option>
                     <option>BER</option>
@@ -7245,6 +7248,7 @@
                         <th>Reference</th>
                         <th>Customer</th>
                         <th>Project / site</th>
+                        <th>Approval</th>
                         <th>Updated</th>
                       </tr>
                     </thead>
@@ -7286,6 +7290,7 @@
                     <div>
                       <h3 id="quotationDetailHeading">Quotation details</h3>
                       <p id="quotationJobCardStatus"></p>
+                      <p id="quotationApprovalStatus"></p>
                     </div>
                     <div>
                       <button class="button button-outline" type="button" id="printQuotationButton">
@@ -7554,9 +7559,9 @@
                           <span class="tooltip" tabindex="0"
                             ><span class="tooltip-icon" aria-hidden="true">i</span
                             ><span class="tooltip-bubble" role="tooltip"
-                              >Lists service job cards that are WIP or out of warranty. Pick one to
-                              fill customer, contact, item, warranty status and cost below. Use
-                              either a job card or a quotation, not both.</span
+                              >Lists service job cards whose status is Customer approval pending.
+                              Pick one to fill customer, contact, item, warranty status and cost
+                              below. Use either a job card or a quotation, not both.</span
                             ></span
                           ></label
                         >
@@ -7654,7 +7659,69 @@
                       Close details
                     </button>
                   </div>
+                  <div
+                    class="workflow-links"
+                    id="warrantyApprovalWorkflowLinks"
+                    aria-label="Related records"
+                    hidden
+                  ></div>
                   <div class="detail-grid" id="warrantyApprovalDetailGrid"></div>
+                  <section
+                    class="detail-action-card"
+                    id="warrantyApprovalManualPanel"
+                    aria-labelledby="warrantyApprovalManualHeading"
+                    hidden
+                  >
+                    <h4 id="warrantyApprovalManualHeading">
+                      Record the customer's decision
+                      <span class="tooltip" tabindex="0"
+                        ><span class="tooltip-icon" aria-hidden="true">i</span
+                        ><span class="tooltip-bubble" role="tooltip"
+                          >Use this when the customer approved or declined by phone, email, WhatsApp
+                          or in person instead of using the link. An approval moves a job waiting
+                          for customer approval to WIP.</span
+                        ></span
+                      >
+                    </h4>
+                    <form id="warrantyApprovalManualForm" novalidate>
+                      <div class="field-grid">
+                        <div class="field">
+                          <label for="waManualDecision">Decision</label>
+                          <select id="waManualDecision">
+                            <option value="Approved">Approved</option>
+                            <option value="Declined">Declined</option>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label for="waManualMethod">How was it given?</label>
+                          <select id="waManualMethod">
+                            <option>Phone</option>
+                            <option>Email</option>
+                            <option>WhatsApp</option>
+                            <option>In person</option>
+                            <option>Other</option>
+                          </select>
+                        </div>
+                        <div class="field">
+                          <label for="waManualBy">Given by (customer contact)</label>
+                          <input type="text" id="waManualBy" maxlength="200" />
+                        </div>
+                      </div>
+                      <div class="field">
+                        <label for="waManualNotes">Decision notes</label>
+                        <textarea id="waManualNotes" maxlength="2000"></textarea>
+                      </div>
+                      <div class="form-footer">
+                        <button
+                          class="button button-primary"
+                          type="submit"
+                          id="submitWarrantyApprovalManualButton"
+                        >
+                          Record decision
+                        </button>
+                      </div>
+                    </form>
+                  </section>
                   <div class="field" id="warrantyApprovalLinkField">
                     <label for="warrantyApprovalLinkInput">Customer approval link</label>
                     <div style="display: flex; gap: 8px">

@@ -26,6 +26,11 @@ export type QuotationRecord = {
   customerSignature: string | null;
   signatureDate: string | null;
   legacyReference: string | null;
+  // Newest out-of-warranty approval request raised against this quotation.
+  approvalId: string | null;
+  approvalReference: string | null;
+  approvalStatus: string | null;
+  approvalMethod: string | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -71,6 +76,14 @@ const columns = `
   customer_complaint AS "customerComplaint",
   technical_diagnosis AS "technicalDiagnosis",
   warranty_status AS "warrantyStatus",
+  (SELECT wa.id FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
+    ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalId",
+  (SELECT wa.approval_reference FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
+    ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalReference",
+  (SELECT wa.status FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
+    ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalStatus",
+  (SELECT wa.decision_method FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
+    ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalMethod",
   products,
   parts,
   labour_amount AS "labourAmount",

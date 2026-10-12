@@ -117,7 +117,8 @@ export type RouteDefinition = {
     | 'rateCardSale'
     | 'thomsonSale'
     | 'warrantyApprovalCreate'
-    | 'warrantyApprovalDecision';
+    | 'warrantyApprovalDecision'
+    | 'warrantyApprovalManualDecision';
   parameters?: object[];
   responseContentType?: string;
   responses: number[];
@@ -2889,6 +2890,19 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: warrantyApprovalHandlers.detail,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/warranty-approvals/{id}/decision',
+        operationId: 'recordWarrantyApprovalDecision',
+        tags: ['Warranty Approvals'],
+        summary:
+          'Record an approval or refusal the customer gave by phone, email, WhatsApp or in person',
+        security: 'bearerAuth' as const,
+        requestBody: 'warrantyApprovalManualDecision' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: warrantyApprovalHandlers.recordDecision,
       },
       {
         method: 'get' as const,

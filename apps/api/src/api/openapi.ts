@@ -321,6 +321,14 @@ const requestBodies = {
       },
     },
   },
+  warrantyApprovalManualDecision: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/WarrantyApprovalManualDecisionRequest' },
+      },
+    },
+  },
   warrantyApprovalDecision: {
     required: true,
     content: {
@@ -749,6 +757,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             jobFinalStatus: {
               type: 'string',
               enum: [
+                'Customer approval pending',
                 'WIP',
                 'Spare pending',
                 'BER',
@@ -814,9 +823,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             brand: { type: 'string', minLength: 1, maxLength: 120 },
             salesman: { type: 'string', minLength: 1, maxLength: 200 },
             salesChannel: { type: 'string', minLength: 1, maxLength: 200 },
+            approvalMethod: {
+              type: 'string',
+              enum: ['Phone', 'Email', 'WhatsApp', 'In person', 'Other'],
+            },
+            approvalNotes: { type: 'string', minLength: 1, maxLength: 2000 },
             jobFinalStatus: {
               type: 'string',
               enum: [
+                'Customer approval pending',
                 'WIP',
                 'Spare pending',
                 'BER',
@@ -1178,6 +1193,17 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             warrantyStatus: { type: 'string', minLength: 1, maxLength: 50 },
             estimatedCost: { type: 'number', minimum: 0, maximum: 10000000 },
             notes: { type: 'string', minLength: 1, maxLength: 2000 },
+          },
+        },
+        WarrantyApprovalManualDecisionRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['decision', 'method'],
+          properties: {
+            decision: { type: 'string', enum: ['Approved', 'Declined'] },
+            method: { type: 'string', enum: ['Phone', 'Email', 'WhatsApp', 'In person', 'Other'] },
+            decidedByName: { type: 'string', minLength: 1, maxLength: 200 },
+            decisionNotes: { type: 'string', minLength: 1, maxLength: 2000 },
           },
         },
         WarrantyApprovalDecisionRequest: {

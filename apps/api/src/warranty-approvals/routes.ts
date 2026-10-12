@@ -75,6 +75,28 @@ export function createWarrantyApprovalHandlers(
         }
       },
     ],
+    recordDecision: [
+      requirePermission('warranty_approval.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const approval = await service.recordDecision(
+            String(request.params.id),
+            request.body,
+            auth.profileId,
+            auth.displayName,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.json({ approval });
+        } catch (error) {
+          if (error instanceof WarrantyApprovalError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     publicDetail: [
       async (request, response, next) => {
         try {

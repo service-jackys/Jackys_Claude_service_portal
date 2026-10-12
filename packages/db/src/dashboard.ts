@@ -39,6 +39,7 @@ async function statusCounts(
 }
 
 const JOB_STATUS_ORDER = [
+  'Customer approval pending',
   'WIP',
   'Spare pending',
   'BER',

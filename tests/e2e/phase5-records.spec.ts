@@ -279,7 +279,7 @@ test.describe('warranty approvals workspace', () => {
               customerContact: '0501112222',
               itemDescription: 'Split AC 2T',
               warrantyStatus: 'Out Warranty',
-              jobFinalStatus: 'WIP',
+              jobFinalStatus: 'Customer approval pending',
               grandTotal: '350.00',
             },
           ],
@@ -722,6 +722,169 @@ test.describe('operational dashboard', () => {
     await expect(page.locator('#jceBrand')).toHaveClass(/master-filled/);
     await expect(page.locator('#jceSalesman')).toHaveClass(/master-filled/);
     await expect(page.locator('#jceSerialNo')).not.toHaveClass(/master-filled/);
+  });
+});
+
+test.describe('customer approval workflow', () => {
+  test('moving a job from Customer approval pending to WIP asks how the customer approved', async ({
+    page,
+  }) => {
+    let card: Record<string, unknown> = {
+      id: '811',
+      jobCardReference: 'JBC-2026-00811',
+      customerName: 'Approval Customer',
+      contactNumber: '0500000811',
+      status: 'Open',
+      jobFinalStatus: 'Customer approval pending',
+      quotationId: '95',
+      quotationReference: 'QO-2026-00095',
+      parts: [],
+      createdAt: '2026-10-05T08:00:00.000Z',
+      updatedAt: '2026-10-05T08:00:00.000Z',
+    };
+    let patched: Record<string, unknown> | null = null;
+    let uploads = 0;
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          [
+            'service_job_card.read',
+            'service_job_card.write',
+            'warranty_approval.read',
+            'quotation.read',
+          ],
+          'Job Operator',
+          'jobs@jackys.com',
+        )
+      )
+        return;
+      const json = (body: unknown) =>
+        route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await json({
+          jobCards: [card],
+          pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/811' && request.method() === 'GET') {
+        await json({
+          jobCard: card,
+          history: [],
+          approval: {
+            id: '31',
+            approvalReference: 'WA-2026-00031',
+            status: 'Pending',
+          },
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/811' && request.method() === 'PATCH') {
+        patched = request.postDataJSON();
+        card = { ...card, jobFinalStatus: 'WIP' };
+        await json({ jobCard: card });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/811/attachments') {
+        if (request.method() === 'POST') uploads += 1;
+        await json(request.method() === 'POST' ? { attachment: { id: '1' } } : { attachments: [] });
+        return;
+      }
+      await route.continue();
+    });
+    await signIn(page, 'jobs@jackys.com');
+    await page.getByRole('button', { name: 'JBC-2026-00811' }).click();
+    await expect(page.locator('#jobCardWorkflowLinks')).toContainText('WA-2026-00031');
+    await expect(page.locator('#jobCardWorkflowLinks')).toContainText('QO-2026-00095');
+    await expect(page.locator('#jceJobFinalStatus')).toHaveValue('Customer approval pending');
+
+    await page.locator('#jceJobFinalStatus').selectOption('WIP');
+    await page.locator('#jobCardContentForm').getByRole('button', { name: /Save/ }).click();
+    const dialog = page.locator('dialog[open].pw-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole('button', { name: /Confirm/ }).click();
+    await expect(dialog.locator('#caError')).toHaveText('Choose how the customer approved.');
+    expect(patched).toBeNull();
+
+    await dialog.locator('#caMethod').selectOption('Email');
+    await dialog.locator('#caNotes').fill('Mail from the principal');
+    await dialog.locator('#caFile').setInputFiles({
+      name: 'approval.txt',
+      mimeType: 'text/plain',
+      buffer: Buffer.from('approved'),
+    });
+    await dialog.getByRole('button', { name: /Confirm/ }).click();
+    await expect.poll(() => patched).not.toBeNull();
+    expect(patched).toMatchObject({
+      jobFinalStatus: 'WIP',
+      approvalMethod: 'Email',
+      approvalNotes: 'Mail from the principal',
+    });
+    expect(uploads).toBe(1);
+  });
+
+  test('quotation list and detail show the customer approval status', async ({ page }) => {
+    const quotation = {
+      id: '95',
+      quotationReference: 'QO-2026-00095',
+      customerName: 'Gems School',
+      contactNumber: '0500000095',
+      projectName: 'Gems Campus',
+      siteLocation: 'RAK',
+      warrantyStatus: 'Out Warranty',
+      products: [],
+      parts: [],
+      labourAmount: '0',
+      grandTotal: '0',
+      approvalId: '31',
+      approvalReference: 'WA-2026-00031',
+      approvalStatus: 'Approved',
+      approvalMethod: 'Phone',
+      updatedAt: '2026-10-05T08:00:00.000Z',
+    };
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['quotation.read', 'quotation.write', 'warranty_approval.read'],
+          'Quote Operator',
+          'quotes@jackys.com',
+        )
+      )
+        return;
+      if (url.pathname === '/api/quotations' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            quotations: [quotation],
+            pagination: { page: 1, pageSize: 50, total: 1, totalPages: 1 },
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/quotations/95' && request.method() === 'GET') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ quotation }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await signIn(page, 'quotes@jackys.com');
+    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
+    await expect(page.locator('#quotationsBody')).toContainText('Approved');
+    await page.getByRole('button', { name: 'QO-2026-00095' }).click();
+    await expect(page.locator('#quotationApprovalStatus')).toContainText('Approved');
+    await expect(page.locator('#quotationApprovalStatus')).toContainText('Phone');
+    await expect(page.locator('#quotationApprovalStatus')).toContainText('WA-2026-00031');
   });
 });
 

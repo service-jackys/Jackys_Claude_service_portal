@@ -1058,6 +1058,7 @@
   // ['service-job-card']), so one template and one set of handlers, parameterized
   // by prefix, drive both panels instead of duplicating the markup and logic.
   const jobFinalStatusOptions = [
+    'Customer approval pending',
     'WIP',
     'Spare pending',
     'BER',
@@ -1182,7 +1183,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
-        <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
       </div>
         </div>
       </section>
@@ -2881,7 +2882,7 @@ ${bodyHtml}
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -2897,7 +2898,7 @@ ${bodyHtml}
     const search = $('#quotationSearch').value.trim();
     if (search) params.set('search', search);
     $('#quotationsBody').innerHTML =
-      '<tr><td colspan="4" class="empty-state">Loading quotations…</td></tr>';
+      '<tr><td colspan="5" class="empty-state">Loading quotations…</td></tr>';
     try {
       const result = await apiRequest('/api/quotations?' + params);
       renderQuotations(result.quotations || []);
@@ -2915,6 +2916,21 @@ ${bodyHtml}
     }
   }
 
+  // The newest out-of-warranty approval request for this quotation, with a link
+  // to it in Warranty approvals.
+  function renderQuotationApprovalLine(quotation) {
+    const line = $('#quotationApprovalStatus');
+    if (!quotation.approvalId) {
+      line.textContent = '';
+      return;
+    }
+    line.innerHTML = `Customer approval: <span class="status ${statusClass(quotation.approvalStatus)}">${escapeHtml(quotation.approvalStatus)}</span>${quotation.approvalMethod ? ` (${escapeHtml(quotation.approvalMethod)})` : ''} <button class="table-link" type="button" id="viewQuotationApprovalButton">${escapeHtml(quotation.approvalReference)}</button>`;
+    $('#viewQuotationApprovalButton').addEventListener('click', () => {
+      setWorkspaceMode('warranty-approvals');
+      loadWarrantyApprovalDetail(quotation.approvalId);
+    });
+  }
+
   async function loadQuotationDetail(id) {
     if (!hasPermission('quotation.read')) return;
     setMessage('#workspaceMessage', '', false);
@@ -2927,6 +2943,7 @@ ${bodyHtml}
       $('#saveQuotationButton').hidden = !hasPermission('quotation.write');
       $('#quotationJobCardCreatePanel').hidden = true;
       $('#quotationJobCardStatus').textContent = '';
+      renderQuotationApprovalLine(result.quotation);
       $('#createJobCardFromQuotationButton').hidden = true;
       if (hasPermission('service_job_card.read')) {
         try {
@@ -3994,7 +4011,10 @@ ${bodyHtml}
       $('#warrantyApprovalDetailStatus').innerHTML =
         `<span class="status ${statusClass(approval.status)}">${escapeHtml(approval.status)}</span>`;
       const details = [
-        ['Source', approval.jobCardReference || approval.inspectionReference],
+        [
+          'Source',
+          approval.jobCardReference || approval.quotationReference || approval.inspectionReference,
+        ],
         ['Customer name', approval.customerName],
         ['Contact number', approval.contactNumber],
         ['Item description', approval.itemDescription],
@@ -4006,6 +4026,7 @@ ${bodyHtml}
         ['Notes', approval.notes],
         ['Decided at', formatDate(approval.decidedAt)],
         ['Decided by (customer)', approval.decidedByName],
+        ['How it was given', approval.decisionMethod],
         ['Decision notes', approval.decisionNotes],
         ['Created', formatDate(approval.createdAt)],
         ['Updated', formatDate(approval.updatedAt)],
@@ -4017,6 +4038,28 @@ ${bodyHtml}
         )
         .join('');
       $('#warrantyApprovalLinkInput').value = warrantyApprovalLinkUrl(approval);
+      const approvalLinks = [];
+      if (approval.jobCardId && hasPermission('service_job_card.read')) {
+        approvalLinks.push({
+          label: `Job card ${approval.jobCardReference}`,
+          onClick: () => {
+            setWorkspaceMode('job-cards');
+            loadJobCardDetail(approval.jobCardId);
+          },
+        });
+      }
+      if (approval.quotationId && hasPermission('quotation.read')) {
+        approvalLinks.push({
+          label: `Quotation ${approval.quotationReference}`,
+          onClick: () => {
+            setWorkspaceMode('quotations');
+            loadQuotationDetail(approval.quotationId);
+          },
+        });
+      }
+      renderWorkflowLinks('warrantyApprovalWorkflowLinks', approvalLinks);
+      $('#warrantyApprovalManualPanel').hidden =
+        approval.status !== 'Pending' || !hasPermission('warranty_approval.write');
       $('#warrantyApprovalDetail').hidden = false;
       $('#warrantyApprovalDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
@@ -4775,6 +4818,11 @@ ${bodyHtml}
   function renderJobCardGuide(jobCard) {
     const box = $('#jobCardNextStep');
     const guides = {
+      'Customer approval pending': {
+        title: 'Waiting for customer approval',
+        text: 'Raise an out-of-warranty approval request for this job in Warranty approvals. The job moves to WIP by itself when the customer approves. If the customer approved another way, set the job status to WIP here and you will be asked how they approved.',
+        warn: true,
+      },
       WIP: {
         title: 'Work in progress',
         text: 'Record the service rendered, spare parts used and charges in Job card details. When the repair is done set the job status to Repair Completed. If you are waiting for parts use Spare pending; if it cannot be repaired use BER or Rejected.',
@@ -4901,7 +4949,7 @@ ${bodyHtml}
         : '';
   }
 
-  function renderJobCardDetailSections(jobCard) {
+  function renderJobCardDetailSections(jobCard, approval = null) {
     const dateOnly = (value) => (value ? String(value).slice(0, 10) : '');
     renderDetailSections('#jobCardDetailGrid', [
       {
@@ -5007,6 +5055,19 @@ ${bodyHtml}
         html: jobCardPartsHtml(jobCard),
       },
       {
+        title: 'Customer approval',
+        items: approval
+          ? [
+              ['Approval request', approval.approvalReference],
+              ['Status', approval.status, 'pill'],
+              ['How it was given', approval.decisionMethod],
+              ['Given by', approval.decidedByName],
+              ['Decided at', approval.decidedAt ? formatDate(approval.decidedAt) : ''],
+              ['Notes', approval.decisionNotes, 'wide'],
+            ]
+          : [['Approval request', 'None raised yet']],
+      },
+      {
         title: 'Origin',
         items: [
           ['Source', jobCard.sourceType],
@@ -5078,8 +5139,28 @@ ${bodyHtml}
           },
         });
       }
+      if (jobCard.quotationId && jobCard.quotationReference && hasPermission('quotation.read')) {
+        const quotationId = jobCard.quotationId;
+        jobCardWorkflowLinks.push({
+          label: `Quotation ${jobCard.quotationReference}`,
+          onClick: () => {
+            setWorkspaceMode('quotations');
+            loadQuotationDetail(quotationId);
+          },
+        });
+      }
+      const approval = result.approval;
+      if (approval && hasPermission('warranty_approval.read')) {
+        jobCardWorkflowLinks.push({
+          label: `Approval ${approval.approvalReference} (${approval.status})`,
+          onClick: () => {
+            setWorkspaceMode('warranty-approvals');
+            loadWarrantyApprovalDetail(approval.id);
+          },
+        });
+      }
       renderWorkflowLinks('jobCardWorkflowLinks', jobCardWorkflowLinks);
-      renderJobCardDetailSections(jobCard);
+      renderJobCardDetailSections(jobCard, approval);
       $('#jobCardHistoryList').innerHTML =
         (result.history || [])
           .map(
@@ -5281,6 +5362,9 @@ ${bodyHtml}
         '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card/prefill',
       );
       fillJobCardForm('jcq', result.content);
+      if (result.initialJobFinalStatus) {
+        $('#jcqJobFinalStatus').value = result.initialJobFinalStatus;
+      }
       $('#quotationJobCardCreatePanel').hidden = false;
       $('#quotationJobCardCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
@@ -5330,14 +5414,77 @@ ${bodyHtml}
     }
   }
 
+  // Pop-up shown when a job is moved from Customer approval pending to WIP by
+  // hand: how the customer approved, an optional note and an optional attachment
+  // (the email, message screenshot or signed approval).
+  function askCustomerApproval() {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog';
+      dialog.innerHTML = `<h3>Customer approval ${tipHtml('Record how the customer approved the work before the job moves to WIP. Attach the email, message screenshot or signed approval if you have one; the attachment is optional.')}</h3>
+        <form method="dialog" novalidate>
+          <div class="field"><label for="caMethod">How did the customer approve?</label>
+            <select id="caMethod"><option value="">Select</option><option>Phone</option><option>Email</option><option>WhatsApp</option><option>In person</option><option>Other</option></select></div>
+          <div class="field"><label for="caNotes">Notes</label><textarea id="caNotes" maxlength="2000"></textarea></div>
+          <div class="field"><label for="caFile">Attachment (optional)</label><input type="file" id="caFile"></div>
+          <p class="field-error" id="caError" role="alert"></p>
+          <div class="form-footer"><button type="button" class="button button-outline" data-ca-cancel>Cancel</button><button type="button" class="button button-primary" data-ca-confirm>Confirm and move to WIP</button></div>
+        </form>`;
+      let result = null;
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-ca-cancel]')) {
+          dialog.close();
+        } else if (event.target.closest('[data-ca-confirm]')) {
+          const method = dialog.querySelector('#caMethod').value;
+          if (!method) {
+            dialog.querySelector('#caError').textContent = 'Choose how the customer approved.';
+            return;
+          }
+          result = {
+            method,
+            notes: dialog.querySelector('#caNotes').value.trim(),
+            file: dialog.querySelector('#caFile').files?.[0] || null,
+          };
+          dialog.close();
+        }
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve(result);
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
   async function saveJobCardContent() {
     if (!currentJobCardId) return;
+    const payload = collectJobCardForm('jce');
+    let approvalFile = null;
+    if (
+      currentJobCard?.jobFinalStatus === 'Customer approval pending' &&
+      payload.jobFinalStatus === 'WIP'
+    ) {
+      const approval = await askCustomerApproval();
+      if (!approval) return;
+      payload.approvalMethod = approval.method;
+      if (approval.notes) payload.approvalNotes = approval.notes;
+      approvalFile = approval.file;
+    }
     const button = $('#saveJobCardContentButton');
     setBusy(button, true, 'Saving…');
     try {
+      if (approvalFile) {
+        const formData = new FormData();
+        formData.append('file', approvalFile);
+        await apiUploadRequest(
+          '/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/attachments',
+          formData,
+        );
+      }
       await apiRequest('/api/job-cards/' + encodeURIComponent(currentJobCardId), {
         method: 'PATCH',
-        body: JSON.stringify(collectJobCardForm('jce')),
+        body: JSON.stringify(payload),
       });
       await loadJobCardDetail(currentJobCardId);
       await loadJobCards();
@@ -7097,6 +7244,39 @@ ${bodyHtml}
     $('#warrantyApprovalCreatePanel').hidden = true;
   });
   initWarrantyApprovalPickers();
+  $('#warrantyApprovalManualForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!currentWarrantyApprovalId) return;
+    const button = $('#submitWarrantyApprovalManualButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      await apiRequest(
+        '/api/warranty-approvals/' + encodeURIComponent(currentWarrantyApprovalId) + '/decision',
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            decision: $('#waManualDecision').value,
+            method: $('#waManualMethod').value,
+            decidedByName: $('#waManualBy').value.trim() || undefined,
+            decisionNotes: $('#waManualNotes').value.trim() || undefined,
+          }),
+        },
+      );
+      $('#warrantyApprovalManualForm').reset();
+      await loadWarrantyApprovals();
+      await loadWarrantyApprovalDetail(currentWarrantyApprovalId);
+      setMessage('#workspaceMessage', 'Customer decision recorded.', true);
+    } catch (error) {
+      if (error.status === 401) {
+        await signOut(false);
+        setMessage('#authMessage', 'Your session has expired. Please sign in again.');
+      } else {
+        setMessage('#workspaceMessage', error.message);
+      }
+    } finally {
+      setBusy(button, false);
+    }
+  });
   $('#warrantyApprovalCreateForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await submitWarrantyApprovalCreate();

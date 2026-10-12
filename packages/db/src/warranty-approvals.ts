@@ -20,6 +20,7 @@ export type WarrantyApprovalRecord = {
   accessToken: string;
   decidedAt: Date | null;
   decidedByName: string | null;
+  decisionMethod: string | null;
   decisionNotes: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -46,6 +47,7 @@ const columns = `
   warranty_approvals.access_token AS "accessToken",
   warranty_approvals.decided_at AS "decidedAt",
   warranty_approvals.decided_by_name AS "decidedByName",
+  warranty_approvals.decision_method AS "decisionMethod",
   warranty_approvals.decision_notes AS "decisionNotes",
   warranty_approvals.created_at AS "createdAt",
   warranty_approvals.updated_at AS "updatedAt",
@@ -135,14 +137,16 @@ export async function recordWarrantyApprovalDecision(
     status: 'Approved' | 'Declined';
     decidedByName: string;
     decisionNotes: string | null;
+    decisionMethod: string;
   },
 ): Promise<WarrantyApprovalRecord | null> {
   const result = await client.query<{ id: string }>(
     `UPDATE warranty_approvals
-     SET status = $2, decided_at = now(), decided_by_name = $3, decision_notes = $4, updated_at = now()
+     SET status = $2, decided_at = now(), decided_by_name = $3, decision_notes = $4,
+         decision_method = $5, updated_at = now()
      WHERE id = $1
      RETURNING id`,
-    [id, decision.status, decision.decidedByName, decision.decisionNotes],
+    [id, decision.status, decision.decidedByName, decision.decisionNotes, decision.decisionMethod],
   );
   if (!result.rows[0]) return null;
   return findWarrantyApprovalById(client, result.rows[0].id);
@@ -179,4 +183,36 @@ export async function listWarrantyApprovals(
     values,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
+}
+
+/** The newest approval request that applies to a job card: one raised against the
+ *  job itself, or against the quotation the job was created from. */
+export async function findLatestApprovalForJobCard(
+  client: PoolClient,
+  jobCardId: string,
+): Promise<WarrantyApprovalRecord | null> {
+  const result = await client.query<WarrantyApprovalRecord>(
+    `SELECT ${columns} ${from}
+     WHERE warranty_approvals.job_card_id = $1
+        OR warranty_approvals.quotation_id =
+           (SELECT quotation_id FROM service_job_cards WHERE id = $1)
+     ORDER BY warranty_approvals.created_at DESC, warranty_approvals.id DESC
+     LIMIT 1`,
+    [jobCardId],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function findLatestApprovalForQuotation(
+  client: PoolClient,
+  quotationId: string,
+): Promise<WarrantyApprovalRecord | null> {
+  const result = await client.query<WarrantyApprovalRecord>(
+    `SELECT ${columns} ${from}
+     WHERE warranty_approvals.quotation_id = $1
+     ORDER BY warranty_approvals.created_at DESC, warranty_approvals.id DESC
+     LIMIT 1`,
+    [quotationId],
+  );
+  return result.rows[0] ?? null;
 }

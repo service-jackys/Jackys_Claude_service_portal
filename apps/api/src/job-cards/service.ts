@@ -31,6 +31,11 @@ import {
   type ServiceJobCardContent,
   type ServiceJobCardRecord,
 } from '../../../../packages/db/src/job-cards.js';
+import {
+  findLatestApprovalForJobCard,
+  findLatestApprovalForQuotation,
+} from '../../../../packages/db/src/warranty-approvals.js';
+import { recordManualApprovalForJob } from '../warranty-approvals/service.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { listActiveBillingRules } from '../../../../packages/db/src/billing-rules.js';
 import {
@@ -66,7 +71,8 @@ export class ServiceJobCardError extends Error {
       | 'duplicate'
       | 'invalid-transition'
       | 'terminal-job-card'
-      | 'billing-blocked',
+      | 'billing-blocked'
+      | 'approval-required',
     message: string,
   ) {
     super(message);
@@ -531,7 +537,12 @@ export function createServiceJobCardService(pool: Pool) {
           'This quotation already has a service job card.',
         );
       }
-      return { quotation, content: defaultsFromQuotation(quotation) };
+      const approval = await findLatestApprovalForQuotation(client, quotationId);
+      // A job made from a quotation waits for the customer's approval unless the
+      // quotation's approval request has already been approved.
+      const initialJobFinalStatus =
+        approval?.status === 'Approved' ? 'WIP' : 'Customer approval pending';
+      return { quotation, content: defaultsFromQuotation(quotation), initialJobFinalStatus };
     } finally {
       client.release();
     }
@@ -666,6 +677,13 @@ export function createServiceJobCardService(pool: Pool) {
         await mdaRate(),
         new Date().toISOString(),
       );
+      const quotationApproval = await findLatestApprovalForQuotation(client, quotationId);
+      if (
+        quotationApproval?.status !== 'Approved' &&
+        (content.jobFinalStatus === 'WIP' || content.jobFinalStatus === 'Customer approval pending')
+      ) {
+        content.jobFinalStatus = 'Customer approval pending';
+      }
       const scopeDate = quotation.quotationDate ?? new Date().toISOString().slice(0, 10);
       const jobCardReference = await allocateJobCardReference(client, scopeDate);
       let jobCard;
@@ -953,13 +971,23 @@ export function createServiceJobCardService(pool: Pool) {
     requestId: string = randomUUID(),
     isAdmin = false,
   ) {
-    const { billing, rest: overrides } = splitBilling(
-      serviceJobCardUpdateSchema.parse(input ?? {}),
-    );
+    const {
+      billing,
+      rest: { approvalMethod, approvalNotes, ...overrides },
+    } = splitBilling(serviceJobCardUpdateSchema.parse(input ?? {}));
     return withTransaction(pool, async (client) => {
       const current = await findServiceJobCardById(client, id, true);
       if (!current) {
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      }
+      const releasingApproval =
+        current.jobFinalStatus === 'Customer approval pending' &&
+        overrides.jobFinalStatus === 'WIP';
+      if (releasingApproval && !approvalMethod) {
+        throw new ServiceJobCardError(
+          'approval-required',
+          'Record how the customer approved before moving this job to WIP.',
+        );
       }
       if (isJobCardLocked(current) && !isAdmin) {
         throw new ServiceJobCardError(
@@ -1051,13 +1079,37 @@ export function createServiceJobCardService(pool: Pool) {
             nextStatus === 'Completed' || nextStatus === 'Cancelled',
           );
         }
+        let historyReason: string | undefined;
+        if (releasingApproval && approvalMethod) {
+          const approval = await recordManualApprovalForJob(
+            client,
+            {
+              id,
+              quotationId: current.quotationId,
+              customerName: current.customerName,
+              customerContact: current.customerContact,
+              itemDescription: current.itemDescription,
+              warrantyStatus: current.warrantyStatus,
+              grandTotal: current.grandTotal,
+            },
+            {
+              method: approvalMethod,
+              notes: approvalNotes ?? null,
+              decidedByName: 'Recorded by staff',
+            },
+            profileId,
+          );
+          historyReason = `Customer approved (${approvalMethod}) - ${approval.approvalReference}${
+            approvalNotes ? `: ${approvalNotes}` : ''
+          }`;
+        }
         await insertServiceJobCardHistory(
           client,
           id,
           current.jobFinalStatus,
           nextFinal,
           profileId,
-          undefined,
+          historyReason,
           requestId,
         );
         jobCard = (await findServiceJobCardById(client, id)) ?? jobCard;
@@ -1097,7 +1149,8 @@ export function createServiceJobCardService(pool: Pool) {
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
       const history = await listServiceJobCardHistory(client, id);
       const master = await masterContextFor(client, jobCard);
-      return { jobCard, history, ...master };
+      const approval = await findLatestApprovalForJobCard(client, id);
+      return { jobCard, history, approval, ...master };
     } finally {
       client.release();
     }

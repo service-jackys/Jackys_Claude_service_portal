@@ -480,11 +480,8 @@ export async function listServiceJobCards(
     return `$${values.length}`;
   };
   if (query.forApproval) {
-    // Jobs an out-of-warranty approval request can still be raised for.
-    filters.push(
-      `(service_job_cards.job_final_status = 'WIP' OR service_job_cards.warranty_status = 'Out Warranty')`,
-      `service_job_cards.job_final_status NOT IN ('Delivered', 'Cancelled')`,
-    );
+    // Jobs waiting for the customer's approval -- the ones an approval request is for.
+    filters.push(`service_job_cards.job_final_status = 'Customer approval pending'`);
   }
   if (query.status) {
     // The filter offers job final statuses; the old workflow names still work.
@@ -572,7 +569,7 @@ export async function insertServiceJobCardHistory(
   jobCardId: string,
   fromStatus: string | null,
   toStatus: string,
-  changedBy: string,
+  changedBy: string | null,
   reason: string | undefined,
   requestId: string,
 ): Promise<void> {
