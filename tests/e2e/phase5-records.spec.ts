@@ -480,6 +480,86 @@ test.describe('operational dashboard', () => {
     await expect(page.locator('#complaintStatusFilter')).toHaveValue('New');
     expect(complaintListUrls.at(-1)).toContain('status=New');
   });
+
+  // The page-open load (all statuses) can answer after the tile's filtered load.
+  // The slow unfiltered reply must not overwrite the Awaiting job card list.
+  test('Awaiting job card tile keeps its filter when the unfiltered list answers late', async ({
+    page,
+  }) => {
+    const summary = {
+      complaints: { total: 0, byStatus: {} },
+      appointments: { total: 0, today: 0, byStatus: {} },
+      jobCards: { total: 1, byStatus: { Delivered: 1 }, awaitingCreation: 1 },
+      quotations: { total: 0, thisMonth: 0 },
+      inspections: { total: 0, thisMonth: 0 },
+      warrantyApprovals: { total: 0, byStatus: {} },
+    };
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['dashboard.read', 'service_job_card.read'],
+          'Dashboard Viewer',
+          'dashboard@jackys.com',
+        )
+      )
+        return;
+      if (url.pathname === '/api/dashboard/summary') {
+        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ summary }) });
+        return;
+      }
+      if (url.pathname === '/api/job-cards/awaiting') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            appointments: [
+              {
+                id: 'a1',
+                appointmentReference: 'APT-2026-00099',
+                customerName: 'Awaiting Customer',
+                appointmentDate: '2026-10-12',
+                status: 'Completed',
+              },
+            ],
+          }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/job-cards' && request.method() === 'GET') {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            jobCards: [
+              {
+                id: 'j1',
+                jobCardReference: 'JBC-2026-00001',
+                appointmentReference: 'APT-2026-00001',
+                customerName: 'Delivered Customer',
+                appointmentDate: '2026-10-01',
+                status: 'Delivered',
+                jobFinalStatus: 'Delivered',
+              },
+            ],
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+
+    await signIn(page, 'dashboard@jackys.com');
+    await page.getByRole('button', { name: 'Dashboard', exact: true }).click();
+    await page.locator('#dashJobCardTiles').getByText('Awaiting job card').click();
+    await expect(page.locator('#jobCardStatusFilter')).toHaveValue('awaiting-job-card');
+    await expect(page.locator('#jobCardsBody')).toContainText('APT-2026-00099');
+    await page.waitForTimeout(1500);
+    await expect(page.locator('#jobCardsBody')).toContainText('APT-2026-00099');
+    await expect(page.locator('#jobCardsBody')).not.toContainText('Delivered Customer');
+  });
 });
 
 test.describe('service job-card attachments', () => {

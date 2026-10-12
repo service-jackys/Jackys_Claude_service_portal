@@ -2663,8 +2663,13 @@ ${bodyHtml}
     URL.revokeObjectURL(url);
   }
 
+  // Opening the page (setWorkspaceMode) and a dashboard tile (goToJobCardsFiltered)
+  // can each start a load; only the newest one may draw, otherwise the slower
+  // unfiltered response overwrites the filtered list.
+  let jobCardsLoadSeq = 0;
   async function loadJobCards() {
     if (!hasPermission('service_job_card.read')) return;
+    const loadSeq = ++jobCardsLoadSeq;
     clearWorkspaceRecovery();
     const params = new URLSearchParams({ page: '1', pageSize: '50' });
     const search = $('#jobCardSearch').value.trim();
@@ -2677,14 +2682,17 @@ ${bodyHtml}
     try {
       if (awaiting) {
         const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
+        if (loadSeq !== jobCardsLoadSeq) return;
         lastLoadedJobCards = [];
         renderAwaitingJobCards(awaitingResult.appointments || []);
         return;
       }
       const result = await apiRequest('/api/job-cards?' + params);
+      if (loadSeq !== jobCardsLoadSeq) return;
       lastLoadedJobCards = result.jobCards || [];
       renderJobCards(lastLoadedJobCards);
     } catch (error) {
+      if (loadSeq !== jobCardsLoadSeq) return;
       if (error.status === 401) {
         await signOut(false);
         setMessage('#authMessage', 'Your session has expired. Please sign in again.');

@@ -2616,3 +2616,9 @@ When a service job card is created from a completed appointment, the form now lo
 - New: `findStockItemByCode` (stock master), `enrichDefaultsFromMasters` (job card service), and the prefill response now includes `masterFields`. Test: tests/integration/job-card-master-prefill.test.ts.
 
 **Needs you:** restart the API and hard-refresh. No migration.
+
+## Modification #90 — Dashboard "Awaiting job card" tile showed every status
+
+Clicking "Awaiting job card" on the Dashboard opened the Service job cards page with the filter set correctly, but the list showed all job cards. Opening the page and the tile click each started a load; the slower all-status response arrived last and overwrote the filtered list. The job card list now ignores any load that has been superseded by a newer one. Regression test added in tests/e2e/phase5-records.spec.ts (it fails without the fix).
+
+**Needs you:** hard-refresh. No restart or migration.
