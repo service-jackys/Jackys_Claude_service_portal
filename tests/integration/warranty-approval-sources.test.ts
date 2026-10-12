@@ -3,6 +3,7 @@ import test from 'node:test';
 import { createDbPool } from '../../packages/db/src/client.js';
 import { listServiceJobCards } from '../../packages/db/src/job-cards.js';
 import { insertWarrantyApproval } from '../../packages/db/src/warranty-approvals.js';
+import { allocateWarrantyApprovalReference } from '../../packages/db/src/references.js';
 import { migrate } from '../../packages/db/src/migrate.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -41,6 +42,11 @@ test(
       assert.ok(references.includes(wip));
       assert.ok(!references.includes(delivered));
 
+      const allocated = await allocateWarrantyApprovalReference(client, '2098-01-01');
+      assert.match(allocated, /^WA-2098-\d{5}$/);
+      await client.query(
+        `DELETE FROM reference_counters WHERE namespace = 'warranty_approval' AND scope_date = '2098-01-01'`,
+      );
       const profile = await client.query<{ id: string }>(
         `INSERT INTO profiles (email, display_name) VALUES ($1, 'WA source test') RETURNING id`,
         [`wa-${suffix}@example.test`],

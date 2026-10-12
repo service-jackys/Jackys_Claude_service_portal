@@ -2686,3 +2686,9 @@ Test: tests/e2e/phase5-records.spec.ts (quotation pick fills warranty status).
 
 **Needs you:** run `npm.cmd run db:migrate` (039), restart the API, hard-refresh.
 
+## Modification #99 — Fix: creating an approval request failed with a reference_counters error
+
+Creating a warranty approval request failed with "new row for relation reference_counters violates check constraint reference_counters_namespace_check". The database never allowed the warranty approval reference counter (WA-YYYY-NNNNN), so the very first request could not be saved. Migration 040 adds it to the allowed list. The integration test now allocates an approval reference.
+
+**Needs you:** run `npm.cmd run db:migrate` (038, 039 and 040 if not yet run). No restart needed beyond that.
+

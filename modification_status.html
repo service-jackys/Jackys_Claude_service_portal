@@ -3435,6 +3435,23 @@
           <li>Run npm.cmd run db:migrate, restart the API and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#99 &mdash; Fix: approval request could not be created</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-12 &middot; migration 040</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Create approval request failed on a reference counter check; the WA reference counter is now allowed (migration 040).</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>
