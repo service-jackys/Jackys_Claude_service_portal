@@ -7227,6 +7227,13 @@ ${bodyHtml}
     'quotationCreatePanel',
   );
   initWorkspaceTabs(
+    'warrantyApprovalWorkspace',
+    'warrantyApprovalTabs',
+    'createWarrantyApprovalButton',
+    'cancelWarrantyApprovalCreateButton',
+    'warrantyApprovalCreatePanel',
+  );
+  initWorkspaceTabs(
     'inspectionWorkspace',
     'inspectionTabs',
     'createInspectionButton',

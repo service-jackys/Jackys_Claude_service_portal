@@ -315,7 +315,7 @@ test.describe('warranty approvals workspace', () => {
 
     await signIn(page, 'warranty@jackys.com');
     await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
-    await page.getByRole('button', { name: 'New approval request' }).click();
+    await page.getByRole('tab', { name: 'New approval request' }).click();
 
     await page.locator('#waJobCardRef').fill('JBC-2026-00701');
     await expect(page.locator('#waCustomerName')).toHaveValue('Acme Trading');
@@ -374,7 +374,7 @@ test.describe('warranty approvals workspace', () => {
     await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Warranty approvals' })).toBeVisible();
 
-    await page.getByRole('button', { name: 'New approval request' }).click();
+    await page.getByRole('tab', { name: 'New approval request' }).click();
     await page
       .locator('#warrantyApprovalCreatePanel')
       .getByRole('button', { name: 'Create approval request' })
@@ -451,7 +451,7 @@ test.describe('warranty approvals workspace', () => {
 
     await signIn(page, 'warranty2@jackys.com');
     await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
-    await page.getByRole('button', { name: 'New approval request' }).click();
+    await page.getByRole('tab', { name: 'New approval request' }).click();
     await page.locator('#waJobCardId').evaluate((el) => ((el as HTMLInputElement).value = '701'));
     await page.locator('#waCustomerName').fill('Warranty Customer');
     await page.locator('#waItemDescription').fill('Split AC unit');

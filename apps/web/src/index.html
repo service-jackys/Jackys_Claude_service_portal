@@ -1611,6 +1611,9 @@
         font-weight: 600;
         vertical-align: middle;
       }
+      #warrantyApprovalWorkspace .master-field > label::after {
+        content: 'pulled in';
+      }
       [data-theme='dark'] .master-filled {
         background: #12301f !important;
         border-color: #2f8f4e !important;
@@ -2990,6 +2993,7 @@
       #dailyListWorkspace .card-body,
       #jobCardWorkspace .card-body,
       #quotationWorkspace .card-body,
+      #warrantyApprovalWorkspace .card-body,
       #inspectionWorkspace .card-body {
         padding: clamp(0.9rem, 2vw, 1.2rem);
       }
@@ -2998,6 +3002,7 @@
       #dailyListWorkspace .form-note,
       #jobCardWorkspace .form-note,
       #quotationWorkspace .form-note,
+      #warrantyApprovalWorkspace .form-note,
       #inspectionWorkspace .form-note {
         font-size: 0.76rem;
         margin: 0 0 0.6rem;
@@ -3007,6 +3012,7 @@
       #dailyListWorkspace .field-grid,
       #jobCardWorkspace .field-grid,
       #quotationWorkspace .field-grid,
+      #warrantyApprovalWorkspace .field-grid,
       #inspectionWorkspace .field-grid {
         grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
         gap: 0.55rem 0.85rem;
@@ -3017,6 +3023,7 @@
       #dailyListWorkspace .field,
       #jobCardWorkspace .field,
       #quotationWorkspace .field,
+      #warrantyApprovalWorkspace .field,
       #inspectionWorkspace .field {
         gap: 0.22rem;
       }
@@ -3025,6 +3032,7 @@
       #dailyListWorkspace label,
       #jobCardWorkspace label,
       #quotationWorkspace label,
+      #warrantyApprovalWorkspace label,
       #inspectionWorkspace label {
         font-size: 0.72rem;
         font-weight: 700;
@@ -3044,10 +3052,13 @@
       #jobCardWorkspace select,
       #jobCardWorkspace textarea,
       #quotationWorkspace input,
+      #warrantyApprovalWorkspace input,
       #inspectionWorkspace input,
       #quotationWorkspace select,
+      #warrantyApprovalWorkspace select,
       #inspectionWorkspace select,
       #quotationWorkspace textarea,
+      #warrantyApprovalWorkspace textarea,
       #inspectionWorkspace textarea {
         min-height: 32px;
         padding: 0.34rem 0.6rem;
@@ -3059,6 +3070,7 @@
       #dailyListWorkspace textarea,
       #jobCardWorkspace textarea,
       #quotationWorkspace textarea,
+      #warrantyApprovalWorkspace textarea,
       #inspectionWorkspace textarea {
         min-height: 64px;
       }
@@ -3067,6 +3079,7 @@
       #dailyListWorkspace .field-error,
       #jobCardWorkspace .field-error,
       #quotationWorkspace .field-error,
+      #warrantyApprovalWorkspace .field-error,
       #inspectionWorkspace .field-error {
         min-height: 0;
         font-size: 0.7rem;
@@ -3076,6 +3089,7 @@
       #dailyListWorkspace .field-error:empty,
       #jobCardWorkspace .field-error:empty,
       #quotationWorkspace .field-error:empty,
+      #warrantyApprovalWorkspace .field-error:empty,
       #inspectionWorkspace .field-error:empty {
         display: none;
       }
@@ -3084,6 +3098,7 @@
       #dailyListWorkspace .detail-action-card,
       #jobCardWorkspace .detail-action-card,
       #quotationWorkspace .detail-action-card,
+      #warrantyApprovalWorkspace .detail-action-card,
       #inspectionWorkspace .detail-action-card {
         padding: 0.65rem 0.85rem 0.35rem;
         margin-bottom: 0.6rem;
@@ -3095,6 +3110,7 @@
       #dailyListWorkspace .detail-action-card > h4,
       #jobCardWorkspace .detail-action-card > h4,
       #quotationWorkspace .detail-action-card > h4,
+      #warrantyApprovalWorkspace .detail-action-card > h4,
       #inspectionWorkspace .detail-action-card > h4 {
         margin: 0 0 0.5rem;
         padding-left: 0.5rem;
@@ -3110,6 +3126,7 @@
       #dailyListWorkspace .rcv-banner,
       #jobCardWorkspace .rcv-banner,
       #quotationWorkspace .rcv-banner,
+      #warrantyApprovalWorkspace .rcv-banner,
       #inspectionWorkspace .rcv-banner {
         margin-bottom: 0.7rem;
         padding: 0.55rem 0.9rem;
@@ -3120,6 +3137,7 @@
       #dailyListWorkspace .rcv-banner strong,
       #jobCardWorkspace .rcv-banner strong,
       #quotationWorkspace .rcv-banner strong,
+      #warrantyApprovalWorkspace .rcv-banner strong,
       #inspectionWorkspace .rcv-banner strong {
         font-size: 0.88rem;
       }
@@ -3128,6 +3146,7 @@
       #dailyListWorkspace .rcv-banner span,
       #jobCardWorkspace .rcv-banner span,
       #quotationWorkspace .rcv-banner span,
+      #warrantyApprovalWorkspace .rcv-banner span,
       #inspectionWorkspace .rcv-banner span {
         font-size: 0.74rem;
       }
@@ -3136,6 +3155,7 @@
       #dailyListWorkspace .button,
       #jobCardWorkspace .button,
       #quotationWorkspace .button,
+      #warrantyApprovalWorkspace .button,
       #inspectionWorkspace .button {
         min-height: 34px;
         padding: 0.36rem 0.85rem;
@@ -3176,6 +3196,7 @@
       #dailyListWorkspace .form-footer,
       #jobCardWorkspace .form-footer,
       #quotationWorkspace .form-footer,
+      #warrantyApprovalWorkspace .form-footer,
       #inspectionWorkspace .form-footer {
         margin-top: 0.5rem;
       }
@@ -3184,6 +3205,7 @@
       #dailyListWorkspace .table-wrap table,
       #jobCardWorkspace .table-wrap table,
       #quotationWorkspace .table-wrap table,
+      #warrantyApprovalWorkspace .table-wrap table,
       #inspectionWorkspace .table-wrap table {
         font-size: 0.8rem;
       }
@@ -3192,6 +3214,7 @@
       #dailyListWorkspace th,
       #jobCardWorkspace th,
       #quotationWorkspace th,
+      #warrantyApprovalWorkspace th,
       #inspectionWorkspace th {
         font-size: 0.68rem;
         padding: 0.55rem 0.7rem;
@@ -3201,6 +3224,7 @@
       #dailyListWorkspace td,
       #jobCardWorkspace td,
       #quotationWorkspace td,
+      #warrantyApprovalWorkspace td,
       #inspectionWorkspace td {
         padding: 0.5rem 0.7rem;
       }
@@ -3209,6 +3233,7 @@
       #dailyListWorkspace .status,
       #jobCardWorkspace .status,
       #quotationWorkspace .status,
+      #warrantyApprovalWorkspace .status,
       #inspectionWorkspace .status {
         padding: 0.16rem 0.5rem;
         font-size: 0.68rem;
@@ -3222,6 +3247,7 @@
       #dailyListWorkspace input[type='checkbox'],
       #jobCardWorkspace input[type='checkbox'],
       #quotationWorkspace input[type='checkbox'],
+      #warrantyApprovalWorkspace input[type='checkbox'],
       #inspectionWorkspace input[type='checkbox'] {
         width: auto;
         min-height: 0;
@@ -3482,11 +3508,16 @@
       #inspectionWorkspace[data-tab='new'] .inbox-tools,
       #inspectionWorkspace[data-tab='new'] .list-table-wrap,
       #inspectionWorkspace[data-tab='new'] #inspectionsEmpty,
+      #warrantyApprovalWorkspace[data-tab='new'] .inbox-tools,
+      #warrantyApprovalWorkspace[data-tab='new'] .list-table-wrap,
+      #warrantyApprovalWorkspace[data-tab='new'] #warrantyApprovalsEmpty,
+      #warrantyApprovalWorkspace[data-tab='new'] #warrantyApprovalDetail,
       #inspectionWorkspace[data-tab='new'] #inspectionDetail {
         display: none;
       }
       #createQuotationButton,
-      #createInspectionButton {
+      #createInspectionButton,
+      #createWarrantyApprovalButton {
         display: none;
       }
       /* ---- Detail sections (modification #70): CRM-style record view ---- */
@@ -7446,6 +7477,25 @@
             </div>
             <div class="card" id="warrantyApprovalWorkspace" hidden>
               <div class="card-body">
+                <div class="ws-tabs" role="tablist" id="warrantyApprovalTabs">
+                  <button
+                    type="button"
+                    role="tab"
+                    class="ws-tab is-active"
+                    data-tab="list"
+                    aria-selected="true"
+                  >
+                    Approval requests</button
+                  ><button
+                    type="button"
+                    role="tab"
+                    class="ws-tab"
+                    data-tab="new"
+                    aria-selected="false"
+                  >
+                    New approval request
+                  </button>
+                </div>
                 <div class="inbox-tools">
                   <label class="visually-hidden" for="warrantyApprovalSearch"
                     >Search warranty approvals</label
@@ -7469,7 +7519,7 @@
                     New approval request
                   </button>
                 </div>
-                <div class="table-wrap">
+                <div class="table-wrap list-table-wrap">
                   <table>
                     <caption class="visually-hidden">
                       Warranty approvals
@@ -7500,13 +7550,13 @@
                     <div class="field-grid">
                       <div class="field">
                         <label for="waJobCardRef"
-                          >Job card (WIP / out-of-warranty)
+                          >Job card
                           <span class="tooltip" tabindex="0"
                             ><span class="tooltip-icon" aria-hidden="true">i</span
                             ><span class="tooltip-bubble" role="tooltip"
-                              >Lists service job cards that are in progress (WIP) or out of
-                              warranty. Pick one to fill customer, contact, item, warranty status
-                              and cost below. Use either a job card or a quotation, not both.</span
+                              >Lists service job cards that are WIP or out of warranty. Pick one to
+                              fill customer, contact, item, warranty status and cost below. Use
+                              either a job card or a quotation, not both.</span
                             ></span
                           ></label
                         >

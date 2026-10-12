@@ -2672,3 +2672,9 @@ Tests: tests/e2e/phase5-records.spec.ts (picking fills the form; neither-selecte
 
 **Needs you:** run `npm.cmd run db:migrate` (038 adds the quotation link), restart the API, hard-refresh.
 
+## Modification #97 — Warranty approvals use the Quotations tab layout and compact boxes
+
+Warranty approvals now has two tabs, **Approval requests** and **New approval request**, the same as Quotations and Inspections. The "New approval request" button above the list is gone; the tab replaces it, and Cancel or a successful save returns to the list. The form uses the same compact entry boxes and small labels as New request, Job cards and Quotations. Fields pulled from a job card or quotation show a green "pulled in" tag. The Job card label is shorter; the WIP / out-of-warranty detail is in its (i) tooltip.
+
+**Needs you:** hard-refresh. No restart or migration.
+
