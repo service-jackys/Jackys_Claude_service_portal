@@ -7499,20 +7499,48 @@
                   <form id="warrantyApprovalCreateForm" novalidate>
                     <div class="field-grid">
                       <div class="field">
-                        <label for="waJobCardId">Job card ID</label>
+                        <label for="waJobCardRef"
+                          >Job card (WIP / out-of-warranty)
+                          <span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Lists service job cards that are in progress (WIP) or out of
+                              warranty. Pick one to fill customer, contact, item, warranty status
+                              and cost below. Use either a job card or a quotation, not both.</span
+                            ></span
+                          ></label
+                        >
                         <input
                           type="text"
-                          id="waJobCardId"
-                          placeholder="Leave blank if using an inspection ID"
+                          id="waJobCardRef"
+                          list="waJobCardList"
+                          autocomplete="off"
+                          placeholder="Search reference, customer or contact"
                         />
+                        <datalist id="waJobCardList"></datalist>
+                        <input type="hidden" id="waJobCardId" />
                       </div>
                       <div class="field">
-                        <label for="waInspectionId">Inspection ID</label>
+                        <label for="waQuotationRef"
+                          >Quotation
+                          <span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Pick a quotation to fill customer, contact, project and the quotation
+                              total as the estimated cost. Use either a quotation or a job card, not
+                              both.</span
+                            ></span
+                          ></label
+                        >
                         <input
                           type="text"
-                          id="waInspectionId"
-                          placeholder="Leave blank if using a job card ID"
+                          id="waQuotationRef"
+                          list="waQuotationList"
+                          autocomplete="off"
+                          placeholder="Search reference, customer or contact"
                         />
+                        <datalist id="waQuotationList"></datalist>
+                        <input type="hidden" id="waQuotationId" />
                       </div>
                       <div class="field">
                         <label for="waCustomerName">Customer name</label>

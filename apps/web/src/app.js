@@ -4025,12 +4025,129 @@ ${bodyHtml}
     }
   }
 
+  // Out-of-warranty approval form: pick a WIP / out-of-warranty job card or a
+  // quotation and the remaining fields are filled from it (green = pulled in).
+  const waPickers = {
+    jobCard: {
+      ref: '#waJobCardRef',
+      id: '#waJobCardId',
+      list: '#waJobCardList',
+      url: '/api/job-cards?forApproval=true&pageSize=50&',
+      items: (result) => result.jobCards || [],
+      reference: (row) => row.jobCardReference,
+      label: (row) =>
+        [row.customerName, row.itemDescription || row.modelNo, row.jobFinalStatus]
+          .filter(Boolean)
+          .join(' · '),
+      fill: (row) => ({
+        waCustomerName: row.customerName,
+        waContactNumber: row.customerContact,
+        waItemDescription: row.itemDescription || row.modelNo,
+        waWarrantyStatus: row.warrantyStatus,
+        waEstimatedCost: Number(row.amountChargeable || row.grandTotal) || '',
+      }),
+    },
+    quotation: {
+      ref: '#waQuotationRef',
+      id: '#waQuotationId',
+      list: '#waQuotationList',
+      url: '/api/quotations?pageSize=50&',
+      items: (result) => result.quotations || [],
+      reference: (row) => row.quotationReference,
+      label: (row) => [row.customerName, row.projectName].filter(Boolean).join(' · '),
+      fill: (row) => ({
+        waCustomerName: row.customerName,
+        waContactNumber: row.contactNumber,
+        waItemDescription: row.projectName,
+        waWarrantyStatus: '',
+        waEstimatedCost: Number(row.grandTotal) || '',
+      }),
+    },
+  };
+  const waFilledFields = [
+    'waCustomerName',
+    'waContactNumber',
+    'waItemDescription',
+    'waWarrantyStatus',
+    'waEstimatedCost',
+  ];
+  const waRows = { jobCard: new Map(), quotation: new Map() };
+
+  function clearWarrantyApprovalFill() {
+    waFilledFields.forEach((id) => {
+      const input = $(`#${id}`);
+      input.classList.remove('master-filled');
+      input.closest('.field')?.classList.remove('master-field');
+    });
+  }
+
+  function resetWarrantyApprovalForm() {
+    $('#warrantyApprovalCreateForm').reset();
+    $('#waJobCardId').value = '';
+    $('#waQuotationId').value = '';
+    clearWarrantyApprovalFill();
+  }
+
+  async function searchWarrantyApprovalSource(kind, term) {
+    const picker = waPickers[kind];
+    try {
+      const params = term ? 'search=' + encodeURIComponent(term) : '';
+      const result = await apiRequest(picker.url + params);
+      waRows[kind] = new Map();
+      picker.items(result).forEach((row) => waRows[kind].set(picker.reference(row), row));
+      $(picker.list).innerHTML = [...waRows[kind].entries()]
+        .map(
+          ([reference, row]) =>
+            `<option value="${escapeHtml(reference)}">${escapeHtml(picker.label(row))}</option>`,
+        )
+        .join('');
+    } catch {
+      $(picker.list).innerHTML = '';
+    }
+  }
+
+  function applyWarrantyApprovalSource(kind) {
+    const picker = waPickers[kind];
+    const other = waPickers[kind === 'jobCard' ? 'quotation' : 'jobCard'];
+    const row = waRows[kind].get($(picker.ref).value.trim());
+    $(picker.id).value = row ? row.id : '';
+    if (!row) return;
+    $(other.ref).value = '';
+    $(other.id).value = '';
+    clearWarrantyApprovalFill();
+    Object.entries(picker.fill(row)).forEach(([id, value]) => {
+      const input = $(`#${id}`);
+      input.value = value ?? '';
+      if (!input.value) return;
+      input.classList.add('master-filled');
+      input.closest('.field')?.classList.add('master-field');
+    });
+  }
+
+  function initWarrantyApprovalPickers() {
+    Object.keys(waPickers).forEach((kind) => {
+      const picker = waPickers[kind];
+      let timer = null;
+      $(picker.ref).addEventListener('input', () => {
+        applyWarrantyApprovalSource(kind);
+        clearTimeout(timer);
+        timer = setTimeout(
+          () => searchWarrantyApprovalSource(kind, $(picker.ref).value.trim()),
+          250,
+        );
+      });
+      $(picker.ref).addEventListener('focus', () => {
+        if (!waRows[kind].size) searchWarrantyApprovalSource(kind, '');
+      });
+    });
+  }
+
   function collectWarrantyApprovalForm() {
     const jobCardId = $('#waJobCardId').value.trim();
-    const inspectionId = $('#waInspectionId').value.trim();
+    const quotationId = $('#waQuotationId').value.trim();
     return {
       jobCardId: jobCardId || undefined,
-      inspectionId: jobCardId ? undefined : inspectionId || undefined,
+      quotationId: quotationId || undefined,
       customerName: $('#waCustomerName').value.trim() || undefined,
       contactNumber: $('#waContactNumber').value.trim() || undefined,
       itemDescription: $('#waItemDescription').value.trim() || undefined,
@@ -4044,9 +4161,9 @@ ${bodyHtml}
 
   async function submitWarrantyApprovalCreate() {
     const jobCardId = $('#waJobCardId').value.trim();
-    const inspectionId = $('#waInspectionId').value.trim();
-    if (Boolean(jobCardId) === Boolean(inspectionId)) {
-      setMessage('#workspaceMessage', 'Enter exactly one of Job card ID or Inspection ID.');
+    const quotationId = $('#waQuotationId').value.trim();
+    if (Boolean(jobCardId) === Boolean(quotationId)) {
+      setMessage('#workspaceMessage', 'Pick exactly one of a job card or a quotation.');
       return;
     }
     const button = $('#submitWarrantyApprovalCreateButton');
@@ -4057,7 +4174,7 @@ ${bodyHtml}
         body: JSON.stringify(collectWarrantyApprovalForm()),
       });
       $('#warrantyApprovalCreatePanel').hidden = true;
-      $('#warrantyApprovalCreateForm').reset();
+      resetWarrantyApprovalForm();
       await loadWarrantyApprovals();
       await loadWarrantyApprovalDetail(result.approval.id);
       setMessage(
@@ -6958,11 +7075,17 @@ ${bodyHtml}
   $('#createWarrantyApprovalButton').addEventListener('click', () => {
     $('#warrantyApprovalDetail').hidden = true;
     $('#warrantyApprovalCreatePanel').hidden = false;
+    resetWarrantyApprovalForm();
+    waRows.jobCard = new Map();
+    waRows.quotation = new Map();
+    searchWarrantyApprovalSource('jobCard', '');
+    searchWarrantyApprovalSource('quotation', '');
     $('#warrantyApprovalCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });
   $('#cancelWarrantyApprovalCreateButton').addEventListener('click', () => {
     $('#warrantyApprovalCreatePanel').hidden = true;
   });
+  initWarrantyApprovalPickers();
   $('#warrantyApprovalCreateForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     await submitWarrantyApprovalCreate();

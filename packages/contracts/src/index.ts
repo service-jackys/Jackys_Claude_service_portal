@@ -871,6 +871,7 @@ export const warrantyApprovalCreateSchema = z
   .object({
     jobCardId: z.string().regex(/^\d+$/).optional(),
     inspectionId: z.string().regex(/^\d+$/).optional(),
+    quotationId: z.string().regex(/^\d+$/).optional(),
     customerName: optionalText(200),
     contactNumber: optionalText(50),
     itemDescription: optionalText(300),
@@ -879,10 +880,14 @@ export const warrantyApprovalCreateSchema = z
     notes: optionalText(2000),
   })
   .strict()
-  .refine((value) => Boolean(value.jobCardId) !== Boolean(value.inspectionId), {
-    message: 'Provide exactly one of jobCardId or inspectionId.',
-    path: ['jobCardId'],
-  });
+  .refine(
+    (value) =>
+      [value.jobCardId, value.inspectionId, value.quotationId].filter(Boolean).length === 1,
+    {
+      message: 'Provide exactly one of jobCardId, quotationId or inspectionId.',
+      path: ['jobCardId'],
+    },
+  );
 export type WarrantyApprovalCreateInput = z.infer<typeof warrantyApprovalCreateSchema>;
 
 export const warrantyApprovalListQuerySchema = z

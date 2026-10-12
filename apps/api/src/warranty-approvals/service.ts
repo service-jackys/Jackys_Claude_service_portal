@@ -13,6 +13,7 @@ import {
   recordWarrantyApprovalDecision,
 } from '../../../../packages/db/src/warranty-approvals.js';
 import { findServiceJobCardById } from '../../../../packages/db/src/job-cards.js';
+import { findQuotationById } from '../../../../packages/db/src/quotations.js';
 import { findInspectionById } from '../../../../packages/db/src/inspections.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { allocateWarrantyApprovalReference } from '../../../../packages/db/src/references.js';
@@ -39,6 +40,7 @@ export function createWarrantyApprovalService(pool: Pool) {
       let contactNumber = data.contactNumber ?? null;
       let itemDescription = data.itemDescription ?? null;
       let warrantyStatus = data.warrantyStatus ?? null;
+      let estimatedCost = data.estimatedCost ?? null;
 
       if (data.jobCardId) {
         const jobCard = await findServiceJobCardById(client, data.jobCardId);
@@ -52,6 +54,15 @@ export function createWarrantyApprovalService(pool: Pool) {
         contactNumber = contactNumber ?? jobCard.customerContact;
         itemDescription = itemDescription ?? jobCard.itemDescription;
         warrantyStatus = warrantyStatus ?? jobCard.warrantyStatus;
+      } else if (data.quotationId) {
+        const quotation = await findQuotationById(client, data.quotationId);
+        if (!quotation) {
+          throw new WarrantyApprovalError('source-not-found', 'The quotation was not found.');
+        }
+        customerName = customerName ?? quotation.customerName;
+        contactNumber = contactNumber ?? quotation.contactNumber;
+        itemDescription = itemDescription ?? quotation.projectName;
+        estimatedCost = estimatedCost ?? (Number(quotation.grandTotal) || null);
       } else if (data.inspectionId) {
         const inspection = await findInspectionById(client, data.inspectionId);
         if (!inspection) {
@@ -69,11 +80,12 @@ export function createWarrantyApprovalService(pool: Pool) {
         approvalReference,
         jobCardId: data.jobCardId ?? null,
         inspectionId: data.inspectionId ?? null,
+        quotationId: data.quotationId ?? null,
         customerName,
         contactNumber,
         itemDescription,
         warrantyStatus,
-        estimatedCost: data.estimatedCost ?? null,
+        estimatedCost,
         notes: data.notes ?? null,
         accessToken: generateAccessToken(),
         createdBy: profileId,

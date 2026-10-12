@@ -1080,6 +1080,7 @@ export function createServiceJobCardService(pool: Pool) {
       return listServiceJobCards(client, {
         status: typeof query.status === 'string' ? query.status : undefined,
         search: typeof query.search === 'string' ? query.search : undefined,
+        forApproval: query.forApproval === 'true',
         page: Number(query.page ?? 1),
         pageSize: Number(query.pageSize ?? 25),
       });

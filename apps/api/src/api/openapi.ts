@@ -1170,6 +1170,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             jobCardId: { type: 'string', pattern: '^\\d+$' },
             inspectionId: { type: 'string', pattern: '^\\d+$' },
+            quotationId: { type: 'string', pattern: '^\\d+$' },
             customerName: { type: 'string', minLength: 1, maxLength: 200 },
             contactNumber: { type: 'string', minLength: 1, maxLength: 50 },
             itemDescription: { type: 'string', minLength: 1, maxLength: 300 },

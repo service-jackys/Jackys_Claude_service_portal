@@ -465,7 +465,13 @@ export async function findServiceJobCardByQuotationId(
 
 export async function listServiceJobCards(
   client: PoolClient,
-  query: { status?: string; search?: string; page: number; pageSize: number },
+  query: {
+    status?: string;
+    search?: string;
+    forApproval?: boolean;
+    page: number;
+    pageSize: number;
+  },
 ) {
   const values: unknown[] = [];
   const filters: string[] = [];
@@ -473,6 +479,13 @@ export async function listServiceJobCards(
     values.push(value);
     return `$${values.length}`;
   };
+  if (query.forApproval) {
+    // Jobs an out-of-warranty approval request can still be raised for.
+    filters.push(
+      `(service_job_cards.job_final_status = 'WIP' OR service_job_cards.warranty_status = 'Out Warranty')`,
+      `service_job_cards.job_final_status NOT IN ('Delivered', 'Cancelled')`,
+    );
+  }
   if (query.status) {
     // The filter offers job final statuses; the old workflow names still work.
     const column = ['Open', 'In Progress', 'Completed'].includes(query.status)

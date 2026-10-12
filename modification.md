@@ -2661,3 +2661,14 @@ In the Products table of both Quotations and Inspections, the Part no. and Descr
 Test: tests/e2e/phase5-records.spec.ts (product row picks an item from the stock master).
 
 **Needs you:** restart the API and hard-refresh. No migration. The stock master has no prices, so Unit price is still typed by hand.
+
+## Modification #96 — Out-of-warranty approval request: pick a job or quotation
+
+In **Warranty approvals → New approval request**, the Job card ID and Inspection ID boxes are replaced by two look-ups. **Job card** lists service job cards that are WIP or out of warranty (not Delivered or Cancelled); **Quotation** lists quotations. Typing narrows the list. Picking one fills Customer name, Contact number, Item description, Warranty status and Estimated cost, shaded green as pulled in, and all of them can still be edited. A job card and a quotation cannot both be chosen; picking one clears the other. Each has an (i) tooltip. For a quotation the estimated cost is the quotation grand total.
+
+Behind the form: the approval request can now be linked to a quotation (new `quotationId`), and `GET /api/job-cards?forApproval=true` returns the WIP / out-of-warranty jobs. Existing requests linked to an inspection are unchanged.
+
+Tests: tests/e2e/phase5-records.spec.ts (picking fills the form; neither-selected is rejected), tests/integration/warranty-approval-sources.test.ts.
+
+**Needs you:** run `npm.cmd run db:migrate` (038 adds the quotation link), restart the API, hard-refresh.
+

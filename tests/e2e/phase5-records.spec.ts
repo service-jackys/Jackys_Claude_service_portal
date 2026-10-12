@@ -249,7 +249,96 @@ test.describe('warranty approvals workspace', () => {
     await expect(page.locator('#warrantyApprovalsNav')).toBeHidden();
   });
 
-  test('rejects a request naming both a job card and an inspection without a network call', async ({
+  test('picking a WIP job card or a quotation fills the approval request form', async ({
+    page,
+  }) => {
+    let posted: Record<string, unknown> | null = null;
+    await page.route('**/api/**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['warranty_approval.read', 'warranty_approval.write'],
+          'Warranty Operator',
+          'warranty@jackys.com',
+        )
+      )
+        return;
+      const json = (body: unknown) =>
+        route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) });
+      if (url.pathname === '/api/job-cards') {
+        expect(url.searchParams.get('forApproval')).toBe('true');
+        await json({
+          jobCards: [
+            {
+              id: '701',
+              jobCardReference: 'JBC-2026-00701',
+              customerName: 'Acme Trading',
+              customerContact: '0501112222',
+              itemDescription: 'Split AC 2T',
+              warrantyStatus: 'Out Warranty',
+              jobFinalStatus: 'WIP',
+              grandTotal: '350.00',
+            },
+          ],
+        });
+        return;
+      }
+      if (url.pathname === '/api/quotations') {
+        await json({
+          quotations: [
+            {
+              id: '801',
+              quotationReference: 'QO-2026-00801',
+              customerName: 'Beta School',
+              contactNumber: '0509998888',
+              projectName: 'Beta Campus',
+              grandTotal: '1200.00',
+            },
+          ],
+        });
+        return;
+      }
+      if (url.pathname === '/api/warranty-approvals' && request.method() === 'GET') {
+        await json({ approvals: [] });
+        return;
+      }
+      if (url.pathname === '/api/warranty-approvals' && request.method() === 'POST') {
+        posted = request.postDataJSON();
+        await route.abort();
+        return;
+      }
+      await route.continue();
+    });
+
+    await signIn(page, 'warranty@jackys.com');
+    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
+    await page.getByRole('button', { name: 'New approval request' }).click();
+
+    await page.locator('#waJobCardRef').fill('JBC-2026-00701');
+    await expect(page.locator('#waCustomerName')).toHaveValue('Acme Trading');
+    await expect(page.locator('#waWarrantyStatus')).toHaveValue('Out Warranty');
+    await expect(page.locator('#waEstimatedCost')).toHaveValue('350');
+    await expect(page.locator('#waCustomerName')).toHaveClass(/master-filled/);
+
+    await page.locator('#waQuotationRef').fill('QO-2026-00801');
+    await expect(page.locator('#waJobCardRef')).toHaveValue('');
+    await expect(page.locator('#waCustomerName')).toHaveValue('Beta School');
+    await expect(page.locator('#waItemDescription')).toHaveValue('Beta Campus');
+    await expect(page.locator('#waEstimatedCost')).toHaveValue('1200');
+
+    await page
+      .locator('#warrantyApprovalCreatePanel')
+      .getByRole('button', { name: 'Create approval request' })
+      .click();
+    await expect.poll(() => posted).not.toBeNull();
+    expect(posted).toMatchObject({ quotationId: '801', customerName: 'Beta School' });
+    expect(posted).not.toHaveProperty('jobCardId');
+  });
+
+  test('rejects a request with neither a job card nor a quotation without a network call', async ({
     page,
   }) => {
     let requestCount = 0;
@@ -286,15 +375,13 @@ test.describe('warranty approvals workspace', () => {
     await expect(page.getByRole('heading', { name: 'Warranty approvals' })).toBeVisible();
 
     await page.getByRole('button', { name: 'New approval request' }).click();
-    await page.locator('#waJobCardId').fill('701');
-    await page.locator('#waInspectionId').fill('901');
     await page
       .locator('#warrantyApprovalCreatePanel')
       .getByRole('button', { name: 'Create approval request' })
       .click();
 
     await expect(page.locator('#workspaceMessage')).toHaveText(
-      'Enter exactly one of Job card ID or Inspection ID.',
+      'Pick exactly one of a job card or a quotation.',
     );
     expect(requestCount).toBe(0);
   });
@@ -365,7 +452,7 @@ test.describe('warranty approvals workspace', () => {
     await signIn(page, 'warranty2@jackys.com');
     await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
     await page.getByRole('button', { name: 'New approval request' }).click();
-    await page.locator('#waJobCardId').fill('701');
+    await page.locator('#waJobCardId').evaluate((el) => ((el as HTMLInputElement).value = '701'));
     await page.locator('#waCustomerName').fill('Warranty Customer');
     await page.locator('#waItemDescription').fill('Split AC unit');
     await page

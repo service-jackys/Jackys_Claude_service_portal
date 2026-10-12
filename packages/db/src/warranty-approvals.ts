@@ -8,6 +8,8 @@ export type WarrantyApprovalRecord = {
   jobCardReference: string | null;
   inspectionId: string | null;
   inspectionReference: string | null;
+  quotationId: string | null;
+  quotationReference: string | null;
   customerName: string | null;
   contactNumber: string | null;
   itemDescription: string | null;
@@ -32,6 +34,8 @@ const columns = `
   service_job_cards.job_card_reference AS "jobCardReference",
   warranty_approvals.inspection_id AS "inspectionId",
   inspections.inspection_reference AS "inspectionReference",
+  warranty_approvals.quotation_id AS "quotationId",
+  quotations.quotation_reference AS "quotationReference",
   warranty_approvals.customer_name AS "customerName",
   warranty_approvals.contact_number AS "contactNumber",
   warranty_approvals.item_description AS "itemDescription",
@@ -53,6 +57,7 @@ const from = `
   FROM warranty_approvals
   LEFT JOIN service_job_cards ON service_job_cards.id = warranty_approvals.job_card_id
   LEFT JOIN inspections ON inspections.id = warranty_approvals.inspection_id
+  LEFT JOIN quotations ON quotations.id = warranty_approvals.quotation_id
 `;
 
 export async function insertWarrantyApproval(
@@ -61,6 +66,7 @@ export async function insertWarrantyApproval(
     approvalReference: string;
     jobCardId: string | null;
     inspectionId: string | null;
+    quotationId: string | null;
     customerName: string | null;
     contactNumber: string | null;
     itemDescription: string | null;
@@ -73,15 +79,16 @@ export async function insertWarrantyApproval(
 ): Promise<WarrantyApprovalRecord> {
   const result = await client.query<{ id: string }>(
     `INSERT INTO warranty_approvals (
-       approval_reference, job_card_id, inspection_id, customer_name, contact_number,
+       approval_reference, job_card_id, inspection_id, quotation_id, customer_name, contact_number,
        item_description, warranty_status, estimated_cost, notes, access_token,
        created_by, updated_by
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
      RETURNING id`,
     [
       input.approvalReference,
       input.jobCardId,
       input.inspectionId,
+      input.quotationId,
       input.customerName,
       input.contactNumber,
       input.itemDescription,
