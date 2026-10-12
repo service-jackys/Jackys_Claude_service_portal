@@ -1593,6 +1593,32 @@
         background: #ecfdf3 !important;
         border-color: #34a853 !important;
       }
+      /* Fields loaded from a master (B2B branch, salesman, stock) on the job card
+         create panel: same green as the stock auto-fill, with a "from master" tag. */
+      .master-filled {
+        background: #ecfdf3 !important;
+        border-color: #34a853 !important;
+      }
+      .master-field > label::after {
+        content: 'from master';
+        white-space: nowrap;
+        margin-left: 8px;
+        padding: 1px 8px;
+        border-radius: 999px;
+        background: #d7f5e2;
+        color: #166534;
+        font-size: 0.72em;
+        font-weight: 600;
+        vertical-align: middle;
+      }
+      [data-theme='dark'] .master-filled {
+        background: #12301f !important;
+        border-color: #2f8f4e !important;
+      }
+      [data-theme='dark'] .master-field > label::after {
+        background: #1d4a2e;
+        color: #b7f0cb;
+      }
       .sm-autofilled > label::after {
         content: 'auto-filled';
         white-space: nowrap;
@@ -9025,7 +9051,17 @@
                     aria-labelledby="jobCardCreateHeading"
                     hidden
                   >
-                    <h4 id="jobCardCreateHeading">Create service job card</h4>
+                    <h4 id="jobCardCreateHeading">
+                      Create service job card
+                      <span class="tooltip" tabindex="0"
+                        ><span class="tooltip-icon" aria-hidden="true">i</span
+                        ><span class="tooltip-bubble" role="tooltip"
+                          >Fields shaded green and tagged &ldquo;from master&rdquo; were loaded from
+                          the B2B branch, salesman or stock master. You can change any of them
+                          before creating the job card.</span
+                        ></span
+                      >
+                    </h4>
                     <p>
                       Details pulled from this completed appointment. Review and edit anything
                       before creating the job card.

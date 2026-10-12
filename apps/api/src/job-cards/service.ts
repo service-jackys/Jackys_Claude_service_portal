@@ -48,6 +48,8 @@ import {
 import { findQuotationById, type QuotationRecord } from '../../../../packages/db/src/quotations.js';
 import { findTechnicianById } from '../../../../packages/db/src/technicians.js';
 import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
+import { findB2bBranchByName } from '../../../../packages/db/src/b2b-branches.js';
+import { findStockItemByCode } from '../../../../packages/db/src/stock-master.js';
 import {
   allocateJobCardReference,
   allocateWalkInJobCardReference,
@@ -126,6 +128,75 @@ async function resolveSalesChannelForSalesman(
   if (!salesman) return null;
   const record = await findSalesmanByName(client, salesman);
   return record?.salesChannel ?? null;
+}
+
+/** Fills the job card defaults from the masters and reports which fields came
+ *  from a master, so the form can highlight them. The B2B branch master wins
+ *  for the salesman and sales channel; the stock master fills the item fields.
+ *  Everything stays editable on the form. */
+async function enrichDefaultsFromMasters(
+  client: Parameters<typeof findSalesmanByName>[0],
+  appointment: AppointmentRecord,
+  defaults: ServiceJobCardContent,
+): Promise<{ content: ServiceJobCardContent; masterFields: string[] }> {
+  const content: ServiceJobCardContent = { ...defaults };
+  const masterFields = new Set<string>();
+  const same = (a: string | null | undefined, b: string | null | undefined) =>
+    (a ?? '').trim().toLowerCase() === (b ?? '').trim().toLowerCase();
+
+  const branch =
+    appointment.b2bBranchSchool && appointment.customerType !== 'B2C'
+      ? await findB2bBranchByName(client, appointment.b2bBranchSchool)
+      : null;
+  if (branch) {
+    masterFields.add('b2bBranchSchool');
+    if (!content.customerNumber) content.customerNumber = branch.custCode;
+    if (same(content.customerNumber, branch.custCode)) masterFields.add('customerNumber');
+    if (!content.salesOrderNumber && branch.lastSalesOrderNumber) {
+      content.salesOrderNumber = branch.lastSalesOrderNumber;
+      masterFields.add('salesOrderNumber');
+    }
+    if (branch.salesman) {
+      content.salesman = branch.salesman;
+      masterFields.add('salesman');
+    }
+  }
+  if (content.salesman) {
+    const record = await findSalesmanByName(client, content.salesman);
+    if (record) {
+      masterFields.add('salesman');
+      content.salesChannel = record.salesChannel ?? content.salesChannel;
+      if (record.salesChannel) masterFields.add('salesChannel');
+    }
+  }
+  if (!content.salesChannel && branch?.salesChannel) {
+    content.salesChannel = branch.salesChannel;
+    masterFields.add('salesChannel');
+  }
+
+  const code = appointment.itemCode || appointment.model;
+  const item = code ? await findStockItemByCode(client, code) : null;
+  if (item) {
+    content.itemCode = item.itemCode;
+    content.itemInMaster = true;
+    masterFields.add('itemCode');
+    masterFields.add('modelNo');
+    if (!content.modelNo) content.modelNo = item.itemCode;
+    const fill = (
+      key: 'brand' | 'itemDescription' | 'mainGroup' | 'groupName' | 'subGroup',
+      value: string | null,
+    ) => {
+      if (!value) return;
+      if (!content[key]) content[key] = value;
+      if (same(content[key], value)) masterFields.add(key);
+    };
+    fill('brand', item.brand);
+    fill('itemDescription', item.itemDesc);
+    fill('mainGroup', item.mainGroup);
+    fill('groupName', item.groupName);
+    fill('subGroup', item.subGroup);
+  }
+  return { content, masterFields: [...masterFields] };
 }
 
 /** Default job-card content pulled from a completed appointment, matching the live
@@ -341,10 +412,12 @@ export function createServiceJobCardService(pool: Pool) {
       }
       const technicianName = await resolveTechnicianName(client, appointment.technicianId);
       const salesChannel = await resolveSalesChannelForSalesman(client, appointment.salesman);
-      return {
+      const enriched = await enrichDefaultsFromMasters(
+        client,
         appointment,
-        content: defaultsFromAppointment(appointment, technicianName, salesChannel),
-      };
+        defaultsFromAppointment(appointment, technicianName, salesChannel),
+      );
+      return { appointment, content: enriched.content, masterFields: enriched.masterFields };
     } finally {
       client.release();
     }
@@ -595,8 +668,13 @@ export function createServiceJobCardService(pool: Pool) {
 
       const technicianName = await resolveTechnicianName(client, appointment.technicianId);
       const salesChannel = await resolveSalesChannelForSalesman(client, appointment.salesman);
-      const content = mergeContent(
+      const enriched = await enrichDefaultsFromMasters(
+        client,
+        appointment,
         defaultsFromAppointment(appointment, technicianName, salesChannel),
+      );
+      const content = mergeContent(
+        enriched.content,
         overrides,
         await mdaRate(),
         new Date().toISOString(),

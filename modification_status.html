@@ -3251,6 +3251,25 @@
           <li>Hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#89 &mdash; Job card create loads salesman and fields from the masters</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-12 &middot; web and API &middot; no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Salesman now loads from the B2B branch master (then the salesman master for the sales channel); it can still be changed, with a tooltip saying so.</li>
+          <li>Item fields are checked against the stock master; customer number and last sales order no. come from the branch master.</li>
+          <li>Fields loaded from a master are shaded green with a "from master" tag.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Restart the API and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

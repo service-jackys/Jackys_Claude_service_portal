@@ -2604,3 +2604,15 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 The filter bar on the Appointments page (search, status, From, To, technician, Print list, Print sheets) now uses the same compact entry boxes and buttons as New request and Job cards: shorter height, smaller text, fixed widths so the controls sit on one row.
 
 **Needs you:** hard-refresh. No restart or migration.
+
+## Modification #89 — Job card create loads salesman and other fields from the masters
+
+When a service job card is created from a completed appointment, the form now loads from the masters instead of only copying the appointment:
+
+- **Salesman** comes from the B2B branch master for the appointment's branch / school (it used to show "Select a salesman"). The sales channel follows the salesman master; customer number and last sales order no. come from the branch master when the appointment has none.
+- **Item fields** (model / item code, brand, description, main group, group, sub group) are checked against the stock master.
+- Every field loaded from a master is shaded green with a "from master" tag on the create panel, and an (i) tooltip in the panel heading explains it. The Salesman field has its own tooltip saying it can be changed if the job should be credited to a different salesman.
+- The same master lookup is used when the card is saved, so a field left untouched keeps the master value.
+- New: `findStockItemByCode` (stock master), `enrichDefaultsFromMasters` (job card service), and the prefill response now includes `masterFields`. Test: tests/integration/job-card-master-prefill.test.ts.
+
+**Needs you:** restart the API and hard-refresh. No migration.

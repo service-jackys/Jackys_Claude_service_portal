@@ -409,3 +409,17 @@ export async function stockStatus(db: Queryable): Promise<{
     recentUploads: uploads.rows,
   };
 }
+
+/** Exact item-code lookup in the stock master (case-insensitive). */
+export async function findStockItemByCode(
+  db: Queryable,
+  itemCode: string,
+): Promise<StockItem | null> {
+  const code = itemCode.trim();
+  if (!code) return null;
+  const result = await db.query<StockItem>(
+    `SELECT ${itemColumns} FROM stock_items WHERE upper(item_code) = upper($1) LIMIT 1`,
+    [code],
+  );
+  return result.rows[0] ?? null;
+}

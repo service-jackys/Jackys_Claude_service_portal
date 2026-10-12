@@ -1138,7 +1138,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Job card date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
-        <div class="field"><label for="${prefix}Salesman">Salesman</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
+        <div class="field"><label for="${prefix}Salesman">Salesman ${tipHtml('Loaded from the B2B branch master for this school. Change it here only if this job should be credited to a different salesman.')}</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
         <div class="field"><label for="${prefix}SalesChannel">Sales channel</label><select id="${prefix}SalesChannel"><option value="">Select a sales channel</option></select></div>
         <div class="field"><label for="${prefix}SalesOrderNumber">Sales order no.</label><input type="text" id="${prefix}SalesOrderNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
@@ -1435,6 +1435,37 @@
     field.value = Number.isNaN(diffMs) || diffMs < 0 ? '' : String(Math.round(diffMs / 3600000));
   }
 
+  // Highlights the fields a master supplied (see enrichDefaultsFromMasters on
+  // the API) so staff can see what was loaded and what was typed by a person.
+  const MASTER_FIELD_IDS = {
+    b2bBranchSchool: 'B2bBranchSchool',
+    customerNumber: 'CustomerNumber',
+    salesOrderNumber: 'SalesOrderNumber',
+    salesman: 'Salesman',
+    salesChannel: 'SalesChannel',
+    modelNo: 'ModelNo',
+    brand: 'Brand',
+    itemDescription: 'ItemDescription',
+    mainGroup: 'MainGroup',
+    groupName: 'GroupName',
+    subGroup: 'SubGroup',
+  };
+  function markMasterFields(prefix, fields) {
+    Object.values(MASTER_FIELD_IDS).forEach((suffix) => {
+      const input = $(`#${prefix}${suffix}`);
+      if (!input) return;
+      input.classList.remove('master-filled');
+      input.closest('.field')?.classList.remove('master-field');
+    });
+    (fields || []).forEach((name) => {
+      const suffix = MASTER_FIELD_IDS[name];
+      const input = suffix ? $(`#${prefix}${suffix}`) : null;
+      if (!input || !input.value) return;
+      input.classList.add('master-filled');
+      input.closest('.field')?.classList.add('master-field');
+    });
+  }
+
   function fillJobCardForm(prefix, content) {
     $(`#${prefix}Date`).value = (content.jobCardDate || '').slice(0, 10);
     $(`#${prefix}CustomerName`).value = content.customerName || '';
@@ -1451,6 +1482,7 @@
       ? content.purchaseDate.slice(0, 10)
       : '';
     refreshWarrantyDaysPill(prefix);
+    markMasterFields(prefix, []);
     $(`#${prefix}ItemCode`).value = content.itemCode || '';
     [
       `#${prefix}ModelNo`,
@@ -4886,6 +4918,7 @@ ${bodyHtml}
         '/api/appointments/' + encodeURIComponent(currentAppointmentId) + '/job-card/prefill',
       );
       fillJobCardForm('jcc', result.content);
+      markMasterFields('jcc', result.masterFields);
       $('#jobCardCreatePanel').hidden = false;
       $('#jobCardCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
