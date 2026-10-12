@@ -21,6 +21,8 @@ export function createComplaintHandlers(
   service: ComplaintService,
   requirePermission: (permission: string) => RequestHandler,
   allowSubmission: (request: Parameters<RequestHandler>[0]) => boolean,
+  requireAnyPermission: (permissions: string[]) => RequestHandler = (permissions) =>
+    requirePermission(permissions[0]),
 ): Record<string, RequestHandler[]> {
   return {
     submit: [
@@ -73,7 +75,8 @@ export function createComplaintHandlers(
       },
     ],
     searchB2bBranches: [
-      requirePermission('complaints.write'),
+      // Also used by the Quotation / Inspection Project name look-up.
+      requireAnyPermission(['complaints.write', 'quotation.write', 'inspection.write']),
       (request, response, next) => {
         const query = typeof request.query.query === 'string' ? request.query.query : undefined;
         Promise.resolve()

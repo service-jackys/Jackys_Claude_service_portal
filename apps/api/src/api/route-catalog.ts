@@ -232,6 +232,12 @@ export function createRouteCatalog(
   localAuth: LocalAuth | null,
   pool: Pool | null = process.env.DATABASE_URL ? createDbPool(process.env.DATABASE_URL) : null,
 ): RouteDefinition[] {
+  const requireAnyPermission = pool
+    ? createApplicationAuth(pool, localAuth).requireAnyPermission
+    : (_permissions: string[]) =>
+        (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
+          providerUnavailable(response);
+        };
   const requirePermission = pool
     ? createApplicationAuth(pool, localAuth).requirePermission
     : (_permission: string) =>
@@ -253,6 +259,7 @@ export function createRouteCatalog(
         createComplaintService(pool),
         requirePermission,
         createLocalComplaintRateLimiter(),
+        requireAnyPermission,
       )
     : {
         submit: [

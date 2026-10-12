@@ -636,6 +636,64 @@ test.describe('operational dashboard', () => {
   });
 });
 
+test.describe('quotation and inspection forms', () => {
+  test('Add product shows a visible row and Project name suggests B2B master names', async ({
+    page,
+  }) => {
+    await page.route('**/api/**', async (route) => {
+      const url = new URL(route.request().url());
+      if (
+        await routeCommonAuth(
+          route,
+          url,
+          ['quotation.read', 'quotation.write', 'inspection.read', 'inspection.write'],
+          'Sales Operator',
+          'sales@jackys.com',
+        )
+      )
+        return;
+      if (url.pathname === '/api/quotations' || url.pathname === '/api/inspections') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ quotations: [], inspections: [] }),
+        });
+        return;
+      }
+      if (url.pathname === '/api/b2b-branches') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({
+            branches: [
+              { custCode: 'C1', branchName: 'GEMS Cambridge', salesman: null },
+              { custCode: 'C2', branchName: 'GEMS Modern Academy', salesman: null },
+            ],
+          }),
+        });
+        return;
+      }
+      await route.continue();
+    });
+    await signIn(page, 'sales@jackys.com');
+
+    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
+    await page.getByRole('tab', { name: 'New quotation' }).click();
+    await page.locator('#qtcProjectName').fill('GEMS');
+    await expect(page.locator('#qtcProjectList option')).toHaveCount(2);
+    await page.locator('#qtcAddProductButton').click();
+    await expect(page.locator('#qtcProductsBody tr')).toHaveCount(1);
+    await expect(page.locator('#qtcProductsBody tr').first()).toBeVisible();
+    await page.locator('#qtcAddPartButton').click();
+    await expect(page.locator('#qtcPartsBody tr').first()).toBeVisible();
+
+    await page.getByRole('button', { name: 'Inspections', exact: true }).click();
+    await page.getByRole('tab', { name: /New inspection/ }).click();
+    await page.locator('#iqcProjectName').fill('GEMS');
+    await expect(page.locator('#iqcProjectList option')).toHaveCount(2);
+    await page.locator('#iqcAddProductButton').click();
+    await expect(page.locator('#iqcProductsBody tr').first()).toBeVisible();
+  });
+});
+
 test.describe('service job-card attachments', () => {
   const openJobCard = {
     id: '701',

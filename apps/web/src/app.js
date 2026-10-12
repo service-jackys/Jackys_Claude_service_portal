@@ -1672,7 +1672,7 @@
         <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
         <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
-        <div class="field"><label for="${prefix}ProjectName">Project name</label><input type="text" id="${prefix}ProjectName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}ProjectName">Project name ${tipHtml('Start typing to pick a school or branch from the B2B Branch / School master; only the name is filled in. You can also type any other project name.')}</label><input type="text" id="${prefix}ProjectName" maxlength="200" list="${prefix}ProjectList" autocomplete="off"><datalist id="${prefix}ProjectList"></datalist></div>
         <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
         <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
@@ -1713,7 +1713,39 @@
     `;
   }
 
+  // Project name type-ahead: suggests names from the B2B Branch / School master.
+  // Only the name is used; anything typed that is not in the master is kept as is.
+  function attachProjectNameLookup(prefix) {
+    const input = $(`#${prefix}ProjectName`);
+    const list = $(`#${prefix}ProjectList`);
+    if (!input || !list) return;
+    let timer = null;
+    let seq = 0;
+    input.addEventListener('input', () => {
+      clearTimeout(timer);
+      const term = input.value.trim();
+      if (term.length < 2) {
+        list.innerHTML = '';
+        return;
+      }
+      timer = setTimeout(async () => {
+        const mine = ++seq;
+        try {
+          const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(term));
+          if (mine !== seq) return;
+          const names = [...new Set((result.branches || []).map((branch) => branch.branchName))];
+          list.innerHTML = names
+            .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+            .join('');
+        } catch {
+          list.innerHTML = '';
+        }
+      }, 250);
+    });
+  }
+
   function initQuotationForm(prefix) {
+    attachProjectNameLookup(prefix);
     lineItemsState[`${prefix}Products`] = [];
     lineItemsState[`${prefix}Parts`] = [];
     const recalc = () => {
@@ -1828,7 +1860,7 @@
         <div class="field"><label for="${prefix}Date">Inspection date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
         <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
-        <div class="field"><label for="${prefix}ProjectName">Project name</label><input type="text" id="${prefix}ProjectName" maxlength="200"></div>
+        <div class="field"><label for="${prefix}ProjectName">Project name ${tipHtml('Start typing to pick a school or branch from the B2B Branch / School master; only the name is filled in. You can also type any other project name.')}</label><input type="text" id="${prefix}ProjectName" maxlength="200" list="${prefix}ProjectList" autocomplete="off"><datalist id="${prefix}ProjectList"></datalist></div>
         <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
         <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
@@ -1873,6 +1905,7 @@
   }
 
   function initInspectionForm(prefix) {
+    attachProjectNameLookup(prefix);
     lineItemsState[`${prefix}Products`] = [];
     lineItemsState[`${prefix}FaultyParts`] = [];
     $(`#${prefix}AddProductButton`).addEventListener('click', () => {

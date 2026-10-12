@@ -95,7 +95,24 @@ export function createApplicationAuth(pool: Pool, localAuth: LocalAuth | null) {
     };
   }
 
-  return { requirePermission, resolve };
+  // For endpoints several workspaces share (e.g. the B2B Branch / School master).
+  function requireAnyPermission(permissions: string[]) {
+    return async (request: Request, response: Response, next: NextFunction): Promise<void> => {
+      const auth = await resolve(request, response);
+      if (!auth) return;
+      if (
+        !auth.permissions.includes('*') &&
+        !permissions.some((permission) => auth.permissions.includes(permission))
+      ) {
+        forbidden(response);
+        return;
+      }
+      response.locals.auth = auth;
+      next();
+    };
+  }
+
+  return { requirePermission, requireAnyPermission, resolve };
 }
 
 async function getLocalSource(token: string, localAuth: LocalAuth): Promise<AuthSource | null> {

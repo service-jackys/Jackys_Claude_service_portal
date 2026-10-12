@@ -2645,3 +2645,11 @@ The delivery date is now recorded by the system whenever a job card becomes Deli
 Test: tests/integration/job-card-master-prefill.test.ts (Delivered save sets the Dubai date).
 
 **Needs you:** restart the API and hard-refresh. No migration. Cards already Delivered with a blank date are not changed.
+
+## Modification #94 — Quotations and Inspections: Add product rows, Project name look-up
+
+- **Add product / Add part / Add faulty part showed nothing.** The click did add a row, but a style rule meant to hide the list table on the "New quotation" / "New inspection" tab also hid the Products, Parts and Faulty parts tables inside the form. The rule now targets only the list table.
+- **Project name look-up.** On both forms the Project name box now suggests names from the B2B Branch / School master as you type (two letters or more). Only the name is filled in; any other project name can still be typed. An (i) tooltip explains this. The branch search is now open to quotation and inspection users as well as complaint users (new `requireAnyPermission` on the API).
+- Test: tests/e2e/phase5-records.spec.ts ("Add product shows a visible row and Project name suggests B2B master names").
+
+**Needs you:** restart the API (the branch search permission changed) and hard-refresh. No migration.
