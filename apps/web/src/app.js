@@ -13503,7 +13503,7 @@ ${bodyHtml}
             '</label></div>'
           : '') +
         '</div>' +
-        '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item code</th><th>Description</th><th class="num">Qty</th><th class="num">Value</th><th class="num">VAT 5%</th><th class="num">Amount</th></tr></thead><tbody>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>#</th><th>Item code</th><th>Description</th><th class="num">Qty</th><th class="num">Value</th><th class="num">VAT 5%</th><th class="num">Amount</th></tr></thead><tbody>' +
         lines +
         '</tbody><tfoot><tr><th colspan="4">Total (VAT inclusive)</th><th class="num">' +
         money(totals.net) +
@@ -13529,7 +13529,7 @@ ${bodyHtml}
       const rows = state.rows
         .map(
           (r) =>
-            '<tr><td><button class="table-link" type="button" data-inv-open="' +
+            '<tr><td class="acc-sticky"><button class="table-link" type="button" data-inv-open="' +
             escapeHtml(r.id) +
             '">' +
             escapeHtml(r.jobCardReference) +
@@ -13548,8 +13548,12 @@ ${bodyHtml}
             aed(r.amount) +
             '</td>' +
             '<td>' +
-            escapeHtml(r.portalInvoiceNo || '—') +
-            (r.invoiceNo ? '<br><small>ERP ' + escapeHtml(r.invoiceNo) + '</small>' : '') +
+            (r.portalInvoiceNo
+              ? escapeHtml(r.portalInvoiceNo) +
+                (r.invoiceNo ? '<br><small>ERP ' + escapeHtml(r.invoiceNo) + '</small>' : '')
+              : r.invoiceNo
+                ? '<small>ERP ' + escapeHtml(r.invoiceNo) + '</small>'
+                : '—') +
             '</td>' +
             '<td>' +
             escapeHtml(r.paymentMode || '—') +
@@ -13593,7 +13597,7 @@ ${bodyHtml}
         ) +
         '</div></div>' +
         recordPanel() +
-        '<div class="table-wrap"><table><thead><tr><th>Job card</th><th>Type</th><th>Customer</th><th>Payment by / bill to</th><th class="num">Amount</th><th>Invoice</th><th>Mode</th><th>Stage</th><th>Job status</th>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Type</th><th>Customer</th><th>Payment by / bill to</th><th class="num">Amount</th><th>Invoice</th><th>Mode</th><th>Stage</th><th>Job status</th>' +
         (canRecord ? '<th></th>' : '') +
         '</tr></thead><tbody>' +
         (rows ||

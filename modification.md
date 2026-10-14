@@ -2728,6 +2728,8 @@ Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warra
 
 **Sidebar.** Groups (Overview, Service desk, Records, Admin, Management, Quote Calculators) open and close on click, remember their state per browser, and the group holding the current page opens by itself. Warranty approvals moved into Service desk. The icon-only sidebar still shows every item.
 
+**Look and feel.** The job list uses the same compact table as the Billing screen (smaller font, sticky Job card column, right-aligned amounts, no wrapping, small Invoice button). The sidebar entry is labelled "Invoices"; the page heading is "Invoice [Warranty and billing]".
+
 **Also.** The Billing (accounts) screen is unchanged and can still record an ERP invoice number and payment for finance.
 
 Tests: tests/unit/tax-invoice.test.ts, tests/integration/tax-invoice.test.ts, tests/integration/job-billing.test.ts, tests/e2e/billing.spec.ts (invoice flow and print, sidebar groups), tests/e2e/phase5-records.spec.ts.
