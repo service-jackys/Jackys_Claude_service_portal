@@ -3349,6 +3349,79 @@
         min-height: 0;
         font-size: 0.68rem;
       }
+      /* Compact invoice panel, same scale as the Billing screen controls. */
+      [data-inv-record] {
+        padding: 0.9rem 1rem;
+      }
+      [data-inv-record] h4 {
+        margin: 0 0 0.35rem;
+        font-size: 0.92rem;
+        font-weight: 700;
+      }
+      [data-inv-record] .inv-pills {
+        margin: 0 0 0.7rem;
+        font-size: 0.72rem;
+      }
+      [data-inv-record] .status {
+        padding: 2px 9px;
+        font-size: 0.68rem;
+      }
+      [data-inv-record] .field-grid {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 0.55rem 0.85rem;
+        margin-bottom: 0.8rem;
+      }
+      [data-inv-record] .field-wide {
+        grid-column: 1 / -1;
+      }
+      [data-inv-record] .field label {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--muted, #5b6b82);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+      }
+      [data-inv-record] .field input,
+      [data-inv-record] .field select {
+        min-height: 32px;
+        padding: 4px 9px;
+        font-size: 0.8rem;
+        font-weight: 400;
+      }
+      [data-inv-record] .check-label {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 32px;
+        margin: 0;
+        font-size: 0.78rem;
+        text-transform: none;
+        letter-spacing: normal;
+        color: inherit;
+      }
+      [data-inv-record] .acc-table td {
+        white-space: normal;
+      }
+      [data-inv-record] .acc-wrap {
+        max-height: none;
+        overflow-x: auto;
+      }
+      [data-inv-record] .form-footer {
+        gap: 0.5rem;
+        margin-top: 0.75rem;
+      }
+      [data-inv-record] .form-footer .button {
+        min-height: 0;
+        padding: 5px 16px;
+        font-size: 0.78rem;
+      }
+      @media (max-width: 900px) {
+        [data-inv-record] .field-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
       .acc-bar .acc-search {
         flex: 1 1 220px;
       }
