@@ -13591,7 +13591,7 @@ ${bodyHtml}
           )
           .join('') +
         '</select></label></div>' +
-        '</div><div class="card-help"><span>Need Excel?</span>' +
+        '</div><div class="card-help card-help-up"><span>Need Excel?</span>' +
         tipHtml(
           'For Excel, use Reports: Job Invoices, or Sales Channel Reconciliation for finance.',
         ) +

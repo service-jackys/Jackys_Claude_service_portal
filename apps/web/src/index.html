@@ -586,6 +586,21 @@
         border-top-color: transparent;
         border-bottom-color: var(--navy-deep);
       }
+      /* Help icon near the bottom edge of a card: open the bubble upwards so it is
+         not clipped or covered by what follows. */
+      .card-help.card-help-up .tooltip-bubble {
+        top: auto;
+        bottom: calc(100% + 0.5rem);
+        transform: translateY(4px);
+        width: 280px;
+        max-width: min(320px, 80vw);
+      }
+      .card-help.card-help-up .tooltip-bubble::after {
+        top: 100%;
+        bottom: auto;
+        border-top-color: var(--navy-deep);
+        border-bottom-color: transparent;
+      }
       .card-help .tooltip:hover .tooltip-bubble,
       .card-help .tooltip:focus .tooltip-bubble,
       .card-help .tooltip:focus-within .tooltip-bubble {
