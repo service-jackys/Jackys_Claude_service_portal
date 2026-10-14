@@ -2568,17 +2568,42 @@ ${bodyHtml}
       .join('');
     const totals = invoice.totals || { net: 0, vat: 0, gross: 0 };
     const invoiceDate = dmy(invoice.invoiceDate);
-    const terms = [
-      `An A/c Payee cheque in favour of Jacky\`s Electronics LLC dated ${invoiceDate} for the invoice amount must be issued within 7 days from the invoice date.`,
-      'Surcharge of 1% per month will be charged on delayed payment and penalty of AED 100 will be charged on each cheque bounced.',
-      'Goods have been reserved as per the customer`s confirmed order and will be delivered to the customer or customer`s nominee, as per customer`s written intimation.',
-      'Any discrepancy should be notified to Jacky`s Electronics LLC in writing within two working days after the delivery.',
-      'Goods once sold will not be taken back or exchanged.',
-      'The title of the goods delivered remain with Jacky`s Electronics LLC until paid in full.',
-      'The goods shall be at the risk of the customer from the time of accepting the delivery by the customer or customer`s nominee.',
-      'Disputes, if any, are subject to the jurisdiction of Dubai Courts.',
+    // Terms and conditions, English and Arabic side by side (modelled on a service
+    // receipt of a comparable company). Static text: nothing here comes from user input.
+    const termsRows = [
+      [
+        '<strong>Out of Warranty Service Charges:</strong> For Out of Warranty Service, we shall provide Estimate Quote applicable for the repair of Unit for your approval. 30% (+or-) variation is allowed in the estimate, and we shall conclude the repair without further approval from you. Actual charges shall be charged at the time of collection of the Unit. <strong>If you do not wish to proceed with the repair after you receive the Estimate Quote for Repair, a handling charge of AED 60 (inclusive of VAT) will be applicable and upon payment, the Unit shall be returned to you.</strong>',
+        '<strong>رسوم الصيانة خارج الضمان:</strong> بالنسبة لرسوم الصيانة خارج الضمان، سنوافيك بعرض أسعار تقديري للإصلاحات اللازمة للوحدة للحصول على موافقتك، مع إمكانية اختلاف السعر النهائي بنسبة 30% (أكثر أو أقل من) من المبلغ التقديري، وسنجري بعد ذلك الإصلاح دون طلب موافقة أخرى منك. وستُحتسب الرسوم الفعلية عند استلام الوحدة. <strong>حال عدم رغبتك في مباشرة الإصلاح بعد استلام عرض الأسعار التقديري للإصلاحات، ستُطبَّق رسوم مناولة قدرها 60 درهمًا شاملة ضريبة القيمة المضافة، وتُرد الوحدة إليك بعد سدادها.</strong>',
+      ],
+      [
+        '<strong>Secure your Data:</strong> You must secure your Data by taking BACKUP and delete the same from Unit prior to handing over the Unit for repair. We shall not be held liable for data loss and/or data leak during the repair.',
+        '<strong>تأمين بياناتك:</strong> يتعين عليك تأمين بياناتك بالاحتفاظ بنسخة احتياطية منها وحذف بياناتك من الوحدة قبل تسليمها لإصلاحها، ولن نتحمل مسؤولية فقد و/أو تسريب أي بيانات أثناء الإصلاح.',
+      ],
+      [
+        '<strong>Record Accessories in the Service Slip:</strong> We do not collect accessories along with the Unit unless it is required for examination of the Unit. You should ensure to record all accessories handed over to us in the Service Slip, failing which, we may be unable to honor your claim for accessories at a later stage.',
+        '<strong>تسجيل الملحقات في إيصال الصيانة:</strong> لا نتسلم أي ملحقات مع الوحدة ما لم تكن لازمة لفحص الوحدة، ويتعين عليك تسجيل جميع الملحقات المسلمة إلينا في إيصال الصيانة، وإلا لن نتمكن من الوفاء بمطالبتك بالملحقات لاحقًا.',
+      ],
+      [
+        '<strong>Collection of Unit:</strong> Please ensure to collect the Unit immediately upon receipt of notification of completion of repair/return of Unit. A storage charge @ AED 2/- per day shall be charged after one month of notification. We shall store your Units for a maximum period of 3 months from the date of notification of completion of repair / return of Unit. If you fail to collect the Unit within this period, we shall dispose of such Units without further notification and without any liability for compensation payable to you.',
+        '<strong>استلام الوحدة:</strong> يُرجى التأكد من استلام الوحدة فور استلام إخطار بالانتهاء من الإصلاح/ إعادة الوحدة، وستحتسب رسوم تخزين قدرها 2 درهم لكل يوم بعد مضي شهر واحد من تاريخ الإخطار. سنحتفظ بوحداتك لمدة 3 أشهر بحد أقصى من تاريخ الإخطار بانتهاء الإصلاح/ إعادة الوحدة، وإذا لم تتسلم الوحدة خلال هذه المدة، سنتخلص من تلك الوحدات دون إخطار آخر ودون تحمل مسؤولية تعويضك.',
+      ],
+      [
+        "<strong>Warranty on workmanship:</strong> The Warranty on Unit shall be subject to the brand/supplier warranty provided at the time of your purchase of Unit. Jacky's Electronics LLC does not provide any warranty in addition to the warranty provided the brand/supplier.",
+        '<strong>ضمان المصنعية:</strong> يخضع ضمان الوحدة لضمان العلامة التجارية/ المورد المقدم وقت شرائك الوحدة، ولا تقدم جاكيز للإلكترونيات ذ.م.م أي ضمان بالإضافة إلى ضمان العلامة التجارية/ المورد.',
+      ],
+      [
+        'The Unit will be returned against payment of Service charges. We shall have a right of lien on the Unit against the service charges.',
+        'تُعاد الوحدة بعد دفع رسوم الصيانة، ولنا حق امتياز على الوحدة فيما يتعلق برسوم الصيانة.',
+      ],
+      [
+        '<strong>Limited Service workmanship warranty:</strong> We provide 30 days limited warranty against our <u>workmanship</u> on all products (90 days for consumer electronics product). However, this limited warranty shall not be applicable for spare parts used for such repair. If spare parts need to be replaced, you shall be responsible for payment for such spare parts.',
+        '<strong>ضمان محدود لمصنعية الصيانة:</strong> نقدم لك ضمان محدود لمدة 30 يومًا عن <u>مصنعيتنا</u> لجميع المنتجات (90 يومًا للإلكترونيات الاستهلاكية)، ولا يشمل هذا الضمان المحدود قطع الغيار المستخدمة في الإصلاحات، فحال الحاجة إلى استبدال قطع الغيار، ستتحمل تكلفة تلك القطع.',
+      ],
     ]
-      .map((t) => `<li>${escapeHtml(t)}</li>`)
+      .map(
+        ([en, ar], i) =>
+          `<tr><td class="tn">${i + 1}.</td><td class="te">${en}</td><td class="ta" dir="rtl">${ar}</td><td class="tn ta">-${i + 1}</td></tr>`,
+      )
       .join('');
     const row = (label, value) =>
       `<tr><td class="k">${escapeHtml(label)}</td><td class="s">:</td><td>${value}</td></tr>`;
@@ -2637,8 +2662,14 @@ ${bodyHtml}
   .bank table { border-collapse: collapse; width: 100%; }
   .bank td { padding: 2px 3px; font-size: 10.5px; vertical-align: top; }
   .bank td.k { width: 22%; color: #555; }
-  .terms { margin-top: 6px; font-size: 9.5px; color: #333; }
-  .terms ul { margin: 3px 0 0; padding-left: 16px; } .terms li { margin-bottom: 2px; }
+  table.terms { width: 100%; border-collapse: collapse; margin-top: 0; break-before: page; page-break-before: always; font-size: 8.6px; line-height: 1.35; color: #222; page-break-inside: auto; }
+  table.terms th, table.terms td { border: 1px solid #9aa5b1; padding: 3px 5px; vertical-align: top; }
+  table.terms th { background: #eef2f7; font-size: 9px; text-align: left; }
+  table.terms tr { page-break-inside: avoid; }
+  table.terms .tn { width: 3%; text-align: center; font-weight: 700; }
+  table.terms .te { width: 48%; text-align: justify; }
+  table.terms .ta { width: 46%; text-align: right; }
+  table.terms th.ta { text-align: right; }
   .foot { margin-top: 8px; font-size: 9px; color: #777; text-align: right; }
   .no-print { margin-top: 14px; color: #888; font-size: 11px; }
   @media print { .no-print { display: none !important; } }
@@ -2648,8 +2679,8 @@ ${bodyHtml}
   <div class="co"><strong>Jacky's Electronics LLC</strong>
     P.O Box:13745, Suites No: 607 &amp; 608, Level 6, ENBD Tower,<br>
     Baniyas Square, Deira. Dubai, United Arab Emirates.<br>
-    Ph: +971 4 259 4040<br>
-    Email: sales@jackys.com &middot; http://www.jackyselectronics.com</div>
+    Ph: +971 4 336 1695<br>
+    Email: service@jackys.com &middot; http://www.jackyselectronics.com</div>
 </div>
 <div class="title"><h1>Tax Invoice (<bdi dir="rtl">فاتورة ضريبية</bdi>)</h1><div class="trn">TRN: ${COMPANY_TRN}</div></div>
 <div class="meta"><table>${left}</table><table>${right}</table></div>
@@ -2675,7 +2706,7 @@ ${bodyHtml}
   <tr><td class="k">Bank :</td><td>Habib Bank AG Zurich, Dubai, UAE</td><td>Swift: HBZUAEADXXX</td></tr>
   <tr><td class="k">IBAN Details (AED) :</td><td colspan="2">AE18 0290 1203 1110 5178 162</td></tr>
 </table></div>
-<div class="terms"><strong>Terms &amp; Conditions:</strong><ul>${terms}</ul></div>
+<table class="terms"><thead><tr><th colspan="2" class="te">TERMS AND CONDITIONS</th><th colspan="2" class="ta" dir="rtl">الشروط والأحكام:</th></tr></thead><tbody>${termsRows}</tbody></table>
 <div class="foot">Printed ${escapeHtml(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' }))}</div>
 <p class="no-print">This window opened for printing / Save as PDF &mdash; use your browser's print dialog.</p>
 </body></html>`;

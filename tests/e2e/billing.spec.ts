@@ -316,6 +316,11 @@ test.describe('warranty and billing', () => {
     expect(printed).toContain('This is system generated invoice. No need of signature and stamp.');
     expect(printed).toContain('AE18 0290 1203 1110 5178 162');
     expect(printed).toContain('AED One Hundred Fifty Only');
+    expect(printed).toContain('handling charge of AED 60');
+    expect(printed).toContain('service@jackys.com');
+    expect(printed).toContain('+971 4 336 1695');
+    expect(printed).not.toContain('Your confirmation');
+    expect(printed).not.toContain('50% of the labour');
   });
 
   test('A printed invoice shows the company TRN always and the customer TRN only when entered', async ({

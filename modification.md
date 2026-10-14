@@ -2728,6 +2728,8 @@ Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warra
 
 **Sidebar.** Groups (Overview, Service desk, Records, Admin, Management, Quote Calculators) open and close on click, remember their state per browser, and the group holding the current page opens by itself. Warranty approvals moved into Service desk. The icon-only sidebar still shows every item.
 
+**Print terms (update).** The invoice terms now follow a comparable company's service receipt: bilingual English/Arabic table on page 2, clauses 1 to 7 (clause 8 left out). Clause 1 now says that if the customer does not proceed after the estimate, a handling charge of AED 60 inclusive of VAT applies (instead of 50% of the labour charges). The "system generated invoice" line and bank details are unchanged. Letterhead email is service@jackys.com and phone +971 4 336 1695.
+
 **Look and feel.** The job list uses the same compact table as the Billing screen (smaller font, sticky Job card column, right-aligned amounts, no wrapping, small Invoice button). The sidebar entry is labelled "Invoices"; the page heading is "Invoice [Warranty and billing]".
 
 **Also.** The Billing (accounts) screen is unchanged and can still record an ERP invoice number and payment for finance.
