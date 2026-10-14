@@ -197,9 +197,81 @@
     });
   }
 
+  // Sidebar groups (Service desk, Records, ...) open and close on click. The open
+  // groups are remembered per browser; the group holding the current page always
+  // opens when the page changes, and a group whose items are all hidden by
+  // permissions disappears.
+  const NAV_GROUPS_STORAGE_KEY = 'jackys-service-portal:navGroups';
+
+  function initNavGroups() {
+    const links = document.querySelector('.dashboard-links');
+    const groups = Array.from(document.querySelectorAll('.nav-group'));
+    if (!links || !groups.length) return;
+    let saved = {};
+    try {
+      saved = JSON.parse(localStorage.getItem(NAV_GROUPS_STORAGE_KEY) || '{}') || {};
+    } catch {
+      saved = {};
+    }
+    const defaultOpen = new Set(['overview', 'service-desk']);
+    const setOpen = (group, open) => {
+      group.classList.toggle('is-collapsed', !open);
+      group.querySelector('.nav-group-toggle').setAttribute('aria-expanded', String(open));
+      applyInert(group);
+    };
+    // Items of a closed group leave the tab order, except in the icon-only sidebar,
+    // which always shows every item.
+    const applyInert = (group) => {
+      const iconOnly = document.documentElement.classList.contains('sidebar-collapsed');
+      group
+        .querySelector('.nav-group-items')
+        .toggleAttribute('inert', group.classList.contains('is-collapsed') && !iconOnly);
+    };
+    new MutationObserver(() => groups.forEach(applyInert)).observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    });
+    groups.forEach((group) => {
+      const slug = group.dataset.navGroup;
+      setOpen(group, slug in saved ? Boolean(saved[slug]) : defaultOpen.has(slug));
+      group.querySelector('.nav-group-toggle').addEventListener('click', () => {
+        const open = group.classList.contains('is-collapsed');
+        setOpen(group, open);
+        saved[slug] = open;
+        try {
+          localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(saved));
+        } catch {
+          // Non-fatal.
+        }
+      });
+    });
+    let lastCurrent = null;
+    const sync = () => {
+      const current = links.querySelector('.dashboard-link[aria-current="page"]');
+      const currentId = current ? current.id : null;
+      groups.forEach((group) => {
+        const anyVisible = Array.from(group.querySelectorAll('.dashboard-link')).some(
+          (item) => !item.hidden,
+        );
+        group.classList.toggle('is-hidden', !anyVisible);
+        const hasCurrent = Boolean(current && group.contains(current));
+        group.classList.toggle('has-current', hasCurrent);
+        if (hasCurrent && currentId !== lastCurrent) setOpen(group, true);
+      });
+      lastCurrent = currentId;
+    };
+    new MutationObserver(sync).observe(links, {
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['hidden', 'aria-current'],
+    });
+    sync();
+  }
+
   let currentComplaintId = null;
   let currentAppointmentId = null;
   let currentAppointment = null;
+  let pendingInvoiceJobId = null;
   let currentJobCardId = null;
   let currentJobCard = null;
   let lastLoadedJobCards = [];
@@ -1181,7 +1253,6 @@
         <header class="ds-head"><h5>Status and delivery</h5></header>
         <div class="jc-sec-body">
       <div class="field-grid">
-        <div class="field"><label for="${prefix}InvoiceNo">Invoice no.</label><input type="text" id="${prefix}InvoiceNo" maxlength="120"></div>
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
       </div>
@@ -1196,10 +1267,7 @@
         <div class="field"><label for="${prefix}PaymentBy">Payment by ${tipHtml(`In warranty is always billed to the sales channel. For out of warranty choose who pays.`)}</label><select id="${prefix}PaymentBy"><option value="">Automatic</option><option>Sales channel</option><option>Customer</option></select></div>
         <div class="field"><label for="${prefix}BillToChannel">Bill to channel</label><select id="${prefix}BillToChannel"><option value="">Auto (billing rule / sales channel)</option></select></div>
         <div class="field"><label for="${prefix}BillingJobType">Job type</label><input type="text" id="${prefix}BillingJobType" readonly></div>
-        <div class="field"><label for="${prefix}InvoiceDate">Invoice date</label><input type="date" id="${prefix}InvoiceDate"></div>
-        <div class="field"><label for="${prefix}PaymentMode">Payment mode</label><select id="${prefix}PaymentMode"><option value="">Select mode</option><option>Cash</option><option>Online</option><option>Bank transfer</option><option>Card</option></select></div>
-        <div class="field"><label for="${prefix}PaymentReference">Payment reference</label><input type="text" id="${prefix}PaymentReference" maxlength="200" placeholder="Receipt or transaction no."></div>
-        <div class="field"><label class="check-label"><input type="checkbox" id="${prefix}PaymentConfirmed"> Payment received and confirmed ${tipHtml(`A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.`, '', `id="${prefix}PaymentConfirmedNote"`)}</label></div>
+        <div class="field field-wide" id="${prefix}InvoiceBox"><label>Invoice and payment ${tipHtml(`A job with an amount (anything other than internal billing) cannot be delivered until its tax invoice is issued and, when the customer pays, the payment is confirmed. Both are done under Service desk, Invoices.`)}</label><div class="jc-invoice-status"><span class="status" id="${prefix}InvoiceState">No invoice needed</span><span class="jc-invoice-no" id="${prefix}InvoiceNote"></span><button class="button button-outline" type="button" id="${prefix}OpenInvoice" hidden>Open invoice</button></div></div>
       </div>
         </div>
       </section>
@@ -1263,6 +1331,40 @@
     });
   }
 
+  // Read-only invoice and payment status on the job card; all entry is under Invoices.
+  function refreshInvoiceBox(prefix) {
+    const box = $(`#${prefix}InvoiceBox`);
+    if (!box) return;
+    const amount =
+      parseNumber($(`#${prefix}AmountChargeable`).value || $(`#${prefix}GrandTotal`).value) || 0;
+    const paymentBy = $(`#${prefix}PaymentBy`).value;
+    const effective =
+      normalizeWarrantyText($(`#${prefix}FinalWarrantyStatus`).value) ||
+      normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
+    const customerPays =
+      paymentBy === 'Customer' ||
+      (!paymentBy && effective === 'Out Warranty' && $(`#${prefix}CustomerType`).value === 'B2C');
+    const invoiceNo = box.dataset.portalNo || '';
+    const paid = box.dataset.confirmed === '1';
+    let label = 'No invoice needed';
+    let cls = '';
+    if (amount > 0 && !invoiceNo) {
+      label = 'Invoice required before delivery';
+      cls = 'status-warn';
+    } else if (invoiceNo && customerPays) {
+      label = paid ? 'Invoiced and paid' : 'Invoiced, awaiting payment';
+      cls = paid ? 'status-ok' : 'status-warn';
+    } else if (invoiceNo) {
+      label = 'Invoiced';
+      cls = 'status-ok';
+    }
+    const state = $(`#${prefix}InvoiceState`);
+    state.textContent = label;
+    state.className = `status ${cls}`;
+    $(`#${prefix}InvoiceNote`).textContent = invoiceNo;
+    $(`#${prefix}OpenInvoice`).hidden = !(box.dataset.jobId && amount > 0);
+  }
+
   function refreshBillingPreview(prefix) {
     const registered = normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
     const finalValue = $(`#${prefix}FinalWarrantyStatus`).value;
@@ -1272,17 +1374,7 @@
     const paymentBy = $(`#${prefix}PaymentBy`);
     paymentBy.disabled = effective === 'In Warranty';
     if (effective === 'In Warranty') paymentBy.value = 'Sales channel';
-    // Payment mode, reference and confirmation only apply when the customer pays.
-    const customerPays =
-      paymentBy.value === 'Customer' ||
-      (!paymentBy.value &&
-        effective === 'Out Warranty' &&
-        $(`#${prefix}CustomerType`).value === 'B2C');
-    ['PaymentMode', 'PaymentReference', 'PaymentConfirmed'].forEach((name) => {
-      const input = $(`#${prefix}${name}`);
-      input.disabled = !customerPays;
-      input.title = customerPays ? '' : 'Only used when the customer pays';
-    });
+    refreshInvoiceBox(prefix);
     refreshMdaServiceCharge(prefix);
     $(`#${prefix}BillingJobType`).value =
       effective === 'In Warranty'
@@ -1296,6 +1388,14 @@
     $('#jobCardViewTabs').addEventListener('click', (event) => {
       const tab = event.target.closest('[data-jc-view]');
       if (tab && !tab.hidden) setJobCardView(tab.dataset.jcView);
+    });
+    document.addEventListener('click', (event) => {
+      const open = event.target.closest('[id$="OpenInvoice"]');
+      if (!open) return;
+      const jobId = $(`#${open.id.replace('OpenInvoice', 'InvoiceBox')}`)?.dataset.jobId;
+      if (!jobId) return;
+      pendingInvoiceJobId = jobId;
+      setWorkspaceMode('invoices');
     });
     $('#jobCardCreateFields').innerHTML = jobCardFieldsHtml('jcc');
     $('#jobCardContentFields').innerHTML = jobCardFieldsHtml('jce');
@@ -1322,6 +1422,7 @@
         `#${prefix}PaymentBy`,
         `#${prefix}CustomerType`,
         `#${prefix}MainGroup`,
+        `#${prefix}AmountChargeable`,
       ].forEach((selector) =>
         $(selector).addEventListener('input', () => refreshBillingPreview(prefix)),
       );
@@ -1497,6 +1598,7 @@
     const serviceCharge = parseNumber($(`#${prefix}ServiceCharge`).value);
     $(`#${prefix}TotalCost`).value = money(totalCost);
     $(`#${prefix}GrandTotal`).value = money(totalCost + serviceCharge);
+    if ($(`#${prefix}InvoiceBox`)) refreshInvoiceBox(prefix);
   }
 
   // Warranty is one year from the purchase date; the pill shows the days left.
@@ -1646,7 +1748,6 @@
     $(`#${prefix}PeriodTo`).value = toDateTimeLocal(content.periodTo);
     $(`#${prefix}ServiceCharge`).value = content.serviceCharge || 0;
     $(`#${prefix}AmountChargeable`).value = content.amountChargeable ?? '';
-    $(`#${prefix}InvoiceNo`).value = content.invoiceNo || '';
     $(`#${prefix}DeliveryDate`).value = content.deliveryDate
       ? content.deliveryDate.slice(0, 10)
       : '';
@@ -1660,14 +1761,10 @@
       'Auto (billing rule / sales channel)',
       content.billToOverridden ? content.billToChannel || '' : '',
     );
-    $(`#${prefix}InvoiceDate`).value = content.invoiceDate ? content.invoiceDate.slice(0, 10) : '';
-    $(`#${prefix}PaymentMode`).value = content.paymentMode || '';
-    $(`#${prefix}PaymentReference`).value = content.paymentReference || '';
-    $(`#${prefix}PaymentConfirmed`).checked = Boolean(content.paymentConfirmedAt);
-    $(`#${prefix}PaymentConfirmed`).dataset.saved = content.paymentConfirmedAt ? '1' : '';
-    $(`#${prefix}PaymentConfirmedNote`).textContent = content.paymentConfirmedAt
-      ? `Confirmed ${new Date(content.paymentConfirmedAt).toLocaleString()}. Untick to undo a mistake.`
-      : 'A job paid by the customer can be delivered only after the invoice number is recorded and the payment is confirmed.';
+    const invoiceBox = $(`#${prefix}InvoiceBox`);
+    invoiceBox.dataset.portalNo = content.portalInvoiceNo || '';
+    invoiceBox.dataset.confirmed = content.paymentConfirmedAt ? '1' : '';
+    invoiceBox.dataset.jobId = prefix === 'jce' && content.id ? String(content.id) : '';
     refreshBillingPreview(prefix);
     $(`#${prefix}SchoolContactPerson`).value = content.schoolContactPerson || '';
     $(`#${prefix}SchoolContactNumber`).value = content.schoolContactNumber || '';
@@ -1722,23 +1819,12 @@
       amountChargeable: $(`#${prefix}AmountChargeable`).value
         ? parseNumber($(`#${prefix}AmountChargeable`).value)
         : undefined,
-      invoiceNo: $(`#${prefix}InvoiceNo`).value.trim() || undefined,
       deliveryDate: $(`#${prefix}DeliveryDate`).value || undefined,
       jobFinalStatus: $(`#${prefix}JobFinalStatus`).value || undefined,
       finalWarrantyStatus: $(`#${prefix}FinalWarrantyStatus`).value || undefined,
       warrantyOverrideReason: $(`#${prefix}WarrantyOverrideReason`).value.trim() || undefined,
       paymentBy: $(`#${prefix}PaymentBy`).value || undefined,
       billToChannel: $(`#${prefix}BillToChannel`).value,
-      invoiceDate: $(`#${prefix}InvoiceDate`).value || undefined,
-      paymentMode: $(`#${prefix}PaymentMode`).value || undefined,
-      paymentReference: $(`#${prefix}PaymentReference`).value.trim() || undefined,
-      // Only send a confirmation when it changed, so saving an unrelated edit
-      // never re-stamps who confirmed the payment.
-      paymentConfirmed:
-        $(`#${prefix}PaymentConfirmed`).checked ===
-        Boolean($(`#${prefix}PaymentConfirmed`).dataset.saved)
-          ? undefined
-          : $(`#${prefix}PaymentConfirmed`).checked,
       schoolContactPerson: $(`#${prefix}SchoolContactPerson`).value.trim() || undefined,
       schoolContactNumber: $(`#${prefix}SchoolContactNumber`).value.trim() || undefined,
       customerNumber: $(`#${prefix}CustomerNumber`).value.trim() || undefined,
@@ -2461,6 +2547,141 @@ ${bodyHtml}
     openPrintWindow(printDocumentShell(title, buildAmcContractCertificateBody(contract, plan)));
   }
 
+  // Tax invoice print, laid out like the ERP sample: Jacky's Electronics LLC letterhead
+  // with the JDI logo, the company TRN (always), the customer TRN (only when entered),
+  // VAT split lines, and the fixed system-generated note, bank details and terms.
+  const COMPANY_TRN = '100268906300003';
+
+  function printTaxInvoice(invoice) {
+    const dmy = (iso) => {
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+      return m ? `${m[3]}/${m[2]}/${m[1]}` : '-';
+    };
+    const dash = (value) => escapeHtml(value || '-');
+    const lines = (invoice.lines || [])
+      .map(
+        (l) => `<tr>
+          <td class="c">${l.sno}</td><td>${escapeHtml(l.itemCode)}</td><td>${escapeHtml(l.description)}</td>
+          <td class="c">${escapeHtml(l.uom)}</td><td class="n">${l.qty}</td><td class="n">${money(l.rate)}</td>
+          <td class="n">${money(l.value)}</td><td class="c">${l.taxRate}%</td><td class="n">${money(l.vat)}</td><td class="n">${money(l.amount)}</td></tr>`,
+      )
+      .join('');
+    const totals = invoice.totals || { net: 0, vat: 0, gross: 0 };
+    const invoiceDate = dmy(invoice.invoiceDate);
+    const terms = [
+      `An A/c Payee cheque in favour of Jacky\`s Electronics LLC dated ${invoiceDate} for the invoice amount must be issued within 7 days from the invoice date.`,
+      'Surcharge of 1% per month will be charged on delayed payment and penalty of AED 100 will be charged on each cheque bounced.',
+      'Goods have been reserved as per the customer`s confirmed order and will be delivered to the customer or customer`s nominee, as per customer`s written intimation.',
+      'Any discrepancy should be notified to Jacky`s Electronics LLC in writing within two working days after the delivery.',
+      'Goods once sold will not be taken back or exchanged.',
+      'The title of the goods delivered remain with Jacky`s Electronics LLC until paid in full.',
+      'The goods shall be at the risk of the customer from the time of accepting the delivery by the customer or customer`s nominee.',
+      'Disputes, if any, are subject to the jurisdiction of Dubai Courts.',
+    ]
+      .map((t) => `<li>${escapeHtml(t)}</li>`)
+      .join('');
+    const row = (label, value) =>
+      `<tr><td class="k">${escapeHtml(label)}</td><td class="s">:</td><td>${value}</td></tr>`;
+    const left = [
+      row('Customer', `<strong>${dash(invoice.customerName)}</strong>`),
+      invoice.customerTrn ? row('Customer TRN', escapeHtml(invoice.customerTrn)) : '',
+      row('Customer Code', dash(invoice.customerCode)),
+      row('Contact', dash(invoice.contact)),
+      row('Payment Term', dash(invoice.paymentTerm)),
+      row('Salesman', dash(invoice.salesman)),
+    ].join('');
+    const right = [
+      row('Invoice No.', `<strong>${dash(invoice.invoiceNo)}</strong>`),
+      row('Invoice Date', invoiceDate),
+      row('Ref. Doc.', dash(invoice.jobCardReference)),
+      row('Currency Code', 'AED'),
+      row('Exge Rate', '1'),
+      row('Date of Delivery', dmy(invoice.deliveryDate)),
+    ].join('');
+    const html = `<!doctype html>
+<html><head><meta charset="utf-8"><title>${escapeHtml(invoice.invoiceNo || 'Tax Invoice')}</title>
+<style>
+  @page { size: A4; margin: 12mm 12mm; }
+  * { box-sizing: border-box; }
+  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; padding: 0; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 8px; border-bottom: 2px solid #17324d; }
+  .head img { height: 54px; width: auto; display: block; }
+  .co { text-align: right; font-size: 10.5px; line-height: 1.45; color: #333; }
+  .co strong { display: block; font-size: 14px; color: #17324d; margin-bottom: 2px; }
+  .title { text-align: center; margin: 10px 0 8px; }
+  .title h1 { font-size: 18px; margin: 0; letter-spacing: .02em; color: #17324d; }
+  .title .trn { font-size: 12px; margin-top: 3px; font-weight: 700; }
+  .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 0 22px; border: 1px solid #b9c2cc; border-radius: 4px; padding: 6px 10px; }
+  .meta table { width: 100%; border-collapse: collapse; }
+  .meta td { padding: 2px 3px; vertical-align: top; border: none; font-size: 11px; }
+  .meta td.k { width: 34%; color: #555; white-space: nowrap; }
+  .meta td.s { width: 3%; color: #555; }
+  table.lines { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  table.lines th { background: #17324d; color: #fff; font-size: 10px; padding: 5px 4px; border: 1px solid #17324d; text-align: left; }
+  table.lines td { border: 1px solid #c7ced6; padding: 5px 4px; vertical-align: top; }
+  .n { text-align: right; white-space: nowrap; } .c { text-align: center; white-space: nowrap; }
+  table.lines th.n { text-align: right; } table.lines th.c { text-align: center; }
+  .sum { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-top: 8px; }
+  .words { flex: 1; font-size: 11px; }
+  .words strong { display: block; margin-bottom: 4px; }
+  table.tot { width: 250px; border-collapse: collapse; }
+  table.tot td { padding: 3px 6px; font-size: 11.5px; }
+  table.tot tr.g td { font-weight: 700; border-top: 1.5px solid #17324d; font-size: 12.5px; }
+  .remarks { margin-top: 8px; font-size: 11px; }
+  .sign { display: flex; justify-content: space-between; gap: 20px; margin-top: 12px; align-items: flex-end; }
+  .sign .blk { width: 42%; }
+  .sign .line { border-top: 1px solid #333; margin-top: 38px; padding-top: 3px; text-align: center; font-size: 10.5px; }
+  .ack { text-align: right; font-size: 10.5px; color: #333; width: 52%; }
+  .sysnote { text-align: center; font-style: italic; margin: 12px 0 8px; font-size: 11px; }
+  .bank { border-top: 1px solid #b9c2cc; padding-top: 6px; }
+  .bank table { border-collapse: collapse; width: 100%; }
+  .bank td { padding: 2px 3px; font-size: 10.5px; vertical-align: top; }
+  .bank td.k { width: 22%; color: #555; }
+  .terms { margin-top: 6px; font-size: 9.5px; color: #333; }
+  .terms ul { margin: 3px 0 0; padding-left: 16px; } .terms li { margin-bottom: 2px; }
+  .foot { margin-top: 8px; font-size: 9px; color: #777; text-align: right; }
+  .no-print { margin-top: 14px; color: #888; font-size: 11px; }
+  @media print { .no-print { display: none !important; } }
+</style></head><body>
+<div class="head">
+  <img src="${JDI_LOGO_DATA_URI}" alt="Jacky's Electronics LLC" />
+  <div class="co"><strong>Jacky's Electronics LLC</strong>
+    P.O Box:13745, Suites No: 607 &amp; 608, Level 6, ENBD Tower,<br>
+    Baniyas Square, Deira. Dubai, United Arab Emirates.<br>
+    Ph: +971 4 259 4040<br>
+    Email: sales@jackys.com &middot; http://www.jackyselectronics.com</div>
+</div>
+<div class="title"><h1>Tax Invoice (<bdi dir="rtl">فاتورة ضريبية</bdi>)</h1><div class="trn">TRN: ${COMPANY_TRN}</div></div>
+<div class="meta"><table>${left}</table><table>${right}</table></div>
+<table class="lines"><thead><tr><th class="c">SNo</th><th>Item Code</th><th>Item Desc</th><th class="c">UOM</th><th class="n">Qty</th><th class="n">Rate</th><th class="n">Value</th><th class="c">Tax Rate</th><th class="n">VAT Amt.</th><th class="n">Amount</th></tr></thead>
+<tbody>${lines}</tbody></table>
+<div class="sum">
+  <div class="words"><strong>Amount in Words : ${escapeHtml(invoice.amountInWords || '')}</strong></div>
+  <table class="tot">
+    <tr><td>Total Before VAT :</td><td class="n">${money(totals.net)}</td></tr>
+    <tr><td>VAT Amount :</td><td class="n">${money(totals.vat)}</td></tr>
+    <tr class="g"><td>Total Amount :</td><td class="n">${money(totals.gross)}</td></tr>
+  </table>
+</div>
+<div class="remarks"><strong>Remarks :</strong> ${escapeHtml(invoice.remarks || '')}</div>
+<div class="sign">
+  <div class="blk"><strong>For Jacky&rsquo;s Electronics LLC</strong><div class="line">Authorised Signatory</div></div>
+  <div class="ack">The above items received in good condition<br>and agreed to the terms &amp; conditions printed below
+    <div class="line" style="margin-left:auto;width:70%">Received By</div></div>
+</div>
+<div class="sysnote">&ldquo;This is system generated invoice. No need of signature and stamp.&rdquo;</div>
+<div class="bank"><table>
+  <tr><td class="k">A/C Payee in favour of :</td><td>Jacky\`s Electronics LLC</td><td><strong>** Payment for this invoice is due on ${dmy(invoice.dueDate)}</strong></td></tr>
+  <tr><td class="k">Bank :</td><td>Habib Bank AG Zurich, Dubai, UAE</td><td>Swift: HBZUAEADXXX</td></tr>
+  <tr><td class="k">IBAN Details (AED) :</td><td colspan="2">AE18 0290 1203 1110 5178 162</td></tr>
+</table></div>
+<div class="terms"><strong>Terms &amp; Conditions:</strong><ul>${terms}</ul></div>
+<div class="foot">Printed ${escapeHtml(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' }))}</div>
+<p class="no-print">This window opened for printing / Save as PDF &mdash; use your browser's print dialog.</p>
+</body></html>`;
+    openPrintWindow(html);
+  }
+
   function openPrintWindow(html) {
     // No 'noopener' here: this window only ever gets same-origin,
     // app-generated content written into it via document.write below, so
@@ -2573,7 +2794,7 @@ ${bodyHtml}
       }
       <h2>${customerCopy ? 'Delivery' : 'Invoice / delivery'}</h2>
       ${printFieldGrid([
-        ...internalOnly([['Invoice no.', jobCard.invoiceNo]]),
+        ...internalOnly([['Invoice no.', jobCard.portalInvoiceNo || jobCard.invoiceNo]]),
         ['Delivery date', jobCard.deliveryDate],
         ['Time consumed (hours)', jobCard.timeConsumedHours],
         ['Site contact person', jobCard.schoolContactPerson],
@@ -5021,7 +5242,9 @@ ${bodyHtml}
           ['Job type', billingJobTypeLabel(jobCard.billingJobType)],
           ['Payment by', jobCard.paymentBy],
           ['Bill to channel', jobCard.billToChannel],
-          ['Invoice no.', jobCard.invoiceNo],
+          ['Tax invoice no.', jobCard.portalInvoiceNo],
+          ['Customer TRN', jobCard.customerTrn],
+          ['ERP reference', jobCard.invoiceNo],
           ['Invoice date', jobCard.invoiceDate],
           ['Payment mode', jobCard.paymentMode],
           ['Payment reference', jobCard.paymentReference],
@@ -12092,8 +12315,9 @@ ${bodyHtml}
     invoices: {
       navId: 'invoicesNav',
       workspaceId: 'invoicesWorkspace',
-      heading: 'Invoices',
-      description: 'Jobs with an amount, by job type and payment stage.',
+      heading: 'Invoice [Warranty and billing]',
+      description:
+        'Tax invoices and payment confirmation for jobs with an amount, by job type and payment stage.',
       permission: 'service_job_card.read',
       hideCurrencyNote: true,
       domains: [],
@@ -12817,8 +13041,7 @@ ${bodyHtml}
       const t = d.totals;
       return (
         recordPanel() +
-        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (AED)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th>' +
-        (canRecord ? '<th></th>' : '') +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (AED)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th><th></th>' +
         '</tr></thead><tbody>' +
         (body ||
           '<tr><td colspan="20" class="empty-state">No billed jobs match these filters.</td></tr>') +
@@ -13181,51 +13404,124 @@ ${bodyHtml}
     }
 
     function recordPanel() {
-      const row = state.selected;
-      if (!row) return '';
-      const lockedNote =
-        row.paymentBy === 'Customer'
-          ? 'The customer pays for this job: confirm the payment so it can be delivered.'
-          : 'This job is billed to ' +
-            escapeHtml(row.billToChannel || 'the sales channel') +
-            '. No payment confirmation is needed; finance bills it through the ledger.';
+      const detail = state.selected;
+      if (!detail) return '';
+      const job = detail.job;
+      const invoice = detail.invoice;
+      const customerPays = job.paymentBy === 'Customer';
+      const issued = detail.issued;
+      const lines = (invoice.lines || [])
+        .map(
+          (l) =>
+            '<tr><td>' +
+            l.sno +
+            '</td><td>' +
+            escapeHtml(l.itemCode) +
+            '</td><td>' +
+            escapeHtml(l.description) +
+            '</td><td class="num">' +
+            l.qty +
+            '</td><td class="num">' +
+            money(l.value) +
+            '</td><td class="num">' +
+            money(l.vat) +
+            '</td><td class="num">' +
+            money(l.amount) +
+            '</td></tr>',
+        )
+        .join('');
+      const totals = invoice.totals || { net: 0, vat: 0, gross: 0 };
+      const pills =
+        '<span class="status ' +
+        (issued ? 'status-ok' : 'status-warn') +
+        '">' +
+        (issued ? 'Issued ' + escapeHtml(detail.portalInvoiceNo) : 'Not invoiced') +
+        '</span>' +
+        (detail.stale
+          ? ' <span class="status status-warn">Amount changed after issue</span>' +
+            tipHtml(
+              'The job amount is now different from the issued invoice. The print keeps the issued figures; raise it with finance before delivery.',
+            )
+          : '') +
+        (detail.deliveryBlockReason
+          ? ' <span class="status status-warn">Cannot be delivered yet</span>' +
+            tipHtml(escapeHtml(detail.deliveryBlockReason))
+          : '');
       return (
         '<div class="detail-action-card" data-inv-record>' +
-        '<h4>Invoice and payment: ' +
-        escapeHtml(row.jobCardReference) +
-        '</h4>' +
-        '<p class="form-note">' +
-        lockedNote +
-        '</p>' +
+        '<h4>Invoice: ' +
+        escapeHtml(job.jobCardReference) +
+        ' &middot; ' +
+        escapeHtml(invoice.customerName || '') +
+        ' &middot; ' +
+        aed(totals.gross) +
+        '</h4><div class="inv-pills">' +
+        pills +
+        '</div>' +
         '<div class="field-grid">' +
-        '<div class="field"><label>Invoice no.<input type="text" data-rec="invoiceNo" maxlength="120" value="' +
-        escapeHtml(row.invoiceNo || '') +
+        '<div class="field"><label>Customer TRN ' +
+        tipHtml(
+          'Optional, for a B2B or B2C customer who is VAT registered: 15 digits. It prints on the invoice only when entered. Jacky&rsquo;s own TRN always prints.',
+        ) +
+        '<input type="text" inputmode="numeric" data-rec="customerTrn" maxlength="20" value="' +
+        escapeHtml(detail.customerTrn || '') +
         '"></label></div>' +
-        '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate" value="' +
-        escapeHtml((row.invoiceDate || '').slice(0, 10)) +
-        '"></label></div>' +
-        '<div class="field"><label>Payment mode<select data-rec="paymentMode"' +
-        (row.paymentBy === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
-        '><option value="">Select mode</option>' +
-        ['Cash', 'Online', 'Bank transfer', 'Card']
-          .map(
-            (m) => '<option' + (row.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
-          )
-          .join('') +
-        '</select></label></div>' +
-        '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200"' +
-        (row.paymentBy === 'Customer' ? '' : ' disabled title="Only used when the customer pays"') +
+        '<div class="field"><label>Invoice date<input type="date" data-rec="invoiceDate"' +
+        (issued ? ' disabled' : '') +
         ' value="' +
-        escapeHtml(row.paymentReference || '') +
+        escapeHtml((invoice.invoiceDate || '').slice(0, 10)) +
         '"></label></div>' +
-        (row.paymentBy === 'Customer'
-          ? '<div class="field"><label class="check-label"><input type="checkbox" data-rec="paymentConfirmed"' +
-            (row.paymentConfirmedAt ? ' checked' : '') +
-            '> Payment received and confirmed</label></div>'
+        '<div class="field"><label>ERP reference ' +
+        tipHtml(
+          'Optional. The invoice number from the ERP, if the job was also invoiced there. The portal numbers its own invoices (SINV series).',
+        ) +
+        '<input type="text" data-rec="erpReference" maxlength="120" value="' +
+        escapeHtml(detail.erpReference || '') +
+        '"></label></div>' +
+        '<div class="field field-wide"><label>Remarks<input type="text" data-rec="remarks" maxlength="500" value="' +
+        escapeHtml(invoice.remarks || '') +
+        '"></label></div>' +
+        (customerPays
+          ? '<div class="field"><label>Payment mode<select data-rec="paymentMode"><option value="">Select mode</option>' +
+            ['Cash', 'Online', 'Bank transfer', 'Card']
+              .map(
+                (m) =>
+                  '<option' + (detail.paymentMode === m ? ' selected' : '') + '>' + m + '</option>',
+              )
+              .join('') +
+            '</select></label></div>' +
+            '<div class="field"><label>Payment reference<input type="text" data-rec="paymentReference" maxlength="200" placeholder="Receipt or transaction no." value="' +
+            escapeHtml(detail.paymentReference || '') +
+            '"></label></div>' +
+            '<div class="field"><label class="check-label"><input type="checkbox" data-rec="paymentConfirmed"' +
+            (detail.paymentConfirmedAt ? ' checked' : '') +
+            (issued ? '' : ' disabled') +
+            '> Payment received and confirmed ' +
+            tipHtml(
+              'The job can be delivered only after the invoice is issued and the payment is confirmed. Untick to undo a mistake.',
+            ) +
+            '</label></div>'
           : '') +
         '</div>' +
-        '<div class="form-footer"><span></span><button class="button button-outline" type="button" data-rec-cancel>Close</button><button class="button button-primary" type="button" data-rec-save>Save</button></div>' +
-        '</div>'
+        '<div class="table-wrap"><table><thead><tr><th>#</th><th>Item code</th><th>Description</th><th class="num">Qty</th><th class="num">Value</th><th class="num">VAT 5%</th><th class="num">Amount</th></tr></thead><tbody>' +
+        lines +
+        '</tbody><tfoot><tr><th colspan="4">Total (VAT inclusive)</th><th class="num">' +
+        money(totals.net) +
+        '</th><th class="num">' +
+        money(totals.vat) +
+        '</th><th class="num">' +
+        money(totals.gross) +
+        '</th></tr></tfoot></table></div>' +
+        '<div class="form-footer"><span></span><button class="button button-outline" type="button" data-rec-cancel>Close</button>' +
+        (issued
+          ? '<button class="button button-outline" type="button" data-rec-print>Print invoice</button>'
+          : canRecord
+            ? '<button class="button button-outline" type="button" data-rec-issue>Issue invoice</button>'
+            : '') +
+        (canRecord
+          ? '<button class="button button-primary" type="button" data-rec-save>Save</button>'
+          : '') +
+        '</div></div>'
       );
     }
 
@@ -13252,7 +13548,8 @@ ${bodyHtml}
             aed(r.amount) +
             '</td>' +
             '<td>' +
-            escapeHtml(r.invoiceNo || '—') +
+            escapeHtml(r.portalInvoiceNo || '—') +
+            (r.invoiceNo ? '<br><small>ERP ' + escapeHtml(r.invoiceNo) + '</small>' : '') +
             '</td>' +
             '<td>' +
             escapeHtml(r.paymentMode || '—') +
@@ -13265,11 +13562,9 @@ ${bodyHtml}
             '<td>' +
             escapeHtml(r.jobFinalStatus) +
             '</td>' +
-            (canRecord
-              ? '<td><button class="button button-outline" type="button" data-inv-record-open="' +
-                escapeHtml(r.id) +
-                '">Record</button></td>'
-              : '') +
+            '<td><button class="button button-outline" type="button" data-inv-record-open="' +
+            escapeHtml(r.id) +
+            '">Invoice</button></td>' +
             '</tr>',
         )
         .join('');
@@ -13323,41 +13618,74 @@ ${bodyHtml}
           loadJobCardDetail(el.dataset.invOpen);
         }),
       );
-      body.querySelectorAll('[data-inv-record-open]').forEach((el) =>
-        el.addEventListener('click', () => {
-          state.selected = state.rows.find((r) => r.id === el.dataset.invRecordOpen) || null;
-          drawInvoices();
-          body.querySelector('[data-inv-record]')?.scrollIntoView({ block: 'nearest' });
-        }),
-      );
+      body
+        .querySelectorAll('[data-inv-record-open]')
+        .forEach((el) => el.addEventListener('click', () => openInvoice(el.dataset.invRecordOpen)));
       body.querySelector('[data-rec-cancel]')?.addEventListener('click', () => {
         state.selected = null;
         drawInvoices();
       });
-      body.querySelector('[data-rec-save]')?.addEventListener('click', saveRecord);
+      body.querySelector('[data-rec-save]')?.addEventListener('click', () => saveRecord(false));
+      body.querySelector('[data-rec-issue]')?.addEventListener('click', () => saveRecord(true));
+      body
+        .querySelector('[data-rec-print]')
+        ?.addEventListener('click', () => printTaxInvoice(state.selected.invoice));
     }
 
-    async function saveRecord() {
-      const row = state.selected;
-      if (!row) return;
+    async function openInvoice(jobId) {
+      try {
+        const result = await apiRequest('/api/invoices/' + encodeURIComponent(jobId));
+        state.selected = result.invoice;
+        drawInvoices();
+        body.querySelector('[data-inv-record]')?.scrollIntoView({ block: 'nearest' });
+      } catch (error) {
+        say(error.message, true);
+      }
+    }
+
+    async function saveRecord(issue) {
+      const detail = state.selected;
+      if (!detail) return;
       const field = (name) => body.querySelector('[data-rec="' + name + '"]');
-      const payload = {};
-      const text = (name) => field(name).value.trim();
-      if (text('invoiceNo')) payload.invoiceNo = text('invoiceNo');
-      if (text('invoiceDate')) payload.invoiceDate = text('invoiceDate');
-      if (text('paymentMode')) payload.paymentMode = text('paymentMode');
-      if (text('paymentReference')) payload.paymentReference = text('paymentReference');
-      const confirmBox = field('paymentConfirmed');
-      if (confirmBox && confirmBox.checked !== Boolean(row.paymentConfirmedAt)) {
-        payload.paymentConfirmed = confirmBox.checked;
+      const text = (name) => (field(name) ? field(name).value.trim() : undefined);
+      const trn = (text('customerTrn') || '').replace(/[\s-]/g, '');
+      if (trn && !/^\d{15}$/.test(trn)) {
+        say('The customer TRN must be 15 digits.', true);
+        return;
       }
       try {
-        await apiRequest('/api/job-cards/' + encodeURIComponent(row.id), {
-          method: 'PATCH',
-          body: JSON.stringify(payload),
-        });
-        state.selected = null;
-        say('Saved ' + row.jobCardReference + '.');
+        let current = detail;
+        if (issue) {
+          const payload = {};
+          if (trn) payload.customerTrn = trn;
+          if (text('invoiceDate')) payload.invoiceDate = text('invoiceDate');
+          if (text('erpReference')) payload.erpReference = text('erpReference');
+          if (text('remarks')) payload.remarks = text('remarks');
+          const result = await apiRequest(
+            '/api/invoices/' + encodeURIComponent(detail.job.id) + '/issue',
+            { method: 'POST', body: JSON.stringify(payload) },
+          );
+          current = result.invoice;
+          say('Issued ' + current.portalInvoiceNo + '.');
+        } else {
+          const payload = { customerTrn: trn, erpReference: text('erpReference') };
+          if (detail.issued && text('remarks')) payload.remarks = text('remarks');
+          if (text('paymentMode')) payload.paymentMode = text('paymentMode');
+          if (text('paymentReference') !== undefined) {
+            payload.paymentReference = text('paymentReference');
+          }
+          const box = field('paymentConfirmed');
+          if (box && box.checked !== Boolean(detail.paymentConfirmedAt)) {
+            payload.paymentConfirmed = box.checked;
+          }
+          const result = await apiRequest('/api/invoices/' + encodeURIComponent(detail.job.id), {
+            method: 'PATCH',
+            body: JSON.stringify(payload),
+          });
+          current = result.invoice;
+          say('Saved ' + detail.job.jobCardReference + '.');
+        }
+        state.selected = current;
         await loadInvoices();
       } catch (error) {
         say(error.message, true);
@@ -13377,6 +13705,11 @@ ${bodyHtml}
         state.rows = list.invoices || [];
         state.summary = summary.summary;
         drawInvoices();
+        if (pendingInvoiceJobId) {
+          const jobId = pendingInvoiceJobId;
+          pendingInvoiceJobId = null;
+          await openInvoice(jobId);
+        }
       } catch (error) {
         body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
       }
@@ -17929,5 +18262,6 @@ ${bodyHtml}
   initThemeAndPaletteControls();
   initUserMenu();
   initSidebarToggle();
+  initNavGroups();
   restoreSession();
 })();

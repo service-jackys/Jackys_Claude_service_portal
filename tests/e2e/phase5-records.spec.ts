@@ -32,6 +32,12 @@ async function signIn(page: import('@playwright/test').Page, email: string) {
   await page.locator('#loginPassword').fill('local-password-1234');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
+  // Sidebar groups other than the current one start closed; open them all.
+  await page.evaluate(() =>
+    document
+      .querySelectorAll<HTMLButtonElement>('.nav-group-toggle[aria-expanded="false"]')
+      .forEach((toggle) => toggle.click()),
+  );
 }
 
 test.describe('quotations workspace', () => {

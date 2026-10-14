@@ -41,6 +41,7 @@ import { listActiveBillingRules } from '../../../../packages/db/src/billing-rule
 import {
   billedAmount,
   deliveryBlockReason,
+  gateInvoiceNo,
   isMdaGroup,
   mdaStandardRate,
   normalizeWarranty,
@@ -600,10 +601,10 @@ export function createServiceJobCardService(pool: Pool) {
           'Only a job paid by the customer needs a payment confirmation.',
         );
       }
-      if (!saved.invoiceNo) {
+      if (!(saved.portalInvoiceNo || saved.invoiceNo)) {
         throw new ServiceJobCardError(
           'billing-blocked',
-          'Record the invoice number before confirming the payment.',
+          'Issue the tax invoice (Service desk > Invoice) or record the ERP invoice number before confirming the payment.',
         );
       }
       if (!paymentMode) {
@@ -642,7 +643,7 @@ export function createServiceJobCardService(pool: Pool) {
         }),
         billingJobType: refreshed.billingJobType,
         paymentBy: refreshed.paymentBy,
-        invoiceNo: refreshed.invoiceNo,
+        invoiceNo: gateInvoiceNo(refreshed),
         paymentConfirmed: Boolean(refreshed.paymentConfirmedAt) && paymentConfirmedNow !== false,
       });
       if (reason) throw new ServiceJobCardError('billing-blocked', reason);
@@ -1210,7 +1211,7 @@ export function createServiceJobCardService(pool: Pool) {
           }),
           billingJobType: current.billingJobType,
           paymentBy: current.paymentBy,
-          invoiceNo: current.invoiceNo,
+          invoiceNo: gateInvoiceNo(current),
           paymentConfirmed: Boolean(current.paymentConfirmedAt),
         });
         if (reason) throw new ServiceJobCardError('billing-blocked', reason);

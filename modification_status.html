@@ -3472,6 +3472,26 @@
           <li>Run npm.cmd run db:migrate, restart the API and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#101 &mdash; Tax invoices, invoice screen and collapsible sidebar</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-14 &middot; web, API and migration 042</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Service desk &rarr; Invoice [Warranty and billing] now holds all invoice and payment entry: customer TRN (optional), ERP reference, portal invoice number (SINV series), payment mode, reference and confirmation.</li>
+          <li>Service job card shows a read-only Invoice and payment status with an Open invoice button; the old payment fields are gone. Jobs with an amount cannot be delivered until invoiced (and paid, when the customer pays).</li>
+          <li>Printable Tax Invoice based on the ERP sample: JDI logo, company TRN always, customer TRN only when entered, VAT split at 5%, amount in words, system-generated note, bank details and terms.</li>
+          <li>Sidebar groups open and close on click; Warranty approvals moved to Service desk.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Run npm.cmd run db:migrate (042), restart the API and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

@@ -2712,3 +2712,24 @@ Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warra
 
 **Needs you:** run `npm.cmd run db:migrate` (038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs keep their status; only new quotation jobs start in Customer approval pending.
 
+
+
+## Modification #101 — Tax invoices: Invoice [Warranty and billing], printable invoice, collapsible sidebar
+
+**Invoice [Warranty and billing]** (Service desk, the old Invoices screen) is now the one place for invoice and payment entry.
+- Any job with an amount other than internal billing needs a tax invoice before it can be delivered. The portal numbers its own invoices (SINV-YYYY-NNNNN); the ERP number can still be typed as an optional "ERP reference".
+- Open a job with the Invoice button: set the optional **Customer TRN** (B2B or B2C, 15 digits), invoice date, ERP reference and remarks, then **Issue invoice**. After issue, record the payment mode, payment reference and "Payment received and confirmed" (jobs paid by the customer).
+- Job amounts are VAT-inclusive at 5%; the invoice backs the VAT out (25.00 = 23.81 + 1.19). Lines are the service charge, each part, and a discount/adjustment line when the chargeable amount differs. The invoice is frozen when issued; a warning shows if the job amount changes afterwards.
+- Delivery gate unchanged in spirit: a customer-paid job needs the invoice issued **and** payment confirmed. A walk-in's purchase-invoice number no longer counts as "invoiced".
+
+**Service job card.** The invoice number, invoice date and payment fields are removed from the job card form. A read-only "Invoice and payment" status with an Open invoice button replaces them; the job card detail shows the tax invoice number, customer TRN and ERP reference.
+
+**Print.** "Print invoice" gives a Tax Invoice laid out like the ERP sample: Jacky's Electronics LLC letterhead and the JDI logo, company TRN 100268906300003 always printed, customer TRN only when entered, line table with VAT, totals, amount in words, remarks, signature area, the "system generated invoice" line, payee and bank details and the terms and conditions as in the sample (cheque date and due date use the invoice date).
+
+**Sidebar.** Groups (Overview, Service desk, Records, Admin, Management, Quote Calculators) open and close on click, remember their state per browser, and the group holding the current page opens by itself. Warranty approvals moved into Service desk. The icon-only sidebar still shows every item.
+
+**Also.** The Billing (accounts) screen is unchanged and can still record an ERP invoice number and payment for finance.
+
+Tests: tests/unit/tax-invoice.test.ts, tests/integration/tax-invoice.test.ts, tests/integration/job-billing.test.ts, tests/e2e/billing.spec.ts (invoice flow and print, sidebar groups), tests/e2e/phase5-records.spec.ts.
+
+**Needs you:** run `npm.cmd run db:migrate` (042, plus 038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs already confirmed as paid stay deliverable; unpaid ones need an invoice issued.

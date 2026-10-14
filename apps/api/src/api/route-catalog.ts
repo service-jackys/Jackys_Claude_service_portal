@@ -100,6 +100,8 @@ export type RouteDefinition = {
     | 'salesman'
     | 'salesChannel'
     | 'billingRule'
+    | 'taxInvoiceIssue'
+    | 'taxInvoiceUpdate'
     | 'appointment'
     | 'appointmentAssignment'
     | 'appointmentMessage'
@@ -1697,6 +1699,30 @@ export function createRouteCatalog(
         handlers: invoiceHandlers.list,
       },
       {
+        method: 'post' as const,
+        path: '/api/invoices/{id}/issue',
+        operationId: 'issueJobInvoice',
+        tags: ['Billing'],
+        summary: 'Issue a portal tax invoice (SINV series) for a service job with an amount',
+        security: 'bearerAuth' as const,
+        requestBody: 'taxInvoiceIssue' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [201, 400, 401, 403, 404, 409, 500],
+        handlers: invoiceHandlers.issue,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/invoices/{id}',
+        operationId: 'updateJobInvoice',
+        tags: ['Billing'],
+        summary: 'Update the customer TRN, ERP reference and payment details of a job invoice',
+        security: 'bearerAuth' as const,
+        requestBody: 'taxInvoiceUpdate' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: invoiceHandlers.update,
+      },
+      {
         method: 'get' as const,
         path: '/api/billing/ledger',
         operationId: 'getBillingLedger',
@@ -1752,6 +1778,17 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: invoiceHandlers.summary,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/invoices/{id}',
+        operationId: 'getJobInvoice',
+        tags: ['Billing'],
+        summary: 'The tax invoice (issued or preview) and payment status of a service job',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: invoiceHandlers.detail,
       },
       {
         method: 'get' as const,

@@ -8,7 +8,7 @@
 //  - Billing follows the FINAL warranty status the technician sets, which
 //    falls back to the warranty status registered on the request.
 //  - A job with an amount payable by the customer cannot be delivered until
-//    an invoice number is recorded and the payment is confirmed. A job billed
+//    a tax invoice is issued (Service desk > Invoices) and the payment is confirmed. A job billed
 //    to a sales channel can be delivered straight away.
 
 export type BillingRule = {
@@ -119,6 +119,17 @@ export function billedAmount(card: {
   return card.amountChargeable ?? card.grandTotal ?? 0;
 }
 
+/** The invoice number that counts for the delivery gate: the portal tax invoice, or an older
+ *  ERP invoice number only once its payment was confirmed (jobs invoiced before the portal
+ *  issued invoices; a walk-in's purchase-invoice number must not count as invoiced). */
+export function gateInvoiceNo(card: {
+  portalInvoiceNo: string | null;
+  invoiceNo: string | null;
+  paymentConfirmedAt: Date | string | null;
+}): string | null {
+  return card.portalInvoiceNo ?? (card.paymentConfirmedAt ? card.invoiceNo : null);
+}
+
 /** Why the job cannot be delivered yet, or null when it can. */
 export function deliveryBlockReason(card: {
   amount: number;
@@ -133,10 +144,10 @@ export function deliveryBlockReason(card: {
   }
   if (card.paymentBy === 'Customer') {
     if (!card.invoiceNo) {
-      return 'The customer pays for this job. Record the invoice number and confirm the payment before delivery.';
+      return 'This job has an amount payable by the customer. Issue the tax invoice and confirm the payment under Service desk > Invoices before delivery.';
     }
     if (!card.paymentConfirmed) {
-      return 'The customer pays for this job. Confirm the payment before delivery.';
+      return 'The invoice is issued. Confirm the payment under Service desk > Invoices before delivery.';
     }
   }
   return null;

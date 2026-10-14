@@ -1486,3 +1486,37 @@ export const pricingConfigRestoreSchema = z
   .object({ auditEventId: z.number().int().positive() })
   .strict();
 export type PricingConfigRestoreInput = z.infer<typeof pricingConfigRestoreSchema>;
+
+// Tax invoices for service jobs (modification #101). Job amounts are VAT-inclusive
+// at 5%; the invoice backs the VAT out. The customer TRN is optional (B2B or B2C)
+// and prints only when entered; the company TRN is fixed on the print.
+export const customerTrnSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/[\s-]/g, ''))
+  .refine((value) => value === '' || /^\d{15}$/.test(value), {
+    message: 'The customer TRN must be 15 digits.',
+  });
+
+export const taxInvoiceIssueSchema = z
+  .object({
+    customerTrn: customerTrnSchema.optional(),
+    invoiceDate: dateSchema.optional(),
+    erpReference: optionalText(120),
+    remarks: optionalText(500),
+  })
+  .strict();
+export type TaxInvoiceIssueInput = z.infer<typeof taxInvoiceIssueSchema>;
+
+export const taxInvoiceUpdateSchema = z
+  .object({
+    customerTrn: customerTrnSchema.optional(),
+    erpReference: z.string().trim().max(120).optional(),
+    remarks: z.string().trim().max(500).optional(),
+    paymentMode: z.enum(paymentModes).optional(),
+    paymentReference: z.string().trim().max(200).optional(),
+    // true records the payment (stamped with who and when); false clears a mistake.
+    paymentConfirmed: z.boolean().optional(),
+  })
+  .strict();
+export type TaxInvoiceUpdateInput = z.infer<typeof taxInvoiceUpdateSchema>;

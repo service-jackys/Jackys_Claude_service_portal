@@ -7,7 +7,16 @@ import {
 } from '../../../../packages/db/src/billing-rules.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
-import { billingRuleWriteSchema } from '../../../../packages/contracts/src/index.js';
+import {
+  billingRuleWriteSchema,
+  taxInvoiceIssueSchema,
+  taxInvoiceUpdateSchema,
+} from '../../../../packages/contracts/src/index.js';
+import { findServiceJobCardById } from '../../../../packages/db/src/job-cards.js';
+import { saveInvoiceRecord, saveIssuedInvoice } from '../../../../packages/db/src/invoices.js';
+import { allocateTaxInvoiceReference } from '../../../../packages/db/src/references.js';
+import { billedAmount, deliveryBlockReason, gateInvoiceNo } from '../job-cards/billing.js';
+import { amountInWords, buildInvoiceLines, invoiceTotals } from './tax-invoice.js';
 import { randomUUID } from 'node:crypto';
 import ExcelJS from 'exceljs';
 import {
@@ -22,7 +31,7 @@ import {
 
 export class InvoiceServiceError extends Error {
   constructor(
-    public readonly code: 'not-found',
+    public readonly code: 'not-found' | 'blocked',
     message: string,
   ) {
     super(message);
@@ -44,6 +53,75 @@ function ledgerQuery(query: Record<string, unknown>): BillingLedgerQuery {
     billTo: text(query.billTo),
     stage: text(query.stage),
     search: text(query.search),
+  };
+}
+
+type JobRecord = NonNullable<Awaited<ReturnType<typeof findServiceJobCardById>>>;
+
+/** Today's date in the business time zone (Dubai), as YYYY-MM-DD. */
+function businessToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.BUSINESS_TIMEZONE || 'Asia/Dubai',
+  }).format(new Date());
+}
+
+function jobAmount(job: JobRecord): number {
+  return billedAmount({
+    amountChargeable: job.amountChargeable === null ? null : Number(job.amountChargeable),
+    grandTotal: Number(job.grandTotal),
+  });
+}
+
+/** What the invoice shows. Built from the job at the moment of issue and then frozen. */
+function buildSnapshot(
+  job: JobRecord,
+  extra: {
+    invoiceNo: string | null;
+    invoiceDate: string;
+    customerTrn: string | null;
+    remarks: string | null;
+  },
+) {
+  const lines = buildInvoiceLines({
+    itemDescription: job.itemDescription,
+    modelNo: job.modelNo,
+    serviceCharge: Number(job.serviceCharge) || 0,
+    parts: job.parts,
+    amount: jobAmount(job),
+  });
+  const channelBilled = job.paymentBy === 'Sales channel';
+  return {
+    invoiceNo: extra.invoiceNo,
+    invoiceDate: extra.invoiceDate,
+    dueDate: extra.invoiceDate,
+    currency: 'AED',
+    customerName: (channelBilled ? job.billToChannel : null) || job.customerName || '-',
+    customerCode: job.customerNumber,
+    customerTrn: extra.customerTrn,
+    customerType: job.customerType,
+    billedToChannel: channelBilled,
+    contact: job.customerContact,
+    address: job.customerAddress,
+    jobCardReference: job.jobCardReference,
+    salesman: job.salesman,
+    paymentTerm: channelBilled ? 'ON ACCOUNT' : 'CASH IN ADVANCE',
+    itemDescription: job.itemDescription,
+    modelNo: job.modelNo,
+    serialNo: job.serialNo,
+    deliveryDate: job.deliveryDate,
+    remarks:
+      extra.remarks ??
+      [
+        job.jobCardReference,
+        job.itemDescription,
+        job.modelNo,
+        job.serialNo && `S/N ${job.serialNo}`,
+      ]
+        .filter(Boolean)
+        .join(' | '),
+    lines,
+    totals: invoiceTotals(lines),
+    amountInWords: amountInWords(invoiceTotals(lines).gross),
   };
 }
 
@@ -316,7 +394,207 @@ export function createInvoiceService(pool: Pool) {
     });
   }
 
-  return { list, summary, rules, createRule, updateRule, ledger, exportLedger };
+  function presentInvoice(job: JobRecord) {
+    const amount = jobAmount(job);
+    const stored = job.invoiceSnapshot as ReturnType<typeof buildSnapshot> | null;
+    const issued = Boolean(job.portalInvoiceNo && stored);
+    const preview =
+      issued && stored
+        ? stored
+        : buildSnapshot(job, {
+            invoiceNo: null,
+            invoiceDate: businessToday(),
+            customerTrn: job.customerTrn,
+            remarks: null,
+          });
+    return {
+      job: {
+        id: job.id,
+        jobCardReference: job.jobCardReference,
+        jobFinalStatus: job.jobFinalStatus,
+        customerName: job.customerName,
+        customerType: job.customerType,
+        billingJobType: job.billingJobType,
+        paymentBy: job.paymentBy,
+        billToChannel: job.billToChannel,
+        amount,
+        deliveryDate: job.deliveryDate,
+      },
+      issued,
+      // The job amount changed after the invoice was issued.
+      stale: issued && stored ? Math.abs(stored.totals.gross - amount) >= 0.01 : false,
+      invoice: preview,
+      erpReference: job.invoiceNo,
+      customerTrn: job.customerTrn,
+      portalInvoiceNo: job.portalInvoiceNo,
+      portalInvoiceIssuedAt: job.portalInvoiceIssuedAt,
+      paymentMode: job.paymentMode,
+      paymentReference: job.paymentReference,
+      paymentConfirmedAt: job.paymentConfirmedAt,
+      deliveryBlockReason: deliveryBlockReason({
+        amount,
+        billingJobType: job.billingJobType,
+        paymentBy: job.paymentBy,
+        invoiceNo: gateInvoiceNo(job),
+        paymentConfirmed: Boolean(job.paymentConfirmedAt),
+      }),
+    };
+  }
+
+  async function detail(id: string) {
+    const client = await pool.connect();
+    try {
+      const job = await findServiceJobCardById(client, id);
+      if (!job) throw new InvoiceServiceError('not-found', 'The service job card was not found.');
+      return presentInvoice(job);
+    } finally {
+      client.release();
+    }
+  }
+
+  async function issue(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = taxInvoiceIssueSchema.parse(input ?? {});
+    return withTransaction(pool, async (client) => {
+      const job = await findServiceJobCardById(client, id, true);
+      if (!job) throw new InvoiceServiceError('not-found', 'The service job card was not found.');
+      if (job.portalInvoiceNo) {
+        throw new InvoiceServiceError(
+          'blocked',
+          `Invoice ${job.portalInvoiceNo} was already issued for this job.`,
+        );
+      }
+      if (job.jobFinalStatus === 'Cancelled') {
+        throw new InvoiceServiceError('blocked', 'A cancelled job cannot be invoiced.');
+      }
+      if (job.jobFinalStatus === 'Customer approval pending') {
+        throw new InvoiceServiceError(
+          'blocked',
+          'The customer has not approved this job yet. Invoice it after the approval.',
+        );
+      }
+      if (!(jobAmount(job) > 0)) {
+        throw new InvoiceServiceError(
+          'blocked',
+          'This job has no amount to invoice (internal billing).',
+        );
+      }
+      if (job.billingJobType === 'CSIJO' && !job.paymentBy) {
+        throw new InvoiceServiceError(
+          'blocked',
+          'Choose who pays (Payment by) on the service job card before invoicing.',
+        );
+      }
+      const invoiceDate = data.invoiceDate ?? businessToday();
+      const portalInvoiceNo = await allocateTaxInvoiceReference(client, invoiceDate);
+      const customerTrn = data.customerTrn || job.customerTrn || null;
+      const snapshot = buildSnapshot(job, {
+        invoiceNo: portalInvoiceNo,
+        invoiceDate,
+        customerTrn,
+        remarks: data.remarks ?? null,
+      });
+      await saveIssuedInvoice(client, job.id, {
+        portalInvoiceNo,
+        invoiceDate,
+        customerTrn,
+        erpReference: data.erpReference ?? null,
+        snapshot,
+        issuedBy: profileId,
+      });
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'tax_invoice.issued',
+        targetType: 'service_job_card',
+        targetId: job.id,
+        metadata: { portalInvoiceNo, amount: snapshot.totals.gross },
+        requestId,
+      });
+      return presentInvoice((await findServiceJobCardById(client, job.id)) ?? job);
+    });
+  }
+
+  async function update(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = taxInvoiceUpdateSchema.parse(input ?? {});
+    return withTransaction(pool, async (client) => {
+      const job = await findServiceJobCardById(client, id, true);
+      if (!job) throw new InvoiceServiceError('not-found', 'The service job card was not found.');
+      const stored = job.invoiceSnapshot as ReturnType<typeof buildSnapshot> | null;
+      const issued = Boolean(job.portalInvoiceNo && stored);
+      if (data.paymentConfirmed === true) {
+        if (job.paymentBy !== 'Customer') {
+          throw new InvoiceServiceError(
+            'blocked',
+            'Only a job paid by the customer needs a payment confirmation.',
+          );
+        }
+        if (!issued) {
+          throw new InvoiceServiceError(
+            'blocked',
+            'Issue the tax invoice before confirming the payment.',
+          );
+        }
+        if (!(data.paymentMode ?? job.paymentMode)) {
+          throw new InvoiceServiceError(
+            'blocked',
+            'Select the payment mode (cash, online, bank transfer or card) before confirming the payment.',
+          );
+        }
+      }
+      let snapshot: unknown;
+      if (issued && stored && (data.customerTrn !== undefined || data.remarks !== undefined)) {
+        snapshot = {
+          ...stored,
+          ...(data.customerTrn !== undefined ? { customerTrn: data.customerTrn || null } : {}),
+          ...(data.remarks !== undefined && data.remarks ? { remarks: data.remarks } : {}),
+        };
+      }
+      await saveInvoiceRecord(client, job.id, {
+        customerTrn: data.customerTrn === undefined ? undefined : data.customerTrn || null,
+        erpReference: data.erpReference === undefined ? undefined : data.erpReference || null,
+        snapshot,
+        paymentMode: data.paymentMode,
+        paymentReference:
+          data.paymentReference === undefined ? undefined : data.paymentReference || null,
+        paymentConfirmed: data.paymentConfirmed,
+        profileId,
+      });
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'tax_invoice.updated',
+        targetType: 'service_job_card',
+        targetId: job.id,
+        metadata: {
+          portalInvoiceNo: job.portalInvoiceNo,
+          paymentConfirmed: data.paymentConfirmed ?? null,
+        },
+        requestId,
+      });
+      return presentInvoice((await findServiceJobCardById(client, job.id)) ?? job);
+    });
+  }
+
+  return {
+    list,
+    summary,
+    rules,
+    createRule,
+    updateRule,
+    ledger,
+    exportLedger,
+    detail,
+    issue,
+    update,
+  };
 }
 
 export type InvoiceService = ReturnType<typeof createInvoiceService>;

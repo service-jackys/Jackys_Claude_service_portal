@@ -3,6 +3,25 @@ import type { ApplicationAuth } from '../auth/application-auth.js';
 import { problem } from '../api/problem.js';
 import { InvoiceServiceError, type InvoiceService } from './service.js';
 
+function invoiceError(
+  error: unknown,
+  response: Parameters<RequestHandler>[1],
+  next: Parameters<RequestHandler>[2],
+): void {
+  if (error instanceof InvoiceServiceError) {
+    const missing = error.code === 'not-found';
+    problem(
+      response,
+      missing ? 404 : 409,
+      missing ? 'invoice-not-found' : 'invoice-blocked',
+      missing ? 'Not Found' : 'Conflict',
+      error.message,
+    );
+    return;
+  }
+  next(error);
+}
+
 export function createInvoiceHandlers(
   service: InvoiceService,
   requirePermission: (permission: string) => RequestHandler,
@@ -71,6 +90,52 @@ export function createInvoiceHandlers(
           response.json({ summary: await service.summary() });
         } catch (error) {
           next(error);
+        }
+      },
+    ],
+    detail: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          response.json({ invoice: await service.detail(String(request.params.id)) });
+        } catch (error) {
+          invoiceError(error, response, next);
+        }
+      },
+    ],
+    issue: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.status(201).json({
+            invoice: await service.issue(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          invoiceError(error, response, next);
+        }
+      },
+    ],
+    update: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            invoice: await service.update(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          invoiceError(error, response, next);
         }
       },
     ],

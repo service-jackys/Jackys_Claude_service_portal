@@ -70,6 +70,11 @@ export type ServiceJobCardRecord = {
   paymentReference: string | null;
   paymentConfirmedAt: Date | null;
   paymentConfirmedBy: string | null;
+  // Tax invoice (migration 042).
+  customerTrn: string | null;
+  portalInvoiceNo: string | null;
+  portalInvoiceIssuedAt: Date | null;
+  invoiceSnapshot: unknown;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
@@ -211,6 +216,10 @@ const columns = `
   service_job_cards.payment_reference AS "paymentReference",
   service_job_cards.payment_confirmed_at AS "paymentConfirmedAt",
   service_job_cards.payment_confirmed_by AS "paymentConfirmedBy",
+  service_job_cards.customer_trn AS "customerTrn",
+  service_job_cards.portal_invoice_no AS "portalInvoiceNo",
+  service_job_cards.portal_invoice_issued_at AS "portalInvoiceIssuedAt",
+  service_job_cards.invoice_snapshot AS "invoiceSnapshot",
   service_job_cards.school_contact_person AS "schoolContactPerson",
   service_job_cards.school_contact_number AS "schoolContactNumber",
   service_job_cards.customer_number AS "customerNumber",

@@ -20,6 +20,8 @@ export type JobInvoiceRecord = {
   salesChannel: string | null;
   amount: string;
   invoiceNo: string | null;
+  portalInvoiceNo: string | null;
+  customerTrn: string | null;
   invoiceDate: string | null;
   paymentMode: string | null;
   paymentReference: string | null;
@@ -41,7 +43,7 @@ export type JobInvoiceQuery = {
 // Where a job is in the money flow.
 const PAYMENT_STATUS = `CASE
   WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.payment_confirmed_at IS NOT NULL THEN 'Paid'
-  WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.invoice_no IS NULL THEN 'Awaiting invoice'
+  WHEN service_job_cards.payment_by = 'Customer' AND service_job_cards.portal_invoice_no IS NULL THEN 'Awaiting invoice'
   WHEN service_job_cards.payment_by = 'Customer' THEN 'Awaiting payment'
   WHEN service_job_cards.payment_by = 'Sales channel' THEN 'Channel'
   ELSE 'Unassigned' END`;
@@ -67,6 +69,7 @@ function filters(query: Pick<JobInvoiceQuery, 'type' | 'paymentBy' | 'paymentSta
     where.push(`(service_job_cards.job_card_reference ILIKE $${n}
       OR service_job_cards.customer_name ILIKE $${n}
       OR service_job_cards.invoice_no ILIKE $${n}
+      OR service_job_cards.portal_invoice_no ILIKE $${n}
       OR service_job_cards.bill_to_channel ILIKE $${n})`);
   }
   return { clause: `WHERE ${where.join(' AND ')}`, values };
@@ -97,6 +100,8 @@ export async function listJobInvoices(
             service_job_cards.sales_channel AS "salesChannel",
             ${AMOUNT} AS amount,
             service_job_cards.invoice_no AS "invoiceNo",
+            service_job_cards.portal_invoice_no AS "portalInvoiceNo",
+            service_job_cards.customer_trn AS "customerTrn",
             service_job_cards.invoice_date::text AS "invoiceDate",
             service_job_cards.payment_mode AS "paymentMode",
             service_job_cards.payment_reference AS "paymentReference",
@@ -135,7 +140,7 @@ export async function invoiceSummary(client: PoolClient): Promise<InvoiceSummary
   const pending = await client.query<{ stage: string; jobs: number; amount: string }>(
     `SELECT CASE
               WHEN payment_by = 'Customer' AND payment_confirmed_at IS NOT NULL THEN 'Paid, pending delivery'
-              WHEN payment_by = 'Customer' AND invoice_no IS NULL THEN 'Awaiting invoice'
+              WHEN payment_by = 'Customer' AND portal_invoice_no IS NULL THEN 'Awaiting invoice'
               WHEN payment_by = 'Customer' THEN 'Awaiting payment'
               WHEN payment_by = 'Sales channel' THEN 'Billed to channel, pending delivery'
               ELSE 'Payer not chosen' END AS stage,
@@ -153,4 +158,83 @@ export async function invoiceSummary(client: PoolClient): Promise<InvoiceSummary
       pending.rows,
     ) as InvoiceSummary['outOfWarrantyPendingDelivery'],
   };
+}
+
+/** Stores the issued tax invoice on the job: number, date, TRN and the snapshot that prints. */
+export async function saveIssuedInvoice(
+  client: PoolClient,
+  jobCardId: string,
+  invoice: {
+    portalInvoiceNo: string;
+    invoiceDate: string;
+    customerTrn: string | null;
+    erpReference: string | null;
+    snapshot: unknown;
+    issuedBy: string;
+  },
+): Promise<void> {
+  await client.query(
+    `UPDATE service_job_cards
+     SET portal_invoice_no = $2, invoice_date = $3, customer_trn = $4,
+         invoice_no = COALESCE($5, invoice_no), invoice_snapshot = $6::jsonb,
+         portal_invoice_issued_at = now(), portal_invoice_issued_by = $7::bigint, updated_at = now()
+     WHERE id = $1`,
+    [
+      jobCardId,
+      invoice.portalInvoiceNo,
+      invoice.invoiceDate,
+      invoice.customerTrn,
+      invoice.erpReference,
+      JSON.stringify(invoice.snapshot),
+      invoice.issuedBy,
+    ],
+  );
+}
+
+/** Edits the invoice record: customer TRN, ERP reference, remarks (in the snapshot) and payment. */
+export async function saveInvoiceRecord(
+  client: PoolClient,
+  jobCardId: string,
+  record: {
+    customerTrn?: string | null;
+    erpReference?: string | null;
+    snapshot?: unknown;
+    paymentMode?: string | null;
+    paymentReference?: string | null;
+    paymentConfirmed?: boolean;
+    profileId: string;
+  },
+): Promise<void> {
+  await client.query(
+    `UPDATE service_job_cards
+     SET customer_trn = CASE WHEN $2::boolean THEN $3 ELSE customer_trn END,
+         invoice_no = CASE WHEN $4::boolean THEN $5 ELSE invoice_no END,
+         invoice_snapshot = CASE WHEN $6::jsonb IS NULL THEN invoice_snapshot ELSE $6::jsonb END,
+         payment_mode = CASE WHEN $7::boolean THEN $8 ELSE payment_mode END,
+         payment_reference = CASE WHEN $9::boolean THEN $10 ELSE payment_reference END,
+         payment_confirmed_at = CASE
+           WHEN $11::boolean IS NULL THEN payment_confirmed_at
+           WHEN $11::boolean THEN COALESCE(payment_confirmed_at, now())
+           ELSE NULL END,
+         payment_confirmed_by = CASE
+           WHEN $11::boolean IS NULL THEN payment_confirmed_by
+           WHEN $11::boolean THEN COALESCE(payment_confirmed_by, $12::bigint)
+           ELSE NULL END,
+         updated_at = now(), updated_by = $12::bigint
+     WHERE id = $1`,
+    [
+      jobCardId,
+      record.customerTrn !== undefined,
+      record.customerTrn ?? null,
+      record.erpReference !== undefined,
+      record.erpReference ?? null,
+      record.snapshot === undefined ? null : JSON.stringify(record.snapshot),
+      record.paymentMode !== undefined,
+      record.paymentMode ?? null,
+      record.paymentReference !== undefined,
+      record.paymentReference ?? null,
+      record.paymentConfirmed ?? null,
+      record.profileId,
+    ],
+  );
 }

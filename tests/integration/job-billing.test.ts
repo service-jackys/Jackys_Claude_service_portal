@@ -141,7 +141,7 @@ test(
           profileId,
           'billing-deliver-no-invoice',
         ),
-        (error: unknown) => blocked(error) && /invoice number/.test((error as Error).message),
+        (error: unknown) => blocked(error) && /tax invoice/.test((error as Error).message),
       );
       await assert.rejects(
         jobCardService.updateContent(
@@ -150,7 +150,7 @@ test(
           profileId,
           'billing-deliver-unpaid',
         ),
-        (error: unknown) => blocked(error) && /Confirm the payment/.test((error as Error).message),
+        (error: unknown) => blocked(error) && /tax invoice/.test((error as Error).message),
       );
       // Confirming needs a payment mode.
       await assert.rejects(

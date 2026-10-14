@@ -169,6 +169,18 @@ const requestBodies = {
       },
     },
   },
+  taxInvoiceIssue: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/TaxInvoiceIssueRequest' } },
+    },
+  },
+  taxInvoiceUpdate: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/TaxInvoiceUpdateRequest' } },
+    },
+  },
   salesChannel: {
     required: true,
     content: {
@@ -616,6 +628,32 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             billToChannel: { type: 'string', minLength: 1, maxLength: 200 },
             active: { type: 'boolean' },
             notes: { type: 'string', maxLength: 500, nullable: true },
+          },
+        },
+        TaxInvoiceIssueRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            customerTrn: {
+              type: 'string',
+              pattern: '^\\d{15}$|^$',
+              description: '15-digit UAE TRN',
+            },
+            invoiceDate: { type: 'string', format: 'date' },
+            erpReference: { type: 'string', minLength: 1, maxLength: 120 },
+            remarks: { type: 'string', minLength: 1, maxLength: 500 },
+          },
+        },
+        TaxInvoiceUpdateRequest: {
+          type: 'object',
+          additionalProperties: false,
+          properties: {
+            customerTrn: { type: 'string', description: '15-digit UAE TRN, or empty to clear' },
+            erpReference: { type: 'string', maxLength: 120 },
+            remarks: { type: 'string', maxLength: 500 },
+            paymentMode: { type: 'string', enum: ['Cash', 'Online', 'Bank transfer', 'Card'] },
+            paymentReference: { type: 'string', maxLength: 200 },
+            paymentConfirmed: { type: 'boolean' },
           },
         },
         SalesChannelRequest: {

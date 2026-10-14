@@ -4875,6 +4875,100 @@
         letter-spacing: 0.09em;
         text-transform: uppercase;
       }
+      /* Click-to-expand sidebar groups. The grid-rows trick animates the height
+         without measuring it; items of a closed group are also inert so they
+         drop out of the tab order. */
+      .nav-group + .nav-group {
+        margin-top: 0.15rem;
+      }
+      .nav-group-toggle {
+        display: flex;
+        width: 100%;
+        min-height: 34px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        margin: 0.35rem 0 0.1rem;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: rgb(255 255 255 / 55%);
+        padding: 0.4rem 0.6rem;
+        cursor: pointer;
+        font: inherit;
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.09em;
+        text-align: left;
+        text-transform: uppercase;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease;
+      }
+      .nav-group-toggle:hover {
+        background: rgb(255 255 255 / 8%);
+        color: #fff;
+      }
+      .nav-group-toggle:focus-visible {
+        outline: 2px solid #fff;
+        outline-offset: -2px;
+      }
+      .nav-group.has-current > .nav-group-toggle {
+        color: #fff;
+      }
+      .nav-chevron {
+        flex: none;
+        width: 12px;
+        height: 12px;
+        transition: transform 0.2s ease;
+      }
+      .nav-group.is-collapsed .nav-chevron {
+        transform: rotate(-90deg);
+      }
+      .nav-group-items {
+        display: grid;
+        grid-template-rows: 1fr;
+        transition: grid-template-rows 0.2s ease;
+      }
+      .nav-group.is-collapsed .nav-group-items {
+        grid-template-rows: 0fr;
+      }
+      .nav-group-inner {
+        display: flex;
+        min-height: 0;
+        flex-direction: column;
+        gap: 0.15rem;
+        overflow: hidden;
+      }
+      .nav-group.is-collapsed .nav-group-inner {
+        visibility: hidden;
+        transition: visibility 0s linear 0.2s;
+      }
+      .nav-group.is-hidden {
+        display: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .nav-group-items,
+        .nav-chevron {
+          transition: none;
+        }
+      }
+      .jc-invoice-status {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .jc-invoice-no {
+        font-weight: 700;
+      }
+      .inv-pills {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.25rem 0 0.75rem;
+      }
       body.is-authenticated .dashboard-link {
         gap: 0.6rem;
         border-radius: 8px;
@@ -4945,10 +5039,22 @@
       html.sidebar-collapsed .sidebar-toggle .nav-icon {
         transform: rotate(180deg);
       }
+      html.sidebar-collapsed .nav-group-toggle,
       html.sidebar-collapsed .nav-group-label,
       html.sidebar-collapsed .nav-label,
       html.sidebar-collapsed .nav-arrow {
         display: none;
+      }
+      html.sidebar-collapsed .nav-group.is-collapsed .nav-group-items {
+        grid-template-rows: 1fr;
+      }
+      html.sidebar-collapsed .nav-group.is-collapsed .nav-group-inner {
+        visibility: visible;
+      }
+      html.sidebar-collapsed .nav-group + .nav-group {
+        margin-top: 0.5rem;
+        border-top: 1px solid rgb(255 255 255 / 12%);
+        padding-top: 0.5rem;
       }
       html.sidebar-collapsed .dashboard-link {
         justify-content: center;
@@ -5856,439 +5962,649 @@
               <svg class="nav-icon" aria-hidden="true"><use href="#icon-collapse"></use></svg>
             </button>
             <div class="dashboard-links">
-              <p class="nav-group-label">Overview</p>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="dashboardNav"
-                hidden
-                aria-label="Dashboard"
-                title="Dashboard"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
-                <span class="nav-label">Dashboard</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <p class="nav-group-label">Service desk</p>
-              <button
-                class="dashboard-link"
-                type="button"
-                aria-current="page"
-                id="complaintsNav"
-                aria-label="Complaint inbox"
-                title="Complaint inbox"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-inbox"></use></svg>
-                <span class="nav-label">Complaint inbox</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="serviceRequestsNav"
-                hidden
-                aria-label="Service requests"
-                title="Service requests"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-clipboard"></use></svg>
-                <span class="nav-label">Service requests</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="newRequestNav"
-                hidden
-                aria-label="New request"
-                title="New request"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg>
-                <span class="nav-label">New request</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="walkInNav"
-                hidden
-                aria-label="Walk-in job card"
-                title="Walk-in job card"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-plus-circle"></use></svg>
-                <span class="nav-label">Walk-in job card</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="awaitingDraftsNav"
-                hidden
-                aria-label="Awaiting drafts"
-                title="Awaiting drafts"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
-                <span class="nav-label">Awaiting drafts</span>
-                <span class="nav-badge" id="awaitingDraftsCount" hidden></span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="invoicesNav"
-                hidden
-                aria-label="Invoices"
-                title="Invoices"
-              >
-                <svg class="nav-icon" aria-hidden="true">
-                  <use href="#icon-clipboard-check"></use>
-                </svg>
-                <span class="nav-label">Invoices</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="dailyListNav"
-                hidden
-                aria-label="Daily schedule"
-                title="Daily schedule"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-                <span class="nav-label">Daily schedule</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="appointmentsNav"
-                hidden
-                aria-label="Appointments"
-                title="Appointments"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calendar"></use></svg>
-                <span class="nav-label">Appointments</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="jobCardsNav"
-                hidden
-                aria-label="Service job cards"
-                title="Service job cards"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-wrench"></use></svg>
-                <span class="nav-label">Service job cards</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <p class="nav-group-label">Records</p>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="quotationsNav"
-                hidden
-                aria-label="Quotations"
-                title="Quotations"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-file-text"></use></svg>
-                <span class="nav-label">Quotations</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="inspectionsNav"
-                hidden
-                aria-label="Inspections"
-                title="Inspections"
-              >
-                <svg class="nav-icon" aria-hidden="true">
-                  <use href="#icon-clipboard-check"></use>
-                </svg>
-                <span class="nav-label">Inspections</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="warrantyApprovalsNav"
-                hidden
-                aria-label="Warranty approvals"
-                title="Warranty approvals"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-shield-check"></use></svg>
-                <span class="nav-label">Warranty approvals</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="rateCardNav"
-                hidden
-                aria-label="Rate card"
-                title="Rate card"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
-                <span class="nav-label">Rate card</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="reportsNav"
-                hidden
-                aria-label="Reports"
-                title="Reports"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-bar-chart"></use></svg>
-                <span class="nav-label">Reports</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <p class="nav-group-label">Admin</p>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="masterDataNav"
-                hidden
-                aria-label="Salesmen &amp; channels"
-                title="Salesmen &amp; channels"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-users"></use></svg>
-                <span class="nav-label">Salesmen &amp; channels</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="techniciansNav"
-                hidden
-                aria-label="Technicians"
-                title="Technicians"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-hard-hat"></use></svg>
-                <span class="nav-label">Technicians</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="teamAccountsNav"
-                hidden
-                aria-label="Team logins"
-                title="Team logins"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
-                <span class="nav-label">Team logins</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="activityLogNav"
-                hidden
-                aria-label="Activity log"
-                title="Activity log"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-activity"></use></svg>
-                <span class="nav-label">Activity log</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="rolesNav"
-                hidden
-                aria-label="Roles and permissions"
-                title="Roles and permissions"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
-                <span class="nav-label">Roles &amp; permissions</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="stockMasterNav"
-                hidden
-                aria-label="Stock master"
-                title="Stock master"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
-                <span class="nav-label">Stock master</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <p class="nav-group-label">Management</p>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="vasAdminNav"
-                hidden
-                aria-label="VAS Pricing Master"
-                title="VAS Pricing Master"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-tag"></use></svg>
-                <span class="nav-label">VAS Pricing Master</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="rateCardAdminNav"
-                hidden
-                aria-label="Rate Card Admin"
-                title="Rate Card Admin"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
-                <span class="nav-label">Rate Card Admin</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="dandiAdminNav"
-                hidden
-                aria-label="D&#43;I Admin Entry"
-                title="D&#43;I Admin Entry"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-truck"></use></svg>
-                <span class="nav-label">D&#43;I Admin Entry</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="amcAdminNav"
-                hidden
-                aria-label="AMC Admin Rate Section"
-                title="AMC Admin Rate Section"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
-                <span class="nav-label">AMC Admin Rate Section</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="thomsonAdminNav"
-                hidden
-                aria-label="Thomson Pricing Admin"
-                title="Thomson Pricing Admin"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
-                <span class="nav-label">Thomson Pricing Admin</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="revenueDashNav"
-                hidden
-                aria-label="Service Revenue Dashboard"
-                title="Service Revenue Dashboard"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
-                <span class="nav-label">Service Revenue Dashboard</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="budgetDashNav"
-                hidden
-                aria-label="Budget vs Actual"
-                title="Budget vs Actual"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
-                <span class="nav-label">Budget vs Actual</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link nav-child"
-                type="button"
-                id="budgetVarNav"
-                hidden
-                aria-label="Budget Variance"
-                title="Budget Variance"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
-                <span class="nav-label">Budget Variance</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="pricingMastersNav"
-                hidden
-                aria-label="Pricing Masters"
-                title="Pricing Masters"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
-                <span class="nav-label">Pricing Masters</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="financeNav"
-                hidden
-                aria-label="Finance"
-                title="Finance"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-dashboard"></use></svg>
-                <span class="nav-label">Finance</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="billingNav"
-                hidden
-                aria-label="Billing"
-                title="Billing"
-              >
-                <svg class="nav-icon" aria-hidden="true">
-                  <use href="#icon-clipboard-check"></use>
-                </svg>
-                <span class="nav-label">Billing</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <p class="nav-group-label">Quote Calculators</p>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="vasCalcNav"
-                hidden
-                aria-label="VAS Quote Calculator"
-                title="VAS Quote Calculator"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
-                <span class="nav-label">VAS Quote Calculator</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="amcCalcNav"
-                hidden
-                aria-label="AMC Quote Calculator"
-                title="AMC Quote Calculator"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
-                <span class="nav-label">AMC Quote Calculator</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
-              <button
-                class="dashboard-link"
-                type="button"
-                id="thomsonCalcNav"
-                hidden
-                aria-label="Thomson Quote Calculator"
-                title="Thomson Quote Calculator"
-              >
-                <svg class="nav-icon" aria-hidden="true"><use href="#icon-calculator"></use></svg>
-                <span class="nav-label">Thomson Quote Calculator</span>
-                <span class="nav-arrow" aria-hidden="true">→</span>
-              </button>
+              <div class="nav-group" data-nav-group="overview">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-overview"
+                  aria-expanded="true"
+                  aria-controls="navItems-overview"
+                >
+                  <span class="nav-group-title">Overview</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-overview"
+                  role="group"
+                  aria-labelledby="navGroup-overview"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="dashboardNav"
+                      hidden
+                      aria-label="Dashboard"
+                      title="Dashboard"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-dashboard"></use>
+                      </svg>
+                      <span class="nav-label">Dashboard</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-group" data-nav-group="service-desk">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-service-desk"
+                  aria-expanded="true"
+                  aria-controls="navItems-service-desk"
+                >
+                  <span class="nav-group-title">Service desk</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-service-desk"
+                  role="group"
+                  aria-labelledby="navGroup-service-desk"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      aria-current="page"
+                      id="complaintsNav"
+                      aria-label="Complaint inbox"
+                      title="Complaint inbox"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-inbox"></use></svg>
+                      <span class="nav-label">Complaint inbox</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="serviceRequestsNav"
+                      hidden
+                      aria-label="Service requests"
+                      title="Service requests"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-clipboard"></use>
+                      </svg>
+                      <span class="nav-label">Service requests</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="newRequestNav"
+                      hidden
+                      aria-label="New request"
+                      title="New request"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-plus-circle"></use>
+                      </svg>
+                      <span class="nav-label">New request</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="walkInNav"
+                      hidden
+                      aria-label="Walk-in job card"
+                      title="Walk-in job card"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-plus-circle"></use>
+                      </svg>
+                      <span class="nav-label">Walk-in job card</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="awaitingDraftsNav"
+                      hidden
+                      aria-label="Awaiting drafts"
+                      title="Awaiting drafts"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                      <span class="nav-label">Awaiting drafts</span>
+                      <span class="nav-badge" id="awaitingDraftsCount" hidden></span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="invoicesNav"
+                      hidden
+                      aria-label="Invoice (warranty and billing)"
+                      title="Invoice (warranty and billing)"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-clipboard-check"></use>
+                      </svg>
+                      <span class="nav-label">Invoice [Warranty and billing]</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="dailyListNav"
+                      hidden
+                      aria-label="Daily schedule"
+                      title="Daily schedule"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calendar"></use>
+                      </svg>
+                      <span class="nav-label">Daily schedule</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="appointmentsNav"
+                      hidden
+                      aria-label="Appointments"
+                      title="Appointments"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calendar"></use>
+                      </svg>
+                      <span class="nav-label">Appointments</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="jobCardsNav"
+                      hidden
+                      aria-label="Service job cards"
+                      title="Service job cards"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-wrench"></use></svg>
+                      <span class="nav-label">Service job cards</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="warrantyApprovalsNav"
+                      hidden
+                      aria-label="Warranty approvals"
+                      title="Warranty approvals"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-shield-check"></use>
+                      </svg>
+                      <span class="nav-label">Warranty approvals</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-group" data-nav-group="records">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-records"
+                  aria-expanded="true"
+                  aria-controls="navItems-records"
+                >
+                  <span class="nav-group-title">Records</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-records"
+                  role="group"
+                  aria-labelledby="navGroup-records"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="quotationsNav"
+                      hidden
+                      aria-label="Quotations"
+                      title="Quotations"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-file-text"></use>
+                      </svg>
+                      <span class="nav-label">Quotations</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="inspectionsNav"
+                      hidden
+                      aria-label="Inspections"
+                      title="Inspections"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-clipboard-check"></use>
+                      </svg>
+                      <span class="nav-label">Inspections</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="rateCardNav"
+                      hidden
+                      aria-label="Rate card"
+                      title="Rate card"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">Rate card</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="reportsNav"
+                      hidden
+                      aria-label="Reports"
+                      title="Reports"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-bar-chart"></use>
+                      </svg>
+                      <span class="nav-label">Reports</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-group" data-nav-group="admin">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-admin"
+                  aria-expanded="true"
+                  aria-controls="navItems-admin"
+                >
+                  <span class="nav-group-title">Admin</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-admin"
+                  role="group"
+                  aria-labelledby="navGroup-admin"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="masterDataNav"
+                      hidden
+                      aria-label="Salesmen &amp; channels"
+                      title="Salesmen &amp; channels"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-users"></use></svg>
+                      <span class="nav-label">Salesmen &amp; channels</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="techniciansNav"
+                      hidden
+                      aria-label="Technicians"
+                      title="Technicians"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-hard-hat"></use>
+                      </svg>
+                      <span class="nav-label">Technicians</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="teamAccountsNav"
+                      hidden
+                      aria-label="Team logins"
+                      title="Team logins"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                      <span class="nav-label">Team logins</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="activityLogNav"
+                      hidden
+                      aria-label="Activity log"
+                      title="Activity log"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-activity"></use>
+                      </svg>
+                      <span class="nav-label">Activity log</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="rolesNav"
+                      hidden
+                      aria-label="Roles and permissions"
+                      title="Roles and permissions"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
+                      <span class="nav-label">Roles &amp; permissions</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="stockMasterNav"
+                      hidden
+                      aria-label="Stock master"
+                      title="Stock master"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                      <span class="nav-label">Stock master</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-group" data-nav-group="management">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-management"
+                  aria-expanded="true"
+                  aria-controls="navItems-management"
+                >
+                  <span class="nav-group-title">Management</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-management"
+                  role="group"
+                  aria-labelledby="navGroup-management"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="vasAdminNav"
+                      hidden
+                      aria-label="VAS Pricing Master"
+                      title="VAS Pricing Master"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-tag"></use></svg>
+                      <span class="nav-label">VAS Pricing Master</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="rateCardAdminNav"
+                      hidden
+                      aria-label="Rate Card Admin"
+                      title="Rate Card Admin"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
+                      <span class="nav-label">Rate Card Admin</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="dandiAdminNav"
+                      hidden
+                      aria-label="D&#43;I Admin Entry"
+                      title="D&#43;I Admin Entry"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-truck"></use></svg>
+                      <span class="nav-label">D&#43;I Admin Entry</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="amcAdminNav"
+                      hidden
+                      aria-label="AMC Admin Rate Section"
+                      title="AMC Admin Rate Section"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-briefcase"></use>
+                      </svg>
+                      <span class="nav-label">AMC Admin Rate Section</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="thomsonAdminNav"
+                      hidden
+                      aria-label="Thomson Pricing Admin"
+                      title="Thomson Pricing Admin"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                      <span class="nav-label">Thomson Pricing Admin</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="revenueDashNav"
+                      hidden
+                      aria-label="Service Revenue Dashboard"
+                      title="Service Revenue Dashboard"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-dashboard"></use>
+                      </svg>
+                      <span class="nav-label">Service Revenue Dashboard</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="budgetDashNav"
+                      hidden
+                      aria-label="Budget vs Actual"
+                      title="Budget vs Actual"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                      <span class="nav-label">Budget vs Actual</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
+                      id="budgetVarNav"
+                      hidden
+                      aria-label="Budget Variance"
+                      title="Budget Variance"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                      <span class="nav-label">Budget Variance</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="pricingMastersNav"
+                      hidden
+                      aria-label="Pricing Masters"
+                      title="Pricing Masters"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                      <span class="nav-label">Pricing Masters</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="financeNav"
+                      hidden
+                      aria-label="Finance"
+                      title="Finance"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-dashboard"></use>
+                      </svg>
+                      <span class="nav-label">Finance</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="billingNav"
+                      hidden
+                      aria-label="Billing"
+                      title="Billing"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-clipboard-check"></use>
+                      </svg>
+                      <span class="nav-label">Billing</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="nav-group" data-nav-group="quote-calculators">
+                <button
+                  class="nav-group-toggle"
+                  type="button"
+                  id="navGroup-quote-calculators"
+                  aria-expanded="true"
+                  aria-controls="navItems-quote-calculators"
+                >
+                  <span class="nav-group-title">Quote Calculators</span>
+                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
+                    <path
+                      d="M3 4.5 6 7.5 9 4.5"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                  </svg>
+                </button>
+                <div
+                  class="nav-group-items"
+                  id="navItems-quote-calculators"
+                  role="group"
+                  aria-labelledby="navGroup-quote-calculators"
+                >
+                  <div class="nav-group-inner">
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="vasCalcNav"
+                      hidden
+                      aria-label="VAS Quote Calculator"
+                      title="VAS Quote Calculator"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">VAS Quote Calculator</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="amcCalcNav"
+                      hidden
+                      aria-label="AMC Quote Calculator"
+                      title="AMC Quote Calculator"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">AMC Quote Calculator</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="thomsonCalcNav"
+                      hidden
+                      aria-label="Thomson Quote Calculator"
+                      title="Thomson Quote Calculator"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">Thomson Quote Calculator</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           </aside>
           <div class="dashboard-content">

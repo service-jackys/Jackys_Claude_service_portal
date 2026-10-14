@@ -114,7 +114,7 @@ test('delivery is blocked only when the customer owes an unpaid amount', () => {
     invoiceNo: null as string | null,
     paymentConfirmed: false,
   };
-  assert.match(deliveryBlockReason(customer) ?? '', /invoice number/);
+  assert.match(deliveryBlockReason(customer) ?? '', /tax invoice/);
   assert.match(
     deliveryBlockReason({ ...customer, invoiceNo: 'INV-1' }) ?? '',
     /Confirm the payment/,
