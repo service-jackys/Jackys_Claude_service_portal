@@ -2,224 +2,66 @@
 
 **Repository:** <https://github.com/service-jackys/Jackys_Claude_service_portal>
 
-This private repository is the migration workspace for replacing the current Google Apps Script service application with a normal web application.
+This repository is the migration workspace for replacing the current Google Apps Script service application with a normal web application.
 
 The live Google Apps Script application remains the production system. This local project is for development and testing only.
 
+
 ## Current status
 
-- Phase 0 foundation: complete and committed.
-- Phase 1 PostgreSQL persistence: implemented and verified locally.
-- Phase 2 complaint workflow: implemented and verified locally.
-- Phase 3 scheduling and technician operations: implemented and verified locally.
-- Phase 4 web portal journeys: implemented and browser-verified locally.
-- Phase 0-4 parity fixes (2026-09-28): the field/workflow gaps found by comparing this project
-  against the live Apps Script system are closed — see "What we've done so far" below.
-- Phase 5 service operations parity: in progress locally; the initial job-card backend and protected web workspace are implemented and remain pending manual verification before they're treated as done.
-- Production cutover: not started.
+Last updated: 2026-10-15 (latest change: #101, tax invoice print terms).
 
-The local system currently provides an Express TypeScript API, PostgreSQL migrations, local-only authentication for development, OpenAPI/Swagger documentation, complaint operations, technician and appointment scheduling, calendar and recovery workflows, and the initial Phase 5 service job-card backend. The live Google Apps Script application remains the production and rollback system.
+- Phases 0 to 4 (foundation, PostgreSQL, complaints, scheduling, web portal): complete and verified locally.
+- Phase 5 service operations: built and in daily testing. Job cards, quotations and inspections, attachments, print views, warranty approvals, billing, and tax invoices (portal series SINV-YYYY-NNNNN, 5% VAT inclusive, print with bilingual terms) are in place.
+- Latest database migration: **042** (tax invoices). Run `npm.cmd run db:migrate` after every pull that adds a migration file.
+- Google Sheet data migration: parked until testing is finished.
+- Production cutover and production authentication: not started. The live Google Apps Script application remains the production and rollback system.
 
-## What we've done so far
+The full change log, with the reason and the files for every change, is in `modification.md` (newest at the bottom), and the same list as cards is in `modification_status.html`. The checklist is `to_do.md`.
 
-A running log of completed work, newest first, so you can see progress without digging through commits.
+## Getting changes from Claude onto your laptop
 
-**2026-09-29 — Team logins now persist across a backend restart (modification #20).** Team
-logins (who can sign in, their role, whether their login is active) used to live only in the
-running server's memory -- a plain JS Map that reset to empty on every `npm run dev` restart, so
-every teammate login you added, and any role change you saved, disappeared and had to be redone.
+Claude works on a separate branch named `claude/<topic>` and never pushes to `main`. Nothing changes on your laptop until you pull. Use this every time Claude says a branch is ready.
 
-- New migration `015_local_auth_users.sql` adds a `local_auth_users` table; Team logins now read
-  and write there instead of an in-memory list. The permission side of this (the `profiles` /
-  `profile_roles` tables) was already persisted correctly -- only the login credential itself
-  wasn't.
-- Signed-in **sessions** stay in-memory and still end on restart, which is normal -- you just sign
-  back in with the same email and password, you don't need to recreate the account.
-- The one-time bootstrap admin account now also survives a restart (it used to allow
-  re-bootstrapping after every restart, which was itself a side effect of the same bug).
-- `npm run typecheck` and `npm run build` pass. **Run `npm run db:migrate`** to pick up migration
-  015 before this takes effect.
+1. Open a terminal and go to the project folder:
 
-**2026-09-29 — Create a service job card directly from a Quotation (modification #18).** The live
-Apps Script system's `pullJobCardFromQuotation` flow was still missing here (job cards could only be
-created from a completed appointment). Built it back in, matching the legacy behaviour:
+   ```cmd
+   cd /d "C:\Users\Vysakh Raju\Desktop\Jacky's\Claude\jackys service portal"
+   ```
 
-- Migration `014_job_card_quotation_source.sql` makes `service_job_cards.appointment_id` nullable,
-  adds a nullable+unique `quotation_id` column, and a check constraint requiring exactly one of the
-  two to be set — a job card is still always tied to exactly one source, appointment or quotation.
-- New API: `GET /api/quotations/{id}/job-card/prefill`, `POST /api/quotations/{id}/job-card`, and
-  `GET /api/quotations/{id}/job-card` (mirrors the existing appointment-sourced endpoints), plus a
-  `?unused=true` filter on `GET /api/quotations` so a picker can exclude quotations already used.
-- New web UI: on a Quotation's detail view, a **Create service job card** button (hidden once that
-  quotation already has one, showing a link to it instead) opens the same kind of prefill-then-edit
-  panel the appointment flow uses, with its own field prefix (`jcq`). Site contact person/number and
-  Customer number aren't captured by a quotation, so they're left blank and editable — never
-  disabled — matching the legacy "soft N/A" treatment; the same is true for Brand, Salesman, and
-  Sales channel, which a quotation also doesn't capture.
-- `npm run typecheck`, `node --check`, and `prettier --write` all pass. **Run `npm run db:migrate`**
-  to pick up migration 014 before using this.
+2. Make sure you have no unsaved work, then fetch the new branch (replace the name with the one Claude gave you):
 
-**2026-09-28 — Front-end split into landing / customer / staff portal, with an enterprise-CRM style
-redesign.** The public complaint form and the internal staff SPA used to live in one page
-(`apps/web/src/index.html`), which mixed customer- and staff-facing UI. Split into three:
+   ```cmd
+   git status
+   git fetch origin
+   git checkout claude/the-branch-name
+   ```
 
-- `/` — a new public marketing/overview page (`landing.html`): hero, how-it-works, service showcase,
-  brand-partner strip, and a dual "Customer" / "Internal Service Team" access section.
-- `/complaints` — the public complaint form, now its own standalone page (`complaints.html` +
-  `complaints.js`), same API contract as before.
-- `/portal/` — the staff-only portal, restyled with a left sidebar for section navigation and a
-  contextual workflow-stepper (Complaint → Scheduling → Job Card → Completion) on complaint,
-  appointment, and job-card detail views.
+   `git status` should say "working tree clean". If it lists changed files, tell Claude before going on.
 
-The header logo across all three pages is the Jacky's crest image only (no adjacent wordmark text),
-left-aligned, per direct feedback while reviewing the running dev server. Playwright coverage for the
-redesigned pages is intentionally parked — see `to_do.md`.
+3. Install any new packages and apply any new migration:
 
-**2026-09-28 — Phase 0-4 parity review and fixes.** Reviewed this project's Phase 0-4 build against the
-live system's `code.gs`, `Index.html`, and `ComplaintRegistration.html` to confirm fields and workflow
-matched. Findings are in `docs/PARITY_REVIEW_2026-09-28.md`. Fixed:
+   ```cmd
+   npm.cmd install
+   npm.cmd run db:migrate
+   ```
 
-- Added the missing B2B/school workflow fields end to end (migration, contracts, API, web forms):
-  `b2bBranchSchool`, `schoolContactPerson`, `schoolContactNumber`, `customerNumber`.
-- Surfaced `salesOrderNumber` as a real input on the public complaint form and the staff scheduling
-  screen, with staff input overriding the linked complaint's value when both are present.
-- Replaced the placeholder `customerType` values (`individual`/`company`/`b2b`) with the live system's
-  actual three tiers: `B2C`, `B2B`, `B2B-SalesChannel` — migration, contracts, OpenAPI, and the public
-  form's dropdown all updated together.
-- Replaced the free-text `region` input on the public form with the fixed 8-emirate dropdown used live.
-- Added a `sub_group` (product category) field on appointments.
-- Fixed a bug where the public complaint form sent blank optional fields as empty strings instead of
-  omitting them, which broke submission validation on any blank optional field.
-- Set up this checkout to run on its own ports (3100 / 5544) so it doesn't collide with another
-  project's servers already running on 3000 / 5432 on this machine.
-- Fixed a migration ordering bug in `004_b2b_parity_fields.sql`: the data-remap step ran before the old
-  `customer_type` constraint was dropped, so it tripped over its own still-active old rule. Reordered to
-  drop the old constraint first, then remap (now case/whitespace-tolerant), then add the new constraint.
-- Connected this project to its GitHub repository and pushed everything above.
+4. Restart the API (Ctrl+C in its terminal, then start it again) and hard-refresh the browser with Ctrl+Shift+R.
 
-**2026-09-28 — Job-card creation logic fixed to match the live system (full rebuild).** Found and fixed
-a business-logic inversion: this project's job-card feature rejected Completed appointments and only
-allowed creating a job card from a non-terminal one — the exact opposite of the live system, where a job
-card is created FROM a completed appointment, with that appointment's data pulled into an editable form
-first (`pullJobCardFromScheduler` in `code.gs`). Rebuilt end to end:
+5. Test what Claude described. If something is wrong, tell Claude; it fixes the same branch and you repeat from step 2 (`git pull` is enough once you are on the branch).
 
-- Migration `005_job_card_live_parity.sql` adds the full set of job-card content columns the live system
-  carries: customer/item/warranty/complaint fields, parts (JSON), period from/to with derived time
-  consumed, costs and totals, invoice/delivery, technician, and `jobFinalStatus` (`WIP` / `BER` /
-  `Rejected` / `Repair Completed` / `Spare pending` — a separate concept from this project's own
-  Open/In Progress/Completed/Cancelled workflow status).
-- `GET /api/appointments/{id}/job-card/prefill` now pulls default content from a completed appointment
-  (customer, item, technician name, complaint, etc.), which the CCE can edit before creating.
-- `POST /api/appointments/{id}/job-card` now requires the appointment to be Completed (inverted from
-  before) and accepts the edited content; `PATCH /api/job-cards/{id}` edits an existing, non-terminal
-  job card's content. Totals (`totalCost`, `grandTotal`) and time consumed are always computed
-  server-side, never accepted from the client, matching the live system's `recalcJobCardTotals` /
-  `calcJobCardTimeConsumed`.
-- The staff web app: the "Create service job card" button now only appears once an appointment is
-  Completed; clicking it loads the prefill into an editable form instead of creating immediately; the
-  job-card detail view gained an editable content form (with an add/remove parts table) alongside the
-  existing status-change form.
-- `npm run typecheck`, `npm run build`, and `prettier --check`/`--write` all pass on every changed file.
+6. When you are happy, review and merge on GitHub: open <https://github.com/service-jackys/Jackys_Claude_service_portal/pulls>, open the pull request, read **Files changed**, then **Merge pull request**. Then bring `main` up to date on the laptop:
 
-**Before this is usable, run the new migration:** `npm run db:migrate` (adds the columns above to your
-local database) — see "Start the server" below.
+   ```cmd
+   git checkout main
+   git pull
+   npm.cmd install
+   npm.cmd run db:migrate
+   ```
 
-**2026-09-28 — Added quotations and inspections (Phase 5).** Built the next two Phase 5 items from
-`docs/DEVELOPMENT_PLAN.md`: quotation records and inspection records, matching the live system's field
-sets exactly (`docs/code.gs` `HEADERS_BY_TYPE['quotation']` / `['inspection']`). Neither has a workflow
-status in the live system, so records stay editable — no "final" lock like job cards.
+To go back to the last good version at any time, run `git checkout main`. Your database keeps any migration already applied, so re-run `npm.cmd run db:migrate` after switching branches to stay in step.
 
-- Migration `006_quotations_inspections.sql` adds the `quotations` and `inspections` tables and grants
-  the `quotation.*`/`inspection.*` permissions (seeded since Phase 1 but never actually granted to any
-  role besides admin) to management and sales.
-- New API: `/api/quotations` and `/api/inspections`, both with list/create/detail/edit. Quotation grand
-  totals (products + parts + labour) are always computed server-side.
-- New web UI: "Quotations" and "Inspections" tabs with search, a create form, and an editable detail
-  form with add/remove line-item tables.
-- Quotation-sourced job cards (the live system's `pullJobCardFromQuotation`) are intentionally still out
-  of scope — job cards can only be created from a completed appointment for now.
-- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
-
-**Run `npm run db:migrate` again** to pick up migration 006 before using these.
-
-**2026-09-28 — Added job-card attachments (Phase 5).** Built the third Phase 5 item: job-card
-attachments using private storage, size/MIME validation, signed URLs, and audit events.
-
-- Migration `007_job_card_attachments.sql` adds the `job_card_attachments` table (cascades on job-card
-  delete, size capped at 20 MB).
-- Files are stored on local disk under `storage/attachments/` (gitignored), addressed only by an opaque
-  UUID `storage_key` — never the original filename — deliberately built as the swap-point for Supabase
-  Storage in Phase 8 without touching the DB schema.
-- Uploads are validated server-side against an allow-list (JPEG/PNG/WEBP/HEIC images, PDF) and the size
-  cap before anything is written to disk.
-- Downloads use a signed, time-limited URL (HMAC-SHA256, constant-time verified) rather than a
-  permission-gated route, so a plain `<img src>` or link works without an auth header.
-- New API: `POST/GET /api/job-cards/{jobCardId}/attachments`, `GET /api/attachments/{id}/download`,
-  `DELETE /api/attachments/{id}` (deletes the DB row, the file on disk, and logs an audit event).
-- New web UI: the job-card detail panel gained a file picker/upload control and an attachments list with
-  download/remove links, shown only on writable, non-terminal job cards.
-- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
-
-**Run `npm run db:migrate` again** to pick up migration 007 before using this.
-
-**2026-09-28 — Added print views and a legacy-reference field (Phase 5).** Built the fourth Phase 5
-item: print views and legacy-reference preservation.
-
-- Migration `008_print_legacy_reference.sql` adds an optional `legacy_reference` text column to job
-  cards, quotations, and inspections — a place to record a matching document's reference from the old
-  Google Sheets/Apps Script system, so continuity is visible on the printed document. Free text, since
-  the legacy system's references pre-date this project's own reference allocator.
-- The job-card, quotation, and inspection create/edit forms each gained a "Legacy reference" input.
-- Each of the three detail panels gained a "Print" button that opens a clean, self-contained printable
-  document — header, field grid, complaint/diagnosis text blocks, a line-item table with totals, and
-  signature lines — in a new browser tab and triggers the print dialog, matching the live system's
-  per-document "Print / PDF" buttons. This is entirely client-side, built from already-loaded detail
-  data, so it needs no new API endpoint and no auth handling in the new tab.
-- Auto-populating `legacyReference` from an authorized historical export (rather than typing it by hand)
-  is Phase 7 scope and stays out of this item.
-- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
-
-**Run `npm run db:migrate` again** to pick up migration 008 before using this.
-
-**2026-09-28 — Added an out-of-warranty approval flow and customer-facing links (Phase 5).** Built the
-fifth and final planned Phase 5 item. Unlike the rest of Phase 5, this is new functionality, not
-live-system parity — the live Apps Script system has no equivalent workflow.
-
-- Migration `009_warranty_approvals.sql` adds a `warranty_approvals` table (reference `WA-YYYY-NNNNN`,
-  linked to exactly one of a job card or an inspection) and two new permissions granted to
-  admin/management/sales.
-- Staff raise a request from the new "Warranty approvals" tab against a job card or inspection ID;
-  customer/item/warranty details are pulled from the source record when not given explicitly. The tab
-  lists requests by status and shows each one's copyable customer approval link.
-- The customer opens that link — `apps/web/src/approve.html`, a standalone page served alongside the
-  staff app, needing no sign-in — sees the item, warranty status, and estimated cost, and approves or
-  declines with their name and optional comments. The decision can only be submitted once.
-- The public endpoints (`/api/public/warranty-approvals/{token}[/decision]`) are authorized by an
-  opaque, non-expiring access token rather than the short-lived signed URLs used for attachment
-  downloads, since the customer has no session to keep alive.
-- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
-
-**Run `npm run db:migrate` again** to pick up migration 009 before using this.
-
-**2026-09-28 — Added an operational dashboard and a service report (Phase 5).** Built the sixth and
-final planned Phase 5 item — every item in `docs/DEVELOPMENT_PLAN.md`'s Phase 5 list is now built.
-
-- A new `GET /api/dashboard/summary` endpoint (no schema change — it's aggregate queries against the
-  existing tables) returns counts by status for complaints, appointments, and service job cards, plus
-  totals for quotations, inspections, and warranty approvals. Deliberately operational only; revenue and
-  pricing reporting stays Phase 6 scope.
-- A new "Dashboard" tab renders these as tile groups.
-- The service job cards list gained an "Export CSV" button — the closest thing to a "service report"
-  for now — that downloads the currently-loaded, filtered list as a CSV, entirely client-side.
-- `npm run typecheck`, `npm run build`, and `prettier --write` all pass.
-
-**Phase 5 is now fully built** (job cards + locks, quotations/inspections, attachments, print views +
-legacy reference, out-of-warranty approvals, dashboard + service report). None of migrations 005–009
-have been applied to a real database yet, and the Phase 5 gate ("accepted against representative legacy
-scenarios") still needs manual verification and updated Playwright coverage before treating it as done —
-see `to_do.md` for the outstanding items under each checkpoint.
-
-Full detail and file-by-file notes: `to_do.md` (checklist) and `docs/BUILD_STATUS.md` (capability matrix).
+If you change code on the laptop yourself, commit it and push your own branch (`git push origin your-branch`); do not edit the same files on two branches at once.
 
 ## Ports on this machine (read this first)
 
