@@ -103,7 +103,8 @@ function masterRows(w: Writer, label: string, m: PricingMaster) {
 }
 
 // Revenue Logic sheet for the invoice-level rules (workbook revision of
-// 15 Oct 2026). The older sheet below is kept for earlier uploads.
+// 15 Oct 2026): four short sections written for accounts. The full
+// explanation, with live figures, is the portal's "Logic applied" tab.
 function buildInvoiceLevelLogicSheet(
   wb: ExcelJS.Workbook,
   rules: PricingRules,
@@ -111,220 +112,332 @@ function buildInvoiceLevelLogicSheet(
   batchFile: string,
   filterText: string,
 ) {
-  const ws = wb.addWorksheet('Revenue Logic');
-  ws.getColumn(1).width = 44;
-  [2, 3, 4, 5, 6].forEach((c) => (ws.getColumn(c).width = 20));
-  ws.getColumn(7).width = 70;
-  const w = new Writer(ws);
+  const ws = wb.addWorksheet('Revenue Logic', { properties: { tabColor: { argb: NAVY } } });
+  const widths = [2, 34, 14, 16, 16, 16, 14, 62];
+  widths.forEach((w, i) => (ws.getColumn(i + 1).width = w));
+  ws.views = [{ showGridLines: false }];
+  const LAST = 8;
+
+  // Design tokens
+  const INK = 'FF1F2933';
+  const MUTED = 'FF667085';
+  const LINE = 'FFD0D5DD';
+  const ZEBRA = 'FFF5F8FC';
+  const SOFT = 'FFE8EEF6';
+  const ACCENT = 'FF1D5FA8';
+  const font = (over: Partial<ExcelJS.Font> = {}): Partial<ExcelJS.Font> => ({
+    name: 'Arial',
+    size: 10,
+    color: { argb: INK },
+    ...over,
+  });
+  const thin = { style: 'thin' as const, color: { argb: LINE } };
+  const box = { top: thin, bottom: thin, left: thin, right: thin };
+  let row = 1;
 
   const flat = csidoFlatCharge(rules);
   const money = (n: number) => 'AED ' + n.toLocaleString('en-US');
+  const rate = (code: string) => rules.rates.find((r) => r.jobType === code)?.price ?? 0;
   const transports = rules.deliveryInstall.transport
     .map((t) => `${money(t.roundTrip)} ${t.region}`)
     .join(' / ');
-  const sheetLines = lines.filter((l) => l.pricing);
-  const priced = lines.filter((l) => ['CSIDI', 'CSIII', 'CSIDO'].includes(l.jobType));
   const total = sum(lines, (l) => l.revenue);
+  const fill = (argb: string): ExcelJS.Fill => ({
+    type: 'pattern',
+    pattern: 'solid',
+    fgColor: { argb },
+  });
+  const heightFor = (text: string, chars: number) =>
+    Math.max(18, Math.ceil(text.length / chars) * 14 + 6);
 
-  w.title('Revenue Logic - how revenue is calculated (invoice-level rules from 1 July 2026)');
-  w.note(
-    `Source workbook: ${batchFile}. Scope of the figures below: ${filterText}. ` +
-      'Rates and tiers are read from the workbook\'s "Del+Install Pricing", "Install Pricing" and "Calculation" sheets; the rules are those of its "Pricing Logic Guide" sheet.',
-  );
-  w.note(
-    'Revenue is the figure calculated in the master workbook, not an ERP posting. Activity, appliance category and city of every delivery / installation line come from the ERP net-sale report, so no category or region is guessed from Remarks any more.',
-  );
-  if (priced.length && priced.length > sheetLines.length) {
-    w.note(
-      `${priced.length - sheetLines.length} delivery / installation line(s) could not be matched to their CSIDI-sheet row (invoice, type, quantity and revenue must agree) and are left out of the rebuild below.`,
-    );
-  }
-  w.gap();
+  // Title band
+  ws.mergeCells(row, 2, row, LAST);
+  const t = ws.getCell(row, 2);
+  t.value = 'Revenue Logic';
+  t.font = font({ size: 18, bold: true, color: { argb: 'FFFFFFFF' } });
+  t.alignment = { vertical: 'middle', indent: 1 };
+  for (let c = 1; c <= LAST; c += 1) ws.getCell(row, c).fill = fill(NAVY);
+  ws.getRow(row).height = 34;
+  row += 1;
+  ws.mergeCells(row, 2, row, LAST);
+  const sub = ws.getCell(row, 2);
+  sub.value = `How revenue is calculated  |  Source: ${batchFile}  |  Scope: ${filterText}`;
+  sub.font = font({ size: 9, color: { argb: 'FFD6E3F5' } });
+  sub.alignment = { vertical: 'middle', indent: 1 };
+  for (let c = 1; c <= LAST; c += 1) ws.getCell(row, c).fill = fill('FF1B3A63');
+  ws.getRow(row).height = 20;
+  row += 2;
 
-  // 1. Rules by job type -------------------------------------------------
-  w.section('1. Current rules by job type');
-  w.head([
-    'Job type',
-    'Source sheet',
-    'Jobs',
-    'Quantity',
-    'Revenue (AED)',
-    'Share %',
-    'Rule applied',
-  ]);
-  const rule: Record<string, [string, string]> = {
+  const paragraph = (text: string, bold = false) => {
+    ws.mergeCells(row, 2, row, LAST);
+    const c = ws.getCell(row, 2);
+    c.value = text;
+    c.font = font({ bold, color: { argb: bold ? INK : MUTED } });
+    c.alignment = { wrapText: true, vertical: 'top', indent: 1 };
+    ws.getRow(row).height = heightFor(text, 150);
+    row += 1;
+  };
+  const section = (num: number, text: string) => {
+    ws.mergeCells(row, 2, row, LAST);
+    const c = ws.getCell(row, 2);
+    c.value = `${num}.  ${text}`;
+    c.font = font({ size: 12, bold: true, color: { argb: NAVY } });
+    c.alignment = { vertical: 'middle', indent: 1 };
+    for (let col = 2; col <= LAST; col += 1) {
+      const cell = ws.getCell(row, col);
+      cell.fill = fill(SOFT);
+      cell.border = { bottom: { style: 'medium', color: { argb: ACCENT } } };
+    }
+    ws.getCell(row, 2).border = {
+      left: { style: 'thick', color: { argb: ACCENT } },
+      bottom: { style: 'medium', color: { argb: ACCENT } },
+    };
+    ws.getRow(row).height = 24;
+    row += 1;
+  };
+  // A table row; `spans` merges the last cell across the remaining columns.
+  const tableHead = (labels: string[], from = 2, mergeLastTo = 0) => {
+    labels.forEach((l, i) => {
+      const c = ws.getCell(row, from + i);
+      c.value = l;
+      c.font = font({ bold: true, color: { argb: 'FFFFFFFF' } });
+      c.fill = fill(NAVY);
+      c.border = box;
+      c.alignment = {
+        vertical: 'middle',
+        wrapText: true,
+        horizontal: i === 0 || (mergeLastTo && i === labels.length - 1) ? 'left' : 'center',
+      };
+    });
+    if (mergeLastTo) {
+      for (let c = from + labels.length; c <= mergeLastTo; c += 1) {
+        ws.getCell(row, c).fill = fill(NAVY);
+        ws.getCell(row, c).border = box;
+      }
+      ws.mergeCells(row, from + labels.length - 1, row, mergeLastTo);
+    }
+    ws.getRow(row).height = 24;
+    row += 1;
+  };
+  type V = string | number | null;
+  const tableRow = (
+    values: V[],
+    opts: { fmts?: (string | null)[]; zebra?: boolean; bold?: boolean; mergeLastTo?: number } = {},
+  ) => {
+    const { fmts = [], zebra = false, bold = false, mergeLastTo = 0 } = opts;
+    values.forEach((v, i) => {
+      const c = ws.getCell(row, 2 + i);
+      c.value = v === null ? null : v;
+      if (fmts[i]) c.numFmt = fmts[i]!;
+      c.font = font({ bold: bold || i === 0 });
+      c.border = bold ? { ...box, top: { style: 'medium', color: { argb: NAVY } } } : box;
+      if (zebra) c.fill = fill(ZEBRA);
+      const last = i === values.length - 1;
+      c.alignment = {
+        vertical: 'top',
+        wrapText: true,
+        horizontal: typeof v === 'number' ? 'right' : 'left',
+        indent: typeof v === 'number' ? 0 : last && values.length > 4 ? 1 : 0,
+      };
+    });
+    if (mergeLastTo) {
+      for (let c = 2 + values.length; c <= mergeLastTo; c += 1) {
+        const cell = ws.getCell(row, c);
+        cell.border = box;
+        if (zebra) cell.fill = fill(ZEBRA);
+      }
+      ws.mergeCells(row, 1 + values.length, row, mergeLastTo);
+    }
+    return row++;
+  };
+
+  paragraph(
+    'Revenue is the figure calculated in the master Service Dashboard workbook, not an ERP posting. Activity, appliance category and city of every delivery and installation line come from the ERP net-sale report. The portal tab "Logic applied" explains the same rules with live figures.',
+  );
+  row += 1;
+
+  // 1. Rules -----------------------------------------------------------------
+  section(1, 'Rules by job type');
+  tableHead(['Job type', 'Jobs', 'Revenue (AED)', 'Share', 'Rule applied'], 2, LAST);
+  const rules1: Record<string, [string, string]> = {
     CSIJW: [
-      'CSIJW / CSIJO',
-      'Warranty repair: Quantity x AED rate (Calculation sheet). BER / RWR jobs are billed a flat AED ' +
-        (rules.rates.find((r) => r.jobType === 'RWR')?.price ?? 60) +
-        ' per job.',
+      'CSIJW  Warranty repair',
+      `Qty x ${money(rate('CSIJW'))}. BER / RWR jobs are billed a flat ${money(rate('RWR') || 60)} per job.`,
     ],
     CSIJO: [
-      'CSIJW / CSIJO',
-      'Non-warranty repair: Quantity x AED rate (Calculation sheet); the same BER / RWR flat charge applies.',
+      'CSIJO  Non-warranty repair',
+      `Qty x ${money(rate('CSIJO'))}. BER / RWR jobs are billed a flat ${money(rate('RWR') || 60)} per job.`,
     ],
     CSIDI: [
-      'CSIDI sheet',
-      `Delivery + installation: Qty x Net unit rate. Net rate = MAX(minimum rate, Base rate x (1 - volume discount)); Base = batch rate when Qty > 1, standard rate when Qty = 1. Plus ONE transport charge per invoice (${transports}) on the invoice's first CSIDI line, only when the invoice has more than 1 CSIDI unit AND no CSIDO line.`,
+      'CSIDI  Delivery + installation',
+      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. Base rate is the batch rate when Qty is more than 1, otherwise the standard rate. Transport (${transports}) is added once per invoice, only when the invoice has more than 1 unit and no delivery-only line.`,
     ],
     CSIII: [
-      'CSIDI sheet',
-      'Installation only: Qty x Net unit rate from the Install Pricing master. No transport.',
+      'CSIII  Installation only',
+      'Qty x net rate from the installation rate card (same discount and minimum rule). No transport.',
     ],
     CSIDO: [
-      'CSIDI sheet',
-      `Delivery only (and categories that are not installable): ONE flat charge per invoice of ${money(flat)} (Calculation sheet, CSIDO rate) on the invoice's first CSIDO line. Further CSIDO lines of the same invoice show 0, so the invoice carries one charge.`,
+      'CSIDO  Delivery only',
+      `One flat ${money(flat)} per invoice, charged on the first delivery-only line. The other delivery-only lines of the same invoice show AED 0.`,
     ],
   };
-  for (const t of ['CSIJW', 'CSIJO', 'CSIDI', 'CSIII', 'CSIDO']) {
-    const set = lines.filter((l) => l.jobType === t);
-    w.add(
+  ['CSIJW', 'CSIJO', 'CSIDI', 'CSIII', 'CSIDO'].forEach((code, i) => {
+    const set = lines.filter((l) => l.jobType === code);
+    const text = rules1[code]![1];
+    const r = tableRow(
       [
-        t,
-        rule[t]![0],
+        rules1[code]![0],
         set.length,
-        sum(set, (l) => l.qty),
         sum(set, (l) => l.revenue),
         total ? sum(set, (l) => l.revenue) / total : 0,
-        rule[t]![1],
+        text,
       ],
-      [null, null, null, null, MONEY, PCT, null],
+      { fmts: [null, '#,##0', MONEY, PCT, null], zebra: i % 2 === 1, mergeLastTo: LAST },
     );
-  }
-  w.add(
-    ['Total', '', lines.length, sum(lines, (l) => l.qty), total, 1, ''],
-    [null, null, null, null, MONEY, PCT, null],
+    ws.getRow(r).height = heightFor(text, 88);
+  });
+  tableRow(['Total', lines.length, total, 1, ''], {
+    fmts: [null, '#,##0', MONEY, PCT, null],
+    bold: true,
+    mergeLastTo: LAST,
+  });
+  row += 1;
+
+  // 2. Zero revenue --------------------------------------------------------------
+  section(2, 'Why some jobs show AED 0');
+  const zeroDo = lines.filter((l) => l.jobType === 'CSIDO' && l.revenue === 0).length;
+  const paidDo = lines.filter((l) => l.jobType === 'CSIDO' && l.revenue > 0).length;
+  const zeroOther = lines.filter((l) => l.jobType !== 'CSIDO' && l.revenue === 0).length;
+  paragraph(
+    `A delivery-only invoice with several products has one line per product, but the customer is charged one delivery fee for the invoice. The first line carries the flat ${money(flat)} and the other lines show AED 0. No revenue is lost.`,
+  );
+  paragraph(
+    `In this report: ${zeroDo} delivery-only lines show AED 0, next to ${paidDo} lines that carry the charge.` +
+      (zeroOther
+        ? ` ${zeroOther} other line(s) show AED 0 for another reason and are listed under Exceptions.`
+        : ''),
     true,
   );
-  w.note(
-    'Jobs counts every revenue line. An invoice with several CSIDO categories therefore counts several jobs, of which only the first carries revenue.',
-  );
-  w.gap();
+  paragraph('Jobs and average revenue per job count every line, including the AED 0 lines.');
+  row += 1;
 
-  // 2. Where the inputs come from ---------------------------------------
-  w.section('2. Where each pricing input comes from');
-  w.head(['Input', 'Source', '', '', '', '', 'Rule']);
-  const inputs: [string, string, string][] = [
+  // 3. Rates ---------------------------------------------------------------------
+  section(3, 'Rates in force (read from the workbook)');
+  const rateTable = (label: string, m: PricingMaster) => {
+    tableHead([label, 'Batch rate', 'Standard rate', 'Minimum rate']);
+    m.categories.forEach((c, i) =>
+      tableRow([c.category, c.batchRate, c.standardRate, c.minimumRate], {
+        fmts: [null, MONEY, MONEY, MONEY],
+        zebra: i % 2 === 1,
+      }),
+    );
+    row += 1;
+  };
+  rateTable('Delivery + installation (CSIDI)', rules.deliveryInstall);
+  rateTable('Installation only (CSIII)', rules.install);
+
+  tableHead(['Volume discount (units on the invoice)', 'CSIDI', 'CSIII']);
+  rules.deliveryInstall.discounts.forEach((d, i) =>
+    tableRow([d.tier, d.discount, rules.install.discounts[i]?.discount ?? d.discount], {
+      fmts: [null, PCT, PCT],
+      zebra: i % 2 === 1,
+    }),
+  );
+  row += 1;
+
+  tableHead(['Charge per invoice', 'AED', 'When it applies'], 2, LAST);
+  const charges: [string, number, string][] = [
+    ...rules.deliveryInstall.transport.map((x): [string, number, string] => [
+      `Transport - ${x.region}`,
+      x.roundTrip,
+      'CSIDI invoice with more than 1 unit and no delivery-only line; first CSIDI line only.',
+    ]),
     [
-      'Activity and sales channel',
-      'ERP item code',
-      'Delivery codes = delivery only; installation codes = installation only; delivery + installation on the same invoice and category = CSIDI. GEMS customer + salesman RENEESH JOSE is forced to HAA.',
-    ],
-    [
-      'Appliance category',
-      'ERP parent category',
-      'Only fridge / freezer, washing machine and cooker are priced as CSIDI / CSIII. Every other category is CSIDO.',
-    ],
-    [
-      'Quantity',
-      'ERP quantity',
-      'Summed per invoice and category; the discount tier uses that summed quantity.',
-    ],
-    [
-      'Region',
-      'ERP city',
-      'City text containing SHJ or SHARJAH is Sharjah; anything else is Dubai. Only used for CSIDI transport.',
+      'Delivery-only flat charge',
+      flat,
+      'Once per invoice, on the first delivery-only line. Sharjah = city containing SHJ or SHARJAH.',
     ],
   ];
-  for (const [a, b, c] of inputs) w.add([a, b, '', '', '', '', c]);
-  w.gap();
+  charges.forEach(([a, b, c], i) => {
+    const r = tableRow([a, b, c], {
+      fmts: [null, MONEY, null],
+      zebra: i % 2 === 1,
+      mergeLastTo: LAST,
+    });
+    ws.getRow(r).height = heightFor(c, 88);
+  });
+  row += 1;
 
-  // 3. Rate masters ------------------------------------------------------
-  w.section('3. Rate masters in force (read from the workbook)');
-  masterRows(w, 'Delivery + installation (CSIDI)', rules.deliveryInstall);
-  w.gap();
-  masterRows(w, 'Installation only (CSIII)', rules.install);
-  w.gap();
-  w.head(['Transport per invoice (CSIDI)', 'AED', '', 'Crew size', 'Loading factor']);
-  const tr = rules.deliveryInstall.transport;
-  const cr = rules.deliveryInstall.crew;
-  for (let i = 0; i < Math.max(tr.length, cr.length); i += 1)
-    w.add(
-      [
-        tr[i]?.region ?? '',
-        tr[i]?.roundTrip ?? null,
-        '',
-        cr[i]?.size ?? null,
-        cr[i]?.loading ?? null,
-      ],
-      [null, MONEY, null, null, null],
-    );
-  w.add(['CSIDO flat charge per invoice', flat], [null, MONEY]);
-  w.gap();
-
-  // 4. Reconciliation ----------------------------------------------------
-  w.section('4. Reconciliation of this report to the workbook');
-  w.head([
-    'Group',
-    'Lines re-computed',
-    'Workbook revenue (AED)',
-    'Rebuilt from the rules (AED)',
-    'Workbook minus rebuilt (AED)',
-    'Lines that differ',
-    'Meaning',
-  ]);
+  // 4. Check ---------------------------------------------------------------------
+  section(4, 'Check against the workbook');
   const rebuilt = lines.filter((l) => l.e.rebuilt !== null);
-  for (const t of ['CSIDI', 'CSIII', 'CSIDO']) {
-    const set = rebuilt.filter((l) => l.jobType === t);
-    if (!set.length) continue;
+  const causeText: Record<string, string> = {
+    'CSIDO flat charge':
+      'Older delivery-only invoices still carry the amount priced before the flat charge changed.',
+    'CSIDI transport':
+      'Multi-unit installation invoices where the workbook transport is missing or charged against the rule.',
+    'Rate or quantity': 'A locked row kept at an older rate or quantity.',
+  };
+  paragraph(
+    'Every delivery and installation line was re-priced with the rules above and compared with the workbook. The workbook keeps earlier rows as locked history, so some of them differ. Portal revenue is always the workbook figure.',
+  );
+  tableHead(
+    [
+      'Group',
+      'Lines checked',
+      'Workbook (AED)',
+      'Rules (AED)',
+      'Difference (AED)',
+      'Lines that differ',
+      'Reason',
+    ],
+    2,
+  );
+  // 'Reason' sits in the last column, so merge nothing and keep it wide.
+  const groups = ['CSIDI', 'CSIII', 'CSIDO'].filter((g) => rebuilt.some((l) => l.jobType === g));
+  groups.forEach((g, i) => {
+    const set = rebuilt.filter((l) => l.jobType === g);
     const bad = set.filter((l) => Math.abs(l.e.reconcileDiff ?? 0) > 0.01);
-    w.add(
+    const causes = [...new Set(bad.map((l) => l.e.diffCause || 'Rate or quantity'))];
+    const reason = bad.length
+      ? causes.map((c) => causeText[c] ?? c).join(' ')
+      : 'All lines agree with the rules.';
+    const r = tableRow(
       [
-        t,
+        g,
         set.length,
         sum(set, (l) => l.revenue),
         sum(set, (l) => l.e.rebuilt),
         sum(set, (l) => l.revenue) - sum(set, (l) => l.e.rebuilt),
         bad.length,
-        bad.length
-          ? 'See "Why workbook differs" on the Jobs sheet.'
-          : 'All lines agree with the rules.',
+        reason,
       ],
-      [null, null, MONEY, MONEY, MONEY, null, null],
+      { fmts: [null, '#,##0', MONEY, MONEY, MONEY, '#,##0', null], zebra: i % 2 === 1 },
     );
-  }
-  const causes = new Map<string, LogicLine[]>();
-  for (const l of rebuilt) {
-    if (!l.e.diffCause) continue;
-    causes.set(l.e.diffCause, [...(causes.get(l.e.diffCause) ?? []), l]);
-  }
-  const causeText: Record<string, string> = {
-    'CSIDO flat charge':
-      'The workbook holds a CSIDO amount other than the current flat charge on the first CSIDO line (or a charge on a later line). Typical for locked history priced before the flat charge changed.',
-    'CSIDI transport':
-      'The workbook transport on these CSIDI lines does not follow the once-per-invoice rule (missing where the invoice has more than 1 CSIDI unit and no CSIDO, or charged where it should be waived).',
-    'Rate or quantity':
-      'The workbook net rate or quantity differs from the rate masters (for example a locked row kept at an older rate).',
-  };
-  for (const [cause, set] of causes) {
-    w.add(
-      [
-        'Difference: ' + cause,
-        set.length,
-        sum(set, (l) => l.revenue),
-        sum(set, (l) => l.e.rebuilt),
-        sum(set, (l) => l.e.reconcileDiff),
-        set.length,
-        causeText[cause] ?? '',
-      ],
-      [null, null, MONEY, MONEY, MONEY, null, null],
-    );
-  }
-  w.note(
-    'The workbook keeps earlier rows as locked history and does not recalculate them when a rule or rate changes, so differences on those rows are possible. Revenue figures everywhere in the portal are the workbook figures; this sheet only shows where they would change if the current rules were applied to every line.',
+    ws.getRow(r).height = heightFor(reason, 60);
+  });
+  const sumWb = sum(rebuilt, (l) => l.revenue);
+  const sumRules = sum(rebuilt, (l) => l.e.rebuilt);
+  tableRow(
+    [
+      'Total',
+      rebuilt.length,
+      sumWb,
+      sumRules,
+      sumWb - sumRules,
+      rebuilt.filter((l) => Math.abs(l.e.reconcileDiff ?? 0) > 0.01).length,
+      '',
+    ],
+    { fmts: [null, '#,##0', MONEY, MONEY, MONEY, '#,##0', null], bold: true },
   );
-  w.gap();
 
-  // 5. Open points -------------------------------------------------------
-  w.section('5. Points to confirm');
-  for (const t of [
-    'Should locked history (before the current ERP feed start) be restated to the current CSIDO flat charge and transport rule, or stay as priced?',
-    'Delivery only invoices: is the flat charge per invoice the final basis, regardless of the number of units delivered?',
-    'Jobs and average revenue per job count every line, including zero-revenue companion CSIDO lines. Count invoices instead?',
-  ])
-    w.add([t]);
-
-  ws.views = [{ state: 'frozen', ySplit: 1 }];
+  ws.pageSetup = {
+    orientation: 'landscape',
+    fitToPage: true,
+    fitToWidth: 1,
+    fitToHeight: 0,
+    paperSize: 9,
+  };
 }
 
 export function buildLogicSheet(
