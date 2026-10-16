@@ -239,18 +239,24 @@ export const REVENUE_EXCEPTIONS = {
   },
   zeroRevenue: {
     label: 'Zero-revenue jobs',
-    description: 'Jobs that produce no revenue (for example zero-cost RWR).',
+    description:
+      'Jobs that produce no revenue: zero-cost RWR, and the extra CSIDO lines of an invoice, because its single flat CSIDO charge sits on the first CSIDO line.',
     sql: 'revenue = 0',
   },
+  // Delivery / installation lines built from the ERP net-sale report (workbook
+  // revision of 15 Oct 2026) have no CSOSC order behind them by design, so the
+  // two CSOSC checks leave them out. Older uploads carry no such flag.
   notApproved: {
     label: 'Order not Approved',
-    description: 'The CSOSC order status is not Approved (pending approval or submission).',
-    sql: "COALESCE(csosc_status, '') <> 'Approved'",
+    description:
+      'The CSOSC order status is not Approved (pending approval or submission). Lines priced from the ERP net-sale report have no CSOSC order and are not checked.',
+    sql: "COALESCE(csosc_status, '') <> 'Approved' AND COALESCE(pricing->>'erpSourced', 'false') <> 'true'",
   },
   unmatchedOrder: {
     label: 'No matching CSOSC order',
-    description: 'The invoice reference found no CSOSC job order in the workbook.',
-    sql: "lpo_no = 'UNMATCHED CSOSC'",
+    description:
+      'The invoice reference found no CSOSC job order in the workbook. Lines priced from the ERP net-sale report have no CSOSC order and are not checked.',
+    sql: "lpo_no = 'UNMATCHED CSOSC' AND COALESCE(pricing->>'erpSourced', 'false') <> 'true'",
   },
   noCustomer: {
     label: 'Missing customer',

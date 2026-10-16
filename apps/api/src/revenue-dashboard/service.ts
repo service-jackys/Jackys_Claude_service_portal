@@ -78,6 +78,7 @@ export function createRevenueDashboardService(pool: Pool) {
                 selectedYear: parsed.selectedYear,
                 pricingRules: parsed.pricingRules,
                 pricingMatched: parsed.pricingMatched,
+                pricingUnmatched: parsed.pricingUnmatched,
               },
               uploadedBy: profileId,
             })

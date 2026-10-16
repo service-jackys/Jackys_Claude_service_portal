@@ -39,6 +39,8 @@ export type ParsedRevenueWorkbook = {
   rates: { jobType: string; description: string; price: number }[];
   pricingRules: PricingRules;
   pricingMatched: number;
+  /** Lines of CSIDI / CSIDO / CSIII whose CSIDI-sheet row could not be identified. */
+  pricingUnmatched: number;
   selectedYear: number | null;
   totalRevenue: number;
 };
@@ -195,16 +197,28 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       const row = calc.getRow(r);
       const jobType = text(row.getCell(1).value);
       const price = plain(row.getCell(3).value);
-      // The rate table is followed by an unrelated month table -- only
-      // job-type codes (letters) are rates.
-      if (jobType && /^[A-Za-z]{3,6}$/.test(jobType) && typeof price === 'number') {
+      // The rate table is followed by an unrelated month table (which, since
+      // the 15 Oct 2026 revision, ends in a "Total" row inside this range) --
+      // only upper-case job-type codes such as CSIDO or RWR are rates.
+      if (jobType && /^[A-Z]{3,6}$/.test(jobType) && typeof price === 'number') {
         rates.push({ jobType, description: text(row.getCell(2).value) ?? '', price });
       }
     }
   }
   const pricingRules = readPricingRules(workbook, rates);
-  const pricingMatched = attachSheetPricing(workbook, lines);
-  return { lines, rates, pricingRules, pricingMatched, selectedYear, totalRevenue };
+  const { matched: pricingMatched, unmatched: pricingUnmatched } = attachSheetPricing(
+    workbook,
+    lines,
+  );
+  return {
+    lines,
+    rates,
+    pricingRules,
+    pricingMatched,
+    pricingUnmatched,
+    selectedYear,
+    totalRevenue,
+  };
 }
 
 function nOrNull(value: ExcelJS.CellValue | undefined): number | null {
@@ -280,27 +294,49 @@ function readPricingRules(workbook: ExcelJS.Workbook, rates: PricingRules['rates
     rates: rates.length ? rates : DEFAULT_PRICING_RULES.rates,
     deliveryInstall: di,
     install,
+    logicVersion: usesInvoiceLevelRules(workbook) ? 3 : 2,
   };
 }
 
-// CSIDI sheet = source of every CSIDI / CSIDO / CSIII line. Its pricing
-// columns are joined to Revenue Source on Inv/Del No (+ matching job type).
-function attachSheetPricing(workbook: ExcelJS.Workbook, lines: ParsedRevenueLine[]): number {
+// The 15 Oct 2026 workbook revision builds CSIDI from the ERP net-sale report
+// (ERP columns on the CSIDI sheet) and documents its rules on the "Pricing
+// Logic Guide" sheet. Both are needed before the invoice-level rules apply.
+function usesInvoiceLevelRules(workbook: ExcelJS.Workbook): boolean {
+  if (!workbook.getWorksheet('Pricing Logic Guide')) return false;
   const sheet = workbook.getWorksheet('CSIDI');
-  if (!sheet) return 0;
+  return !!sheet && headerIndex(sheet).has('erp city / region');
+}
+
+// CSIDI sheet = source of every CSIDI / CSIDO / CSIII line. Its pricing
+// columns are joined to Revenue Source on Inv/Del No + job type.
+//
+// Until the 15 Oct 2026 revision a (invoice, type) pair had exactly one CSIDI
+// row. Now an invoice can have several rows of the same type (one per ERP
+// category), so the rows of a pair are matched in sheet order -- Revenue Source
+// lists them in the order the CSIDI sheet holds them -- and each match is
+// checked on quantity and revenue. Where the order does not line up, the first
+// still-unused row with the same quantity and revenue is taken instead.
+function attachSheetPricing(
+  workbook: ExcelJS.Workbook,
+  lines: ParsedRevenueLine[],
+): { matched: number; unmatched: number } {
+  const sheet = workbook.getWorksheet('CSIDI');
+  if (!sheet) return { matched: 0, unmatched: 0 };
   const col = headerIndex(sheet);
-  if (!col.has('inv/del no') || !col.has('pricing type')) return 0;
+  if (!col.has('inv/del no') || !col.has('pricing type')) return { matched: 0, unmatched: 0 };
   const get = (row: ExcelJS.Row, label: string) => {
     const c = col.get(label.toLowerCase());
     return c ? row.getCell(c).value : undefined;
   };
-  const byInvoice = new Map<string, SheetPricing>();
+  const key = (inv: string, type: string) => inv + '\u0000' + type.toUpperCase();
+  const groups = new Map<string, SheetPricing[]>();
   sheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
     const inv = text(get(row, 'Inv/Del No'));
     const pricingType = text(get(row, 'Pricing Type'));
     if (!inv || !pricingType) return;
-    byInvoice.set(inv, {
+    const erpLineCount = nOrNull(get(row, 'ERP Raw Line Count'));
+    const pricing: SheetPricing = {
       tranc: text(get(row, 'Tranc')),
       custCode: text(get(row, 'Cust_Code')),
       trnNo: text(get(row, 'TRN_No')),
@@ -335,6 +371,21 @@ function attachSheetPricing(workbook: ExcelJS.Workbook, lines: ParsedRevenueLine
       proposedRevenue: nOrNull(get(row, 'Proposed Revenue')),
       pricingStatus: text(get(row, 'Pricing Status')),
       reviewNote: text(get(row, 'Review Note')),
+      erpSourced:
+        erpLineCount !== null ||
+        (text(get(row, 'Category Source')) ?? '').toUpperCase().startsWith('IDENTIFIED FROM ERP'),
+      city: text(get(row, 'ERP City / Region')),
+      erpModels: text(get(row, 'ERP Model(s)')),
+      erpParentItems: text(get(row, 'ERP Parent Item(s)')),
+      erpCategory: text(get(row, 'ERP Parent Category')),
+      erpSubcategory: text(get(row, 'ERP Parent Subcategory(s)')),
+      erpBrand: text(get(row, 'ERP Parent Brand(s)')),
+      erpBillingCodes: text(get(row, 'ERP Billing Item Code(s)')),
+      erpChannel: text(get(row, 'ERP Channel')),
+      erpJobTypes: text(get(row, 'ERP Job Type(s)')),
+      erpJobStatuses: text(get(row, 'ERP Job Status(es)')),
+      erpJobReferences: text(get(row, 'ERP Job Invoice / Reference(s)')),
+      erpLineCount,
       before: {
         applianceCategory: text(get(row, 'Appliance Category (Before Fix)')),
         pricingType: text(get(row, 'Pricing Type (Before Fix)')),
@@ -345,18 +396,67 @@ function attachSheetPricing(workbook: ExcelJS.Workbook, lines: ParsedRevenueLine
         billingQty: nOrNull(get(row, 'Billing Qty (Before Fix)')),
         revenue: nOrNull(get(row, 'Revenue (Before Fix)')),
       },
-    });
+    };
+    const k = key(inv, pricingType);
+    const list = groups.get(k);
+    if (list) list.push(pricing);
+    else groups.set(k, [pricing]);
   });
+
+  // Invoice-level facts the invoice rules need (see pricing-logic.ts).
+  const invoiceFacts = new Map<string, { csidiQty: number; hasCsido: boolean }>();
+  for (const [k, list] of groups) {
+    const [inv, type] = k.split('\u0000') as [string, string];
+    const facts = invoiceFacts.get(inv) ?? { csidiQty: 0, hasCsido: false };
+    if (type === 'CSIDI') facts.csidiQty += list.reduce((a, r) => a + (r.calcQty ?? 0), 0);
+    if (type === 'CSIDO') facts.hasCsido = true;
+    invoiceFacts.set(inv, facts);
+  }
+  for (const [k, list] of groups) {
+    const inv = k.split('\u0000')[0]!;
+    const facts = invoiceFacts.get(inv)!;
+    list.forEach((r, i) => {
+      r.invoiceCsidiQty = facts.csidiQty;
+      r.invoiceHasCsido = facts.hasCsido;
+      r.firstOfType = i === 0;
+    });
+  }
+
+  // A formula that evaluates to 0 can arrive without any cached result (the
+  // workbook was last saved without one), so a missing value reads as 0.
+  const same = (a: number | null, b: number) => Math.abs((a ?? 0) - b) < 0.005;
+  const used = new Map<string, Set<number>>();
+  const cursor = new Map<string, number>();
   let matched = 0;
+  let unmatched = 0;
   for (const line of lines) {
     if (!line.invDelNo) continue;
-    const hit = byInvoice.get(line.invDelNo);
-    if (hit && (hit.pricingType ?? '').toUpperCase() === line.jobType) {
-      line.pricing = hit;
+    const k = key(line.invDelNo, line.jobType);
+    const list = groups.get(k);
+    if (!list) continue;
+    if (list.length === 1) {
+      line.pricing = list[0]!;
       matched += 1;
+      continue;
     }
+    const taken = used.get(k) ?? new Set<number>();
+    used.set(k, taken);
+    const fits = (r: SheetPricing) =>
+      same(r.billingQty, line.qty) && same(r.proposedRevenue, line.revenue);
+    const next = cursor.get(k) ?? 0;
+    let pick = -1;
+    if (next < list.length && !taken.has(next) && fits(list[next]!)) pick = next;
+    else pick = list.findIndex((r, i) => !taken.has(i) && fits(r));
+    if (pick < 0) {
+      unmatched += 1;
+      continue;
+    }
+    taken.add(pick);
+    cursor.set(k, pick + 1);
+    line.pricing = list[pick]!;
+    matched += 1;
   }
-  return matched;
+  return { matched, unmatched };
 }
 
 const BUDGET_SECTIONS: Record<string, ParsedBudgetLine['section']> = {

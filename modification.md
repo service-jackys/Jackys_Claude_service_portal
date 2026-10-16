@@ -2737,3 +2737,35 @@ Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warra
 Tests: tests/unit/tax-invoice.test.ts, tests/integration/tax-invoice.test.ts, tests/integration/job-billing.test.ts, tests/e2e/billing.spec.ts (invoice flow and print, sidebar groups), tests/e2e/phase5-records.spec.ts.
 
 **Needs you:** run `npm.cmd run db:migrate` (042, plus 038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs already confirmed as paid stay deliverable; unpaid ones need an invoice issued.
+
+
+## Modification #102 — Service Revenue Dashboard reads the new invoice-level master workbook
+
+The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level rules"): data from 1 Jul 2026, built from the ERP net-sale report, one row per invoice and category. The portal now understands it. Older workbooks (365-day, one CSIDI row per invoice) still upload and reconcile exactly as before.
+
+**Rules the portal now follows (read from the workbook, version 3):**
+- CSIDI = Qty × Net rate, plus one transport charge per invoice on its first CSIDI line, only when the invoice's total CSIDI quantity is above 1 and the invoice has no CSIDO line. Transport is AED 60 (Dubai) or AED 90 (Sharjah; city containing SHJ or SHARJAH).
+- CSIII = Qty × Net rate from the Install Pricing master, no transport.
+- CSIDO = one flat charge per invoice (Calculation!C9, now AED 100) on the first CSIDO line; later CSIDO lines of the invoice show 0.
+- The portal uses the workbook's Revenue figure as the official revenue and rebuilds it only to explain differences.
+
+**What was wrong before this change (tested on the real workbook):** an invoice with several rows overwrote itself when joining pricing, so 273 of 607 priced lines showed false "differs" results; the Revenue Logic sheet described the old rules; and about 670 lines were flagged as "no CSOSC order" because ERP-priced lines have none; a "Total" row on the Calculation sheet was read as a rate.
+
+**Result on the real workbook:** 811 revenue lines, AED 103,687.40; all 607 priced lines matched to their ERP rows; 152 lines differ, each with a cause (see below).
+
+**Changes**
+- Parser: groups pricing rows by invoice and job type, matches lines in sheet order (checked on quantity and revenue), reads the new ERP columns (city, category, brand, models, items, channel, job type/status, reference), detects the new workbook by its Pricing Logic Guide sheet and the "ERP City / Region" column, ignores the Total row of the Calculation sheet.
+- Pricing engine: new invoice-level rebuild with a "Why workbook differs" cause (CSIDO flat charge, CSIDI transport, Rate or quantity).
+- Exceptions: "Order not Approved" and "No matching CSOSC order" skip ERP-priced lines (they have no CSOSC order); the zero-revenue description explains the extra CSIDO lines.
+- Revenue Logic sheet of the Excel export is rewritten for the new rules with live figures and a reconciliation; the Jobs sheet gains the ERP columns and "Why workbook differs".
+- Files: apps/api/src/revenue-dashboard/{parser,pricing-logic,logic-sheet,export,service}.ts, packages/db/src/revenue-dashboard.ts, tests/unit/revenue-workbook.test.ts (7 tests).
+
+**Found in the Excel itself (your decision, not portal bugs)**
+1. 148 delivery-only invoices dated 1 Jul to 10 Oct (locked history) are still at AED 60 (145) or AED 80 (3) instead of the flat AED 100. Restating them adds AED 5,860.
+2. Invoices 16101305, 16101328, 16101385 and 16101408 have more than 1 CSIDI unit, no CSIDO and no transport. The rule gives AED 60 once each (AED 240 in total).
+3. Data starts 1 Jul 2026, so Budget vs Actual has no January to June actuals.
+4. Jobs and average per job count every line, including 76 zero-revenue extra CSIDO lines.
+5. ERP job status values look truncated ("6Customer co", "JOB ORDER LO").
+6. The Pricing Logic Guide still mentions the deleted Item Master sheet; the Calculation monthly block covers Jul to Dec only.
+
+**Needs you:** pull the branch, run `npm.cmd install`, restart the API, hard-refresh, and upload the new .xlsm on Service Revenue Dashboard. No migration.

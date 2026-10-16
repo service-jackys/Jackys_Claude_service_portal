@@ -3492,6 +3492,32 @@
           <li>Run npm.cmd run db:migrate (042), restart the API and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#102 &mdash; Service Revenue Dashboard reads the new invoice-level workbook</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-16 &middot; API only, no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>The portal reads the rebuilt master Excel (invoice-level rules, ERP net-sale data from 1 Jul 2026): CSIDI quantity &times; net rate plus one transport per invoice, CSIII quantity &times; rate, one flat CSIDO charge per invoice (AED 100).</li>
+          <li>Invoices with several rows no longer overwrite each other: all 607 priced lines match, and only 152 genuine differences remain (each with a cause).</li>
+          <li>Revenue Logic sheet rewritten for the new rules; Jobs sheet shows the ERP columns and why the workbook differs.</li>
+          <li>ERP-priced lines are no longer flagged as &ldquo;no CSOSC order&rdquo;. Older workbooks still work as before.</li>
+        </ul>
+        <div class="section-label">Found in the Excel (your decision)</div>
+        <ul>
+          <li>148 locked-history CSIDO invoices still at AED 60/80 instead of 100 (AED 5,860).</li>
+          <li>4 invoices with more than 1 CSIDI unit and no transport (AED 240).</li>
+          <li>No January to June actuals for Budget vs Actual.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull the branch, npm.cmd install, restart the API, hard-refresh and re-upload the new .xlsm. No migration.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

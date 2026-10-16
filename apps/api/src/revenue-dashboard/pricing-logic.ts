@@ -33,6 +33,13 @@ export type PricingRules = {
   install: PricingMaster;
   rates: { jobType: string; description: string; price: number }[];
   source: 'workbook' | 'built-in';
+  /**
+   * 3 = invoice-level rules of the workbook revision of 15 Oct 2026 (category,
+   * activity and city come from the ERP net-sale report; transport and the
+   * CSIDO flat charge are charged once per invoice). Absent / 2 = the earlier
+   * per-line, remarks-based rules. Older stored uploads have no value.
+   */
+  logicVersion?: 2 | 3;
 };
 
 // Values of the workbook as at revision 2 (3 Oct 2026). Used only when an
@@ -168,6 +175,27 @@ export type SheetPricing = {
   proposedRevenue: number | null;
   pricingStatus: string | null;
   reviewNote: string | null;
+  // ---- Added with the 15 Oct 2026 workbook revision (absent on older uploads) ----
+  /** True when the row was built from the ERP net-sale report (no CSOSC order behind it). */
+  erpSourced?: boolean;
+  city?: string | null;
+  erpModels?: string | null;
+  erpParentItems?: string | null;
+  erpCategory?: string | null;
+  erpSubcategory?: string | null;
+  erpBrand?: string | null;
+  erpBillingCodes?: string | null;
+  erpChannel?: string | null;
+  erpJobTypes?: string | null;
+  erpJobStatuses?: string | null;
+  erpJobReferences?: string | null;
+  erpLineCount?: number | null;
+  /** Sum of Calc Qty over the CSIDI rows of the same invoice. */
+  invoiceCsidiQty?: number | null;
+  /** The invoice also has at least one CSIDO row. */
+  invoiceHasCsido?: boolean | null;
+  /** This is the first row of its pricing type on the invoice (carries the once-per-invoice charge). */
+  firstOfType?: boolean | null;
   before: {
     applianceCategory: string | null;
     pricingType: string | null;
@@ -229,6 +257,8 @@ export function priceInstallLine(
     trips: number;
     crewSize: number;
     transportPerTrip?: number;
+    /** Total transport for this line, overriding trips x per-trip (invoice-level rule). */
+    transportTotal?: number;
     forceStandard?: boolean;
   },
 ): Priced {
@@ -242,7 +272,7 @@ export function priceInstallLine(
   const loading = crewLoading(master, input.crewSize);
   const labour = input.qty * net * loading;
   const perTrip = input.transportPerTrip ?? master.transport[0]?.roundTrip ?? 0;
-  const transport = type === 'CSIDI' ? input.trips * perTrip : 0;
+  const transport = type === 'CSIDI' ? (input.transportTotal ?? input.trips * perTrip) : 0;
   const gross = input.qty * base * loading;
   return {
     base,
@@ -260,6 +290,21 @@ export function priceInstallLine(
 
 export function transportPerTrip(rules: PricingRules, region: string): number {
   return rules.deliveryInstall.transport.find((t) => t.region === region)?.roundTrip ?? 0;
+}
+
+/**
+ * Region used for transport, same test as the workbook's CSIDI sheet: the city
+ * text contains SHJ / SHARJAH -> Sharjah, anything else (DXB, DUBAI, blank,
+ * free-text areas) -> Dubai.
+ */
+export function regionOfCity(city: string | null | undefined): 'Dubai' | 'Sharjah' {
+  const c = String(city ?? '').toUpperCase();
+  return c.includes('SHJ') || c.includes('SHARJAH') ? 'Sharjah' : 'Dubai';
+}
+
+/** The CSIDO flat charge per invoice (Calculation sheet rate for CSIDO). */
+export function csidoFlatCharge(rules: PricingRules): number {
+  return rules.rates.find((r) => r.jobType === 'CSIDO')?.price ?? 0;
 }
 
 // ---- Remarks reading (what the workbook's classifier looks at) ----------
@@ -333,9 +378,111 @@ export type Enriched = {
   assumptions: string;
   remarkFlags: string;
   reading: RemarkReading;
+  /** Why the workbook figure differs from the rebuilt one ('' when it agrees). */
+  diffCause: string;
 };
 
 const INSTALL_TYPES = new Set(['CSIDI', 'CSIII']);
+
+/**
+ * Invoice-level rules (workbook revision of 15 Oct 2026, "Pricing Logic Guide"
+ * section 4). The importer stores the invoice facts the rules need on each
+ * row (invoice CSIDI quantity, whether the invoice has a CSIDO line, whether
+ * this is the first row of its type), so a line can be rebuilt on its own.
+ *   CSIDI : Qty x Net rate + one transport charge per invoice, only when the
+ *           invoice has more than 1 CSIDI unit and no CSIDO line.
+ *   CSIII : Qty x Net rate, no transport.
+ *   CSIDO : one flat charge per invoice (Calculation sheet rate) on the first
+ *           CSIDO line; later CSIDO lines of the invoice show 0.
+ */
+function enrichInvoiceLevel(
+  rules: PricingRules,
+  line: LineLike,
+  p: SheetPricing,
+  out: Enriched,
+): Enriched {
+  const type = line.jobType;
+  out.remarkFlags = '';
+  const region = regionOfCity(p.city);
+  const first = p.firstOfType !== false;
+
+  if (type === 'CSIDO') {
+    const flat = csidoFlatCharge(rules);
+    const expected = first ? flat : 0;
+    out.basis =
+      'One flat charge per invoice (AED ' +
+      flat +
+      ') on the first CSIDO line; later CSIDO lines of the invoice show 0';
+    out.rebuilt = expected;
+    out.reconcileDiff = line.revenue - expected;
+    out.diffCause = Math.abs(out.reconcileDiff) > 0.01 ? 'CSIDO flat charge' : '';
+    out.changeVsBeforeFix = p.before.revenue == null ? null : line.revenue - p.before.revenue;
+    out.assumptions =
+      'Activity and category from the ERP net-sale report (' +
+      (p.erpCategory ?? 'category not stated') +
+      ' is not an installable category); ' +
+      (first
+        ? 'first CSIDO line of the invoice, carries the charge'
+        : 'charge sits on the first CSIDO line');
+    return out;
+  }
+
+  const t = type as 'CSIDI' | 'CSIII';
+  const master = t === 'CSIDI' ? rules.deliveryInstall : rules.install;
+  const crew = p.crewSize ?? 2;
+  const invoiceQty = p.invoiceCsidiQty ?? line.qty;
+  let transportNote = 'no transport on installation only';
+  let transportTotal = 0;
+  if (t === 'CSIDI') {
+    if (p.invoiceHasCsido)
+      transportNote =
+        'transport not added: the invoice also has CSIDO, whose flat charge covers the visit';
+    else if (invoiceQty <= 1) transportNote = 'transport not added: single unit on the invoice';
+    else if (!first)
+      transportNote = 'transport charged once, on the first CSIDI line of the invoice';
+    else {
+      transportTotal = transportPerTrip(rules, region) || master.transport[0]?.roundTrip || 0;
+      transportNote = 'transport charged once for the invoice (' + region + ')';
+    }
+  }
+  const cur = priceInstallLine(rules, t, {
+    qty: line.qty,
+    category: p.applianceCategory,
+    trips: 1,
+    crewSize: crew,
+    transportTotal,
+  });
+  out.basis =
+    t === 'CSIDI'
+      ? 'Qty x Net unit rate x crew loading; one transport charge per invoice only when the invoice has more than 1 CSIDI unit and no CSIDO line'
+      : 'Qty x Net unit rate x crew loading (no transport)';
+  out.grossLabour = cur.gross;
+  out.discountAmount = cur.discountAmount;
+  out.floorApplied = cur.floorApplied ? 'Yes' : 'No';
+  out.labourAfterDiscount = cur.labour;
+  out.transport = cur.transport;
+  out.rebuilt = cur.total;
+  out.reconcileDiff = line.revenue - cur.total;
+  out.changeVsBeforeFix = p.before.revenue == null ? null : line.revenue - p.before.revenue;
+  if (Math.abs(out.reconcileDiff) > 0.01) {
+    out.diffCause =
+      t === 'CSIDI' && Math.abs((p.transportCharge ?? 0) - cur.transport) > 0.01
+        ? 'CSIDI transport'
+        : 'Rate or quantity';
+  }
+  out.assumptions =
+    'Category ' +
+    (p.erpCategory ?? '?') +
+    ' -> ' +
+    (p.applianceCategory ?? 'Default') +
+    ' (from the ERP net-sale report); ' +
+    transportNote +
+    '; grouping = ' +
+    (p.customerGrouping ?? master.defaults.customerGrouping) +
+    ', crew = ' +
+    crew;
+  return out;
+}
 
 export function enrichLine(rules: PricingRules, line: LineLike): Enriched {
   const reading = readRemarks(line.remarks);
@@ -361,7 +508,11 @@ export function enrichLine(rules: PricingRules, line: LineLike): Enriched {
     assumptions: '',
     remarkFlags: '',
     reading,
+    diffCause: '',
   };
+  if (rules.logicVersion === 3 && p && (type === 'CSIDI' || type === 'CSIII' || type === 'CSIDO')) {
+    return enrichInvoiceLevel(rules, line, p, empty);
+  }
   const flags: string[] = [];
   if (INSTALL_TYPES.has(type) || type === 'CSIDO') {
     if (reading.activityEvidence === 'None')
