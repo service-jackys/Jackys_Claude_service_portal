@@ -2808,3 +2808,16 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Needs you:** pull, restart the API, hard-refresh. No migration. An old bookmarked link that filters on "Order not Approved" will no longer work.
 
 **Also fixed (from #103).** The no-database fallback list of Revenue Dashboard handlers in apps/api/src/api/route-catalog.ts was missing the new `exportView` entry, so the API could not start without a database (the OpenAPI and startup tests failed with "route.handlers is not iterable"). Added; the API now starts with or without a database.
+
+## Modification #105 — Service Revenue Dashboard: new "Logic applied" tab
+
+**Why.** Management asked why some jobs show AED 0 (extra delivery-only lines under one flat per-invoice charge) and wanted the revenue rules explained in plain language, like the Excel guide.
+
+**What changed.**
+- New tab **Logic applied** after Reports. It shows: a four-step "from ERP line to revenue" flow; one rule card per job type (CSIJW, CSIJO, CSIDI, CSIII, CSIDO) with live job, quantity, revenue and share figures; a "Why some jobs show AED 0" section with live counts, a by-month chart, a worked example taken from the data and a button that opens the zero-revenue jobs; the rate cards, discount tiers, transport and flat charge read from the uploaded workbook; and how the workbook compares with the rules (matched lines, differing lines, causes in plain words).
+- New API `GET /api/revenue-dashboard/logic` (permission revenue_dashboard.read). The filter bar is hidden on this tab because it always describes the whole upload.
+- The "Zero-revenue jobs" exception is unchanged. Hiding the explained lines from it is still possible if wanted.
+
+**Files.** apps/api/src/revenue-dashboard/logic-summary.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.

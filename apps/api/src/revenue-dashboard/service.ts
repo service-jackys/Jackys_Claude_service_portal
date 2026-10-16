@@ -28,6 +28,7 @@ import {
 } from '../../../../packages/db/src/revenue-dashboard.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildRevenueReportWorkbook } from './export.js';
+import { buildLogicSummary, type LogicSummaryLine } from './logic-summary.js';
 import { buildRevenueViewWorkbook } from './view-export.js';
 import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from './parser.js';
 
@@ -332,6 +333,24 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
+  // "Logic applied" tab: the rules in force, live figures and a worked example
+  // for the whole active upload (not filtered).
+  async function logic() {
+    return withActive(async (client, batchId) => {
+      const batch = await findActiveBatch(client, 'revenue');
+      const lines = (await revenueExportLines(client, batchId, {}, 50000)) as LogicSummaryLine[];
+      return buildLogicSummary(
+        batch!,
+        lines.map((l) => ({
+          ...l,
+          qty: Number(l.qty ?? 0),
+          unitPrice: Number(l.unitPrice ?? 0),
+          revenue: Number(l.revenue ?? 0),
+        })),
+      );
+    });
+  }
+
   async function withActive<T>(
     fn: (client: import('pg').PoolClient, batchId: string) => Promise<T>,
   ) {
@@ -369,6 +388,7 @@ export function createRevenueDashboardService(pool: Pool) {
     exceptions,
     exportWorkbook,
     exportView,
+    logic,
     recordActivity,
   };
 }

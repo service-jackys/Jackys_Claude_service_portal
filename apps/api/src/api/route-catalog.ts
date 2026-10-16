@@ -741,6 +741,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        logic: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const attachmentHandlers = pool
     ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
@@ -2776,6 +2780,17 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.exceptions,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/logic',
+        operationId: 'getRevenueDashboardLogic',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Rules in force, live figures, zero-revenue explanation and a worked example for the active revenue upload',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.logic,
       },
       {
         method: 'get' as const,
