@@ -2818,6 +2818,8 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - New API `GET /api/revenue-dashboard/logic` (permission revenue_dashboard.read). The filter bar is hidden on this tab because it always describes the whole upload.
 - The "Zero-revenue jobs" exception is unchanged. Hiding the explained lines from it is still possible if wanted.
 
+- **Management emails.** The *Email draft* / *Management summary* text and the *Formatted email* now explain the items for finance review: the Zero-revenue jobs line says how many of the zero-revenue jobs are extra delivery-only lines covered by the one flat per-invoice charge (live from the Logic applied data), the No matching CSOSC order line says what it means, and a short "How revenue is calculated" paragraph is added. Nothing else in the emails changed; they still use the filters in force.
+
 **Files.** apps/api/src/revenue-dashboard/logic-summary.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
