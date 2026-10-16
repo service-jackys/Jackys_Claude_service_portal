@@ -16791,13 +16791,51 @@ ${bodyHtml}
       });
     }
 
+    // Plain-language notes for management emails, from the same live "logic" data as
+    // the Logic applied tab, so a zero-revenue or CSOSC item never reaches management
+    // without its reason. Returns no zero-revenue note when the logic data is unavailable.
+    async function emailLogicNotes() {
+      let d = null;
+      try {
+        d = (await rdApi('logic')).data;
+      } catch {
+        d = null;
+      }
+      const notes = {
+        unmatchedOrder:
+          'The job\u2019s CSOSC order number is not in the workbook\u2019s CSOSC export (mostly older orders) or the job is Direct. The revenue is still counted; finance only confirms the order status.',
+      };
+      let basis = '';
+      if (d && d.logicVersion === 3) {
+        const z = d.zeroRevenue;
+        const flat = 'AED ' + rdMoney(d.csidoFlat);
+        notes.zeroRevenue =
+          'Whole upload: ' +
+          rdMoney(z.explainedLines) +
+          ' of ' +
+          rdMoney(z.lines) +
+          ' zero-revenue jobs are extra delivery-only lines on invoices that already carry the one flat ' +
+          flat +
+          ' delivery charge, so they show AED 0 by design and no revenue is lost.' +
+          (z.otherLines
+            ? ' ' + rdMoney(z.otherLines) + ' show AED 0 for another reason and need review.'
+            : '');
+        basis =
+          'Delivery + installation and installation-only lines are priced as quantity x net rate (base rate less volume discount, never below the minimum rate). Transport is added once per multi-unit installation invoice. Each delivery-only invoice carries one flat ' +
+          flat +
+          ' charge on its first line; its other lines show AED 0. Full rules: Service Revenue Dashboard > Logic applied.';
+      }
+      return { notes, basis };
+    }
+
     async function managementSummary(sum) {
-      const [byType, byChannel, byCustomer, byPeriod, exc] = await Promise.all([
+      const [byType, byChannel, byCustomer, byPeriod, exc, logicNotes] = await Promise.all([
         rdApi('group', { ...F, dimension: 'jobType' }),
         rdApi('group', { ...F, dimension: 'channel' }),
         rdApi('group', { ...F, dimension: 'customer' }),
         rdApi('group', { ...F, month: '', week: '', dimension: 'period' }),
         rdApi('exceptions', F),
+        emailLogicNotes(),
       ]);
       const t = sum.summary.totals;
       const periods = [...byPeriod.data.rows].sort((a, b) => a.key.localeCompare(b.key));
@@ -16881,12 +16919,14 @@ ${bodyHtml}
       const open = exc.data.exceptions.filter((e) => e.jobs);
       lines.push('', 'Items for finance review:');
       if (open.length)
-        open.forEach((e) =>
+        open.forEach((e) => {
           lines.push(
             '  - ' + e.label + ': ' + rdMoney(e.jobs) + ' jobs, AED ' + rdMoney(e.revenue),
-          ),
-        );
+          );
+          if (logicNotes.notes[e.key]) lines.push('      ' + logicNotes.notes[e.key]);
+        });
       else lines.push('  - None');
+      if (logicNotes.basis) lines.push('', 'How revenue is calculated:', '  ' + logicNotes.basis);
       lines.push(
         '',
         'Basis: figures are the Revenue calculated in the master Service Dashboard workbook; management analysis, not an ERP ledger extract.',
@@ -16898,12 +16938,13 @@ ${bodyHtml}
     // Email-safe markup: tables and inline styles only, because mail clients
     // ignore <style> blocks, flexbox and most modern CSS. Bars are table cells.
     async function managementEmailData(sum) {
-      const [byType, byChannel, bySales, byPeriod, exc] = await Promise.all([
+      const [byType, byChannel, bySales, byPeriod, exc, logicNotes] = await Promise.all([
         rdApi('group', { ...F, dimension: 'jobType' }),
         rdApi('group', { ...F, dimension: 'channel' }),
         rdApi('group', { ...F, dimension: 'salesPerson' }),
         rdApi('group', { ...F, month: '', week: '', dimension: 'period' }),
         rdApi('exceptions', F),
+        emailLogicNotes(),
       ]);
       const periods = [...byPeriod.data.rows].sort((a, b) => a.key.localeCompare(b.key));
       return {
@@ -16913,6 +16954,8 @@ ${bodyHtml}
         salesPeople: bySales.data.rows,
         periods,
         open: exc.data.exceptions.filter((e) => e.jobs),
+        notes: logicNotes.notes,
+        basis: logicNotes.basis,
         source: sum.batch ? sum.batch.fileName : 'workbook',
         uploadedAt: sum.batch ? sum.batch.uploadedAt : null,
       };
@@ -17084,7 +17127,16 @@ ${bodyHtml}
                 cell('right', 'font-weight:600;') +
                 '">AED ' +
                 rdMoney(x.revenue) +
-                '</td></tr>',
+                '</td></tr>' +
+                (d.notes && d.notes[x.key]
+                  ? '<tr><td colspan="3" style="padding:0 0 8px;border-bottom:1px solid ' +
+                    LINE +
+                    ';font-size:12px;line-height:1.5;color:' +
+                    MUTED +
+                    ';">' +
+                    e(d.notes[x.key]) +
+                    '</td></tr>'
+                  : ''),
             )
             .join('')
         : '<tr><td style="padding:8px 0;color:' + GREEN + ';">No open items &#10003;</td></tr>';
@@ -17157,6 +17209,16 @@ ${bodyHtml}
           : '') +
         section('Items for finance review', '#b45309') +
         wrap(reviewRows) +
+        (d.basis
+          ? section('How revenue is calculated', '#475467') +
+            '<tr><td style="padding:10px 28px 0;' +
+            font +
+            'font-size:13px;line-height:1.55;color:' +
+            INK +
+            ';">' +
+            e(d.basis) +
+            '</td></tr>'
+          : '') +
         '<tr><td style="padding:26px 28px 24px;' +
         font +
         'font-size:13px;line-height:1.55;color:' +
