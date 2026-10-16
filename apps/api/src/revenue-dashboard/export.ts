@@ -196,272 +196,418 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     return { line, pricing, e };
   });
 
+  type Row = (typeof enriched)[number];
   type Col = {
     h: string;
     w: number;
     fmt?: string;
-    group: 'base' | 'sheet' | 'calc' | 'risk';
-    get: (x: (typeof enriched)[number]) => unknown;
+    group: string;
+    /** Always kept, even when no exported job has a value in it. */
+    core?: boolean;
+    /** Add a SUBTOTAL for this column in the totals row. */
+    sum?: boolean;
+    get: (x: Row) => unknown;
   };
-  const P = (pick: (p: SheetPricing) => unknown) => (x: (typeof enriched)[number]) =>
+  const P = (pick: (p: SheetPricing) => unknown) => (x: Row) =>
     x.pricing ? pick(x.pricing) : null;
-  const L = (key: string) => (x: (typeof enriched)[number]) => x.line[key];
-  const E = (key: keyof (typeof enriched)[number]['e']) => (x: (typeof enriched)[number]) =>
-    x.e[key];
-  const allCols: Col[] = [
-    { h: 'Date', w: 12, group: 'base', get: L('orderDate') },
-    { h: 'Year', w: 7, group: 'base', get: L('year') },
-    { h: 'Month', w: 7, group: 'base', get: L('month') },
-    { h: 'Week', w: 7, group: 'base', get: L('weekNo') },
-    { h: 'Job type', w: 10, group: 'base', get: L('jobType') },
-    { h: 'Inv/Del no', w: 14, group: 'base', get: L('invDelNo') },
-    { h: 'CSOSC order', w: 14, group: 'base', get: L('csoscOrderNo') },
-    { h: 'Customer', w: 40, group: 'base', get: L('customer') },
-    { h: 'Sales channel', w: 12, group: 'base', get: L('salesChannel') },
-    { h: 'Salesperson', w: 18, group: 'base', get: L('salesPerson') },
-    { h: 'Order status', w: 18, group: 'base', get: L('orderStatus') },
-    { h: 'Job status', w: 14, group: 'base', get: L('jobSheetStatus') },
-    { h: 'Billing code', w: 28, group: 'base', get: L('billingCode') },
-    { h: 'Cost status', w: 18, group: 'base', get: L('costStatus') },
-    { h: 'Qty', w: 8, group: 'base', get: L('qty') },
-    { h: 'Unit price', w: 12, fmt: MONEY, group: 'base', get: L('unitPrice') },
-    { h: 'Original job value', w: 14, fmt: MONEY, group: 'base', get: L('originalJobValue') },
-    { h: 'Revenue (AED)', w: 14, fmt: MONEY, group: 'base', get: L('revenue') },
-    { h: 'Remarks', w: 60, group: 'base', get: L('remarks') },
-    // ---- every column of the workbook's CSIDI sheet --------------------
-    { h: 'CSIDI: Tranc', w: 10, group: 'sheet', get: P((p) => p.tranc) },
-    { h: 'CSIDI: Cust code', w: 11, group: 'sheet', get: P((p) => p.custCode) },
-    { h: 'CSIDI: TRN no', w: 18, group: 'sheet', get: P((p) => p.trnNo) },
-    { h: 'CSIDI: Cur', w: 6, group: 'sheet', get: P((p) => p.currency) },
-    { h: 'CSIDI: Location', w: 10, group: 'sheet', get: P((p) => p.location) },
-    { h: 'CSIDI: Del loc', w: 9, group: 'sheet', get: P((p) => p.delLoc) },
-    { h: 'CSIDI: Qty (raw units)', w: 11, group: 'sheet', get: P((p) => p.rawQty) },
-    { h: 'CSIDI: Value (ERP invoice)', w: 14, fmt: MONEY, group: 'sheet', get: P((p) => p.value) },
-    { h: 'CSIDI: No. of items', w: 10, group: 'sheet', get: P((p) => p.items) },
-    { h: 'CSIDI: Invoice status', w: 22, group: 'sheet', get: P((p) => p.invoiceStatus) },
-    { h: 'CSIDI: Salesman', w: 18, group: 'sheet', get: P((p) => p.salesman) },
-    { h: 'CSIDI: Ref doc no', w: 18, group: 'sheet', get: P((p) => p.refDocNo) },
-    { h: 'CSIDI: Ref doc date', w: 12, group: 'sheet', get: P((p) => p.refDocDt) },
-    { h: 'CSIDI: Del. date', w: 12, group: 'sheet', get: P((p) => p.delDate) },
-    { h: 'CSIDI: LPO no / status', w: 16, group: 'sheet', get: P((p) => p.lpoNo) },
-    { h: 'CSIDI: Derived type', w: 11, group: 'sheet', get: P((p) => p.derivedType) },
-    { h: 'CSIDI: Calc qty (derived trips)', w: 13, group: 'sheet', get: P((p) => p.calcQty) },
-    { h: 'CSIDI: Original type', w: 11, group: 'sheet', get: P((p) => p.originalType) },
-    { h: 'CSIDI: Appliance category', w: 26, group: 'sheet', get: P((p) => p.applianceCategory) },
-    { h: 'CSIDI: Category source', w: 24, group: 'sheet', get: P((p) => p.categorySource) },
-    { h: 'CSIDI: Pricing type', w: 11, group: 'sheet', get: P((p) => p.pricingType) },
-    { h: 'CSIDI: Customer grouping', w: 24, group: 'sheet', get: P((p) => p.customerGrouping) },
-    { h: 'CSIDI: Number of sites', w: 10, group: 'sheet', get: P((p) => p.sites) },
-    { h: 'CSIDI: Planned trips', w: 10, group: 'sheet', get: P((p) => p.plannedTrips) },
-    { h: 'CSIDI: Crew size', w: 8, group: 'sheet', get: P((p) => p.crewSize) },
-    { h: 'CSIDI: Discount tier', w: 13, group: 'sheet', get: P((p) => p.discountTier) },
-    { h: 'CSIDI: Discount rate', w: 10, fmt: '0%', group: 'sheet', get: P((p) => p.discountRate) },
+  const L = (key: string) => (x: Row) => x.line[key];
+  const E = (key: keyof Row['e']) => (x: Row) => x.e[key];
+  const yesNo = (v: boolean | null | undefined) => (v == null ? null : v ? 'Yes' : 'No');
+  const isEmpty = (v: unknown) => v === null || v === undefined || v === '';
+
+  // ---- repairs: what the remarks say the appliance is --------------------
+  const APPLIANCES: [RegExp, string][] = [
+    [/REFRIGERATOR|FRIDGE|FREEZER|CHILLER/, 'Refrigerator / freezer'],
+    [/WASHING MACHINE|WASHER|DRYER/, 'Washing machine / dryer'],
+    [/COOKER|COOKING RANGE|OVEN|HOB|COOKTOP|BURNER/, 'Cooker / oven / hob'],
+    [/DISH ?WASHER/, 'Dishwasher'],
+    [/MICRO ?WAVE/, 'Microwave'],
+    [/AIR CONDITION|\bA\/C\b|\bAC UNIT\b|\bSPLIT\b/, 'Air conditioner'],
+    [/\bTV\b|TELEVISION/, 'Television'],
+    [/WATER DISPENSER|DISPENSER/, 'Water dispenser'],
+  ];
+  const applianceFromRemarks = (x: Row) => {
+    const r = String(x.line.remarks ?? '').toUpperCase();
+    for (const [re, label] of APPLIANCES) if (re.test(r)) return label;
+    return '';
+  };
+  const modelFromRemarks = (x: Row) => {
+    const m = /\b[A-Z]{1,5}\d{2,}[A-Z0-9-]*\b/.exec(String(x.line.remarks ?? '').toUpperCase());
+    return m ? m[0] : '';
+  };
+  const ruleApplied = (x: Row) => {
+    const qty = Number(x.line.qty ?? 0);
+    const price = Number(x.line.unitPrice ?? 0);
+    const revenue = Number(x.line.revenue ?? 0);
+    if (Math.abs(qty * price - revenue) < 0.01) return `Qty ${qty} x AED ${price}`;
+    return `Flat AED ${revenue} (BER / RWR or special rule)`;
+  };
+
+  const common = (g: string): Col[] => [
+    { h: 'Date', w: 12, group: g, core: true, get: L('orderDate') },
+    { h: 'Month', w: 7, group: g, core: true, get: L('month') },
+    { h: 'Week', w: 7, group: g, core: true, get: L('weekNo') },
+    { h: 'Job type', w: 10, group: g, core: true, get: L('jobType') },
+    { h: 'Inv/Del no', w: 14, group: g, core: true, get: L('invDelNo') },
+    { h: 'CSOSC order', w: 14, group: g, core: true, get: L('csoscOrderNo') },
+    { h: 'Customer', w: 38, group: g, core: true, get: L('customer') },
+    { h: 'Sales channel', w: 10, group: g, core: true, get: L('salesChannel') },
+    { h: 'Salesperson', w: 16, group: g, core: true, get: L('salesPerson') },
+  ];
+  const status = (g: string): Col[] => [
+    { h: 'Order status', w: 16, group: g, core: true, get: L('orderStatus') },
+    { h: 'Job status', w: 14, group: g, core: true, get: L('jobSheetStatus') },
+    { h: 'Billing code', w: 26, group: g, core: true, get: L('billingCode') },
+    { h: 'Cost status', w: 16, group: g, core: true, get: L('costStatus') },
+  ];
+
+  const repairCols: Col[] = [
+    ...common('Job'),
+    ...status('Job'),
+    { h: 'Appliance (from remarks)', w: 24, group: 'Job', core: true, get: applianceFromRemarks },
+    { h: 'Model (from remarks)', w: 16, group: 'Job', core: true, get: modelFromRemarks },
+    { h: 'Qty', w: 7, group: 'Revenue', core: true, sum: true, get: L('qty') },
+    { h: 'Unit price', w: 11, fmt: MONEY, group: 'Revenue', core: true, get: L('unitPrice') },
     {
-      h: 'CSIDI: Base unit rate',
-      w: 11,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.baseUnitRate),
-    },
-    { h: 'CSIDI: Net unit rate', w: 11, fmt: MONEY, group: 'sheet', get: P((p) => p.netUnitRate) },
-    {
-      h: 'CSIDI: Transport charge',
-      w: 11,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.transportCharge),
-    },
-    { h: 'CSIDI: Proposed billing qty', w: 12, group: 'sheet', get: P((p) => p.billingQty) },
-    {
-      h: 'CSIDI: Proposed revenue',
+      h: 'Original job value',
       w: 13,
       fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.proposedRevenue),
+      group: 'Revenue',
+      core: true,
+      get: L('originalJobValue'),
     },
-    { h: 'CSIDI: Pricing status', w: 32, group: 'sheet', get: P((p) => p.pricingStatus) },
-    { h: 'CSIDI: Review note', w: 50, group: 'sheet', get: P((p) => p.reviewNote) },
-    // ---- ERP net-sale columns of the 15 Oct 2026 workbook revision -------
-    { h: 'ERP: City / region', w: 16, group: 'sheet', get: P((p) => p.city) },
-    { h: 'ERP: Parent category', w: 22, group: 'sheet', get: P((p) => p.erpCategory) },
-    { h: 'ERP: Parent subcategory', w: 22, group: 'sheet', get: P((p) => p.erpSubcategory) },
-    { h: 'ERP: Brand', w: 18, group: 'sheet', get: P((p) => p.erpBrand) },
-    { h: 'ERP: Model(s)', w: 28, group: 'sheet', get: P((p) => p.erpModels) },
-    { h: 'ERP: Parent item(s)', w: 28, group: 'sheet', get: P((p) => p.erpParentItems) },
-    { h: 'ERP: Billing item code(s)', w: 28, group: 'sheet', get: P((p) => p.erpBillingCodes) },
-    { h: 'ERP: Channel', w: 10, group: 'sheet', get: P((p) => p.erpChannel) },
-    { h: 'ERP: Job type(s)', w: 16, group: 'sheet', get: P((p) => p.erpJobTypes) },
-    { h: 'ERP: Job status(es)', w: 18, group: 'sheet', get: P((p) => p.erpJobStatuses) },
+    { h: 'Rule applied', w: 34, group: 'Revenue', core: true, get: ruleApplied },
     {
-      h: 'ERP: Job invoice / reference(s)',
-      w: 22,
-      group: 'sheet',
-      get: P((p) => p.erpJobReferences),
-    },
-    { h: 'ERP: Raw line count', w: 10, group: 'sheet', get: P((p) => p.erpLineCount) },
-    { h: 'Invoice: total CSIDI qty', w: 11, group: 'sheet', get: P((p) => p.invoiceCsidiQty) },
-    {
-      h: 'Invoice: has a CSIDO line',
-      w: 11,
-      group: 'sheet',
-      get: P((p) => (p.invoiceHasCsido == null ? null : p.invoiceHasCsido ? 'Yes' : 'No')),
-    },
-    {
-      h: 'First line of its type on the invoice',
-      w: 13,
-      group: 'sheet',
-      get: P((p) => (p.firstOfType == null ? null : p.firstOfType ? 'Yes' : 'No')),
-    },
-    {
-      h: 'Before fix: Appliance category',
-      w: 24,
-      group: 'sheet',
-      get: P((p) => p.before.applianceCategory),
-    },
-    { h: 'Before fix: Pricing type', w: 11, group: 'sheet', get: P((p) => p.before.pricingType) },
-    {
-      h: 'Before fix: Discount rate',
-      w: 10,
-      fmt: '0%',
-      group: 'sheet',
-      get: P((p) => p.before.discountRate),
-    },
-    {
-      h: 'Before fix: Base unit rate',
-      w: 11,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.before.baseUnitRate),
-    },
-    {
-      h: 'Before fix: Net unit rate',
-      w: 11,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.before.netUnitRate),
-    },
-    {
-      h: 'Before fix: Transport',
-      w: 10,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.before.transport),
-    },
-    { h: 'Before fix: Billing qty', w: 10, group: 'sheet', get: P((p) => p.before.billingQty) },
-    {
-      h: 'Before fix: Revenue',
-      w: 12,
-      fmt: MONEY,
-      group: 'sheet',
-      get: P((p) => p.before.revenue),
-    },
-    // ---- how the revenue is built, part by part ------------------------
-    { h: 'Revenue basis', w: 44, group: 'calc', get: E('basis') },
-    { h: 'Labour before discount (AED)', w: 15, fmt: MONEY, group: 'calc', get: E('grossLabour') },
-    { h: 'Volume discount (AED)', w: 13, fmt: MONEY, group: 'calc', get: E('discountAmount') },
-    { h: 'AED 35 floor applied', w: 10, group: 'calc', get: E('floorApplied') },
-    {
-      h: 'Labour after discount (AED)',
-      w: 15,
-      fmt: MONEY,
-      group: 'calc',
-      get: E('labourAfterDiscount'),
-    },
-    { h: 'Transport (AED)', w: 12, fmt: MONEY, group: 'calc', get: E('transport') },
-    { h: 'Rebuilt revenue (AED)', w: 14, fmt: MONEY, group: 'calc', get: E('rebuilt') },
-    {
-      h: 'Workbook minus rebuilt (AED)',
+      h: 'Revenue (AED)',
       w: 14,
       fmt: MONEY,
-      group: 'calc',
-      get: E('reconcileDiff'),
+      group: 'Revenue',
+      core: true,
+      sum: true,
+      get: L('revenue'),
     },
-    { h: 'Why workbook differs', w: 22, group: 'calc', get: E('diffCause') },
-    { h: 'Revenue per unit (AED)', w: 13, fmt: MONEY, group: 'calc', get: E('revenuePerUnit') },
+    { h: 'Remarks', w: 60, group: 'Remarks', core: true, get: L('remarks') },
+  ];
+
+  const installCols: Col[] = [
+    ...common('Job'),
+    { h: 'City / region', w: 14, group: 'Job', get: P((p) => p.city) },
+    ...status('Job'),
+    { h: 'Qty', w: 7, group: 'Job', core: true, sum: true, get: L('qty') },
+    { h: 'Parent category', w: 22, group: 'ERP', get: P((p) => p.erpCategory) },
+    { h: 'Parent subcategory', w: 22, group: 'ERP', get: P((p) => p.erpSubcategory) },
+    { h: 'Brand', w: 16, group: 'ERP', get: P((p) => p.erpBrand) },
+    { h: 'Model(s)', w: 26, group: 'ERP', get: P((p) => p.erpModels) },
+    { h: 'Parent item(s)', w: 26, group: 'ERP', get: P((p) => p.erpParentItems) },
+    { h: 'Billing item code(s)', w: 26, group: 'ERP', get: P((p) => p.erpBillingCodes) },
+    { h: 'Raw ERP lines', w: 9, group: 'ERP', get: P((p) => p.erpLineCount) },
+    { h: 'Appliance category', w: 24, group: 'Before', get: P((p) => p.before.applianceCategory) },
+    { h: 'Pricing type', w: 11, group: 'Before', get: P((p) => p.before.pricingType) },
+    { h: 'Discount', w: 9, fmt: '0%', group: 'Before', get: P((p) => p.before.discountRate) },
+    { h: 'Base rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.baseUnitRate) },
+    { h: 'Net rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.netUnitRate) },
+    { h: 'Transport', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.transport) },
+    { h: 'Billing qty', w: 9, group: 'Before', get: P((p) => p.before.billingQty) },
     {
-      h: 'Change vs before 3 Oct fix (AED)',
-      w: 15,
+      h: 'Revenue before (AED)',
+      w: 13,
       fmt: MONEY,
-      group: 'calc',
+      group: 'Before',
+      sum: true,
+      get: P((p) => p.before.revenue),
+    },
+    { h: 'Appliance category', w: 24, group: 'After', get: P((p) => p.applianceCategory) },
+    { h: 'Pricing type', w: 11, group: 'After', get: P((p) => p.pricingType) },
+    { h: 'Billing qty', w: 9, group: 'After', get: P((p) => p.billingQty) },
+    { h: 'Base rate', w: 10, fmt: MONEY, group: 'After', get: P((p) => p.baseUnitRate) },
+    { h: 'Discount', w: 9, fmt: '0%', group: 'After', get: P((p) => p.discountRate) },
+    { h: 'Net rate', w: 10, fmt: MONEY, group: 'After', get: P((p) => p.netUnitRate) },
+    {
+      h: 'Labour (AED)',
+      w: 12,
+      fmt: MONEY,
+      group: 'After',
+      sum: true,
+      get: E('labourAfterDiscount'),
+    },
+    {
+      h: 'Transport (AED)',
+      w: 12,
+      fmt: MONEY,
+      group: 'After',
+      sum: true,
+      get: E('transport'),
+    },
+    {
+      h: 'Revenue (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Final',
+      core: true,
+      sum: true,
+      get: L('revenue'),
+    },
+    {
+      h: 'Change vs before (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Final',
+      sum: true,
       get: E('changeVsBeforeFix'),
     },
-    // ---- what the missing ERP data could change ------------------------
+    { h: 'Revenue per unit (AED)', w: 13, fmt: MONEY, group: 'Final', get: E('revenuePerUnit') },
     {
-      h: 'If all units refrigerator/washer (AED)',
+      h: 'Rebuilt from rules (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Check',
+      sum: true,
+      get: E('rebuilt'),
+    },
+    {
+      h: 'Workbook minus rules (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Check',
+      sum: true,
+      get: E('reconcileDiff'),
+    },
+    { h: 'Why they differ', w: 22, group: 'Check', get: E('diffCause') },
+    { h: 'Revenue basis', w: 44, group: 'Explain', get: E('basis') },
+    { h: 'Invoice CSIDI qty', w: 10, group: 'Explain', get: P((p) => p.invoiceCsidiQty) },
+    {
+      h: 'Invoice has CSIDO',
+      w: 10,
+      group: 'Explain',
+      get: P((p) => yesNo(p.invoiceHasCsido)),
+    },
+    {
+      h: 'First line of its type on invoice',
+      w: 13,
+      group: 'Explain',
+      get: P((p) => yesNo(p.firstOfType)),
+    },
+    { h: 'Pricing status', w: 30, group: 'Explain', get: P((p) => p.pricingStatus) },
+    { h: 'Review note', w: 44, group: 'Explain', get: P((p) => p.reviewNote) },
+    { h: 'Remarks flags', w: 44, group: 'Explain', get: E('remarkFlags') },
+    { h: 'Remarks', w: 60, group: 'Explain', core: true, get: L('remarks') },
+  ];
+
+  // Raw columns of the workbook's CSIDI sheet that accounts rarely need, kept
+  // one lookup away (by invoice number) instead of on the review sheets.
+  const detailCols: Col[] = [
+    { h: 'Inv/Del no', w: 14, group: 'Source', core: true, get: L('invDelNo') },
+    { h: 'Job type', w: 10, group: 'Source', core: true, get: L('jobType') },
+    { h: 'Tranc', w: 10, group: 'Source', get: P((p) => p.tranc) },
+    { h: 'Cust code', w: 11, group: 'Source', get: P((p) => p.custCode) },
+    { h: 'TRN no', w: 18, group: 'Source', get: P((p) => p.trnNo) },
+    { h: 'Cur', w: 6, group: 'Source', get: P((p) => p.currency) },
+    { h: 'Location', w: 10, group: 'Source', get: P((p) => p.location) },
+    { h: 'Del loc', w: 9, group: 'Source', get: P((p) => p.delLoc) },
+    { h: 'Qty (raw units)', w: 11, group: 'Source', get: P((p) => p.rawQty) },
+    { h: 'Value (ERP invoice)', w: 14, fmt: MONEY, group: 'Source', get: P((p) => p.value) },
+    { h: 'No. of items', w: 10, group: 'Source', get: P((p) => p.items) },
+    { h: 'Invoice status', w: 22, group: 'Source', get: P((p) => p.invoiceStatus) },
+    { h: 'Salesman', w: 18, group: 'Source', get: P((p) => p.salesman) },
+    { h: 'Ref doc no', w: 18, group: 'Source', get: P((p) => p.refDocNo) },
+    { h: 'Ref doc date', w: 12, group: 'Source', get: P((p) => p.refDocDt) },
+    { h: 'Del. date', w: 12, group: 'Source', get: P((p) => p.delDate) },
+    { h: 'LPO no / status', w: 16, group: 'Source', get: P((p) => p.lpoNo) },
+    { h: 'Derived type', w: 11, group: 'Source', get: P((p) => p.derivedType) },
+    { h: 'Calc qty (derived trips)', w: 13, group: 'Source', get: P((p) => p.calcQty) },
+    { h: 'Original type', w: 11, group: 'Source', get: P((p) => p.originalType) },
+    { h: 'Category source', w: 24, group: 'Source', get: P((p) => p.categorySource) },
+    { h: 'Customer grouping', w: 24, group: 'Source', get: P((p) => p.customerGrouping) },
+    { h: 'Number of sites', w: 10, group: 'Source', get: P((p) => p.sites) },
+    { h: 'Planned trips', w: 10, group: 'Source', get: P((p) => p.plannedTrips) },
+    { h: 'Crew size', w: 8, group: 'Source', get: P((p) => p.crewSize) },
+    { h: 'Discount tier', w: 13, group: 'Source', get: P((p) => p.discountTier) },
+    {
+      h: 'Proposed revenue (CSIDI sheet)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Source',
+      get: P((p) => p.proposedRevenue),
+    },
+    { h: 'ERP channel', w: 10, group: 'Source', get: P((p) => p.erpChannel) },
+    { h: 'ERP job type(s)', w: 16, group: 'Source', get: P((p) => p.erpJobTypes) },
+    { h: 'ERP job status(es)', w: 18, group: 'Source', get: P((p) => p.erpJobStatuses) },
+    {
+      h: 'ERP job invoice / reference(s)',
+      w: 22,
+      group: 'Source',
+      get: P((p) => p.erpJobReferences),
+    },
+  ];
+
+  // What the missing ERP data could change (CSIDI only).
+  const whatIfCols: Col[] = [
+    { h: 'Date', w: 12, group: 'Job', core: true, get: L('orderDate') },
+    { h: 'Inv/Del no', w: 14, group: 'Job', core: true, get: L('invDelNo') },
+    { h: 'Customer', w: 36, group: 'Job', core: true, get: L('customer') },
+    { h: 'Qty', w: 7, group: 'Job', core: true, get: L('qty') },
+    { h: 'Revenue (AED)', w: 14, fmt: MONEY, group: 'Job', core: true, get: L('revenue') },
+    {
+      h: 'If all units refrigerator / washer (AED)',
       w: 17,
       fmt: MONEY,
-      group: 'risk',
+      group: 'What if',
       get: E('ifRefrigerator'),
     },
-    { h: 'If all units cooker (AED)', w: 14, fmt: MONEY, group: 'risk', get: E('ifCooker') },
-    { h: 'If trips were Sharjah (AED)', w: 14, fmt: MONEY, group: 'risk', get: E('ifSharjah') },
+    { h: 'If all units cooker (AED)', w: 14, fmt: MONEY, group: 'What if', get: E('ifCooker') },
     {
-      h: 'If not same customer/site (AED)',
+      h: 'If trips were Sharjah (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'What if',
+      get: E('ifSharjah'),
+    },
+    {
+      h: 'If not same customer / site (AED)',
       w: 16,
       fmt: MONEY,
-      group: 'risk',
+      group: 'What if',
       get: E('ifNotSameSite'),
     },
-    { h: 'If 3-person crew (AED)', w: 14, fmt: MONEY, group: 'risk', get: E('ifThreePersonCrew') },
+    {
+      h: 'If 3-person crew (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'What if',
+      get: E('ifThreePersonCrew'),
+    },
     {
       h: 'If CSIDO billed per unit (AED)',
       w: 15,
       fmt: MONEY,
-      group: 'risk',
+      group: 'What if',
       get: E('rawUnitsAt80'),
     },
-    { h: 'Assumptions behind this figure', w: 70, group: 'risk', get: E('assumptions') },
-    { h: 'Remarks flags', w: 55, group: 'risk', get: E('remarkFlags') },
-    { h: 'Models seen in remarks', w: 24, group: 'risk', get: (x) => x.e.reading.models },
+    { h: 'Assumptions behind this figure', w: 70, group: 'Notes', get: E('assumptions') },
+    { h: 'Models seen in remarks', w: 24, group: 'Notes', get: (x) => x.e.reading.models },
     {
       h: 'Activity wording in remarks',
       w: 22,
-      group: 'risk',
+      group: 'Notes',
       get: (x) => x.e.reading.activityEvidence,
     },
   ];
-  const GROUP_FILL: Record<Col['group'], string> = {
-    base: NAVY,
-    sheet: 'FF0F6B6B',
-    calc: 'FF8A4B00',
-    risk: 'FF7A1F3D',
+
+  const GROUP_FILL: Record<string, string> = {
+    Job: NAVY,
+    Source: NAVY,
+    ERP: 'FF0F6B6B',
+    Before: 'FF6B7280',
+    After: 'FF1D5FA8',
+    Final: 'FF15803D',
+    Check: 'FF7A1F3D',
+    Explain: 'FF8A4B00',
+    Revenue: 'FF15803D',
+    Remarks: 'FF6B7280',
+    'What if': 'FF7A1F3D',
+    Notes: 'FF6B7280',
+  };
+  const GROUP_LABEL: Record<string, string> = {
+    Job: 'JOB',
+    ERP: 'ERP ITEM DETAILS',
+    Before: 'BEFORE (earlier workbook figures)',
+    After: 'AFTER (current rules)',
+    Final: 'FINAL REVENUE',
+    Check: 'CHECK AGAINST THE RULES',
+    Explain: 'WHY / EXPLANATION',
+    Revenue: 'REVENUE',
+    Remarks: 'REMARKS',
+    Source: 'WORKBOOK COLUMNS',
+    'What if': 'WHAT IF THE ASSUMPTION IS WRONG',
+    Notes: 'NOTES',
   };
 
-  // Only keep a pricing / calculation column when at least one exported job has
-  // a value in it (e.g. no CSIDI-sheet columns for an upload without that data,
-  // no Sharjah what-if when there are no CSIDI jobs in the filter).
-  const isEmpty = (v: unknown) => v === null || v === undefined || v === '';
-  const cols = allCols.filter(
-    (c) => c.group === 'base' || enriched.some((x) => !isEmpty(c.get(x))),
-  );
+  // Writes one review sheet: coloured group band, header row, one row per job,
+  // and a SUBTOTAL row that follows the filter. A column that is empty for
+  // every exported job is dropped unless it is a core column.
+  const writeJobSheet = (name: string, rows: Row[], all: Col[], tabColor: string) => {
+    const cols = all.filter((c) => c.core || rows.some((x) => !isEmpty(c.get(x))));
+    const sheet = wb.addWorksheet(name, { properties: { tabColor: { argb: tabColor } } });
+    // Band row: one merged cell per run of columns in the same group.
+    let start = 0;
+    for (let i = 1; i <= cols.length; i += 1) {
+      if (i < cols.length && cols[i]!.group === cols[start]!.group) continue;
+      const g = cols[start]!.group;
+      if (i - start > 1) sheet.mergeCells(1, start + 1, 1, i);
+      const cell = sheet.getCell(1, start + 1);
+      cell.value = GROUP_LABEL[g] ?? g;
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Arial', size: 9 };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+      for (let c = start + 1; c <= i; c += 1)
+        sheet.getCell(1, c).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: GROUP_FILL[g] ?? NAVY },
+        };
+      start = i;
+    }
+    sheet.getRow(1).height = 20;
+    sheet.addRow(cols.map((c) => c.h));
+    cols.forEach((c, i) => {
+      sheet.getColumn(i + 1).width = c.w;
+      if (c.fmt) sheet.getColumn(i + 1).numFmt = c.fmt;
+      const cell = sheet.getCell(2, i + 1);
+      cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: 'Arial', size: 10 };
+      cell.alignment = { vertical: 'middle', wrapText: true };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: GROUP_FILL[c.group] ?? NAVY },
+      };
+    });
+    sheet.getRow(2).height = 42;
+    const numericHeaders = (c: Col) => c.sum || c.fmt === MONEY || c.fmt === '0%';
+    for (const x of rows) {
+      sheet.addRow(
+        cols.map((c) => {
+          const v = c.get(x);
+          if (numericHeaders(c))
+            return v === null || v === undefined || v === '' ? null : Number(v);
+          if (v === null || v === undefined) return '';
+          // Remarks keep their text on one line so rows stay readable.
+          return typeof v === 'string' && c.h === 'Remarks' ? v.replace(/\s+/g, ' ').trim() : v;
+        }),
+      );
+    }
+    if (rows.length) {
+      const first = 3;
+      const last = 2 + rows.length;
+      const total = sheet.addRow(
+        cols.map((c, i) => {
+          if (i === 0) return 'Total (follows the filter)';
+          if (!c.sum) return '';
+          const letter = sheet.getColumn(i + 1).letter;
+          const result = rows.reduce((sum, x) => sum + Number(c.get(x) ?? 0), 0);
+          return { formula: `SUBTOTAL(109,${letter}${first}:${letter}${last})`, result };
+        }),
+      );
+      total.font = { bold: true, name: 'Arial', size: 10 };
+      total.eachCell((cell) => {
+        cell.border = { top: { style: 'medium' } };
+      });
+    }
+    sheet.views = [{ state: 'frozen', ySplit: 2, xSplit: 5 }];
+    sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: cols.length } };
+    sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    return sheet;
+  };
 
-  const jobs = wb.addWorksheet('Jobs');
-  jobs.addRow(cols.map((c) => c.h));
-  header(jobs, 1);
-  cols.forEach((c, i) => {
-    jobs.getColumn(i + 1).width = c.w;
-    if (c.fmt) jobs.getColumn(i + 1).numFmt = c.fmt;
-    jobs.getCell(1, i + 1).fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: GROUP_FILL[c.group] },
-    };
-  });
-  jobs.getRow(1).height = 42;
-  const numeric = new Set(['Qty', 'Unit price', 'Original job value', 'Revenue (AED)']);
-  for (const x of enriched) {
-    jobs.addRow(
-      cols.map((c) => {
-        const v = c.get(x);
-        if (numeric.has(c.h)) return Number(v ?? 0);
-        if (v === null || v === undefined) return '';
-        // Guard against spreadsheet formula injection from free text.
-        return typeof v === 'string' && /^[=+\-@]/.test(v) ? "'" + v : v;
-      }),
-    );
+  const installTypes = new Set(['CSIDI', 'CSIDO', 'CSIII']);
+  const installRows = enriched.filter((x) => installTypes.has(String(x.line.jobType)));
+  const repairRows = enriched.filter((x) => !installTypes.has(String(x.line.jobType)));
+  if (repairRows.length || !installRows.length)
+    writeJobSheet('Jobs', repairRows, repairCols, 'FFF5B84B');
+  if (installRows.length) {
+    writeJobSheet('Delivery & Install', installRows, installCols, 'FF33D6C0');
+    writeJobSheet('Source detail', installRows, detailCols, 'FF9CA3AF');
+    const csidiRows = installRows.filter((x) => x.line.jobType === 'CSIDI');
+    if (csidiRows.length) writeJobSheet('What-ifs', csidiRows, whatIfCols, 'FF9CA3AF');
   }
-  jobs.views = [{ state: 'frozen', ySplit: 1, xSplit: 8 }];
-  jobs.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: cols.length } };
 
   const filterLabel = filterText;
   const logicLines: LogicLine[] = enriched.map((x) => ({
