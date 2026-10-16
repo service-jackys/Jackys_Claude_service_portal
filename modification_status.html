@@ -3573,6 +3573,25 @@
           <li>Pull, restart the API and hard-refresh. No migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#106 &mdash; Export report (.xlsx): Jobs sheet split</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-16 &middot; API only, no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Jobs sheet is now repairs only (CSIJW, CSIJO), about 21 columns.</li>
+          <li>New Delivery &amp; Install sheet (CSIDI, CSIDO, CSIII) with colour-banded blocks: ERP item details, Before, After, Final revenue, Check, Explanation.</li>
+          <li>New Source detail and What-ifs sheets hold the rarely used columns, so nothing is lost.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, restart the API and download the export again. No migration.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

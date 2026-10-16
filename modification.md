@@ -2823,3 +2823,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/logic-summary.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #106 — Export report (.xlsx): Jobs sheet split for easier review
+
+**Why.** The single Jobs sheet had up to about 90 columns, mostly blank for repairs, which made it hard for accounts to review.
+
+**What changed (Reports > Export report (.xlsx)).**
+- **Jobs** now holds repairs only (CSIJW, CSIJO), about 21 columns: job details, status, appliance and model read from the remarks, Qty, Unit price, Original job value, "Rule applied" in words, Revenue, Remarks.
+- **Delivery & Install** (new) holds CSIDI, CSIDO and CSIII in colour-banded blocks: Job, ERP item details (parent category, subcategory, brand, model(s), item and billing codes), Before, After (category, pricing type, qty, base rate, discount, net rate, labour, transport), Final revenue, Check against the rules, Why / explanation (including invoice CSIDI qty, whether the invoice has a CSIDO line, first line of its type).
+- **Source detail** (new): the raw CSIDI-sheet columns (TRN, ref doc, location, derived type and so on), found by invoice number.
+- **What-ifs** (new, CSIDI only): the "if all units cooker / Sharjah / 3-person crew" columns.
+- Both job sheets have a group band row, a frozen header, filters and a SUBTOTAL row that follows the filter. Their revenue adds up to the old Jobs total (checked: 204 + 607 = 811 lines on the 15 Oct 2026 workbook).
+- Empty columns are dropped, so the "Before" block only appears when the workbook carries "before fix" figures (the 15 Oct 2026 workbook does not).
+- The workbook has no ERP parent category for repair jobs, so repairs show "Appliance (from remarks)" instead, labelled as read from the remarks.
+
+**Files.** apps/api/src/revenue-dashboard/export.ts, tests/unit/revenue-export-sheets.test.ts.
+
+**Needs you:** pull and restart the API. No migration, no web change.
