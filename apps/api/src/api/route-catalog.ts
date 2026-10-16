@@ -164,7 +164,6 @@ const revenueFilterParameters: object[] = [
         'channelReview',
         'costReview',
         'zeroRevenue',
-        'notApproved',
         'unmatchedOrder',
         'noCustomer',
       ],
@@ -291,6 +290,21 @@ export function createRouteCatalog(
           },
         ],
         status: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
+            providerUnavailable(response);
+          },
+        ],
+        searchB2bBranches: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
+            providerUnavailable(response);
+          },
+        ],
+        getB2bBranch: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
+            providerUnavailable(response);
+          },
+        ],
+        linkB2bBranch: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) => {
             providerUnavailable(response);
           },
@@ -423,6 +437,18 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        issue: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const appointmentHandlers = pool
     ? createAppointmentHandlers(createAppointmentService(pool), requirePermission)
@@ -476,6 +502,18 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         prefill: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        prefillFromQuotation: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        createFromQuotation: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        byQuotation: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -699,6 +737,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        exportView: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const attachmentHandlers = pool
     ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
@@ -736,6 +778,10 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         publicDetail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        recordDecision: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],

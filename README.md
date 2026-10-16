@@ -9,7 +9,7 @@ The live Google Apps Script application remains the production system. This loca
 
 ## Current status
 
-Last updated: 2026-10-16 (latest change: #103, Download this view on Reports > Drill-down; no new migration).
+Last updated: 2026-10-16 (latest change: #104, one CSOSC exception instead of two; no new migration).
 
 - Phases 0 to 4 (foundation, PostgreSQL, complaints, scheduling, web portal): complete and verified locally.
 - Phase 5 service operations: built and in daily testing. Job cards, quotations and inspections, attachments, print views, warranty approvals, billing, and tax invoices (portal series SINV-YYYY-NNNNN, 5% VAT inclusive, print with bilingual terms) are in place.

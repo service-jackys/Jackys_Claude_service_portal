@@ -3536,6 +3536,24 @@
           <li>Pull, restart the API and hard-refresh. No migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#104 &mdash; Exceptions: one CSOSC check instead of two</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-16 &middot; API and web, no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>&ldquo;Order not Approved&rdquo; is removed. It always flagged the same jobs as &ldquo;No matching CSOSC order&rdquo; (a failed lookup leaves the status blank).</li>
+          <li>&ldquo;No matching CSOSC order&rdquo; now explains itself: the order number is not in the workbook&rsquo;s CSOSC export (usually an older order) or it is a Direct job. &ldquo;Download this view&rdquo; says so per job.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, restart the API and hard-refresh. No migration.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

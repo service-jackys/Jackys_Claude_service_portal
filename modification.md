@@ -2790,3 +2790,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Checked.** Real workbook on Postgres 16: Order not Approved gives 63 jobs, AED 11,438.00 (Jul 54 jobs, Aug 7, Sep 2); Job type CSIDI by customer gives 297 jobs, AED 55,697.40; an empty view gives a clean "No jobs match this view" sheet. Rendered to PDF to check the layout.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+
+## Modification #104 — Exceptions: "Order not Approved" removed, "No matching CSOSC order" kept
+
+**Why.** Both checks were the same lines. The workbook looks up each job's CSOSC order in the CSOSC export inside the workbook; when the order is not found, the LPO becomes "UNMATCHED CSOSC" and the status stays blank, and the portal read the blank status as "not Approved". On the 15 Oct 2026 workbook all 63 flagged jobs (AED 11,438) appeared under both.
+
+**What changed.**
+- Reports > Exceptions (and the Exception filter on Drill-down) now has **No matching CSOSC order** only. The "Order not Approved" check, its filter value (`notApproved`) and its API enum entry are removed.
+- The meaning text of the remaining check now says what actually happens: the job's CSOSC order number is not in the workbook's CSOSC export, usually an older order before the first order in the export (53 of the 63), or a Direct job with no CSOSC order (10 of the 63).
+- In "Download this view", the "Why it is flagged" column now reads, for example, "CSOSC order 16102474 is not in the workbook's CSOSC export (likely an older order)" or "No CSOSC order on this job (Direct)".
+
+**Note.** An order that is found in the export but is still Pending is no longer flagged. None exist in the current workbook.
+
+**Files.** packages/db/src/revenue-dashboard.ts, packages/contracts/src/index.ts, apps/api/src/api/route-catalog.ts, apps/api/src/revenue-dashboard/view-export.ts, tests/unit/revenue-view-export.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration. An old bookmarked link that filters on "Order not Approved" will no longer work.
+
+**Also fixed (from #103).** The no-database fallback list of Revenue Dashboard handlers in apps/api/src/api/route-catalog.ts was missing the new `exportView` entry, so the API could not start without a database (the OpenAPI and startup tests failed with "route.handlers is not iterable"). Added; the API now starts with or without a database.

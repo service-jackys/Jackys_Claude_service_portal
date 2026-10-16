@@ -39,7 +39,7 @@ function lines() {
       orderDate: '2026-10-01',
       jobType: 'CSIJO',
       invDelNo: '16100979',
-      csoscOrderNo: '1',
+      csoscOrderNo: '16102474',
       customer: 'BETA LLC',
       salesChannel: 'INS',
       salesPerson: 'SHIVA',
@@ -66,9 +66,9 @@ function data(over: Partial<RevenueViewData> = {}): RevenueViewData {
       uploadedAt: new Date('2026-10-16T05:00:00Z'),
       summary: { rates: [{ jobType: 'CSIJO', description: 'Non-Warranty Repairs' }] },
     } as never,
-    filters: { exception: 'notApproved', year: '2026' },
+    filters: { exception: 'unmatchedOrder', year: '2026' },
     groupBy: 'period',
-    viewPath: 'All data > Year: 2026 > Exception: Order not Approved',
+    viewPath: 'All data > Year: 2026 > Exception: No matching CSOSC order',
     totals: { revenue: 294, jobs: 2, qty: 3 },
     grandTotals: { revenue: 1000, jobs: 10, qty: 12 },
     breakdown: {
@@ -82,7 +82,11 @@ function data(over: Partial<RevenueViewData> = {}): RevenueViewData {
       totals: { revenue: 294, jobs: 2, qty: 3 },
       rows: [{ key: 'CSIJO', revenue: 294, jobs: 2, qty: 3 }],
     },
-    exception: { key: 'notApproved', label: 'Order not Approved', description: 'Not approved.' },
+    exception: {
+      key: 'unmatchedOrder',
+      label: 'No matching CSOSC order',
+      description: 'Not found.',
+    },
     lines: l,
     truncated: false,
     ...over,
@@ -116,8 +120,11 @@ test('view export builds Summary, Breakdown and Jobs with the right totals', asy
   const headers = (jobs.getRow(4).values as unknown[]).slice(1);
   assert.equal(headers[2], 'Why it is flagged');
   assert.ok(!headers.includes('ERP brand'), 'empty ERP columns are left out');
-  assert.equal(jobs.getCell('C5').value, 'CSOSC order status is blank (not Approved)');
-  assert.equal(jobs.getCell('C6').value, 'CSOSC order status is Pending (not Approved)');
+  assert.equal(jobs.getCell('C5').value, 'No CSOSC order on this job (blank)');
+  assert.equal(
+    jobs.getCell('C6').value,
+    "CSOSC order 16102474 is not in the workbook's CSOSC export (likely an older order)",
+  );
   // a remark that looks like a formula stays text
   const remarks = headers.indexOf('Remarks') + 1;
   assert.equal(jobs.getRow(5).getCell(remarks).value, '=1+1 not a formula');
@@ -165,9 +172,9 @@ test('labels and reasons are readable', () => {
 
 test('the view export query accepts filters, groupBy and a path, and rejects strangers', () => {
   const ok = revenueViewExportQuerySchema.parse({
-    exception: 'notApproved',
+    exception: 'unmatchedOrder',
     groupBy: 'jobs',
-    viewPath: 'All data > Exception: Order not Approved',
+    viewPath: 'All data > Exception: No matching CSOSC order',
     month: '',
   });
   assert.equal(ok.groupBy, 'jobs');
