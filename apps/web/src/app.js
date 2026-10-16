@@ -15776,6 +15776,7 @@ ${bodyHtml}
           ['overview', 'Overview'],
           ['explorer', 'Explorer'],
           ['reports', 'Reports'],
+          ['logic', 'Logic applied'],
         ]
           .map(
             ([id, name]) =>
@@ -17431,6 +17432,431 @@ ${bodyHtml}
     }
 
     // -------------------------------------------------------------------- main
+    // ------------------------------------------------------------ Logic applied
+    // Plain-language rules, live figures and a worked example for management.
+    async function drawLogic() {
+      barEl.innerHTML = '';
+      const res = await rdApi('logic');
+      const d = res.data;
+      if (!d) {
+        body.innerHTML = '<p class="form-note">Upload the master workbook to see the logic.</p>';
+        return;
+      }
+      const v3 = d.logicVersion === 3;
+      const aed = (n) => 'AED ' + rdMoney2(n).replace(/\.00$/, '');
+      const e = escapeHtml;
+      const rwr = (d.rates.find((r) => r.jobType === 'RWR') || {}).price || 60;
+      const rate = (code) => (d.rates.find((r) => r.jobType === code) || {}).price || 0;
+      const transports = d.deliveryInstall.transport
+        .map((t) => aed(t.roundTrip) + ' ' + t.region)
+        .join(' / ');
+      const sharePct = (n) => rdPercent(n, d.totals.revenue);
+
+      const RULES = {
+        CSIJW: {
+          what: 'Warranty repairs',
+          how:
+            'Quantity × ' +
+            aed(rate('CSIJW')) +
+            ' per job. Jobs marked BER or RWR are billed a flat ' +
+            aed(rwr) +
+            ' per job.',
+        },
+        CSIJO: {
+          what: 'Non-warranty repairs',
+          how:
+            'Quantity × ' +
+            aed(rate('CSIJO')) +
+            ' per job. The same flat ' +
+            aed(rwr) +
+            ' applies to BER / RWR jobs.',
+        },
+        CSIDI: {
+          what: 'Delivery + installation (fridges, washing machines, cookers)',
+          how: v3
+            ? 'Quantity × net rate. The net rate is the base rate less the volume discount, and never below the minimum rate. The base rate is the batch rate when the invoice has more than 1 unit and the standard rate for a single unit. One transport charge (' +
+              transports +
+              ') is added once per invoice, only when the invoice has more than 1 unit and no delivery-only line.'
+            : 'Priced per line from the workbook rate cards (the earlier per-line rules).',
+        },
+        CSIII: {
+          what: 'Installation only',
+          how: v3
+            ? 'Quantity × net rate from the installation rate card, with the same volume discount and minimum rate. No transport.'
+            : 'Priced per line from the workbook installation rate card.',
+        },
+        CSIDO: {
+          what: 'Delivery only (and every product that is not installable)',
+          how: v3
+            ? 'One flat ' +
+              aed(d.csidoFlat) +
+              ' per invoice, charged on the invoice’s first delivery-only line. The other delivery-only lines of the same invoice show AED 0.'
+            : 'Quantity × ' + aed(rate('CSIDO')) + ' per trip.',
+        },
+      };
+
+      const steps = [
+        [
+          'Read the ERP line',
+          'Each delivery and installation line comes from the ERP net-sale report: invoice, product, category and city. Repairs come from the job-sheet lists.',
+        ],
+        [
+          'Decide the job type',
+          'Repairs are CSIJW or CSIJO. Fridge, washer or cooker delivered and installed is CSIDI; installed only is CSIII; every other delivery is CSIDO.',
+        ],
+        [
+          'Price the line',
+          'Quantity × the rate in the rate cards below. Bigger invoices earn a volume discount; a minimum rate protects the floor.',
+        ],
+        [
+          'Add once-per-invoice charges',
+          'Transport on multi-unit installs and the flat delivery charge are added once for the whole invoice, never once per line.',
+        ],
+      ];
+
+      const z = d.zeroRevenue;
+      const example = d.example;
+      const maxMonth = Math.max(1, ...z.byMonth.map((m) => m.lines));
+      const period = (p) => {
+        const [y, m] = String(p).split('-');
+        return RD_MONTHS_FULL[Number(m) - 1]
+          ? RD_MONTHS_FULL[Number(m) - 1].slice(0, 3) + ' ' + y
+          : p;
+      };
+
+      const table = (heads, rows, right) =>
+        '<div class="table-wrap"><table class="rc-table"><thead><tr>' +
+        heads
+          .map(
+            (h, i) =>
+              '<th' + (right && right.includes(i) ? ' class="num"' : '') + '>' + e(h) + '</th>',
+          )
+          .join('') +
+        '</tr></thead><tbody>' +
+        rows
+          .map(
+            (r) =>
+              '<tr' +
+              (r.cls ? ' class="' + r.cls + '"' : '') +
+              '>' +
+              r.cells
+                .map(
+                  (c, i) =>
+                    '<td' + (right && right.includes(i) ? ' class="num"' : '') + '>' + c + '</td>',
+                )
+                .join('') +
+              '</tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+
+      const cardsHtml = d.byType
+        .map((t, i) => {
+          const rule = RULES[t.jobType] || { what: t.description, how: '' };
+          return (
+            '<div class="rl-card" style="--rl-accent:' +
+            rdJtColor(t.jobType, i) +
+            '"><div class="rl-card-head"><span class="rl-code">' +
+            e(t.jobType) +
+            '</span><span class="rl-what">' +
+            e(rule.what) +
+            '</span></div><p class="rl-how">' +
+            e(rule.how) +
+            '</p><div class="rl-stats"><div><b>' +
+            rdMoney(t.lines) +
+            '</b><span>jobs</span></div><div><b>' +
+            rdMoney(t.qty) +
+            '</b><span>quantity</span></div><div><b>' +
+            rdMoney(t.revenue) +
+            '</b><span>AED revenue</span></div><div><b>' +
+            sharePct(t.revenue) +
+            '</b><span>of total</span></div></div>' +
+            (t.zeroLines
+              ? '<div class="rl-zero-note">' +
+                rdMoney(t.zeroLines) +
+                ' of these jobs show AED 0 &mdash; see below</div>'
+              : '') +
+            '</div>'
+          );
+        })
+        .join('');
+
+      const exampleHtml = example
+        ? '<div class="rl-example"><div class="rl-example-head"><b>Worked example &mdash; invoice ' +
+          e(example.invoice) +
+          '</b><span>' +
+          e((example.customer || '') + (example.date ? ' · ' + example.date : '')) +
+          '</span></div>' +
+          table(
+            ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (AED)'],
+            example.lines
+              .map((l) => ({
+                cls: l.revenue === 0 ? 'rl-row-zero' : '',
+                cells: [
+                  '<span class="rl-code sm" style="--rl-accent:' +
+                    rdJtColor(l.jobType, 0) +
+                    '">' +
+                    e(l.jobType) +
+                    '</span>',
+                  e(l.item),
+                  rdMoney(l.qty),
+                  e(l.how),
+                  '<b>' + rdMoney2(l.revenue) + '</b>',
+                ],
+              }))
+              .concat([
+                {
+                  cls: 'rl-row-total',
+                  cells: [
+                    '',
+                    '<b>Invoice total</b>',
+                    '',
+                    '',
+                    '<b>' + rdMoney2(example.total) + '</b>',
+                  ],
+                },
+              ]),
+            [2, 4],
+          ) +
+          '</div>'
+        : '';
+
+      const zeroHtml =
+        '<div class="rl-zero"><div class="rl-zero-text"><h3>Why some jobs show AED 0</h3>' +
+        (v3
+          ? '<p>A delivery-only invoice often has one line for each product delivered. The customer is charged <b>one delivery fee for the invoice</b>, not one per product. So the first delivery-only line carries the flat ' +
+            aed(d.csidoFlat) +
+            ' and the other lines of that invoice show AED 0. They are not missed revenue.</p>'
+          : '<p>Some lines show AED 0 because of how the workbook prices them (for example zero-cost RWR repairs).</p>') +
+        '<p><b>' +
+        rdMoney(z.lines) +
+        '</b> of the ' +
+        rdMoney(d.totals.lines) +
+        ' jobs show AED 0. ' +
+        (v3
+          ? '<b>' +
+            rdMoney(z.explainedLines) +
+            '</b> of them are these extra delivery lines, on ' +
+            rdMoney(z.invoices) +
+            ' invoices; every one of those invoices has exactly one paid delivery line. ' +
+            (z.otherLines
+              ? '<b>' +
+                rdMoney(z.otherLines) +
+                '</b> show AED 0 for another reason and need a look.'
+              : 'No job shows AED 0 for any other reason.')
+          : '') +
+        '</p><button type="button" class="button button-outline" data-rl-zero-jobs>See the zero-revenue jobs</button></div>' +
+        '<div class="rl-zero-bars"><div class="rl-bars-title">Zero-revenue jobs by month</div>' +
+        z.byMonth
+          .map(
+            (m) =>
+              '<div class="rl-bar-row"><span>' +
+              e(period(m.period)) +
+              '</span><div class="rl-bar"><i style="width:' +
+              Math.round((m.lines / maxMonth) * 100) +
+              '%"></i></div><b>' +
+              rdMoney(m.lines) +
+              '</b></div>',
+          )
+          .join('') +
+        '</div></div>' +
+        exampleHtml;
+
+      const di = d.deliveryInstall;
+      const ratesHtml =
+        '<div class="rd-two-col">' +
+        rdSection(
+          'Job-type rates',
+          table(
+            ['Job type', 'Meaning', 'AED'],
+            d.rates.map((r) => ({
+              cells: [e(r.jobType), e(r.description), rdMoney2(r.price)],
+            })),
+            [2],
+          ),
+          e(d.rulesSource === 'workbook' ? 'From the workbook' : 'Built-in defaults'),
+        ) +
+        rdSection(
+          'Volume discount',
+          table(
+            ['Units on the invoice', 'Delivery + installation', 'Installation only'],
+            di.discounts.map((x, i) => ({
+              cells: [
+                e(x.tier),
+                Math.round(x.discount * 1000) / 10 + '%',
+                Math.round(((d.install.discounts[i] || x).discount || 0) * 1000) / 10 + '%',
+              ],
+            })),
+            [1, 2],
+          ),
+        ) +
+        '</div><div class="rd-two-col">' +
+        rdSection(
+          'Delivery + installation rate card (CSIDI)',
+          table(
+            ['Category', 'Batch rate', 'Standard rate', 'Minimum'],
+            di.categories.map((c) => ({
+              cells: [
+                e(c.category),
+                rdMoney2(c.batchRate),
+                rdMoney2(c.standardRate),
+                rdMoney2(c.minimumRate),
+              ],
+            })),
+            [1, 2, 3],
+          ),
+          'AED per unit',
+        ) +
+        rdSection(
+          'Installation-only rate card (CSIII)',
+          table(
+            ['Category', 'Batch rate', 'Standard rate', 'Minimum'],
+            d.install.categories.map((c) => ({
+              cells: [
+                e(c.category),
+                rdMoney2(c.batchRate),
+                rdMoney2(c.standardRate),
+                rdMoney2(c.minimumRate),
+              ],
+            })),
+            [1, 2, 3],
+          ),
+          'AED per unit',
+        ) +
+        '</div>' +
+        (v3
+          ? rdSection(
+              'Once-per-invoice charges',
+              table(
+                ['Charge', 'Applies to', 'AED'],
+                d.deliveryInstall.transport
+                  .map((t) => ({
+                    cells: [
+                      'Transport &mdash; ' + e(t.region),
+                      'CSIDI invoices with more than 1 unit and no delivery-only line',
+                      rdMoney2(t.roundTrip),
+                    ],
+                  }))
+                  .concat([
+                    {
+                      cells: [
+                        'Flat delivery charge',
+                        'CSIDO &mdash; once per invoice, on the first delivery-only line',
+                        rdMoney2(d.csidoFlat),
+                      ],
+                    },
+                  ]),
+                [2],
+              ),
+              'Sharjah = city containing SHJ or SHARJAH; otherwise Dubai',
+            )
+          : '');
+
+      const rec = d.reconciliation;
+      const causeText = {
+        'CSIDO flat charge':
+          'Older delivery-only invoices were priced before the flat charge changed, so the first line still shows the earlier amount (for example AED 60 or 80).',
+        'CSIDI transport':
+          'Multi-unit installs with no delivery-only line where the transport charge is missing in the workbook.',
+        'Rate or quantity': 'A locked row kept at an older rate or quantity.',
+      };
+      const recHtml = v3
+        ? rdSection(
+            'How the workbook compares with these rules',
+            '<div class="rd-pad"><p class="rl-p">The portal shows the revenue calculated in the workbook. To check it, every delivery and installation line (' +
+              rdMoney(rec.matchedLines) +
+              ' lines) was re-priced with the rules above. ' +
+              (rec.differingLines
+                ? '<b>' +
+                  rdMoney(rec.differingLines) +
+                  '</b> lines differ, by <b>' +
+                  aed(rec.differenceAmount) +
+                  '</b> in total (workbook minus rules). The workbook keeps earlier rows as locked history and does not recalculate them when a rate changes.'
+                : 'All lines agree with the rules.') +
+              '</p>' +
+              (rec.causes.length
+                ? table(
+                    ['What differs', 'Lines', 'Workbook minus rules (AED)', 'In plain words'],
+                    rec.causes.map((c) => ({
+                      cells: [
+                        e(c.cause),
+                        rdMoney(c.lines),
+                        rdMoney2(c.amount),
+                        e(causeText[c.cause] || ''),
+                      ],
+                    })),
+                    [1, 2],
+                  )
+                : '') +
+              '</div>',
+          )
+        : '';
+
+      body.innerHTML =
+        '<div class="rl-hero"><div><h2>How revenue is calculated</h2><p>Every revenue figure in this dashboard is the amount calculated in the master workbook. This page explains the rules behind it in plain language, with live figures from the data you uploaded.</p></div><div class="rl-hero-meta"><span class="rl-chip">' +
+        (v3 ? 'Invoice-level rules' : 'Earlier per-line rules') +
+        '</span><span class="rl-chip muted">' +
+        e(d.batch.fileName) +
+        '</span><span class="rl-chip muted">Uploaded ' +
+        e(
+          new Date(d.batch.uploadedAt).toLocaleDateString('en-GB', {
+            day: '2-digit',
+            month: 'short',
+            year: 'numeric',
+          }),
+        ) +
+        '</span></div></div>' +
+        rdKpis([
+          ['Revenue', aed(d.totals.revenue), 'Whole upload'],
+          ['Jobs', rdMoney(d.totals.lines), 'Every revenue line'],
+          ['Invoices', rdMoney(d.totals.invoices), 'Distinct invoice numbers'],
+          [
+            'Jobs showing AED 0',
+            rdMoney(z.lines),
+            v3 ? rdMoney(z.explainedLines) + ' are covered by a flat charge' : 'See below',
+          ],
+        ]) +
+        (v3
+          ? '<div class="rl-flow">' +
+            steps
+              .map(
+                (s, i) =>
+                  '<div class="rl-step"><span class="rl-step-n">' +
+                  (i + 1) +
+                  '</span><b>' +
+                  e(s[0]) +
+                  '</b><p>' +
+                  e(s[1]) +
+                  '</p></div>',
+              )
+              .join('') +
+            '</div>'
+          : '<p class="form-note">This workbook uses the earlier per-line rules. The rates below are read from it; the Revenue Logic sheet of the Excel export lists the detail.</p>') +
+        rdSection(
+          'Rules by job type',
+          '<div class="rl-cards">' + cardsHtml + '</div>',
+          'Live from your data',
+        ) +
+        rdSection('Why some jobs show AED 0', zeroHtml) +
+        ratesHtml +
+        recHtml +
+        '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
+
+      const zeroButton = body.querySelector('[data-rl-zero-jobs]');
+      if (zeroButton)
+        zeroButton.addEventListener('click', () => {
+          drill = {
+            path: [{ dim: 'exception', value: 'zeroRevenue', label: 'Zero-revenue jobs' }],
+            groupBy: '__jobs',
+            page: 1,
+            search: '',
+          };
+          reportView = 'drill';
+          tab = 'reports';
+          draw();
+        });
+    }
+
     async function draw() {
       try {
         rdDestroyCharts(body);
@@ -17459,6 +17885,10 @@ ${bodyHtml}
           }
         }
         drawTabs();
+        if (tab === 'logic') {
+          await drawLogic();
+          return;
+        }
         drawFilterBar(sum.summary.options);
         if (tab === 'explorer') await drawExplorer(sum);
         else if (tab === 'reports') await drawReports(sum);

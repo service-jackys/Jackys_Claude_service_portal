@@ -116,6 +116,16 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    logic: [
+      requirePermission('revenue_dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json(await service.logic());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     exportWorkbook: [
       requirePermission('revenue_dashboard.read'),
       async (request, response, next) => {
