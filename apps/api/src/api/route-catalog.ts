@@ -2744,6 +2744,23 @@ export function createRouteCatalog(
         handlers: revenueDashboardHandlers.exportWorkbook,
       },
       {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/export-view',
+        operationId: 'exportRevenueDashboardView',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Download only the drilled-down / filtered view (breakdown and its jobs) as a formatted Excel workbook',
+        security: 'bearerAuth' as const,
+        parameters: [
+          ...revenueFilterParameters,
+          { name: 'groupBy', in: 'query', schema: { type: 'string', maxLength: 40 } },
+          { name: 'viewPath', in: 'query', schema: { type: 'string', maxLength: 600 } },
+        ],
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: revenueDashboardHandlers.exportView,
+      },
+      {
         method: 'post' as const,
         path: '/api/revenue-dashboard/activity',
         operationId: 'recordRevenueDashboardActivity',

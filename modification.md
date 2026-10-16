@@ -2769,3 +2769,24 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 6. The Pricing Logic Guide still mentions the deleted Item Master sheet; the Calculation monthly block covers Jul to Dec only.
 
 **Needs you:** pull the branch, run `npm.cmd install`, restart the API, hard-refresh, and upload the new .xlsm on Service Revenue Dashboard. No migration.
+
+
+## Modification #103 — Service Revenue Dashboard: "Download this view" under Reports > Drill-down
+
+**Why.** On Reports > Drill-down, once you drill (for example to Exception: Order not Approved), the only download was "Export report (.xlsx)" at the top, which is the full multi-sheet report for the whole selection. Finance and accounts needed a separate, professionally formatted file of just what is on screen.
+
+**What changed.**
+- Reports > Drill-down > **Where you are** has a new **Download this view (.xlsx)** button with an (i) tooltip. It downloads only the current filters and drill steps, the breakdown you chose (or the job list) and every job behind it. The top "Export report (.xlsx)" button is unchanged.
+- The workbook has up to three sheets:
+  - **Summary**: your drill path, revenue, jobs, quantity, average per job, share of all uploaded revenue, the filters in words, what the exception means, source workbook and prepared time (Dubai time), the basis note, and a mix by job type with totals.
+  - **Breakdown** (only when you broke down by Month, Week, Customer and so on): jobs, quantity, revenue, share and average per job, with a total row. Months and weeks run oldest first.
+  - **Jobs**: every job in the view with date, job type, invoice, order, customer, channel, salesperson, statuses, billing code, cost status, ERP city, category, brand and model (when the workbook has them), quantity, unit price, revenue and remarks. Columns that are empty for the view are left out.
+- When an exception is selected, the Jobs sheet adds **Why it is flagged** for each job (for example "CSOSC order status is blank (not Approved)").
+- Finance touches: navy headers, banded rows, frozen headers, filter arrows, a total row that recalculates when you filter (SUBTOTAL), A4 landscape with repeating header rows and "Page x of y" footer, so it prints cleanly.
+- Each download is recorded in the activity log as "Revenue view (drill-down) downloaded".
+
+**Files.** apps/api/src/revenue-dashboard/view-export.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts (GET /api/revenue-dashboard/export-view), packages/contracts/src/index.ts (revenueViewExportQuerySchema), apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-view-export.test.ts (4 tests).
+
+**Checked.** Real workbook on Postgres 16: Order not Approved gives 63 jobs, AED 11,438.00 (Jul 54 jobs, Aug 7, Sep 2); Job type CSIDI by customer gives 297 jobs, AED 55,697.40; an empty view gives a clean "No jobs match this view" sheet. Rendered to PDF to check the layout.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
