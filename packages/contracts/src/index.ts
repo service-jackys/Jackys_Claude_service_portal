@@ -808,7 +808,6 @@ export const revenueExceptionKeys = [
   'channelReview',
   'costReview',
   'zeroRevenue',
-  'notApproved',
   'unmatchedOrder',
   'noCustomer',
 ] as const;

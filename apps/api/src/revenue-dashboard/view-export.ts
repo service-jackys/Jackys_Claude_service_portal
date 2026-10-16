@@ -127,10 +127,12 @@ export function describeFilters(
 export function whyFlagged(key: string, line: Record<string, unknown>): string {
   const text = (v: unknown) => (v === null || v === undefined || v === '' ? 'blank' : String(v));
   switch (key) {
-    case 'notApproved':
-      return 'CSOSC order status is ' + text(line.orderStatus) + ' (not Approved)';
-    case 'unmatchedOrder':
-      return 'Invoice ' + text(line.invDelNo) + ' found no CSOSC job order';
+    case 'unmatchedOrder': {
+      const order = String(line.csoscOrderNo ?? '');
+      return /^\d+$/.test(order)
+        ? 'CSOSC order ' + order + " is not in the workbook's CSOSC export (likely an older order)"
+        : 'No CSOSC order on this job (' + text(line.csoscOrderNo) + ')';
+    }
     case 'costReview':
       return 'Cost status is ' + text(line.costStatus);
     case 'zeroRevenue':

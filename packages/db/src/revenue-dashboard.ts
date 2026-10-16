@@ -245,17 +245,13 @@ export const REVENUE_EXCEPTIONS = {
   },
   // Delivery / installation lines built from the ERP net-sale report (workbook
   // revision of 15 Oct 2026) have no CSOSC order behind them by design, so the
-  // two CSOSC checks leave them out. Older uploads carry no such flag.
-  notApproved: {
-    label: 'Order not Approved',
-    description:
-      'The CSOSC order status is not Approved (pending approval or submission). Lines priced from the ERP net-sale report have no CSOSC order and are not checked.',
-    sql: "COALESCE(csosc_status, '') <> 'Approved' AND COALESCE(pricing->>'erpSourced', 'false') <> 'true'",
-  },
+  // CSOSC check leaves them out. Older uploads carry no such flag.
+  // (The separate "Order not Approved" check was removed: it was always the same
+  // lines, because a failed lookup leaves the status blank.)
   unmatchedOrder: {
     label: 'No matching CSOSC order',
     description:
-      'The invoice reference found no CSOSC job order in the workbook. Lines priced from the ERP net-sale report have no CSOSC order and are not checked.',
+      "The job's CSOSC order number was not found in the CSOSC export inside the workbook, so its LPO and approval status could not be read. This is usually an older order that falls before the first order in the export, or a Direct job with no CSOSC order. Lines priced from the ERP net-sale report have no CSOSC order and are not checked.",
     sql: "lpo_no = 'UNMATCHED CSOSC' AND COALESCE(pricing->>'erpSourced', 'false') <> 'true'",
   },
   noCustomer: {
