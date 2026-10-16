@@ -440,59 +440,6 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     },
   ];
 
-  // What the missing ERP data could change (CSIDI only).
-  const whatIfCols: Col[] = [
-    { h: 'Date', w: 12, group: 'Job', core: true, get: L('orderDate') },
-    { h: 'Inv/Del no', w: 14, group: 'Job', core: true, get: L('invDelNo') },
-    { h: 'Customer', w: 36, group: 'Job', core: true, get: L('customer') },
-    { h: 'Qty', w: 7, group: 'Job', core: true, get: L('qty') },
-    { h: 'Revenue (AED)', w: 14, fmt: MONEY, group: 'Job', core: true, get: L('revenue') },
-    {
-      h: 'If all units refrigerator / washer (AED)',
-      w: 17,
-      fmt: MONEY,
-      group: 'What if',
-      get: E('ifRefrigerator'),
-    },
-    { h: 'If all units cooker (AED)', w: 14, fmt: MONEY, group: 'What if', get: E('ifCooker') },
-    {
-      h: 'If trips were Sharjah (AED)',
-      w: 14,
-      fmt: MONEY,
-      group: 'What if',
-      get: E('ifSharjah'),
-    },
-    {
-      h: 'If not same customer / site (AED)',
-      w: 16,
-      fmt: MONEY,
-      group: 'What if',
-      get: E('ifNotSameSite'),
-    },
-    {
-      h: 'If 3-person crew (AED)',
-      w: 14,
-      fmt: MONEY,
-      group: 'What if',
-      get: E('ifThreePersonCrew'),
-    },
-    {
-      h: 'If CSIDO billed per unit (AED)',
-      w: 15,
-      fmt: MONEY,
-      group: 'What if',
-      get: E('rawUnitsAt80'),
-    },
-    { h: 'Assumptions behind this figure', w: 70, group: 'Notes', get: E('assumptions') },
-    { h: 'Models seen in remarks', w: 24, group: 'Notes', get: (x) => x.e.reading.models },
-    {
-      h: 'Activity wording in remarks',
-      w: 22,
-      group: 'Notes',
-      get: (x) => x.e.reading.activityEvidence,
-    },
-  ];
-
   const GROUP_FILL: Record<string, string> = {
     Job: NAVY,
     Source: NAVY,
@@ -504,8 +451,6 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     Explain: 'FF8A4B00',
     Revenue: 'FF15803D',
     Remarks: 'FF6B7280',
-    'What if': 'FF7A1F3D',
-    Notes: 'FF6B7280',
   };
   const GROUP_LABEL: Record<string, string> = {
     Job: 'JOB',
@@ -518,8 +463,6 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     Revenue: 'REVENUE',
     Remarks: 'REMARKS',
     Source: 'WORKBOOK COLUMNS',
-    'What if': 'WHAT IF THE ASSUMPTION IS WRONG',
-    Notes: 'NOTES',
   };
 
   // Writes one review sheet: coloured group band, header row, one row per job,
@@ -605,8 +548,6 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   if (installRows.length) {
     writeJobSheet('Delivery & Install', installRows, installCols, 'FF33D6C0');
     writeJobSheet('Source detail', installRows, detailCols, 'FF9CA3AF');
-    const csidiRows = installRows.filter((x) => x.line.jobType === 'CSIDI');
-    if (csidiRows.length) writeJobSheet('What-ifs', csidiRows, whatIfCols, 'FF9CA3AF');
   }
 
   const filterLabel = filterText;
