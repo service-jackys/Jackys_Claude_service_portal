@@ -14665,6 +14665,7 @@ ${bodyHtml}
     'revenue_dashboard.imported': 'Revenue workbook uploaded',
     'revenue_dashboard.viewed': 'Revenue dashboard viewed',
     'revenue_dashboard.exported': 'Revenue report downloaded',
+    'revenue_dashboard.view_exported': 'Revenue view (drill-down) downloaded',
     'revenue_dashboard.email_drafted': 'Revenue summary email drafted',
     'revenue_dashboard.summary_copied': 'Revenue summary copied',
     'pricing_config.saved': 'Pricing master saved',
@@ -16249,7 +16250,11 @@ ${bodyHtml}
       const controls =
         '<div class="rd-pad rd-drill-controls"><label class="rd-search">Break down by<select data-rd-groupby>' +
         options +
-        '</select></label></div>';
+        '</select></label><span class="rd-spacer"></span><button class="button" type="button" data-rd-view-export>Download this view (.xlsx)</button>' +
+        tipHtml(
+          'Downloads only what you see here: the filters and drill steps above, this breakdown and every job behind it, as a formatted Excel file for finance review. The Export report button at the top downloads the full report for the selection.',
+        ) +
+        '</div>';
       let content = '';
       let chartInit = null;
       if (drill.groupBy === '__jobs') {
@@ -16342,6 +16347,55 @@ ${bodyHtml}
               );
       }
       reportBody.innerHTML = rdSection('Where you are', crumbs + controls) + content;
+      reportBody.querySelector('[data-rd-view-export]').addEventListener('click', async (e) => {
+        const button = e.currentTarget;
+        button.disabled = true;
+        const original = button.textContent;
+        button.textContent = 'Preparing workbook...';
+        try {
+          const steps = ['All data']
+            .concat(
+              Object.entries(F)
+                .filter(([, v]) => v !== '')
+                .map(
+                  ([k, v]) =>
+                    (RD_DIM_NAMES[k] || k) + ': ' + (k === 'month' ? RD_MONTHS_FULL[v - 1] : v),
+                ),
+            )
+            .concat(
+              drill.path.map(
+                (p) =>
+                  (RD_DIM_NAMES[p.dim] || p.dim) +
+                  ': ' +
+                  (p.dim === 'exception' ? p.label || p.value : rdLabel(p.dim, p.value)),
+              ),
+            );
+          const viewFilters = { ...filters };
+          if (drill.groupBy === '__jobs' && drill.search) viewFilters.search = drill.search;
+          if (drill.groupBy === '__jobs' && drill.search) steps.push('Search: ' + drill.search);
+          const blob = await apiBlobRequest(
+            '/api/revenue-dashboard/export-view?' +
+              rdQs({
+                ...viewFilters,
+                groupBy: drill.groupBy === '__jobs' ? 'jobs' : drill.groupBy,
+                viewPath: steps.join(' > '),
+              }),
+          );
+          const stamp = new Date().toISOString().slice(0, 10);
+          const part = (drill.path[drill.path.length - 1] || {}).value;
+          const slug = String(part || 'all-data')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '')
+            .slice(0, 40);
+          rdDownloadBlob(blob, 'service-revenue-view-' + slug + '-' + stamp + '.xlsx');
+        } catch (error) {
+          window.alert(error.message || 'The download failed.');
+        } finally {
+          button.disabled = false;
+          button.textContent = original;
+        }
+      });
       reportBody.querySelectorAll('[data-rd-crumb]').forEach((button) => {
         button.addEventListener('click', () => {
           drill.path = drill.path.slice(0, Number(button.dataset.rdCrumb) + 1);

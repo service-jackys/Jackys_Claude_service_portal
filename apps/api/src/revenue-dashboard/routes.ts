@@ -139,6 +139,29 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    exportView: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const buffer = await service.exportView(
+            request.query,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', 'attachment; filename="service-revenue-view.xlsx"')
+            .send(buffer);
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     activity: [
       requirePermission('revenue_dashboard.read'),
       async (request, response, next) => {

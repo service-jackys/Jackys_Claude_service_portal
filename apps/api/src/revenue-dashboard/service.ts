@@ -6,6 +6,7 @@ import {
   revenueImportKindSchema,
   revenueLinesQuerySchema,
   revenueMatrixQuerySchema,
+  revenueViewExportQuerySchema,
 } from '../../../../packages/contracts/src/index.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
@@ -21,10 +22,13 @@ import {
   revenueLines,
   revenueMatrix,
   revenueSummary,
+  REVENUE_EXCEPTIONS,
+  type RevenueDimension,
   type RevenueFilters,
 } from '../../../../packages/db/src/revenue-dashboard.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildRevenueReportWorkbook } from './export.js';
+import { buildRevenueViewWorkbook } from './view-export.js';
 import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from './parser.js';
 
 export class RevenueDashboardServiceError extends Error {
@@ -224,6 +228,72 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
+  // Reports > Drill-down > "Download this view": only the filtered / drilled view
+  // (cover, breakdown, jobs) in a finance-ready workbook.
+  async function exportView(
+    query: Record<string, unknown>,
+    profileId?: string,
+    requestId: string = randomUUID(),
+  ) {
+    const parsed = revenueViewExportQuerySchema.parse(query);
+    const { groupBy, viewPath, ...filterFields } = parsed;
+    const filters = filterFields as RevenueFilters;
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch)
+        throw new RevenueDashboardServiceError(
+          'no-data',
+          'No revenue workbook has been uploaded yet.',
+        );
+      const jobTypeMix = await revenueGroup(client, batch.id, filters, 'jobType');
+      const grand = await revenueGroup(client, batch.id, {}, 'jobType');
+      const dimension = groupBy && groupBy !== 'jobs' ? (groupBy as RevenueDimension) : null;
+      const breakdown = dimension
+        ? await revenueGroup(client, batch.id, filters, dimension, 2000)
+        : null;
+      const MAX_JOBS = 50000;
+      const lines = await revenueExportLines(client, batch.id, filters, MAX_JOBS);
+      const exception = filters.exception
+        ? {
+            key: filters.exception,
+            label: REVENUE_EXCEPTIONS[filters.exception].label,
+            description: REVENUE_EXCEPTIONS[filters.exception].description,
+          }
+        : null;
+      const workbook = await buildRevenueViewWorkbook({
+        batch,
+        filters,
+        groupBy: groupBy ?? 'jobs',
+        viewPath: viewPath ?? '',
+        totals: jobTypeMix.totals,
+        grandTotals: grand.totals,
+        breakdown,
+        jobTypeMix,
+        exception,
+        lines,
+        truncated: jobTypeMix.totals.jobs > lines.length,
+      });
+      if (profileId) {
+        await insertAuditEvent(client, {
+          actorProfileId: profileId,
+          action: 'revenue_dashboard.view_exported',
+          targetType: 'revenue_import_batch',
+          targetId: batch.id,
+          metadata: {
+            filters: Object.fromEntries(Object.entries(filters).filter(([, v]) => v)),
+            groupBy: groupBy ?? 'jobs',
+            jobs: jobTypeMix.totals.jobs,
+          },
+          requestId,
+        });
+      }
+      return workbook;
+    } finally {
+      client.release();
+    }
+  }
+
   // Who looked at, copied or drafted an email from the revenue dashboard. The
   // browser reports these (a view is not a server request), so only a small
   // fixed set of actions and a short view label are accepted.
@@ -298,6 +368,7 @@ export function createRevenueDashboardService(pool: Pool) {
     matrix,
     exceptions,
     exportWorkbook,
+    exportView,
     recordActivity,
   };
 }

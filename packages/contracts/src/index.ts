@@ -877,6 +877,16 @@ export const revenueGroupQuerySchema = revenueFilterQuerySchema
   .extend({ dimension: revenueDimensionSchema })
   .strict();
 
+// "Download this view" on Reports > Drill-down: the current filters plus what
+// the person is looking at (a breakdown by one dimension, or the job list) and
+// the breadcrumb text to print on the cover sheet.
+export const revenueViewExportQuerySchema = revenueFilterQuerySchema
+  .extend({
+    groupBy: z.preprocess(emptyToUndefined, z.enum([...revenueDimensions, 'jobs']).optional()),
+    viewPath: z.preprocess(emptyToUndefined, z.string().trim().max(600).optional()),
+  })
+  .strict();
+
 export const revenueMatrixQuerySchema = revenueFilterQuerySchema
   .extend({ rowDimension: revenueDimensionSchema, columnDimension: revenueDimensionSchema })
   .strict();
