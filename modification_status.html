@@ -3631,6 +3631,24 @@
           <li>Pull, run <code>npm run db:migrate</code> (migration 044), restart the API and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#109 &mdash; Finance: tab-wise Service Revenue Dashboard access</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-17 &middot; Migration 045, API and web</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>New permissions per tab (Overview, Explorer, Reports, Logic applied), Budget vs Actual, Budget Variance and Excel export, shown under Revenue dashboard in Roles &amp; permissions.</li>
+          <li>Tabs, Finance pages and download buttons a role lacks are hidden; Explorer, Logic, Budget and Export APIs are enforced on the server. Existing holders keep full access.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, run <code>npm run db:migrate</code> (045), restart the API, hard-refresh, then set the tabs per role.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

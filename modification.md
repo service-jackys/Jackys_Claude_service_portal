@@ -2878,3 +2878,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - **Priority in the ROI.** The Result and Objective tables now carry a Priority column (coloured pill: Urgent, High, Medium, Low), Issues / Innovation rows carry one too, and the plain-text version states the priority.
 - **Copy formatted email = .eml.** The copy button now copies the rendered email exactly as shown in the preview (the same as selecting it and pressing Ctrl+C), so pasting into Outlook gives the same look and structure as opening the downloaded .eml draft. Previously a rebuilt HTML payload was sent to the clipboard, which Outlook and the browser partly stripped.
 - **ROI Management Summary layout.** "Revenue by job type" and "Weekly management summary" now sit side by side in one row, in a smaller size, instead of one below the other (a single table takes the full width if the other is absent).
+
+## Modification #109 — Finance: tab-wise access for the Service Revenue Dashboard
+
+**Why.** All Finance pages and every Service Revenue Dashboard tab shared one permission (`revenue_dashboard.read`), so access could not be limited tab by tab.
+
+**What changed.** `revenue_dashboard.read` stays the master "may open Finance" switch. New permissions (migration 045, listed under *Revenue dashboard* in Roles & permissions) choose what a role sees inside it:
+- `tab_overview`, `tab_explorer`, `tab_reports`, `tab_logic` — the four Service Revenue Dashboard tabs; tabs a role lacks are not shown and the first allowed tab opens by default.
+- `budget_actual` — Budget vs Actual page. `budget_variance` — Budget Variance page. Sidebar/Finance tabs hide pages a role lacks; the Finance entry hides when none are allowed.
+- `export` — Excel downloads (Export report, Download this view).
+- Existing `revenue_dashboard.write` still controls workbook upload/refresh and Budget Variance edits.
+- Roles that already had `revenue_dashboard.read` (admin, management) are granted all new codes, so nobody loses access on upgrade.
+- Server-enforced: Explorer rows (`/lines`) need tab_explorer, `/logic` needs tab_logic, `/budget` needs budget_actual, Budget Variance APIs need budget_variance, exports need export. Overview/Reports share summary, group, matrix and exceptions data, so those are hidden in the screen and remain readable by anyone holding `revenue_dashboard.read`.
+
+**Files.** packages/db/migrations/045_revenue_dashboard_tab_permissions.sql, apps/api/src/revenue-dashboard/routes.ts, apps/api/src/budget-variance/routes.ts, apps/web/src/app.js.
+
+**Needs you:** pull, `npm run db:migrate` (045), restart API, hard-refresh, then tick the tabs per role in Roles & permissions.
