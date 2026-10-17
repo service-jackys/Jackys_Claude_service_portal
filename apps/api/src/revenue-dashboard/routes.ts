@@ -66,7 +66,7 @@ export function createRevenueDashboardHandlers(
       },
     ],
     lines: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.tab_explorer'),
       async (request, response, next) => {
         try {
           const result = await service.lines(request.query);
@@ -117,7 +117,7 @@ export function createRevenueDashboardHandlers(
       },
     ],
     logic: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.tab_logic'),
       async (_request, response, next) => {
         try {
           response.json(await service.logic());
@@ -127,7 +127,7 @@ export function createRevenueDashboardHandlers(
       },
     ],
     exportWorkbook: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.export'),
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
@@ -150,7 +150,7 @@ export function createRevenueDashboardHandlers(
       },
     ],
     exportView: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.export'),
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
@@ -193,7 +193,7 @@ export function createRevenueDashboardHandlers(
       },
     ],
     budget: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.budget_actual'),
       async (_request, response, next) => {
         try {
           response.json(await service.budget());

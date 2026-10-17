@@ -764,10 +764,10 @@
     $('#amcCalcNav').hidden = !canReadPricingConfig;
     $('#thomsonCalcNav').hidden = !canReadPricingConfig;
     const canReadRevenue = hasPermission('revenue_dashboard.read');
-    $('#revenueDashNav').hidden = !canReadRevenue;
-    $('#budgetDashNav').hidden = !canReadRevenue;
-    $('#budgetVarNav').hidden = !canReadRevenue;
-    $('#financeNav').hidden = !canReadRevenue;
+    $('#revenueDashNav').hidden = !revenueTabs().length;
+    $('#budgetDashNav').hidden = !hasPermission('revenue_dashboard.budget_actual');
+    $('#budgetVarNav').hidden = !hasPermission('revenue_dashboard.budget_variance');
+    $('#financeNav').hidden = !financeMembers().length;
     $('#pricingMastersNav').hidden = !canReadPricingConfig;
     $('#reportsNav').hidden = !hasPermission('reports.read');
     $('#tasksNav').hidden = !hasPermission('tasks.use');
@@ -12402,7 +12402,7 @@ ${bodyHtml}
       workspaceId: 'budgetDashWorkspace',
       heading: 'Budget vs Actual',
       description: 'Prepared service budget compared with actual revenue.',
-      permission: 'revenue_dashboard.read',
+      permission: 'revenue_dashboard.budget_actual',
       domains: [],
       load: (root) => renderBudgetDashboard(root),
     },
@@ -12411,7 +12411,7 @@ ${bodyHtml}
       workspaceId: 'budgetVarWorkspace',
       heading: 'Budget Variance',
       description: 'Budget by revenue stream compared with actual revenue on closed months.',
-      permission: 'revenue_dashboard.read',
+      permission: 'revenue_dashboard.budget_variance',
       domains: [],
       load: (root) => renderBudgetVariance(root),
     },
@@ -15859,7 +15859,8 @@ ${bodyHtml}
   async function renderRevenueDashboard(root) {
     rdDestroyCharts(root);
     const F = { year: '', month: '', week: '', jobType: '', channel: '', costStatus: '' };
-    let tab = 'overview';
+    const allowedTabs = revenueTabs();
+    let tab = allowedTabs[0] || 'overview';
     let reportView = 'drill';
     let drill = { path: [], groupBy: null, page: 1, search: '' };
     let explorer = { page: 1, search: '' };
@@ -15892,6 +15893,7 @@ ${bodyHtml}
           ['reports', 'Reports'],
           ['logic', 'Logic applied'],
         ]
+          .filter(([id]) => allowedTabs.includes(id))
           .map(
             ([id, name]) =>
               '<button type="button" role="tab" class="rd-subtab-btn' +
@@ -16462,6 +16464,8 @@ ${bodyHtml}
               );
       }
       reportBody.innerHTML = rdSection('Where you are', crumbs + controls) + content;
+      if (!hasPermission('revenue_dashboard.export'))
+        reportBody.querySelector('[data-rd-view-export]').hidden = true;
       reportBody.querySelector('[data-rd-view-export]').addEventListener('click', async (e) => {
         const button = e.currentTarget;
         button.disabled = true;
@@ -17474,6 +17478,8 @@ ${bodyHtml}
           drawReportsView();
         });
       });
+      if (!hasPermission('revenue_dashboard.export'))
+        body.querySelector('[data-rd-export]').hidden = true;
       body.querySelector('[data-rd-export]').addEventListener('click', async (e) => {
         const button = e.currentTarget;
         button.disabled = true;
@@ -18051,6 +18057,13 @@ ${bodyHtml}
         banner.innerHTML = rdSourceBanner(sum.batch, 'revenue');
         top.appendChild(banner);
         rdUploadCard(top, 'revenue', () => renderRevenueDashboard(root));
+        if (!allowedTabs.length) {
+          tabsEl.innerHTML = '';
+          barEl.innerHTML = '';
+          body.innerHTML =
+            '<p class="form-note">You do not have access to any Service Revenue Dashboard tab. Ask an administrator.</p>';
+          return;
+        }
         if (!sum.summary) {
           tabsEl.innerHTML = '';
           barEl.innerHTML = '';
@@ -18875,6 +18888,28 @@ ${bodyHtml}
   $('#budgetDashNav')?.addEventListener('click', () => setWorkspaceMode('budget-dashboard'));
   $('#budgetVarNav')?.addEventListener('click', () => setWorkspaceMode('budget-variance'));
 
+  // Tab-wise Finance access (#109): revenue_dashboard.read opens Finance, the
+  // codes below decide which tabs / pages inside it a role sees.
+  const RD_TAB_PERMS = {
+    overview: 'revenue_dashboard.tab_overview',
+    explorer: 'revenue_dashboard.tab_explorer',
+    reports: 'revenue_dashboard.tab_reports',
+    logic: 'revenue_dashboard.tab_logic',
+  };
+  function revenueTabs() {
+    if (!hasPermission('revenue_dashboard.read')) return [];
+    return Object.keys(RD_TAB_PERMS).filter((id) => hasPermission(RD_TAB_PERMS[id]));
+  }
+  function financeMembers() {
+    if (!hasPermission('revenue_dashboard.read')) return [];
+    const ok = {
+      'revenue-dashboard': revenueTabs().length > 0,
+      'budget-dashboard': hasPermission('revenue_dashboard.budget_actual'),
+      'budget-variance': hasPermission('revenue_dashboard.budget_variance'),
+    };
+    return NAV_GROUPS.finance.members.filter((m) => ok[m[0]]);
+  }
+
   // ---- Sidebar groups (#65): one entry, tabs inside --------------------------
   // The member pages and their workspaces are unchanged; their own sidebar
   // buttons are hidden (.nav-child) and a tab strip on each page switches
@@ -18923,7 +18958,7 @@ ${bodyHtml}
       body.insertBefore(strip, body.firstChild);
     }
     strip.innerHTML = '';
-    group.members.forEach(([memberMode, label]) => {
+    (key === 'finance' ? financeMembers() : group.members).forEach(([memberMode, label]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'button ' + (memberMode === mode ? 'button-primary' : 'button-outline');
@@ -18938,7 +18973,11 @@ ${bodyHtml}
     syncNavGroups(mode);
   };
   $('#financeNav')?.addEventListener('click', () =>
-    setWorkspaceMode(navGroupLast.finance || NAV_GROUPS.finance.members[0][0]),
+    setWorkspaceMode(
+      financeMembers().some((m) => m[0] === navGroupLast.finance)
+        ? navGroupLast.finance
+        : (financeMembers()[0] || NAV_GROUPS.finance.members[0])[0],
+    ),
   );
   $('#pricingMastersNav')?.addEventListener('click', () =>
     setWorkspaceMode(navGroupLast.pricing || NAV_GROUPS.pricing.members[0][0]),

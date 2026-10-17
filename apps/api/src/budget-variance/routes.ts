@@ -39,7 +39,7 @@ export function createBudgetVarianceHandlers(
     request.header('x-request-id') ?? undefined;
   return {
     config: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.budget_variance'),
       guard(async (_request, response) => {
         response.json(await service.config());
       }),
@@ -52,7 +52,7 @@ export function createBudgetVarianceHandlers(
       }),
     ],
     variance: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.budget_variance'),
       guard(async (request, response) => {
         response.json(await service.variance(request.query));
       }),
@@ -69,7 +69,7 @@ export function createBudgetVarianceHandlers(
       }),
     ],
     version: [
-      requirePermission('revenue_dashboard.read'),
+      requirePermission('revenue_dashboard.budget_variance'),
       guard(async (request, response) => {
         response.json(await service.versionDetail(String(request.params.versionId)));
       }),
