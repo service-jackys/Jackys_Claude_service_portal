@@ -211,7 +211,7 @@
   function band(title, color) {
     var tint = BAND_TINTS[color] || ['#f1f5f9', '#1f2933'];
     return (
-      '<tr><td style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="' +
+      '<tr><td align="left" style="padding:20px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td bgcolor="' +
       tint[0] +
       '" style="background:' +
       tint[0] +
@@ -229,7 +229,7 @@
   // Wraps table rows (already <tr>..</tr>) in the standard content table.
   function wrap(inner) {
     return (
-      '<tr><td style="padding:4px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;' +
+      '<tr><td align="left" style="padding:4px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;' +
       FONT +
       'font-size:12px;color:' +
       INK +
@@ -242,7 +242,9 @@
     opts = opts || {};
     return (
       '<td' +
-      (opts.align ? ' align="' + opts.align + '"' : '') +
+      ' align="' +
+      (opts.align || 'left') +
+      '"' +
       (opts.width ? ' width="' + opts.width + '"' : '') +
       ' valign="top" style="padding:8px ' +
       (opts.align === 'right' ? '0 8px 12px' : '8px 8px 0') +
@@ -270,7 +272,7 @@
       (width || '33%') +
       '" valign="top" style="padding:0 4px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f9fc;border:1px solid ' +
       LINE +
-      ';border-top:2px solid #9db8d9;"><tr><td style="padding:9px 10px;' +
+      ';border-top:2px solid #9db8d9;"><tr><td align="left" style="padding:9px 10px;' +
       FONT +
       '"><div style="font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:' +
       MUTED +
@@ -285,7 +287,7 @@
   }
   function note(html) {
     return (
-      '<tr><td style="padding:8px 28px 0;' +
+      '<tr><td align="left" style="padding:8px 28px 0;' +
       FONT +
       'font-size:12px;line-height:1.55;color:' +
       INK +
@@ -413,7 +415,7 @@
     var t = data.totals || {};
     var out = band('Management summary: ' + data.monthLabel, '#1d5fa8');
     out +=
-      '<tr><td style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+      '<tr><td align="left" style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
       kpi('Total jobs', money(t.jobs)) +
       kpi('Total quantity', money(t.qty)) +
       kpi('Effective revenue', 'AED ' + money(t.revenue)) +
@@ -471,7 +473,7 @@
     if (b && b.monthBudget) {
       out += band('Achievement against budget', '#0f766e');
       out +=
-        '<tr><td style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        '<tr><td align="left" style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
         kpi('Budget ' + b.monthLabel, 'AED ' + money(b.monthBudget)) +
         kpi('Actual revenue', 'AED ' + money(b.monthActual)) +
         kpi('Achievement', pct(b.monthActual, b.monthBudget)) +
@@ -549,12 +551,13 @@
     var html =
       '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
       esc('Weekly ROI ' + heading) +
-      '</title></head><body style="margin:0;padding:0;background:#eef1f5;">' +
-      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eef1f5;"><tr><td align="center" style="padding:24px 10px;">' +
-      '<table role="presentation" width="720" cellpadding="0" cellspacing="0" style="width:100%;max-width:720px;background:#ffffff;border:1px solid ' +
+      '</title></head><body style="margin:0;padding:0;background:#ffffff;text-align:left;">' +
+      // Left-aligned, fixed width: Outlook (Word engine) centres content that
+      // sits in a centred wrapper cell, so there is deliberately none.
+      '<table role="presentation" align="left" width="720" cellpadding="0" cellspacing="0" style="width:720px;background:#ffffff;border:1px solid ' +
       LINE +
-      ';">' +
-      '<tr><td bgcolor="#eef3f9" style="background:#eef3f9;border-bottom:1px solid #d5dbe3;padding:18px 28px;' +
+      ';text-align:left;">' +
+      '<tr><td align="left" bgcolor="#eef3f9" style="background:#eef3f9;border-bottom:1px solid #d5dbe3;padding:18px 28px;' +
       FONT +
       '"><div style="font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#6b82a3;">Weekly ROI &middot; Results, Objectives, Issues / Innovation</div>' +
       '<div style="font-size:18px;font-weight:600;color:' +
@@ -569,7 +572,7 @@
           '</div>'
         : '') +
       '</td></tr>' +
-      '<tr><td style="padding:18px 28px 0;' +
+      '<tr><td align="left" style="padding:18px 28px 0;' +
       FONT +
       'font-size:13px;line-height:1.55;color:' +
       INK +
@@ -585,7 +588,7 @@
       objectiveRows(groups.objectives) +
       band('Issues / Innovation', '#b45309') +
       issueRows(groups.issues) +
-      '<tr><td style="padding:24px 28px 22px;' +
+      '<tr><td align="left" style="padding:24px 28px 22px;' +
       FONT +
       'font-size:12px;line-height:1.55;color:' +
       INK +
@@ -593,7 +596,7 @@
       (input.signature ? nl2br(input.signature) : esc(input.name || '')) +
       '</td></tr>' +
       (input.summary
-        ? '<tr><td bgcolor="#f5f8fc" style="background:#f5f8fc;border-top:1px solid ' +
+        ? '<tr><td align="left" bgcolor="#f5f8fc" style="background:#f5f8fc;border-top:1px solid ' +
           LINE +
           ';padding:12px 28px;' +
           FONT +
@@ -603,7 +606,7 @@
           (input.summary.source ? ' (' + esc(input.summary.source) + ')' : '') +
           '; management analysis, not an ERP ledger extract.</td></tr>'
         : '') +
-      '</table></td></tr></table></body></html>';
+      '</table></body></html>';
     return html;
   }
 

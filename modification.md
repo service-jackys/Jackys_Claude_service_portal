@@ -2873,3 +2873,4 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 
 **Needs you:** pull, run `npm run db:migrate` (migration 044), restart the API and hard-refresh.
 - **Email look (ROI).** The formatted email and .eml now use smaller type, light-tinted section headers with a thin accent edge (Result green, Objective blue, Issues amber, Management Summary blue), and light dotted table lines instead of heavy solid bands and borders.
+- **Left-aligned email.** Outlook classic centred the whole ROI email because it sat in a centred wrapper cell. The wrapper is gone: the email is a fixed-width (720 px) left-aligned table and every cell carries an explicit left alignment, so the formatted copy and the .eml open left-aligned.
