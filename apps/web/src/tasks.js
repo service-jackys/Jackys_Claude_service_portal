@@ -1312,19 +1312,43 @@
         }
         if (btn.matches('[data-c-copy]')) {
           if (!(await logIt('copy'))) return;
+          // Copy the rendered email exactly as the preview shows it (the same
+          // thing as selecting it and pressing Ctrl+C), so Outlook receives the
+          // browser's fully styled version, matching the .eml draft.
+          let copied = false;
           try {
-            await navigator.clipboard.write([
-              new ClipboardItem({
-                'text/html': new Blob([c.html], { type: 'text/html' }),
-                'text/plain': new Blob([c.text], { type: 'text/plain' }),
-              }),
-            ]);
-            say(
-              'Copied with formatting. Paste it into a new email (Ctrl+V) and add the recipients below.',
-            );
+            const frame = $c('[data-c-frame]');
+            const win = frame.contentWindow;
+            const doc = frame.contentDocument;
+            const range = doc.createRange();
+            range.selectNodeContents(doc.body);
+            const selection = win.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            win.focus();
+            copied = doc.execCommand('copy');
+            selection.removeAllRanges();
           } catch {
-            say('This browser blocked copying. Use the .eml draft instead.');
+            copied = false;
           }
+          if (!copied) {
+            try {
+              await navigator.clipboard.write([
+                new ClipboardItem({
+                  'text/html': new Blob([c.html], { type: 'text/html' }),
+                  'text/plain': new Blob([c.text], { type: 'text/plain' }),
+                }),
+              ]);
+              copied = true;
+            } catch {
+              copied = false;
+            }
+          }
+          say(
+            copied
+              ? 'Copied with formatting, exactly as in the preview. Paste it into a new email (Ctrl+V) and add the recipients above.'
+              : 'This browser blocked copying. Use the .eml draft instead.',
+          );
         } else if (btn.matches('[data-c-eml]')) {
           const r = await logIt('eml');
           if (!r) return;

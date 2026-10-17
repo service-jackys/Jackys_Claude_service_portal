@@ -317,6 +317,14 @@
     return pill(label, '#475467', '#eef1f5');
   }
 
+  function priorityPill(priority) {
+    var label = PRIORITY_LABELS[priority] || priority;
+    if (priority === 'urgent') return pill(label, '#b42318', '#fee4e2');
+    if (priority === 'high') return pill(label, '#b54708', '#fef0c7');
+    if (priority === 'low') return pill(label, '#475467', '#eef1f5');
+    return pill(label, '#1d5fa8', '#dbeafe');
+  }
+
   // ------------------------------------------------------ the three sections
   function resultRows(results) {
     if (!results.length) {
@@ -324,7 +332,8 @@
     }
     return wrap(
       '<tr>' +
-        th('Task Description', { width: '36%' }) +
+        th('Task Description', { width: '32%' }) +
+        th('Priority', { width: '70' }) +
         th('Status', { width: '96' }) +
         th('%', { align: 'right', width: '52' }) +
         th('Remarks / Next Action', { style: 'padding-left:16px;' }) +
@@ -334,6 +343,7 @@
             return (
               '<tr>' +
               td('<span style="font-weight:600;">' + nl2br(t.title) + '</span>') +
+              td(priorityPill(t.priority)) +
               td(statusPill(t.status)) +
               td(esc(t.percentComplete) + '%', { align: 'right', style: 'white-space:nowrap;' }) +
               td(nl2br(t.remarks || ''), { style: 'padding-left:16px;' }) +
@@ -350,7 +360,8 @@
     }
     return wrap(
       '<tr>' +
-        th('Task Description', { width: '38%' }) +
+        th('Task Description', { width: '30%' }) +
+        th('Priority', { width: '70' }) +
         th('Target') +
         th('Status') +
         th('Due') +
@@ -361,6 +372,7 @@
             return (
               '<tr>' +
               td('<span style="font-weight:600;">' + nl2br(t.title) + '</span>') +
+              td(priorityPill(t.priority)) +
               td(esc(t.percentComplete) + '% &rarr; 100%', { style: 'white-space:nowrap;' }) +
               td(statusPill(t.status)) +
               td(esc(t.dueDate ? formatShortDate(t.dueDate) : ''), {
@@ -384,6 +396,7 @@
           return (
             '<tr>' +
             td(pill(KIND_LABELS[t.kind] || t.kind, '#7c2d12', '#ffedd5'), { width: '90' }) +
+            td(priorityPill(t.priority), { width: '70' }) +
             td(
               '<strong>' +
                 nl2br(t.title) +
@@ -631,6 +644,8 @@
         '  - ' +
           line(t.title) +
           ' [' +
+          (PRIORITY_LABELS[t.priority] || t.priority) +
+          ' priority, ' +
           (STATUS_LABELS[t.status] || t.status) +
           ', ' +
           t.percentComplete +
@@ -700,6 +715,8 @@
         '  - ' +
           line(t.title) +
           ' [' +
+          (PRIORITY_LABELS[t.priority] || t.priority) +
+          ' priority, ' +
           t.percentComplete +
           '% -> 100%, ' +
           (STATUS_LABELS[t.status] || t.status) +
@@ -714,7 +731,9 @@
       out.push(
         '  * ' +
           (KIND_LABELS[t.kind] || t.kind) +
-          ': ' +
+          ' (' +
+          (PRIORITY_LABELS[t.priority] || t.priority) +
+          ' priority): ' +
           line(t.title) +
           (t.remarks ? ' - ' + line(t.remarks) : ''),
       );

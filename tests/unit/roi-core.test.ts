@@ -189,10 +189,13 @@ test('ROI email carries every section, escapes text and omits the summary when a
   assert.ok(!plain.includes('Management summary'));
   assert.ok(!plain.includes('Achievement against budget'));
   const text = roi.buildRoiText(input);
-  assert.match(text, /RESULT\n {2}- Complaint <portal> \[Completed, 100%\] Live/);
+  assert.match(text, /RESULT\n {2}- Complaint <portal> \[Medium priority, Completed, 100%\] Live/);
   assert.match(text, /MANAGEMENT SUMMARY: SEPTEMBER 2026/);
-  assert.match(text, /OBJECTIVE\n {2}- Cost model \[50% -> 100%, In Progress, due 20 Oct\]/);
-  assert.match(text, /\* Issue: ERP access - Send separately/);
+  assert.match(
+    text,
+    /OBJECTIVE\n {2}- Cost model \[Medium priority, 50% -> 100%, In Progress, due 20 Oct\]/,
+  );
+  assert.match(text, /\* Issue \(Medium priority\): ERP access - Send separately/);
 });
 
 test('.eml draft is unsent, addressed and decodes back to the HTML', () => {
