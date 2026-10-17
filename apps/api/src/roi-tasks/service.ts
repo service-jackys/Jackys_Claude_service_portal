@@ -3,6 +3,7 @@ import ExcelJS from 'exceljs';
 import type { Pool, PoolClient } from 'pg';
 import {
   roiDefaultRecipients,
+  roiArchiveSchema,
   roiImportSchema,
   roiReportLogSchema,
   roiSettingsSchema,
@@ -19,6 +20,7 @@ import {
   insertRoiTask,
   listRoiOwners,
   listRoiReports,
+  archiveRoiTasks,
   listRoiTasks,
   readRoiSettings,
   saveRoiSettings,
@@ -204,6 +206,29 @@ export function createRoiService(pool: Pool) {
     });
   }
 
+  async function archiveMany(
+    auth: ApplicationAuth,
+    input: unknown,
+    requestId: string = randomUUID(),
+  ) {
+    const data = roiArchiveSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const archived = await archiveRoiTasks(
+        client,
+        data.ids,
+        isAdmin(auth) ? null : auth.profileId,
+      );
+      await insertAuditEvent(client, {
+        actorProfileId: auth.profileId,
+        action: 'roi.tasks_archived',
+        targetType: 'roi_task',
+        metadata: { requested: data.ids.length, archived },
+        requestId,
+      });
+      return { archived };
+    });
+  }
+
   async function remove(auth: ApplicationAuth, id: string) {
     return withTransaction(pool, async (client) => {
       const current = await findRoiTask(client, id, true);
@@ -295,6 +320,7 @@ export function createRoiService(pool: Pool) {
 
   return {
     list,
+    archiveMany,
     owners,
     create,
     update,

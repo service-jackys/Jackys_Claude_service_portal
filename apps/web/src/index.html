@@ -5909,11 +5909,12 @@
         min-width: 22px;
         padding: 0 7px;
         border-radius: 999px;
-        background: #e7edf4;
+        background: rgb(15 40 70 / 8%);
         font-size: 0.72rem;
-        font-weight: 700;
+        font-weight: 600;
+        line-height: 1.5;
         text-align: center;
-        color: var(--muted);
+        color: #51627a;
       }
       /* list */
       .tk-quickadd {
@@ -5943,17 +5944,176 @@
         background: #fff;
         overflow: hidden;
       }
-      .tk-group-head {
+      .tk-group {
+        border-left: 3px solid var(--tk-accent, #94a3b8);
+      }
+      .tk-g-in_progress {
+        --tk-accent: var(--tk-s-in_progress);
+        --tk-tint: #f1f6fd;
+      }
+      .tk-g-not_started {
+        --tk-accent: var(--tk-s-not_started);
+        --tk-tint: #f5f7fa;
+      }
+      .tk-g-on_hold {
+        --tk-accent: var(--tk-s-on_hold);
+        --tk-tint: #fff8ec;
+      }
+      .tk-g-completed {
+        --tk-accent: var(--tk-s-completed);
+        --tk-tint: #effaf3;
+      }
+      .tk-g-archive {
+        --tk-accent: #64748b;
+        --tk-tint: #f1f5f9;
+      }
+      .tk-group-bar {
         display: flex;
         align-items: center;
-        gap: 0.55rem;
-        width: 100%;
+        justify-content: space-between;
+        gap: 0.5rem;
+        background: var(--tk-tint, var(--surface-soft));
+        padding-right: 0.75rem;
+      }
+      .tk-group-head {
+        display: flex;
+        flex: 1;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
         border: 0;
-        background: var(--surface-soft);
-        padding: 0.6rem 0.85rem;
+        background: transparent;
+        padding: 0.7rem 0.9rem;
         text-align: left;
-        font-weight: 800;
+        font-size: 0.92rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
         color: var(--navy);
+        cursor: pointer;
+      }
+      .tk-group-name {
+        font-weight: 600;
+      }
+      .tk-link-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        padding: 0.25rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--blue);
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .tk-link-btn:hover {
+        border-color: var(--line);
+        background: #fff;
+      }
+      .tk-link-btn .tk-ico {
+        width: 14px;
+        height: 14px;
+      }
+      .tk-icon-btn {
+        display: inline-grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+        opacity: 0;
+        cursor: pointer;
+      }
+      .tk-icon-btn .tk-ico {
+        width: 16px;
+        height: 16px;
+      }
+      .tk-row:hover .tk-icon-btn,
+      .tk-icon-btn:focus-visible {
+        opacity: 1;
+      }
+      .tk-icon-btn:hover {
+        border-color: var(--line);
+        background: #fff;
+        color: var(--navy);
+      }
+      @media (hover: none) {
+        .tk-icon-btn {
+          opacity: 1;
+        }
+      }
+      .tk-group:not(.tk-g-archive) .tk-table {
+        table-layout: fixed;
+        min-width: 900px;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(1) {
+        width: 40px;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(3) {
+        width: 118px;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(4),
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(5) {
+        width: 74px;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(6) {
+        width: 172px;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(7) {
+        width: 26%;
+      }
+      .tk-group:not(.tk-g-archive) .tk-table th:nth-child(8) {
+        width: 48px;
+      }
+      .tk-c-act {
+        width: 1%;
+        white-space: nowrap;
+        text-align: right;
+      }
+      .tk-archive-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-left: auto;
+        min-height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        padding: 0 0.9rem;
+        font-size: 0.84rem;
+        font-weight: 600;
+        color: var(--navy);
+        cursor: pointer;
+      }
+      .tk-archive-toggle .tk-ico {
+        width: 16px;
+        height: 16px;
+      }
+      .tk-archive-toggle.active {
+        border-color: var(--navy);
+        background: var(--navy);
+        color: #fff;
+      }
+      .tk-archive-note {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.2rem 0.75rem;
+        margin-bottom: 0.75rem;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+      .tk-archive-note strong {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--navy);
+      }
+      .tk-toolbar.tk-archiving > :not(.tk-search):not(.tk-archive-toggle) {
+        display: none;
       }
       .tk-group-head .tk-ico {
         transition: transform 0.15s ease;
@@ -5974,14 +6134,15 @@
         padding: 0.45rem 0.6rem;
         border-bottom: 1px solid var(--line);
         text-align: left;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.06em;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
-        color: var(--muted);
+        color: #7a8aa0;
+        background: #fff;
       }
       .tk-table td {
-        padding: 0.45rem 0.6rem;
+        padding: 0.6rem 0.6rem;
         border-bottom: 1px solid #eef2f6;
         vertical-align: middle;
       }
@@ -6022,7 +6183,7 @@
         width: 38px;
         margin-left: 6px;
         font-size: 0.8rem;
-        font-weight: 700;
+        font-weight: 600;
         color: var(--navy);
       }
       .tk-c-remarks {
@@ -6039,7 +6200,9 @@
         background: none;
         padding: 0;
         text-align: left;
-        font-weight: 700;
+        font-size: 0.9rem;
+        font-weight: 500;
+        line-height: 1.4;
         color: var(--ink);
         cursor: pointer;
       }

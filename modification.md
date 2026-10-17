@@ -2853,9 +2853,24 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - **Send ROI** pill in the Tasks tab and in Service Revenue Dashboard > Reports. Both open the same composer: pick the week (ISO week, dated that Friday), edit To / Cc, opening and signature, and see a live preview. Result = tasks completed that week, Objectives = open tasks (shown "50% -> 100%"), Issues / Innovation = open issue, innovation and request items.
 - For users with Service Revenue Dashboard access the ROI also carries the Management Summary as rich HTML, plus the weekly achievement against budget (monthly budget pro-rated by calendar days per ISO week).
 - Delivery is a draft only: **Copy formatted email** (paste into Outlook), **Download Outlook draft (.eml)** (opens as an unsent message with To / Cc filled) or a text-only mailto. The portal never sends mail. Default recipients are pre-filled as in the last email (To: Manohar and James Paul; Cc: Naresh, HR desk, Santhosh Antony and Shameer Abdulla) and each user can save their own defaults.
-- **Import** reads the old WeeklyTasks.xlsx (Result and Objective tables). Same-title tasks are skipped; completed rows are dated to the end of last week by default so history does not flood this week's Result.
+- **Import** reads the old WeeklyTasks.xlsx (Result and Objective tables). Same-title tasks are skipped; completed rows are dated today by default so they appear in this week's ROI Result (pick an earlier date to place them in a past week). A completed task also has an editable **Completed on** date in its side panel, which decides the week whose ROI lists it.
 - Each drafted ROI is logged per week (table `roi_reports`) and shows in the Activity log.
 
 **Files.** packages/db/migrations/043_roi_tasks.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, openapi.ts, apps/web/src/roi-core.js (new), tasks.js (new), index.html, app.js, tests/unit/roi-core.test.ts, tests/integration/roi-tasks.test.ts.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 043), restart the API and hard-refresh. Then grant **Tasks (ROI)** to the roles that should use it.
+
+## Modification #108 — Tasks (ROI): Archive for completed tasks, calmer list styling
+
+**Why.** Completed tasks kept appearing in later weekly ROIs, and the grouped list used heavy bold fonts.
+
+**What changed.**
+- **Archive.** The Completed group has an **Archive all** button (click twice to confirm) and each completed row has an archive icon. Archived tasks leave the list, Board, Timeline and KPIs and are never included in any weekly ROI. The **Archive** button in the toolbar opens the archive (with the completion date) and **Restore** brings a task back to Completed. Reopening a task (status or % below 100) also takes it out of the archive.
+- New API `POST /api/roi/tasks/archive` (body `{ids}`), and `archived: true/false` on the task PATCH. Table `roi_tasks` gets `archived_at` (migration 044).
+- **Styling.** Status groups have a coloured accent and tinted header, lighter font weights (600 headings, 500 task titles), consistent column widths across groups, and a hover-only archive icon on rows.
+
+**Files.** packages/db/migrations/044_roi_task_archive.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/roi-core.js, tasks.js, index.html, tests/integration/roi-tasks.test.ts.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 044), restart the API and hard-refresh.
+- **Email look (ROI).** The formatted email and .eml now use smaller type, light-tinted section headers with a thin accent edge (Result green, Objective blue, Issues amber, Management Summary blue), and light dotted table lines instead of heavy solid bands and borders.
+- **Left-aligned email.** Outlook classic centred the whole ROI email because it sat in a centred wrapper cell. The wrapper is gone: the email is a fixed-width (720 px) left-aligned table and every cell carries an explicit left alignment, so the formatted copy and the .eml open left-aligned.

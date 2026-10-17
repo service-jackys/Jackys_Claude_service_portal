@@ -14,6 +14,7 @@ export type RoiTaskRecord = {
   percentComplete: number;
   remarks: string | null;
   completedAt: Date | null;
+  archivedAt: Date | null;
   sortOrder: number;
   createdAt: Date;
   updatedAt: Date;
@@ -31,6 +32,10 @@ export type RoiTaskWrite = {
   remarks?: string | null;
   sortOrder?: number;
   ownerProfileId?: string;
+  // Day (YYYY-MM-DD) a completed task was finished; defaults to today.
+  completedOn?: string | null;
+  // Completed tasks only: true moves it to the archive, false restores it.
+  archived?: boolean;
 };
 
 // Dates travel as plain YYYY-MM-DD strings, never as JS Dates, so a Dubai
@@ -41,7 +46,7 @@ const columns = `
   to_char(t.start_date, 'YYYY-MM-DD') AS "startDate",
   to_char(t.due_date, 'YYYY-MM-DD') AS "dueDate",
   t.percent_complete AS "percentComplete", t.remarks,
-  t.completed_at AS "completedAt", t.sort_order AS "sortOrder",
+  t.completed_at AS "completedAt", t.archived_at AS "archivedAt", t.sort_order AS "sortOrder",
   t.created_at AS "createdAt", t.updated_at AS "updatedAt"
 `;
 const from = `FROM roi_tasks t JOIN profiles p ON p.id = t.owner_profile_id`;
@@ -106,7 +111,7 @@ export async function insertRoiTask(
     `INSERT INTO roi_tasks (owner_profile_id, title, notes, kind, status, priority, start_date,
                             due_date, percent_complete, remarks, completed_at, sort_order)
      VALUES ($1, $2, $3, COALESCE($4, 'task'), $5, COALESCE($6, 'medium'), $7::date, $8::date, $9,
-             $10, CASE WHEN $5 = 'completed' THEN now() END,
+             $10, CASE WHEN $5 = 'completed' THEN COALESCE($12::date + time '12:00', now()) END,
              COALESCE($11, (SELECT COALESCE(max(sort_order), 0) + 10 FROM roi_tasks
                             WHERE owner_profile_id = $1)))
      RETURNING id`,
@@ -122,6 +127,7 @@ export async function insertRoiTask(
       percent,
       input.remarks ?? null,
       input.sortOrder ?? null,
+      input.completedOn ?? null,
     ],
   );
   return result.rows[0].id;
@@ -164,10 +170,17 @@ export async function updateRoiTask(
     values.push(next[key]);
     sets.push(`${column} = $${values.length}${cast ?? ''}`);
   }
-  if (finalStatus === 'completed' && current.status !== 'completed')
+  if (finalStatus === 'completed' && next.completedOn) {
+    values.push(next.completedOn);
+    sets.push(`completed_at = $${values.length}::date + time '12:00'`);
+  } else if (finalStatus === 'completed' && current.status !== 'completed')
     sets.push('completed_at = now()');
   if (finalStatus !== 'completed' && current.status === 'completed')
     sets.push('completed_at = NULL');
+  // Reopening a task always brings it back out of the archive.
+  if (finalStatus !== 'completed') sets.push('archived_at = NULL');
+  else if (next.archived === true) sets.push('archived_at = COALESCE(archived_at, now())');
+  else if (next.archived === false) sets.push('archived_at = NULL');
   if (!sets.length) return;
   values.push(id);
   await client.query(
@@ -322,4 +335,20 @@ export async function listRoiOwners(
      FROM profiles p WHERE p.active ORDER BY p.display_name`,
   );
   return result.rows;
+}
+
+// Archives the caller's completed tasks in one go. A null owner (administrator)
+// may archive any user's; otherwise only the given owner's tasks are touched.
+export async function archiveRoiTasks(
+  client: PoolClient,
+  ids: string[],
+  owner: string | null,
+): Promise<number> {
+  const result = await client.query(
+    `UPDATE roi_tasks SET archived_at = now(), updated_at = now()
+     WHERE id = ANY($1::bigint[]) AND status = 'completed' AND archived_at IS NULL
+       AND ($2::bigint IS NULL OR owner_profile_id = $2::bigint)`,
+    [ids, owner],
+  );
+  return result.rowCount ?? 0;
 }

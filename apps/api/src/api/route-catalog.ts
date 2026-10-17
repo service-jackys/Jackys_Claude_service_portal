@@ -3207,6 +3207,17 @@ export function createRouteCatalog(
       },
       {
         method: 'post' as const,
+        path: '/api/roi/tasks/archive',
+        operationId: 'archiveRoiTasks',
+        tags: ['Tasks (ROI)'],
+        summary: 'Move completed tasks to the archive (out of the list and every weekly ROI)',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiTask' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: roiHandlers.archiveTasks,
+      },
+      {
+        method: 'post' as const,
         path: '/api/roi/import',
         operationId: 'importRoiTasks',
         tags: ['Tasks (ROI)'],

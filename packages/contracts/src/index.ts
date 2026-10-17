@@ -1551,6 +1551,7 @@ export const roiTaskWriteSchema = z
     percentComplete: z.number().int().min(0).max(100).optional(),
     remarks: z.string().trim().max(2000).nullish(),
     sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+    completedOn: isoDate.nullish(),
     // Administrators may create or move a task for another user.
     ownerProfileId: z.string().regex(/^\d+$/).optional(),
   })
@@ -1572,6 +1573,8 @@ export const roiTaskPatchSchema = z
     percentComplete: z.number().int().min(0).max(100),
     remarks: z.string().trim().max(2000).nullable(),
     sortOrder: z.number().int().min(0).max(1_000_000),
+    completedOn: isoDate.nullable(),
+    archived: z.boolean(),
     ownerProfileId: z.string().regex(/^\d+$/),
   })
   .partial()
@@ -1589,6 +1592,10 @@ export const roiTaskListQuerySchema = z
     priority: z.enum(roiTaskPriorities).optional(),
     search: z.string().trim().min(1).max(200).optional(),
   })
+  .strict();
+
+export const roiArchiveSchema = z
+  .object({ ids: z.array(z.string().regex(/^\d+$/)).min(1).max(500) })
   .strict();
 
 const emailList = z.array(z.string().trim().email().max(320)).max(40);

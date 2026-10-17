@@ -104,6 +104,22 @@ test(
       assert.deepEqual([t.status, t.completedAt], ['in_progress', null]);
       t = await service.update(userA, task.id, { status: 'completed' });
       assert.deepEqual([t.percentComplete, Boolean(t.completedAt)], [100, true]);
+      // The completion day can be set so a task lands in the right week's ROI.
+      t = await service.update(userA, task.id, { completedOn: '2026-10-09' });
+      assert.equal(
+        new Date(t.completedAt as unknown as string).toISOString().slice(0, 10),
+        '2026-10-09',
+      );
+
+      // Archiving: completed only, restorable, and reopening un-archives.
+      t = await service.update(userA, task.id, { archived: true });
+      assert.ok(t.archivedAt);
+      t = await service.update(userA, task.id, { archived: false });
+      assert.equal(t.archivedAt, null);
+      assert.deepEqual(await service.archiveMany(userA, { ids: [task.id] }), { archived: 1 });
+      t = await service.update(userA, task.id, { percentComplete: 50 });
+      assert.deepEqual([t.status, t.archivedAt], ['in_progress', null]);
+      await service.update(userA, task.id, { status: 'completed' });
 
       // Dates, validation, reassignment
       await assert.rejects(
