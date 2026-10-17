@@ -436,52 +436,105 @@
       kpi('Effective revenue', 'AED ' + money(t.revenue)) +
       '</tr></table></td></tr>';
 
-    if (data.byType && data.byType.length) {
-      out += note('<strong style="color:' + NAVY + ';">Revenue by job type</strong>');
-      out += wrap(
-        '<tr>' +
-          th('Code') +
-          th('Activity') +
-          th('Jobs', { align: 'right' }) +
-          th('Revenue', { align: 'right' }) +
-          '</tr>' +
-          data.byType
-            .map(function (r) {
-              return (
-                '<tr>' +
-                td(esc(r.code), { style: 'font-weight:600;' }) +
-                td(esc(r.label)) +
-                td(money(r.jobs), { align: 'right' }) +
-                td('AED ' + money(r.revenue), { align: 'right', style: 'font-weight:600;' }) +
-                '</tr>'
-              );
-            })
-            .join(''),
+    // The two summary tables sit side by side in one row, in a compact size.
+    function cell(content, opts) {
+      opts = opts || {};
+      return td(content, {
+        align: opts.align,
+        style:
+          (opts.align === 'right' ? 'padding:5px 0 5px 6px;' : 'padding:5px 6px 5px 0;') +
+          'font-size:11px;' +
+          (opts.style || ''),
+      });
+    }
+    function hcell(label, align) {
+      return th(label, {
+        align: align,
+        style:
+          (align === 'right' ? 'padding:5px 0 5px 6px;' : 'padding:5px 6px 5px 0;') +
+          'font-size:9px;',
+      });
+    }
+    function miniTable(title, head, rows) {
+      return (
+        '<div style="' +
+        FONT +
+        'font-size:12px;font-weight:600;color:' +
+        NAVY +
+        ';padding-bottom:4px;">' +
+        esc(title) +
+        '</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;' +
+        FONT +
+        'font-size:11px;color:' +
+        INK +
+        ';"><tr>' +
+        head +
+        '</tr>' +
+        rows +
+        '</table>'
       );
     }
-
-    if (data.weeks && data.weeks.length) {
-      out += note('<strong style="color:' + NAVY + ';">Weekly management summary</strong>');
-      out += wrap(
-        '<tr>' +
-          th('Week') +
-          th('Jobs', { align: 'right' }) +
-          th('Qty', { align: 'right' }) +
-          th('Revenue', { align: 'right' }) +
-          '</tr>' +
-          data.weeks
-            .map(function (w) {
-              return (
-                '<tr>' +
-                td(esc(w.label), { style: 'font-weight:600;' }) +
-                td(money(w.jobs), { align: 'right' }) +
-                td(money(w.qty), { align: 'right' }) +
-                td('AED ' + money(w.revenue), { align: 'right', style: 'font-weight:600;' }) +
-                '</tr>'
-              );
-            })
-            .join(''),
+    var left = '';
+    var right = '';
+    if (data.byType && data.byType.length) {
+      left = miniTable(
+        'Revenue by job type',
+        hcell('Code') + hcell('Activity') + hcell('Jobs', 'right') + hcell('Revenue', 'right'),
+        data.byType
+          .map(function (r) {
+            return (
+              '<tr>' +
+              cell(esc(r.code), { style: 'font-weight:600;' }) +
+              cell(esc(r.label)) +
+              cell(money(r.jobs), { align: 'right' }) +
+              cell('AED ' + money(r.revenue), { align: 'right', style: 'font-weight:600;' }) +
+              '</tr>'
+            );
+          })
+          .join(''),
       );
+    }
+    if (data.weeks && data.weeks.length) {
+      right = miniTable(
+        'Weekly management summary',
+        hcell('Week') + hcell('Jobs', 'right') + hcell('Qty', 'right') + hcell('Revenue', 'right'),
+        data.weeks
+          .map(function (w) {
+            return (
+              '<tr>' +
+              cell(esc(w.label), { style: 'font-weight:600;' }) +
+              cell(money(w.jobs), { align: 'right' }) +
+              cell(money(w.qty), { align: 'right' }) +
+              cell('AED ' + money(w.revenue), { align: 'right', style: 'font-weight:600;' }) +
+              '</tr>'
+            );
+          })
+          .join(''),
+      );
+    }
+    if (left || right) {
+      var both = left && right;
+      out +=
+        '<tr><td align="left" style="padding:16px 28px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+        (left
+          ? '<td align="left" valign="top" width="' +
+            (both ? '50%' : '100%') +
+            '" style="padding-right:' +
+            (both ? '14px' : '0') +
+            ';">' +
+            left +
+            '</td>'
+          : '') +
+        (right
+          ? '<td align="left" valign="top" width="' +
+            (both ? '50%' : '100%') +
+            '" style="padding-left:' +
+            (both ? '14px' : '0') +
+            ';">' +
+            right +
+            '</td>'
+          : '') +
+        '</tr></table></td></tr>';
     }
 
     var b = data.budget;
