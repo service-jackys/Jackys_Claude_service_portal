@@ -132,7 +132,9 @@
       }
       if (task.status === 'completed') {
         var done = task.completedAt ? dubaiDay(task.completedAt) : null;
-        if (done && done >= week.start && done <= week.end) results.push(task);
+        // Every completed, un-archived task is a Result until it is archived;
+        // only tasks finished after this week ended are left out of it.
+        if (!done || done <= week.end) results.push(task);
         return;
       }
       if (!task.startDate || task.startDate <= week.end) objectives.push(task);
@@ -318,7 +320,7 @@
   // ------------------------------------------------------ the three sections
   function resultRows(results) {
     if (!results.length) {
-      return note('<span style="color:' + MUTED + ';">No tasks were completed this week.</span>');
+      return note('<span style="color:' + MUTED + ';">No completed tasks to report.</span>');
     }
     return wrap(
       '<tr>' +
@@ -623,7 +625,7 @@
     out.push(input.greeting || 'Dear Sir,', '');
     out.push(input.intro ? input.intro : 'For your information,', '');
     out.push('RESULT');
-    if (!g.results.length) out.push('  No tasks were completed this week.');
+    if (!g.results.length) out.push('  No completed tasks to report.');
     g.results.forEach(function (t) {
       out.push(
         '  - ' +

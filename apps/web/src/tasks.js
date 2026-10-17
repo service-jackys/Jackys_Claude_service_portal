@@ -399,7 +399,7 @@
           rows.length +
           '</span></button>' +
           (status === 'completed'
-            ? '<button type="button" class="tk-link-btn" data-tk-archive-all title="Move every completed task to the archive">' +
+            ? '<button type="button" class="tk-link-btn" data-tk-archive-all title="After sending your ROI, move the completed tasks to the archive so next week starts clean">' +
               icon('archive') +
               'Archive all</button>'
             : '') +
@@ -743,7 +743,7 @@
         '"></div></div>' +
         '<div class="tk-field" data-tk-done-field' +
         (t.status === 'completed' ? '' : ' hidden') +
-        '><label for="tkDone">Completed on <span class="tk-opt">decides which week\u2019s ROI lists it as a Result</span></label><input id="tkDone" type="date" name="completedOn" value="' +
+        '><label for="tkDone">Completed on <span class="tk-opt">shown in the ROI Result until you archive it</span></label><input id="tkDone" type="date" name="completedOn" value="' +
         esc(t.completedAt ? Roi.dubaiDay(t.completedAt) : today()) +
         '"></div>' +
         '<div class="tk-field"><label for="tkPct">% complete <output data-tk-pct-out>' +
@@ -1462,7 +1462,7 @@
               .join('') +
             '</div><div class="tk-field"><label for="iDate">Completed rows were finished on</label><input id="iDate" type="date" data-i-date value="' +
             esc(today()) +
-            '"><p class="tk-hint">Completed tasks appear in the Result of the week they were finished. This defaults to today, so they show in this week’s ROI. Pick an earlier date to place them in a previous week.</p></div>' +
+            '"><p class="tk-hint">Completed tasks stay in the ROI Result until you archive them. This date is just the record of when they were finished.</p></div>' +
             '<div class="tk-compose-actions"><button type="button" class="button button-primary tk-btn" data-i-go>Import</button></div>';
         } catch (error) {
           out.innerHTML =
