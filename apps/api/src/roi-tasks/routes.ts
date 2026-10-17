@@ -119,6 +119,18 @@ export function createRoiHandlers(
         );
       }),
     ],
+    archiveTasks: [
+      use,
+      wrap(async (auth, request, response) => {
+        response.json(
+          await service.archiveMany(
+            auth,
+            request.body,
+            request.header('x-request-id') ?? undefined,
+          ),
+        );
+      }),
+    ],
     importTasks: [
       use,
       wrap(async (auth, request, response) => {

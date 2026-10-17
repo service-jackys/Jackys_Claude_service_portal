@@ -124,6 +124,7 @@
     var objectives = [];
     var issues = [];
     (tasks || []).forEach(function (task) {
+      if (task.archivedAt) return; // archived tasks never appear in an ROI
       var kind = task.kind || 'task';
       if (kind !== 'task') {
         if (task.status !== 'completed') issues.push(task);

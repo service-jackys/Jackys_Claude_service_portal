@@ -2859,3 +2859,16 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/043_roi_tasks.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, openapi.ts, apps/web/src/roi-core.js (new), tasks.js (new), index.html, app.js, tests/unit/roi-core.test.ts, tests/integration/roi-tasks.test.ts.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 043), restart the API and hard-refresh. Then grant **Tasks (ROI)** to the roles that should use it.
+
+## Modification #108 — Tasks (ROI): Archive for completed tasks, calmer list styling
+
+**Why.** Completed tasks kept appearing in later weekly ROIs, and the grouped list used heavy bold fonts.
+
+**What changed.**
+- **Archive.** The Completed group has an **Archive all** button (click twice to confirm) and each completed row has an archive icon. Archived tasks leave the list, Board, Timeline and KPIs and are never included in any weekly ROI. The **Archive** button in the toolbar opens the archive (with the completion date) and **Restore** brings a task back to Completed. Reopening a task (status or % below 100) also takes it out of the archive.
+- New API `POST /api/roi/tasks/archive` (body `{ids}`), and `archived: true/false` on the task PATCH. Table `roi_tasks` gets `archived_at` (migration 044).
+- **Styling.** Status groups have a coloured accent and tinted header, lighter font weights (600 headings, 500 task titles), consistent column widths across groups, and a hover-only archive icon on rows.
+
+**Files.** packages/db/migrations/044_roi_task_archive.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/roi-core.js, tasks.js, index.html, tests/integration/roi-tasks.test.ts.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 044), restart the API and hard-refresh.

@@ -1574,6 +1574,7 @@ export const roiTaskPatchSchema = z
     remarks: z.string().trim().max(2000).nullable(),
     sortOrder: z.number().int().min(0).max(1_000_000),
     completedOn: isoDate.nullable(),
+    archived: z.boolean(),
     ownerProfileId: z.string().regex(/^\d+$/),
   })
   .partial()
@@ -1591,6 +1592,10 @@ export const roiTaskListQuerySchema = z
     priority: z.enum(roiTaskPriorities).optional(),
     search: z.string().trim().min(1).max(200).optional(),
   })
+  .strict();
+
+export const roiArchiveSchema = z
+  .object({ ids: z.array(z.string().regex(/^\d+$/)).min(1).max(500) })
   .strict();
 
 const emailList = z.array(z.string().trim().email().max(320)).max(40);

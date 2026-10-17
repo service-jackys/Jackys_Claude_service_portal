@@ -111,6 +111,16 @@ test(
         '2026-10-09',
       );
 
+      // Archiving: completed only, restorable, and reopening un-archives.
+      t = await service.update(userA, task.id, { archived: true });
+      assert.ok(t.archivedAt);
+      t = await service.update(userA, task.id, { archived: false });
+      assert.equal(t.archivedAt, null);
+      assert.deepEqual(await service.archiveMany(userA, { ids: [task.id] }), { archived: 1 });
+      t = await service.update(userA, task.id, { percentComplete: 50 });
+      assert.deepEqual([t.status, t.archivedAt], ['in_progress', null]);
+      await service.update(userA, task.id, { status: 'completed' });
+
       // Dates, validation, reassignment
       await assert.rejects(
         service.create(userA, { title: 'bad', startDate: '2026-10-10', dueDate: '2026-10-01' }),

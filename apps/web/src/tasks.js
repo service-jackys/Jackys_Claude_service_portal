@@ -48,6 +48,7 @@
       owners: [],
       owner: 'me',
       f: { search: '', status: '', priority: '', kind: '' },
+      archive: false,
       panel: null,
       collapsed: { completed: true },
       loadError: '',
@@ -76,6 +77,7 @@
     const isAdmin = () => Boolean(deps.isAdmin && deps.isAdmin());
     const visible = (t) => {
       const f = st.f;
+      if (Boolean(t.archivedAt) !== st.archive) return false;
       if (f.status && t.status !== f.status) return false;
       if (f.priority && t.priority !== f.priority) return false;
       if (f.kind && t.kind !== f.kind) return false;
@@ -190,6 +192,7 @@
         options(PRIORITIES, Roi.PRIORITY_LABELS, '') +
         '</select>' +
         '<span data-tk-owner-host></span>' +
+        '<button type="button" class="tk-archive-toggle" data-tk-archive-toggle></button>' +
         '</div>' +
         '<div class="tk-toast" data-tk-toast role="status" hidden></div>' +
         '<div data-tk-content></div>' +
@@ -206,6 +209,9 @@
         upload: '<path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 20h14"/>',
         close: '<path d="M6 6l12 12M18 6 6 18"/>',
         chevron: '<path d="m9 6 6 6-6 6"/>',
+        archive:
+          '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
+        restore: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
         calendar:
           '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
       };
@@ -244,15 +250,27 @@
         host.querySelector('select').value = st.owner;
       } else host.innerHTML = '';
       drawKpis();
+      const archiveCount = st.tasks.filter((t) => t.archivedAt).length;
+      const toggle = root.querySelector('[data-tk-archive-toggle]');
+      toggle.classList.toggle('active', st.archive);
+      toggle.setAttribute('aria-pressed', String(st.archive));
+      toggle.innerHTML = st.archive
+        ? icon('chevron').replace('<svg', '<svg style="transform:rotate(180deg)"') + 'Back to tasks'
+        : icon('archive') +
+          'Archive' +
+          (archiveCount ? ' <span class="tk-count">' + archiveCount + '</span>' : '');
+      root.querySelector('.tk-toolbar').classList.toggle('tk-archiving', st.archive);
       const content = root.querySelector('[data-tk-content]');
-      if (st.view === 'board') content.innerHTML = boardHtml();
+      if (st.archive) content.innerHTML = archiveHtml();
+      else if (st.view === 'board') content.innerHTML = boardHtml();
       else if (st.view === 'timeline') content.innerHTML = timelineHtml();
       else content.innerHTML = listHtml();
     }
 
     function drawKpis() {
       const week = Roi.isoWeek(today());
-      const tasks = st.tasks.filter((t) => t.kind === 'task');
+      const live = st.tasks.filter((t) => !t.archivedAt);
+      const tasks = live.filter((t) => t.kind === 'task');
       const open = tasks.filter((t) => t.status !== 'completed');
       const doneWeek = tasks.filter(
         (t) =>
@@ -265,7 +283,7 @@
         (t) => t.dueDate && t.dueDate >= week.start && t.dueDate <= week.end,
       );
       const overdue = open.filter(isOverdue);
-      const issues = st.tasks.filter((t) => t.kind !== 'task' && t.status !== 'completed');
+      const issues = live.filter((t) => t.kind !== 'task' && t.status !== 'completed');
       const card = (label, value, sub, tone) =>
         '<div class="tk-kpi' +
         (tone ? ' tk-kpi-' + tone : '') +
@@ -333,6 +351,15 @@
         '<td class="tk-c-remarks">' +
         esc(t.remarks || '') +
         '</td>' +
+        '<td class="tk-c-act">' +
+        (done
+          ? '<button type="button" class="tk-icon-btn" data-tk-archive title="Move to archive" aria-label="Move ' +
+            esc(t.title) +
+            ' to archive">' +
+            icon('archive') +
+            '</button>'
+          : '') +
+        '</td>' +
         '</tr>'
       );
     }
@@ -358,7 +385,7 @@
         return (
           '<section class="tk-group tk-g-' +
           status +
-          '"><button type="button" class="tk-group-head" data-tk-group="' +
+          '"><div class="tk-group-bar"><button type="button" class="tk-group-head" data-tk-group="' +
           status +
           '" aria-expanded="' +
           !closed +
@@ -371,15 +398,57 @@
           '</span><span class="tk-count">' +
           rows.length +
           '</span></button>' +
+          (status === 'completed'
+            ? '<button type="button" class="tk-link-btn" data-tk-archive-all title="Move every completed task to the archive">' +
+              icon('archive') +
+              'Archive all</button>'
+            : '') +
+          '</div>' +
           (closed
             ? ''
-            : '<div class="tk-table-wrap"><table class="tk-table"><thead><tr><th class="tk-c-check"></th><th>Item</th><th>Priority</th><th>Start</th><th>Due</th><th>Progress</th><th>Remarks / next action</th></tr></thead><tbody>' +
+            : '<div class="tk-table-wrap"><table class="tk-table"><thead><tr><th class="tk-c-check"></th><th>Item</th><th>Priority</th><th>Start</th><th>Due</th><th>Progress</th><th>Remarks / next action</th><th class="tk-c-act"></th></tr></thead><tbody>' +
               rows.map(rowHtml).join('') +
               '</tbody></table></div>') +
           '</section>'
         );
       }).join('');
       return html;
+    }
+
+    function archiveHtml() {
+      const rows = st.tasks
+        .filter(visible)
+        .sort((a, b) => String(b.completedAt).localeCompare(String(a.completedAt)));
+      const head =
+        '<div class="tk-archive-note"><strong>Archive</strong><span>Archived tasks stay out of the list and out of every weekly ROI. Restore one to bring it back.</span></div>';
+      if (!rows.length)
+        return (
+          head +
+          '<p class="tk-empty">Nothing archived yet. Use Archive all on the Completed group.</p>'
+        );
+      return (
+        head +
+        '<section class="tk-group tk-g-archive"><div class="tk-table-wrap"><table class="tk-table"><thead><tr><th>Item</th><th>Completed on</th><th>Remarks</th><th class="tk-c-act"></th></tr></thead><tbody>' +
+        rows
+          .map(
+            (t) =>
+              '<tr class="tk-row tk-done" data-id="' +
+              t.id +
+              '"><td class="tk-c-title"><button type="button" class="tk-title" data-tk-open>' +
+              esc(t.title) +
+              '</button>' +
+              kindChip(t.kind) +
+              '</td><td class="tk-c-date">' +
+              esc(t.completedAt ? fmtDate(Roi.dubaiDay(t.completedAt)) : '') +
+              '</td><td class="tk-c-remarks">' +
+              esc(t.remarks || '') +
+              '</td><td class="tk-c-act"><button type="button" class="tk-link-btn" data-tk-restore>' +
+              icon('restore') +
+              'Restore</button></td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div></section>'
+      );
     }
 
     // ----------------------------------------------------------------- board
@@ -826,6 +895,45 @@
               st.anchor,
               (target.dataset.tkTl === 'next' ? 1 : -1) * (step / 2),
             );
+          return draw();
+        }
+        if (target.matches('[data-tk-archive-toggle]')) {
+          st.archive = !st.archive;
+          return draw();
+        }
+        if (target.matches('[data-tk-archive], [data-tk-restore]') && id) {
+          const restoring = target.matches('[data-tk-restore]');
+          try {
+            await patchTask(id, { archived: !restoring });
+            toast(restoring ? 'Restored to Completed.' : 'Moved to the archive.');
+          } catch (error) {
+            toast(error.message || 'Could not update the archive.', true);
+          }
+          return draw();
+        }
+        if (target.matches('[data-tk-archive-all]')) {
+          const ids = st.tasks
+            .filter((t) => t.status === 'completed' && !t.archivedAt && visible(t))
+            .map((t) => t.id);
+          if (!ids.length) return;
+          if (!target.dataset.confirm) {
+            target.dataset.confirm = '1';
+            target.lastChild.textContent = 'Click again to archive ' + ids.length;
+            return;
+          }
+          try {
+            await deps.apiRequest('/api/roi/tasks/archive', {
+              method: 'POST',
+              body: JSON.stringify({ ids }),
+            });
+            const stamp = new Date().toISOString();
+            st.tasks.forEach((t) => {
+              if (ids.includes(t.id)) t.archivedAt = stamp;
+            });
+            toast(ids.length + ' task(s) moved to the archive.');
+          } catch (error) {
+            toast(error.message || 'Could not archive.', true);
+          }
           return draw();
         }
         if (target.dataset.tkGroup) {
