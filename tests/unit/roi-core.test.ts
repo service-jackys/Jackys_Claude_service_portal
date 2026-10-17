@@ -77,6 +77,13 @@ test('groupForWeek puts tasks in Result, Objective and Issues', () => {
         status: 'in_progress',
         percentComplete: 30,
       }),
+      task({
+        title: 'archived result',
+        status: 'completed',
+        percentComplete: 100,
+        completedAt: '2026-10-01T05:00:00Z',
+        archivedAt: '2026-10-02T05:00:00Z',
+      }),
       task({ title: 'future start', startDate: '2026-10-20' }),
       task({ title: 'erp access', kind: 'issue' }),
       task({ title: 'closed issue', kind: 'issue', status: 'completed' }),
@@ -85,7 +92,9 @@ test('groupForWeek puts tasks in Result, Objective and Issues', () => {
   );
   assert.deepEqual(
     groups.results.map((t: any) => t.title),
-    ['done in week'],
+    // Completed and not archived, finished by the end of the week (oldest first);
+    // the archived task and the two finished after the week are left out.
+    ['done before', 'done in week'],
   );
   assert.deepEqual(
     groups.objectives.map((t: any) => t.title),
