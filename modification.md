@@ -2872,3 +2872,4 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/044_roi_task_archive.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/roi-core.js, tasks.js, index.html, tests/integration/roi-tasks.test.ts.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 044), restart the API and hard-refresh.
+- **Email look (ROI).** The formatted email and .eml now use smaller type, light-tinted section headers with a thin accent edge (Result green, Objective blue, Issues amber, Management Summary blue), and light dotted table lines instead of heavy solid bands and borders.
