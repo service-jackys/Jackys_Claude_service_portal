@@ -2841,3 +2841,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/export.ts, tests/unit/revenue-export-sheets.test.ts.
 
 **Needs you:** pull and restart the API. No migration, no web change.
+
+## Modification #107 — Tasks (ROI): personal task manager and weekly ROI email
+
+**Why.** Every employee sends management a weekly ROI (Results, Objectives, Issues / Innovation). It was built from a SharePoint WeeklyTasks tracker with Power Automate. The Management Summary now lives in the portal, so the ROI is built here too, from a proper task manager.
+
+**What changed.**
+- New tab **Tasks** under Records (permission `tasks.use`, granted to admin; give it to other roles in Roles & permissions). Each user sees and manages only their own tasks; an administrator can see and edit everyone's.
+- Task fields: title, type (task / issue / innovation / request), status, priority, start date, end date, % complete, remarks (shown in the ROI) and private notes (never emailed). Setting 100% completes a task; lowering % on a completed task reopens it; progress on a not-started task starts it.
+- Three views: **List** (grouped by status, inline complete / priority / %, quick add), **Board** (drag between status columns) and **Timeline** (Gantt-style, Days / Weeks zoom, today line). Search and type / status / priority filters; KPI strip (open, done this week, due this week, overdue, issues).
+- **Send ROI** pill in the Tasks tab and in Service Revenue Dashboard > Reports. Both open the same composer: pick the week (ISO week, dated that Friday), edit To / Cc, opening and signature, and see a live preview. Result = tasks completed that week, Objectives = open tasks (shown "50% -> 100%"), Issues / Innovation = open issue, innovation and request items.
+- For users with Service Revenue Dashboard access the ROI also carries the Management Summary as rich HTML, plus the weekly achievement against budget (monthly budget pro-rated by calendar days per ISO week).
+- Delivery is a draft only: **Copy formatted email** (paste into Outlook), **Download Outlook draft (.eml)** (opens as an unsent message with To / Cc filled) or a text-only mailto. The portal never sends mail. Default recipients are pre-filled as in the last email (To: Manohar and James Paul; Cc: Naresh, HR desk, Santhosh Antony and Shameer Abdulla) and each user can save their own defaults.
+- **Import** reads the old WeeklyTasks.xlsx (Result and Objective tables). Same-title tasks are skipped; completed rows are dated to the end of last week by default so history does not flood this week's Result.
+- Each drafted ROI is logged per week (table `roi_reports`) and shows in the Activity log.
+
+**Files.** packages/db/migrations/043_roi_tasks.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, openapi.ts, apps/web/src/roi-core.js (new), tasks.js (new), index.html, app.js, tests/unit/roi-core.test.ts, tests/integration/roi-tasks.test.ts.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 043), restart the API and hard-refresh. Then grant **Tasks (ROI)** to the roles that should use it.

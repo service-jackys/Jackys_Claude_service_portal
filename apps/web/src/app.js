@@ -770,6 +770,7 @@
     $('#financeNav').hidden = !canReadRevenue;
     $('#pricingMastersNav').hidden = !canReadPricingConfig;
     $('#reportsNav').hidden = !hasPermission('reports.read');
+    $('#tasksNav').hidden = !hasPermission('tasks.use');
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
@@ -12251,6 +12252,107 @@ ${bodyHtml}
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // Tasks (ROI) -- modification.md #107. The task manager and the ROI composer
+  // live in tasks.js; roi-core.js holds the week maths and email markup. The
+  // Management Summary block below reads the same revenue / budget endpoints as
+  // the Service Revenue Dashboard, so the ROI and the dashboard always agree.
+  let tasksUi = null;
+  function getTasksUi() {
+    if (!tasksUi) {
+      tasksUi = window.JdTasks.create({
+        apiRequest,
+        apiUpload: apiUploadRequest,
+        escapeHtml,
+        tipHtml,
+        isAdmin: () => Boolean(currentUser?.permissions?.includes('*')),
+        getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
+        canSummary: () => hasPermission('revenue_dashboard.read'),
+        loadSummary: roiSummaryData,
+        download: rdDownloadBlob,
+      });
+    }
+    return tasksUi;
+  }
+
+  // Management Summary for the month the ROI week ends in: month totals, revenue
+  // by job type, the weekly table, and budget achievement when a budget exists.
+  async function roiSummaryData(week) {
+    if (!hasPermission('revenue_dashboard.read')) {
+      return { data: null, reason: 'No Service Revenue access' };
+    }
+    const year = Number(week.friday.slice(0, 4));
+    const month = Number(week.friday.slice(5, 7));
+    const period = week.friday.slice(0, 7);
+    try {
+      const [byType, byWeek, budget] = await Promise.all([
+        rdApi('group', { year, month, dimension: 'jobType' }),
+        rdApi('group', { year, month, dimension: 'week' }),
+        apiRequest('/api/revenue-dashboard/budget').catch(() => null),
+      ]);
+      if (!byType.batch) return { data: null, reason: 'No revenue workbook uploaded' };
+      const totals = byType.data.totals;
+      if (!totals.jobs) {
+        return {
+          data: null,
+          reason: 'No revenue data for ' + RD_MONTHS_FULL[month - 1] + ' ' + year,
+        };
+      }
+      const weeks = [...byWeek.data.rows].sort((a, b) => Number(a.key) - Number(b.key));
+      const data = {
+        monthLabel: RD_MONTHS_FULL[month - 1] + ' ' + year,
+        totals,
+        byType: rdSortJobTypes(byType.data.rows.map((r) => r.key)).map((code) => {
+          const r = byType.data.rows.find((x) => x.key === code);
+          return { code, label: rdJobLabel(code), jobs: r.jobs, revenue: r.revenue };
+        }),
+        weeks: weeks.map((w) => ({
+          label: 'W' + w.key,
+          jobs: w.jobs,
+          qty: w.qty,
+          revenue: w.revenue,
+        })),
+        budget: null,
+        source: byType.batch.fileName,
+      };
+      if (budget && budget.budgetBatch) {
+        const lines = new Map();
+        budget.budget.forEach((row) => {
+          if (row.section !== 'revenue') return;
+          if (!lines.has(row.lineItem)) lines.set(row.lineItem, {});
+          lines.get(row.lineItem)[row.period] = Number(row.amount);
+        });
+        const revenueBudget = lines.size ? [...lines.values()][0] : {};
+        const monthBudget = revenueBudget[period] || 0;
+        const actualByPeriod = {};
+        budget.actual.forEach((row) => {
+          actualByPeriod[row.period] = Number(row.revenue);
+        });
+        const upTo = Object.keys(actualByPeriod).filter(
+          (p) => p.slice(0, 4) === String(year) && p <= period,
+        );
+        data.budget = {
+          monthLabel: RD_MONTHS[month - 1] + ' ' + String(year).slice(2),
+          monthBudget,
+          monthActual: totals.revenue,
+          weeks: JdRoi.weeklyBudget(
+            monthBudget,
+            year,
+            month,
+            weeks.map((w) => ({ week: w.key, actual: w.revenue, jobs: w.jobs, qty: w.qty })),
+          ),
+          ytd: {
+            budget: upTo.reduce((sum, p) => sum + (revenueBudget[p] || 0), 0),
+            actual: upTo.reduce((sum, p) => sum + actualByPeriod[p], 0),
+          },
+        };
+      }
+      return { data };
+    } catch (error) {
+      return { data: null, reason: error.message || 'Could not load the revenue data' };
+    }
+  }
+
   const PRICING_CALC_PAGES = {
     'vas-calc': {
       navId: 'vasCalcNav',
@@ -12275,6 +12377,16 @@ ${bodyHtml}
       description: 'Stand-alone quote calculator, reading Thomson Pricing Admin’s admin data.',
       domains: ['thomson_pricing'],
       render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
+    },
+    tasks: {
+      navId: 'tasksNav',
+      workspaceId: 'tasksWorkspace',
+      heading: 'Tasks',
+      description: 'Your weekly tasks, objectives and issues; send them to management as the ROI.',
+      permission: 'tasks.use',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => getTasksUi().renderPage(root),
     },
     'revenue-dashboard': {
       navId: 'revenueDashNav',
@@ -14668,6 +14780,8 @@ ${bodyHtml}
     'revenue_dashboard.view_exported': 'Revenue view (drill-down) downloaded',
     'revenue_dashboard.email_drafted': 'Revenue summary email drafted',
     'revenue_dashboard.summary_copied': 'Revenue summary copied',
+    'roi.report_drafted': 'Weekly ROI email drafted',
+    'roi.tasks_imported': 'Tasks imported from the weekly tracker',
     'pricing_config.saved': 'Pricing master saved',
     'pricing_config.reset': 'Pricing master reset to defaults',
     'pricing_config.restored': 'Pricing master restored',
@@ -17345,7 +17459,11 @@ ${bodyHtml}
             '</button>',
         ).join('') +
         '</div>' +
-        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button><button class="button button-outline" type="button" data-rd-html-email>Formatted email</button></div>' +
+        '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button><button class="button button-outline" type="button" data-rd-html-email>Formatted email</button>' +
+        (hasPermission('tasks.use')
+          ? '<button class="tk-pill tk-pill-accent" type="button" data-rd-send-roi title="Build this week\u2019s ROI (Results, Management Summary, Objectives, Issues) as an email draft">Send ROI</button>'
+          : '') +
+        '</div>' +
         '<div data-rd-html-box hidden class="rd-pad"><div class="rd-report-actions"><button class="button" type="button" data-rd-html-copy>Copy formatted email</button><button class="button button-outline" type="button" data-rd-html-eml>Download as email draft (.eml)</button><button class="button button-outline" type="button" data-rd-html-file>Download .html</button><span class="form-note" data-rd-html-msg>Paste into Outlook or Gmail, or open the .eml file; add recipients and send yourself. Nothing is sent from the portal.</span></div><iframe data-rd-html-frame title="Formatted email preview" style="width:100%;height:760px;border:1px solid #d7dbe0;background:#eef1f5;margin-top:10px;"></iframe></div>' +
         '<div data-rd-summary-box hidden class="rd-pad"><textarea class="rd-summary-text" readonly rows="14"></textarea><div class="rd-report-actions"><button class="button button-outline" type="button" data-rd-copy>Copy text</button><span class="form-note" data-rd-copy-msg>Plain-text summary for email &mdash; nothing is sent.</span></div></div></div>' +
         '<div data-rd-report-body></div>';
@@ -17477,6 +17595,9 @@ ${bodyHtml}
       body.querySelector('[data-rd-html-file]').addEventListener('click', () => {
         if (!emailBuilt) return;
         emailDownload(emailBuilt.html, 'service-revenue-summary.html', 'text/html');
+      });
+      body.querySelector('[data-rd-send-roi]')?.addEventListener('click', () => {
+        getTasksUi().openComposer({ source: 'revenue' });
       });
       body.querySelector('[data-rd-copy]').addEventListener('click', async () => {
         const area = body.querySelector('[data-rd-summary-box] textarea');
@@ -18828,6 +18949,7 @@ ${bodyHtml}
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
+  $('#tasksNav')?.addEventListener('click', () => setWorkspaceMode('tasks'));
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
