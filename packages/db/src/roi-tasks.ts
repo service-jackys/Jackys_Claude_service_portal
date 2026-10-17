@@ -31,6 +31,8 @@ export type RoiTaskWrite = {
   remarks?: string | null;
   sortOrder?: number;
   ownerProfileId?: string;
+  // Day (YYYY-MM-DD) a completed task was finished; defaults to today.
+  completedOn?: string | null;
 };
 
 // Dates travel as plain YYYY-MM-DD strings, never as JS Dates, so a Dubai
@@ -106,7 +108,7 @@ export async function insertRoiTask(
     `INSERT INTO roi_tasks (owner_profile_id, title, notes, kind, status, priority, start_date,
                             due_date, percent_complete, remarks, completed_at, sort_order)
      VALUES ($1, $2, $3, COALESCE($4, 'task'), $5, COALESCE($6, 'medium'), $7::date, $8::date, $9,
-             $10, CASE WHEN $5 = 'completed' THEN now() END,
+             $10, CASE WHEN $5 = 'completed' THEN COALESCE($12::date + time '12:00', now()) END,
              COALESCE($11, (SELECT COALESCE(max(sort_order), 0) + 10 FROM roi_tasks
                             WHERE owner_profile_id = $1)))
      RETURNING id`,
@@ -122,6 +124,7 @@ export async function insertRoiTask(
       percent,
       input.remarks ?? null,
       input.sortOrder ?? null,
+      input.completedOn ?? null,
     ],
   );
   return result.rows[0].id;
@@ -164,7 +167,10 @@ export async function updateRoiTask(
     values.push(next[key]);
     sets.push(`${column} = $${values.length}${cast ?? ''}`);
   }
-  if (finalStatus === 'completed' && current.status !== 'completed')
+  if (finalStatus === 'completed' && next.completedOn) {
+    values.push(next.completedOn);
+    sets.push(`completed_at = $${values.length}::date + time '12:00'`);
+  } else if (finalStatus === 'completed' && current.status !== 'completed')
     sets.push('completed_at = now()');
   if (finalStatus !== 'completed' && current.status === 'completed')
     sets.push('completed_at = NULL');

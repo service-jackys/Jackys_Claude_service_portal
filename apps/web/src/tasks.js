@@ -672,6 +672,11 @@
         '<div class="tk-field"><label for="tkDue">End date</label><input id="tkDue" type="date" name="dueDate" value="' +
         esc(t.dueDate || '') +
         '"></div></div>' +
+        '<div class="tk-field" data-tk-done-field' +
+        (t.status === 'completed' ? '' : ' hidden') +
+        '><label for="tkDone">Completed on <span class="tk-opt">decides which week\u2019s ROI lists it as a Result</span></label><input id="tkDone" type="date" name="completedOn" value="' +
+        esc(t.completedAt ? Roi.dubaiDay(t.completedAt) : today()) +
+        '"></div>' +
         '<div class="tk-field"><label for="tkPct">% complete <output data-tk-pct-out>' +
         t.percentComplete +
         '%</output></label><input id="tkPct" type="range" min="0" max="100" step="5" name="percentComplete" value="' +
@@ -756,6 +761,7 @@
         remarks: get('remarks') || null,
         notes: get('notes') || null,
       };
+      if (body.status === 'completed' && get('completedOn')) body.completedOn = get('completedOn');
       const fail = (m) => {
         errorEl.textContent = m;
         errorEl.hidden = false;
@@ -890,6 +896,8 @@
             if (el.value === 'completed') range.value = 100;
             else if (el.value === 'not_started') range.value = 0;
             root.querySelector('[data-tk-pct-out]').textContent = range.value + '%';
+            const done = root.querySelector('[data-tk-done-field]');
+            if (done) done.hidden = el.value !== 'completed';
           }
         } catch (error) {
           toast(error.message || 'Could not save that change.', true);
@@ -916,6 +924,8 @@
           else if (status.value === 'completed') status.value = 'in_progress';
           else if (status.value === 'not_started' && Number(el.value) > 0)
             status.value = 'in_progress';
+          const done = root.querySelector('[data-tk-done-field]');
+          if (done) done.hidden = status.value !== 'completed';
         }
       });
 
@@ -1343,8 +1353,8 @@
               )
               .join('') +
             '</div><div class="tk-field"><label for="iDate">Completed rows were finished on</label><input id="iDate" type="date" data-i-date value="' +
-            esc(Roi.addDays(Roi.isoWeek(today()).start, -1)) +
-            '"><p class="tk-hint">Completed tasks only appear in the ROI of the week they were finished. This defaults to the end of last week so history stays out of this week’s Result; pick a date in this week to include them.</p></div>' +
+            esc(today()) +
+            '"><p class="tk-hint">Completed tasks appear in the Result of the week they were finished. This defaults to today, so they show in this week’s ROI. Pick an earlier date to place them in a previous week.</p></div>' +
             '<div class="tk-compose-actions"><button type="button" class="button button-primary tk-btn" data-i-go>Import</button></div>';
         } catch (error) {
           out.innerHTML =

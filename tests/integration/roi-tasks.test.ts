@@ -104,6 +104,12 @@ test(
       assert.deepEqual([t.status, t.completedAt], ['in_progress', null]);
       t = await service.update(userA, task.id, { status: 'completed' });
       assert.deepEqual([t.percentComplete, Boolean(t.completedAt)], [100, true]);
+      // The completion day can be set so a task lands in the right week's ROI.
+      t = await service.update(userA, task.id, { completedOn: '2026-10-09' });
+      assert.equal(
+        new Date(t.completedAt as unknown as string).toISOString().slice(0, 10),
+        '2026-10-09',
+      );
 
       // Dates, validation, reassignment
       await assert.rejects(

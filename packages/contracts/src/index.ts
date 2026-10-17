@@ -1551,6 +1551,7 @@ export const roiTaskWriteSchema = z
     percentComplete: z.number().int().min(0).max(100).optional(),
     remarks: z.string().trim().max(2000).nullish(),
     sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+    completedOn: isoDate.nullish(),
     // Administrators may create or move a task for another user.
     ownerProfileId: z.string().regex(/^\d+$/).optional(),
   })
@@ -1572,6 +1573,7 @@ export const roiTaskPatchSchema = z
     percentComplete: z.number().int().min(0).max(100),
     remarks: z.string().trim().max(2000).nullable(),
     sortOrder: z.number().int().min(0).max(1_000_000),
+    completedOn: isoDate.nullable(),
     ownerProfileId: z.string().regex(/^\d+$/),
   })
   .partial()
