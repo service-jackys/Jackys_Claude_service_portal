@@ -3593,6 +3593,26 @@
           <li>Pull, restart the API and download the export again. No migration.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#107 &mdash; Tasks (ROI) and weekly ROI email</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-17 &middot; Migration 043, API and web</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>New Tasks tab under Records: List, Board and Timeline views with priority, start / end date, % complete and remarks. Each user sees their own tasks; admin sees all.</li>
+          <li>Send ROI pill in Tasks and in Service Revenue &rarr; Reports builds the weekly ROI (Results, Objectives, Issues / Innovation) with the rich Management Summary and budget achievement for users with dashboard access.</li>
+          <li>Output is an Outlook draft (.eml or formatted copy); nothing is sent from the portal. Recipients are pre-filled and editable per user.</li>
+          <li>Import from the old WeeklyTasks.xlsx; access is the new permission <code>tasks.use</code>.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, run <code>npm run db:migrate</code>, restart the API, hard-refresh, then grant Tasks (ROI) to the roles that need it.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

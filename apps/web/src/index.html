@@ -5665,6 +5665,1058 @@
         font-weight: 500;
         color: var(--muted);
       }
+      /* ---------------------------------------------------------------
+         Tasks (ROI) -- modification.md #107
+         --------------------------------------------------------------- */
+      .tk {
+        --tk-radius: 12px;
+        --tk-s-not_started: #94a3b8;
+        --tk-s-in_progress: #2563eb;
+        --tk-s-on_hold: #d97706;
+        --tk-s-completed: #16a34a;
+        --tk-name-w: 280px;
+        color: var(--ink);
+      }
+      .tk [hidden] {
+        display: none !important;
+      }
+      .tk .sr-only,
+      .tk-modal .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .tk-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem;
+        flex-wrap: wrap;
+        margin-bottom: 1rem;
+      }
+      .tk-head-title {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .tk-head-title h3 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: var(--navy);
+      }
+      .tk-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .tk-btn {
+        min-height: 38px;
+        padding: 0.45rem 0.85rem;
+        font-size: 0.85rem;
+      }
+      .tk-ico {
+        width: 16px;
+        height: 16px;
+        flex: none;
+      }
+      /* Small pill-shaped action (also used on the Revenue Reports row). */
+      .tk-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        min-height: 34px;
+        padding: 0.3rem 0.95rem;
+        border: 1px solid var(--navy);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--navy);
+        font-size: 0.82rem;
+        font-weight: 700;
+        transition:
+          background-color 0.15s ease,
+          color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .tk-pill:hover:not(:disabled) {
+        background: var(--navy);
+        color: #fff;
+        box-shadow: 0 6px 14px rgb(16 43 78 / 18%);
+      }
+      .tk-pill-accent {
+        border-color: var(--red);
+        background: var(--red);
+        color: #fff;
+      }
+      .tk-pill-accent:hover:not(:disabled) {
+        background: #a62727;
+        border-color: #a62727;
+      }
+      .tk-kpis {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.75rem;
+        margin-bottom: 1rem;
+      }
+      .tk-kpi {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+        padding: 0.75rem 0.9rem;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--navy);
+        border-radius: var(--tk-radius);
+        background: #fff;
+      }
+      .tk-kpi-good {
+        border-left-color: var(--tk-s-completed);
+      }
+      .tk-kpi-bad {
+        border-left-color: var(--red);
+      }
+      .tk-kpi-label {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .tk-kpi-value {
+        font-size: 1.5rem;
+        font-weight: 800;
+        line-height: 1.15;
+        color: var(--navy);
+      }
+      .tk-kpi-sub {
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .tk-toolbar {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.9rem;
+      }
+      .tk-toolbar select {
+        width: auto;
+        min-width: 120px;
+      }
+      .tk-toolbar select,
+      .tk-search input {
+        min-height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        padding: 0.3rem 0.6rem;
+        font-size: 0.84rem;
+        color: var(--ink);
+      }
+      .tk-search {
+        flex: 1 1 180px;
+        max-width: 280px;
+      }
+      .tk-search input {
+        width: 100%;
+      }
+      .tk-seg {
+        display: inline-flex;
+        padding: 3px;
+        gap: 2px;
+        border-radius: 10px;
+        background: #e7edf4;
+      }
+      .tk-seg button,
+      .tk-seg label {
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        padding: 0.3rem 0.85rem;
+        font-size: 0.82rem;
+        font-weight: 700;
+        color: var(--muted);
+        cursor: pointer;
+      }
+      .tk-seg button.active,
+      .tk-seg label.active {
+        background: #fff;
+        color: var(--navy);
+        box-shadow: 0 1px 3px rgb(16 43 78 / 18%);
+      }
+      .tk-seg-wide {
+        display: flex;
+      }
+      .tk-seg-wide label {
+        flex: 1;
+        text-align: center;
+      }
+      .tk-seg-wide input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+      }
+      .tk-seg-wide label:focus-within {
+        outline: 2px solid var(--blue);
+      }
+      .tk-toast {
+        margin: 0 0 0.75rem;
+        padding: 0.55rem 0.85rem;
+        border-radius: 9px;
+        background: #e8f5ee;
+        color: var(--success);
+        font-size: 0.85rem;
+        font-weight: 600;
+      }
+      .tk-toast-error {
+        background: #fdecec;
+        color: var(--red);
+      }
+      .tk-empty {
+        padding: 2rem 1rem;
+        text-align: center;
+        color: var(--muted);
+        border: 1px dashed var(--line);
+        border-radius: var(--tk-radius);
+        background: #fff;
+      }
+      /* status colours */
+      .tk-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--tk-s-not_started);
+        flex: none;
+      }
+      .tk-dot.tk-s-in_progress,
+      .tk-progress-fill.tk-s-in_progress {
+        background: var(--tk-s-in_progress);
+      }
+      .tk-dot.tk-s-on_hold,
+      .tk-progress-fill.tk-s-on_hold {
+        background: var(--tk-s-on_hold);
+      }
+      .tk-dot.tk-s-completed,
+      .tk-progress-fill.tk-s-completed {
+        background: var(--tk-s-completed);
+      }
+      .tk-progress-fill.tk-s-not_started {
+        background: var(--tk-s-not_started);
+      }
+      .tk-count {
+        min-width: 22px;
+        padding: 0 7px;
+        border-radius: 999px;
+        background: #e7edf4;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-align: center;
+        color: var(--muted);
+      }
+      /* list */
+      .tk-quickadd {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.9rem;
+      }
+      .tk-quickadd input {
+        flex: 1;
+        min-height: 40px;
+        border: 1px dashed #b7c4d3;
+        border-radius: 10px;
+        background: #fff;
+        padding: 0.4rem 0.8rem;
+        font-size: 0.9rem;
+      }
+      .tk-quickadd input:focus {
+        border-style: solid;
+        border-color: var(--blue);
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(23 105 170 / 15%);
+      }
+      .tk-group {
+        margin-bottom: 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: var(--tk-radius);
+        background: #fff;
+        overflow: hidden;
+      }
+      .tk-group-head {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        width: 100%;
+        border: 0;
+        background: var(--surface-soft);
+        padding: 0.6rem 0.85rem;
+        text-align: left;
+        font-weight: 800;
+        color: var(--navy);
+      }
+      .tk-group-head .tk-ico {
+        transition: transform 0.15s ease;
+      }
+      .tk-group-head[aria-expanded='true'] .tk-ico {
+        transform: rotate(90deg);
+      }
+      .tk-table-wrap {
+        overflow-x: auto;
+      }
+      .tk-table {
+        width: 100%;
+        min-width: 760px;
+        border-collapse: collapse;
+        font-size: 0.86rem;
+      }
+      .tk-table th {
+        padding: 0.45rem 0.6rem;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .tk-table td {
+        padding: 0.45rem 0.6rem;
+        border-bottom: 1px solid #eef2f6;
+        vertical-align: middle;
+      }
+      .tk-row:hover td {
+        background: #f8fafc;
+      }
+      .tk-row:last-child td {
+        border-bottom: 0;
+      }
+      .tk-c-check {
+        width: 34px;
+        text-align: center;
+      }
+      .tk-c-check input {
+        width: 17px;
+        height: 17px;
+        accent-color: var(--tk-s-completed);
+      }
+      .tk-c-title {
+        min-width: 240px;
+      }
+      .tk-c-date {
+        white-space: nowrap;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .tk-c-progress {
+        min-width: 150px;
+        white-space: nowrap;
+      }
+      .tk-c-progress input {
+        width: 92px;
+        vertical-align: middle;
+        accent-color: var(--blue);
+      }
+      .tk-c-progress output {
+        display: inline-block;
+        width: 38px;
+        margin-left: 6px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .tk-c-remarks {
+        max-width: 280px;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .tk-done .tk-title {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
+      .tk-title {
+        border: 0;
+        background: none;
+        padding: 0;
+        text-align: left;
+        font-weight: 700;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .tk-title:hover {
+        color: var(--blue);
+        text-decoration: underline;
+      }
+      .tk-kind {
+        display: inline-block;
+        margin-left: 0.45rem;
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+        vertical-align: middle;
+      }
+      .tk-kind-issue {
+        background: #ffedd5;
+        color: #9a3412;
+      }
+      .tk-kind-innovation {
+        background: #ede9fe;
+        color: #5b21b6;
+      }
+      .tk-kind-request {
+        background: #cffafe;
+        color: #155e75;
+      }
+      .tk-inline {
+        width: auto;
+        min-width: 92px;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: #eef2f6;
+        padding: 0.2rem 0.55rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .tk-inline:hover {
+        border-color: var(--line);
+      }
+      .tk-p-urgent {
+        background: #fde8e8;
+        color: #b42318;
+      }
+      .tk-p-high {
+        background: #ffedd5;
+        color: #b45309;
+      }
+      .tk-p-medium {
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+      .tk-p-low {
+        background: #eef2f6;
+        color: #475467;
+      }
+      .tk-overdue {
+        color: var(--red) !important;
+        font-weight: 700;
+      }
+      .tk-progress {
+        display: block;
+        flex: 1;
+        height: 6px;
+        border-radius: 999px;
+        background: #e7edf4;
+        overflow: hidden;
+      }
+      .tk-progress-fill {
+        display: block;
+        height: 100%;
+        border-radius: 999px;
+      }
+      /* board */
+      .tk-board {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(230px, 1fr));
+        gap: 0.75rem;
+        overflow-x: auto;
+        padding-bottom: 0.5rem;
+      }
+      .tk-col {
+        min-height: 220px;
+        padding: 0.6rem;
+        border: 1px solid var(--line);
+        border-radius: var(--tk-radius);
+        background: var(--surface-soft);
+      }
+      .tk-col > header {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 0.6rem;
+        font-weight: 800;
+        color: var(--navy);
+      }
+      .tk-col-over {
+        background: #e9f3fb;
+        border-color: var(--blue);
+      }
+      .tk-cards {
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+      }
+      .tk-col-empty {
+        margin: 1.2rem 0;
+        text-align: center;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .tk-card {
+        padding: 0.65rem 0.75rem;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 6%);
+        cursor: grab;
+      }
+      .tk-card:hover {
+        box-shadow: 0 6px 16px rgb(16 43 78 / 12%);
+      }
+      .tk-dragging {
+        opacity: 0.45;
+      }
+      .tk-pb-urgent {
+        border-left-color: #dc2626;
+      }
+      .tk-pb-high {
+        border-left-color: #f59e0b;
+      }
+      .tk-pb-medium {
+        border-left-color: #3b82f6;
+      }
+      .tk-pb-low {
+        border-left-color: #cbd5e1;
+      }
+      .tk-card-title {
+        display: block;
+        border: 0;
+        background: none;
+        padding: 0;
+        text-align: left;
+        font-weight: 700;
+        font-size: 0.88rem;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      .tk-card-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+        margin: 0.4rem 0;
+      }
+      .tk-card-meta .tk-kind {
+        margin: 0;
+      }
+      .tk-prio {
+        padding: 1px 8px;
+        border-radius: 999px;
+        font-size: 0.68rem;
+        font-weight: 700;
+      }
+      .tk-due {
+        display: inline-flex;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .tk-due .tk-ico {
+        width: 12px;
+        height: 12px;
+      }
+      .tk-card-remarks {
+        margin: 0 0 0.4rem;
+        font-size: 0.78rem;
+        color: var(--muted);
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .tk-card-foot {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .tk-pct {
+        font-size: 0.74rem;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .tk-card-foot select {
+        max-width: 108px;
+        font-size: 0.72rem;
+      }
+      /* timeline */
+      .tk-tl-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        margin-bottom: 0.6rem;
+      }
+      .tk-tl-nav {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .tk-tl-range {
+        margin-left: 0.4rem;
+        font-size: 0.84rem;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .tk-tl-scroll {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: var(--tk-radius);
+        background: #fff;
+      }
+      .tk-tl {
+        position: relative;
+        width: max-content;
+        min-width: 100%;
+      }
+      .tk-tl-head,
+      .tk-tl-row {
+        display: flex;
+      }
+      .tk-tl-name {
+        position: sticky;
+        left: 0;
+        z-index: 3;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 1px;
+        flex: none;
+        width: var(--tk-name-w);
+        padding: 0.4rem 0.75rem;
+        border-right: 1px solid var(--line);
+        border-bottom: 1px solid #eef2f6;
+        background: #fff;
+        overflow: hidden;
+      }
+      .tk-tl-name .tk-title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 0.84rem;
+      }
+      .tk-tl-name .tk-kind {
+        margin: 2px 0 0;
+        width: max-content;
+      }
+      .tk-tl-sub {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .tk-tl-corner {
+        justify-content: flex-end;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+      }
+      .tk-tl-heads {
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+      }
+      .tk-tl-weeks,
+      .tk-tl-days {
+        display: flex;
+      }
+      .tk-tl-week {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        padding: 0.3rem 0.4rem;
+        border-left: 1px solid var(--line);
+        font-size: 0.7rem;
+        color: var(--muted);
+      }
+      .tk-tl-week strong {
+        font-size: 0.76rem;
+        color: var(--navy);
+      }
+      .tk-tl-day {
+        flex: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 2px 0;
+        border-left: 1px solid #eef2f6;
+        font-size: 0.7rem;
+        color: var(--muted);
+      }
+      .tk-tl-day span {
+        font-size: 0.6rem;
+      }
+      .tk-wknd {
+        background: #eef1f5;
+      }
+      .tk-today-cell {
+        background: #fde8e8;
+        color: var(--red);
+        font-weight: 800;
+      }
+      .tk-tl-track {
+        position: relative;
+        flex: none;
+        height: 46px;
+        border-bottom: 1px solid #eef2f6;
+        background-image: linear-gradient(to right, #eef2f6 1px, transparent 1px);
+      }
+      .tk-tl-body {
+        position: relative;
+      }
+      .tk-tl-today-wrap {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 0;
+        pointer-events: none;
+        z-index: 2;
+      }
+      .tk-today-line {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: var(--red);
+        opacity: 0.75;
+      }
+      .tk-bar {
+        position: absolute;
+        top: 11px;
+        height: 24px;
+        min-width: 8px;
+        border: 0;
+        border-radius: 7px;
+        background: #dbe4ee;
+        color: #fff;
+        overflow: hidden;
+        text-align: left;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 18%);
+      }
+      .tk-bar:hover {
+        filter: brightness(0.95);
+        box-shadow: 0 4px 10px rgb(16 43 78 / 25%);
+      }
+      .tk-bar-fill {
+        position: absolute;
+        inset: 0 auto 0 0;
+        background: rgb(0 0 0 / 22%);
+      }
+      .tk-bar-label {
+        position: relative;
+        display: block;
+        padding: 0 8px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 24px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .tk-bs-not_started {
+        background: #94a3b8;
+      }
+      .tk-bs-in_progress {
+        background: #2563eb;
+      }
+      .tk-bs-on_hold {
+        background: #d97706;
+      }
+      .tk-bs-completed {
+        background: #16a34a;
+      }
+      .tk-bar-overdue {
+        outline: 2px solid var(--red);
+      }
+      .tk-cut-l {
+        border-top-left-radius: 0;
+        border-bottom-left-radius: 0;
+      }
+      .tk-cut-r {
+        border-top-right-radius: 0;
+        border-bottom-right-radius: 0;
+      }
+      .tk-undated {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.75rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .tk-chip {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        padding: 0.2rem 0.7rem;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: var(--ink);
+        cursor: pointer;
+      }
+      /* side panel + modal */
+      .tk-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        background: rgb(8 26 48 / 45%);
+      }
+      .tk-panel {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 81;
+        display: flex;
+        flex-direction: column;
+        width: min(460px, 100vw);
+        background: #fff;
+        box-shadow: -18px 0 45px rgb(16 43 78 / 22%);
+      }
+      .tk-panel > header,
+      .tk-modal > header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.9rem 1.1rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .tk-panel h4,
+      .tk-modal h4 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: var(--navy);
+      }
+      .tk-x {
+        display: inline-flex;
+        width: 34px;
+        height: 34px;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        color: var(--muted);
+      }
+      .tk-x:hover {
+        background: var(--surface-soft);
+        color: var(--ink);
+      }
+      .tk-panel form {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .tk-panel-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.1rem;
+      }
+      .tk-panel footer {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.8rem 1.1rem;
+        border-top: 1px solid var(--line);
+      }
+      .tk-spacer {
+        flex: 1;
+      }
+      .tk-danger {
+        border-color: #f1b4b4;
+        color: var(--red);
+      }
+      .tk-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        margin-bottom: 0.9rem;
+      }
+      .tk-field label,
+      .tk-label {
+        font-size: 0.78rem;
+        font-weight: 700;
+        color: var(--navy);
+      }
+      .tk-field input,
+      .tk-field select,
+      .tk-field textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: #fff;
+        padding: 0.5rem 0.65rem;
+        font-size: 0.9rem;
+        color: var(--ink);
+      }
+      .tk-field input[type='range'] {
+        padding: 0;
+        accent-color: var(--blue);
+      }
+      .tk-field input:focus,
+      .tk-field select:focus,
+      .tk-field textarea:focus {
+        outline: none;
+        border-color: var(--blue);
+        box-shadow: 0 0 0 3px rgb(23 105 170 / 15%);
+      }
+      .tk-field textarea {
+        resize: vertical;
+      }
+      .tk-field output {
+        margin-left: 0.4rem;
+        color: var(--blue);
+      }
+      .tk-grid2 {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+      }
+      .tk-opt {
+        font-weight: 500;
+        color: var(--muted);
+      }
+      .tk-hint {
+        margin: 0.2rem 0 0;
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .tk-error {
+        margin: 0 0 0.75rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 8px;
+        background: #fdecec;
+        color: var(--red);
+        font-size: 0.84rem;
+        font-weight: 600;
+      }
+      .tk-modal {
+        position: fixed;
+        top: 4vh;
+        left: 50%;
+        z-index: 81;
+        display: flex;
+        flex-direction: column;
+        width: min(1180px, 96vw);
+        max-height: 92vh;
+        transform: translateX(-50%);
+        border-radius: 16px;
+        background: #fff;
+        box-shadow: 0 30px 80px rgb(8 26 48 / 40%);
+      }
+      .tk-modal-sm {
+        width: min(520px, 96vw);
+      }
+      .tk-modal-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem 1.2rem 1.2rem;
+      }
+      .tk-compose {
+        display: grid;
+        grid-template-columns: minmax(300px, 400px) 1fr;
+        gap: 1.25rem;
+        align-items: start;
+      }
+      .tk-weeknav {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin-bottom: 0.5rem;
+      }
+      .tk-weeklabel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        text-align: center;
+        font-size: 0.88rem;
+        color: var(--navy);
+      }
+      .tk-weeklabel span {
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .tk-counts {
+        display: flex;
+        gap: 0.9rem;
+        margin: 0 0 1rem;
+        padding: 0.5rem 0.75rem;
+        border-radius: 9px;
+        background: var(--surface-soft);
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .tk-counts b {
+        color: var(--navy);
+        font-size: 1rem;
+      }
+      .tk-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0 0 0.9rem;
+        font-size: 0.86rem;
+        font-weight: 600;
+      }
+      .tk-compose-actions {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        margin-top: 0.4rem;
+      }
+      .tk-compose-preview {
+        position: sticky;
+        top: 0;
+      }
+      .tk-preview-label {
+        margin-bottom: 0.35rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .tk-compose-preview iframe {
+        width: 100%;
+        height: min(74vh, 780px);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #eef1f5;
+      }
+      .tk-import-sheets {
+        margin: 0.8rem 0;
+      }
+      @media (max-width: 900px) {
+        .tk-compose {
+          grid-template-columns: 1fr;
+        }
+        .tk-compose-preview iframe {
+          height: 480px;
+        }
+      }
+      @media (max-width: 640px) {
+        .tk-grid2 {
+          grid-template-columns: 1fr;
+        }
+        .tk-search {
+          max-width: none;
+        }
+        .tk-modal {
+          top: 0;
+          width: 100vw;
+          max-height: 100vh;
+          border-radius: 0;
+        }
+      }
     </style>
   </head>
   <body>
@@ -5914,6 +6966,19 @@
         stroke-linejoin="round"
       >
         <path d="M3 12h4l3-8 4 16 3-8h4" />
+      </symbol>
+      <symbol
+        id="icon-tasks"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="m4 6 1.8 1.8L9 4.5" />
+        <path d="m4 13 1.8 1.8L9 11.5" />
+        <path d="M12 6h8M12 13h8M12 19h8M4 19h2" />
       </symbol>
       <symbol
         id="icon-calculator"
@@ -6553,6 +7618,20 @@
                         <use href="#icon-bar-chart"></use>
                       </svg>
                       <span class="nav-label">Reports</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="tasksNav"
+                      hidden
+                      aria-label="Tasks"
+                      title="Tasks"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-tasks"></use>
+                      </svg>
+                      <span class="nav-label">Tasks</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
                     </button>
                   </div>
@@ -9062,6 +10141,14 @@
               </div>
             </div>
 
+            <div class="card" id="tasksWorkspace" hidden>
+              <div class="card-body">
+                <div data-calc-root="tasks">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
             <div class="card" id="stockMasterWorkspace" hidden>
               <div class="card-body">
                 <div data-calc-root="stock-master">
@@ -9863,6 +10950,8 @@
         <span>Jacky's Service Portal</span><span>Customer service and operations workspace</span>
       </div>
     </footer>
+    <script src="/portal/roi-core.js" defer></script>
+    <script src="/portal/tasks.js" defer></script>
     <script src="/portal/app.js" defer></script>
     <dialog class="pw-dialog" id="passwordDialog" aria-labelledby="passwordDialogTitle">
       <form id="passwordForm" novalidate>

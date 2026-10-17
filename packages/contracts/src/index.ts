@@ -1529,3 +1529,123 @@ export const taxInvoiceUpdateSchema = z
   })
   .strict();
 export type TaxInvoiceUpdateInput = z.infer<typeof taxInvoiceUpdateSchema>;
+
+// ---------------------------------------------------------------------------
+// Tasks (ROI): personal task manager feeding the weekly ROI email
+// (modification.md #107).
+export const roiTaskKinds = ['task', 'issue', 'innovation', 'request'] as const;
+export const roiTaskStatuses = ['not_started', 'in_progress', 'on_hold', 'completed'] as const;
+export const roiTaskPriorities = ['low', 'medium', 'high', 'urgent'] as const;
+
+const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date.');
+
+export const roiTaskWriteSchema = z
+  .object({
+    title: z.string().trim().min(1).max(500),
+    notes: z.string().trim().max(5000).nullish(),
+    kind: z.enum(roiTaskKinds).optional(),
+    status: z.enum(roiTaskStatuses).optional(),
+    priority: z.enum(roiTaskPriorities).optional(),
+    startDate: isoDate.nullish(),
+    dueDate: isoDate.nullish(),
+    percentComplete: z.number().int().min(0).max(100).optional(),
+    remarks: z.string().trim().max(2000).nullish(),
+    sortOrder: z.number().int().min(0).max(1_000_000).optional(),
+    // Administrators may create or move a task for another user.
+    ownerProfileId: z.string().regex(/^\d+$/).optional(),
+  })
+  .strict()
+  .refine((value) => !value.startDate || !value.dueDate || value.dueDate >= value.startDate, {
+    message: 'The end date cannot be before the start date.',
+    path: ['dueDate'],
+  });
+
+export const roiTaskPatchSchema = z
+  .object({
+    title: z.string().trim().min(1).max(500),
+    notes: z.string().trim().max(5000).nullable(),
+    kind: z.enum(roiTaskKinds),
+    status: z.enum(roiTaskStatuses),
+    priority: z.enum(roiTaskPriorities),
+    startDate: isoDate.nullable(),
+    dueDate: isoDate.nullable(),
+    percentComplete: z.number().int().min(0).max(100),
+    remarks: z.string().trim().max(2000).nullable(),
+    sortOrder: z.number().int().min(0).max(1_000_000),
+    ownerProfileId: z.string().regex(/^\d+$/),
+  })
+  .partial()
+  .strict();
+
+export const roiTaskListQuerySchema = z
+  .object({
+    // A profile id, or 'all' (administrators only). Default: the caller.
+    owner: z
+      .string()
+      .regex(/^(\d+|all)$/)
+      .optional(),
+    status: z.enum(roiTaskStatuses).optional(),
+    kind: z.enum(roiTaskKinds).optional(),
+    priority: z.enum(roiTaskPriorities).optional(),
+    search: z.string().trim().min(1).max(200).optional(),
+  })
+  .strict();
+
+const emailList = z.array(z.string().trim().email().max(320)).max(40);
+
+export const roiSettingsSchema = z
+  .object({
+    toEmails: emailList,
+    ccEmails: emailList,
+    signature: z.string().max(2000),
+  })
+  .strict();
+
+export const roiReportLogSchema = z
+  .object({
+    weekYear: z.number().int().min(2000).max(2100),
+    weekNumber: z.number().int().min(1).max(53),
+    weekEnding: isoDate,
+    subject: z.string().trim().min(1).max(300),
+    toEmails: emailList,
+    ccEmails: emailList,
+    includesSummary: z.boolean(),
+    counts: z.record(z.number()).default({}),
+    source: z.enum(['tasks', 'revenue']).default('tasks'),
+  })
+  .strict();
+
+export const roiImportSchema = z
+  .object({
+    tasks: z
+      .array(
+        z
+          .object({
+            title: z.string().trim().min(1).max(500),
+            kind: z.enum(roiTaskKinds).optional(),
+            status: z.enum(roiTaskStatuses).optional(),
+            priority: z.enum(roiTaskPriorities).optional(),
+            percentComplete: z.number().int().min(0).max(100).optional(),
+            remarks: z.string().trim().max(2000).nullish(),
+            startDate: isoDate.nullish(),
+            dueDate: isoDate.nullish(),
+            completedOn: isoDate.nullish(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(500),
+  })
+  .strict();
+
+// Who the ROI goes to unless the user has saved their own list (taken from
+// the Week 40 ROI email thread).
+export const roiDefaultRecipients = {
+  to: ['manohar@jackys.com', 'james.paul@jackys.com'],
+  cc: [
+    'naresh.moolchandani@jackys.com',
+    'hr.desk@jackys.com',
+    'santhosh.antony@jackys.com',
+    'shameer.abdulla@jackys.com',
+  ],
+} as const;

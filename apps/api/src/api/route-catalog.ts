@@ -70,6 +70,8 @@ import { createWarrantyApprovalService } from '../warranty-approvals/service.js'
 import { createDashboardHandlers } from '../dashboard/routes.js';
 import { createDashboardService } from '../dashboard/service.js';
 import { createPricingConfigHandlers } from '../pricing-config/routes.js';
+import { createRoiHandlers } from '../roi-tasks/routes.js';
+import { createRoiService } from '../roi-tasks/service.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 
 export type RouteDefinition = {
@@ -87,6 +89,10 @@ export type RouteDefinition = {
     | 'changePassword'
     | 'rolePermissions'
     | 'budgetVarianceConfig'
+    | 'roiTask'
+    | 'roiSettings'
+    | 'roiReport'
+    | 'roiImport'
     | 'budgetVersionCreate'
     | 'budgetVersionUpdate'
     | 'publicComplaint'
@@ -693,6 +699,20 @@ export function createRouteCatalog(
         'createVersion',
         'version',
         'updateVersion',
+      ]);
+  const roiHandlers = pool
+    ? createRoiHandlers(createRoiService(pool), requirePermission)
+    : unavailableHandlers([
+        'list',
+        'create',
+        'update',
+        'remove',
+        'settings',
+        'saveSettings',
+        'reports',
+        'logReport',
+        'importPreview',
+        'importTasks',
       ]);
   const revenueDashboardHandlers = pool
     ? createRevenueDashboardHandlers(createRevenueDashboardService(pool), requirePermission)
@@ -3063,6 +3083,138 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: dashboardHandlers.board,
+      },
+    ],
+    ...[
+      {
+        method: 'get' as const,
+        path: '/api/roi/tasks',
+        operationId: 'listRoiTasks',
+        tags: ['Tasks (ROI)'],
+        summary: 'List tasks (own; administrators may pass owner or all)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'owner', in: 'query', schema: { type: 'string', pattern: '^(\\d+|all)$' } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: {
+              type: 'string',
+              enum: ['not_started', 'in_progress', 'on_hold', 'completed'],
+            },
+          },
+          {
+            name: 'kind',
+            in: 'query',
+            schema: { type: 'string', enum: ['task', 'issue', 'innovation', 'request'] },
+          },
+          {
+            name: 'priority',
+            in: 'query',
+            schema: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
+          },
+          { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: roiHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/roi/tasks',
+        operationId: 'createRoiTask',
+        tags: ['Tasks (ROI)'],
+        summary: 'Create a task, issue, innovation or request',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiTask' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: roiHandlers.create,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/roi/tasks/{id}',
+        operationId: 'updateRoiTask',
+        tags: ['Tasks (ROI)'],
+        summary: 'Update a task (any subset of fields)',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiTask' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: roiHandlers.update,
+      },
+      {
+        method: 'delete' as const,
+        path: '/api/roi/tasks/{id}',
+        operationId: 'deleteRoiTask',
+        tags: ['Tasks (ROI)'],
+        summary: 'Delete a task',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 401, 403, 404, 500],
+        handlers: roiHandlers.remove,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/roi/settings',
+        operationId: 'getRoiSettings',
+        tags: ['Tasks (ROI)'],
+        summary: 'ROI recipients and signature for the signed-in user',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: roiHandlers.settings,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/roi/settings',
+        operationId: 'saveRoiSettings',
+        tags: ['Tasks (ROI)'],
+        summary: 'Save ROI recipients and signature',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiSettings' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: roiHandlers.saveSettings,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/roi/reports',
+        operationId: 'listRoiReports',
+        tags: ['Tasks (ROI)'],
+        summary: 'ROI emails drafted by the signed-in user',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: roiHandlers.reports,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/roi/reports',
+        operationId: 'logRoiReport',
+        tags: ['Tasks (ROI)'],
+        summary: 'Record that a weekly ROI was drafted',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiReport' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: roiHandlers.logReport,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/roi/import/preview',
+        operationId: 'previewRoiImport',
+        tags: ['Tasks (ROI)'],
+        summary:
+          'Read a weekly tracker workbook (multipart/form-data: file) and return the tasks found',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: roiHandlers.importPreview,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/roi/import',
+        operationId: 'importRoiTasks',
+        tags: ['Tasks (ROI)'],
+        summary: 'Add the chosen tracker rows as tasks (existing titles are skipped)',
+        security: 'bearerAuth' as const,
+        requestBody: 'roiImport' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: roiHandlers.importTasks,
       },
     ],
   ];

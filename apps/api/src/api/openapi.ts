@@ -57,6 +57,38 @@ const requestBodies = {
       },
     },
   },
+  roiTask: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
+  roiSettings: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
+  roiReport: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
+  roiImport: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
   budgetVarianceConfig: {
     required: true,
     content: {
