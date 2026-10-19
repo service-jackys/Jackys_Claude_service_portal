@@ -1,8 +1,11 @@
+import type { DandiPricingInput } from '../../../../packages/contracts/src/index.js';
 import type { ImportBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 import {
   csidoFlatCharge,
   DEFAULT_PRICING_RULES,
   enrichLine,
+  type CategoryRate,
+  type DiscountTier,
   type PricingRules,
   type SheetPricing,
 } from './pricing-logic.js';
@@ -22,6 +25,7 @@ export type LogicSummaryLine = {
   revenue: number;
   remarks: string | null;
   billingCode: string | null;
+  description?: string | null;
   pricing: SheetPricing | null;
 };
 
@@ -41,9 +45,84 @@ export type ExampleLine = {
   qty: number;
   revenue: number;
   how: string;
+  /** Set when the rules rebuild a different figure than the workbook shows. */
+  check?: string;
 };
 
+export type WorkedExample = {
+  invoice: string;
+  customer: string | null;
+  date: string | null;
+  lines: ExampleLine[];
+  total: number;
+};
+
+/**
+ * Rates shown on the "Logic applied" tab, read from the pricing master
+ * (Management > Pricing Masters > D+I Admin Entry) instead of the uploaded
+ * workbook. All prices include VAT (rate basis of 15 Oct 2026).
+ */
+export type MasterRates = {
+  source: 'pricing-master';
+  vatIncluded: true;
+  minUnitRate: number;
+  deliveryInstall: { categories: CategoryRate[]; discounts: DiscountTier[] };
+  install: { categories: CategoryRate[]; discounts: DiscountTier[] };
+  transport: { region: string; roundTrip: number }[];
+  /** Flat per-job rates: CSIJW, CSIDO, CSIJO and RWR / BER. */
+  jobRates: { jobType: string; label: string; description: string; price: number }[];
+};
+
+// Job-type flat rates have no field in D+I Admin Entry yet. CSIJW, CSIDO and
+// RWR / BER come from the workbook's Calculation sheet; CSIJO is set to 125 as
+// instructed on 19 Oct 2026 (the workbook still says 119).
+const JOB_RATE_OVERRIDES: Record<string, number> = { CSIJO: 125 };
+
+export function masterRates(dandi: DandiPricingInput, rules: PricingRules): MasterRates {
+  const names = {
+    fridge: 'Freestanding Refrigerator',
+    washer: 'Freestanding Washing Machine',
+    cooker: 'Freestanding Cooker',
+  } as const;
+  const side = (mode: DandiPricingInput['modes']['dandi']) => ({
+    categories: (Object.keys(names) as (keyof typeof names)[]).map((k) => ({
+      category: names[k],
+      batchRate: mode.rates[k].batch,
+      standardRate: mode.rates[k].standard,
+      minimumRate: dandi.minUnitRate,
+    })),
+    discounts: mode.discounts.map((t) => ({
+      minimum: t.min,
+      maximum: t.max,
+      tier: t.label,
+      discount: t.rate,
+    })),
+  });
+  const rate = (code: string) => {
+    const base = rules.rates.find((r) => r.jobType === code);
+    return {
+      price: JOB_RATE_OVERRIDES[code] ?? base?.price ?? 0,
+      description: base?.description ?? code,
+    };
+  };
+  return {
+    source: 'pricing-master',
+    vatIncluded: true,
+    minUnitRate: dandi.minUnitRate,
+    deliveryInstall: side(dandi.modes.dandi),
+    install: side(dandi.modes.install),
+    transport: dandi.regions.map((r) => ({ region: r.name, roundTrip: r.roundTripCost })),
+    jobRates: [
+      { jobType: 'CSIJW', label: 'CSIJW' },
+      { jobType: 'CSIDO', label: 'CSIDO' },
+      { jobType: 'CSIJO', label: 'CSIJO' },
+      { jobType: 'RWR', label: 'RWR / BER' },
+    ].map((j) => ({ ...j, ...rate(j.jobType) })),
+  };
+}
+
 export type LogicSummary = {
+  master: MasterRates;
   batch: { id: string; fileName: string; uploadedAt: string };
   logicVersion: 2 | 3;
   rulesSource: 'workbook' | 'built-in';
@@ -62,13 +141,7 @@ export type LogicSummary = {
     invoices: number;
     byMonth: { period: string; lines: number }[];
   };
-  example: {
-    invoice: string;
-    customer: string | null;
-    date: string | null;
-    lines: ExampleLine[];
-    total: number;
-  } | null;
+  example: WorkedExample | null;
   reconciliation: {
     matchedLines: number;
     differingLines: number;
@@ -86,6 +159,7 @@ function exampleLineText(line: LogicSummaryLine): ExampleLine {
   const item =
     [p?.applianceCategory, p?.erpModels].filter((v) => v && String(v).trim()).join(' - ') ||
     p?.erpCategory ||
+    (line.description && line.description.trim()) ||
     'Item';
   let how = '';
   if (line.jobType === 'CSIDI' || line.jobType === 'CSIII') {
@@ -106,14 +180,63 @@ function exampleLineText(line: LogicSummaryLine): ExampleLine {
         ? 'The invoice’s one flat delivery charge, placed on its first delivery-only line'
         : 'Covered by the flat charge on the first delivery-only line, so it shows 0';
   } else {
-    how = `${line.qty} x ${money(line.unitPrice)}`;
+    const flat = /\b(BER|RWR)\b/i.test(line.remarks ?? '');
+    how =
+      flat && line.qty > 0 && Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01
+        ? `Flat ${money(line.revenue / line.qty)} per job (BER / RWR)`
+        : `${line.qty} x ${money(line.unitPrice)}` +
+          (line.jobType === 'CSIJW' || line.jobType === 'CSIJO' ? ' per job' : '');
   }
   return { jobType: line.jobType, item, qty: line.qty, revenue: line.revenue, how };
 }
 
-export function buildLogicSummary(batch: ImportBatch, lines: LogicSummaryLine[]): LogicSummary {
+const JOB_ORDER = ['CSIJW', 'CSIJO', 'CSIDI', 'CSIII', 'CSIDO'];
+
+/** Worked example for one invoice: all its lines, in job-type order, with a check against the rules. */
+export function buildWorkedExample(
+  rules: PricingRules,
+  invoice: string,
+  set: LogicSummaryLine[],
+): WorkedExample {
+  const ordered = [...set].sort(
+    (a, b) => JOB_ORDER.indexOf(a.jobType) - JOB_ORDER.indexOf(b.jobType) || b.revenue - a.revenue,
+  );
+  return {
+    invoice,
+    customer: set[0]?.customer ?? null,
+    date: set[0]?.orderDate ?? null,
+    lines: ordered.map((l) => {
+      const out = exampleLineText(l);
+      if (['CSIDI', 'CSIII', 'CSIDO'].includes(l.jobType) && l.pricing) {
+        const e = enrichLine(rules, {
+          jobType: l.jobType,
+          qty: l.qty,
+          unitPrice: l.unitPrice,
+          revenue: l.revenue,
+          remarks: l.remarks,
+          billingCode: l.billingCode,
+          pricing: l.pricing,
+        });
+        if (e.rebuilt !== null && Math.abs(e.reconcileDiff ?? 0) > 0.01)
+          out.check = `Rules give ${money(e.rebuilt)}; the workbook shows ${money(l.revenue)}`;
+      }
+      return out;
+    }),
+    total: round2(set.reduce((s, l) => s + l.revenue, 0)),
+  };
+}
+
+export function rulesOfBatch(batch: ImportBatch): PricingRules {
   const stored = (batch.summary as { pricingRules?: PricingRules }).pricingRules;
-  const rules: PricingRules = stored?.deliveryInstall ? stored : DEFAULT_PRICING_RULES;
+  return stored?.deliveryInstall ? stored : DEFAULT_PRICING_RULES;
+}
+
+export function buildLogicSummary(
+  batch: ImportBatch,
+  lines: LogicSummaryLine[],
+  dandi: DandiPricingInput,
+): LogicSummary {
+  const rules = rulesOfBatch(batch);
   const describe = new Map(rules.rates.map((r) => [r.jobType, r.description]));
   const invoicesOf = (set: LogicSummaryLine[]) =>
     new Set(set.map((l) => l.invDelNo).filter(Boolean)).size;
@@ -172,16 +295,7 @@ export function buildLogicSummary(batch: ImportBatch, lines: LogicSummaryLine[])
     );
   if (candidates[0]) {
     const [invoice, set] = candidates[0];
-    const ordered = [...set].sort(
-      (a, b) => order.indexOf(a.jobType) - order.indexOf(b.jobType) || b.revenue - a.revenue,
-    );
-    example = {
-      invoice,
-      customer: set[0]?.customer ?? null,
-      date: set[0]?.orderDate ?? null,
-      lines: ordered.map(exampleLineText),
-      total: round2(set.reduce((s, l) => s + l.revenue, 0)),
-    };
+    example = buildWorkedExample(rules, invoice, set);
   }
 
   // Compare the workbook with the rules.
@@ -211,6 +325,7 @@ export function buildLogicSummary(batch: ImportBatch, lines: LogicSummaryLine[])
   }
 
   return {
+    master: masterRates(dandi, rules),
     batch: {
       id: batch.id,
       fileName: batch.fileName,

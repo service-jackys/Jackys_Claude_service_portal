@@ -765,6 +765,14 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        logicInvoices: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        logicExample: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const attachmentHandlers = pool
     ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
@@ -2811,6 +2819,37 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: revenueDashboardHandlers.logic,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/logic/invoices',
+        operationId: 'listRevenueDashboardLogicInvoices',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Invoices (any job type) matching year / month / week / job type / search, for the Logic applied worked example',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.logicInvoices,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/logic/example',
+        operationId: 'getRevenueDashboardLogicExample',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Worked example (every line, how it is priced) for the pasted or picked invoice numbers',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'invoices',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', minLength: 1, maxLength: 1000 },
+          },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.logicExample,
       },
       {
         method: 'get' as const,

@@ -1514,6 +1514,44 @@
         color: var(--muted);
         font-size: 13px;
       }
+      .rl-live-bar {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin: 4px 0 12px;
+      }
+      .rl-live-bar .rl-live-pick {
+        grid-column: 1 / -1;
+      }
+      .rl-live-bar select,
+      .rl-live-bar input {
+        width: 100%;
+      }
+      .rl-paste label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted, #5b6b82);
+        margin-bottom: 6px;
+      }
+      .rl-paste-row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .rl-paste-row input {
+        flex: 1 1 280px;
+        min-width: 0;
+      }
+      .rl-check {
+        margin-top: 2px;
+        font-size: 12px;
+        color: #92400e;
+      }
+      .rl-example + .rl-example {
+        margin-top: 14px;
+      }
       .rl-row-zero td {
         color: var(--muted);
       }

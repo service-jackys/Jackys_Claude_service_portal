@@ -126,6 +126,30 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    logicInvoices: [
+      requirePermission('revenue_dashboard.tab_logic'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.logicInvoices(request.query));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    logicExample: [
+      requirePermission('revenue_dashboard.tab_logic'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.logicExample(request.query));
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     exportWorkbook: [
       requirePermission('revenue_dashboard.export'),
       async (request, response, next) => {

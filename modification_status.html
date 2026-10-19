@@ -3649,6 +3649,25 @@
           <li>Pull, run <code>npm run db:migrate</code> (045), restart the API, hard-refresh, then set the tabs per role.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#110 &mdash; Logic applied: dynamic worked example and VAT-inclusive rates</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-19 &middot; Migration 046, API and web</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>Worked example is now live: filter by year, month, week and job type, pick an invoice (CSIDI, CSIII, CSIDO, CSIJW or CSIJO) or paste invoice numbers, and see how each line is priced.</li>
+          <li>Rate tables read Pricing Masters &rarr; D+I Admin Entry. Job-type rates show CSIJW, CSIDO, CSIJO (125) and RWR / BER. Prices are marked including VAT.</li>
+          <li>D+I standard rates default to 100 / 100 / 120 and the Rate Card says &ldquo;including VAT&rdquo;.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, run <code>npm.cmd run db:migrate</code> (046), restart the API and hard-refresh.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

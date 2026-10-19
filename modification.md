@@ -2894,3 +2894,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/045_revenue_dashboard_tab_permissions.sql, apps/api/src/revenue-dashboard/routes.ts, apps/api/src/budget-variance/routes.ts, apps/web/src/app.js.
 
 **Needs you:** pull, `npm run db:migrate` (045), restart API, hard-refresh, then tick the tabs per role in Roles & permissions.
+
+## Modification #110 — Logic applied: dynamic worked example, VAT-inclusive rates from the pricing master
+
+**Why.** The worked example on Finance → Service Revenue Dashboard → Logic applied was one fixed invoice, and the rate tables came from the uploaded workbook. D+I standard rates became VAT-inclusive on 15 Oct 2026 (workbook "Pricing Logic Guide" session log).
+
+**What changed.**
+- **Dynamic worked example.** Filter by Year, Month, Week, Job type (CSIDI, CSIII, CSIDO, CSIJW, CSIJO) and a customer/invoice search, pick an invoice from the list and see every line with how it was priced. A pasted-number box loads one or several invoices (comma or space separated) and reports numbers not found. A note appears under a line when the current rules would give a different amount than the workbook. New APIs `GET /api/revenue-dashboard/logic/invoices` and `/logic/example` (permission `revenue_dashboard.tab_logic`).
+- **Rate tables from the pricing master.** Volume discount, CSIDI rate card, CSIII rate card and transport now read Pricing Masters → D+I Admin Entry, not the workbook. The Job-type rates table shows only CSIJW, CSIDO, CSIJO and RWR / BER (CSIDI and CSIII are covered by the volume-discount tables). CSIJO is 125. All carry an "incl. VAT" note and tooltip.
+- **VAT-inclusive D+I rates.** D+I standard (1-unit) rates default to 100 / 100 / 120 (were 95.20 / 95.20 / 123.80); batch and minimum rates unchanged. Migration 046 updates a saved D+I Admin Entry only if it still holds the old three standard rates.
+- **Rate Card** banner now says "All prices in AED, including VAT"; D+I Admin Entry description says rates are entered including VAT.
+
+**Notes.** CSIJW, CSIDO and RWR / BER values still come from the workbook's Calculation sheet and CSIJO 125 is set in code, because D+I Admin Entry has no field for flat job-type rates. Revenue figures are still the workbook figures; the reconciliation block still re-prices with the workbook's stored rules.
+
+**Files.** packages/db/migrations/046_dandi_vat_inclusive_rates.sql, packages/db/src/pricing-config-defaults.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/ (logic-summary.ts, service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests/unit/revenue-logic-summary.test.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate` (046), restart API, hard-refresh. Your role needs the Logic applied tab permission (already granted if you had Finance access).
