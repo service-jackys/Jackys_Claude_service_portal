@@ -2,6 +2,7 @@ import ExcelJS from 'exceljs';
 import type { ImportBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 import { buildLogicSheet, type LogicLine } from './logic-sheet.js';
 import {
+  applyFlatRates,
   DEFAULT_PRICING_RULES,
   enrichLine,
   type PricingRules,
@@ -32,6 +33,8 @@ export type RevenueReportData = {
     exceptions: { label: string; description: string; jobs: number; revenue: number }[];
   };
   lines: Record<string, unknown>[];
+  /** Flat job-type rates from D+I Admin Entry; they replace the workbook's. */
+  flatRates?: Parameters<typeof applyFlatRates>[1];
 };
 
 const NAVY = 'FF10233F';
@@ -181,7 +184,10 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   ex.getColumn(4).width = 90;
 
   const storedRules = (data.batch.summary as { pricingRules?: PricingRules }).pricingRules;
-  const rules: PricingRules = storedRules?.deliveryInstall ? storedRules : DEFAULT_PRICING_RULES;
+  const rules: PricingRules = applyFlatRates(
+    storedRules?.deliveryInstall ? storedRules : DEFAULT_PRICING_RULES,
+    data.flatRates,
+  );
   const enriched = data.lines.map((line) => {
     const pricing = (line.pricing as SheetPricing | null | undefined) ?? null;
     const e = enrichLine(rules, {

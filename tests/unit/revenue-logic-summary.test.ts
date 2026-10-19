@@ -50,7 +50,7 @@ test('buildLogicSummary explains extra CSIDO lines under one paid line', () => {
   }
 });
 
-test('master rates come from the D+I pricing master, VAT-inclusive, CSIJO 125', () => {
+test('master rates come from the D+I pricing master, VAT-inclusive, flat rates from D+I Admin Entry', () => {
   const out = buildLogicSummary(batch, [line({})], dandiPricingDefault);
   const m = out.master;
   assert.equal(m.vatIncluded, true);
@@ -62,7 +62,7 @@ test('master rates come from the D+I pricing master, VAT-inclusive, CSIJO 125', 
     m.jobRates.map((r) => [r.jobType, r.price]),
     [
       ['CSIJW', 100],
-      ['CSIDO', 80],
+      ['CSIDO', 100],
       ['CSIJO', 125],
       ['RWR', 60],
     ],

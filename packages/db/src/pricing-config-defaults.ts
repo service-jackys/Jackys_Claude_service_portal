@@ -6,6 +6,7 @@ import type {
   VasPriceBandsInput,
   VasPricingParamsInput,
 } from '../../contracts/src/index.js';
+import { dandiFlatRateDefaults } from '../../contracts/src/index.js';
 
 // Phase 6 (see modification.md #26) -- Excel-derived defaults, cross-checked
 // directly against the attached master workbook
@@ -153,6 +154,7 @@ export const dandiPricingDefault: DandiPricingInput = {
   capacities: { fridge: 10, washer: 10, cooker: 10 },
   laborMinutes: { fridge: 17.5, washer: 25, cooker: 25 },
   laborCostPerHour: 43.2692307692,
+  flatRates: { ...dandiFlatRateDefaults },
   modes: {
     dandi: {
       label: 'D+I',

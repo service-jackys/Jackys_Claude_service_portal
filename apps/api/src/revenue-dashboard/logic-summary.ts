@@ -1,6 +1,7 @@
 import type { DandiPricingInput } from '../../../../packages/contracts/src/index.js';
 import type { ImportBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 import {
+  applyFlatRates,
   csidoFlatCharge,
   DEFAULT_PRICING_RULES,
   enrichLine,
@@ -75,12 +76,11 @@ export type MasterRates = {
   jobRates: { jobType: string; label: string; description: string; price: number }[];
 };
 
-// Job-type flat rates have no field in D+I Admin Entry yet. CSIJW, CSIDO and
-// RWR / BER come from the workbook's Calculation sheet; CSIJO is set to 125 as
-// instructed on 19 Oct 2026 (the workbook still says 119).
-const JOB_RATE_OVERRIDES: Record<string, number> = { CSIJO: 125 };
-
-export function masterRates(dandi: DandiPricingInput, rules: PricingRules): MasterRates {
+// The flat job-type rates (CSIJW, CSIJO, CSIDO, RWR / BER) are entered in D+I
+// Admin Entry (#114) and replace the uploaded workbook's values everywhere the
+// logic is shown.
+export function masterRates(dandi: DandiPricingInput, workbookRules: PricingRules): MasterRates {
+  const rules = applyFlatRates(workbookRules, dandi.flatRates);
   const names = {
     fridge: 'Freestanding Refrigerator',
     washer: 'Freestanding Washing Machine',
@@ -103,7 +103,7 @@ export function masterRates(dandi: DandiPricingInput, rules: PricingRules): Mast
   const rate = (code: string) => {
     const base = rules.rates.find((r) => r.jobType === code);
     return {
-      price: JOB_RATE_OVERRIDES[code] ?? base?.price ?? 0,
+      price: base?.price ?? 0,
       description: base?.description ?? code,
     };
   };
@@ -297,7 +297,7 @@ export function buildLogicSummary(
   lines: LogicSummaryLine[],
   dandi: DandiPricingInput,
 ): LogicSummary {
-  const rules = rulesOfBatch(batch);
+  const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
   const describe = new Map(rules.rates.map((r) => [r.jobType, r.description]));
   const invoicesOf = (set: LogicSummaryLine[]) =>
     new Set(set.map((l) => l.invDelNo).filter(Boolean)).size;

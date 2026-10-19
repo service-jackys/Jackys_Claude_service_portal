@@ -1337,6 +1337,25 @@ export const dandiModeSchema = z
   })
   .strict();
 
+// Flat per-job rates of the revenue streams that are not priced per appliance,
+// VAT-inclusive (modification.md #114). They used to live only in the uploaded
+// workbook (CSIJO was hard-coded to 125).
+export const dandiFlatRatesSchema = z
+  .object({
+    CSIJW: nonNegSchema,
+    CSIJO: nonNegSchema,
+    CSIDO: nonNegSchema,
+    RWR: nonNegSchema,
+  })
+  .strict();
+export type DandiFlatRates = z.infer<typeof dandiFlatRatesSchema>;
+export const dandiFlatRateDefaults: DandiFlatRates = {
+  CSIJW: 100,
+  CSIJO: 125,
+  CSIDO: 100,
+  RWR: 60,
+};
+
 export const dandiPricingSchema = z
   .object({
     maxUnits: z.union([z.literal(50), z.literal(60), z.literal(100)]),
@@ -1353,6 +1372,7 @@ export const dandiPricingSchema = z
       .object({ fridge: nonNegSchema, washer: nonNegSchema, cooker: nonNegSchema })
       .strict(),
     laborCostPerHour: nonNegSchema,
+    flatRates: dandiFlatRatesSchema.default(dandiFlatRateDefaults),
     modes: z.object({ dandi: dandiModeSchema, install: dandiModeSchema }).strict(),
   })
   .strict();
