@@ -483,6 +483,58 @@ export async function revenueExportLines(
   return rows.rows;
 }
 
+export type RevenueInvoiceRow = {
+  invoice: string;
+  customer: string | null;
+  date: string | null;
+  jobTypes: string[];
+  lines: number;
+  revenue: number;
+};
+
+// Distinct invoices (inv_del_no) matching the filters, newest first. Feeds the
+// invoice picker of the "Logic applied" worked example.
+export async function revenueInvoiceList(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+  limit = 300,
+): Promise<RevenueInvoiceRow[]> {
+  const f = filterClause(batchId, filters);
+  const rows = await client.query<{
+    invoice: string;
+    customer: string | null;
+    date: string | null;
+    jobTypes: string[];
+    lines: string;
+    revenue: string;
+  }>(
+    `SELECT inv_del_no AS invoice, MAX(customer) AS customer, MIN(order_date)::text AS date,
+            array_agg(DISTINCT job_type ORDER BY job_type) AS "jobTypes",
+            COUNT(*) AS lines, COALESCE(SUM(revenue), 0) AS revenue
+     FROM revenue_lines WHERE ${f.where} AND inv_del_no IS NOT NULL AND inv_del_no <> ''
+     GROUP BY inv_del_no
+     ORDER BY MIN(order_date) DESC NULLS LAST, inv_del_no DESC LIMIT ${Math.floor(limit)}`,
+    f.params,
+  );
+  return rows.rows.map((r) => ({
+    ...r,
+    lines: Number(r.lines),
+    revenue: Number(r.revenue),
+  }));
+}
+
+// Every line (all job types) of the given invoices, in workbook order.
+export async function revenueInvoiceLines(client: PoolClient, batchId: string, invoices: string[]) {
+  const rows = await client.query(
+    `SELECT ${lineColumns}, pricing FROM revenue_lines
+     WHERE batch_id = $1 AND inv_del_no = ANY($2::text[])
+     ORDER BY inv_del_no, source_row, id`,
+    [batchId, invoices],
+  );
+  return rows.rows;
+}
+
 export async function budgetVsActual(
   client: PoolClient,
   budgetBatchId: string,

@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  type DandiPricingInput,
   revenueFilterQuerySchema,
   revenueGroupQuerySchema,
   revenueImportKindSchema,
@@ -19,6 +20,8 @@ import {
   revenueExceptions,
   revenueExportLines,
   revenueGroup,
+  revenueInvoiceLines,
+  revenueInvoiceList,
   revenueLines,
   revenueMatrix,
   revenueSummary,
@@ -28,7 +31,13 @@ import {
 } from '../../../../packages/db/src/revenue-dashboard.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildRevenueReportWorkbook } from './export.js';
-import { buildLogicSummary, type LogicSummaryLine } from './logic-summary.js';
+import {
+  buildLogicSummary,
+  buildWorkedExample,
+  rulesOfBatch,
+  type LogicSummaryLine,
+} from './logic-summary.js';
+import { createPricingConfigService } from '../pricing-config/service.js';
 import { buildRevenueViewWorkbook } from './view-export.js';
 import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from './parser.js';
 
@@ -46,6 +55,7 @@ export type UploadedWorkbook = { originalname: string; size: number; buffer: Buf
 export const MAX_WORKBOOK_BYTES = 40 * 1024 * 1024;
 
 export function createRevenueDashboardService(pool: Pool) {
+  const pricing = createPricingConfigService(pool);
   async function importWorkbook(
     kindInput: unknown,
     file: UploadedWorkbook,
@@ -341,14 +351,64 @@ export function createRevenueDashboardService(pool: Pool) {
       const lines = (await revenueExportLines(client, batchId, {}, 50000)) as LogicSummaryLine[];
       return buildLogicSummary(
         batch!,
-        lines.map((l) => ({
-          ...l,
-          qty: Number(l.qty ?? 0),
-          unitPrice: Number(l.unitPrice ?? 0),
-          revenue: Number(l.revenue ?? 0),
-        })),
+        lines.map(toLogicLine),
+        (await pricing.get('dandi_pricing')).payload as DandiPricingInput,
       );
     });
+  }
+
+  const toLogicLine = (l: LogicSummaryLine): LogicSummaryLine => ({
+    ...l,
+    qty: Number(l.qty ?? 0),
+    unitPrice: Number(l.unitPrice ?? 0),
+    revenue: Number(l.revenue ?? 0),
+  });
+
+  // Worked-example picker: invoices matching year / month / week / job type /
+  // search, newest first (at most 300).
+  async function logicInvoices(query: Record<string, unknown>) {
+    const filters = revenueFilterQuerySchema.parse(query) as RevenueFilters;
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) return { batch: null, invoices: [] };
+      return { batch, invoices: await revenueInvoiceList(client, batch.id, filters, 300) };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Worked example for the invoice numbers given (comma / space separated, up
+  // to 20): every line of each invoice, with how it was priced.
+  async function logicExample(query: Record<string, unknown>) {
+    const invoices = [
+      ...new Set(
+        String(query.invoices ?? '')
+          .split(/[\s,;]+/)
+          .map((v) => v.trim())
+          .filter(Boolean),
+      ),
+    ].slice(0, 20);
+    if (!invoices.length)
+      throw new RevenueDashboardServiceError('no-data', 'Enter at least one invoice number.');
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) return { batch: null, examples: [], notFound: invoices };
+      const rows = (await revenueInvoiceLines(client, batch.id, invoices)) as LogicSummaryLine[];
+      const rules = rulesOfBatch(batch);
+      const examples = invoices
+        .map((invoice) => ({
+          invoice,
+          set: rows.filter((r) => r.invDelNo === invoice).map(toLogicLine),
+        }))
+        .filter((x) => x.set.length)
+        .map((x) => buildWorkedExample(rules, x.invoice, x.set));
+      const found = new Set(examples.map((e) => e.invoice));
+      return { batch, examples, notFound: invoices.filter((i) => !found.has(i)) };
+    } finally {
+      client.release();
+    }
   }
 
   async function withActive<T>(
@@ -389,6 +449,8 @@ export function createRevenueDashboardService(pool: Pool) {
     exportWorkbook,
     exportView,
     logic,
+    logicInvoices,
+    logicExample,
     recordActivity,
   };
 }

@@ -9087,7 +9087,8 @@ ${bodyHtml}
       navId: 'dandiAdminNav',
       workspaceId: 'dandiAdminWorkspace',
       heading: 'D+I Admin Entry',
-      description: 'Admin entry for Delivery & Installation pricing.',
+      description:
+        'Admin entry for Delivery & Installation pricing. Standard, batch and minimum rates are entered in AED including VAT.',
       domains: ['dandi_pricing'],
     },
     'amc-admin': {
@@ -10968,7 +10969,7 @@ ${bodyHtml}
     root.innerHTML =
       '<div class="rcv-banner"><strong>Service rate card</strong><span>' +
       updated +
-      ' &middot; All prices in AED, excluding VAT.</span></div>' +
+      ' &middot; All prices in AED, including VAT.</span></div>' +
       '<div class="rcv-grid-top">' +
       simple +
       '</div>' +
@@ -17623,7 +17624,7 @@ ${bodyHtml}
     // -------------------------------------------------------------------- main
     // ------------------------------------------------------------ Logic applied
     // Plain-language rules, live figures and a worked example for management.
-    async function drawLogic() {
+    async function drawLogic(sum) {
       barEl.innerHTML = '';
       const res = await rdApi('logic');
       const d = res.data;
@@ -17634,11 +17635,10 @@ ${bodyHtml}
       const v3 = d.logicVersion === 3;
       const aed = (n) => 'AED ' + rdMoney2(n).replace(/\.00$/, '');
       const e = escapeHtml;
-      const rwr = (d.rates.find((r) => r.jobType === 'RWR') || {}).price || 60;
-      const rate = (code) => (d.rates.find((r) => r.jobType === code) || {}).price || 0;
-      const transports = d.deliveryInstall.transport
-        .map((t) => aed(t.roundTrip) + ' ' + t.region)
-        .join(' / ');
+      const M = d.master;
+      const rwr = (M.jobRates.find((r) => r.jobType === 'RWR') || {}).price || 60;
+      const rate = (code) => (M.jobRates.find((r) => r.jobType === code) || {}).price || 0;
+      const transports = M.transport.map((t) => aed(t.roundTrip) + ' ' + t.region).join(' / ');
       const sharePct = (n) => rdPercent(n, d.totals.revenue);
 
       const RULES = {
@@ -17770,45 +17770,78 @@ ${bodyHtml}
         })
         .join('');
 
-      const exampleHtml = example
-        ? '<div class="rl-example"><div class="rl-example-head"><b>Worked example &mdash; invoice ' +
-          e(example.invoice) +
-          '</b><span>' +
-          e((example.customer || '') + (example.date ? ' · ' + example.date : '')) +
-          '</span></div>' +
-          table(
-            ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (AED)'],
-            example.lines
-              .map((l) => ({
-                cls: l.revenue === 0 ? 'rl-row-zero' : '',
-                cells: [
-                  '<span class="rl-code sm" style="--rl-accent:' +
-                    rdJtColor(l.jobType, 0) +
-                    '">' +
-                    e(l.jobType) +
-                    '</span>',
-                  e(l.item),
-                  rdMoney(l.qty),
-                  e(l.how),
-                  '<b>' + rdMoney2(l.revenue) + '</b>',
-                ],
-              }))
-              .concat([
-                {
-                  cls: 'rl-row-total',
-                  cells: [
-                    '',
-                    '<b>Invoice total</b>',
-                    '',
-                    '',
-                    '<b>' + rdMoney2(example.total) + '</b>',
-                  ],
-                },
-              ]),
-            [2, 4],
+      const exampleTable = (ex) =>
+        '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
+        e(ex.invoice) +
+        '</b><span>' +
+        e((ex.customer || '') + (ex.date ? ' · ' + ex.date : '')) +
+        '</span></div>' +
+        table(
+          ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (AED)'],
+          ex.lines
+            .map((l) => ({
+              cls: l.revenue === 0 ? 'rl-row-zero' : '',
+              cells: [
+                '<span class="rl-code sm" style="--rl-accent:' +
+                  rdJtColor(l.jobType, 0) +
+                  '">' +
+                  e(l.jobType) +
+                  '</span>',
+                e(l.item),
+                rdMoney(l.qty),
+                e(l.how) + (l.check ? '<div class="rl-check">' + e(l.check) + '</div>' : ''),
+                '<b>' + rdMoney2(l.revenue) + '</b>',
+              ],
+            }))
+            .concat([
+              {
+                cls: 'rl-row-total',
+                cells: ['', '<b>Invoice total</b>', '', '', '<b>' + rdMoney2(ex.total) + '</b>'],
+              },
+            ]),
+          [2, 4],
+        ) +
+        '</div>';
+      const liveOpts = (sum && sum.summary && sum.summary.options) || {};
+      const liveSel = (name, label, values, labelFor) =>
+        '<div class="th-field"><label>' +
+        label +
+        '<select data-rl-f="' +
+        name +
+        '"><option value="">All</option>' +
+        (values || [])
+          .map(
+            (v) =>
+              '<option value="' +
+              e(String(v)) +
+              '">' +
+              e(labelFor ? labelFor(v) : String(v)) +
+              '</option>',
+          )
+          .join('') +
+        '</select></label></div>';
+      const exampleHtml = rdSection(
+        'Worked example &mdash; pick any invoice',
+        '<div class="rd-pad"><p class="rl-p">Choose a period and job type (CSIDI, CSIII, CSIDO, CSIJW or CSIJO), pick an invoice and see how every line was priced &mdash; or paste invoice numbers below. Amounts are the workbook figures; a note appears if the current rules would give a different amount.</p>' +
+          '<div class="rl-live-bar">' +
+          liveSel('year', 'Year', liveOpts.years) +
+          liveSel(
+            'month',
+            'Month',
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+            (v) => RD_MONTHS_FULL[v - 1],
           ) +
-          '</div>'
-        : '';
+          liveSel('week', 'Week', liveOpts.weeks, (v) => 'Week ' + v) +
+          liveSel('jobType', 'Job type', liveOpts.jobTypes, (v) => rdLabel('jobType', v)) +
+          '<div class="th-field"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice" /></label></div>' +
+          '<div class="th-field rl-live-pick"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
+          '</div><div class="rl-paste"><label for="rlPaste">Paste invoice number(s)</label><div class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083  (separate several with commas or spaces)" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></div></div>' +
+          '<p class="form-note" data-rl-msg></p></div>' +
+          '<div data-rl-out class="rd-pad">' +
+          (example ? exampleTable(example) : '') +
+          '</div>',
+        'Any job type',
+      );
 
       const zeroHtml =
         '<div class="rl-zero"><div class="rl-zero-text"><h3>Why some jobs show AED 0</h3>' +
@@ -17848,22 +17881,24 @@ ${bodyHtml}
               '</b></div>',
           )
           .join('') +
-        '</div></div>' +
-        exampleHtml;
+        '</div></div>';
 
-      const di = d.deliveryInstall;
+      const di = M.deliveryInstall;
       const ratesHtml =
         '<div class="rd-two-col">' +
         rdSection(
           'Job-type rates',
           table(
-            ['Job type', 'Meaning', 'AED'],
-            d.rates.map((r) => ({
-              cells: [e(r.jobType), e(r.description), rdMoney2(r.price)],
+            ['Job type', 'Meaning', 'AED incl. VAT'],
+            M.jobRates.map((r) => ({
+              cells: [e(r.label), e(r.description), rdMoney2(r.price)],
             })),
             [2],
           ),
-          e(d.rulesSource === 'workbook' ? 'From the workbook' : 'Built-in defaults'),
+          'AED per job, incl. VAT ' +
+            tipHtml(
+              'All prices include VAT. Delivery + installation, installation-only and the flat charges are gross amounts (VAT output / input is handled by Accounts outside this calculation). Rates are read from Pricing Masters &rsaquo; D+I Admin Entry.',
+            ),
         ) +
         rdSection(
           'Volume discount',
@@ -17873,7 +17908,7 @@ ${bodyHtml}
               cells: [
                 e(x.tier),
                 Math.round(x.discount * 1000) / 10 + '%',
-                Math.round(((d.install.discounts[i] || x).discount || 0) * 1000) / 10 + '%',
+                Math.round(((M.install.discounts[i] || x).discount || 0) * 1000) / 10 + '%',
               ],
             })),
             [1, 2],
@@ -17894,13 +17929,13 @@ ${bodyHtml}
             })),
             [1, 2, 3],
           ),
-          'AED per unit',
+          'AED per unit, incl. VAT',
         ) +
         rdSection(
           'Installation-only rate card (CSIII)',
           table(
             ['Category', 'Batch rate', 'Standard rate', 'Minimum'],
-            d.install.categories.map((c) => ({
+            M.install.categories.map((c) => ({
               cells: [
                 e(c.category),
                 rdMoney2(c.batchRate),
@@ -17910,15 +17945,15 @@ ${bodyHtml}
             })),
             [1, 2, 3],
           ),
-          'AED per unit',
+          'AED per unit, incl. VAT',
         ) +
         '</div>' +
         (v3
           ? rdSection(
               'Once-per-invoice charges',
               table(
-                ['Charge', 'Applies to', 'AED'],
-                d.deliveryInstall.transport
+                ['Charge', 'Applies to', 'AED incl. VAT'],
+                M.transport
                   .map((t) => ({
                     cells: [
                       'Transport &mdash; ' + e(t.region),
@@ -18027,9 +18062,103 @@ ${bodyHtml}
           'Live from your data',
         ) +
         rdSection('Why some jobs show AED 0', zeroHtml) +
+        exampleHtml +
         ratesHtml +
         recHtml +
         '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
+
+      // ---- Worked example: filters -> invoice picker -> calculation; or paste.
+      const liveRoot = body.querySelector('[data-rl-out]');
+      const liveMsg = body.querySelector('[data-rl-msg]');
+      const pick = body.querySelector('[data-rl-pick]');
+      const pasteInput = body.querySelector('[data-rl-paste]');
+      const lf = { year: '', month: '', week: '', jobType: '', search: '' };
+      let liveSeq = 0;
+      const showExamples = (res) => {
+        liveRoot.innerHTML = res.examples.map(exampleTable).join('');
+        liveMsg.textContent = res.notFound.length
+          ? 'Not found in the active upload: ' + res.notFound.join(', ')
+          : '';
+        if (!res.examples.length && !res.notFound.length) liveRoot.innerHTML = '';
+      };
+      const loadExample = async (invoices) => {
+        const seq = ++liveSeq;
+        liveMsg.textContent = 'Loading…';
+        try {
+          const res = await rdApi('logic/example', { invoices });
+          if (seq === liveSeq) {
+            showExamples(res);
+            if (res.examples.length) liveMsg.textContent = liveMsg.textContent || '';
+          }
+        } catch (error) {
+          if (seq === liveSeq) liveMsg.textContent = error.message || 'Could not load the invoice.';
+        }
+      };
+      const loadPicker = async () => {
+        pick.innerHTML = '<option value="">Loading…</option>';
+        try {
+          const res = await rdApi('logic/invoices', lf);
+          const list = res.invoices || [];
+          pick.innerHTML = list.length
+            ? list
+                .map(
+                  (i) =>
+                    '<option value="' +
+                    e(i.invoice) +
+                    '">' +
+                    e(
+                      i.invoice +
+                        ' · ' +
+                        (i.customer || 'No customer') +
+                        ' · ' +
+                        (i.date || '') +
+                        ' · ' +
+                        i.jobTypes.join('/') +
+                        ' · AED ' +
+                        rdMoney2(i.revenue),
+                    ) +
+                    '</option>',
+                )
+                .join('')
+            : '<option value="">No invoices match</option>';
+          liveMsg.textContent = list.length
+            ? rdMoney(list.length) + (list.length >= 300 ? '+' : '') + ' invoices match.'
+            : '';
+          if (list.length) await loadExample(list[0].invoice);
+          else liveRoot.innerHTML = '';
+        } catch (error) {
+          pick.innerHTML = '<option value="">—</option>';
+          liveMsg.textContent = error.message || 'Could not load invoices.';
+        }
+      };
+      body.querySelectorAll('[data-rl-f]').forEach((control) => {
+        const name = control.dataset.rlF;
+        let timer;
+        const apply = () => {
+          lf[name] = control.value.trim();
+          if (name === 'year') {
+            lf.month = '';
+            lf.week = '';
+          }
+          loadPicker();
+        };
+        if (control.tagName === 'INPUT')
+          control.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(apply, 350);
+          });
+        else control.addEventListener('change', apply);
+      });
+      pick.addEventListener('change', () => pick.value && loadExample(pick.value));
+      const loadPasted = () => {
+        const text = pasteInput.value.trim();
+        if (text) loadExample(text);
+      };
+      body.querySelector('[data-rl-load]').addEventListener('click', loadPasted);
+      pasteInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') loadPasted();
+      });
+      loadPicker();
 
       const zeroButton = body.querySelector('[data-rl-zero-jobs]');
       if (zeroButton)
@@ -18082,7 +18211,7 @@ ${bodyHtml}
         }
         drawTabs();
         if (tab === 'logic') {
-          await drawLogic();
+          await drawLogic(sum);
           return;
         }
         drawFilterBar(sum.summary.options);

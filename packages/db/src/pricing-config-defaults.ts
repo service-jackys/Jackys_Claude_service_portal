@@ -135,6 +135,8 @@ export const rateCardDefault: RateCardInput = [
   },
 ];
 
+// D+I standard (1-unit) rates are VAT-inclusive from 15 Oct 2026: 100 / 100 / 120
+// (were 95.20 / 95.20 / 123.80). Batch and minimum rates are unchanged.
 export const dandiPricingDefault: DandiPricingInput = {
   maxUnits: 50,
   minUnitRate: 35,
@@ -156,9 +158,9 @@ export const dandiPricingDefault: DandiPricingInput = {
       label: 'D+I',
       transportAlways: true,
       rates: {
-        fridge: { batch: 60, standard: 95.2 },
-        washer: { batch: 60, standard: 95.2 },
-        cooker: { batch: 80, standard: 123.8 },
+        fridge: { batch: 60, standard: 100 },
+        washer: { batch: 60, standard: 100 },
+        cooker: { batch: 80, standard: 120 },
       },
       discounts: [
         { min: 1, max: 1, label: '1 unit', rate: 0 },
