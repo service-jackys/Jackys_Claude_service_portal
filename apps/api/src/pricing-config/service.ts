@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  dandiFlatRateDefaults,
   pricingConfigSchemaFor,
   type PricingConfigDomain,
 } from '../../../../packages/contracts/src/index.js';
@@ -39,6 +40,14 @@ export type PricingConfigView = {
   updatedAt: string | null;
 };
 
+// A D+I Admin Entry saved before the flat job-type rates existed (#114) has no
+// flatRates block; show the defaults so the form always has values to edit.
+function withDandiFlatRates(domain: PricingConfigDomain, payload: unknown): unknown {
+  if (domain !== 'dandi_pricing' || !payload || typeof payload !== 'object') return payload;
+  const record = payload as Record<string, unknown>;
+  return record.flatRates ? payload : { ...record, flatRates: { ...dandiFlatRateDefaults } };
+}
+
 export function createPricingConfigService(pool: Pool) {
   async function get(domain: PricingConfigDomain): Promise<PricingConfigView> {
     const client = await pool.connect();
@@ -47,7 +56,7 @@ export function createPricingConfigService(pool: Pool) {
       if (row) {
         return {
           domain,
-          payload: row.payload,
+          payload: withDandiFlatRates(domain, row.payload),
           isOverride: row.isOverride,
           updatedBy: row.updatedBy,
           updatedAt: row.updatedAt.toISOString(),

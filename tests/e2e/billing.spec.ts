@@ -179,7 +179,13 @@ test.describe('warranty and billing', () => {
   test('Invoice page issues a tax invoice with a customer TRN, confirms payment and prints it', async ({
     page,
   }) => {
-    const perms = ['service_job_card.read', 'service_job_card.write'];
+    const perms = [
+      'service_job_card.read',
+      'service_job_card.write',
+      'invoices.read',
+      'invoices.write',
+      'billing.read',
+    ];
     let issued: Record<string, unknown> | null = null;
     let patched: Record<string, unknown> | null = null;
     const snapshot = (invoiceNo: string | null, customerTrn: string | null) => ({
@@ -326,43 +332,53 @@ test.describe('warranty and billing', () => {
   test('A printed invoice shows the company TRN always and the customer TRN only when entered', async ({
     page,
   }) => {
-    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
-      if (url.pathname === '/api/invoices/summary') {
-        return { summary: { byType: [], byPaymentStatus: [], outOfWarrantyPendingDelivery: [] } };
-      }
-      if (url.pathname === '/api/invoices') {
-        return { invoices: [invoiceRow], pagination: { page: 1, pageSize: 100, total: 1 } };
-      }
-      if (url.pathname === '/api/invoices/801') {
-        return {
-          invoice: {
-            job: {
-              id: '801',
-              jobCardReference: 'JBC-2026-00801',
-              amount: 150,
-              paymentBy: 'Customer',
-            },
-            issued: true,
-            stale: false,
-            portalInvoiceNo: 'SINV-2026-00002',
-            customerTrn: null,
-            paymentConfirmedAt: null,
-            deliveryBlockReason: null,
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'service_job_card.write',
+        'invoices.read',
+        'invoices.write',
+        'billing.read',
+      ],
+      (url) => {
+        if (url.pathname === '/api/invoices/summary') {
+          return { summary: { byType: [], byPaymentStatus: [], outOfWarrantyPendingDelivery: [] } };
+        }
+        if (url.pathname === '/api/invoices') {
+          return { invoices: [invoiceRow], pagination: { page: 1, pageSize: 100, total: 1 } };
+        }
+        if (url.pathname === '/api/invoices/801') {
+          return {
             invoice: {
-              invoiceNo: 'SINV-2026-00002',
-              invoiceDate: '2026-10-14',
-              dueDate: '2026-10-14',
-              customerName: 'Cash Buyer',
+              job: {
+                id: '801',
+                jobCardReference: 'JBC-2026-00801',
+                amount: 150,
+                paymentBy: 'Customer',
+              },
+              issued: true,
+              stale: false,
+              portalInvoiceNo: 'SINV-2026-00002',
               customerTrn: null,
-              lines: [],
-              totals: { net: 0, vat: 0, gross: 0 },
-              amountInWords: 'AED Zero Only',
+              paymentConfirmedAt: null,
+              deliveryBlockReason: null,
+              invoice: {
+                invoiceNo: 'SINV-2026-00002',
+                invoiceDate: '2026-10-14',
+                dueDate: '2026-10-14',
+                customerName: 'Cash Buyer',
+                customerTrn: null,
+                lines: [],
+                totals: { net: 0, vat: 0, gross: 0 },
+                amountInWords: 'AED Zero Only',
+              },
             },
-          },
-        };
-      }
-      return undefined;
-    });
+          };
+        }
+        return undefined;
+      },
+    );
     await signIn(page);
     await page.locator('#invoicesNav').dispatchEvent('click');
     await page.getByRole('button', { name: 'Invoice', exact: true }).click();
@@ -378,7 +394,7 @@ test.describe('warranty and billing', () => {
   test('Sidebar groups open and close on click and Warranty approvals sits in Service desk', async ({
     page,
   }) => {
-    await mockApi(page, ['service_job_card.read', 'quotation.read'], (url) => {
+    await mockApi(page, ['service_job_card.read', 'quotation.read', 'invoices.read'], (url) => {
       if (url.pathname === '/api/dashboard') return {};
       return undefined;
     });
@@ -409,7 +425,7 @@ test.describe('warranty and billing', () => {
   test('Billing rules tab shows the rules and only the super admin can add one', async ({
     page,
   }) => {
-    await mockApi(page, ['service_job_card.read'], (url) => {
+    await mockApi(page, ['service_job_card.read', 'invoices.read', 'billing.read'], (url) => {
       if (url.pathname === '/api/invoices/summary') {
         return { summary: { byType: [], byPaymentStatus: [], outOfWarrantyPendingDelivery: [] } };
       }
@@ -523,7 +539,7 @@ test.describe('warranty and billing', () => {
       billToOptions: ['JDI'],
       stages: ['Not invoiced', 'Paid'],
     };
-    await mockApi(page, ['service_job_card.read'], (url) => {
+    await mockApi(page, ['service_job_card.read', 'invoices.read', 'billing.read'], (url) => {
       if (url.pathname === '/api/billing/ledger') return ledger;
       return undefined;
     });
@@ -616,10 +632,20 @@ test.describe('warranty and billing', () => {
       billToOptions: ['JDI'],
       stages: ['Not invoiced', 'Paid'],
     };
-    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
-      if (url.pathname === '/api/billing/ledger') return ledger;
-      return undefined;
-    });
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'service_job_card.write',
+        'invoices.read',
+        'invoices.write',
+        'billing.read',
+      ],
+      (url) => {
+        if (url.pathname === '/api/billing/ledger') return ledger;
+        return undefined;
+      },
+    );
     await signIn(page);
     await page.locator('#billingNav').dispatchEvent('click');
     await expect(page.getByText('JBC-2026-00911')).toBeVisible();
@@ -635,7 +661,17 @@ test.describe('warranty and billing', () => {
   test('Job card page: Edit tab shows the form, Job card tab shows the read-only view', async ({
     page,
   }) => {
-    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], () => undefined);
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'service_job_card.write',
+        'invoices.read',
+        'invoices.write',
+        'billing.read',
+      ],
+      () => undefined,
+    );
     await signIn(page);
     const state = await page.evaluate(() => {
       const detail = document.getElementById('jobCardDetail') as HTMLElement;
@@ -655,7 +691,17 @@ test.describe('warranty and billing', () => {
   test('Job card form: period from locked, warranty days pill, post-create sections hidden', async ({
     page,
   }) => {
-    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], () => undefined);
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'service_job_card.write',
+        'invoices.read',
+        'invoices.write',
+        'billing.read',
+      ],
+      () => undefined,
+    );
     await signIn(page);
     const state = await page.evaluate(() => {
       const el = (id: string) => document.getElementById(id) as HTMLInputElement;
@@ -690,23 +736,33 @@ test.describe('warranty and billing', () => {
   });
 
   test('Job card form locks the MDA service charge and greys payment mode', async ({ page }) => {
-    await mockApi(page, ['service_job_card.read', 'service_job_card.write'], (url) => {
-      if (url.pathname === '/api/rate-card') {
-        return {
-          sections: [
-            {
-              key: 'warranty_repairs',
-              label: 'Warranty Repairs',
-              activities: [
-                { name: 'SDA', rate: 50 },
-                { name: 'MDA \u2013 Standard', rate: 100 },
-              ],
-            },
-          ],
-        };
-      }
-      return undefined;
-    });
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'service_job_card.write',
+        'invoices.read',
+        'invoices.write',
+        'billing.read',
+      ],
+      (url) => {
+        if (url.pathname === '/api/rate-card') {
+          return {
+            sections: [
+              {
+                key: 'warranty_repairs',
+                label: 'Warranty Repairs',
+                activities: [
+                  { name: 'SDA', rate: 50 },
+                  { name: 'MDA \u2013 Standard', rate: 100 },
+                ],
+              },
+            ],
+          };
+        }
+        return undefined;
+      },
+    );
     await signIn(page);
     // The form fields exist in the page even before a job card is opened.
     const state = await page.evaluate(async () => {

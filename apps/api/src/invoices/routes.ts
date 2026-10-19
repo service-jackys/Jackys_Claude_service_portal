@@ -25,10 +25,14 @@ function invoiceError(
 export function createInvoiceHandlers(
   service: InvoiceService,
   requirePermission: (permission: string) => RequestHandler,
+  requireAnyPermission: (permissions: string[]) => RequestHandler = (permissions) =>
+    requirePermission(permissions[0] ?? ''),
 ): Record<string, RequestHandler[]> {
+  // Invoices, Billing and the billing-rule list have their own permissions
+  // (modification.md #114); they no longer share the job card permissions.
   return {
     ledger: [
-      requirePermission('service_job_card.read'),
+      requirePermission('billing.read'),
       async (request, response, next) => {
         try {
           response.json(await service.ledger(request.query));
@@ -38,7 +42,7 @@ export function createInvoiceHandlers(
       },
     ],
     exportLedger: [
-      requirePermission('service_job_card.read'),
+      requirePermission('billing.read'),
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
@@ -63,7 +67,7 @@ export function createInvoiceHandlers(
       },
     ],
     list: [
-      requirePermission('service_job_card.read'),
+      requirePermission('invoices.read'),
       async (request, response, next) => {
         try {
           const result = await service.list(request.query);
@@ -84,7 +88,7 @@ export function createInvoiceHandlers(
       },
     ],
     summary: [
-      requirePermission('service_job_card.read'),
+      requirePermission('invoices.read'),
       async (_request, response, next) => {
         try {
           response.json({ summary: await service.summary() });
@@ -94,7 +98,7 @@ export function createInvoiceHandlers(
       },
     ],
     detail: [
-      requirePermission('service_job_card.read'),
+      requirePermission('invoices.read'),
       async (request, response, next) => {
         try {
           response.json({ invoice: await service.detail(String(request.params.id)) });
@@ -104,7 +108,7 @@ export function createInvoiceHandlers(
       },
     ],
     issue: [
-      requirePermission('service_job_card.write'),
+      requirePermission('invoices.write'),
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
@@ -122,7 +126,7 @@ export function createInvoiceHandlers(
       },
     ],
     update: [
-      requirePermission('service_job_card.write'),
+      requirePermission('invoices.write'),
       async (request, response, next) => {
         try {
           const auth = response.locals.auth as ApplicationAuth;
@@ -140,7 +144,7 @@ export function createInvoiceHandlers(
       },
     ],
     listRules: [
-      requirePermission('service_job_card.read'),
+      requireAnyPermission(['invoices.read', 'billing.read']),
       async (_request, response, next) => {
         try {
           response.json({ billingRules: await service.rules() });

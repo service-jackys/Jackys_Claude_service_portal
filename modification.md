@@ -2957,3 +2957,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/roi-tasks.ts, apps/web/src/tasks.js, index.html, tests/integration/roi-tasks.test.ts.
 
 **Needs you:** pull, restart API, hard-refresh. No migration.
+
+## Modification #114 — Separate Invoices, Billing and Quote Calculators permissions; editable flat job-type rates
+
+**Why.** Invoices and Billing opened with the job card permission, and the three quote calculators with the Pricing Masters permission, so a role could not be given one without the other. The flat job-type rates (CSIJW, CSIJO, CSIDO, RWR / BER) were taken from the uploaded workbook and CSIJO 125 was fixed in code.
+
+**What changed.**
+- **New permissions** (Roles & permissions): `invoices.read` (open Invoices, see invoices, the Open invoice link on a job card and the dashboard out-of-warranty tiles), `invoices.write` (issue an invoice, confirm payment, the Record button on Billing), `billing.read` (the Billing page, its ledger and Excel download) and `quote_calculators.use` (VAS, AMC and Thomson calculators). They appear as Invoices, Billing and Quote calculators in the matrix.
+- **Nobody loses access.** Migration 048 gives each new permission to every role that holds the old one (`service_job_card.read` gives invoices.read and billing.read, `service_job_card.write` gives invoices.write, `pricing_config.read` gives quote_calculators.use). Narrow them afterwards in Roles & permissions.
+- **Calculators read only their own data.** `quote_calculators.use` can read the VAS, AMC and Thomson rate data and nothing else; D+I costs, the rate card and every save, reset and restore still need Pricing Masters access. Pricing Masters access on its own no longer shows the calculators.
+- **Billing rules list** is readable with either invoices.read or billing.read. Adding or editing a rule still needs the sales-channel permission.
+- **Flat job-type rates in D+I Admin Entry.** New card "Flat job-type rates (AED, incl. VAT)": CSIJW 100, CSIJO 125, CSIDO 100 (once per invoice) and RWR / BER 60. Logic applied (rate table, worked example, rebuilt totals) and the Excel export's Logic sheet use these values instead of the workbook's, so CSIJO 125 is no longer in code. CSIDI and CSIII still use their rate cards. Revenue figures are still the workbook's, so a changed rate shows up as a difference note, as before. Entries saved earlier get the current rates (migration 049); older entries and clients without the block get the defaults.
+
+**Files.** packages/db/migrations/048_invoices_billing_calculators_permissions.sql, 049_dandi_flat_rates.sql, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/invoices/routes.ts, pricing-config/routes.ts and service.ts, revenue-dashboard/ (pricing-logic.ts, logic-summary.ts, service.ts, export.ts), api/route-catalog.ts, apps/web/src/app.js, tests/unit/flat-rates-and-gates.test.ts, tests/integration/permissions-flat-rates.test.ts, tests/e2e/permissions-flat-rates.spec.ts, tests/e2e/billing.spec.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate` (048 and 049), restart API, hard-refresh. Then open Roles & permissions and decide who gets Invoices, Billing and Quote calculators separately. Check the CSIJO figure in D+I Admin Entry (125 now; the workbook says 119).

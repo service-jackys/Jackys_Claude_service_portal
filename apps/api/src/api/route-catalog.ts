@@ -413,7 +413,7 @@ export function createRouteCatalog(
         ],
       };
   const invoiceHandlers = pool
-    ? createInvoiceHandlers(createInvoiceService(pool), requirePermission)
+    ? createInvoiceHandlers(createInvoiceService(pool), requirePermission, requireAnyPermission)
     : {
         ledger: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
@@ -867,7 +867,11 @@ export function createRouteCatalog(
         ],
       };
   const pricingConfigHandlers = pool
-    ? createPricingConfigHandlers(createPricingConfigService(pool), requirePermission)
+    ? createPricingConfigHandlers(
+        createPricingConfigService(pool),
+        requirePermission,
+        requireAnyPermission,
+      )
     : {
         get: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>

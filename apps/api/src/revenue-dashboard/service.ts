@@ -31,6 +31,7 @@ import {
 } from '../../../../packages/db/src/revenue-dashboard.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildRevenueReportWorkbook } from './export.js';
+import { applyFlatRates } from './pricing-logic.js';
 import {
   buildLogicSummary,
   buildWorkedExample,
@@ -221,6 +222,7 @@ export function createRevenueDashboardService(pool: Pool) {
         billingCode: await revenueGroup(client, batch.id, filters, 'billingCode'),
         exceptions: await revenueExceptions(client, batch.id, filters),
         lines: await revenueExportLines(client, batch.id, filters),
+        flatRates: ((await pricing.get('dandi_pricing')).payload as DandiPricingInput).flatRates,
       };
       const workbook = await buildRevenueReportWorkbook(data);
       if (profileId) {
@@ -396,7 +398,8 @@ export function createRevenueDashboardService(pool: Pool) {
       const batch = await findActiveBatch(client, 'revenue');
       if (!batch) return { batch: null, examples: [], notFound: invoices };
       const rows = (await revenueInvoiceLines(client, batch.id, invoices)) as LogicSummaryLine[];
-      const rules = rulesOfBatch(batch);
+      const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+      const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
       const examples = invoices
         .map((invoice) => ({
           invoice,

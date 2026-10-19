@@ -13,13 +13,37 @@ function parseDomain(value: string): PricingConfigDomain | null {
   return result.success ? result.data : null;
 }
 
+// The Quote Calculators (modification.md #114) only need the rate data of their
+// own product. Holders of quote_calculators.use can read exactly these domains
+// without pricing_config.read; every other domain (D+I costs, rate card, ...)
+// still needs pricing_config.read.
+export const QUOTE_CALCULATOR_DOMAINS: readonly PricingConfigDomain[] = [
+  'vas_price_bands',
+  'vas_pricing_params',
+  'amc_pricing',
+  'thomson_pricing',
+];
+
 export function createPricingConfigHandlers(
   service: PricingConfigService,
   requirePermission: (permission: string) => RequestHandler,
+  requireAnyPermission: (permissions: string[]) => RequestHandler = (permissions) =>
+    requirePermission(permissions[0] ?? ''),
 ): Record<string, RequestHandler[]> {
+  const readConfig = requirePermission('pricing_config.read');
+  const readConfigOrCalculator = requireAnyPermission([
+    'pricing_config.read',
+    'quote_calculators.use',
+  ]);
+  const readGate: RequestHandler = (request, response, next) => {
+    const domain = parseDomain(String(request.params.domain));
+    const gate =
+      domain && QUOTE_CALCULATOR_DOMAINS.includes(domain) ? readConfigOrCalculator : readConfig;
+    return gate(request, response, next);
+  };
   return {
     get: [
-      requirePermission('pricing_config.read'),
+      readGate,
       async (request, response, next) => {
         // Never let the browser cache or conditionally-revalidate this: the value can
         // change any time via Save/Reset/Restore, and a stale 304 with no body was being

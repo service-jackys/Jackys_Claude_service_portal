@@ -42,6 +42,33 @@ export type PricingRules = {
   logicVersion?: 2 | 3;
 };
 
+/**
+ * Flat per-job rates entered in Pricing Masters > D+I Admin Entry (#114) take
+ * the place of the uploaded workbook's CSIJW, CSIJO, CSIDO and RWR / BER rates.
+ * CSIDI and CSIII stay with the workbook's rate table.
+ */
+export function applyFlatRates(
+  rules: PricingRules,
+  flat: Partial<Record<'CSIJW' | 'CSIJO' | 'CSIDO' | 'RWR', number>> | undefined,
+): PricingRules {
+  if (!flat) return rules;
+  const labels: Record<string, string> = {
+    CSIJW: 'Warranty Repairs',
+    CSIJO: 'Non-Warranty Repairs',
+    CSIDO: 'Delivery only',
+    RWR: 'BER/RWR Flat Charge',
+  };
+  const rates = rules.rates.map((r) => {
+    const value = flat[r.jobType as keyof typeof flat];
+    return typeof value === 'number' ? { ...r, price: value } : r;
+  });
+  for (const [jobType, value] of Object.entries(flat)) {
+    if (typeof value === 'number' && !rates.some((r) => r.jobType === jobType))
+      rates.push({ jobType, description: labels[jobType] ?? jobType, price: value });
+  }
+  return { ...rules, rates };
+}
+
 // Values of the workbook as at revision 2 (3 Oct 2026). Used only when an
 // older import has no rules stored; flagged "built-in" on the Logic sheet.
 export const DEFAULT_PRICING_RULES: PricingRules = {

@@ -758,11 +758,12 @@
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
-    // Quote calculators (Modification #32) read the same admin data, so they
-    // sit behind the same permission.
-    $('#vasCalcNav').hidden = !canReadPricingConfig;
-    $('#amcCalcNav').hidden = !canReadPricingConfig;
-    $('#thomsonCalcNav').hidden = !canReadPricingConfig;
+    // Quote calculators have their own permission (#114); the API lets it read
+    // only the rate data the calculators use.
+    const canUseCalculators = hasPermission('quote_calculators.use');
+    $('#vasCalcNav').hidden = !canUseCalculators;
+    $('#amcCalcNav').hidden = !canUseCalculators;
+    $('#thomsonCalcNav').hidden = !canUseCalculators;
     const canReadRevenue = hasPermission('revenue_dashboard.read');
     $('#revenueDashNav').hidden = !revenueTabs().length;
     $('#budgetDashNav').hidden = !hasPermission('revenue_dashboard.budget_actual');
@@ -778,8 +779,8 @@
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
-    $('#invoicesNav').hidden = !hasPermission('service_job_card.read');
-    $('#billingNav').hidden = !hasPermission('service_job_card.read');
+    $('#invoicesNav').hidden = !hasPermission('invoices.read');
+    $('#billingNav').hidden = !hasPermission('billing.read');
     if (hasPermission('scheduler.read')) {
       apiRequest('/api/schedules/awaiting')
         .then((result) => {
@@ -1363,7 +1364,8 @@
     state.textContent = label;
     state.className = `status ${cls}`;
     $(`#${prefix}InvoiceNote`).textContent = invoiceNo;
-    $(`#${prefix}OpenInvoice`).hidden = !(box.dataset.jobId && amount > 0);
+    $(`#${prefix}OpenInvoice`).hidden =
+      !(box.dataset.jobId && amount > 0) || !hasPermission('invoices.read');
   }
 
   function refreshBillingPreview(prefix) {
@@ -4644,7 +4646,7 @@ ${bodyHtml}
   async function renderOutOfWarrantyTiles() {
     const group = $('#dashOutOfWarrantyGroup');
     if (!group) return;
-    if (!hasPermission('service_job_card.read')) {
+    if (!hasPermission('invoices.read')) {
       group.hidden = true;
       return;
     }
@@ -8553,6 +8555,55 @@ ${bodyHtml}
         data,
         ctx.markDirty,
       );
+      // Flat job-type rates (#114): repairs and delivery-only jobs are charged a
+      // fixed amount per job rather than per appliance. Logic applied reads them
+      // from here instead of the uploaded workbook.
+      if (!data.flatRates) data.flatRates = { CSIJW: 100, CSIJO: 125, CSIDO: 100, RWR: 60 };
+      const flatHost = document.createElement('div');
+      flatHost.className = 'detail-action-card pc-span-full';
+      flatHost.innerHTML =
+        '<h4>Flat job-type rates (AED, incl. VAT)</h4>' +
+        '<p class="form-note">Fixed charge per job for the revenue streams that are not priced per appliance. ' +
+        'These replace the values from the uploaded workbook on Service Revenue Dashboard &gt; Logic applied.</p>';
+      grid.appendChild(flatHost);
+      const flatFields = document.createElement('div');
+      flatHost.appendChild(flatFields);
+      pcRenderScalarFields(
+        flatFields,
+        [
+          {
+            path: 'flatRates.CSIJW',
+            label: 'CSIJW: warranty repair, per job',
+            type: 'number',
+            step: '0.01',
+            tooltip: 'Flat charge for an in-warranty repair job, billed to the sales channel.',
+          },
+          {
+            path: 'flatRates.CSIJO',
+            label: 'CSIJO: non-warranty repair, per job',
+            type: 'number',
+            step: '0.01',
+            tooltip: 'Flat charge for an out-of-warranty repair job.',
+          },
+          {
+            path: 'flatRates.CSIDO',
+            label: 'CSIDO: delivery only, per invoice',
+            type: 'number',
+            step: '0.01',
+            tooltip:
+              'Charged once per invoice, on the first CSIDO line; later CSIDO lines of the same invoice show 0.',
+          },
+          {
+            path: 'flatRates.RWR',
+            label: 'RWR / BER: flat charge, per job',
+            type: 'number',
+            step: '0.01',
+            tooltip: 'Flat charge for a BER / RWR job.',
+          },
+        ],
+        data,
+        ctx.markDirty,
+      );
       const groupingsHost = document.createElement('div');
       groupingsHost.className = 'detail-action-card';
       grid.appendChild(groupingsHost);
@@ -12377,6 +12428,7 @@ ${bodyHtml}
       navId: 'vasCalcNav',
       workspaceId: 'vasCalcWorkspace',
       heading: 'VAS Quote Calculator',
+      permission: 'quote_calculators.use',
       description: 'Stand-alone quote calculator, reading VAS Price Banding & Split’s admin data.',
       domains: ['vas_price_bands', 'vas_pricing_params'],
       render: (root, dataByDomain) => renderVasCalc(root, dataByDomain),
@@ -12385,6 +12437,7 @@ ${bodyHtml}
       navId: 'amcCalcNav',
       workspaceId: 'amcCalcWorkspace',
       heading: 'AMC Quote Calculator',
+      permission: 'quote_calculators.use',
       description: 'Stand-alone quote calculator, reading AMC Admin Rate Section’s admin data.',
       domains: ['amc_pricing'],
       render: (root, dataByDomain) => renderAmcCalc(root, dataByDomain.amc_pricing),
@@ -12393,6 +12446,7 @@ ${bodyHtml}
       navId: 'thomsonCalcNav',
       workspaceId: 'thomsonCalcWorkspace',
       heading: 'Thomson Quote Calculator',
+      permission: 'quote_calculators.use',
       description: 'Stand-alone quote calculator, reading Thomson Pricing Admin’s admin data.',
       domains: ['thomson_pricing'],
       render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
@@ -12480,7 +12534,7 @@ ${bodyHtml}
       heading: 'Invoice [Warranty and billing]',
       description:
         'Tax invoices and payment confirmation for jobs with an amount, by job type and payment stage.',
-      permission: 'service_job_card.read',
+      permission: 'invoices.read',
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderInvoices(root),
@@ -12491,7 +12545,7 @@ ${bodyHtml}
       heading: 'Billing',
       description:
         'Accounts view: billed jobs, bill-to statement and cost allocation for ERP billing.',
-      permission: 'service_job_card.read',
+      permission: 'billing.read',
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderBilling(root),
@@ -12906,7 +12960,7 @@ ${bodyHtml}
   // download of all three. Invoice numbers are the ERP's; the portal records
   // them (Record button) but never issues invoices.
   async function renderBilling(root) {
-    const canRecord = hasPermission('service_job_card.write');
+    const canRecord = hasPermission('invoices.write');
     const range = pgRangeFor('ytd');
     const state = {
       tab: 'ledger',
@@ -13499,7 +13553,7 @@ ${bodyHtml}
       message: '',
       error: '',
     };
-    const canRecord = hasPermission('service_job_card.write');
+    const canRecord = hasPermission('invoices.write');
     const canEditRules = hasPermission('sales_channels.write');
     const aed = (value) =>
       'AED ' +
@@ -14766,6 +14820,9 @@ ${bodyHtml}
     quotation: 'Quotations',
     inspection: 'Inspections',
     warranty_approval: 'Warranty approvals',
+    invoices: 'Invoices',
+    billing: 'Billing',
+    quote_calculators: 'Quote calculators',
     vas_sale: 'VAS sales',
     amc_contract: 'AMC contracts',
     thomson_sale: 'Thomson sales',
