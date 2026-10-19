@@ -4850,7 +4850,18 @@ ${bodyHtml}
     </article>`;
   }
 
+  // "My tasks" lane under the service board (modification #112). Needs the Tasks permission.
+  function renderTaskLane(refresh) {
+    const host = $('#dashTaskLane');
+    if (!host) return;
+    const allowed = hasPermission('tasks.use');
+    host.hidden = !allowed;
+    if (!allowed) return;
+    getTasksUi().renderBoardLane(host, { refresh: Boolean(refresh), q: boardFilter.q });
+  }
+
   function renderKanban() {
+    renderTaskLane(false);
     const board = dashboardBoard;
     if (!board) {
       $('#dashBoard').innerHTML = '<p class="kb-empty">Board data is not available right now.</p>';
@@ -4929,6 +4940,7 @@ ${bodyHtml}
       renderDashboard(dashboardSummary);
       renderDashHero(dashboardSummary, dashboardBoard);
       renderKanban();
+      renderTaskLane(true);
     } catch {
       /* keep the last good view on a transient failure */
     }
@@ -5004,6 +5016,7 @@ ${bodyHtml}
       renderDashboard(result.summary);
       renderDashHero(result.summary, dashboardBoard);
       renderKanban();
+      renderTaskLane(true);
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -12271,6 +12284,11 @@ ${bodyHtml}
         canSummary: () => hasPermission('revenue_dashboard.read'),
         loadSummary: roiSummaryData,
         download: rdDownloadBlob,
+        // Dashboard kanban -> the full task (or the Tasks page when no id is given).
+        openTask: (id) => {
+          setWorkspaceMode('tasks');
+          if (id) tasksUi.openTask(id);
+        },
       });
     }
     return tasksUi;
