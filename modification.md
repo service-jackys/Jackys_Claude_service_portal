@@ -2972,3 +2972,16 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/048_invoices_billing_calculators_permissions.sql, 049_dandi_flat_rates.sql, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/invoices/routes.ts, pricing-config/routes.ts and service.ts, revenue-dashboard/ (pricing-logic.ts, logic-summary.ts, service.ts, export.ts), api/route-catalog.ts, apps/web/src/app.js, tests/unit/flat-rates-and-gates.test.ts, tests/integration/permissions-flat-rates.test.ts, tests/e2e/permissions-flat-rates.spec.ts, tests/e2e/billing.spec.ts.
 
 **Needs you:** pull, `npm.cmd run db:migrate` (048 and 049), restart API, hard-refresh. Then open Roles & permissions and decide who gets Invoices, Billing and Quote calculators separately. Check the CSIJO figure in D+I Admin Entry (125 now; the workbook says 119).
+
+## Modification #115 — Revenue: delivery-only (CSIDO) line on a mixed invoice follows the 19 Oct workbook rule
+
+**Why.** The master workbook of 19 Oct 2026 changed how CSIDO is priced. A CSIDO line on an invoice that also has a CSIDI line is now charged the regional transport rate (Dubai 60 / Sharjah 90, once per invoice) instead of the flat 100, because the visit is shared with the delivery + installation. A CSIDO-only invoice keeps the flat 100. The same workbook also reclassified invoice 16101451 (no longer excluded: CSIDI 76 + 57, CSIDO 60), fixed the JDI channel, set CSIII transport to 0 and restored 148 older CSIDO-only invoices to 100. The portal's check still expected 100 on every CSIDO invoice, so the 44 mixed invoices showed as "CSIDO flat charge" differences (AED 1,730).
+
+**What changed.**
+- The importer reads the rule from the Pricing Logic Guide ("CSIDO Revenue - Mixed") and records whether each invoice has a CSIDI line. Workbooks without that text keep the flat charge for every CSIDO invoice, so older uploads are unchanged.
+- Logic applied, worked example, the Logic workbook export and the difference causes describe the mixed-invoice charge.
+- Result on the 19 Oct workbook: 0 differences across all lines (CSIDI 56,902, CSIDO 18,370, CSIII 8,995, CSIJW 15,580, CSIJO 10,594); invoice 16101451 now has a worked example (AED 193).
+
+**Files.** apps/api/src/revenue-dashboard/pricing-logic.ts, parser.ts, logic-summary.ts, logic-sheet.ts, apps/web/src/app.js, tests/unit/revenue-workbook.test.ts.
+
+**Needs you:** pull, restart API, hard-refresh, then upload the 19 Oct workbook again. No migration.

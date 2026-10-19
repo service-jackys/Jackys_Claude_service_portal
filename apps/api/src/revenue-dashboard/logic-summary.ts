@@ -130,6 +130,8 @@ export type LogicSummary = {
   rulesSource: 'workbook' | 'built-in';
   rates: PricingRules['rates'];
   csidoFlat: number;
+  /** A delivery-only line on an invoice with a CSIDI line is charged the regional transport rate. */
+  csidoMixedRegional: boolean;
   deliveryInstall: PricingRules['deliveryInstall'];
   install: PricingRules['install'];
   totals: { lines: number; invoices: number; qty: number; revenue: number };
@@ -156,7 +158,7 @@ const money = (n: number) =>
   'AED ' + n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-function exampleLineText(line: LogicSummaryLine): ExampleLine {
+function exampleLineText(rules: PricingRules, line: LogicSummaryLine): ExampleLine {
   const p = line.pricing;
   const item =
     [p?.applianceCategory, p?.erpModels].filter((v) => v && String(v).trim()).join(' - ') ||
@@ -180,7 +182,9 @@ function exampleLineText(line: LogicSummaryLine): ExampleLine {
   } else if (line.jobType === 'CSIDO') {
     how =
       line.revenue > 0
-        ? 'The invoice’s one flat delivery charge, placed on its first delivery-only line'
+        ? rules.csidoMixedRegional && p?.invoiceHasCsidi
+          ? 'The invoice’s one delivery charge: the regional transport rate, because the invoice also has a delivery + installation line (placed on its first delivery-only line)'
+          : 'The invoice’s one flat delivery charge, placed on its first delivery-only line'
         : 'Covered by the flat charge on the first delivery-only line, so it shows 0';
   } else {
     const flat = /\b(BER|RWR)\b/i.test(line.remarks ?? '');
@@ -209,7 +213,7 @@ export function buildWorkedExample(
     customer: set[0]?.customer ?? null,
     date: set[0]?.orderDate ?? null,
     lines: ordered.map((l) => {
-      const out = exampleLineText(l);
+      const out = exampleLineText(rules, l);
       if (['CSIDI', 'CSIII', 'CSIDO'].includes(l.jobType) && l.pricing) {
         const e = enrichLine(rules, {
           jobType: l.jobType,
@@ -234,7 +238,7 @@ export function buildWorkedExample(
 
 const CAUSE_TEXT: Record<string, string> = {
   'CSIDO flat charge':
-    'a locked-history delivery-only line priced before the flat charge changed to AED 100',
+    'a delivery-only line kept at an older amount than the current rule (flat charge, or regional transport when the invoice also has a delivery + installation line)',
   'CSIDI transport': 'the once-per-invoice transport is missing from the workbook row',
   'Rate or quantity': 'a locked row kept at an older rate or quantity',
 };
@@ -263,7 +267,9 @@ function invoiceNotes(rules: PricingRules, set: LogicSummaryLine[]): string[] {
     const withTransport = di.find((l) => (l.pricing?.transportCharge ?? 0) > 0);
     if (doLines.length)
       notes.push(
-        `Transport: not added to the CSIDI lines, because the invoice also has a delivery-only line whose flat ${money(csidoFlatCharge(rules))} covers the visit.`,
+        rules.csidoMixedRegional
+          ? `Transport: not added to the CSIDI lines; the invoice also has a delivery-only line, which is charged the regional transport rate instead of the flat ${money(csidoFlatCharge(rules))} (the visit is shared).`
+          : `Transport: not added to the CSIDI lines, because the invoice also has a delivery-only line whose flat ${money(csidoFlatCharge(rules))} covers the visit.`,
       );
     else if (units <= 1)
       notes.push('Transport: none, because the invoice has only one delivery + installation unit.');
@@ -282,7 +288,10 @@ function invoiceNotes(rules: PricingRules, set: LogicSummaryLine[]): string[] {
     );
   if (doLines.length)
     notes.push(
-      `Delivery only: one flat ${money(csidoFlatCharge(rules))} per invoice sits on its first delivery-only line; the other delivery-only lines show 0.`,
+      `Delivery only: one flat ${money(csidoFlatCharge(rules))} per invoice sits on its first delivery-only line; the other delivery-only lines show 0.` +
+        (rules.csidoMixedRegional
+          ? ' If the invoice also has a delivery + installation line, that one charge is the regional transport rate instead (Dubai / Sharjah).'
+          : ''),
     );
   return notes;
 }
@@ -396,6 +405,7 @@ export function buildLogicSummary(
     rulesSource: rules.source,
     rates: rules.rates,
     csidoFlat: csidoFlatCharge(rules),
+    csidoMixedRegional: !!rules.csidoMixedRegional,
     deliveryInstall: rules.deliveryInstall,
     install: rules.install,
     totals: {
