@@ -17017,7 +17017,11 @@ ${bodyHtml}
         basis =
           'Delivery + installation and installation-only lines are priced as quantity x net rate (base rate less volume discount, never below the minimum rate). Transport is added once per multi-unit installation invoice. Each delivery-only invoice carries one flat ' +
           flat +
-          ' charge on its first line; its other lines show AED 0. Full rules: Service Revenue Dashboard > Logic applied.';
+          ' charge on its first line; its other lines show AED 0' +
+          (d.csidoMixedRegional
+            ? ' (on an invoice that also has a delivery + installation line, that charge is the regional transport rate instead)'
+            : '') +
+          '. Full rules: Service Revenue Dashboard > Logic applied.';
       }
       return { notes, basis };
     }
@@ -18058,7 +18062,7 @@ ${bodyHtml}
       const rec = d.reconciliation;
       const causeText = {
         'CSIDO flat charge':
-          'Older delivery-only invoices were priced before the flat charge changed, so the first line still shows the earlier amount (for example AED 60 or 80).',
+          'Delivery-only invoices whose first line still shows an older amount than the current rule (the flat charge, or the regional transport rate when the invoice also has a delivery + installation line).',
         'CSIDI transport':
           'Multi-unit installs with no delivery-only line where the transport charge is missing in the workbook.',
         'Rate or quantity': 'A locked row kept at an older rate or quantity.',

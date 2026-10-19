@@ -355,8 +355,15 @@ function buildInvoiceLevelLogicSheet(
     [
       'Delivery-only flat charge',
       flat,
-      'Once per invoice, on the first delivery-only line. Sharjah = city containing SHJ or SHARJAH.',
+      'Once per invoice, on the first delivery-only line, when the invoice has no delivery + installation line. Sharjah = city containing SHJ or SHARJAH.',
     ],
+    ...(rules.csidoMixedRegional
+      ? rules.deliveryInstall.transport.map((x): [string, number, string] => [
+          `Delivery-only on a mixed invoice - ${x.region}`,
+          x.roundTrip,
+          'Replaces the flat charge when the invoice also has a delivery + installation line (the visit is shared). Once per invoice, first delivery-only line.',
+        ])
+      : []),
   ];
   charges.forEach(([a, b, c], i) => {
     const r = tableRow([a, b, c], {
@@ -373,7 +380,7 @@ function buildInvoiceLevelLogicSheet(
   const rebuilt = lines.filter((l) => l.e.rebuilt !== null);
   const causeText: Record<string, string> = {
     'CSIDO flat charge':
-      'Older delivery-only invoices still carry the amount priced before the flat charge changed.',
+      'Delivery-only invoices that still carry an older amount than the current rule (flat charge, or regional transport on a mixed invoice).',
     'CSIDI transport':
       'Multi-unit installation invoices where the workbook transport is missing or charged against the rule.',
     'Rate or quantity': 'A locked row kept at an older rate or quantity.',

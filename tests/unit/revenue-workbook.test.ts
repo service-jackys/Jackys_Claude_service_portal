@@ -100,6 +100,8 @@ function fillMaster(sheet: ExcelJS.Worksheet, rates: [string, number, number, nu
 
 async function buildWorkbook(options: {
   invoiceLevel: boolean;
+  /** The Guide states the 19 Oct 2026 rule: CSIDO on a mixed invoice = regional transport. */
+  mixedRule?: boolean;
   rows: CsidiRow[];
   csidoRate?: number;
 }): Promise<Buffer> {
@@ -137,7 +139,10 @@ async function buildWorkbook(options: {
     ['Freestanding Cooker', 70, 80, 35],
     ['Default', 60, 60, 35],
   ]);
-  if (options.invoiceLevel) wb.addWorksheet('Pricing Logic Guide');
+  if (options.invoiceLevel) {
+    const guide = wb.addWorksheet('Pricing Logic Guide');
+    if (options.mixedRule) guide.getCell('A35').value = 'CSIDO Revenue \u2014 Mixed';
+  }
 
   const csidi = wb.addWorksheet('CSIDI');
   csidi.addRow(CSIDI_HEADERS);
@@ -417,4 +422,56 @@ test('an earlier workbook (no Pricing Logic Guide) keeps the earlier per-line ru
   assert.equal(csidi.transport, 60);
   assert.equal(csidi.reconcileDiff, 0);
   assert.equal(lines[1]!.e.rebuilt, 80);
+});
+
+const MIXED_ROWS: CsidiRow[] = [
+  // Dubai: 2 CSIDI units (no transport, the invoice has CSIDO) + CSIDO at the Dubai transport rate.
+  {
+    inv: '8101',
+    type: 'CSIDI',
+    qty: 2,
+    category: 'Freestanding Refrigerator',
+    base: 60,
+    net: 57,
+    transport: 0,
+    revenue: 114,
+  },
+  { inv: '8101', type: 'CSIDO', qty: 1, category: null, net: 60, revenue: 60 },
+  // Sharjah: the CSIDO charge is the Sharjah transport rate.
+  {
+    inv: '8102',
+    type: 'CSIDI',
+    qty: 2,
+    category: 'Freestanding Refrigerator',
+    base: 60,
+    net: 57,
+    transport: 0,
+    revenue: 114,
+    city: 'DUBAI,SHJ',
+  },
+  { inv: '8102', type: 'CSIDO', qty: 1, category: null, net: 90, revenue: 90, city: 'DUBAI,SHJ' },
+  // Pure CSIDO invoice keeps the flat charge.
+  { inv: '8103', type: 'CSIDO', qty: 1, category: null, net: 100, revenue: 100 },
+];
+
+test('a CSIDO line on a mixed invoice is charged the regional transport rate once the Guide says so', async () => {
+  const { parsed, lines } = await enriched(
+    await buildWorkbook({ invoiceLevel: true, mixedRule: true, rows: MIXED_ROWS }),
+  );
+  assert.equal(parsed.pricingRules.csidoMixedRegional, true);
+  for (const { line, e } of lines) {
+    assert.equal(e.diffCause, '', `invoice ${line.invDelNo} ${line.jobType}`);
+    assert.ok(Math.abs(e.reconcileDiff ?? 1) < 0.005);
+  }
+  const csido = lines.filter((x) => x.line.jobType === 'CSIDO').map((x) => x.e.rebuilt);
+  assert.deepEqual(csido, [60, 90, 100]);
+});
+
+test('without the mixed-invoice rule in the Guide a CSIDO line stays at the flat charge', async () => {
+  const { parsed, lines } = await enriched(
+    await buildWorkbook({ invoiceLevel: true, rows: MIXED_ROWS }),
+  );
+  assert.equal(parsed.pricingRules.csidoMixedRegional, undefined);
+  const causes = lines.filter((x) => x.line.jobType === 'CSIDO').map((x) => x.e.diffCause);
+  assert.deepEqual(causes, ['CSIDO flat charge', 'CSIDO flat charge', '']);
 });

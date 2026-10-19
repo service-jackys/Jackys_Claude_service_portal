@@ -40,6 +40,13 @@ export type PricingRules = {
    * per-line, remarks-based rules. Older stored uploads have no value.
    */
   logicVersion?: 2 | 3;
+  /**
+   * 19 Oct 2026 revision of the Pricing Logic Guide: a CSIDO line on an invoice
+   * that also has a CSIDI line is charged the regional transport rate (Dubai /
+   * Sharjah) instead of the flat CSIDO rate. Absent = the flat rate applies to
+   * every CSIDO invoice (earlier revisions and stored uploads).
+   */
+  csidoMixedRegional?: boolean;
 };
 
 /**
@@ -221,6 +228,8 @@ export type SheetPricing = {
   invoiceCsidiQty?: number | null;
   /** The invoice also has at least one CSIDO row. */
   invoiceHasCsido?: boolean | null;
+  /** The invoice also has at least one CSIDI row (a "mixed" CSIDO invoice). */
+  invoiceHasCsidi?: boolean | null;
   /** This is the first row of its pricing type on the invoice (carries the once-per-invoice charge). */
   firstOfType?: boolean | null;
   before: {
@@ -426,8 +435,12 @@ const INSTALL_TYPES = new Set(['CSIDI', 'CSIII']);
  *   CSIDI : Qty x Net rate + one transport charge per invoice, only when the
  *           invoice has more than 1 CSIDI unit and no CSIDO line.
  *   CSIII : Qty x Net rate, no transport.
- *   CSIDO : one flat charge per invoice (Calculation sheet rate) on the first
- *           CSIDO line; later CSIDO lines of the invoice show 0.
+ *   CSIDO : one charge per invoice on the first CSIDO line; later CSIDO lines
+ *           of the invoice show 0. The charge is the flat Calculation sheet
+ *           rate, except on a mixed invoice (it also has a CSIDI line) once the
+ *           19 Oct 2026 rule is in the workbook: then it is the regional
+ *           transport rate (Dubai 60 / Sharjah 90), the visit being shared
+ *           with the CSIDI delivery.
  */
 function enrichInvoiceLevel(
   rules: PricingRules,
@@ -441,12 +454,20 @@ function enrichInvoiceLevel(
   const first = p.firstOfType !== false;
 
   if (type === 'CSIDO') {
-    const flat = csidoFlatCharge(rules);
-    const expected = first ? flat : 0;
-    out.basis =
-      'One flat charge per invoice (AED ' +
-      flat +
-      ') on the first CSIDO line; later CSIDO lines of the invoice show 0';
+    const mixed = !!rules.csidoMixedRegional && !!p.invoiceHasCsidi;
+    const charge = mixed
+      ? transportPerTrip(rules, region) || csidoFlatCharge(rules)
+      : csidoFlatCharge(rules);
+    const expected = first ? charge : 0;
+    out.basis = mixed
+      ? 'Mixed invoice (it also has a delivery + installation line): one ' +
+        region +
+        ' transport charge (AED ' +
+        charge +
+        ') on the first CSIDO line instead of the flat charge; later CSIDO lines show 0'
+      : 'One flat charge per invoice (AED ' +
+        charge +
+        ') on the first CSIDO line; later CSIDO lines of the invoice show 0';
     out.rebuilt = expected;
     out.reconcileDiff = line.revenue - expected;
     out.diffCause = Math.abs(out.reconcileDiff) > 0.01 ? 'CSIDO flat charge' : '';
@@ -455,6 +476,7 @@ function enrichInvoiceLevel(
       'Activity and category from the ERP net-sale report (' +
       (p.erpCategory ?? 'category not stated') +
       ' is not an installable category); ' +
+      (mixed ? 'the invoice also has a CSIDI line, so the regional transport rate applies; ' : '') +
       (first
         ? 'first CSIDO line of the invoice, carries the charge'
         : 'charge sits on the first CSIDO line');

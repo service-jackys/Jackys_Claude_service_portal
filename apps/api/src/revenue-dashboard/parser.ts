@@ -295,7 +295,25 @@ function readPricingRules(workbook: ExcelJS.Workbook, rates: PricingRules['rates
     deliveryInstall: di,
     install,
     logicVersion: usesInvoiceLevelRules(workbook) ? 3 : 2,
+    csidoMixedRegional: guideHasMixedCsidoRule(workbook) || undefined,
   };
+}
+
+// 19 Oct 2026: the Pricing Logic Guide states that a CSIDO line on an invoice
+// that also has a CSIDI line is charged the regional transport rate. Older
+// guides say nothing about "mixed" invoices, so their CSIDO stays flat.
+function guideHasMixedCsidoRule(workbook: ExcelJS.Workbook): boolean {
+  const sheet = workbook.getWorksheet('Pricing Logic Guide');
+  if (!sheet) return false;
+  let found = false;
+  sheet.eachRow((row) => {
+    if (found) return;
+    row.eachCell((c) => {
+      if (!found && /csido\s+revenue\W{0,6}mixed|mixed\s+csido\b/i.test(text(c.value) ?? ''))
+        found = true;
+    });
+  });
+  return found;
 }
 
 // The 15 Oct 2026 workbook revision builds CSIDI from the ERP net-sale report
@@ -404,11 +422,17 @@ function attachSheetPricing(
   });
 
   // Invoice-level facts the invoice rules need (see pricing-logic.ts).
-  const invoiceFacts = new Map<string, { csidiQty: number; hasCsido: boolean }>();
+  const invoiceFacts = new Map<
+    string,
+    { csidiQty: number; hasCsido: boolean; hasCsidi: boolean }
+  >();
   for (const [k, list] of groups) {
     const [inv, type] = k.split('\u0000') as [string, string];
-    const facts = invoiceFacts.get(inv) ?? { csidiQty: 0, hasCsido: false };
-    if (type === 'CSIDI') facts.csidiQty += list.reduce((a, r) => a + (r.calcQty ?? 0), 0);
+    const facts = invoiceFacts.get(inv) ?? { csidiQty: 0, hasCsido: false, hasCsidi: false };
+    if (type === 'CSIDI') {
+      facts.csidiQty += list.reduce((a, r) => a + (r.calcQty ?? 0), 0);
+      facts.hasCsidi = true;
+    }
     if (type === 'CSIDO') facts.hasCsido = true;
     invoiceFacts.set(inv, facts);
   }
@@ -418,6 +442,7 @@ function attachSheetPricing(
     list.forEach((r, i) => {
       r.invoiceCsidiQty = facts.csidiQty;
       r.invoiceHasCsido = facts.hasCsido;
+      r.invoiceHasCsidi = facts.hasCsidi;
       r.firstOfType = i === 0;
     });
   }
