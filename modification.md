@@ -2905,6 +2905,8 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - **VAT-inclusive D+I rates.** D+I standard (1-unit) rates default to 100 / 100 / 120 (were 95.20 / 95.20 / 123.80); batch and minimum rates unchanged. Migration 046 updates a saved D+I Admin Entry only if it still holds the old three standard rates.
 - **Rate Card** banner now says "All prices in AED, including VAT"; D+I Admin Entry description says rates are entered including VAT.
 
+- **Compact worked-example controls (#110 follow-up).** Filters are one small row (uppercase 11px labels, 32px fields, short month / week names), the invoice picker and the paste box share a second row, the intro is a single muted line and the result tables use tighter padding, so the section no longer spills over.
+
 **Notes.** CSIJW, CSIDO and RWR / BER values still come from the workbook's Calculation sheet and CSIJO 125 is set in code, because D+I Admin Entry has no field for flat job-type rates. Revenue figures are still the workbook figures; the reconciliation block still re-prices with the workbook's stored rules.
 
 **Files.** packages/db/migrations/046_dandi_vat_inclusive_rates.sql, packages/db/src/pricing-config-defaults.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/ (logic-summary.ts, service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests/unit/revenue-logic-summary.test.ts.
