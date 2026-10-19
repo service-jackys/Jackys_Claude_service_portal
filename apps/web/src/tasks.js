@@ -13,6 +13,8 @@
   const KINDS = ['task', 'issue', 'innovation', 'request'];
   const GROUP_ORDER = ['in_progress', 'not_started', 'on_hold', 'completed'];
   const BOARD_ORDER = ['not_started', 'in_progress', 'on_hold', 'completed'];
+  // Tasks imported from the weekly tracker are dated from the start of the 15 Oct 2026 week.
+  const IMPORT_START_DEFAULT = '2026-10-15';
   const KIND_PLURAL = {
     task: 'Tasks',
     issue: 'Issues',
@@ -198,8 +200,27 @@
         '<div data-tk-content></div>' +
         '<div data-tk-overlay></div>' +
         '</div>';
-      wire(root);
+      // The page root is reused on every visit: wire its listeners only once, or every
+      // click would fire once per visit.
+      if (!root.dataset.tkWired) {
+        wire(root);
+        root.dataset.tkWired = '1';
+      }
       draw();
+      openPending();
+    }
+
+    // Dashboard kanban asks for one task to be opened in the full editor.
+    function openPending() {
+      if (!st.pendingOpen || !st.root) return;
+      const task = st.tasks.find((t) => t.id === st.pendingOpen);
+      st.pendingOpen = null;
+      if (task) openPanel(task, 'edit');
+    }
+    function openTask(id) {
+      // The page (re)loads the task list when it opens, then opens this one.
+      st.pendingOpen = String(id);
+      st.owner = 'me';
     }
 
     function icon(name) {
@@ -212,6 +233,7 @@
         archive:
           '<rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8M10 12h4"/>',
         restore: '<path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/>',
+        clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         calendar:
           '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
       };
@@ -1421,6 +1443,7 @@
         if (e.target.closest('[data-i-close]')) return close();
         if (e.target.closest('[data-i-go]')) {
           const date = mount.querySelector('[data-i-date]').value || today();
+          const start = mount.querySelector('[data-i-start]').value || null;
           const rows = [];
           mount.querySelectorAll('[data-i-sheet]').forEach((cb) => {
             if (!cb.checked) return;
@@ -1431,6 +1454,7 @@
                 status: t.status,
                 percentComplete: t.percentComplete,
                 remarks: t.remarks,
+                startDate: start,
                 completedOn: t.status === 'completed' ? date : null,
               }),
             );
@@ -1484,7 +1508,9 @@
                   ' completed)</label>',
               )
               .join('') +
-            '</div><div class="tk-field"><label for="iDate">Completed rows were finished on</label><input id="iDate" type="date" data-i-date value="' +
+            '</div><div class="tk-field"><label for="iStart">Imported tasks started on</label><input id="iStart" type="date" data-i-start value="' +
+            esc(IMPORT_START_DEFAULT) +
+            '"><p class="tk-hint">Sets the start date, so the Dashboard kanban can show how many days each open task has been pending.</p></div><div class="tk-field"><label for="iDate">Completed rows were finished on</label><input id="iDate" type="date" data-i-date value="' +
             esc(today()) +
             '"><p class="tk-hint">Completed tasks stay in the ROI Result until you archive them. This date is just the record of when they were finished.</p></div>' +
             '<div class="tk-compose-actions"><button type="button" class="button button-primary tk-btn" data-i-go>Import</button></div>';
@@ -1495,7 +1521,254 @@
       });
     }
 
-    return { renderPage, openComposer };
+    // ====================================== Dashboard kanban lane (modification #112)
+    // "My tasks": the in-progress and not-started tasks beside the service board, each with
+    // a days-pending pill, quick status / progress edits and a link into the full task.
+    const LANE_COLS = [
+      ['in_progress', 'In progress', 'Work underway'],
+      ['not_started', 'Not started', 'Waiting to begin'],
+    ];
+    const LANE_ON_TRACK = 7;
+    const LANE_LATE = 14;
+    const lane = { host: null, tasks: [], loaded: false, q: '', error: '', note: '' };
+
+    function pendingDays(t) {
+      return t.startDate ? Roi.daysBetween(t.startDate, today()) : null;
+    }
+    function pendingPill(t) {
+      const d = pendingDays(t);
+      if (d === null)
+        return '<span class="tkl-tat tkl-tat-none" title="Set a start date to see the days pending">No start date</span>';
+      const tone = d < 0 ? 'future' : d <= LANE_ON_TRACK ? 'ok' : d <= LANE_LATE ? 'warn' : 'late';
+      const label = d < 0 ? 'Starts in ' + -d + 'd' : d === 0 ? 'Started today' : d + 'd pending';
+      return (
+        '<span class="tkl-tat tkl-tat-' +
+        tone +
+        '" title="Started ' +
+        esc(fmtDate(t.startDate)) +
+        ' (' +
+        esc(t.startDate) +
+        ')">' +
+        icon('clock') +
+        esc(label) +
+        '</span>'
+      );
+    }
+    function laneVisible(t) {
+      if (t.archivedAt || (t.status !== 'in_progress' && t.status !== 'not_started')) return false;
+      if (!lane.q) return true;
+      return (t.title + ' ' + (t.remarks || '')).toLowerCase().includes(lane.q);
+    }
+    function laneCard(t) {
+      const d = pendingDays(t);
+      const tone =
+        d === null || d < 0 ? 'none' : d <= LANE_ON_TRACK ? 'ok' : d <= LANE_LATE ? 'warn' : 'late';
+      return (
+        '<article class="tkl-card tkl-b-' +
+        tone +
+        '" draggable="true" data-lane-id="' +
+        t.id +
+        '">' +
+        '<div class="tkl-top"><button type="button" class="tkl-title" data-lane-open title="Open this task">' +
+        esc(t.title) +
+        '</button>' +
+        pendingPill(t) +
+        '</div>' +
+        '<div class="tkl-meta">' +
+        kindChip(t.kind) +
+        '<span class="tk-prio tk-p-' +
+        t.priority +
+        '">' +
+        esc(priorityLabel(t.priority)) +
+        '</span>' +
+        (t.startDate
+          ? '<span class="tkl-since">' +
+            icon('calendar') +
+            'Since ' +
+            esc(fmtDate(t.startDate)) +
+            '</span>'
+          : '') +
+        (t.dueDate
+          ? '<span class="tk-due' +
+            (isOverdue(t) ? ' tk-overdue' : '') +
+            '">Due ' +
+            esc(fmtDate(t.dueDate)) +
+            '</span>'
+          : '') +
+        '</div>' +
+        (t.remarks ? '<p class="tkl-remarks">' + esc(t.remarks) + '</p>' : '') +
+        '<div class="tkl-ctrl">' +
+        '<label class="tkl-range"><span class="sr-only">Progress</span><input type="range" min="0" max="100" step="5" value="' +
+        t.percentComplete +
+        '" data-lane-pct aria-label="Progress for ' +
+        esc(t.title) +
+        '"><span class="tkl-pct" data-lane-pct-label>' +
+        t.percentComplete +
+        '%</span></label>' +
+        '<select data-lane-status aria-label="Status for ' +
+        esc(t.title) +
+        '">' +
+        options(STATUSES, Roi.STATUS_LABELS, t.status) +
+        '</select>' +
+        '<button type="button" class="tkl-go" data-lane-open>Open' +
+        icon('chevron') +
+        '</button></div></article>'
+      );
+    }
+    function laneDraw() {
+      const host = lane.host;
+      if (!host) return;
+      if (lane.error) {
+        host.innerHTML = '<p class="kb-empty">' + esc(lane.error) + '</p>';
+        return;
+      }
+      const open = lane.tasks.filter(
+        (t) => !t.archivedAt && (t.status === 'in_progress' || t.status === 'not_started'),
+      );
+      const withStart = open.map(pendingDays).filter((d) => d !== null && d >= 0);
+      const late = withStart.filter((d) => d > LANE_LATE).length;
+      const avg = withStart.length
+        ? Math.round(withStart.reduce((a, b) => a + b, 0) / withStart.length)
+        : null;
+      const onHold = lane.tasks.filter((t) => !t.archivedAt && t.status === 'on_hold').length;
+      host.innerHTML =
+        '<div class="tkl-head"><div><h3>My tasks</h3><p>In-progress and not-started work from your ROI task list. Change status or progress right here; open a card for the full task.</p></div>' +
+        '<div class="tkl-stats"><span><b>' +
+        open.length +
+        '</b> open</span>' +
+        (avg !== null ? '<span><b>' + avg + 'd</b> avg pending</span>' : '') +
+        (late ? '<span class="tkl-late"><b>' + late + '</b> over ' + LANE_LATE + 'd</span>' : '') +
+        (onHold ? '<span><b>' + onHold + '</b> on hold</span>' : '') +
+        '</div><button type="button" class="button button-outline tk-btn" data-lane-page>All tasks' +
+        icon('chevron') +
+        '</button></div>' +
+        (lane.note ? '<p class="tkl-note" role="status">' + esc(lane.note) + '</p>' : '') +
+        '<div class="tkl-board">' +
+        LANE_COLS.map(([status, label, hint]) => {
+          const cards = lane.tasks.filter((t) => t.status === status && laneVisible(t));
+          cards.sort((a, b) => (pendingDays(b) ?? -999) - (pendingDays(a) ?? -999));
+          return (
+            '<section class="kb-col tkl-col" data-lane-col="' +
+            status +
+            '" style="--col:' +
+            (status === 'in_progress' ? '#2563eb' : '#94a3b8') +
+            '" aria-label="' +
+            esc(label) +
+            '"><div class="kb-col-head"><div class="kb-col-title"><span>' +
+            esc(label) +
+            '</span><span class="kb-count">' +
+            cards.length +
+            '</span></div><div class="kb-col-meta">' +
+            esc(hint) +
+            ' &middot; longest pending first</div></div><div class="kb-list">' +
+            (cards.length
+              ? cards.map(laneCard).join('')
+              : '<p class="kb-empty">No tasks here. Drop a card to move it.</p>') +
+            '</div></section>'
+          );
+        }).join('') +
+        '</div>';
+    }
+    async function lanePatch(id, body, doneNote) {
+      try {
+        const { task } = await deps.apiRequest('/api/roi/tasks/' + id, {
+          method: 'PATCH',
+          body: JSON.stringify(body),
+        });
+        const i = lane.tasks.findIndex((t) => t.id === id);
+        if (i >= 0) lane.tasks[i] = task;
+        replaceTask(task);
+        lane.note =
+          task.status === 'completed'
+            ? '"' + task.title + '" is complete and has moved to the Result of your ROI.'
+            : doneNote || '';
+      } catch (error) {
+        lane.note = error.message || 'Could not update the task.';
+      }
+      laneDraw();
+    }
+    function laneWire(host) {
+      if (host.dataset.laneWired) return;
+      host.dataset.laneWired = '1';
+      let dragId = null;
+      host.addEventListener('click', (e) => {
+        if (e.target.closest('[data-lane-page]')) return deps.openTask && deps.openTask(null);
+        const open = e.target.closest('[data-lane-open]');
+        const card = e.target.closest('[data-lane-id]');
+        if (open && card && deps.openTask) deps.openTask(card.dataset.laneId);
+      });
+      host.addEventListener('input', (e) => {
+        if (!e.target.matches('[data-lane-pct]')) return;
+        const label = e.target.closest('.tkl-range').querySelector('[data-lane-pct-label]');
+        label.textContent = e.target.value + '%';
+      });
+      host.addEventListener('change', (e) => {
+        const card = e.target.closest('[data-lane-id]');
+        if (!card) return;
+        if (e.target.matches('[data-lane-pct]'))
+          lanePatch(card.dataset.laneId, { percentComplete: Number(e.target.value) });
+        else if (e.target.matches('[data-lane-status]'))
+          lanePatch(card.dataset.laneId, { status: e.target.value });
+      });
+      host.addEventListener('dragstart', (e) => {
+        const card = e.target.closest('[data-lane-id]');
+        if (!card) return;
+        dragId = card.dataset.laneId;
+        card.classList.add('tk-dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragId);
+      });
+      host.addEventListener('dragend', () => {
+        dragId = null;
+        host
+          .querySelectorAll('.tk-dragging, .tkl-over')
+          .forEach((el) => el.classList.remove('tk-dragging', 'tkl-over'));
+      });
+      host.addEventListener('dragover', (e) => {
+        const col = e.target.closest('[data-lane-col]');
+        if (!col || !dragId) return;
+        e.preventDefault();
+        host
+          .querySelectorAll('.tkl-over')
+          .forEach((el) => el !== col && el.classList.remove('tkl-over'));
+        col.classList.add('tkl-over');
+      });
+      host.addEventListener('drop', (e) => {
+        const col = e.target.closest('[data-lane-col]');
+        if (!col || !dragId) return;
+        e.preventDefault();
+        const id = dragId;
+        dragId = null;
+        const task = lane.tasks.find((t) => t.id === id);
+        if (task && task.status !== col.dataset.laneCol)
+          lanePatch(
+            id,
+            { status: col.dataset.laneCol },
+            'Moved to ' + statusLabel(col.dataset.laneCol) + '.',
+          );
+        else laneDraw();
+      });
+    }
+    // opts: { refresh } reload from the server; { q } search text from the board toolbar.
+    async function renderBoardLane(host, opts) {
+      opts = opts || {};
+      lane.host = host;
+      if (opts.q !== undefined) lane.q = String(opts.q || '').toLowerCase();
+      laneWire(host);
+      if (opts.refresh || !lane.loaded) {
+        try {
+          const data = await deps.apiRequest('/api/roi/tasks');
+          lane.tasks = data.tasks;
+          lane.error = '';
+          lane.loaded = true;
+        } catch (error) {
+          lane.error = error.message || 'Could not load your tasks.';
+        }
+      }
+      laneDraw();
+    }
+
+    return { renderPage, openComposer, openTask, renderBoardLane };
   }
 
   window.JdTasks = { create };

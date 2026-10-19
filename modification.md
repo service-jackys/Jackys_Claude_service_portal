@@ -2930,3 +2930,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/ (pricing-logic.ts, logic-summary.ts, logic-sheet.ts), apps/web/src/app.js, index.html, tests/unit/revenue-logic-summary.test.ts, tests/unit/revenue-workbook.test.ts.
 
 **Needs you:** pull, restart API, hard-refresh and **re-upload the new workbook** so stored pricing refreshes (no migration).
+
+## Modification #112 — Dashboard kanban: "My tasks" lane with days-pending TAT
+
+**Why.** Tasks (ROI) lived only on the Tasks page. The Dashboard kanban board showed service cases but not the user's own open work, and there was no sense of how long a task had been waiting.
+
+**What changed.**
+- **My tasks lane** under the service board (Dashboard > Kanban board): two columns, **In progress** and **Not started**, for the signed-in user's open tasks (needs the Tasks permission). Longest-pending first.
+- **TAT pill** on every card: "Nd pending" counted in Dubai calendar days from the task's start date (green up to 7 days, amber 8-14, red over 14), "Starts in Nd" for a future start, "No start date" when none is set. Header chips show open count, average pending, tasks over 14 days and on-hold count.
+- **Update from the board.** Each card has a progress slider, a status selector and drag-and-drop between the two columns. Changes use the same rules as the Tasks page (100% completes the task and moves it to the ROI Result, first progress starts a task).
+- **Open the task.** Clicking the title or Open takes you to the Tasks page with that task's editor open. "All tasks" opens the Tasks page. The board search box also filters the lane.
+- **Imported tasks get a start date.** The import dialog has "Imported tasks started on", defaulting to 15 Oct 2026. Migration 047 gives the tasks already imported without a start date the same date (open tasks only; any date already set is kept).
+- **Fix.** The Tasks page wired its click / change / drag handlers again on every visit, so after several visits Import or New task could fire more than once. Handlers are now attached once.
+
+**Files.** packages/db/migrations/047_roi_import_start_date.sql, apps/web/src/tasks.js, app.js, index.html.
+
+**Needs you:** pull, `npm.cmd run db:migrate` (047), hard-refresh. No API change.
