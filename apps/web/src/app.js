@@ -17822,22 +17822,21 @@ ${bodyHtml}
         '</select></label></div>';
       const exampleHtml = rdSection(
         'Worked example &mdash; pick any invoice',
-        '<div class="rd-pad"><p class="rl-p">Choose a period and job type (CSIDI, CSIII, CSIDO, CSIJW or CSIJO), pick an invoice and see how every line was priced &mdash; or paste invoice numbers below. Amounts are the workbook figures; a note appears if the current rules would give a different amount.</p>' +
+        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures; a note shows where the current rules differ.</p>' +
           '<div class="rl-live-bar">' +
           liveSel('year', 'Year', liveOpts.years) +
-          liveSel(
-            'month',
-            'Month',
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-            (v) => RD_MONTHS_FULL[v - 1],
+          liveSel('month', 'Month', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], (v) =>
+            RD_MONTHS_FULL[v - 1].slice(0, 3),
           ) +
-          liveSel('week', 'Week', liveOpts.weeks, (v) => 'Week ' + v) +
-          liveSel('jobType', 'Job type', liveOpts.jobTypes, (v) => rdLabel('jobType', v)) +
-          '<div class="th-field"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice" /></label></div>' +
-          '<div class="th-field rl-live-pick"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
-          '</div><div class="rl-paste"><label for="rlPaste">Paste invoice number(s)</label><div class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083  (separate several with commas or spaces)" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></div></div>' +
-          '<p class="form-note" data-rl-msg></p></div>' +
-          '<div data-rl-out class="rd-pad">' +
+          liveSel('week', 'Week', liveOpts.weeks, (v) => 'Wk ' + v) +
+          liveSel('jobType', 'Job type', liveOpts.jobTypes) +
+          '<div class="th-field rl-grow"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice no." /></label></div>' +
+          '</div><div class="rl-live-bar">' +
+          '<div class="th-field rl-grow rl-wide"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
+          '<div class="th-field rl-grow"><label for="rlPaste">Or paste invoice number(s)</label><span class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083, 16101084" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></span></div>' +
+          '</div>' +
+          '<p class="form-note rl-live-msg" data-rl-msg></p></div>' +
+          '<div data-rl-out class="rl-out">' +
           (example ? exampleTable(example) : '') +
           '</div>',
         'Any job type',

@@ -1514,35 +1514,100 @@
         color: var(--muted);
         font-size: 13px;
       }
-      .rl-live-bar {
+      .rl-live {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        gap: 12px;
-        margin: 4px 0 12px;
+        gap: 0.6rem;
       }
-      .rl-live-bar .rl-live-pick {
-        grid-column: 1 / -1;
+      .rl-live-note {
+        margin: 0;
+        font-size: 0.78rem;
+        line-height: 1.4;
+        color: var(--muted, #5b6b82);
+      }
+      .rl-live-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.5rem 0.7rem;
+      }
+      .rl-live-bar .th-field {
+        display: grid;
+        gap: 0.2rem;
+        margin: 0;
+      }
+      .rl-live-bar .th-field label {
+        display: grid;
+        gap: 0.2rem;
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-transform: uppercase;
+        color: var(--muted, #5b6b82);
       }
       .rl-live-bar select,
       .rl-live-bar input {
         width: 100%;
+        min-width: 0;
+        height: 32px;
+        box-sizing: border-box;
+        padding: 0 0.55rem;
+        font-size: 0.8rem;
+        font-weight: 500;
+        text-transform: none;
+        letter-spacing: 0;
       }
-      .rl-paste label {
-        display: block;
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--muted, #5b6b82);
-        margin-bottom: 6px;
+      .rl-live-bar select {
+        min-width: 84px;
+        text-overflow: ellipsis;
+      }
+      .rl-live-bar .rl-grow {
+        flex: 1 1 190px;
+      }
+      .rl-live-bar .rl-wide {
+        flex: 2 1 340px;
       }
       .rl-paste-row {
         display: flex;
-        gap: 8px;
-        align-items: center;
-        flex-wrap: wrap;
+        gap: 0.4rem;
       }
-      .rl-paste-row input {
-        flex: 1 1 280px;
-        min-width: 0;
+      .rl-paste-row .button {
+        height: 32px;
+        min-height: 32px;
+        margin: 0;
+        padding: 0 0.9rem;
+        font-size: 0.8rem;
+        line-height: 1;
+        box-shadow: none;
+        flex: none;
+      }
+      .rl-live-msg {
+        margin: 0;
+        min-height: 0;
+        font-size: 0.76rem;
+      }
+      .rl-live-msg:empty {
+        display: none;
+      }
+      .rl-out {
+        padding: 0 0.9rem 0.8rem;
+        display: grid;
+        gap: 0.6rem;
+      }
+      .rl-out:empty {
+        display: none;
+      }
+      .rl-live .rl-example,
+      .rl-out .rl-example {
+        margin: 0;
+        padding: 0.6rem 0.8rem;
+      }
+      .rl-out .rl-example + .rl-example {
+        margin-top: 0;
+      }
+      .rl-live .rl-example .rc-table th,
+      .rl-live .rl-example .rc-table td {
+        padding: 0.35rem 0.5rem;
+        font-size: 0.78rem;
       }
       .rl-check {
         margin-top: 2px;
