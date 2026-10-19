@@ -177,6 +177,13 @@ export async function updateRoiTask(
     sets.push('completed_at = now()');
   if (finalStatus !== 'completed' && current.status === 'completed')
     sets.push('completed_at = NULL');
+  // Finishing a task also closes its end date on the day it was finished (never before
+  // the start date), unless the request sets an end date itself.
+  if (finalStatus === 'completed' && current.status !== 'completed' && next.dueDate === undefined) {
+    values.push(next.completedOn ?? null);
+    const day = `COALESCE($${values.length}::date, (now() AT TIME ZONE 'Asia/Dubai')::date)`;
+    sets.push(`due_date = GREATEST(COALESCE(start_date, ${day}), ${day})`);
+  }
   // Reopening a task always brings it back out of the archive.
   if (finalStatus !== 'completed') sets.push('archived_at = NULL');
   else if (next.archived === true) sets.push('archived_at = COALESCE(archived_at, now())');

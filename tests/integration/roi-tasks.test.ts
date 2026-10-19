@@ -111,6 +111,33 @@ test(
         '2026-10-09',
       );
 
+      // Finishing a task closes its end date on the completion day (Dubai), never before the start.
+      const dubaiToday = new Date(Date.now() + 4 * 3600 * 1000).toISOString().slice(0, 10);
+      const endA = await service.create(userA, {
+        title: 'End date on completion',
+        startDate: '2026-10-01',
+      });
+      t = await service.update(userA, endA.id, { percentComplete: 100 });
+      assert.equal(t.dueDate, dubaiToday);
+      const endB = await service.create(userA, {
+        title: 'End date, completed on',
+        startDate: '2026-10-01',
+      });
+      t = await service.update(userA, endB.id, { status: 'completed', completedOn: '2026-10-09' });
+      assert.equal(t.dueDate, '2026-10-09');
+      const endC = await service.create(userA, {
+        title: 'End date set by hand',
+        startDate: '2026-10-01',
+      });
+      t = await service.update(userA, endC.id, { percentComplete: 100, dueDate: '2026-10-20' });
+      assert.equal(t.dueDate, '2026-10-20');
+      const endD = await service.create(userA, {
+        title: 'End date never before start',
+        startDate: '2099-01-05',
+      });
+      t = await service.update(userA, endD.id, { percentComplete: 100 });
+      assert.equal(t.dueDate, '2099-01-05');
+
       // Archiving: completed only, restorable, and reopening un-archives.
       t = await service.update(userA, task.id, { archived: true });
       assert.ok(t.archivedAt);
