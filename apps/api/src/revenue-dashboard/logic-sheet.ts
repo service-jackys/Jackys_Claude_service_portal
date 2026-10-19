@@ -270,7 +270,7 @@ function buildInvoiceLevelLogicSheet(
     ],
     CSIDI: [
       'CSIDI  Delivery + installation',
-      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. Base rate is the batch rate when Qty is more than 1, otherwise the standard rate. Transport (${transports}) is added once per invoice, only when the invoice has more than 1 unit and no delivery-only line.`,
+      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.`,
     ],
     CSIII: [
       'CSIII  Installation only',

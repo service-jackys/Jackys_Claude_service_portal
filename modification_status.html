@@ -3668,6 +3668,25 @@
           <li>Pull, run <code>npm.cmd run db:migrate</code> (046), restart the API and hard-refresh.</li>
         </ul>
       </div>
+      <div class="card">
+        <div class="card-head">
+          <h2>#111 &mdash; Logic applied: invoice-level CSIDI rule and reviewer notes</h2>
+          <span class="badge badge-code-complete"
+            >Built and verified &mdash; needs your review</span
+          >
+        </div>
+        <p class="meta">2026-10-19 &middot; API and web, no migration</p>
+        <div class="section-label">What changed</div>
+        <ul>
+          <li>CSIDI tier discount and batch rate now use the invoice&rsquo;s total CSIDI units; transport is charged once on the first CSIDI line of CSIDI-only multi-unit invoices.</li>
+          <li>Worked example shows plain-language notes per invoice and the likely cause when a line differs from the workbook.</li>
+          <li>Checked: 16101385 = 421, 16101442 = 212, 16101328 = 174.</li>
+        </ul>
+        <div class="section-label">Needs you</div>
+        <ul>
+          <li>Pull, restart the API, hard-refresh and re-upload the new workbook.</li>
+        </ul>
+      </div>
     </main>
 
     <footer>Jacky's Distribution — Service Portal migration project</footer>

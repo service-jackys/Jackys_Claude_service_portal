@@ -2912,3 +2912,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/046_dandi_vat_inclusive_rates.sql, packages/db/src/pricing-config-defaults.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/ (logic-summary.ts, service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests/unit/revenue-logic-summary.test.ts.
 
 **Needs you:** pull, `npm.cmd run db:migrate` (046), restart API, hard-refresh. Your role needs the Logic applied tab permission (already granted if you had Finance access).
+
+## Modification #111 — Logic applied: invoice-level CSIDI rule and reviewer notes
+
+**Why.** The refreshed workbook (Service_Dashboard_Master_ACC_NEW_CSIII, Pricing Logic Guide session log) prices a CSIDI line's tier and batch rate on the invoice's **total** CSIDI units, and adds the once-per-invoice transport on the first CSIDI line of invoices that are CSIDI-only and have more than one unit. The portal still tiered each category line on its own quantity, so invoices such as 16101385 showed a gap (e.g. "Rules give AED 160; the workbook shows AED 100").
+
+**What changed.**
+- **Pricing rule.** CSIDI tier discount and batch rate use the invoice's total CSIDI quantity across categories (a qty-1 line on a 5-unit invoice gets the batch rate). Transport (60 Dubai / 90 Sharjah) is charged once, on the first CSIDI line, when the invoice has more than one CSIDI unit and no CSIDO line. CSIII is still priced per line.
+- **Worked example notes.** Each invoice now has a short list of plain-language notes: which rate and tier apply and why (based on the invoice total), where the transport sits or why there is none, CSIII per line, and the CSIDO flat charge once per invoice.
+- **Difference notes** under a line now say the likely cause (older CSIDO flat charge, missing transport on the workbook row, or a locked row at an older rate).
+- **Rule cards** (Logic applied tab and the logic sheet) describe the invoice-level CSIDI rule.
+
+**Verified against the new workbook.** 16101385 = AED 421 (4 x 76 + 1 x 57 + 60 transport); 16101442 = AED 212; 16101328 = AED 174. Every CSIDI and CSIII line reconciles; the only differences are 148 locked CSIDO history lines (60 / 80 vs the flat 100), by design.
+
+**Open points for Accounts.** CSIII lines are still priced on each line's own quantity in the workbook; the model / category labels of VG352CS and VC6631ESD on 16101385 look swapped against the ERP; the CSIDO flat charge is applied once per invoice (first CSIDO line).
+
+**Files.** apps/api/src/revenue-dashboard/ (pricing-logic.ts, logic-summary.ts, logic-sheet.ts), apps/web/src/app.js, index.html, tests/unit/revenue-logic-summary.test.ts, tests/unit/revenue-workbook.test.ts.
+
+**Needs you:** pull, restart API, hard-refresh and **re-upload the new workbook** so stored pricing refreshes (no migration).

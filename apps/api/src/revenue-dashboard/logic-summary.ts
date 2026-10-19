@@ -55,6 +55,8 @@ export type WorkedExample = {
   date: string | null;
   lines: ExampleLine[];
   total: number;
+  /** How the invoice-level rules were applied to this invoice, in plain words. */
+  notes: string[];
 };
 
 /**
@@ -165,15 +167,16 @@ function exampleLineText(line: LogicSummaryLine): ExampleLine {
   if (line.jobType === 'CSIDI' || line.jobType === 'CSIII') {
     const base = p?.baseUnitRate;
     const net = p?.netUnitRate ?? line.unitPrice;
-    const discount = p?.discountRate ?? 0;
+    // Read the discount from base and net: older workbook rows kept a stale
+    // discount % next to a corrected net rate.
+    const pct = base && net < base ? Math.round((1 - net / base) * 100) : 0;
+    const invoiceUnits = line.jobType === 'CSIDI' ? (p?.invoiceCsidiQty ?? null) : line.qty;
+    const rateWord = invoiceUnits !== null && invoiceUnits > 1 ? 'batch rate' : 'standard rate';
     how =
       `${line.qty} x ${money(net)}` +
-      (base && discount
-        ? ` (base ${money(base)} less ${Math.round(discount * 100)}% volume discount)`
-        : base
-          ? ` (base ${money(base)})`
-          : '');
-    if (p?.transportCharge) how += ` + ${money(p.transportCharge)} transport (once per invoice)`;
+      (base ? ` (${rateWord} ${money(base)}${pct ? ` less ${pct}% volume discount` : ''})` : '');
+    if (p?.transportCharge)
+      how += ` + ${money(p.transportCharge)} transport (once per invoice, on its first line)`;
   } else if (line.jobType === 'CSIDO') {
     how =
       line.revenue > 0
@@ -218,12 +221,70 @@ export function buildWorkedExample(
           pricing: l.pricing,
         });
         if (e.rebuilt !== null && Math.abs(e.reconcileDiff ?? 0) > 0.01)
-          out.check = `Rules give ${money(e.rebuilt)}; the workbook shows ${money(l.revenue)}`;
+          out.check =
+            `Rules give ${money(e.rebuilt)}; the workbook shows ${money(l.revenue)}` +
+            (CAUSE_TEXT[e.diffCause] ? ` — ${CAUSE_TEXT[e.diffCause]}` : '');
       }
       return out;
     }),
     total: round2(set.reduce((s, l) => s + l.revenue, 0)),
+    notes: invoiceNotes(rules, ordered),
   };
+}
+
+const CAUSE_TEXT: Record<string, string> = {
+  'CSIDO flat charge':
+    'a locked-history delivery-only line priced before the flat charge changed to AED 100',
+  'CSIDI transport': 'the once-per-invoice transport is missing from the workbook row',
+  'Rate or quantity': 'a locked row kept at an older rate or quantity',
+};
+
+/**
+ * Plain-language reading of the invoice-level rules for the reviewer: which
+ * quantity decided the rate and discount tier, and where the once-per-invoice
+ * charges sit.
+ */
+function invoiceNotes(rules: PricingRules, set: LogicSummaryLine[]): string[] {
+  const notes: string[] = [];
+  const di = set.filter((l) => l.jobType === 'CSIDI');
+  const doLines = set.filter((l) => l.jobType === 'CSIDO');
+  if (di.length) {
+    const units = di[0]?.pricing?.invoiceCsidiQty ?? di.reduce((s, l) => s + l.qty, 0);
+    const tier = rules.deliveryInstall.discounts.find(
+      (t) => units >= t.minimum && units <= t.maximum,
+    );
+    const many = di.length > 1;
+    notes.push(
+      units > 1
+        ? `Rate: the invoice has ${units} delivery + installation units in total${many ? ' across its ' + di.length + ' lines' : ''}, so ${many ? 'every line is priced at' : 'the line is priced at'} the batch rate${many ? ' (even a line of 1 unit)' : ''} and the volume-discount tier is read on ${units} units` +
+            (tier ? ` (${tier.tier}: ${Math.round(tier.discount * 1000) / 10}%).` : '.')
+        : 'Rate: a single delivery + installation unit on the invoice, so the standard rate applies with no volume discount.',
+    );
+    const withTransport = di.find((l) => (l.pricing?.transportCharge ?? 0) > 0);
+    if (doLines.length)
+      notes.push(
+        `Transport: not added to the CSIDI lines, because the invoice also has a delivery-only line whose flat ${money(csidoFlatCharge(rules))} covers the visit.`,
+      );
+    else if (units <= 1)
+      notes.push('Transport: none, because the invoice has only one delivery + installation unit.');
+    else if (withTransport)
+      notes.push(
+        `Transport: ${money(withTransport.pricing?.transportCharge ?? 0)} is charged once for the invoice (more than 1 unit, no delivery-only line), on its first delivery + installation line${di.length > 1 ? ' — the other lines carry none' : ''}.`,
+      );
+    else
+      notes.push(
+        'Transport: the rules add one transport charge to the first delivery + installation line (more than 1 unit, no delivery-only line), but this workbook row carries none.',
+      );
+  }
+  if (set.some((l) => l.jobType === 'CSIII'))
+    notes.push(
+      'Installation only: each line is priced on its own quantity; no transport is added.',
+    );
+  if (doLines.length)
+    notes.push(
+      `Delivery only: one flat ${money(csidoFlatCharge(rules))} per invoice sits on its first delivery-only line; the other delivery-only lines show 0.`,
+    );
+  return notes;
 }
 
 export function rulesOfBatch(batch: ImportBatch): PricingRules {
