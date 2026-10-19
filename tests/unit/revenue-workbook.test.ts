@@ -213,9 +213,10 @@ const CONFORMING: CsidiRow[] = [
     type: 'CSIDI',
     qty: 1,
     category: 'Freestanding Refrigerator',
-    net: 95.2,
+    base: 60,
+    net: 57,
     transport: 60,
-    revenue: 155.2,
+    revenue: 117,
   },
   {
     inv: '1001',
@@ -314,14 +315,15 @@ test('the invoice-level rules rebuild every conforming line exactly', async () =
 
 test('workbook figures that break the current rules are flagged with a cause', async () => {
   const rows: CsidiRow[] = [
-    // Pure CSIDI, 5 units, transport missing.
+    // Pure CSIDI, 5 units (1 + 4), transport missing.
     {
       inv: '5005',
       type: 'CSIDI',
       qty: 1,
       category: 'Freestanding Refrigerator',
-      net: 95.2,
-      revenue: 95.2,
+      base: 60,
+      net: 57,
+      revenue: 57,
     },
     {
       inv: '5005',

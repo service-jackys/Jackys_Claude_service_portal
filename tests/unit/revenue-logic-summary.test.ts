@@ -82,3 +82,45 @@ test('buildWorkedExample covers any job type and orders lines by type', () => {
   assert.equal(ex.lines[1]?.how, '2 x AED 125 per job');
   assert.equal(ex.total, 350);
 });
+
+test('CSIDI tier and batch rate use the invoice total; transport sits on the first line', () => {
+  const rules = { ...rulesOfBatch(batch), logicVersion: 3 as const };
+  const pricing = (cat: string, base: number, net: number, transport: number, first: boolean) =>
+    ({
+      applianceCategory: cat,
+      baseUnitRate: base,
+      netUnitRate: net,
+      discountRate: 0,
+      transportCharge: transport,
+      invoiceCsidiQty: 5,
+      invoiceHasCsido: false,
+      firstOfType: first,
+      crewSize: 2,
+      city: 'DXB',
+      before: {},
+    }) as never;
+  const ex = buildWorkedExample(rules, '16101385', [
+    line({
+      jobType: 'CSIDI',
+      invDelNo: '16101385',
+      qty: 1,
+      unitPrice: 57,
+      revenue: 117,
+      pricing: pricing('Freestanding Refrigerator', 60, 57, 60, true),
+    }),
+    line({
+      jobType: 'CSIDI',
+      invDelNo: '16101385',
+      qty: 4,
+      unitPrice: 76,
+      revenue: 304,
+      pricing: pricing('Freestanding Cooker', 80, 76, 0, false),
+    }),
+  ]);
+  assert.equal(ex.total, 421);
+  assert.match(ex.lines[1]?.how ?? '', /1 x AED 57 \(batch rate AED 60 less 5% volume discount\)/);
+  assert.equal(ex.lines[0]?.check, undefined);
+  assert.equal(ex.lines[1]?.check, undefined);
+  assert.match(ex.notes[0] ?? '', /5 delivery \+ installation units.*batch rate.*2–5 units: 5%/);
+  assert.match(ex.notes[1] ?? '', /AED 60 is charged once.*first/);
+});

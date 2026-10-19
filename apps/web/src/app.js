@@ -17663,9 +17663,9 @@ ${bodyHtml}
         CSIDI: {
           what: 'Delivery + installation (fridges, washing machines, cookers)',
           how: v3
-            ? 'Quantity × net rate. The net rate is the base rate less the volume discount, and never below the minimum rate. The base rate is the batch rate when the invoice has more than 1 unit and the standard rate for a single unit. One transport charge (' +
+            ? 'Quantity × net rate. The net rate is the base rate less the volume discount, and never below the minimum rate. The base rate and the discount tier are decided on the invoice’s total delivery + installation quantity across all its categories: more than 1 unit means the batch rate for every line (even a line of 1), a single unit means the standard rate. One transport charge (' +
               transports +
-              ') is added once per invoice, only when the invoice has more than 1 unit and no delivery-only line.'
+              ') is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.'
             : 'Priced per line from the workbook rate cards (the earlier per-line rules).',
         },
         CSIII: {
@@ -17801,6 +17801,11 @@ ${bodyHtml}
             ]),
           [2, 4],
         ) +
+        (ex.notes && ex.notes.length
+          ? '<ul class="rl-notes">' +
+            ex.notes.map((n) => '<li>' + e(n) + '</li>').join('') +
+            '</ul>'
+          : '') +
         '</div>';
       const liveOpts = (sum && sum.summary && sum.summary.options) || {};
       const liveSel = (name, label, values, labelFor) =>

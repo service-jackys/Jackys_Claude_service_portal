@@ -260,12 +260,19 @@ export function priceInstallLine(
     /** Total transport for this line, overriding trips x per-trip (invoice-level rule). */
     transportTotal?: number;
     forceStandard?: boolean;
+    /**
+     * Quantity that decides batch vs standard rate and the discount tier. The
+     * invoice rule (workbook of 15 Oct 2026) uses the invoice's total quantity of
+     * this job type across all categories; defaults to the line's own qty.
+     */
+    tierQty?: number;
   },
 ): Priced {
   const master = type === 'CSIDI' ? rules.deliveryInstall : rules.install;
   const cat = categoryRate(master, input.category);
-  const tier = lookupDiscount(master, input.qty);
-  const useBatch = input.qty > 1 && !input.forceStandard;
+  const tierQty = input.tierQty ?? input.qty;
+  const tier = lookupDiscount(master, tierQty);
+  const useBatch = tierQty > 1 && !input.forceStandard;
   const base = useBatch ? cat.batchRate : cat.standardRate;
   const discounted = base * (1 - tier.discount);
   const net = Math.max(cat.minimumRate, discounted);
@@ -445,16 +452,23 @@ function enrichInvoiceLevel(
       transportNote = 'transport charged once for the invoice (' + region + ')';
     }
   }
+  // CSIDI: invoice total (workbook of 15 Oct 2026). CSIII rows are still priced on the line's own quantity in the workbook.
+  const tierQty = t === 'CSIDI' ? (p.invoiceCsidiQty ?? line.qty) : line.qty;
   const cur = priceInstallLine(rules, t, {
     qty: line.qty,
     category: p.applianceCategory,
     trips: 1,
     crewSize: crew,
     transportTotal,
+    tierQty,
   });
   out.basis =
     t === 'CSIDI'
-      ? 'Qty x Net unit rate x crew loading; one transport charge per invoice only when the invoice has more than 1 CSIDI unit and no CSIDO line'
+      ? 'Qty x Net unit rate x crew loading; batch rate and discount tier are decided on the invoice total of ' +
+        tierQty +
+        ' CSIDI unit' +
+        (tierQty === 1 ? '' : 's') +
+        '; one transport charge per invoice only when the invoice has more than 1 CSIDI unit and no CSIDO line'
       : 'Qty x Net unit rate x crew loading (no transport)';
   out.grossLabour = cur.gross;
   out.discountAmount = cur.discountAmount;
