@@ -68,13 +68,80 @@
       if (i >= 0) st.tasks[i] = task;
       else st.tasks.push(task);
     }
-    async function patchTask(id, body) {
+    async function patchTask(id, body, opts) {
+      const before = st.tasks.find((t) => t.id === id);
       const { task } = await deps.apiRequest('/api/roi/tasks/' + id, {
         method: 'PATCH',
         body: JSON.stringify(body),
       });
       replaceTask(task);
+      // Finishing a task from the list, board or a slider offers the Remarks / next action box.
+      if (
+        !(opts && opts.noPrompt) &&
+        task.status === 'completed' &&
+        before &&
+        before.status !== 'completed'
+      )
+        askCompletionRemarks(task);
       return task;
+    }
+
+    // Shown right after a task reaches 100% / Completed so the ROI line can be worded
+    // while it is fresh. Skipping keeps the existing remarks.
+    function askCompletionRemarks(task) {
+      const mount = document.createElement('div');
+      mount.className = 'tk-modal-host';
+      (window.tkModalHost_ ? window.tkModalHost_() : document.body).appendChild(mount);
+      const close = () => {
+        mount.remove();
+        document.removeEventListener('keydown', onKey);
+      };
+      const onKey = (e) => e.key === 'Escape' && close();
+      document.addEventListener('keydown', onKey);
+      const done = task.completedAt ? Roi.dubaiDay(task.completedAt) : today();
+      mount.innerHTML =
+        '<div class="tk-backdrop" data-r-close></div><div class="tk-modal tk-modal-sm" role="dialog" aria-modal="true" aria-labelledby="tkDoneTitle"><header><h4 id="tkDoneTitle">Task completed</h4><button type="button" class="tk-x" data-r-close aria-label="Close">' +
+        icon('close') +
+        '</button></header><div class="tk-modal-body">' +
+        '<p class="tk-hint"><strong>' +
+        esc(task.title) +
+        '</strong> is complete and now shows under Result in your ROI. Completed on ' +
+        esc(fmtDate(done)) +
+        (task.dueDate ? '; end date ' + esc(fmtDate(task.dueDate)) : '') +
+        '.</p>' +
+        '<div class="tk-field"><label for="tkDoneRemarks">Remarks / next action <span class="tk-opt">shown in the ROI</span></label><textarea id="tkDoneRemarks" rows="4" maxlength="2000">' +
+        esc(task.remarks || '') +
+        '</textarea></div><p class="tk-error" data-r-error hidden></p>' +
+        '<div class="tk-compose-actions"><button type="button" class="button button-outline tk-btn" data-r-close>Skip</button><button type="button" class="button button-primary tk-btn" data-r-save>Save remarks</button></div></div></div>';
+      const box = mount.querySelector('#tkDoneRemarks');
+      box.focus();
+      box.setSelectionRange(box.value.length, box.value.length);
+      mount.addEventListener('click', async (e) => {
+        if (e.target.closest('[data-r-close]')) return close();
+        if (!e.target.closest('[data-r-save]')) return;
+        const btn = e.target.closest('[data-r-save]');
+        const remarks = box.value.trim() || null;
+        if (remarks === (task.remarks || null)) return close();
+        btn.disabled = true;
+        try {
+          const { task: saved } = await deps.apiRequest('/api/roi/tasks/' + task.id, {
+            method: 'PATCH',
+            body: JSON.stringify({ remarks }),
+          });
+          replaceTask(saved);
+          const i = lane.tasks.findIndex((t) => t.id === saved.id);
+          if (i >= 0) lane.tasks[i] = saved;
+          if (st.root && st.root.isConnected) draw();
+          if (lane.host && lane.host.isConnected) laneDraw();
+          close();
+          toast('Remarks saved.');
+        } catch (error) {
+          btn.disabled = false;
+          const err = mount.querySelector('[data-r-error]');
+          err.textContent = error.message || 'Could not save the remarks.';
+          err.hidden = false;
+        }
+      });
     }
     const isAdmin = () => Boolean(deps.isAdmin && deps.isAdmin());
     const visible = (t) => {
@@ -825,6 +892,14 @@
       const first = host.querySelector('#tkTitle');
       if (first) first.focus();
     }
+    // Finishing a task closes its end date on the day it was completed (never before the start).
+    function syncEndOnComplete(root) {
+      if (!st.panel || st.panel.task.status === 'completed') return;
+      const doneInput = root.querySelector('#tkDone');
+      const day = (doneInput && doneInput.value) || today();
+      const start = root.querySelector('#tkStart').value;
+      root.querySelector('#tkDue').value = start && start > day ? start : day;
+    }
     function closePanel() {
       const host = st.root && st.root.querySelector('[data-tk-overlay]');
       if (host) host.innerHTML = '';
@@ -874,7 +949,7 @@
           toast('Added.');
         } else {
           if (owner && isAdmin()) body.ownerProfileId = owner;
-          await patchTask(st.panel.task.id, body);
+          await patchTask(st.panel.task.id, body, { noPrompt: true });
           toast('Saved.');
         }
         closePanel();
@@ -1016,6 +1091,8 @@
             await patchTask(id, { percentComplete: Number(el.value) });
             return draw();
           }
+          if (el.matches('#tkDone') && st.panel && st.panel.task.status !== 'completed')
+            syncEndOnComplete(root);
           if (el.matches('input[name=kind]')) {
             el.closest('.tk-seg')
               .querySelectorAll('label')
@@ -1023,6 +1100,7 @@
           }
           if (el.matches('#tkStatus')) {
             const range = root.querySelector('#tkPct');
+            if (el.value === 'completed') syncEndOnComplete(root);
             if (el.value === 'completed') range.value = 100;
             else if (el.value === 'not_started') range.value = 0;
             root.querySelector('[data-tk-pct-out]').textContent = range.value + '%';
@@ -1056,6 +1134,7 @@
             status.value = 'in_progress';
           const done = root.querySelector('[data-tk-done-field]');
           if (done) done.hidden = status.value !== 'completed';
+          if (status.value === 'completed') syncEndOnComplete(root);
         }
       });
 
@@ -1682,6 +1761,7 @@
           task.status === 'completed'
             ? '"' + task.title + '" is complete and has moved to the Result of your ROI.'
             : doneNote || '';
+        if (task.status === 'completed') window.setTimeout(() => askCompletionRemarks(task), 0);
       } catch (error) {
         lane.note = error.message || 'Could not update the task.';
       }

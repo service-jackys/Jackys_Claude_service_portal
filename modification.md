@@ -2946,3 +2946,14 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/047_roi_import_start_date.sql, apps/web/src/tasks.js, app.js, index.html.
 
 **Needs you:** pull, `npm.cmd run db:migrate` (047), hard-refresh. No API change.
+
+## Modification #113 — Completing a task: auto end date, Remarks pop-up, side-panel position
+
+**What changed.**
+- **End date on completion.** When a task reaches 100% or is set to Completed (list, board, Dashboard kanban lane, or the editor), its end date is set to the day it was completed (Dubai) and never before the start date. An end date sent with the change, or already chosen in the editor, is kept. In the editor the End date field fills in as soon as Completed is chosen or the slider reaches 100%.
+- **Remarks / next action pop-up.** Finishing a task from the list, board, kanban lane or a slider opens "Task completed" with the Remarks / next action box (the text shown in the ROI) pre-filled, so the line can be worded while it is fresh. Save remarks updates the task; Skip / Esc keeps what is there. The editor's own Save does not show it, because it already has the Remarks field.
+- **Side panel position.** The Edit / New task panel was positioned against the tall card instead of the screen, so Delete / Cancel / Save sat far down the page. The card entrance animation kept a transform after it finished (`both`); it now uses `backwards`, so the panel is fixed to the window again and its buttons sit at the bottom of the visible panel.
+
+**Files.** packages/db/src/roi-tasks.ts, apps/web/src/tasks.js, index.html, tests/integration/roi-tasks.test.ts.
+
+**Needs you:** pull, restart API, hard-refresh. No migration.

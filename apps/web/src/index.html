@@ -5176,7 +5176,9 @@
       .card,
       .detail-panel,
       .dashboard-tile {
-        animation: portal-fade-in 0.32s ease both;
+        /* backwards, not both: a kept transform would make the card the containing block of
+           position: fixed children (the task side panel stretched to the card's height). */
+        animation: portal-fade-in 0.32s ease backwards;
       }
       @keyframes portal-fade-in {
         from {
