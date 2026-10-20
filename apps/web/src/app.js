@@ -18377,13 +18377,45 @@ ${bodyHtml}
           : '';
         if (!res.examples.length && !res.notFound.length) liveRoot.innerHTML = '';
       };
-      const loadExample = async (invoices) => {
+      // After a paste, make the Invoice box show what was loaded instead of the
+      // first invoice of the list: select the invoice if it is listed, otherwise
+      // add it (or the pasted set) at the top.
+      const showPastedInPicker = (res) => {
+        const found = (res.examples || []).map((x) => x.invoice);
+        pick.querySelectorAll('option[data-pasted]').forEach((o) => o.remove());
+        if (!found.length) return;
+        if (found.length === 1) {
+          const listed = Array.from(pick.options).find((o) => o.value === found[0]);
+          if (listed) {
+            pick.value = found[0];
+            return;
+          }
+        }
+        const ex = res.examples[0];
+        const option = document.createElement('option');
+        option.dataset.pasted = '1';
+        option.value = found.length === 1 ? found[0] : '';
+        option.textContent =
+          found.length === 1
+            ? found[0] +
+              ' · ' +
+              (ex.customer || 'No customer') +
+              ' · ' +
+              (ex.date || '') +
+              ' · pasted'
+            : 'Pasted: ' + found.join(', ');
+        pick.insertBefore(option, pick.firstChild);
+        pick.value = option.value;
+        option.selected = true;
+      };
+      const loadExample = async (invoices, pasted) => {
         const seq = ++liveSeq;
         liveMsg.textContent = 'Loading…';
         try {
           const res = await rdApi('logic/example', { invoices });
           if (seq === liveSeq) {
             showExamples(res);
+            if (pasted) showPastedInPicker(res);
             if (res.examples.length) liveMsg.textContent = liveMsg.textContent || '';
           }
         } catch (error) {
@@ -18448,7 +18480,7 @@ ${bodyHtml}
       pick.addEventListener('change', () => pick.value && loadExample(pick.value));
       const loadPasted = () => {
         const text = pasteInput.value.trim();
-        if (text) loadExample(text);
+        if (text) loadExample(text, true);
       };
       body.querySelector('[data-rl-load]').addEventListener('click', loadPasted);
       pasteInput.addEventListener('keydown', (event) => {

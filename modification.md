@@ -3014,3 +3014,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart.
+
+## Modification #118 — Logic applied: the Invoice box shows the invoice you pasted
+
+**Date:** 2026-10-20
+
+**Why.** On Service Revenue Dashboard, Logic applied, Worked example, pasting an invoice number and pressing Load showed that invoice's calculation, but the Invoice box above still showed the first invoice of the list, so the page looked as if it had loaded a different invoice.
+
+**What changed.**
+- After Load, the Invoice box selects the pasted invoice when it is in the list, or adds it at the top marked "pasted" when it is not. For several pasted numbers it shows "Pasted: ..." with the numbers.
+- Changing a filter rebuilds the list and removes the pasted entry, as before.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
