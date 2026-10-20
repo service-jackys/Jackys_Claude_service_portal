@@ -2985,3 +2985,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/pricing-logic.ts, parser.ts, logic-summary.ts, logic-sheet.ts, apps/web/src/app.js, tests/unit/revenue-workbook.test.ts.
 
 **Needs you:** pull, restart API, hard-refresh, then upload the 19 Oct workbook again. No migration.
+
+## Modification #116 — Admin-only Changelog page listing every change made to the portal
+
+**Date:** 2026-10-20
+
+**Why.** The old Google Apps Script portal has a Changelog tab for administrators. The new portal had no equivalent, so there was no single place to see what changed, when, and what had to be done on release.
+
+**What changed.**
+- New **Changelog** item in the sidebar (Administration group), visible only to roles holding the administrator permission (`admin.users`, the same gate as Roles & permissions). It lists every modification newest first, grouped by month, with a search box, area filter chips, expand/collapse all, and for each entry the summary, what changed, the release steps, database migrations and files.
+- New API: GET /api/changelog (administrator only), returning every entry. The data lives in apps/api/src/changelog/changelog-data.ts, generated from this file by `node scripts/build-changelog.mjs`. Re-run it after adding a modification; a unit test fails if the two drift apart.
+- Entries without a written date show the nearest earlier date with an approximate mark; entries from #100 onward use their commit date.
+
+**Files.** apps/api/src/changelog/, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, scripts/build-changelog.mjs, tests/unit/changelog.test.ts.
+
+**Needs you:** pull, restart API, hard-refresh. No migration. Sign in as an administrator and open Changelog in the sidebar.

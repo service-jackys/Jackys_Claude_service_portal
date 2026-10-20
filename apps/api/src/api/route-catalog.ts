@@ -51,6 +51,7 @@ import { createDailyListService } from '../daily-list/service.js';
 import { createRoleHandlers } from '../roles/routes.js';
 import { createRoleService } from '../roles/service.js';
 import { createAuditHandlers } from '../audit/routes.js';
+import { createChangelogHandlers } from '../changelog/routes.js';
 import { createAuditService } from '../audit/service.js';
 import { recordAuthEvent } from '../audit/record.js';
 import { createRateCardViewHandlers } from '../rate-card-view/routes.js';
@@ -671,6 +672,7 @@ export function createRouteCatalog(
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
+  const changelogHandlers = createChangelogHandlers(requirePermission);
   const dailyListHandlers = pool
     ? createDailyListHandlers(createDailyListService(pool), requirePermission)
     : unavailableHandlers(['list']);
@@ -2669,6 +2671,16 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: auditHandlers.filters,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/changelog',
+        operationId: 'listChangelog',
+        tags: ['Changelog'],
+        summary: 'Every change made to the portal so far, newest first (administrator only)',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: changelogHandlers.list,
       },
       {
         method: 'get' as const,
