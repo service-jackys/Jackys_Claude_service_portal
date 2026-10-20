@@ -775,6 +775,7 @@
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
+    $('#changelogNav').hidden = !hasPermission('admin.users');
     $('#stockMasterNav').hidden = !hasPermission('stock.write');
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
@@ -12590,6 +12591,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderActivityLog(root),
     },
+    changelog: {
+      navId: 'changelogNav',
+      workspaceId: 'changelogWorkspace',
+      heading: 'Changelog',
+      description: 'Every change made to the portal, newest first.',
+      permission: 'admin.users',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderChangelogPage(root),
+    },
   };
 
   async function activatePricingCalcMode(mode) {
@@ -14914,6 +14925,195 @@ ${bodyHtml}
       parts.push(alSentence(key.replace(/([A-Z])/g, ' $1')) + ': ' + text);
     });
     return parts.join(' · ');
+  }
+
+  // Changelog page (administrator only). Reads GET /api/changelog, which is built
+  // from modification.md by scripts/build-changelog.mjs.
+  async function renderChangelogPage(root) {
+    root.innerHTML = '<p class="form-note">Loading changelog&hellip;</p>';
+    let payload;
+    try {
+      payload = await apiRequest('/api/changelog');
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const entries = Array.isArray(payload?.entries) ? payload.entries : [];
+    const state = { area: '', search: '' };
+    const monthFmt = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+    const dayFmt = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short' });
+    const parse = (ymd) => (ymd ? new Date(ymd + 'T00:00:00') : null);
+    const areaCounts = new Map();
+    entries.forEach((e) => areaCounts.set(e.area, (areaCounts.get(e.area) || 0) + 1));
+    const areas = [...areaCounts.entries()].sort((a, b) => b[1] - a[1]);
+    const dated = entries
+      .filter((e) => e.date)
+      .map((e) => e.date)
+      .sort();
+    const latestId = entries.length ? entries[0].id : null;
+    const migrationCount = new Set(entries.flatMap((e) => e.migrations || [])).size;
+
+    root.innerHTML =
+      '<div class="cl-stats">' +
+      '<div class="cl-stat"><b>' +
+      entries.length +
+      '</b><span>Changes recorded</span></div>' +
+      '<div class="cl-stat"><b>' +
+      areas.length +
+      '</b><span>Areas of the portal</span></div>' +
+      '<div class="cl-stat"><b>' +
+      migrationCount +
+      '</b><span>Database migrations</span></div>' +
+      '<div class="cl-stat"><b>' +
+      (dated.length
+        ? escapeHtml(
+            dayFmt.format(parse(dated[0])) + ' – ' + dayFmt.format(parse(dated[dated.length - 1])),
+          )
+        : '—') +
+      '</b><span>Build period</span></div></div>' +
+      '<div class="cl-toolbar"><label class="sr-only" for="clSearch">Search the changelog</label>' +
+      '<input id="clSearch" class="cl-search" type="search" placeholder="Search changes, e.g. CSIDO, invoice, permission" autocomplete="off" />' +
+      '<button type="button" class="cl-chip" data-cl-toggle>Expand all</button></div>' +
+      '<div class="cl-chips" role="group" aria-label="Filter by area" data-cl-chips></div>' +
+      '<p class="cl-count" role="status" aria-live="polite" data-cl-count></p>' +
+      '<div data-cl-list></div>';
+    const chips = root.querySelector('[data-cl-chips]');
+    const count = root.querySelector('[data-cl-count]');
+    const list = root.querySelector('[data-cl-list]');
+    const search = root.querySelector('#clSearch');
+    const toggle = root.querySelector('[data-cl-toggle]');
+
+    function drawChips() {
+      const chip = (value, label, n) =>
+        '<button type="button" class="cl-chip" data-cl-area="' +
+        escapeHtml(value) +
+        '" aria-pressed="' +
+        (state.area === value) +
+        '">' +
+        escapeHtml(label) +
+        '<small>' +
+        n +
+        '</small></button>';
+      chips.innerHTML =
+        chip('', 'All', entries.length) + areas.map(([name, n]) => chip(name, name, n)).join('');
+    }
+
+    function matches(e) {
+      if (state.area && e.area !== state.area) return false;
+      if (!state.search) return true;
+      const hay = [
+        '#' + e.id,
+        e.title,
+        e.area,
+        e.summary,
+        e.needsYou,
+        e.files,
+        ...(e.changes || []),
+        ...(e.migrations || []),
+      ]
+        .join(' ')
+        .toLowerCase();
+      return state.search.split(/\s+/).every((word) => hay.includes(word));
+    }
+
+    function card(e) {
+      const d = parse(e.date);
+      const dateLabel = d
+        ? (e.approxDate ? '≈ ' : '') + dayFmt.format(d) + ' ' + d.getFullYear()
+        : 'Date not recorded';
+      const changes = (e.changes || []).length
+        ? '<h4>What changed</h4><ul>' +
+          e.changes.map((c) => '<li>' + escapeHtml(c) + '</li>').join('') +
+          '</ul>'
+        : '';
+      const migrations = (e.migrations || []).length
+        ? '<h4>Database migrations</h4><p class="cl-files">' +
+          e.migrations.map(escapeHtml).join('<br />') +
+          '</p>'
+        : '';
+      const needs = e.needsYou
+        ? '<h4>On release</h4><p class="cl-needs">' + escapeHtml(e.needsYou) + '</p>'
+        : '';
+      const files = e.files
+        ? '<h4>Files</h4><p class="cl-files">' + escapeHtml(e.files) + '</p>'
+        : '';
+      const body = changes + needs + migrations + files;
+      return (
+        '<li class="cl-item' +
+        (e.id === latestId ? ' is-latest' : '') +
+        '"><details class="cl-card"><summary>' +
+        '<div class="cl-head"><span class="cl-num">#' +
+        e.id +
+        '</span>' +
+        '<span class="cl-title">' +
+        escapeHtml(e.title) +
+        '</span>' +
+        '<span class="cl-meta">' +
+        (e.id === latestId ? '<span class="cl-tag latest">Latest</span>' : '') +
+        '<span class="cl-tag">' +
+        escapeHtml(e.area) +
+        '</span>' +
+        (e.status ? '<span class="cl-tag">' + escapeHtml(e.status) + '</span>' : '') +
+        '<span>' +
+        escapeHtml(dateLabel) +
+        '</span><span class="cl-chev" aria-hidden="true"></span></span></div>' +
+        (e.summary ? '<p class="cl-sum">' + escapeHtml(e.summary) + '</p>' : '') +
+        '</summary>' +
+        (body ? '<div class="cl-body">' + body + '</div>' : '') +
+        '</details></li>'
+      );
+    }
+
+    function draw() {
+      const shown = entries.filter(matches);
+      count.textContent =
+        shown.length === entries.length
+          ? 'Showing all ' + entries.length + ' changes, newest first.'
+          : 'Showing ' + shown.length + ' of ' + entries.length + ' changes.';
+      if (!shown.length) {
+        list.innerHTML = '<p class="pg-empty">Nothing matches. Clear the search or choose All.</p>';
+        return;
+      }
+      let html = '';
+      let month = null;
+      let open = false;
+      shown.forEach((e) => {
+        const d = parse(e.date);
+        const label = d ? monthFmt.format(d) : 'Undated';
+        if (label !== month) {
+          if (open) html += '</ol>';
+          html += '<h3 class="cl-month">' + escapeHtml(label) + '</h3><ol class="cl-list">';
+          month = label;
+          open = true;
+        }
+        html += card(e);
+      });
+      list.innerHTML = html + (open ? '</ol>' : '');
+    }
+
+    chips.addEventListener('click', (event) => {
+      const button = event.target.closest('[data-cl-area]');
+      if (!button) return;
+      state.area = button.dataset.clArea;
+      drawChips();
+      draw();
+    });
+    let timer = 0;
+    search.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(() => {
+        state.search = search.value.trim().toLowerCase();
+        draw();
+      }, 120);
+    });
+    toggle.addEventListener('click', () => {
+      const open = toggle.dataset.open !== '1';
+      toggle.dataset.open = open ? '1' : '0';
+      toggle.textContent = open ? 'Collapse all' : 'Expand all';
+      list.querySelectorAll('details').forEach((d) => (d.open = open));
+    });
+    drawChips();
+    draw();
   }
 
   async function renderActivityLog(root) {
@@ -19199,6 +19399,7 @@ ${bodyHtml}
   $('#reportsNav')?.addEventListener('click', () => setWorkspaceMode('reports'));
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
+  $('#changelogNav')?.addEventListener('click', () => setWorkspaceMode('changelog'));
   $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
   $('#tasksNav')?.addEventListener('click', () => setWorkspaceMode('tasks'));
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));

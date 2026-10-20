@@ -7241,6 +7241,291 @@
           border-radius: 0;
         }
       }
+
+      /* ---- Changelog (administrator only) ---- */
+      .cl-stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 0.7rem;
+        margin-bottom: 0.9rem;
+      }
+      .cl-stat {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--blue);
+        border-radius: 10px;
+        padding: 0.65rem 0.85rem;
+      }
+      .cl-stat b {
+        display: block;
+        font-size: 1.35rem;
+        line-height: 1.2;
+        color: var(--navy);
+      }
+      .cl-stat span {
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cl-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem 0.8rem;
+        align-items: center;
+        margin-bottom: 0.6rem;
+      }
+      .cl-toolbar .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+      .cl-search {
+        flex: 1 1 260px;
+        max-width: 420px;
+        padding: 0.5rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--ink);
+        font: inherit;
+      }
+      .cl-search:focus-visible,
+      .cl-chip:focus-visible,
+      .cl-card summary:focus-visible {
+        outline: 3px solid color-mix(in srgb, var(--blue) 55%, transparent);
+        outline-offset: 2px;
+      }
+      .cl-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.4rem;
+      }
+      .cl-chip {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        border-radius: 999px;
+        padding: 0.28rem 0.75rem;
+        font: inherit;
+        font-size: 0.78rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background-color 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+      .cl-chip:hover {
+        border-color: var(--blue);
+        color: var(--blue);
+      }
+      .cl-chip[aria-pressed='true'] {
+        background: var(--navy);
+        border-color: var(--navy);
+        color: #fff;
+      }
+      .cl-chip small {
+        opacity: 0.7;
+        margin-left: 0.25rem;
+        font-weight: 600;
+      }
+      .cl-count {
+        margin: 0.3rem 0 0.8rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .cl-month {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        margin: 1.1rem 0 0.6rem;
+        padding: 0.35rem 0;
+        background: var(--surface);
+        font-size: 0.78rem;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--navy);
+        border-bottom: 2px solid var(--line);
+      }
+      .cl-list {
+        position: relative;
+        margin: 0;
+        padding: 0 0 0 1.5rem;
+        list-style: none;
+      }
+      .cl-list::before {
+        content: '';
+        position: absolute;
+        left: 0.42rem;
+        top: 0.5rem;
+        bottom: 0.5rem;
+        width: 2px;
+        background: var(--line);
+      }
+      .cl-item {
+        position: relative;
+        margin-bottom: 0.7rem;
+      }
+      .cl-item::before {
+        content: '';
+        position: absolute;
+        left: -1.45rem;
+        top: 0.95rem;
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 50%;
+        background: var(--blue);
+        border: 2px solid var(--surface);
+        box-shadow: 0 0 0 2px var(--blue);
+      }
+      .cl-item.is-latest::before {
+        background: var(--success);
+        box-shadow: 0 0 0 2px var(--success);
+      }
+      .cl-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 6%);
+        transition:
+          box-shadow 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .cl-card:hover {
+        border-color: color-mix(in srgb, var(--blue) 40%, var(--line));
+        box-shadow: 0 6px 18px rgb(16 43 78 / 9%);
+      }
+      .cl-card summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.75rem 0.95rem;
+        border-radius: 12px;
+      }
+      .cl-card summary::-webkit-details-marker {
+        display: none;
+      }
+      .cl-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem 0.6rem;
+      }
+      .cl-num {
+        font-family: ui-monospace, 'JetBrains Mono', monospace;
+        font-size: 0.74rem;
+        font-weight: 800;
+        color: var(--blue);
+        background: var(--blue-soft);
+        border-radius: 6px;
+        padding: 0.1rem 0.4rem;
+      }
+      .cl-title {
+        flex: 1 1 280px;
+        font-weight: 700;
+        color: var(--navy-deep);
+        line-height: 1.35;
+      }
+      .cl-meta {
+        display: inline-flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .cl-tag {
+        border-radius: 999px;
+        padding: 0.08rem 0.55rem;
+        font-size: 0.7rem;
+        font-weight: 700;
+        background: var(--surface-soft);
+        color: var(--navy);
+        border: 1px solid var(--line);
+      }
+      .cl-tag.latest {
+        background: #e5f4ed;
+        color: var(--success);
+        border-color: #b9e0cd;
+      }
+      .cl-chev {
+        width: 0.55rem;
+        height: 0.55rem;
+        border-right: 2px solid var(--muted);
+        border-bottom: 2px solid var(--muted);
+        transform: rotate(45deg);
+        transition: transform 0.15s ease;
+        margin-left: 0.2rem;
+      }
+      .cl-card[open] .cl-chev {
+        transform: rotate(-135deg);
+      }
+      .cl-sum {
+        margin: 0.35rem 0 0;
+        font-size: 0.84rem;
+        line-height: 1.5;
+        color: var(--muted);
+      }
+      .cl-body {
+        padding: 0 0.95rem 0.85rem;
+        border-top: 1px dashed var(--line);
+      }
+      .cl-body h4 {
+        margin: 0.75rem 0 0.3rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .cl-body ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        font-size: 0.84rem;
+        line-height: 1.5;
+      }
+      .cl-body li {
+        margin: 0.2rem 0;
+      }
+      .cl-needs {
+        font-size: 0.82rem;
+        line-height: 1.5;
+        background: #fff8e6;
+        border-left: 3px solid #e0a100;
+        border-radius: 4px;
+        padding: 0.45rem 0.7rem;
+        color: #6b4e00;
+      }
+      .cl-files {
+        font-family: ui-monospace, 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        color: var(--muted);
+        word-break: break-word;
+      }
+      @media (max-width: 640px) {
+        .cl-list {
+          padding-left: 1.1rem;
+        }
+        .cl-item::before {
+          left: -1.1rem;
+        }
+        .cl-title {
+          flex-basis: 100%;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .cl-card,
+        .cl-chip,
+        .cl-chev {
+          transition: none;
+        }
+      }
     </style>
   </head>
   <body>
@@ -7490,6 +7775,20 @@
         stroke-linejoin="round"
       >
         <path d="M3 12h4l3-8 4 16 3-8h4" />
+      </symbol>
+      <symbol
+        id="icon-changelog"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="6" cy="6" r="2" />
+        <circle cx="6" cy="18" r="2" />
+        <path d="M6 8v8" />
+        <path d="M11 6h9M11 12h9M11 18h6" />
       </symbol>
       <symbol
         id="icon-tasks"
@@ -8251,6 +8550,20 @@
                       <svg class="nav-icon" aria-hidden="true"><use href="#icon-key"></use></svg>
                       <span class="nav-label">Roles &amp; permissions</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="changelogNav"
+                      hidden
+                      aria-label="Changelog"
+                      title="Changelog"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-changelog"></use>
+                      </svg>
+                      <span class="nav-label">Changelog</span>
+                      <span class="nav-arrow" aria-hidden="true">&rarr;</span>
                     </button>
                     <button
                       class="dashboard-link"
@@ -10837,6 +11150,25 @@
                   >
                 </div>
                 <div data-calc-root="roles">
+                  <p class="form-note" data-calc-loading>Loading&hellip;</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="card" id="changelogWorkspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Every change made to the portal, newest first, with what changed and what had
+                      to be done on release. Visible to administrators only. It is built from
+                      modification.md.</span
+                    ></span
+                  >
+                </div>
+                <div data-calc-root="changelog">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>
