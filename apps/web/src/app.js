@@ -197,23 +197,31 @@
     });
   }
 
-  // Sidebar groups (Service desk, Records, ...) open and close on click. The open
-  // groups are remembered per browser; the group holding the current page always
-  // opens when the page changes, and a group whose items are all hidden by
-  // permissions disappears.
+  // Sidebar groups (Service desk, Records, ...) work as an accordion: only one group
+  // is open at a time. Opening a group, or moving to a page in another group, closes
+  // the rest. The open group is remembered per browser, and a group whose items are
+  // all hidden by permissions disappears.
   const NAV_GROUPS_STORAGE_KEY = 'jackys-service-portal:navGroups';
 
   function initNavGroups() {
     const links = document.querySelector('.dashboard-links');
     const groups = Array.from(document.querySelectorAll('.nav-group'));
     if (!links || !groups.length) return;
-    let saved = {};
+    let savedOpen = '';
     try {
-      saved = JSON.parse(localStorage.getItem(NAV_GROUPS_STORAGE_KEY) || '{}') || {};
+      const raw = JSON.parse(localStorage.getItem(NAV_GROUPS_STORAGE_KEY) || '{}') || {};
+      savedOpen = typeof raw.open === 'string' ? raw.open : '';
     } catch {
-      saved = {};
+      savedOpen = '';
     }
-    const defaultOpen = new Set(['overview', 'service-desk']);
+    const remember = (slug) => {
+      try {
+        localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify({ open: slug }));
+      } catch {
+        // Non-fatal.
+      }
+    };
+    const openOnly = (target) => groups.forEach((group) => setOpen(group, group === target));
     const setOpen = (group, open) => {
       group.classList.toggle('is-collapsed', !open);
       group.querySelector('.nav-group-toggle').setAttribute('aria-expanded', String(open));
@@ -231,17 +239,19 @@
       attributes: true,
       attributeFilter: ['class'],
     });
+    const startSlug = groups.some((g) => g.dataset.navGroup === savedOpen)
+      ? savedOpen
+      : 'service-desk';
+    groups.forEach((group) => setOpen(group, group.dataset.navGroup === startSlug));
     groups.forEach((group) => {
       const slug = group.dataset.navGroup;
-      setOpen(group, slug in saved ? Boolean(saved[slug]) : defaultOpen.has(slug));
       group.querySelector('.nav-group-toggle').addEventListener('click', () => {
-        const open = group.classList.contains('is-collapsed');
-        setOpen(group, open);
-        saved[slug] = open;
-        try {
-          localStorage.setItem(NAV_GROUPS_STORAGE_KEY, JSON.stringify(saved));
-        } catch {
-          // Non-fatal.
+        if (group.classList.contains('is-collapsed')) {
+          openOnly(group);
+          remember(slug);
+        } else {
+          setOpen(group, false);
+          remember('');
         }
       });
     });
@@ -256,7 +266,10 @@
         group.classList.toggle('is-hidden', !anyVisible);
         const hasCurrent = Boolean(current && group.contains(current));
         group.classList.toggle('has-current', hasCurrent);
-        if (hasCurrent && currentId !== lastCurrent) setOpen(group, true);
+        if (hasCurrent && currentId !== lastCurrent) {
+          openOnly(group);
+          remember(group.dataset.navGroup);
+        }
       });
       lastCurrent = currentId;
     };

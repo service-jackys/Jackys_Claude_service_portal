@@ -3000,3 +3000,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/changelog/, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, scripts/build-changelog.mjs, tests/unit/changelog.test.ts.
 
 **Needs you:** pull, restart API, hard-refresh. No migration. Sign in as an administrator and open Changelog in the sidebar.
+
+## Modification #117 — Sidebar groups open one at a time
+
+**Date:** 2026-10-20
+
+**Why.** Every sidebar group a user had opened stayed open, so the menu grew long and the user had to scroll to find the page they wanted.
+
+**What changed.**
+- The sidebar groups (Service desk, Records, Administration, Management, Quote calculators) now work as an accordion: opening a group, or moving to a page in another group, closes the others. Clicking an open group's header closes it.
+- The open group is remembered per browser. On first use the Service desk group is open.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
