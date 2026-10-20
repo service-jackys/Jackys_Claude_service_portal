@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 118,
+    title: 'Logic applied: the Invoice box shows the invoice you pasted',
+    area: 'Invoices & billing',
+    date: '2026-10-20',
+    approxDate: false,
+    status: null,
+    summary:
+      "On Service Revenue Dashboard, Logic applied, Worked example, pasting an invoice number and pressing Load showed that invoice's calculation, but the Invoice box above still showed the first invoice of the list, so the page looked as if it had loaded a different invoice.",
+    changes: [
+      'After Load, the Invoice box selects the pasted invoice when it is in the list, or adds it at the top marked "pasted" when it is not. For several pasted numbers it shows "Pasted: ..." with the numbers.',
+      'Changing a filter rebuilds the list and removes the pasted entry, as before.',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart.',
+    migrations: [],
+    files: 'apps/web/src/app.js.',
+  },
+  {
     id: 117,
     title: 'Sidebar groups open one at a time',
     area: 'Portal look & feel',
