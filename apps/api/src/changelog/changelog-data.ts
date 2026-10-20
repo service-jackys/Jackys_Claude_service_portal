@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 117,
+    title: 'Sidebar groups open one at a time',
+    area: 'Portal look & feel',
+    date: '2026-10-20',
+    approxDate: false,
+    status: null,
+    summary:
+      'Every sidebar group a user had opened stayed open, so the menu grew long and the user had to scroll to find the page they wanted.',
+    changes: [
+      "The sidebar groups (Service desk, Records, Administration, Management, Quote calculators) now work as an accordion: opening a group, or moving to a page in another group, closes the others. Clicking an open group's header closes it.",
+      'The open group is remembered per browser. On first use the Service desk group is open.',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart.',
+    migrations: [],
+    files: 'apps/web/src/app.js.',
+  },
+  {
     id: 116,
     title: 'Admin-only Changelog page listing every change made to the portal',
     area: 'Permissions',
