@@ -388,6 +388,12 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       get: P((p) => yesNo(p.invoiceHasCsido)),
     },
     {
+      h: 'Invoice has CSIDI',
+      w: 10,
+      group: 'Explain',
+      get: P((p) => yesNo(p.invoiceHasCsidi)),
+    },
+    {
       h: 'First line of its type on invoice',
       w: 13,
       group: 'Explain',
