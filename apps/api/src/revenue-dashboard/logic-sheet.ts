@@ -270,7 +270,10 @@ function buildInvoiceLevelLogicSheet(
     ],
     CSIDI: [
       'CSIDI  Delivery + installation',
-      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.`,
+      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.` +
+        (rules.csidoMixedRegional
+          ? ' When the invoice does have a delivery-only line, the CSIDI lines carry no transport and the delivery-only line is charged the regional rate instead.'
+          : ''),
     ],
     CSIII: [
       'CSIII  Installation only',
@@ -278,7 +281,10 @@ function buildInvoiceLevelLogicSheet(
     ],
     CSIDO: [
       'CSIDO  Delivery only',
-      `One flat ${money(flat)} per invoice, charged on the first delivery-only line. The other delivery-only lines of the same invoice show AED 0.`,
+      `One flat ${money(flat)} per invoice, charged on the first delivery-only line. The other delivery-only lines of the same invoice show AED 0.` +
+        (rules.csidoMixedRegional
+          ? ` Exception - mixed invoice: if the invoice also has a delivery + installation line, the one charge is the regional transport rate instead (${transports}), because the visit is shared.`
+          : ''),
     ],
   };
   ['CSIJW', 'CSIJO', 'CSIDI', 'CSIII', 'CSIDO'].forEach((code, i) => {
@@ -309,7 +315,10 @@ function buildInvoiceLevelLogicSheet(
   const paidDo = lines.filter((l) => l.jobType === 'CSIDO' && l.revenue > 0).length;
   const zeroOther = lines.filter((l) => l.jobType !== 'CSIDO' && l.revenue === 0).length;
   paragraph(
-    `A delivery-only invoice with several products has one line per product, but the customer is charged one delivery fee for the invoice. The first line carries the flat ${money(flat)} and the other lines show AED 0. No revenue is lost.`,
+    `A delivery-only invoice with several products has one line per product, but the customer is charged one delivery fee for the invoice. The first line carries the flat ${money(flat)} and the other lines show AED 0. No revenue is lost.` +
+      (rules.csidoMixedRegional
+        ? ' On an invoice that also has a delivery + installation line, that one charge is the regional transport rate instead.'
+        : ''),
   );
   paragraph(
     `In this report: ${zeroDo} delivery-only lines show AED 0, next to ${paidDo} lines that carry the charge.` +
