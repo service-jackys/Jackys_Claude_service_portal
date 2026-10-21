@@ -262,11 +262,11 @@ function buildInvoiceLevelLogicSheet(
   const rules1: Record<string, [string, string]> = {
     CSIJW: [
       'CSIJW  Warranty repair',
-      `Qty x ${money(rate('CSIJW'))}. BER / RWR jobs are billed a flat ${money(rate('RWR') || 60)} per job.`,
+      `One job per invoice: quantity is always 1, billed at ${money(rate('CSIJW'))}. BER / RWR jobs (job status BER or RWR, or remarks that say the unit is not repairable / beyond repair, whatever the status) are billed a flat ${money(rate('RWR') || 60)} per job.`,
     ],
     CSIJO: [
       'CSIJO  Non-warranty repair',
-      `Qty x ${money(rate('CSIJO'))}. BER / RWR jobs are billed a flat ${money(rate('RWR') || 60)} per job.`,
+      `Qty x ${money(rate('CSIJO'))}. BER / RWR jobs (job status BER or RWR, or remarks that say the unit is not repairable / beyond repair, whatever the status) are billed a flat ${money(rate('RWR') || 60)} per job.`,
     ],
     CSIDI: [
       'CSIDI  Delivery + installation',
@@ -330,8 +330,14 @@ function buildInvoiceLevelLogicSheet(
   paragraph('Jobs and average revenue per job count every line, including the AED 0 lines.');
   row += 1;
 
+  section(3, 'Sales channel of repair jobs (CSIJW / CSIJO)');
+  paragraph(
+    'The channel is taken in this order. 1) Customer name contains GEMS, WESTMINSTER or WINCHESTER: CSIJW is always HAA (JDI); CSIJO is 3PTY when it carries an original job value, otherwise HAA (JDI) for salesman RENEESH JOSE or job status BER / RWR / COMPLETED. 2) Otherwise the remarks decide: HAA or JDI = HAA, INS or JERC = INS, when exactly one of them appears. 3) Neither or both: a Venus model (MODEL V..., with or without a colon) = HAA, otherwise INS. The channel is a reporting label only; it does not change revenue.',
+  );
+  row += 1;
+
   // 3. Rates ---------------------------------------------------------------------
-  section(3, 'Rates in force (read from the workbook)');
+  section(4, 'Rates in force (read from the workbook)');
   const rateTable = (label: string, m: PricingMaster) => {
     tableHead([label, 'Batch rate', 'Standard rate', 'Minimum rate']);
     m.categories.forEach((c, i) =>
@@ -385,7 +391,7 @@ function buildInvoiceLevelLogicSheet(
   row += 1;
 
   // 4. Check ---------------------------------------------------------------------
-  section(4, 'Check against the workbook');
+  section(5, 'Check against the workbook');
   const rebuilt = lines.filter((l) => l.e.rebuilt !== null);
   const causeText: Record<string, string> = {
     'CSIDO flat charge':
@@ -512,13 +518,13 @@ export function buildLogicSheet(
   const rule: Record<string, [string, string]> = {
     CSIJW: [
       'CSIJW',
-      'Warranty repair: Quantity x AED rate (Calculation sheet). If the job sheet status is BER or RWR the job is billed a flat AED ' +
+      'Warranty repair: one job per invoice, so the quantity is always 1, billed at the AED rate (Calculation sheet). If the job sheet status is BER or RWR, or the remarks say the unit is not repairable / beyond repair (whatever the status), the job is billed a flat AED ' +
         (rules.rates.find((r) => r.jobType === 'RWR')?.price ?? 60) +
         ' per job (billing code RWR; quantity does not multiply).',
     ],
     CSIJO: [
       'CSIJO',
-      'Non-warranty repair: Quantity x AED rate (Calculation sheet); the same BER/RWR flat charge applies.',
+      'Non-warranty repair: Quantity x AED rate (Calculation sheet); the same BER/RWR flat charge applies (job status BER / RWR, or remarks that say not repairable / beyond repair, whatever the status).',
     ],
     CSIDI: [
       'CSIDI',
@@ -561,6 +567,9 @@ export function buildLogicSheet(
   w.section('2. How the activity (job type) is decided for CSIDI-sheet lines');
   w.note(
     'Remarks are searched (upper case) for DELIVERY / DELVERY / DELIVERED / "DELIVER " and for INSTAL / AND INST / & INST. Delivery + installation wording = CSIDI; delivery only = CSIDO; installation only = CSIII; neither = CSIDI (default). The sales channel is HAA or INS only when exactly one of the two words appears in Remarks; both or neither = REVIEW. RENEESH JOSE + a GEMS school = HAA JDI.',
+  );
+  w.note(
+    'Repair jobs (CSIJW / CSIJO) take their sales channel in this order. 1) Customer name contains GEMS, WESTMINSTER or WINCHESTER: CSIJW is always HAA (JDI); CSIJO is 3PTY when it carries an original job value, otherwise HAA (JDI) for salesman RENEESH JOSE or job status BER / RWR / COMPLETED. 2) Otherwise the remarks decide: HAA or JDI = HAA, INS or JERC = INS, when exactly one of them appears. 3) Neither or both: a Venus model (MODEL V..., with or without a colon) = HAA, otherwise INS.',
   );
   w.gap();
 

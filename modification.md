@@ -3044,3 +3044,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/{pricing-logic,parser,export,logic-sheet}.ts.
 
 **Needs you:** pull and restart the API. No migration.
+
+## Modification #120 — Logic text for repair jobs: one job per invoice, BER from remarks, channel order
+
+**Date:** 2026-10-21
+
+**Why.** The master workbook changed on 21 October: a CSIJW job is always quantity 1, a BER / RWR job is also recognised from the remarks (not repairable / beyond repair) whatever the job status, and the sales channel of repair jobs follows a fixed order. The portal text still described the old rules.
+
+**What changed.**
+- Logic applied (Rules by job type) and the Revenue Logic sheet: CSIJW is one job per invoice (quantity always 1); BER / RWR from the status or from the remarks.
+- Revenue Logic sheet: a new note on the channel order for CSIJW / CSIJO (GEMS / WESTMINSTER / WINCHESTER, then HAA / JDI or INS / JERC in the remarks, then a Venus model).
+- Worked example: a repair job billed flat because its remarks say not repairable now shows "Flat 60 per job (BER / RWR)".
+- No revenue figure changes: the portal reads the amounts and channels from the workbook.
+
+**Files.** apps/api/src/revenue-dashboard/{logic-sheet,logic-summary}.ts, apps/web/src/app.js.
+
+**Needs you:** pull, restart the API and hard-refresh. No migration.
