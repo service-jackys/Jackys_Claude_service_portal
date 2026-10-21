@@ -176,6 +176,8 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
 /** Fields read from one row of the workbook's CSIDI sheet (stored as jsonb). */
 export type SheetPricing = {
   tranc: string | null;
+  /** CSIDI 'Source.Name': 'Net Sale Current (Live Feed)' for rows fed live, else locked history. */
+  sourceName: string | null;
   custCode: string | null;
   trnNo: string | null;
   currency: string | null;

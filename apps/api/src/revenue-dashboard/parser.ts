@@ -356,6 +356,7 @@ function attachSheetPricing(
     const erpLineCount = nOrNull(get(row, 'ERP Raw Line Count'));
     const pricing: SheetPricing = {
       tranc: text(get(row, 'Tranc')),
+      sourceName: text(get(row, 'Source.Name')),
       custCode: text(get(row, 'Cust_Code')),
       trnNo: text(get(row, 'TRN_No')),
       currency: text(get(row, 'Cur')),

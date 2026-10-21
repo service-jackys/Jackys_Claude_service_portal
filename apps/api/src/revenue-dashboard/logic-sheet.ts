@@ -270,7 +270,7 @@ function buildInvoiceLevelLogicSheet(
     ],
     CSIDI: [
       'CSIDI  Delivery + installation',
-      `Qty x net rate. Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.` +
+      `Qty x net rate. Quantity basis: physical units - for fridge, freezer, washer and cooker a delivery line and its installation line count as ONE unit (older ERP data logs two lines per unit; from 11 Oct the ERP logs one combined line carrying the quantity). Rows dated after 17 Oct come from the workbook's live feed; earlier rows are locked history (see Data source column). Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.` +
         (rules.csidoMixedRegional
           ? ' When the invoice does have a delivery-only line, the CSIDI lines carry no transport and the delivery-only line is charged the regional rate instead.'
           : ''),
