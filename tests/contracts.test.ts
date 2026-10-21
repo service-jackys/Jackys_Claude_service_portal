@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   serviceJobCardStatusForFinal,
+  finalStatusNeedsReason,
+  finalStatuses,
   jobFinalStatuses,
   appointmentScheduleUpdateSchema,
   complaintAutomaticStatuses,
@@ -82,16 +84,37 @@ test('service job-card status contract and transitions are explicit', () => {
   );
 });
 
-test('job final status drives the internal job-card status', () => {
-  assert.ok(jobFinalStatuses.includes('Delivered'));
-  assert.equal(serviceJobCardStatusForFinal('WIP', 'Open'), 'Open');
-  assert.equal(serviceJobCardStatusForFinal('Spare pending', 'Completed'), 'In Progress');
-  assert.equal(serviceJobCardStatusForFinal('Customer approval pending', 'Open'), 'Open');
+test('job status and final status drive the internal job-card status', () => {
+  assert.ok(finalStatuses.includes('Delivered'));
+  assert.ok(!jobFinalStatuses.includes('Delivered' as never));
+  assert.ok(jobFinalStatuses.includes('BER'));
+  assert.equal(serviceJobCardStatusForFinal('WIP', null, 'Open'), 'Open');
+  assert.equal(serviceJobCardStatusForFinal('Spare pending', null, 'Completed'), 'In Progress');
+  assert.equal(serviceJobCardStatusForFinal('Customer approval pending', null, 'Open'), 'Open');
   assert.equal(
-    serviceJobCardStatusForFinal('Customer approval pending', 'In Progress'),
+    serviceJobCardStatusForFinal('Customer approval pending', null, 'In Progress'),
     'In Progress',
   );
-  assert.equal(serviceJobCardStatusForFinal('Repair Completed', 'In Progress'), 'Completed');
-  assert.equal(serviceJobCardStatusForFinal('Delivered', 'Completed'), 'Completed');
-  assert.equal(serviceJobCardStatusForFinal('Cancelled', 'Open'), 'Cancelled');
+  assert.equal(serviceJobCardStatusForFinal('Repair Completed', null, 'In Progress'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('BER', null, 'In Progress'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('BER', 'Delivered', 'Completed'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('WIP', 'Rejected', 'In Progress'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('WIP', 'Cancelled', 'Open'), 'Cancelled');
+});
+
+test('a closing needs a reason only for BER or Rejected jobs carrying spares or more than the flat charge', () => {
+  const base = { jobStatus: 'BER', finalStatus: 'Delivered', partsCount: 0, grandTotal: 60 };
+  assert.equal(finalStatusNeedsReason(base), false);
+  assert.equal(finalStatusNeedsReason({ ...base, grandTotal: 0 }), false);
+  assert.equal(finalStatusNeedsReason({ ...base, partsCount: 1 }), true);
+  assert.equal(finalStatusNeedsReason({ ...base, grandTotal: 60.5 }), true);
+  assert.equal(finalStatusNeedsReason({ ...base, finalStatus: null, partsCount: 2 }), false);
+  assert.equal(
+    finalStatusNeedsReason({ ...base, jobStatus: 'Repair Completed', partsCount: 3 }),
+    false,
+  );
+  assert.equal(
+    finalStatusNeedsReason({ ...base, jobStatus: 'WIP', finalStatus: 'Rejected', grandTotal: 200 }),
+    true,
+  );
 });

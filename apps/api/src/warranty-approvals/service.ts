@@ -19,7 +19,7 @@ import {
   findServiceJobCardById,
   findServiceJobCardByQuotationId,
   insertServiceJobCardHistory,
-  setServiceJobCardFinalStatus,
+  setServiceJobCardJobStatus,
 } from '../../../../packages/db/src/job-cards.js';
 import { findQuotationById } from '../../../../packages/db/src/quotations.js';
 import { findInspectionById } from '../../../../packages/db/src/inspections.js';
@@ -52,7 +52,7 @@ export async function releaseJobAfterApproval(
       ? await findServiceJobCardByQuotationId(client, approval.quotationId, true)
       : null;
   if (!job || job.jobFinalStatus !== 'Customer approval pending') return;
-  await setServiceJobCardFinalStatus(client, job.id, 'WIP');
+  await setServiceJobCardJobStatus(client, job.id, 'WIP');
   await insertServiceJobCardHistory(
     client,
     job.id,

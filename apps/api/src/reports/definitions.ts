@@ -325,7 +325,9 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
       { label: 'Salesman', expr: 'service_job_cards.salesman' },
       { label: 'Sales Channel', expr: 'service_job_cards.sales_channel' },
       { label: 'Workflow Status', expr: 'service_job_cards.status' },
-      { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Job Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Final Status', expr: 'service_job_cards.final_status' },
+      { label: 'Final Status Reason', expr: 'service_job_cards.final_status_reason' },
       { label: 'Intake At', expr: 'service_job_cards.intake_at', kind: 'datetime' },
       { label: 'Finalised At', expr: 'service_job_cards.finalized_at', kind: 'datetime' },
       { label: 'TAT (days)', expr: JOB_CARD_TAT, kind: 'number' },
@@ -339,7 +341,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'service_job_card.read',
     from: `(SELECT * FROM service_job_cards
         WHERE COALESCE(amount_chargeable, grand_total) > 0
-          AND job_final_status <> 'Cancelled') AS service_job_cards
+          AND final_status IS DISTINCT FROM 'Cancelled') AS service_job_cards
       LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
       LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
     dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
@@ -394,7 +396,9 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
           WHEN service_job_cards.payment_by = 'Sales channel' THEN 'Billed to channel'
           ELSE 'Payer not chosen' END`,
       },
-      { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Job Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Final Status', expr: 'service_job_cards.final_status' },
+      { label: 'Final Status Reason', expr: 'service_job_cards.final_status_reason' },
       { label: 'Delivery Date', expr: 'service_job_cards.delivery_date', kind: 'date' },
     ],
   },
@@ -406,7 +410,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'service_job_card.read',
     from: `(SELECT * FROM service_job_cards
         WHERE COALESCE(amount_chargeable, grand_total) > 0
-          AND job_final_status <> 'Cancelled'
+          AND final_status IS DISTINCT FROM 'Cancelled'
           AND payment_by = 'Sales channel') AS service_job_cards
       LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
       LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
@@ -462,7 +466,9 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
           WHEN service_job_cards.payment_by = 'Sales channel' THEN 'Billed to channel'
           ELSE 'Payer not chosen' END`,
       },
-      { label: 'Job Final Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Job Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Final Status', expr: 'service_job_cards.final_status' },
+      { label: 'Final Status Reason', expr: 'service_job_cards.final_status_reason' },
       { label: 'Delivery Date', expr: 'service_job_cards.delivery_date', kind: 'date' },
     ],
   },

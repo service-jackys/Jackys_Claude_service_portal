@@ -9607,9 +9607,10 @@
                     <option>WIP</option>
                     <option>Spare pending</option>
                     <option>BER</option>
-                    <option>Rejected</option>
                     <option>Repair Completed</option>
+                    <option value="Awaiting final status">Awaiting final status</option>
                     <option>Delivered</option>
+                    <option>Rejected</option>
                     <option>Cancelled</option></select
                   ><button class="button button-outline" type="button" id="exportJobCardsCsvButton">
                     Export CSV
@@ -9627,6 +9628,7 @@
                         <th>Customer</th>
                         <th>Schedule</th>
                         <th>Status</th>
+                        <th>Final status</th>
                       </tr>
                     </thead>
                     <tbody id="jobCardsBody"></tbody>

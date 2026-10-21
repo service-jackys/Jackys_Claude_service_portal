@@ -3117,3 +3117,23 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** README.md, docs/migration/GOOGLE_SHEET_MIGRATION.md.
 
 **Needs you:** pull. Nothing to run.
+
+## Modification #125 — Job status and Final status are now two fields
+
+**Date:** 2026-10-21
+
+**Why.** Rejected, Delivered and Cancelled are how a job ends, not where it is. Mixing them with WIP, BER and Repair Completed meant a BER job vanished as "Delivered" and management could not report on BER or Rejected jobs.
+
+**What changed.**
+- Job status now tracks the stage only: Customer approval pending, WIP, Spare pending, BER, Repair Completed.
+- New Final status: Delivered, Rejected or Cancelled. It stays blank while the job is open. Delivered needs the job status to be Repair Completed or BER, and a BER job stays BER after it is delivered.
+- Closing a BER job, or any Rejected job, that still has spare parts or charges above the AED 60 handling charge asks for a reason (parts written off, returned to stock, diagnosis charge only, customer declined the quote, no charge, other). Removing parts from a BER or Rejected job is written to the audit log.
+- Delivery date is filled with today when Delivered is chosen, and can be changed.
+- Job card list: new Final status pill next to Status (blank when open). Filter and dashboard: Awaiting final status (Repair Completed or BER with no final status for more than 3 days), Delivered, Rejected, Cancelled, and BER (all). No notifications.
+- Delivered and Cancelled lock the card (admin can still edit). Rejected is final but not locked.
+- Existing cards are backfilled by migration 050. The Google Sheet importer sets both statuses, so a migrated BER job stays BER.
+- Reports and exports show Job Status, Final Status and Final Status Reason.
+
+**Files.** packages/db/migrations/050_job_final_status.sql, packages/contracts, packages/db/src/{job-cards,dashboard,invoices,billing-ledger,budget-variance}.ts, packages/db/src/legacy-import/*, apps/api/src/{job-cards,invoices,warranty-approvals,reports,api}, apps/web/src/{app.js,index.html}, tests.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 050), restart the API, hard-refresh. On staging, re-run the Google Sheet import steps (clear, import, verify) so the migrated jobs get both statuses.

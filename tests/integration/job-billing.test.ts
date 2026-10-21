@@ -175,7 +175,8 @@ test(
         profileId,
         'billing-deliver-paid',
       );
-      assert.equal(delivered.jobFinalStatus, 'Delivered');
+      assert.equal(delivered.finalStatus, 'Delivered');
+      assert.equal(delivered.jobFinalStatus, 'Repair Completed');
       assert.ok(delivered.paymentConfirmedAt);
       assert.equal(delivered.paymentMode, 'Bank transfer');
 
@@ -199,7 +200,7 @@ test(
         profileId,
         'billing-channel-delivered',
       );
-      assert.equal(channelDelivered.jobFinalStatus, 'Delivered');
+      assert.equal(channelDelivered.finalStatus, 'Delivered');
 
       // Accounts ledger: the paid customer job and the channel job both show,
       // each with its bill-to party, stage and amount; totals cover the filter.

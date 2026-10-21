@@ -81,3 +81,7 @@ Before go-live, run step 4 again and repeat step 5. After go-live there is no au
 - Imported open job cards (WIP, Spare pending) continue in the portal. Out-of-warranty ones need a payer, invoice and payment before they can be delivered.
 - Create portal logins for staff. The sheet's Users tab is not imported.
 - Customer records are not created from the sheet. They build up as new work is entered.
+
+## Job status and Final status (from modification #125)
+
+The sheet's Job Final Status column is split into two portal fields. Customer approval pending, WIP, Spare pending, BER and Repair Completed become the job status. A delivery date on a Repair Completed or BER job sets the final status to Delivered and keeps the job status (a BER job stays BER). Sheet values Delivered, Rejected and Cancelled become the final status, with job status Repair Completed, Customer approval pending (Rejected, reason "Customer declined the quote") and WIP respectively. Run the importer from the portal version that includes migration 050.

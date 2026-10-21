@@ -292,8 +292,12 @@ export async function applyPlan(
       ? await allocateJobCardReference(client, j.jobCardDate)
       : await allocateWalkInJobCardReference(client, j.jobCardDate);
 
-    const open = j.jobFinalStatus === 'WIP' || j.jobFinalStatus === 'Spare pending';
-    const status = j.jobFinalStatus === 'Cancelled' ? 'Cancelled' : open ? 'Open' : 'Completed';
+    const open =
+      j.finalStatus === null &&
+      (j.jobFinalStatus === 'WIP' ||
+        j.jobFinalStatus === 'Spare pending' ||
+        j.jobFinalStatus === 'Customer approval pending');
+    const status = j.finalStatus === 'Cancelled' ? 'Cancelled' : open ? 'Open' : 'Completed';
     const finalised = status === 'Completed' || status === 'Cancelled';
     const finalisedAt = finalised
       ? j.deliveryDate
@@ -315,10 +319,12 @@ export async function applyPlan(
          time_consumed_hours, parts, total_cost, service_charge, grand_total, amount_chargeable, invoice_no,
          delivery_date, technician_name, brand, job_final_status, school_contact_person, school_contact_number,
          customer_number, legacy_reference, customer_type, customer_email, region, b2b_branch_school,
-         sales_order_number, item_code, sub_group, final_warranty_status, billing_job_type, condition_notes
+         sales_order_number, item_code, sub_group, final_warranty_status, billing_job_type, condition_notes,
+         final_status, final_status_reason, final_status_at
        ) VALUES (
          $1,$2,$3,$4,$5,$6,$6,$7,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,
-         $27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44
+         $27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37,$38,$39,$40,$41,$42,$43,$44,
+         $45,$46,CASE WHEN $45::text IS NULL THEN NULL ELSE $4::timestamptz END
        ) RETURNING id::text`,
       [
         reference,
@@ -365,6 +371,8 @@ export async function applyPlan(
         j.warrantyStatus,
         j.billingJobType,
         notes.length ? notes.join('\n') : null,
+        j.finalStatus,
+        j.finalStatusReason,
       ],
     );
     const id = ins.rows[0].id;

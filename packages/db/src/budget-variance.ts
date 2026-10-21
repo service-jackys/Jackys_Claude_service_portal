@@ -300,9 +300,9 @@ export async function actualRevenue(
               COALESCE(amount_chargeable, grand_total), 1
        FROM service_job_cards
        WHERE COALESCE(amount_chargeable, grand_total) > 0
-         AND job_final_status <> 'Cancelled'
+         AND final_status IS DISTINCT FROM 'Cancelled'
          AND billing_job_type IN ('CSIJW', 'CSIJO')
-         AND (invoice_no IS NOT NULL OR job_final_status = 'Delivered')`
+         AND (invoice_no IS NOT NULL OR final_status = 'Delivered')`
            : ''
        }
      ) x

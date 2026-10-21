@@ -95,7 +95,10 @@ export type JobCardPlan = {
   deliveryDate: string | null;
   technicianName: string | null;
   brand: string | null;
+  // Job status (stage) and final status (how it was closed); see migration 050.
   jobFinalStatus: string;
+  finalStatus: 'Delivered' | 'Rejected' | 'Cancelled' | null;
+  finalStatusReason: string | null;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
@@ -507,8 +510,8 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
   const jcs = await readSheet(wb, 'ServiceJobCards');
   const seenJc = new Set<string>();
   const usedApt = new Map<string, string>();
-  const readyToDeliver = new Set(['Repair Completed', 'BER', 'Rejected']);
-  const finalStatuses = new Set([
+  const readyToDeliver = new Set(['Repair Completed', 'BER']);
+  const sheetStatuses = new Set([
     'WIP',
     'Spare pending',
     'BER',
@@ -591,27 +594,42 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
     const brand = cleanBrand(r.get('Brand') ?? j.brand);
     notes('ServiceJobCards', r.row, ref, brand.notes);
 
-    let final = text(r.get('Job Final Status') ?? j.jobFinalStatus, 40) ?? 'WIP';
-    if (!finalStatuses.has(final)) {
+    // The sheet has one status. It becomes a job status plus, for closed jobs, a final
+    // status, so a BER job stays BER after it is delivered.
+    let sheetStatus = text(r.get('Job Final Status') ?? j.jobFinalStatus, 40) ?? 'WIP';
+    if (!sheetStatuses.has(sheetStatus)) {
       issue(
         'ServiceJobCards',
         r.row,
         ref,
         'warn',
-        `Job Final Status "${final}" not recognised; set to WIP.`,
+        `Job Final Status "${sheetStatus}" not recognised; set to WIP.`,
       );
-      final = 'WIP';
+      sheetStatus = 'WIP';
     }
     const deliveryDate = toDate(r.get('Delivery Date') ?? j.deliveryDate);
-    if (deliveryDate && final !== 'Delivered') {
-      if (readyToDeliver.has(final)) final = 'Delivered';
+    let final: string = sheetStatus;
+    let closed: 'Delivered' | 'Rejected' | 'Cancelled' | null = null;
+    let closedReason: string | null = null;
+    if (sheetStatus === 'Delivered') {
+      final = 'Repair Completed';
+      closed = 'Delivered';
+    } else if (sheetStatus === 'Cancelled') {
+      final = 'WIP';
+      closed = 'Cancelled';
+    } else if (sheetStatus === 'Rejected') {
+      final = 'Customer approval pending';
+      closed = 'Rejected';
+      closedReason = 'Customer declined the quote';
+    } else if (deliveryDate) {
+      if (readyToDeliver.has(sheetStatus)) closed = 'Delivered';
       else
         issue(
           'ServiceJobCards',
           r.row,
           ref,
           'warn',
-          `Has a delivery date but status is "${final}"; status kept, delivery date kept.`,
+          `Has a delivery date but status is "${sheetStatus}"; status kept, delivery date kept.`,
         );
     }
 
@@ -683,6 +701,8 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
       technicianName: tech,
       brand: brand.value,
       jobFinalStatus: final,
+      finalStatus: closed,
+      finalStatusReason: closedReason,
       schoolContactPerson: schoolPerson,
       schoolContactNumber: schoolNo.value,
       customerNumber: text(j.customerNumber, 80),

@@ -179,6 +179,8 @@ async function sampleWorkbook(dir: string): Promise<string> {
     ),
     row('JC-902', 'APT-2099-00001', 'WIP', null, 0, 'NA', false),
     row('JC-903', null, 'Spare pending', null, 0, null, true),
+    // A BER job that was handed back keeps BER as its job status.
+    row('JC-904', null, 'BER', new Date(Date.UTC(2099, 0, 10)), 60, null, true),
   ]);
   return (async () => {
     const file = join(dir, 'sample.xlsx');
@@ -207,7 +209,7 @@ test(
       const file = await sampleWorkbook(dir);
       const plan = await buildPlan(file);
       assert.equal(plan.appointments.length, 2);
-      assert.equal(plan.jobCards.length, 3);
+      assert.equal(plan.jobCards.length, 4);
       assert.equal(plan.issues.filter((i) => i.level === 'error').length, 0);
       // The second job card for the same appointment is flagged and unlinked.
       const dup = plan.jobCards.find((j) => j.legacyRef === 'JC-902');
@@ -217,16 +219,18 @@ test(
       assert.equal(plan.jobCards.find((j) => j.legacyRef === 'JC-902')?.invoiceNo, null);
       assert.equal(plan.jobCards.find((j) => j.legacyRef === 'JC-901')?.invoiceNo, 'INV-0001');
       // Delivered because a delivery date exists on a finished job.
-      assert.equal(
-        plan.jobCards.find((j) => j.legacyRef === 'JC-901')?.jobFinalStatus,
-        'Delivered',
-      );
+      const delivered = plan.jobCards.find((j) => j.legacyRef === 'JC-901');
+      assert.equal(delivered?.jobFinalStatus, 'Repair Completed');
+      assert.equal(delivered?.finalStatus, 'Delivered');
+      const ber = plan.jobCards.find((j) => j.legacyRef === 'JC-904');
+      assert.equal(ber?.jobFinalStatus, 'BER');
+      assert.equal(ber?.finalStatus, 'Delivered');
       // Brand placeholder blanked, technician casing unified.
       assert.equal(plan.appointments[1].brand, null);
       assert.equal(plan.appointments[0].technicianName, 'Imp Siva');
       // The skip mode leaves the duplicate out.
       const skipPlan = await buildPlan(file, { duplicateJobCards: 'skip' });
-      assert.equal(skipPlan.jobCards.length, 2);
+      assert.equal(skipPlan.jobCards.length, 3);
 
       const admin = await client.query<{ id: string }>(
         `SELECT id::text FROM profiles ORDER BY id LIMIT 1`,
@@ -238,7 +242,7 @@ test(
           sourceFile: file,
         });
         assert.equal(first.created.appointments, 2);
-        assert.equal(first.created.jobCards, 3);
+        assert.equal(first.created.jobCards, 4);
         const parity = await verifyParity(client, plan);
         assert.ok(
           parity.every((p) => p.ok),
@@ -250,10 +254,10 @@ test(
           sourceFile: file,
         });
         assert.equal(second.created.jobCards ?? 0, 0, 're-running creates nothing');
-        assert.equal(second.skippedExisting.jobCards, 3);
+        assert.equal(second.skippedExisting.jobCards, 4);
 
         const cards = await client.query(
-          `SELECT legacy_reference, source_type, status, job_final_status, appointment_id IS NOT NULL AS linked
+          `SELECT legacy_reference, source_type, status, job_final_status, final_status, appointment_id IS NOT NULL AS linked
          FROM service_job_cards WHERE legacy_reference LIKE 'JC-9%' ORDER BY legacy_reference`,
         );
         assert.deepEqual(
@@ -262,12 +266,14 @@ test(
             r.source_type,
             r.status,
             r.job_final_status,
+            r.final_status,
             r.linked,
           ]),
           [
-            ['JC-901', 'Scheduler', 'Completed', 'Delivered', true],
-            ['JC-902', 'Walk-in', 'Open', 'WIP', false],
-            ['JC-903', 'Walk-in', 'Open', 'Spare pending', false],
+            ['JC-901', 'Scheduler', 'Completed', 'Repair Completed', 'Delivered', true],
+            ['JC-902', 'Walk-in', 'Open', 'WIP', null, false],
+            ['JC-903', 'Walk-in', 'Open', 'Spare pending', null, false],
+            ['JC-904', 'Walk-in', 'Completed', 'BER', 'Delivered', false],
           ],
         );
         // New appointments continue after the imported APT numbers.

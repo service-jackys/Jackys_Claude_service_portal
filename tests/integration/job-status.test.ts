@@ -107,7 +107,8 @@ test(
         profileId,
         'job-status-delivered',
       );
-      assert.equal(delivered.jobFinalStatus, 'Delivered');
+      assert.equal(delivered.finalStatus, 'Delivered');
+      assert.equal(delivered.jobFinalStatus, 'Repair Completed');
       assert.equal(delivered.status, 'Completed');
       assert.ok(delivered.deliveryDate);
 
