@@ -330,8 +330,14 @@ function buildInvoiceLevelLogicSheet(
   paragraph('Jobs and average revenue per job count every line, including the AED 0 lines.');
   row += 1;
 
+  section(3, 'Sales channel of repair jobs (CSIJW / CSIJO)');
+  paragraph(
+    'The channel is taken in this order. 1) Customer name contains GEMS, WESTMINSTER or WINCHESTER: CSIJW is always HAA (JDI); CSIJO is 3PTY when it carries an original job value, otherwise HAA (JDI) for salesman RENEESH JOSE or job status BER / RWR / COMPLETED. 2) Otherwise the remarks decide: HAA or JDI = HAA, INS or JERC = INS, when exactly one of them appears. 3) Neither or both: a Venus model (MODEL V..., with or without a colon) = HAA, otherwise INS. The channel is a reporting label only; it does not change revenue.',
+  );
+  row += 1;
+
   // 3. Rates ---------------------------------------------------------------------
-  section(3, 'Rates in force (read from the workbook)');
+  section(4, 'Rates in force (read from the workbook)');
   const rateTable = (label: string, m: PricingMaster) => {
     tableHead([label, 'Batch rate', 'Standard rate', 'Minimum rate']);
     m.categories.forEach((c, i) =>
@@ -385,7 +391,7 @@ function buildInvoiceLevelLogicSheet(
   row += 1;
 
   // 4. Check ---------------------------------------------------------------------
-  section(4, 'Check against the workbook');
+  section(5, 'Check against the workbook');
   const rebuilt = lines.filter((l) => l.e.rebuilt !== null);
   const causeText: Record<string, string> = {
     'CSIDO flat charge':
