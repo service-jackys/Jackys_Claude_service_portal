@@ -3088,3 +3088,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart.
+
+## Modification #123 — Worked example: tag original ERP jobs
+
+**Date:** 2026-10-21
+
+**Why.** Invoice 16100997 (CSIJO, qty 7) showed "7 x AED 119 per job" next to AED 2,241.75. That is an original job whose revenue is the actual ERP job value, so the text was wrong and 7 x 119 does not match the revenue.
+
+**What changed.**
+- Logic applied (worked example) and Export report (.xlsx): a CSIJO line that carries an Original Job Value and whose revenue is not qty x rate now reads "Actual ERP job value AED x (original job; not rate x quantity)". The Explain column in the export says the same.
+- No revenue figure changes.
+
+**Files.** apps/api/src/revenue-dashboard/{logic-summary,pricing-logic,export,service}.ts, tests/unit/revenue-logic-summary.test.ts.
+
+**Needs you:** pull and restart the API. No migration.

@@ -27,6 +27,8 @@ export type LogicSummaryLine = {
   remarks: string | null;
   billingCode: string | null;
   description?: string | null;
+  /** Actual job value from ERP for an original job (CSIJO); revenue is that amount, not rate x qty. */
+  originalJobValue?: number | null;
   pricing: SheetPricing | null;
 };
 
@@ -191,11 +193,14 @@ function exampleLineText(rules: PricingRules, line: LogicSummaryLine): ExampleLi
       /\b(BER|RWR)\b|NOT REPAIRABLE|NON REPAIRABLE|UNREPAIRABLE|BEYOND (ECONOMIC )?REPAIR|CANNOT BE REPAIRED|IRREPARABLE/i.test(
         line.remarks ?? '',
       );
+    const erpValue = Number(line.originalJobValue ?? 0);
     how =
-      flat && line.qty > 0 && Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01
-        ? `Flat ${money(line.revenue / line.qty)} per job (BER / RWR)`
-        : `${line.qty} x ${money(line.unitPrice)}` +
-          (line.jobType === 'CSIJW' || line.jobType === 'CSIJO' ? ' per job' : '');
+      erpValue > 0 && Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01
+        ? `Actual ERP job value ${money(line.revenue)} (original job; not rate x quantity)`
+        : flat && line.qty > 0 && Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01
+          ? `Flat ${money(line.revenue / line.qty)} per job (BER / RWR)`
+          : `${line.qty} x ${money(line.unitPrice)}` +
+            (line.jobType === 'CSIJW' || line.jobType === 'CSIJO' ? ' per job' : '');
   }
   return { jobType: line.jobType, item, qty: line.qty, revenue: line.revenue, how };
 }

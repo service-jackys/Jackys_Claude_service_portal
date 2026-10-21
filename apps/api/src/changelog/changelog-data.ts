@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 123,
+    title: 'Worked example: tag original ERP jobs',
+    area: 'General',
+    date: '2026-10-21',
+    approxDate: false,
+    status: null,
+    summary:
+      'Invoice 16100997 (CSIJO, qty 7) showed "7 x AED 119 per job" next to AED 2,241.75. That is an original job whose revenue is the actual ERP job value, so the text was wrong and 7 x 119 does not match the revenue.',
+    changes: [
+      'Logic applied (worked example) and Export report (.xlsx): a CSIJO line that carries an Original Job Value and whose revenue is not qty x rate now reads "Actual ERP job value AED x (original job; not rate x quantity)". The Explain column…',
+      'No revenue figure changes.',
+    ],
+    needsYou: 'pull and restart the API. No migration.',
+    migrations: [],
+    files:
+      'apps/api/src/revenue-dashboard/{logic-summary,pricing-logic,export,service}.ts, tests/unit/revenue-logic-summary.test.ts.',
+  },
+  {
     id: 122,
     title: 'Overview: Top 10 salespeople',
     area: 'Portal look & feel',

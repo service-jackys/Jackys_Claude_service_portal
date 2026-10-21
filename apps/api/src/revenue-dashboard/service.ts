@@ -364,6 +364,7 @@ export function createRevenueDashboardService(pool: Pool) {
     qty: Number(l.qty ?? 0),
     unitPrice: Number(l.unitPrice ?? 0),
     revenue: Number(l.revenue ?? 0),
+    originalJobValue: Number(l.originalJobValue ?? 0),
   });
 
   // Worked-example picker: invoices matching year / month / week / job type /
