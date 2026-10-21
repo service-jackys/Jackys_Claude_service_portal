@@ -624,8 +624,8 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
         'ServiceJobCards',
         r.row,
         ref,
-        'warn',
-        `${attachments} attachment link(s) in the sheet; the files stay in Google Drive and their links are added to the job card's condition notes.`,
+        'info',
+        `${attachments} attachment link(s) in the sheet; attachments are not imported (the files stay in Google Drive).`,
       );
 
     const grand = toMoney(r.get('Grand Total (AED)') ?? j.grandTotal) ?? 0;

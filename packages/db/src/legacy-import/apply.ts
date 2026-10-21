@@ -302,8 +302,6 @@ export async function applyPlan(
       : null;
 
     const notes: string[] = [];
-    if (j.legacyAttachmentLinks.length)
-      notes.push(`Legacy attachments (Google Drive): ${j.legacyAttachmentLinks.join(' ')}`);
     if (j.duplicateOf)
       notes.push(
         `Imported without an appointment link: ${j.sourceAppointmentRef} already had ${j.duplicateOf}.`,
