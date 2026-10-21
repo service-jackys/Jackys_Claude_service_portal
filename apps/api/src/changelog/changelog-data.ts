@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 122,
+    title: 'Overview: Top 10 salespeople',
+    area: 'Portal look & feel',
+    date: '2026-10-21',
+    approxDate: false,
+    status: null,
+    summary:
+      'Management wanted to see which salespeople bring the most revenue, next to the Top 10 customers.',
+    changes: [
+      'Service Revenue Dashboard, Overview: a new "Top 10 salespeople" chart (revenue in AED, highest first) under the sales channel and Top 10 customers charts. It follows the same year, month and week filters. The Top 10 customers chart is…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart.',
+    migrations: [],
+    files: 'apps/web/src/app.js.',
+  },
+  {
     id: 121,
     title: 'Reports: no order-status view, drill goes by salesperson',
     area: 'Portal look & feel',

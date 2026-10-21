@@ -3075,3 +3075,16 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart.
+
+## Modification #122 — Overview: Top 10 salespeople
+
+**Date:** 2026-10-21
+
+**Why.** Management wanted to see which salespeople bring the most revenue, next to the Top 10 customers.
+
+**What changed.**
+- Service Revenue Dashboard, Overview: a new "Top 10 salespeople" chart (revenue in AED, highest first) under the sales channel and Top 10 customers charts. It follows the same year, month and week filters. The Top 10 customers chart is unchanged.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
