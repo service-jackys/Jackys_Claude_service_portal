@@ -95,6 +95,9 @@ export function toNumber(value: unknown): number | null {
   return toMoney(value);
 }
 
+/** Stand-in for a missing or unusable phone number (agreed with the business). */
+export const PHONE_PLACEHOLDER = '+971501234568';
+
 // UAE phone numbers. Sheets drop the leading 0, mix separators and sometimes
 // hold two numbers in one cell. Returns every number found in a standard local
 // form, joined with " / ". Numbers it cannot place are kept and flagged.
@@ -107,6 +110,7 @@ export function normalisePhone(value: unknown): Cleaned<string | null> {
     .map((p) => p.trim())
     .filter(Boolean);
   const out: string[] = [];
+  const junk: string[] = [];
   for (const part of parts) {
     let digits = part.replace(/\D/g, '');
     if (digits.startsWith('00971')) digits = digits.slice(5);
@@ -119,20 +123,24 @@ export function normalisePhone(value: unknown): Cleaned<string | null> {
       out.push(`0${digits}`);
     } else if (digits.length === 9 && /^[2-4679]/.test(digits)) {
       out.push(`0${digits}`);
-    } else if (digits.length >= 7) {
-      out.push(digits);
-      notes.push({
-        level: 'warn',
-        message: `Phone "${part}" does not look like a UAE number; kept as entered.`,
-      });
-    } else if (digits.length > 0) {
-      out.push(digits);
-      notes.push({ level: 'warn', message: `Phone "${part}" is too short; kept as entered.` });
+    } else {
+      // Not a usable UAE number (foreign, too short, or no digits): drop it.
+      junk.push(part);
     }
   }
   const unique = [...new Set(out)];
-  if (unique.length === 0)
-    return { value: null, notes: [{ level: 'warn', message: `Phone "${raw}" has no digits.` }] };
+  if (unique.length === 0) {
+    notes.push({
+      level: 'warn',
+      message: `Phone "${junk.join(' / ') || raw}" is not a usable number; replaced with ${PHONE_PLACEHOLDER}.`,
+    });
+    return { value: PHONE_PLACEHOLDER, notes };
+  }
+  if (junk.length)
+    notes.push({
+      level: 'warn',
+      message: `Phone part "${junk.join(' / ')}" is not a usable number; dropped.`,
+    });
   return { value: unique.join(' / ').slice(0, 50), notes };
 }
 
