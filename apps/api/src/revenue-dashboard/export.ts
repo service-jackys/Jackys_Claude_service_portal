@@ -197,6 +197,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       revenue: Number(line.revenue ?? 0),
       remarks: (line.remarks as string | null) ?? null,
       billingCode: (line.billingCode as string | null) ?? null,
+      originalJobValue: Number(line.originalJobValue ?? 0),
       pricing,
     });
     return { line, pricing, e };

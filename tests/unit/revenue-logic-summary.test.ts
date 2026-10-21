@@ -83,6 +83,24 @@ test('buildWorkedExample covers any job type and orders lines by type', () => {
   assert.equal(ex.total, 350);
 });
 
+test('original CSIJO job with an ERP value is tagged, not shown as qty x rate', () => {
+  const rules = rulesOfBatch(batch);
+  const ex = buildWorkedExample(rules, '16100997', [
+    line({
+      jobType: 'CSIJO',
+      invDelNo: '16100997',
+      qty: 7,
+      unitPrice: 119,
+      revenue: 2241.75,
+      originalJobValue: 2241.75,
+    }),
+  ]);
+  assert.equal(
+    ex.lines[0]?.how,
+    'Actual ERP job value AED 2,241.75 (original job; not rate x quantity)',
+  );
+});
+
 test('CSIDI tier and batch rate use the invoice total; transport sits on the first line', () => {
   const rules = { ...rulesOfBatch(batch), logicVersion: 3 as const };
   const pricing = (cat: string, base: number, net: number, transport: number, first: boolean) =>

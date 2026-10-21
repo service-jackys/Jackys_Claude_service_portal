@@ -400,6 +400,7 @@ export type LineLike = {
   revenue: number;
   remarks?: string | null;
   billingCode?: string | null;
+  originalJobValue?: number | null;
   pricing?: SheetPricing | null;
 };
 
@@ -591,9 +592,12 @@ export function enrichLine(rules: PricingRules, line: LineLike): Enriched {
 
   if (type === 'CSIJW' || type === 'CSIJO') {
     const flat = Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01;
-    empty.basis = flat
-      ? 'Flat BER/RWR charge per job (quantity does not multiply)'
-      : 'Rate x quantity (Calculation sheet rate)';
+    empty.basis =
+      Number(line.originalJobValue ?? 0) > 0 && flat
+        ? 'Actual ERP job value (original job; not rate x quantity)'
+        : flat
+          ? 'Flat BER/RWR charge per job (quantity does not multiply)'
+          : 'Rate x quantity (Calculation sheet rate)';
     empty.assumptions = 'None of the delivery/installation assumptions apply';
     return empty;
   }
