@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import { GRAND_TOTAL_OVERRIDES, PHONE_OVERRIDES } from './overrides.js';
 import {
   type Note,
   cleanBrand,
@@ -406,7 +407,10 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
     if (!date) issue('Schedules', r.row, ref, 'error', 'Missing or invalid Appointment Date.');
     const name = text(r.get('Customer Name'), 200);
     if (!name) issue('Schedules', r.row, ref, 'error', 'Missing Customer Name.');
-    const phone = normalisePhone(r.get('Contact No'));
+    const phoneOverride = PHONE_OVERRIDES[ref];
+    const phone = phoneOverride
+      ? { value: phoneOverride, notes: [] as Note[] }
+      : normalisePhone(r.get('Contact No'));
     notes('Schedules', r.row, ref, phone.notes);
     if (!phone.value)
       issue(
@@ -628,7 +632,8 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
         `${attachments} attachment link(s) in the sheet; attachments are not imported (the files stay in Google Drive).`,
       );
 
-    const grand = toMoney(r.get('Grand Total (AED)') ?? j.grandTotal) ?? 0;
+    const grand =
+      GRAND_TOTAL_OVERRIDES[ref] ?? toMoney(r.get('Grand Total (AED)') ?? j.grandTotal) ?? 0;
     const service = toMoney(r.get('Service Charge (AED)') ?? j.serviceCharge) ?? 0;
     const cost = toMoney(r.get('Total Cost (AED)') ?? j.totalCost) ?? 0;
     if (grand > 0 && grand < 1)
