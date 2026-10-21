@@ -3102,3 +3102,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/{logic-summary,pricing-logic,export,service}.ts, tests/unit/revenue-logic-summary.test.ts.
 
 **Needs you:** pull and restart the API. No migration.
+
+## Modification #124 — README: Google Sheet cutover checklist
+
+**Date:** 2026-10-21
+
+**Why.** The Google Sheet import was rehearsed on a staging copy and passed every parity check. The steps for the real database needed to be written down in one place for cutover day.
+
+**What changed.**
+- README: a new section "Moving the Google Sheet data into the real database (cutover day)" with the cmd steps (freeze, download, backup, dry run, clear, import, verify, check, go live) and how to restore from the backup. The status line is updated.
+- docs/migration/GOOGLE_SHEET_MIGRATION.md: updated to the current rules (phone placeholder, no attachment links, overrides file, no longer parked).
+- No code changes.
+
+**Files.** README.md, docs/migration/GOOGLE_SHEET_MIGRATION.md.
+
+**Needs you:** pull. Nothing to run.

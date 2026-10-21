@@ -1,6 +1,6 @@
 # Google Sheet migration runbook
 
-This is the step-by-step for loading the live "Jackys Distribution" Google Sheet into the portal. It is **prepared but parked**: run it only after end-to-end testing is finished and the test entries have been cleared.
+This is the step-by-step for loading the live "Jackys Distribution" Google Sheet into the portal. It was rehearsed on a staging copy on 21 October 2026 (all parity checks OK). The cutover-day checklist, in cmd form, is in the README section "Moving the Google Sheet data into the real database".
 
 Real customer data must only go into **staging or production**, never a developer database. Both tools below refuse to write unless you type the database name.
 
@@ -25,8 +25,8 @@ Every fix is written to the issues report. Nothing is changed silently.
 |---|---|
 | Job card JSON in the wrong column | Finds the JSON by content, so the column position does not matter. |
 | Two date formats | Reads both. Sheet times are treated as Dubai time. |
-| Job card with no date | Skipped, not imported (JC-017 to JC-020 in the current export). Listed in the issues report. |
-| Phone numbers missing the leading 0, extra spaces, two numbers in one cell | Standardises to local format (`0501234567`), keeps both numbers joined with " / ". Anything it cannot place is kept as typed and flagged. |
+| Job card with no date | Skipped, not imported, and listed in the issues report. Give it a date in the sheet to import it. |
+| Phone numbers missing the leading 0, extra spaces, two numbers in one cell | Standardises to local format (`0501234567`), keeps both numbers joined with " / ". A number that is not usable (foreign, too short, no digits, text) is replaced with `+971501234568` and flagged. |
 | Money typed as text ("AED 325.50") | Converted to numbers. |
 | "Under Warranty" / "Out of Warranty" | Mapped to In Warranty / Out Warranty. Billing type is set from it (CSIJW / CSIJO). |
 | Technician spelling (SIVA, LATHEEF) | Mapped to the master name (Siva, Latif). |
@@ -35,8 +35,9 @@ Every fix is written to the issues report. Nothing is changed silently.
 | Completed or cancelled appointment with no close time | Close time is estimated from the appointment date and noted. |
 | Job card with a delivery date and a finished status | Imported as Delivered. |
 | Job card whose appointment already has another job card | The portal allows one per appointment. The extra card is imported as an unlinked walk-in and flagged as a possible duplicate. Use `--duplicates skip` to leave such cards out instead. |
-| Photos and files on job cards | Not copied. The Google Drive links are added to the job card's condition notes. |
+| Photos and files on job cards | Not imported. The files stay in Google Drive and no links are added. |
 | Appointment with no contact number | Contact is set to "N/A" and flagged. |
+| One-off corrections | `packages/db/src/legacy-import/overrides.ts` holds record-specific fixes agreed with the business (APT-2026-00016 phone, JC-039 total). Delete an entry once the sheet is fixed. |
 
 The old sheet has no payer or bill-to information, so imported job cards have those blank. Accounts fill them in from the Billing page.
 
