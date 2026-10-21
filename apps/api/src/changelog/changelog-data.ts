@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 121,
+    title: 'Reports: no order-status view, drill goes by salesperson',
+    area: 'Portal look & feel',
+    date: '2026-10-21',
+    approxDate: false,
+    status: null,
+    summary:
+      '"Break down by → Order status" and the "By order status" table showed a large amount (AED 14,992 for October) under a blank CSOSC status. That column is an ERP field with no financial meaning, and it confused management. The drill table also moved on to Customer at its third step.',
+    changes: [
+      'Reports: "Order status" is no longer in the Break down by list, and the "By order status" table on the Billing tab is removed (cost status stays).',
+      'Reports drill: the automatic next step after Job type is now Salesperson instead of Customer. Customer is still in Break down by, and choosing it shows the customer view as before.',
+      'No revenue figure changes. The job list still shows the order-status column for reference.',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart.',
+    migrations: [],
+    files: 'apps/web/src/app.js.',
+  },
+  {
     id: 120,
     title: 'Logic text for repair jobs: one job per invoice, BER from remarks, channel order',
     area: 'Invoices & billing',

@@ -3060,3 +3060,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/{logic-sheet,logic-summary}.ts, apps/web/src/app.js.
 
 **Needs you:** pull, restart the API and hard-refresh. No migration.
+
+## Modification #121 — Reports: no order-status view, drill goes by salesperson
+
+**Date:** 2026-10-21
+
+**Why.** "Break down by → Order status" and the "By order status" table showed a large amount (AED 14,992 for October) under a blank CSOSC status. That column is an ERP field with no financial meaning, and it confused management. The drill table also moved on to Customer at its third step.
+
+**What changed.**
+- Reports: "Order status" is no longer in the Break down by list, and the "By order status" table on the Billing tab is removed (cost status stays).
+- Reports drill: the automatic next step after Job type is now Salesperson instead of Customer. Customer is still in Break down by, and choosing it shows the customer view as before.
+- No revenue figure changes. The job list still shows the order-status column for reference.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
