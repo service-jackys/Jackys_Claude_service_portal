@@ -14,7 +14,7 @@ Last updated: 2026-10-16 (latest change: #106, Export report Jobs sheet split in
 - Phases 0 to 4 (foundation, PostgreSQL, complaints, scheduling, web portal): complete and verified locally.
 - Phase 5 service operations: built and in daily testing. Job cards, quotations and inspections, attachments, print views, warranty approvals, billing, and tax invoices (portal series SINV-YYYY-NNNNN, 5% VAT inclusive, print with bilingual terms) are in place.
 - Latest database migration: **042** (tax invoices). Run `npm.cmd run db:migrate` after every pull that adds a migration file.
-- Google Sheet data migration: parked until testing is finished.
+- Google Sheet data migration: importer built and proven on a staging copy (21 Oct 2026: 193 appointments, 159 job cards, 9 quotations, 4 inspections, 3 Thomson proposals, all parity checks OK). The cutover to the real database is the checklist in "Moving the Google Sheet data into the real database" below.
 - Production cutover and production authentication: not started. The live Google Apps Script application remains the production and rollback system.
 
 The full change log, with the reason and the files for every change, is in `modification.md` (newest at the bottom), and the same list as cards is in `modification_status.html`. The checklist is `to_do.md`.
@@ -401,6 +401,69 @@ A second sales channel, JDI, was added alongside the original JER-C/INS data. To
 
 Both steps are safe to re-run if anything goes wrong.
 
+## Moving the Google Sheet data into the real database (cutover day)
+
+This is the checklist for loading the live Google Sheet ("Jackys Distribution") into the real portal database, `jackys_service_portal_nah`. It was rehearsed on a staging copy (`jackys_service_portal_staging`) on 21 October 2026 and every parity check passed. Use **cmd** and run each line on its own, from the project folder. Keep the same cmd window open for the whole procedure, because the `set` line only lasts for that window. The reference runbook, with the table of what is migrated and how sheet problems are handled, is `docs/migration/GOOGLE_SHEET_MIGRATION.md`.
+
+What is migrated: technicians, appointments (including cancelled ones), job cards, quotations, inspections and Thomson proposals. What is not: complaints, B2B customers, users, role access, the activity log, AMC, VAS and the pricing tabs. Job card photos and Google Drive attachment links are not imported.
+
+### Before cutover day
+
+1. Make sure `main` is up to date: `git checkout main`, then `git pull`, then `npm.cmd run db:migrate`.
+2. Fix anything you want in the sheet. Typos in phone numbers, brands and invoice numbers are cheapest to fix there. The importer reports what it changed in `exports/import-report/import-issues.csv`.
+3. Decide the freeze time and tell the team that nobody enters data in the old sheet after it.
+
+### Cutover steps
+
+1. **Freeze the sheet.** In Google Sheets choose Share and set everyone to Viewer, or protect the sheets. From now on nothing new is entered in the old system.
+2. **Download the sheet.** File, Download, Microsoft Excel (.xlsx). Note the full path, for example `C:\Users\Vysakh Raju\Downloads\Jackys Distribution.xlsx`.
+3. **Back up the real database.** This is the only way to undo after go-live:
+   ```
+   docker compose exec postgres sh -c "pg_dump -U jackys jackys_service_portal_nah" > backup_before_sheet_import.sql
+   ```
+   Check that `backup_before_sheet_import.sql` is not empty. Keep it out of Git.
+4. **Point the commands at the real database** (this window only):
+   ```
+   set DATABASE_URL=postgresql://jackys:jackys@localhost:5544/jackys_service_portal_nah
+   ```
+5. **Dry run** (writes nothing). Review the table and the CSV:
+   ```
+   npm run import:sheets -- --file "C:\Users\Vysakh Raju\Downloads\Jackys Distribution.xlsx"
+   ```
+   Errors must be 0. On 21 October the expected result was 3 technicians, 193 appointments, 159 job cards, 9 quotations, 4 inspections and 3 Thomson proposals. Counts will be higher if work was added since.
+6. **Preview the clear** (writes nothing). The `Database:` line must say `jackys_service_portal_nah`:
+   ```
+   npm run db:clear-test-data -- --technicians
+   ```
+7. **Clear the test entries:**
+   ```
+   npm run db:clear-test-data -- --technicians --apply --confirm jackys_service_portal_nah
+   ```
+   It must print `Test data cleared.` This keeps logins, roles, pricing, salesmen, sales channels, the stock master and the revenue workbook data.
+8. **Import.** It runs as one transaction, so a failure saves nothing:
+   ```
+   npm run import:sheets -- --file "C:\Users\Vysakh Raju\Downloads\Jackys Distribution.xlsx" --apply --confirm jackys_service_portal_nah --as vysakh.raju@jackys.com
+   ```
+9. **Verify.** Every line must say `OK`:
+   ```
+   npm run import:sheets -- --file "C:\Users\Vysakh Raju\Downloads\Jackys Distribution.xlsx" --verify
+   ```
+10. **Check in the portal.** Make sure `.env` has `DATABASE_URL` set to `jackys_service_portal_nah`, restart `npm run dev`, then open a few appointments (including a cancelled one), job cards (print one), a quotation, an inspection and a Thomson proposal, and compare them with the sheet.
+11. **Go live.** Create logins for the staff who will use the portal (see "Adding teammate logins"). Tell the team the old sheet is read-only and the portal is now the system to use.
+
+### If something goes wrong
+
+- The import fails with an error: nothing was saved. Fix the cause, then run steps 5 to 9 again.
+- Running the import twice is safe, because rows already imported are skipped.
+- Before go-live you can run steps 7 and 8 again. After go-live, restore from the backup in step 3:
+  ```
+  docker compose exec -T postgres psql -U jackys -d postgres -c "DROP DATABASE jackys_service_portal_nah;"
+  docker compose exec -T postgres psql -U jackys -d postgres -c "CREATE DATABASE jackys_service_portal_nah;"
+  docker compose exec -T postgres psql -U jackys -d jackys_service_portal_nah < backup_before_sheet_import.sql
+  ```
+  Stop `npm run dev` first. Entries made in the portal after the backup are lost by a restore.
+- To go back to the old system, make the Google Sheet editable again. It is still the production and rollback system until you decide otherwise.
+
 ## Run the verification checks
 
 Stop the backend with `Ctrl+C` only if you need to, then run these commands from the project folder:
@@ -508,6 +571,6 @@ docker compose down -v
 - `docs/DEVELOPMENT_PLAN.md` — planned phases through cutover and rollback.
 - `docs/PARITY_REVIEW_2026-09-28.md` — the field/workflow comparison against the live Apps Script system.
 - `docs/architecture/target-architecture.md` — architecture and safety baseline.
-- `docs/migration/GOOGLE_SHEET_MIGRATION.md` — step-by-step runbook for clearing test data and loading the live Google Sheet (parked until testing is finished).
+- `docs/migration/GOOGLE_SHEET_MIGRATION.md` — step-by-step runbook for clearing test data and loading the live Google Sheet (rehearsed on staging; the cutover checklist is in this README).
 
 Phase4 web journeys are implemented and browser-verified locally. They include public complaint registration, local staff sign-in, complaint inbox and updates, technician lookup, appointment scheduling and assignment, calendar views, ICS download, rescheduling, status transitions, terminal-state handling, and authorization/recovery states. Phase5 currently includes the protected service job-card workspace with appointment-linked creation, queue search/filtering, detail/history, status transitions, terminal locks, permission gating, and recovery states. Manual Phase5 verification is documented in `testing_guide.md`; the full integration suite still requires safe resolution of the existing migration checksum mismatch before the bounded slice is committed.

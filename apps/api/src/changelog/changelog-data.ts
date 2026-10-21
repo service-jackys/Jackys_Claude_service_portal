@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 124,
+    title: 'README: Google Sheet cutover checklist',
+    area: 'Portal look & feel',
+    date: '2026-10-21',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Google Sheet import was rehearsed on a staging copy and passed every parity check. The steps for the real database needed to be written down in one place for cutover day.',
+    changes: [
+      'README: a new section "Moving the Google Sheet data into the real database (cutover day)" with the cmd steps (freeze, download, backup, dry run, clear, import, verify, check, go live) and how to restore from the backup. The status line is…',
+      'docs/migration/GOOGLE_SHEET_MIGRATION.md: updated to the current rules (phone placeholder, no attachment links, overrides file, no longer parked).',
+      'No code changes.',
+    ],
+    needsYou: 'pull. Nothing to run.',
+    migrations: [],
+    files: 'README.md, docs/migration/GOOGLE_SHEET_MIGRATION.md.',
+  },
+  {
     id: 123,
     title: 'Worked example: tag original ERP jobs',
     area: 'General',
