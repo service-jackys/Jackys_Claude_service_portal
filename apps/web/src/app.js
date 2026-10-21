@@ -16328,6 +16328,10 @@ ${bodyHtml}
         ) +
         '</div>' +
         rdSection(
+          'Top 10 salespeople',
+          '<div class="rd-chart-box tall"><canvas id="rdc-salespeople"></canvas></div>',
+        ) +
+        rdSection(
           'Job type breakdown',
           '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Job type</th><th class="num">Rate (AED)</th><th class="num">Qty</th><th class="num">Jobs</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
             types
@@ -16406,7 +16410,15 @@ ${bodyHtml}
           { padRight: 100 },
         ),
       );
-      void bySales;
+      await rdDrawChart(
+        c('rdc-salespeople'),
+        rdHBarConfig(
+          bySales.data.rows
+            .slice(0, 10)
+            .map((r) => ({ key: r.key, label: r.key, value: r.revenue, color: '#2F9E8F' })),
+          { padRight: 100 },
+        ),
+      );
     }
 
     // ---------------------------------------------------------------- Explorer
