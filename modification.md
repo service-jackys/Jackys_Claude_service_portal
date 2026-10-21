@@ -3028,3 +3028,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart.
+
+## Modification #119 — Export report: paired-units label, quantity basis note, Live feed / Locked tag
+
+**Date:** 2026-10-21
+
+**Why.** The workbook now holds corrected, paired quantities and, from 18 Oct, rows that come live from Net Sale Current. The export still called the quantity "raw units" and did not say which rows were live.
+
+**What changed.**
+- Source detail: "Qty (raw units)" is now "Qty (paired units)" (a delivery line and its installation line count as one unit).
+- Delivery & Install: a new "Data source" column (Explain group) shows "Live feed" or "Locked history" for each row, read from the workbook's Source.Name.
+- Revenue Logic sheet: the CSIDI row now has a "Quantity basis" note and says that rows after 17 Oct come from the live feed.
+- No revenue figure changes.
+
+**Files.** apps/api/src/revenue-dashboard/{pricing-logic,parser,export,logic-sheet}.ts.
+
+**Needs you:** pull and restart the API. No migration.

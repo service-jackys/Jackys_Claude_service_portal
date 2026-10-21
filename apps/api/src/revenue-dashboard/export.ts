@@ -399,6 +399,16 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       group: 'Explain',
       get: P((p) => yesNo(p.firstOfType)),
     },
+    {
+      h: 'Data source',
+      w: 16,
+      group: 'Explain',
+      get: P((p) =>
+        /live/i.test(`${p.sourceName ?? ''} ${p.pricingStatus ?? ''}`)
+          ? 'Live feed'
+          : 'Locked history',
+      ),
+    },
     { h: 'Pricing status', w: 30, group: 'Explain', get: P((p) => p.pricingStatus) },
     { h: 'Review note', w: 44, group: 'Explain', get: P((p) => p.reviewNote) },
     { h: 'Remarks flags', w: 44, group: 'Explain', get: E('remarkFlags') },
@@ -416,7 +426,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     { h: 'Cur', w: 6, group: 'Source', get: P((p) => p.currency) },
     { h: 'Location', w: 10, group: 'Source', get: P((p) => p.location) },
     { h: 'Del loc', w: 9, group: 'Source', get: P((p) => p.delLoc) },
-    { h: 'Qty (raw units)', w: 11, group: 'Source', get: P((p) => p.rawQty) },
+    { h: 'Qty (paired units)', w: 11, group: 'Source', get: P((p) => p.rawQty) },
     { h: 'Value (ERP invoice)', w: 14, fmt: MONEY, group: 'Source', get: P((p) => p.value) },
     { h: 'No. of items', w: 10, group: 'Source', get: P((p) => p.items) },
     { h: 'Invoice status', w: 22, group: 'Source', get: P((p) => p.invoiceStatus) },
