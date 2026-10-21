@@ -16558,7 +16558,7 @@ ${bodyHtml}
     }
 
     // ----------------------------------------------------------------- Reports
-    const DRILL_SEQUENCE = ['year', 'period', 'jobType', 'customer', 'channel'];
+    const DRILL_SEQUENCE = ['year', 'period', 'jobType', 'salesPerson', 'channel'];
     const DRILL_DIMENSIONS = [
       'year',
       'period',
@@ -16569,7 +16569,6 @@ ${bodyHtml}
       'customer',
       'costStatus',
       'billingCode',
-      'orderStatus',
       'jobStatus',
     ];
 
@@ -16962,10 +16961,9 @@ ${bodyHtml}
     }
 
     async function drawBilling() {
-      const [billing, cost, order] = await Promise.all([
+      const [billing, cost] = await Promise.all([
         rdApi('group', { ...F, dimension: 'billingCode' }),
         rdApi('group', { ...F, dimension: 'costStatus' }),
-        rdApi('group', { ...F, dimension: 'orderStatus' }),
       ]);
       reportBody.innerHTML =
         rdSection(
@@ -16976,18 +16974,12 @@ ${bodyHtml}
           'Billing code detail &mdash; click to drill',
           rdGroupTable(billing.data, 'billingCode', { drill: true, title: 'Billing code' }),
         ) +
-        '<div class="rd-two-col">' +
         rdSection(
           'By cost status',
           rdGroupTable(cost.data, 'costStatus', { drill: true, title: 'Cost status' }),
-        ) +
-        rdSection(
-          'By order status',
-          rdGroupTable(order.data, 'orderStatus', { drill: true, title: 'Order status' }),
-        ) +
-        '</div>';
+        );
       const tables = reportBody.querySelectorAll('.rc-table');
-      const dims = ['billingCode', 'costStatus', 'orderStatus'];
+      const dims = ['billingCode', 'costStatus'];
       tables.forEach((table, i) => bindJump(table, dims[i], 'period'));
       await rdDrawChart(
         reportBody.querySelector('#rdc-r-billing'),
