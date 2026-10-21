@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 120,
+    title: 'Logic text for repair jobs: one job per invoice, BER from remarks, channel order',
+    area: 'Invoices & billing',
+    date: '2026-10-21',
+    approxDate: false,
+    status: null,
+    summary:
+      'The master workbook changed on 21 October: a CSIJW job is always quantity 1, a BER / RWR job is also recognised from the remarks (not repairable / beyond repair) whatever the job status, and the sales channel of repair jobs follows a fixed order. The portal text still described the old rules.',
+    changes: [
+      'Logic applied (Rules by job type) and the Revenue Logic sheet: CSIJW is one job per invoice (quantity always 1); BER / RWR from the status or from the remarks.',
+      'Revenue Logic sheet: a new note on the channel order for CSIJW / CSIJO (GEMS / WESTMINSTER / WINCHESTER, then HAA / JDI or INS / JERC in the remarks, then a Venus model).',
+      'Worked example: a repair job billed flat because its remarks say not repairable now shows "Flat 60 per job (BER / RWR)".',
+      'No revenue figure changes: the portal reads the amounts and channels from the workbook.',
+    ],
+    needsYou: 'pull, restart the API and hard-refresh. No migration.',
+    migrations: [],
+    files: 'apps/api/src/revenue-dashboard/{logic-sheet,logic-summary}.ts, apps/web/src/app.js.',
+  },
+  {
     id: 119,
     title: 'Export report: paired-units label, quantity basis note, Live feed / Locked tag',
     area: 'General',

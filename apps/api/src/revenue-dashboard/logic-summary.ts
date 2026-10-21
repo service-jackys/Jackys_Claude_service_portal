@@ -187,7 +187,10 @@ function exampleLineText(rules: PricingRules, line: LogicSummaryLine): ExampleLi
           : 'The invoice’s one flat delivery charge, placed on its first delivery-only line'
         : 'Covered by the flat charge on the first delivery-only line, so it shows 0';
   } else {
-    const flat = /\b(BER|RWR)\b/i.test(line.remarks ?? '');
+    const flat =
+      /\b(BER|RWR)\b|NOT REPAIRABLE|NON REPAIRABLE|UNREPAIRABLE|BEYOND (ECONOMIC )?REPAIR|CANNOT BE REPAIRED|IRREPARABLE/i.test(
+        line.remarks ?? '',
+      );
     how =
       flat && line.qty > 0 && Math.abs(line.revenue - line.qty * line.unitPrice) > 0.01
         ? `Flat ${money(line.revenue / line.qty)} per job (BER / RWR)`

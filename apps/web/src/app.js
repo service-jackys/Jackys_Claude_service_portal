@@ -17937,9 +17937,9 @@ ${bodyHtml}
         CSIJW: {
           what: 'Warranty repairs',
           how:
-            'Quantity × ' +
+            'One job per invoice: quantity is always 1, billed at ' +
             aed(rate('CSIJW')) +
-            ' per job. Jobs marked BER or RWR are billed a flat ' +
+            '. BER / RWR jobs (status BER or RWR, or remarks that say the unit is not repairable / beyond repair, whatever the status) are billed a flat ' +
             aed(rwr) +
             ' per job.',
         },
@@ -17950,7 +17950,7 @@ ${bodyHtml}
             aed(rate('CSIJO')) +
             ' per job. The same flat ' +
             aed(rwr) +
-            ' applies to BER / RWR jobs.',
+            ' applies to BER / RWR jobs (status BER or RWR, or remarks that say not repairable / beyond repair).',
         },
         CSIDI: {
           what: 'Delivery + installation (fridges, washing machines, cookers)',
