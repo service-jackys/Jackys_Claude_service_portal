@@ -214,6 +214,49 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    requestClosureApproval: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            jobCard: await service.requestClosureApproval(
+              String(request.params.id),
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    decideClosureApproval: [
+      requirePermission('service_job_card.approve_closure'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            jobCard: await service.decideClosureApproval(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     prefillFromQuotation: [
       requirePermission('service_job_card.write'),
       async (request, response, next) => {

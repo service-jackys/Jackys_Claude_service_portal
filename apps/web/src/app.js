@@ -1150,15 +1150,23 @@
     'WIP',
     'Spare pending',
     'BER',
+    'Rejected',
+    'Cancelled',
     'Repair Completed',
   ];
-  const finalStatusOptions = ['Delivered', 'Rejected', 'Cancelled'];
+  // Job statuses where the work ends and the unit goes back to the customer.
+  const jobOutcomeStatuses = ['BER', 'Rejected', 'Cancelled'];
+  const jobReadyToDeliver = ['Repair Completed', 'BER', 'Rejected', 'Cancelled'];
+  const finalStatusOptions = ['Delivered'];
   const finalStatusReasonOptions = [
     'Parts fitted, written off',
     'Parts returned to stock',
     'Diagnosis charge only',
     'Customer declined the quote',
     'No charge',
+    'Duplicate job card',
+    'Entered by mistake',
+    'Customer cancelled the job',
     'Other',
   ];
   const BER_HANDLING_CHARGE = 60;
@@ -1278,8 +1286,8 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml('Where the job is right now. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Use BER when the item cannot be repaired economically. Repair Completed when the work is finished.')}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
-        <div class="field"><label for="${prefix}FinalStatus">Final status ${tipHtml('Leave blank while the job is open. Delivered once the customer has the item (job status must be Repair Completed or BER). Rejected when the customer declines. Cancelled when the job is called off. Delivered and Cancelled lock the card; only an admin can edit it after that.')}</label><select id="${prefix}FinalStatus"><option value="">Open (no final status)</option>${finalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
-        <div class="field" id="${prefix}FinalStatusReasonField" hidden><label for="${prefix}FinalStatusReason">Reason for closing ${tipHtml('Required when a BER or Rejected job still has spare parts or charges above the AED 60 handling charge, so management can see what happened to the parts and the value.')}</label><select id="${prefix}FinalStatusReason"><option value="">Select a reason</option>${finalStatusReasonOptions.map((reason) => `<option value="${reason}">${reason}</option>`).join('')}</select><p class="field-hint is-warn" id="${prefix}FinalStatusWarning"></p></div>
+        <div class="field"><label for="${prefix}FinalStatus">Final status ${tipHtml('Delivered once the customer has the unit back. It can be chosen when the job status is Repair Completed, BER, Rejected or Cancelled. Leave it blank while the job is open. A BER, Rejected or Cancelled job asks for a reason. Delivered locks the card; only an admin can edit it after that.')}</label><select id="${prefix}FinalStatus"><option value="">Open (not delivered)</option>${finalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field" id="${prefix}FinalStatusReasonField" hidden><label for="${prefix}FinalStatusReason">Reason ${tipHtml('Why this BER, Rejected or Cancelled job is being delivered back.')}</label><select id="${prefix}FinalStatusReason"><option value="">Select a reason</option>${finalStatusReasonOptions.map((reason) => `<option value="${reason}">${reason}</option>`).join('')}</select><p class="field-hint is-warn" id="${prefix}FinalStatusWarning"></p></div>
       </div>
         </div>
       </section>
@@ -1341,6 +1349,12 @@
     const field = $(`#${prefix}ServiceCharge`);
     const note = $(`#${prefix}ServiceChargeNote`);
     if (!field) return;
+    if (isOutcomeJob(prefix)) {
+      // BER, Rejected and Cancelled jobs use the outcome charge, not the MDA rate.
+      note.hidden = true;
+      refreshOutcomeCharge(prefix);
+      return;
+    }
     const isMda = ($(`#${prefix}MainGroup`).value || '').trim().toUpperCase() === 'MDA';
     note.hidden = !isMda;
     if (!isMda) {
@@ -1711,44 +1725,131 @@
     refreshMdaServiceCharge(prefix);
   }
 
-  // Choosing Delivered shows today's date in Delivery date straight away; the
-  // server records it too when the card is saved, so it is never left blank.
-  // The reason box appears when a BER/Rejected job still carries parts or value.
+  // The rate card's OOW inspection charge (AED 60), billed to the sales channel when a
+  // business job ends as BER or Rejected. Falls back to 60 when the line is missing.
+  let oowRatePromise = null;
+  function loadOowRate() {
+    if (!oowRatePromise) {
+      oowRatePromise = apiRequest('/api/rate-card')
+        .then((data) => {
+          for (const section of data.sections || []) {
+            for (const activity of section.activities || []) {
+              const name = String(activity.name).toLowerCase();
+              if (name.includes('oow') && name.includes('inspection')) return Number(activity.rate);
+            }
+          }
+          return BER_HANDLING_CHARGE;
+        })
+        .catch(() => BER_HANDLING_CHARGE);
+    }
+    return oowRatePromise;
+  }
+
+  function isOutcomeJob(prefix) {
+    return jobOutcomeStatuses.includes($(`#${prefix}JobFinalStatus`)?.value);
+  }
+
+  // A job that ends as BER, Rejected or Cancelled is not charged the repair rate: B2C
+  // pays nothing, a business job that is finally Out Warranty is billed the OOW
+  // inspection charge (not for Cancelled). Mirrors the server.
+  function refreshOutcomeCharge(prefix) {
+    const charge = $(`#${prefix}ServiceCharge`);
+    const amount = $(`#${prefix}AmountChargeable`);
+    if (!charge || !amount) return;
+    if (!isOutcomeJob(prefix)) {
+      if (charge.dataset.outcomeLocked) {
+        delete charge.dataset.outcomeLocked;
+        charge.readOnly = false;
+        amount.readOnly = false;
+        charge.value = 0;
+        amount.value = '';
+        recalcJobCardTotals(prefix);
+        refreshMdaServiceCharge(prefix);
+      }
+      return;
+    }
+    loadOowRate().then((rate) => {
+      if (!isOutcomeJob(prefix)) return;
+      const job = $(`#${prefix}JobFinalStatus`).value;
+      const effective =
+        normalizeWarrantyText($(`#${prefix}FinalWarrantyStatus`).value) ||
+        normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
+      const channelPays =
+        $(`#${prefix}CustomerType`).value !== 'B2C' &&
+        effective === 'Out Warranty' &&
+        job !== 'Cancelled';
+      const value = channelPays ? rate : 0;
+      charge.value = value;
+      amount.value = value;
+      charge.readOnly = true;
+      amount.readOnly = true;
+      charge.dataset.outcomeLocked = '1';
+      recalcJobCardTotals(prefix);
+    });
+  }
+
+  function notifyDialog(title, message) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog';
+      dialog.innerHTML = `<h3>${escapeHtml(title)}</h3><form method="dialog" novalidate><p>${escapeHtml(message)}</p><div class="form-footer"><button type="button" class="button button-primary" data-nd-ok>OK</button></div></form>`;
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-nd-ok]')) dialog.close();
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve();
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
+  // Final status can only be chosen once the job is ready to hand back. A BER, Rejected or
+  // Cancelled job needs a reason, shown in the box below (and asked in a pop-up).
   function refreshFinalStatusReason(prefix) {
     const job = $(`#${prefix}JobFinalStatus`);
     const final = $(`#${prefix}FinalStatus`);
     const field = $(`#${prefix}FinalStatusReasonField`);
     if (!job || !final || !field) return;
-    const parts = (jobCardPartsState[prefix] || []).filter(
-      (part) => part.partNo || part.description,
-    );
-    const total = Math.max(
-      parseNumber($(`#${prefix}GrandTotal`)?.value),
-      parseNumber($(`#${prefix}ServiceCharge`)?.value),
-    );
-    const needs =
-      Boolean(final.value) &&
-      (job.value === 'BER' || final.value === 'Rejected') &&
-      (parts.length > 0 || total > BER_HANDLING_CHARGE + 0.005);
+    const ready = jobReadyToDeliver.includes(job.value);
+    final.disabled = !ready;
+    if (!ready) final.value = '';
+    const needs = Boolean(final.value) && jobOutcomeStatuses.includes(job.value);
     field.hidden = !needs;
     const warning = $(`#${prefix}FinalStatusWarning`);
     if (warning) {
       warning.textContent = needs
-        ? `This job carries ${parts.length ? parts.length + ' spare part line(s)' : 'charges'} (AED ${total.toFixed(2)}). Pick the reason it is being closed, or remove the parts first.`
+        ? `This job ended as ${job.value}. Choose why it is being delivered back.`
         : '';
     }
     if (!needs) $(`#${prefix}FinalStatusReason`).value = '';
   }
 
-  // Asks why a BER/Rejected job that carries spares or charges is being closed.
+  // The charge goes to the sales channel, so one must be chosen before delivery.
+  function salesChannelMissing(prefix) {
+    const effective =
+      normalizeWarrantyText($(`#${prefix}FinalWarrantyStatus`).value) ||
+      normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
+    return (
+      isOutcomeJob(prefix) &&
+      $(`#${prefix}JobFinalStatus`).value !== 'Cancelled' &&
+      $(`#${prefix}CustomerType`).value !== 'B2C' &&
+      effective === 'Out Warranty' &&
+      !$(`#${prefix}SalesChannel`).value &&
+      !$(`#${prefix}BillToChannel`).value
+    );
+  }
+
+  // Asks why a BER, Rejected or Cancelled job is being delivered back.
   function askFinalStatusReason(summary) {
     return new Promise((resolve) => {
       const dialog = document.createElement('dialog');
       dialog.className = 'pw-dialog';
-      dialog.innerHTML = `<h3>Reason for closing</h3>
+      dialog.innerHTML = `<h3>Reason</h3>
         <form method="dialog" novalidate>
           <p>${escapeHtml(summary)}</p>
-          <div class="field"><label for="fsReason">Why is this job being closed?</label>
+          <div class="field"><label for="fsReason">Why is this job being delivered back?</label>
             <select id="fsReason"><option value="">Select a reason</option>${finalStatusReasonOptions
               .map(
                 (reason) => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`,
@@ -1783,10 +1884,22 @@
   document.addEventListener('change', async (event) => {
     const select = event.target;
     if (!(select instanceof HTMLSelectElement)) return;
+    const warrantyMatch = /^(jc[a-z]+?)(FinalWarrantyStatus|CustomerType)$/.exec(select.id);
+    if (warrantyMatch) {
+      refreshOutcomeCharge(warrantyMatch[1]);
+      return;
+    }
     const match = /^(jc[a-z]+?)(JobFinalStatus|FinalStatus)$/.exec(select.id);
     if (!match) return;
     const prefix = match[1];
-    if (match[2] === 'FinalStatus' && select.value === 'Delivered') {
+    refreshFinalStatusReason(prefix);
+    if (match[2] === 'JobFinalStatus') {
+      refreshOutcomeCharge(prefix);
+      return;
+    }
+    const final = $(`#${prefix}FinalStatus`);
+    if (!final.value) return;
+    if (final.value === 'Delivered') {
       const date = $(`#${prefix}DeliveryDate`);
       if (date && !date.value) {
         date.value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(
@@ -1794,20 +1907,24 @@
         );
       }
     }
-    // Wait for the MDA service charge to be in the totals before judging the value.
-    refreshMdaServiceCharge(prefix);
-    await loadMdaRate();
-    refreshFinalStatusReason(prefix);
+    if (salesChannelMissing(prefix)) {
+      await notifyDialog(
+        'Choose the sales channel',
+        'This job is billed to the sales channel (AED 60). Choose the Sales channel, or the Bill to channel under Warranty and billing, before delivering it.',
+      );
+      final.value = '';
+      refreshFinalStatusReason(prefix);
+      return;
+    }
     const field = $(`#${prefix}FinalStatusReasonField`);
-    const final = $(`#${prefix}FinalStatus`);
-    if (field && !field.hidden && final?.value && !$(`#${prefix}FinalStatusReason`).value) {
+    if (field && !field.hidden && !$(`#${prefix}FinalStatusReason`).value) {
       const reason = await askFinalStatusReason(
         $(`#${prefix}FinalStatusWarning`)?.textContent ||
-          'This job carries spare parts or charges. Choose the reason it is being closed.',
+          'Choose why this job is being delivered back.',
       );
       if (reason) {
         $(`#${prefix}FinalStatusReason`).value = reason;
-      } else if (match[2] === 'FinalStatus') {
+      } else {
         final.value = '';
         refreshFinalStatusReason(prefix);
       }
@@ -1878,6 +1995,7 @@
     $(`#${prefix}FinalWarrantyStatus`).value = content.finalWarrantyStatus || '';
     $(`#${prefix}WarrantyOverrideReason`).value = content.warrantyOverrideReason || '';
     $(`#${prefix}PaymentBy`).value = content.paymentBy || '';
+    refreshOutcomeCharge(prefix);
     populateSelectOptions(
       `#${prefix}BillToChannel`,
       salesChannelOptions,
@@ -4819,8 +4937,11 @@ ${bodyHtml}
           'Awaiting final status',
         ],
         ['Delivered', summary.jobCards.byFinalStatus?.Delivered ?? 0, 'Delivered'],
-        ['Rejected', summary.jobCards.byFinalStatus?.Rejected ?? 0, 'Rejected'],
-        ['Cancelled', summary.jobCards.byFinalStatus?.Cancelled ?? 0, 'Cancelled'],
+        [
+          'Closure approvals waiting',
+          summary.jobCards.closureApprovalPending ?? 0,
+          'Closure approval pending',
+        ],
         ['BER (all, incl. delivered)', summary.jobCards.berTotal ?? 0],
         ['Awaiting job card', summary.jobCards.awaitingCreation ?? 0, AWAITING_JOB_CARD_FILTER],
         ['Total', summary.jobCards.total],
@@ -5183,9 +5304,7 @@ ${bodyHtml}
   }
 
   function isJobCardLocked(jobCard) {
-    return (
-      ['Delivered', 'Cancelled'].includes(jobCard.finalStatus) || jobCard.status === 'Cancelled'
-    );
+    return jobCard.finalStatus === 'Delivered';
   }
 
   function isAdminUser() {
@@ -5214,6 +5333,77 @@ ${bodyHtml}
       });
   }
 
+  // B2C BER or Rejected job with spare parts: a manager must approve before the parts are
+  // removed or the job is delivered. The CCE sends it; a manager approves or declines.
+  function renderClosureApproval(jobCard) {
+    const box = $('#jobCardClosureApproval');
+    if (!box) return;
+    const hasParts = (jobCard.parts || []).some((part) => part.partNo || part.description);
+    const applies =
+      jobCard.customerType === 'B2C' &&
+      ['BER', 'Rejected'].includes(jobCard.jobFinalStatus) &&
+      hasParts &&
+      jobCard.finalStatus !== 'Delivered';
+    if (!applies) {
+      box.hidden = true;
+      return;
+    }
+    const status = jobCard.closureApprovalStatus;
+    const canApprove = hasPermission('service_job_card.approve_closure');
+    let text;
+    let buttons = '';
+    if (status === 'Pending') {
+      text =
+        'This job went to a manager for approval. Spare parts cannot be removed and the job cannot be delivered until it is approved.';
+      if (canApprove) {
+        buttons =
+          '<button type="button" class="button button-primary" data-closure-action="Approved">Approve</button> <button type="button" class="button button-outline" data-closure-action="Declined">Decline</button>';
+      }
+    } else if (status === 'Approved') {
+      text =
+        'A manager approved this job. You can now remove the spare parts, choose the reason and set Final status to Delivered.';
+    } else {
+      text =
+        status === 'Declined'
+          ? `A manager declined the request${jobCard.closureApprovalNote ? ': ' + jobCard.closureApprovalNote : '.'} Send it again if the situation changed.`
+          : 'This job carries spare parts. Send it for manager approval before removing the parts or delivering it.';
+      buttons =
+        '<button type="button" class="button button-primary" data-closure-action="request">Send for manager approval</button>';
+    }
+    box.className = 'next-step' + (status === 'Approved' ? ' is-done' : ' is-warn');
+    box.innerHTML = `<div class="next-step-kicker">Manager approval</div><div class="next-step-title">${escapeHtml(status || 'Approval needed')}</div><p class="next-step-text">${escapeHtml(text)}</p>${buttons}`;
+    box.hidden = false;
+  }
+
+  document.addEventListener('click', async (event) => {
+    const button = event.target.closest('[data-closure-action]');
+    if (!button || !currentJobCardId) return;
+    const action = button.dataset.closureAction;
+    button.disabled = true;
+    try {
+      if (action === 'request') {
+        await apiRequest(
+          '/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/closure-approval',
+          {
+            method: 'POST',
+          },
+        );
+        setMessage('#workspaceMessage', 'Sent to a manager for approval.', true);
+      } else {
+        await apiRequest(
+          '/api/job-cards/' + encodeURIComponent(currentJobCardId) + '/closure-approval/decision',
+          { method: 'POST', body: JSON.stringify({ decision: action }) },
+        );
+        setMessage('#workspaceMessage', `Closure ${action.toLowerCase()}.`, true);
+      }
+      await loadJobCardDetail(currentJobCardId);
+      await loadJobCards();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+      button.disabled = false;
+    }
+  });
+
   function renderJobCardGuide(jobCard) {
     const box = $('#jobCardNextStep');
     const guides = {
@@ -5237,12 +5427,17 @@ ${bodyHtml}
       },
       BER: {
         title: 'Beyond economical repair',
-        text: 'Return the item to the customer, then set the final status to Delivered. If the job carries spare parts or charges above AED 60, choose the reason it is being closed.',
+        text: 'B2C: no charge, and the job can be delivered back after the reason is chosen. If spare parts were fitted, send the job for manager approval first. B2B out of warranty: AED 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
         warn: true,
       },
       Rejected: {
         title: 'Job rejected',
-        text: 'The customer declined. If the job carries spare parts or charges above AED 60, the reason is recorded. Return the item to the customer; the job stays Rejected.',
+        text: 'The customer declined. B2C: no charge, and spare parts need manager approval. B2B out of warranty: AED 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
+        warn: true,
+      },
+      Cancelled: {
+        title: 'Job cancelled',
+        text: 'Cancelled jobs are never billed. Hand the unit back, then set Final status to Delivered and choose a reason.',
         warn: true,
       },
       Delivered: {
@@ -5252,15 +5447,9 @@ ${bodyHtml}
           : 'This job is closed and locked. Only an administrator can edit it.',
         done: true,
       },
-      Cancelled: {
-        title: 'Job cancelled',
-        text: isAdminUser()
-          ? 'This job is cancelled. As an administrator you can still edit it.'
-          : 'This job is cancelled and locked. Only an administrator can edit it.',
-        warn: true,
-      },
     };
-    const guide = guides[jobCard.finalStatus || jobCard.jobFinalStatus];
+    const guide =
+      guides[jobCard.finalStatus === 'Delivered' ? 'Delivered' : jobCard.jobFinalStatus];
     if (!guide) {
       box.hidden = true;
       return;
@@ -5510,6 +5699,7 @@ ${bodyHtml}
       renderJobCardActions(jobCard);
       if (!$('#jobCardActions').hidden) applyMasterContext('jce', result);
       renderJobCardGuide(jobCard);
+      renderClosureApproval(jobCard);
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
       $('#jobCardDetailStatus').innerHTML =
@@ -5901,15 +6091,13 @@ ${bodyHtml}
       } else if (error.status === 403) {
         $('#jobCardContentAction').hidden = true;
         setMessage('#workspaceMessage', 'You are not authorized to edit service job cards.');
-      } else if (/^This BER or Rejected job carries/.test(error.message || '')) {
-        // Keep the form as it is and show the reason box, so nothing typed is lost.
-        const field = $('#jceFinalStatusReasonField');
-        if (field) {
-          field.hidden = false;
-          field.scrollIntoView({ block: 'center' });
-          $('#jceFinalStatusReason')?.focus();
-        }
-        setMessage('#workspaceMessage', error.message);
+      } else if (
+        /^(Choose the reason this BER|Choose the sales channel this job|This job is waiting for manager approval|This job carries spare parts)/.test(
+          error.message || '',
+        )
+      ) {
+        // Keep the form as it is, so nothing typed is lost, and explain what is needed.
+        await notifyDialog('Before this job can be closed', error.message);
       } else if (error.status === 400 || error.status === 404 || error.status === 409) {
         await loadJobCardDetail(currentJobCardId);
         setMessage('#workspaceMessage', error.message);

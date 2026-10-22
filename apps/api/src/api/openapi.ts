@@ -285,6 +285,14 @@ const requestBodies = {
       },
     },
   },
+  serviceJobCardClosureDecision: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ServiceJobCardClosureDecisionRequest' },
+      },
+    },
+  },
   serviceJobCardStatus: {
     required: true,
     content: {
@@ -831,13 +839,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'WIP',
                 'Spare pending',
                 'BER',
+                'Rejected',
+                'Cancelled',
                 'Repair Completed',
               ],
             },
             finalStatus: {
               type: 'string',
               nullable: true,
-              enum: ['Delivered', 'Rejected', 'Cancelled'],
+              enum: ['Delivered'],
             },
             finalStatusReason: {
               type: 'string',
@@ -848,6 +858,9 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'Diagnosis charge only',
                 'Customer declined the quote',
                 'No charge',
+                'Duplicate job card',
+                'Entered by mistake',
+                'Customer cancelled the job',
                 'Other',
               ],
             },
@@ -919,13 +932,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'WIP',
                 'Spare pending',
                 'BER',
+                'Rejected',
+                'Cancelled',
                 'Repair Completed',
               ],
             },
             finalStatus: {
               type: 'string',
               nullable: true,
-              enum: ['Delivered', 'Rejected', 'Cancelled'],
+              enum: ['Delivered'],
             },
             finalStatusReason: {
               type: 'string',
@@ -936,6 +951,9 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'Diagnosis charge only',
                 'Customer declined the quote',
                 'No charge',
+                'Duplicate job card',
+                'Entered by mistake',
+                'Customer cancelled the job',
                 'Other',
               ],
             },
@@ -968,6 +986,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               enum: ['Open', 'In Progress', 'Completed', 'Cancelled'],
             },
             reason: { type: 'string', maxLength: 1000 },
+          },
+        },
+        ServiceJobCardClosureDecisionRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['decision'],
+          properties: {
+            decision: { type: 'string', enum: ['Approved', 'Declined'] },
+            note: { type: 'string', maxLength: 1000 },
           },
         },
         DraftScheduleRequest: {

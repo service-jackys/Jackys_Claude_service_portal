@@ -97,7 +97,7 @@ export type JobCardPlan = {
   brand: string | null;
   // Job status (stage) and final status (how it was closed); see migration 050.
   jobFinalStatus: string;
-  finalStatus: 'Delivered' | 'Rejected' | 'Cancelled' | null;
+  finalStatus: 'Delivered' | null;
   finalStatusReason: string | null;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
@@ -609,18 +609,17 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
     }
     const deliveryDate = toDate(r.get('Delivery Date') ?? j.deliveryDate);
     let final: string = sheetStatus;
-    let closed: 'Delivered' | 'Rejected' | 'Cancelled' | null = null;
+    let closed: 'Delivered' | null = null;
     let closedReason: string | null = null;
     if (sheetStatus === 'Delivered') {
       final = 'Repair Completed';
       closed = 'Delivered';
-    } else if (sheetStatus === 'Cancelled') {
-      final = 'WIP';
-      closed = 'Cancelled';
-    } else if (sheetStatus === 'Rejected') {
-      final = 'Customer approval pending';
-      closed = 'Rejected';
-      closedReason = 'Customer declined the quote';
+    } else if (sheetStatus === 'Cancelled' || sheetStatus === 'Rejected') {
+      // These are job statuses now; the unit counts as handed back once it has a delivery date.
+      if (deliveryDate) {
+        closed = 'Delivered';
+        closedReason = sheetStatus === 'Rejected' ? 'Customer declined the quote' : 'Other';
+      }
     } else if (deliveryDate) {
       if (readyToDeliver.has(sheetStatus)) closed = 'Delivered';
       else

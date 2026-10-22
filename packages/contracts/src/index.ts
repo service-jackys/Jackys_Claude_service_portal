@@ -275,47 +275,60 @@ const dateSchema = z
 // A separate concept from serviceJobCardStatuses above: this is the outcome/
 // diagnostic field a CCE sets as work progresses, not the workflow-lock state.
 //
-// A job card carries two statuses (modification #125):
-//   Job status   (jobFinalStatus) -- the stage the work is in, and where it ended up.
-//   Final status (finalStatus)    -- how the job was closed; empty while it is open.
+// A job card carries two statuses (modifications #125 and #127):
+//   Job status   (jobFinalStatus) -- the stage the work is in, or how it ended: BER,
+//                                    Rejected or Cancelled.
+//   Final status (finalStatus)    -- Delivered once the unit is back with the customer;
+//                                    empty while the job is open.
 // Keeping them apart means a BER job is still a BER job after it is delivered.
 export const jobFinalStatuses = [
   'Customer approval pending',
   'WIP',
   'Spare pending',
   'BER',
+  'Rejected',
+  'Cancelled',
   'Repair Completed',
 ] as const;
-export const finalStatuses = ['Delivered', 'Rejected', 'Cancelled'] as const;
+export const finalStatuses = ['Delivered'] as const;
 export type FinalStatus = (typeof finalStatuses)[number];
 export const finalStatusSchema = z.enum(finalStatuses);
 
-// Why a BER or Rejected job that carries spares or charges is being closed.
+// Why a BER, Rejected or Cancelled job is being delivered back.
 export const finalStatusReasons = [
   'Parts fitted, written off',
   'Parts returned to stock',
   'Diagnosis charge only',
   'Customer declined the quote',
   'No charge',
+  'Duplicate job card',
+  'Entered by mistake',
+  'Customer cancelled the job',
   'Other',
 ] as const;
 export type FinalStatusReason = (typeof finalStatusReasons)[number];
 
-// The flat handling charge a BER / RWR job is billed. Parts, or charges above it,
-// need a reason before the job can be closed.
+// Job statuses that end the work without a repair. The unit is handed back and a
+// reason is recorded when the job is delivered.
+export const jobOutcomeStatuses = ['BER', 'Rejected', 'Cancelled'] as const;
+
+// The flat charge an out-of-warranty B2B job bills when it ends as BER or Rejected,
+// used only if the rate card has no "OOW Inspection" line.
 export const BER_HANDLING_CHARGE = 60;
 
-/** The job a closing needs a reason for: BER or Rejected, carrying spares or more than the flat charge. */
+/** A BER, Rejected or Cancelled job needs a reason when it is delivered. */
 export function finalStatusNeedsReason(input: {
   jobStatus: string;
   finalStatus: string | null | undefined;
-  partsCount: number;
-  grandTotal: number;
 }): boolean {
-  if (!input.finalStatus) return false;
-  if (input.jobStatus !== 'BER' && input.finalStatus !== 'Rejected') return false;
-  return input.partsCount > 0 || input.grandTotal > BER_HANDLING_CHARGE + 0.005;
+  return (
+    Boolean(input.finalStatus) &&
+    (jobOutcomeStatuses as readonly string[]).includes(input.jobStatus)
+  );
 }
+
+export const closureApprovalStatuses = ['Pending', 'Approved', 'Declined'] as const;
+export type ClosureApprovalStatus = (typeof closureApprovalStatuses)[number];
 
 // How an approval was given: the customer's own link, or recorded by staff
 // when the customer approved by another channel.
@@ -339,14 +352,17 @@ export const jobFinalStatusSchema = z.enum(jobFinalStatuses);
 export type JobFinalStatus = (typeof jobFinalStatuses)[number];
 
 // Delivered and Cancelled lock the card: after that only an administrator can edit it.
-export const finalStatusesLocked: readonly FinalStatus[] = ['Delivered', 'Cancelled'];
-// Job statuses a job must be in before it can be marked Delivered.
+export const finalStatusesLocked: readonly FinalStatus[] = ['Delivered'];
+// Job statuses a job must be in before it can be marked Delivered: the repair is done, or
+// the job ended as BER, Rejected or Cancelled and the unit goes back to the customer.
 export const jobFinalStatusesReadyToDeliver: readonly JobFinalStatus[] = [
   'Repair Completed',
   'BER',
+  'Rejected',
+  'Cancelled',
 ];
-// Repairs that sit finished (Repair Completed or BER) without a final status for this
-// many days show on the dashboard as awaiting a final status.
+// Jobs that sit ready to hand back without a final status for this many days show on
+// the dashboard as awaiting a final status.
 export const AWAITING_FINAL_STATUS_DAYS = 3;
 
 // The internal workflow status (used by the dashboard and TAT) follows the
@@ -356,8 +372,8 @@ export function serviceJobCardStatusForFinal(
   final: FinalStatus | null,
   current: ServiceJobCardStatus,
 ): ServiceJobCardStatus {
-  if (final === 'Cancelled') return 'Cancelled';
-  if (final === 'Delivered' || final === 'Rejected') return 'Completed';
+  if (job === 'Cancelled') return 'Cancelled';
+  if (final === 'Delivered') return 'Completed';
   if (job === 'Customer approval pending' || job === 'WIP' || job === 'Spare pending') {
     return current === 'Open' ? 'Open' : 'In Progress';
   }

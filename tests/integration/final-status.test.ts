@@ -11,14 +11,17 @@ import { migrate } from '../../packages/db/src/migrate.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
-function futureDate(): string {
+function dayOffset(days: number): string {
   const date = new Date();
-  date.setUTCDate(date.getUTCDate() + 21);
+  date.setUTCDate(date.getUTCDate() + days);
   return date.toISOString().slice(0, 10);
 }
 
+const code = (expected: string) => (error: unknown) =>
+  error instanceof ServiceJobCardError && error.code === expected;
+
 test(
-  'Final status: BER keeps its job status, reasons are required for spares, parts removal is audited',
+  'BER, Rejected and Cancelled: charges, reasons, closure approval and sales channel',
   { skip: !databaseUrl, concurrency: false },
   async (context) => {
     try {
@@ -34,129 +37,216 @@ test(
     const pool = createDbPool(databaseUrl);
     const appointmentService = createAppointmentService(pool);
     const jobCardService = createServiceJobCardService(pool);
+    const appointmentIds: string[] = [];
+    const jobCardIds: string[] = [];
     let profileId: string | undefined;
-    let appointmentId: string | undefined;
-    let jobCardId: string | undefined;
+    let nextDay = 70;
 
-    try {
-      const profile = await pool.query<{ id: string }>(
-        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Final status integration') RETURNING id`,
-        [`final-status-${randomUUID()}@example.test`],
-      );
-      profileId = profile.rows[0].id;
-
+    async function makeCard(overrides: Record<string, unknown>) {
       const appointment = await appointmentService.create(
         {
           customerType: 'B2C',
-          customerName: 'Final Status Customer',
-          contactNumber: '0500000601',
-          faultDescription: 'Final status integration appointment',
-          appointmentDate: futureDate(),
+          customerName: 'Outcome Customer',
+          contactNumber: '0500000900',
+          faultDescription: 'Outcome integration appointment',
+          appointmentDate: dayOffset(nextDay++),
+          jobWarranty: 'Out Warranty',
+          ...overrides,
         },
-        profileId,
-        'final-status-appt-create',
+        profileId!,
+        `outcome-appt-${randomUUID()}`,
       );
-      appointmentId = appointment.id;
+      appointmentIds.push(appointment.id);
       await appointmentService.changeStatus(
         appointment.id,
         { status: 'In Progress' },
-        profileId,
-        'final-status-appt-progress',
+        profileId!,
+        `outcome-progress-${randomUUID()}`,
       );
       await appointmentService.changeStatus(
         appointment.id,
         { status: 'Completed', reason: 'Visit done' },
-        profileId,
-        'final-status-appt-complete',
+        profileId!,
+        `outcome-complete-${randomUUID()}`,
       );
-
-      const created = await jobCardService.create(
+      const card = await jobCardService.create(
         appointment.id,
         {},
-        profileId,
-        'final-status-create',
+        profileId!,
+        `outcome-card-${randomUUID()}`,
       );
-      jobCardId = created.id;
+      jobCardIds.push(card.id);
+      return card;
+    }
 
-      // BER with spare parts.
+    const part = { partNo: 'P1', description: 'Fan', qty: 1, unitPrice: 100 };
+
+    try {
+      const profile = await pool.query<{ id: string }>(
+        `INSERT INTO profiles (email, display_name) VALUES ($1, 'Outcome integration') RETURNING id`,
+        [`outcome-${randomUUID()}@example.test`],
+      );
+      profileId = profile.rows[0].id;
+
+      // ---- B2C: charges are waived; spare parts need a manager's approval.
+      const b2c = await makeCard({});
       const ber = await jobCardService.updateContent(
-        created.id,
-        {
-          jobFinalStatus: 'BER',
-          parts: [{ partNo: 'P1', description: 'Fan', qty: 1, unitPrice: 100 }],
-        },
+        b2c.id,
+        { jobFinalStatus: 'BER', serviceCharge: 119, parts: [part] },
         profileId,
-        'final-status-ber',
+        'outcome-b2c-ber',
       );
       assert.equal(ber.jobFinalStatus, 'BER');
-      assert.equal(ber.finalStatus, null);
+      assert.equal(Number(ber.serviceCharge), 0, 'B2C BER waives the service charge');
+      assert.equal(Number(ber.amountChargeable), 0);
 
-      // Closing it as Rejected without a reason is refused.
+      // Delivered needs a reason first.
       await assert.rejects(
         jobCardService.updateContent(
-          created.id,
-          { finalStatus: 'Rejected' },
+          b2c.id,
+          { finalStatus: 'Delivered' },
           profileId,
-          'final-status-no-reason',
+          'outcome-b2c-no-reason',
         ),
-        (error: unknown) =>
-          error instanceof ServiceJobCardError && error.code === 'reason-required',
+        code('reason-required'),
       );
-
-      // With a reason it closes; Rejected is final but the card stays editable.
-      const rejected = await jobCardService.updateContent(
-        created.id,
-        { finalStatus: 'Rejected', finalStatusReason: 'Parts fitted, written off' },
+      // With spare parts on the card it also needs a manager's approval.
+      await assert.rejects(
+        jobCardService.updateContent(
+          b2c.id,
+          { finalStatus: 'Delivered', finalStatusReason: 'Customer declined the quote' },
+          profileId,
+          'outcome-b2c-no-approval',
+        ),
+        code('closure-approval-required'),
+      );
+      // Removing the parts without approval is refused too.
+      await assert.rejects(
+        jobCardService.updateContent(b2c.id, { parts: [] }, profileId, 'outcome-b2c-remove'),
+        code('closure-approval-required'),
+      );
+      const requested = await jobCardService.requestClosureApproval(
+        b2c.id,
         profileId,
-        'final-status-rejected',
+        'outcome-b2c-request',
       );
-      assert.equal(rejected.finalStatus, 'Rejected');
-      assert.equal(rejected.jobFinalStatus, 'BER');
-      assert.equal(rejected.finalStatusReason, 'Parts fitted, written off');
-
-      // Removing the parts is allowed but audited; with only the AED 60
-      // handling charge left, Delivered needs no new reason and BER stays BER.
+      assert.equal(requested.closureApprovalStatus, 'Pending');
+      await assert.rejects(
+        jobCardService.updateContent(b2c.id, { parts: [] }, profileId, 'outcome-b2c-pending'),
+        code('closure-approval-required'),
+      );
+      const approved = await jobCardService.decideClosureApproval(
+        b2c.id,
+        { decision: 'Approved', note: 'Customer refused the quote' },
+        profileId,
+        'outcome-b2c-approve',
+      );
+      assert.equal(approved.closureApprovalStatus, 'Approved');
+      // After approval the CCE removes the spares and delivers; BER stays BER.
       const delivered = await jobCardService.updateContent(
-        created.id,
-        { parts: [], serviceCharge: 60, finalStatus: 'Delivered' },
+        b2c.id,
+        { parts: [], finalStatus: 'Delivered', finalStatusReason: 'Customer declined the quote' },
         profileId,
-        'final-status-delivered',
+        'outcome-b2c-deliver',
       );
       assert.equal(delivered.finalStatus, 'Delivered');
       assert.equal(delivered.jobFinalStatus, 'BER');
       assert.equal(delivered.status, 'Completed');
-      assert.ok(delivered.deliveryDate);
+      assert.equal(Number(delivered.grandTotal), 0);
       const audits = await pool.query(
         `SELECT 1 FROM audit_events WHERE action = 'job_card.parts_removed' AND target_id = $1`,
-        [created.id],
+        [b2c.id],
       );
       assert.equal(audits.rowCount, 1);
 
-      // Delivered locks the card for non-admins.
+      // ---- B2B out of warranty: AED 60 to the sales channel; no approval needed.
+      const b2b = await makeCard({
+        customerType: 'B2B',
+        b2bBranchSchool: 'GEMS Outcome Test School',
+        salesman: 'Raneesh Jose',
+      });
+      const b2bBer = await jobCardService.updateContent(
+        b2b.id,
+        { jobFinalStatus: 'BER', parts: [part] },
+        profileId,
+        'outcome-b2b-ber',
+      );
+      assert.equal(Number(b2bBer.serviceCharge), 60);
+      assert.equal(Number(b2bBer.amountChargeable), 60);
+      assert.equal(b2bBer.paymentBy, 'Sales channel');
+      assert.ok(b2bBer.billToChannel);
+      const b2bDone = await jobCardService.updateContent(
+        b2b.id,
+        { finalStatus: 'Delivered', finalStatusReason: 'Parts fitted, written off' },
+        profileId,
+        'outcome-b2b-deliver',
+      );
+      assert.equal(b2bDone.finalStatus, 'Delivered');
+      assert.equal(b2bDone.jobFinalStatus, 'BER');
+
+      // ---- B2B, final warranty In Warranty: nothing is billed.
+      const b2bWarranty = await makeCard({
+        customerType: 'B2B',
+        b2bBranchSchool: 'GEMS Outcome Test School',
+        salesman: 'Raneesh Jose',
+        jobWarranty: 'In Warranty',
+      });
+      const free = await jobCardService.updateContent(
+        b2bWarranty.id,
+        { jobFinalStatus: 'Rejected' },
+        profileId,
+        'outcome-b2b-warranty',
+      );
+      assert.equal(Number(free.amountChargeable), 0);
+
+      // ---- Cancelled: never billed; delivered back with a reason.
+      const cancelled = await makeCard({
+        customerType: 'B2B',
+        b2bBranchSchool: 'GEMS Outcome Test School',
+        salesman: 'Raneesh Jose',
+      });
+      const cancelledJob = await jobCardService.updateContent(
+        cancelled.id,
+        { jobFinalStatus: 'Cancelled' },
+        profileId,
+        'outcome-cancel',
+      );
+      assert.equal(cancelledJob.status, 'Cancelled');
+      assert.equal(Number(cancelledJob.amountChargeable), 0);
+      const cancelledDone = await jobCardService.updateContent(
+        cancelled.id,
+        { finalStatus: 'Delivered', finalStatusReason: 'Duplicate job card' },
+        profileId,
+        'outcome-cancel-deliver',
+      );
+      assert.equal(cancelledDone.finalStatus, 'Delivered');
+      assert.equal(cancelledDone.jobFinalStatus, 'Cancelled');
+
+      // ---- Delivered is not allowed from WIP.
+      const wip = await makeCard({});
       await assert.rejects(
         jobCardService.updateContent(
-          created.id,
-          { conditionNotes: 'late edit' },
+          wip.id,
+          { finalStatus: 'Delivered' },
           profileId,
-          'final-status-locked',
+          'outcome-wip-deliver',
         ),
-        (error: unknown) =>
-          error instanceof ServiceJobCardError && error.code === 'terminal-job-card',
+        code('invalid-transition'),
       );
     } finally {
-      if (jobCardId) {
+      for (const id of jobCardIds) {
         await pool.query(
           `DELETE FROM audit_events WHERE target_type = 'service_job_card' AND target_id = $1`,
-          [jobCardId],
+          [id],
         );
-        await pool.query(`DELETE FROM service_job_cards WHERE id = $1`, [jobCardId]);
+        await pool.query(`DELETE FROM service_job_cards WHERE id = $1`, [id]);
       }
-      if (appointmentId) {
+      for (const id of appointmentIds) {
         await pool.query(
           `DELETE FROM audit_events WHERE target_type = 'appointment' AND target_id = $1`,
-          [appointmentId],
+          [id],
         );
-        await pool.query(`DELETE FROM appointments WHERE id = $1`, [appointmentId]);
+        await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
       }
       if (profileId) await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);
       await pool.end();

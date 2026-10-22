@@ -118,6 +118,7 @@ export type RouteDefinition = {
     | 'serviceJobCardCreate'
     | 'serviceJobCardUpdate'
     | 'serviceJobCardStatus'
+    | 'serviceJobCardClosureDecision'
     | 'quotation'
     | 'inspection'
     | 'vasSale'
@@ -2183,6 +2184,29 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 409, 500],
         handlers: serviceJobCardHandlers.status,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/job-cards/{id}/closure-approval',
+        operationId: 'requestServiceJobCardClosureApproval',
+        tags: ['Service Job Cards'],
+        summary: 'Send a B2C BER or Rejected job with spare parts for manager approval',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.requestClosureApproval,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/job-cards/{id}/closure-approval/decision',
+        operationId: 'decideServiceJobCardClosureApproval',
+        tags: ['Service Job Cards'],
+        summary: 'Approve or decline a closure-approval request',
+        security: 'bearerAuth' as const,
+        requestBody: 'serviceJobCardClosureDecision' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: serviceJobCardHandlers.decideClosureApproval,
       },
       {
         method: 'get' as const,
