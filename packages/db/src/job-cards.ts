@@ -870,3 +870,43 @@ export async function setServiceJobCardClosureApproval(
     [id, change.status, change.profileId, change.note],
   );
 }
+
+/** Fills a business job card's salesman, sales channel, customer number and sales order
+ *  from the B2B Branch / School master, only where they are blank (modification #128).
+ *  The same statements run once in migration 052; the importer calls this after a load. */
+export async function backfillJobCardSalesLinks(client: PoolClient): Promise<void> {
+  for (const statement of SALES_LINK_STATEMENTS) await client.query(statement);
+}
+
+const SALES_LINK_STATEMENTS = [
+  `UPDATE service_job_cards j
+   SET salesman = b.salesman
+  FROM b2b_branches b
+ WHERE lower(trim(b.branch_name)) = lower(trim(j.b2b_branch_school))
+   AND j.customer_type IS DISTINCT FROM 'B2C'
+   AND coalesce(trim(j.salesman), '') = ''
+   AND coalesce(trim(b.salesman), '') <> ''`,
+  `WITH fill AS (
+  SELECT j.id,
+         COALESCE(
+           (SELECT s.sales_channel FROM salesmen s
+             WHERE lower(trim(s.name)) = lower(trim(j.salesman)) AND s.sales_channel IS NOT NULL
+             LIMIT 1),
+           (SELECT b.sales_channel FROM b2b_branches b
+             WHERE lower(trim(b.branch_name)) = lower(trim(j.b2b_branch_school))
+               AND b.sales_channel IS NOT NULL LIMIT 1)) AS channel
+    FROM service_job_cards j
+   WHERE j.customer_type IS DISTINCT FROM 'B2C' AND coalesce(trim(j.sales_channel), '') = ''
+)
+UPDATE service_job_cards j SET sales_channel = fill.channel
+  FROM fill WHERE fill.id = j.id AND fill.channel IS NOT NULL`,
+  `UPDATE service_job_cards j
+   SET customer_number = CASE WHEN coalesce(trim(j.customer_number), '') = ''
+                              THEN b.cust_code ELSE j.customer_number END,
+       sales_order_number = CASE WHEN coalesce(trim(j.sales_order_number), '') = ''
+                                 THEN b.last_sales_order_number ELSE j.sales_order_number END
+  FROM b2b_branches b
+ WHERE lower(trim(b.branch_name)) = lower(trim(j.b2b_branch_school))
+   AND j.customer_type IS DISTINCT FROM 'B2C'
+   AND (coalesce(trim(j.customer_number), '') = '' OR coalesce(trim(j.sales_order_number), '') = '')`,
+];
