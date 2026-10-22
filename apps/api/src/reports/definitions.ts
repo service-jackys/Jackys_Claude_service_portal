@@ -335,6 +335,71 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     ],
   },
   {
+    type: 'job-status-wise',
+    label: 'Job Status Wise',
+    description:
+      'Every job card grouped by job status and final status (BER, Rejected, awaiting final status, delivered, cancelled), with parts, value and age.',
+    permission: 'service_job_card.read',
+    from: `service_job_cards
+      LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id`,
+    dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
+    dateLabel: 'Job card date',
+    referenceExpr: 'service_job_cards.job_card_reference',
+    orderBy: `CASE service_job_cards.job_final_status
+        WHEN 'Customer approval pending' THEN 1 WHEN 'WIP' THEN 2 WHEN 'Spare pending' THEN 3
+        WHEN 'BER' THEN 4 WHEN 'Repair Completed' THEN 5 ELSE 6 END,
+      service_job_cards.final_status NULLS FIRST,
+      service_job_cards.job_card_date DESC NULLS LAST, service_job_cards.id DESC`,
+    searchExprs: [
+      'service_job_cards.job_card_reference',
+      'service_job_cards.customer_name',
+      'service_job_cards.customer_contact',
+      'service_job_cards.invoice_no',
+      'service_job_cards.technician_name',
+      'service_job_cards.job_final_status',
+      'service_job_cards.final_status',
+      'service_job_cards.final_status_reason',
+    ],
+    columns: [
+      { label: 'Job Status', expr: 'service_job_cards.job_final_status' },
+      { label: 'Final Status', expr: "COALESCE(service_job_cards.final_status, 'Open')" },
+      {
+        label: 'Status Group',
+        expr: `CASE
+          WHEN service_job_cards.final_status IS NOT NULL THEN service_job_cards.final_status
+          WHEN service_job_cards.job_final_status IN ('Repair Completed', 'BER')
+            AND service_job_cards.updated_at < now() - interval '3 days' THEN 'Awaiting final status'
+          ELSE 'Open' END`,
+      },
+      { label: 'Final Status Reason', expr: 'service_job_cards.final_status_reason' },
+      { label: 'Number', expr: 'service_job_cards.job_card_reference' },
+      { label: 'Job Card Date', expr: 'service_job_cards.job_card_date', kind: 'date' },
+      { label: 'Customer Name', expr: 'service_job_cards.customer_name' },
+      { label: 'Contact No', expr: 'service_job_cards.customer_contact' },
+      { label: 'Brand', expr: 'service_job_cards.brand' },
+      { label: 'Model No', expr: 'service_job_cards.model_no' },
+      { label: 'Item Description', expr: 'service_job_cards.item_description' },
+      { label: 'Warranty Status', expr: 'service_job_cards.warranty_status' },
+      { label: 'Technician Name', expr: 'service_job_cards.technician_name' },
+      {
+        label: 'Spare Part Lines',
+        expr: "COALESCE(jsonb_array_length(CASE WHEN jsonb_typeof(service_job_cards.parts) = 'array' THEN service_job_cards.parts END), 0)",
+        kind: 'number',
+      },
+      { label: 'Parts Cost (AED)', expr: 'service_job_cards.total_cost', kind: 'money' },
+      { label: 'Service Charge (AED)', expr: 'service_job_cards.service_charge', kind: 'money' },
+      { label: 'Grand Total (AED)', expr: 'service_job_cards.grand_total', kind: 'money' },
+      { label: 'Invoice No', expr: 'service_job_cards.invoice_no' },
+      { label: 'Delivery Date', expr: 'service_job_cards.delivery_date', kind: 'date' },
+      {
+        label: 'Days Since Last Update',
+        expr: `(${dubaiDay('now()')} - ${dubaiDay('service_job_cards.updated_at')})`,
+        kind: 'number',
+      },
+      { label: 'Last Updated', expr: 'service_job_cards.updated_at', kind: 'datetime' },
+    ],
+  },
+  {
     type: 'job-invoice',
     label: 'Job Invoices',
     description: 'Every job with an amount: job type, who pays, invoice and payment confirmation.',

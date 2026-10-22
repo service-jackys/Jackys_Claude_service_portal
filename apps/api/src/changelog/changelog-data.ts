@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 126,
+    title: 'Report: Job Status Wise',
+    area: 'Job cards',
+    date: '2026-10-22',
+    approxDate: false,
+    status: null,
+    summary:
+      'With job status and final status now separate, management needed one report that shows every job by where it is and how it ended (BER, Rejected, awaiting final status, delivered, cancelled).',
+    changes: [
+      'Reports page: new report "Job Status Wise". One row per job card, sorted by job status then final status. Columns: Job Status, Final Status, Status Group (Open, Awaiting final status, Delivered, Rejected, Cancelled), reason, customer…',
+      'The search box also matches status words, so typing BER or Rejected narrows the report. The downloaded workbook has filter arrows on every column.',
+    ],
+    needsYou: 'pull and restart the API. No migration.',
+    migrations: [],
+    files: 'apps/api/src/reports/definitions.ts.',
+  },
+  {
     id: 125,
     title: 'Job status and Final status are now two fields',
     area: 'Job cards',
