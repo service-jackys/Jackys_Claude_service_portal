@@ -1707,6 +1707,8 @@
       setItemPickerState(model, true, $(`#${prefix}ItemCode`).value || model.value);
     }
     markMasterFields(prefix, [...(context?.masterFields || []), ...Object.keys(fill)]);
+    // The stock master can fill the main group (MDA), which sets the service charge.
+    refreshMdaServiceCharge(prefix);
   }
 
   // Choosing Delivered shows today's date in Delivery date straight away; the
@@ -1717,7 +1719,9 @@
     const final = $(`#${prefix}FinalStatus`);
     const field = $(`#${prefix}FinalStatusReasonField`);
     if (!job || !final || !field) return;
-    const parts = (jobCardPartsState[prefix] || []).filter((part) => parseNumber(part.qty) > 0);
+    const parts = (jobCardPartsState[prefix] || []).filter(
+      (part) => part.partNo || part.description,
+    );
     const total = Math.max(
       parseNumber($(`#${prefix}GrandTotal`)?.value),
       parseNumber($(`#${prefix}ServiceCharge`)?.value),
@@ -1736,7 +1740,47 @@
     if (!needs) $(`#${prefix}FinalStatusReason`).value = '';
   }
 
-  document.addEventListener('change', (event) => {
+  // Asks why a BER/Rejected job that carries spares or charges is being closed.
+  function askFinalStatusReason(summary) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog';
+      dialog.innerHTML = `<h3>Reason for closing</h3>
+        <form method="dialog" novalidate>
+          <p>${escapeHtml(summary)}</p>
+          <div class="field"><label for="fsReason">Why is this job being closed?</label>
+            <select id="fsReason"><option value="">Select a reason</option>${finalStatusReasonOptions
+              .map(
+                (reason) => `<option value="${escapeHtml(reason)}">${escapeHtml(reason)}</option>`,
+              )
+              .join('')}</select></div>
+          <p class="field-error" id="fsError" role="alert"></p>
+          <div class="form-footer"><button type="button" class="button button-outline" data-fs-cancel>Cancel</button><button type="button" class="button button-primary" data-fs-confirm>Confirm</button></div>
+        </form>`;
+      let result = null;
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-fs-cancel]')) {
+          dialog.close();
+        } else if (event.target.closest('[data-fs-confirm]')) {
+          const reason = dialog.querySelector('#fsReason').value;
+          if (!reason) {
+            dialog.querySelector('#fsError').textContent = 'Choose a reason.';
+            return;
+          }
+          result = reason;
+          dialog.close();
+        }
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve(result);
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
+  document.addEventListener('change', async (event) => {
     const select = event.target;
     if (!(select instanceof HTMLSelectElement)) return;
     const match = /^(jc[a-z]+?)(JobFinalStatus|FinalStatus)$/.exec(select.id);
@@ -1750,7 +1794,24 @@
         );
       }
     }
+    // Wait for the MDA service charge to be in the totals before judging the value.
+    refreshMdaServiceCharge(prefix);
+    await loadMdaRate();
     refreshFinalStatusReason(prefix);
+    const field = $(`#${prefix}FinalStatusReasonField`);
+    const final = $(`#${prefix}FinalStatus`);
+    if (field && !field.hidden && final?.value && !$(`#${prefix}FinalStatusReason`).value) {
+      const reason = await askFinalStatusReason(
+        $(`#${prefix}FinalStatusWarning`)?.textContent ||
+          'This job carries spare parts or charges. Choose the reason it is being closed.',
+      );
+      if (reason) {
+        $(`#${prefix}FinalStatusReason`).value = reason;
+      } else if (match[2] === 'FinalStatus') {
+        final.value = '';
+        refreshFinalStatusReason(prefix);
+      }
+    }
   });
 
   function fillJobCardForm(prefix, content) {
