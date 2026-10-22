@@ -1718,9 +1718,10 @@
     const field = $(`#${prefix}FinalStatusReasonField`);
     if (!job || !final || !field) return;
     const parts = (jobCardPartsState[prefix] || []).filter((part) => parseNumber(part.qty) > 0);
-    const total =
-      parseNumber($(`#${prefix}ServiceCharge`)?.value) +
-      parts.reduce((sum, part) => sum + parseNumber(part.qty) * parseNumber(part.unitPrice), 0);
+    const total = Math.max(
+      parseNumber($(`#${prefix}GrandTotal`)?.value),
+      parseNumber($(`#${prefix}ServiceCharge`)?.value),
+    );
     const needs =
       Boolean(final.value) &&
       (job.value === 'BER' || final.value === 'Rejected') &&
@@ -1738,7 +1739,7 @@
   document.addEventListener('change', (event) => {
     const select = event.target;
     if (!(select instanceof HTMLSelectElement)) return;
-    const match = /^(.*)(JobFinalStatus|FinalStatus)$/.exec(select.id);
+    const match = /^(jc[a-z]+?)(JobFinalStatus|FinalStatus)$/.exec(select.id);
     if (!match) return;
     const prefix = match[1];
     if (match[2] === 'FinalStatus' && select.value === 'Delivered') {
@@ -5839,6 +5840,15 @@ ${bodyHtml}
       } else if (error.status === 403) {
         $('#jobCardContentAction').hidden = true;
         setMessage('#workspaceMessage', 'You are not authorized to edit service job cards.');
+      } else if (/^This BER or Rejected job carries/.test(error.message || '')) {
+        // Keep the form as it is and show the reason box, so nothing typed is lost.
+        const field = $('#jceFinalStatusReasonField');
+        if (field) {
+          field.hidden = false;
+          field.scrollIntoView({ block: 'center' });
+          $('#jceFinalStatusReason')?.focus();
+        }
+        setMessage('#workspaceMessage', error.message);
       } else if (error.status === 400 || error.status === 404 || error.status === 409) {
         await loadJobCardDetail(currentJobCardId);
         setMessage('#workspaceMessage', error.message);

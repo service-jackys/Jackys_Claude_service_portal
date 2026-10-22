@@ -3137,3 +3137,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/050_job_final_status.sql, packages/contracts, packages/db/src/{job-cards,dashboard,invoices,billing-ledger,budget-variance}.ts, packages/db/src/legacy-import/*, apps/api/src/{job-cards,invoices,warranty-approvals,reports,api}, apps/web/src/{app.js,index.html}, tests.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 050), restart the API, hard-refresh. On staging, re-run the Google Sheet import steps (clear, import, verify) so the migrated jobs get both statuses.
+
+## Modification #126 — Report: Job Status Wise
+
+**Date:** 2026-10-22
+
+**Why.** With job status and final status now separate, management needed one report that shows every job by where it is and how it ended (BER, Rejected, awaiting final status, delivered, cancelled).
+
+**What changed.**
+- Reports page: new report "Job Status Wise". One row per job card, sorted by job status then final status. Columns: Job Status, Final Status, Status Group (Open, Awaiting final status, Delivered, Rejected, Cancelled), reason, customer, brand, model, technician, spare part lines, parts cost, service charge, grand total, invoice, delivery date and days since last update.
+- The search box also matches status words, so typing BER or Rejected narrows the report. The downloaded workbook has filter arrows on every column.
+
+**Files.** apps/api/src/reports/definitions.ts.
+
+**Needs you:** pull and restart the API. No migration.
