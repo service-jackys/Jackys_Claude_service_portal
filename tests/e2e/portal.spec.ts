@@ -1451,7 +1451,12 @@ test.describe('service job-card workspace', () => {
   });
 
   test('keeps terminal job cards read-only for a read-only user', async ({ page }) => {
-    const terminalJobCard = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
+    const terminalJobCard = {
+      ...openJobCard,
+      status: 'Completed',
+      jobFinalStatus: 'Repair Completed',
+      finalStatus: 'Delivered',
+    };
 
     await page.route('**/api/**', async (route) => {
       if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
@@ -1520,7 +1525,12 @@ test.describe('service job-card workspace', () => {
     },
   ]) {
     test(`locks a Delivered job card for ${role} editing`, async ({ page }) => {
-      const delivered = { ...openJobCard, status: 'Completed', jobFinalStatus: 'Delivered' };
+      const delivered = {
+        ...openJobCard,
+        status: 'Completed',
+        jobFinalStatus: 'Repair Completed',
+        finalStatus: 'Delivered',
+      };
       await page.route('**/api/**', async (route) => {
         if (new URL(route.request().url()).pathname.startsWith('/api/dashboard')) {
           await route.fulfill({ contentType: 'application/json', body: '{}' });

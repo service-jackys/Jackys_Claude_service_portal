@@ -274,16 +274,49 @@ const dateSchema = z
 
 // A separate concept from serviceJobCardStatuses above: this is the outcome/
 // diagnostic field a CCE sets as work progresses, not the workflow-lock state.
+//
+// A job card carries two statuses (modification #125):
+//   Job status   (jobFinalStatus) -- the stage the work is in, and where it ended up.
+//   Final status (finalStatus)    -- how the job was closed; empty while it is open.
+// Keeping them apart means a BER job is still a BER job after it is delivered.
 export const jobFinalStatuses = [
   'Customer approval pending',
   'WIP',
   'Spare pending',
   'BER',
-  'Rejected',
   'Repair Completed',
-  'Delivered',
-  'Cancelled',
 ] as const;
+export const finalStatuses = ['Delivered', 'Rejected', 'Cancelled'] as const;
+export type FinalStatus = (typeof finalStatuses)[number];
+export const finalStatusSchema = z.enum(finalStatuses);
+
+// Why a BER or Rejected job that carries spares or charges is being closed.
+export const finalStatusReasons = [
+  'Parts fitted, written off',
+  'Parts returned to stock',
+  'Diagnosis charge only',
+  'Customer declined the quote',
+  'No charge',
+  'Other',
+] as const;
+export type FinalStatusReason = (typeof finalStatusReasons)[number];
+
+// The flat handling charge a BER / RWR job is billed. Parts, or charges above it,
+// need a reason before the job can be closed.
+export const BER_HANDLING_CHARGE = 60;
+
+/** The job a closing needs a reason for: BER or Rejected, carrying spares or more than the flat charge. */
+export function finalStatusNeedsReason(input: {
+  jobStatus: string;
+  finalStatus: string | null | undefined;
+  partsCount: number;
+  grandTotal: number;
+}): boolean {
+  if (!input.finalStatus) return false;
+  if (input.jobStatus !== 'BER' && input.finalStatus !== 'Rejected') return false;
+  return input.partsCount > 0 || input.grandTotal > BER_HANDLING_CHARGE + 0.005;
+}
+
 // How an approval was given: the customer's own link, or recorded by staff
 // when the customer approved by another channel.
 export const approvalMethods = [
@@ -305,24 +338,27 @@ export const billingJobTypes = ['CSIJW', 'CSIJO'] as const;
 export const jobFinalStatusSchema = z.enum(jobFinalStatuses);
 export type JobFinalStatus = (typeof jobFinalStatuses)[number];
 
-// Job final status is the one status users see on a job card. Delivered and
-// Cancelled lock the card: after that only an administrator can edit it.
-export const jobFinalStatusesLocked: readonly JobFinalStatus[] = ['Delivered', 'Cancelled'];
-// Outcomes that must be reached before a job can be marked Delivered.
+// Delivered and Cancelled lock the card: after that only an administrator can edit it.
+export const finalStatusesLocked: readonly FinalStatus[] = ['Delivered', 'Cancelled'];
+// Job statuses a job must be in before it can be marked Delivered.
 export const jobFinalStatusesReadyToDeliver: readonly JobFinalStatus[] = [
   'Repair Completed',
   'BER',
-  'Rejected',
 ];
+// Repairs that sit finished (Repair Completed or BER) without a final status for this
+// many days show on the dashboard as awaiting a final status.
+export const AWAITING_FINAL_STATUS_DAYS = 3;
 
 // The internal workflow status (used by the dashboard and TAT) follows the
-// job final status; nobody sets it by hand any more.
+// job status and final status; nobody sets it by hand any more.
 export function serviceJobCardStatusForFinal(
-  final: JobFinalStatus,
+  job: JobFinalStatus,
+  final: FinalStatus | null,
   current: ServiceJobCardStatus,
 ): ServiceJobCardStatus {
   if (final === 'Cancelled') return 'Cancelled';
-  if (final === 'Customer approval pending' || final === 'WIP' || final === 'Spare pending') {
+  if (final === 'Delivered' || final === 'Rejected') return 'Completed';
+  if (job === 'Customer approval pending' || job === 'WIP' || job === 'Spare pending') {
     return current === 'Open' ? 'Open' : 'In Progress';
   }
   return 'Completed';
@@ -367,7 +403,12 @@ const jobCardContentFields = {
   deliveryDate: dateSchema.optional(),
   technicianName: optionalText(120),
   brand: optionalText(120),
-  jobFinalStatus: jobFinalStatusSchema.optional(),
+  // A final-status name sent here (Delivered, Rejected, Cancelled) is accepted as the
+  // older single-status form and treated as finalStatus; the stored job status is unchanged.
+  jobFinalStatus: z.union([jobFinalStatusSchema, finalStatusSchema]).optional(),
+  // Final status: how the job was closed. null (admin only) reopens a closed job.
+  finalStatus: finalStatusSchema.nullable().optional(),
+  finalStatusReason: z.enum(finalStatusReasons).nullable().optional(),
   // Stock-master item fields (modification.md #59) -- filled by the item
   // lookup, always editable. itemInMaster is false when the item was typed in
   // by hand because it is not in the ERP stock master.

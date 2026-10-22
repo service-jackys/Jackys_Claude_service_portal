@@ -151,7 +151,8 @@ test(
         profileId,
         'inv-deliver-paid',
       );
-      assert.equal(delivered.jobFinalStatus, 'Delivered');
+      assert.equal(delivered.finalStatus, 'Delivered');
+      assert.equal(delivered.jobFinalStatus, 'Repair Completed');
 
       // A second invoice takes the next number in the series.
       const second = await makeCard();

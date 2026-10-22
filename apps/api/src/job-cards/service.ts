@@ -1,7 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
-  jobFinalStatusesLocked,
+  finalStatusesLocked,
+  finalStatusNeedsReason,
+  finalStatuses,
+  type FinalStatus,
+  type JobFinalStatus,
   jobFinalStatusesReadyToDeliver,
   serviceJobCardStatusForFinal,
   serviceJobCardStatusTransitions,
@@ -73,7 +77,8 @@ export class ServiceJobCardError extends Error {
       | 'invalid-transition'
       | 'terminal-job-card'
       | 'billing-blocked'
-      | 'approval-required',
+      | 'approval-required'
+      | 'reason-required',
     message: string,
   ) {
     super(message);
@@ -83,9 +88,11 @@ export class ServiceJobCardError extends Error {
 // Delivered and Cancelled job cards are locked; an old-style Completed card
 // that never got a final outcome is treated as locked too. Administrators can
 // still edit a locked card.
-function isJobCardLocked(card: Pick<ServiceJobCardRecord, 'status' | 'jobFinalStatus'>): boolean {
+function isJobCardLocked(
+  card: Pick<ServiceJobCardRecord, 'status' | 'jobFinalStatus' | 'finalStatus'>,
+): boolean {
   return (
-    jobFinalStatusesLocked.includes(card.jobFinalStatus) ||
+    (card.finalStatus !== null && finalStatusesLocked.includes(card.finalStatus)) ||
     card.status === 'Cancelled' ||
     (card.status === 'Completed' &&
       (card.jobFinalStatus === 'WIP' || card.jobFinalStatus === 'Spare pending'))
@@ -320,6 +327,8 @@ function defaultsFromAppointment(
     salesman: appointment.salesman,
     salesChannel,
     jobFinalStatus: 'WIP',
+    finalStatus: null,
+    finalStatusReason: null,
     schoolContactPerson: appointment.b2bBranchSchool ? appointment.schoolContactPerson : null,
     schoolContactNumber: appointment.b2bBranchSchool ? appointment.schoolContactNumber : null,
     customerNumber: appointment.customerNumber,
@@ -376,6 +385,8 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
     salesman: null,
     salesChannel: null,
     jobFinalStatus: 'WIP',
+    finalStatus: null,
+    finalStatusReason: null,
     schoolContactPerson: null,
     schoolContactNumber: null,
     customerNumber: null,
@@ -442,22 +453,40 @@ function businessToday(): string {
   }).format(new Date());
 }
 
+/** The older single-status form: a final-status name sent as the job status is the final
+ *  status (modification #125). */
+function normaliseStatusAlias<T extends { jobFinalStatus?: string }>(
+  input: T,
+): Omit<T, 'jobFinalStatus'> & { jobFinalStatus?: JobFinalStatus } {
+  const out: Record<string, unknown> = { ...input };
+  if (
+    typeof out.jobFinalStatus === 'string' &&
+    (finalStatuses as readonly string[]).includes(out.jobFinalStatus)
+  ) {
+    if (out.finalStatus === undefined) out.finalStatus = out.jobFinalStatus;
+    delete out.jobFinalStatus;
+  }
+  return out as Omit<T, 'jobFinalStatus'> & { jobFinalStatus?: JobFinalStatus };
+}
+
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
   mdaRate: number | null = null,
   createdAt: string | null = null,
 ): ServiceJobCardContent {
+  const incoming: Record<string, unknown> = normaliseStatusAlias({ ...overrides });
   // Period from is the job created time: it is set once by the server when the
   // job card is created and can never be changed by an edit.
   const merged: ServiceJobCardContent = {
     ...defaults,
     ...Object.fromEntries(
-      Object.entries(overrides).filter(
+      Object.entries(incoming).filter(
         ([key, value]) => value !== undefined && key !== 'periodFrom',
       ),
     ),
   } as ServiceJobCardContent;
+  if (!merged.finalStatus) merged.finalStatusReason = null;
   const parts = merged.parts ?? [];
   // Major appliances (MDA) are always charged the rate card's "MDA – Standard"
   // service charge, in warranty and out of warranty, whatever the billing rule
@@ -468,7 +497,7 @@ function mergeContent(
   if (createdAt) merged.periodFrom = createdAt;
   // The delivery date is captured by the system when the job is Delivered,
   // unless a date was entered by hand.
-  if (merged.jobFinalStatus === 'Delivered' && !merged.deliveryDate) {
+  if (merged.finalStatus === 'Delivered' && !merged.deliveryDate) {
     merged.deliveryDate = businessToday();
   }
   merged.parts = parts;
@@ -712,7 +741,7 @@ export function createServiceJobCardService(pool: Pool) {
         jobCard,
         billing,
         profileId,
-        jobCard.jobFinalStatus === 'Delivered',
+        jobCard.finalStatus === 'Delivered',
       );
       await insertServiceJobCardHistory(
         client,
@@ -818,7 +847,7 @@ export function createServiceJobCardService(pool: Pool) {
         jobCard,
         billing,
         profileId,
-        jobCard.jobFinalStatus === 'Delivered',
+        jobCard.finalStatus === 'Delivered',
       );
       await insertServiceJobCardHistory(
         client,
@@ -903,6 +932,8 @@ export function createServiceJobCardService(pool: Pool) {
           salesman: null,
           salesChannel: null,
           jobFinalStatus: 'WIP',
+          finalStatus: null,
+          finalStatusReason: null,
           schoolContactPerson: null,
           schoolContactNumber: null,
           customerNumber: null,
@@ -942,7 +973,7 @@ export function createServiceJobCardService(pool: Pool) {
         jobCard,
         billing,
         profileId,
-        jobCard.jobFinalStatus === 'Delivered',
+        jobCard.finalStatus === 'Delivered',
       );
       await insertServiceJobCardHistory(
         client,
@@ -974,8 +1005,9 @@ export function createServiceJobCardService(pool: Pool) {
   ) {
     const {
       billing,
-      rest: { approvalMethod, approvalNotes, ...overrides },
+      rest: { approvalMethod, approvalNotes, ...rawOverrides },
     } = splitBilling(serviceJobCardUpdateSchema.parse(input ?? {}));
+    const overrides = normaliseStatusAlias(rawOverrides);
     return withTransaction(pool, async (client) => {
       const current = await findServiceJobCardById(client, id, true);
       if (!current) {
@@ -993,18 +1025,20 @@ export function createServiceJobCardService(pool: Pool) {
       if (isJobCardLocked(current) && !isAdmin) {
         throw new ServiceJobCardError(
           'terminal-job-card',
-          `A ${current.jobFinalStatus} job card is locked. Only an administrator can edit it.`,
+          `A ${current.finalStatus ?? current.jobFinalStatus} job card is locked. Only an administrator can edit it.`,
         );
       }
-      const nextFinal = overrides.jobFinalStatus ?? current.jobFinalStatus;
+      const nextJob = overrides.jobFinalStatus ?? current.jobFinalStatus;
+      const nextFinal: FinalStatus | null =
+        overrides.finalStatus !== undefined ? overrides.finalStatus : current.finalStatus;
       if (
         nextFinal === 'Delivered' &&
-        current.jobFinalStatus !== 'Delivered' &&
-        !jobFinalStatusesReadyToDeliver.includes(current.jobFinalStatus)
+        current.finalStatus !== 'Delivered' &&
+        !jobFinalStatusesReadyToDeliver.includes(nextJob)
       ) {
         throw new ServiceJobCardError(
           'invalid-transition',
-          'Set the job status to Repair Completed (or BER / Rejected) before marking it Delivered.',
+          'Set the job status to Repair Completed or BER before marking it Delivered.',
         );
       }
       const content = mergeContent(
@@ -1033,6 +1067,8 @@ export function createServiceJobCardService(pool: Pool) {
           salesman: current.salesman,
           salesChannel: current.salesChannel,
           jobFinalStatus: current.jobFinalStatus,
+          finalStatus: current.finalStatus,
+          finalStatusReason: current.finalStatusReason,
           schoolContactPerson: current.schoolContactPerson,
           schoolContactNumber: current.schoolContactNumber,
           customerNumber: current.customerNumber,
@@ -1058,6 +1094,41 @@ export function createServiceJobCardService(pool: Pool) {
       if (nextFinal === 'Delivered' && !content.deliveryDate) {
         content.deliveryDate = businessToday();
       }
+      const partsOnCard = (list: { partNo?: string; description?: string }[]) =>
+        list.filter((part) => part.partNo || part.description).length;
+      if (
+        nextFinal !== current.finalStatus &&
+        finalStatusNeedsReason({
+          jobStatus: nextJob,
+          finalStatus: nextFinal,
+          partsCount: partsOnCard(content.parts),
+          grandTotal: Number(content.grandTotal),
+        }) &&
+        !content.finalStatusReason
+      ) {
+        throw new ServiceJobCardError(
+          'reason-required',
+          'This BER or Rejected job carries spares or charges. Choose a reason before closing it.',
+        );
+      }
+      const partsBefore = partsOnCard(current.parts);
+      const partsAfter = partsOnCard(content.parts);
+      if (partsAfter < partsBefore && (nextJob === 'BER' || nextFinal === 'Rejected')) {
+        await insertAuditEvent(client, {
+          actorProfileId: profileId,
+          action: 'job_card.parts_removed',
+          targetType: 'service_job_card',
+          targetId: id,
+          metadata: {
+            jobCardReference: current.jobCardReference,
+            partsBefore,
+            partsAfter,
+            jobStatus: nextJob,
+            finalStatus: nextFinal,
+          },
+          requestId,
+        });
+      }
       let jobCard = await updateServiceJobCardContent(client, id, content, profileId);
       if (!jobCard)
         throw new ServiceJobCardError('not-found', 'The service job card was not found.');
@@ -1067,10 +1138,22 @@ export function createServiceJobCardService(pool: Pool) {
         jobCard,
         billing,
         profileId,
-        nextFinal === 'Delivered' && current.jobFinalStatus !== 'Delivered',
+        nextFinal === 'Delivered' && current.finalStatus !== 'Delivered',
       );
-      if (nextFinal !== current.jobFinalStatus) {
-        const nextStatus = serviceJobCardStatusForFinal(nextFinal, current.status);
+      const finalChanged = nextFinal !== current.finalStatus;
+      if (finalChanged) {
+        await insertServiceJobCardHistory(
+          client,
+          id,
+          current.finalStatus,
+          nextFinal ?? 'Open',
+          profileId,
+          content.finalStatusReason ? `Reason: ${content.finalStatusReason}` : undefined,
+          requestId,
+        );
+      }
+      if (nextJob !== current.jobFinalStatus || finalChanged) {
+        const nextStatus = serviceJobCardStatusForFinal(nextJob, nextFinal, current.status);
         if (nextStatus !== current.status) {
           await updateServiceJobCardStatus(
             client,
@@ -1104,15 +1187,17 @@ export function createServiceJobCardService(pool: Pool) {
             approvalNotes ? `: ${approvalNotes}` : ''
           }`;
         }
-        await insertServiceJobCardHistory(
-          client,
-          id,
-          current.jobFinalStatus,
-          nextFinal,
-          profileId,
-          historyReason,
-          requestId,
-        );
+        if (nextJob !== current.jobFinalStatus) {
+          await insertServiceJobCardHistory(
+            client,
+            id,
+            current.jobFinalStatus,
+            nextJob,
+            profileId,
+            historyReason,
+            requestId,
+          );
+        }
         jobCard = (await findServiceJobCardById(client, id)) ?? jobCard;
       }
       await insertAuditEvent(client, {

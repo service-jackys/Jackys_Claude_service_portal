@@ -1150,11 +1150,18 @@
     'WIP',
     'Spare pending',
     'BER',
-    'Rejected',
     'Repair Completed',
-    'Delivered',
-    'Cancelled',
   ];
+  const finalStatusOptions = ['Delivered', 'Rejected', 'Cancelled'];
+  const finalStatusReasonOptions = [
+    'Parts fitted, written off',
+    'Parts returned to stock',
+    'Diagnosis charge only',
+    'Customer declined the quote',
+    'No charge',
+    'Other',
+  ];
+  const BER_HANDLING_CHARGE = 60;
   const jobCardPartsState = { jcc: [], jce: [], jcq: [] };
 
   function parseNumber(value) {
@@ -1270,7 +1277,9 @@
         <div class="jc-sec-body">
       <div class="field-grid">
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
-        <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml(`The only status for this job. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Repair Completed, then Delivered once the customer has the item. Delivered locks the card; only an admin can edit it after that.`)}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml('Where the job is right now. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Use BER when the item cannot be repaired economically. Repair Completed when the work is finished.')}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field"><label for="${prefix}FinalStatus">Final status ${tipHtml('Leave blank while the job is open. Delivered once the customer has the item (job status must be Repair Completed or BER). Rejected when the customer declines. Cancelled when the job is called off. Delivered and Cancelled lock the card; only an admin can edit it after that.')}</label><select id="${prefix}FinalStatus"><option value="">Open (no final status)</option>${finalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field" id="${prefix}FinalStatusReasonField" hidden><label for="${prefix}FinalStatusReason">Reason for closing ${tipHtml('Required when a BER or Rejected job still has spare parts or charges above the AED 60 handling charge, so management can see what happened to the parts and the value.')}</label><select id="${prefix}FinalStatusReason"><option value="">Select a reason</option>${finalStatusReasonOptions.map((reason) => `<option value="${reason}">${reason}</option>`).join('')}</select><p class="field-hint is-warn" id="${prefix}FinalStatusWarning"></p></div>
       </div>
         </div>
       </section>
@@ -1616,6 +1625,7 @@
     $(`#${prefix}TotalCost`).value = money(totalCost);
     $(`#${prefix}GrandTotal`).value = money(totalCost + serviceCharge);
     if ($(`#${prefix}InvoiceBox`)) refreshInvoiceBox(prefix);
+    if (typeof refreshFinalStatusReason === 'function') refreshFinalStatusReason(prefix);
   }
 
   // Warranty is one year from the purchase date; the pill shows the days left.
@@ -1701,14 +1711,45 @@
 
   // Choosing Delivered shows today's date in Delivery date straight away; the
   // server records it too when the card is saved, so it is never left blank.
+  // The reason box appears when a BER/Rejected job still carries parts or value.
+  function refreshFinalStatusReason(prefix) {
+    const job = $(`#${prefix}JobFinalStatus`);
+    const final = $(`#${prefix}FinalStatus`);
+    const field = $(`#${prefix}FinalStatusReasonField`);
+    if (!job || !final || !field) return;
+    const parts = (jobCardPartsState[prefix] || []).filter((part) => parseNumber(part.qty) > 0);
+    const total =
+      parseNumber($(`#${prefix}ServiceCharge`)?.value) +
+      parts.reduce((sum, part) => sum + parseNumber(part.qty) * parseNumber(part.unitPrice), 0);
+    const needs =
+      Boolean(final.value) &&
+      (job.value === 'BER' || final.value === 'Rejected') &&
+      (parts.length > 0 || total > BER_HANDLING_CHARGE + 0.005);
+    field.hidden = !needs;
+    const warning = $(`#${prefix}FinalStatusWarning`);
+    if (warning) {
+      warning.textContent = needs
+        ? `This job carries ${parts.length ? parts.length + ' spare part line(s)' : 'charges'} (AED ${total.toFixed(2)}). Pick the reason it is being closed, or remove the parts first.`
+        : '';
+    }
+    if (!needs) $(`#${prefix}FinalStatusReason`).value = '';
+  }
+
   document.addEventListener('change', (event) => {
     const select = event.target;
-    if (!(select instanceof HTMLSelectElement) || !/JobFinalStatus$/.test(select.id)) return;
-    if (select.value !== 'Delivered') return;
-    const date = $(`#${select.id.replace(/JobFinalStatus$/, 'DeliveryDate')}`);
-    if (date && !date.value) {
-      date.value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(new Date());
+    if (!(select instanceof HTMLSelectElement)) return;
+    const match = /^(.*)(JobFinalStatus|FinalStatus)$/.exec(select.id);
+    if (!match) return;
+    const prefix = match[1];
+    if (match[2] === 'FinalStatus' && select.value === 'Delivered') {
+      const date = $(`#${prefix}DeliveryDate`);
+      if (date && !date.value) {
+        date.value = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Dubai' }).format(
+          new Date(),
+        );
+      }
     }
+    refreshFinalStatusReason(prefix);
   });
 
   function fillJobCardForm(prefix, content) {
@@ -1769,6 +1810,9 @@
       ? content.deliveryDate.slice(0, 10)
       : '';
     $(`#${prefix}JobFinalStatus`).value = content.jobFinalStatus || 'WIP';
+    $(`#${prefix}FinalStatus`).value = content.finalStatus || '';
+    $(`#${prefix}FinalStatusReason`).value = content.finalStatusReason || '';
+    refreshFinalStatusReason(prefix);
     $(`#${prefix}FinalWarrantyStatus`).value = content.finalWarrantyStatus || '';
     $(`#${prefix}WarrantyOverrideReason`).value = content.warrantyOverrideReason || '';
     $(`#${prefix}PaymentBy`).value = content.paymentBy || '';
@@ -1838,6 +1882,8 @@
         : undefined,
       deliveryDate: $(`#${prefix}DeliveryDate`).value || undefined,
       jobFinalStatus: $(`#${prefix}JobFinalStatus`).value || undefined,
+      finalStatus: $(`#${prefix}FinalStatus`).value || null,
+      finalStatusReason: $(`#${prefix}FinalStatusReason`).value || null,
       finalWarrantyStatus: $(`#${prefix}FinalWarrantyStatus`).value || undefined,
       warrantyOverrideReason: $(`#${prefix}WarrantyOverrideReason`).value.trim() || undefined,
       paymentBy: $(`#${prefix}PaymentBy`).value || undefined,
@@ -2823,8 +2869,8 @@ ${bodyHtml}
           ['Salesman', jobCard.salesman],
           ['Sales channel', jobCard.salesChannel],
         ]),
-        ['Job final status', jobCard.jobFinalStatus],
-        ['Status', jobCard.jobFinalStatus || jobCard.status],
+        ['Job status', jobCard.jobFinalStatus],
+        ['Final status', jobCard.finalStatus || 'Open'],
       ])}
       ${printTextBlock('Complaint', jobCard.complaint)}
       ${printTextBlock('Service rendered', jobCard.serviceRendered)}
@@ -3037,7 +3083,7 @@ ${bodyHtml}
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
@@ -3080,7 +3126,9 @@ ${bodyHtml}
       ['Contact', (jc) => jc.customerContact],
       ['Status', (jc) => jc.status],
       ['Technician', (jc) => jc.technicianName],
-      ['Job final status', (jc) => jc.jobFinalStatus],
+      ['Job status', (jc) => jc.jobFinalStatus],
+      ['Final status', (jc) => jc.finalStatus || ''],
+      ['Final status reason', (jc) => jc.finalStatusReason || ''],
       ['Total cost (AED)', (jc) => jc.totalCost],
       ['Service charge (AED)', (jc) => jc.serviceCharge],
       ['Grand total (AED)', (jc) => jc.grandTotal],
@@ -3117,7 +3165,7 @@ ${bodyHtml}
     const awaiting = status === AWAITING_JOB_CARD_FILTER;
     if (status && !awaiting) params.set('status', status);
     $('#jobCardsBody').innerHTML =
-      '<tr><td colspan="5" class="empty-state">Loading service job cards…</td></tr>';
+      '<tr><td colspan="6" class="empty-state">Loading service job cards…</td></tr>';
     try {
       if (awaiting) {
         const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
@@ -4703,6 +4751,15 @@ ${bodyHtml}
     $('#dashJobCardTiles').innerHTML = dashboardTilesHtml(
       summary.jobCards.byStatus,
       [
+        [
+          'Awaiting final status',
+          summary.jobCards.awaitingFinalStatus ?? 0,
+          'Awaiting final status',
+        ],
+        ['Delivered', summary.jobCards.byFinalStatus?.Delivered ?? 0, 'Delivered'],
+        ['Rejected', summary.jobCards.byFinalStatus?.Rejected ?? 0, 'Rejected'],
+        ['Cancelled', summary.jobCards.byFinalStatus?.Cancelled ?? 0, 'Cancelled'],
+        ['BER (all, incl. delivered)', summary.jobCards.berTotal ?? 0],
         ['Awaiting job card', summary.jobCards.awaitingCreation ?? 0, AWAITING_JOB_CARD_FILTER],
         ['Total', summary.jobCards.total],
       ],
@@ -5065,9 +5122,7 @@ ${bodyHtml}
 
   function isJobCardLocked(jobCard) {
     return (
-      ['Delivered', 'Cancelled'].includes(jobCard.jobFinalStatus) ||
-      jobCard.status === 'Cancelled' ||
-      (jobCard.status === 'Completed' && ['WIP', 'Spare pending'].includes(jobCard.jobFinalStatus))
+      ['Delivered', 'Cancelled'].includes(jobCard.finalStatus) || jobCard.status === 'Cancelled'
     );
   }
 
@@ -5083,7 +5138,7 @@ ${bodyHtml}
     if (editable) fillJobCardForm('jce', jobCard);
     // Delivered jobs open read-only; every other editable job opens in Edit.
     $('#jobCardViewTabs [data-jc-view="edit"]').hidden = !editable;
-    setJobCardView(editable && jobCard.jobFinalStatus !== 'Delivered' ? 'edit' : 'view');
+    setJobCardView(editable && jobCard.finalStatus !== 'Delivered' ? 'edit' : 'view');
   }
 
   function setJobCardView(view) {
@@ -5116,16 +5171,16 @@ ${bodyHtml}
       },
       'Repair Completed': {
         title: 'Ready for delivery',
-        text: 'Enter the invoice number and delivery date, hand the item to the customer, then set the job status to Delivered.',
+        text: 'Enter the invoice number and delivery date, hand the item to the customer, then set the final status to Delivered.',
       },
       BER: {
         title: 'Beyond economical repair',
-        text: 'Return the item to the customer, then set the job status to Delivered to close the job.',
+        text: 'Return the item to the customer, then set the final status to Delivered. If the job carries spare parts or charges above AED 60, choose the reason it is being closed.',
         warn: true,
       },
       Rejected: {
         title: 'Job rejected',
-        text: 'Return the item to the customer, then set the job status to Delivered to close the job.',
+        text: 'The customer declined. If the job carries spare parts or charges above AED 60, the reason is recorded. Return the item to the customer; the job stays Rejected.',
         warn: true,
       },
       Delivered: {
@@ -5143,7 +5198,7 @@ ${bodyHtml}
         warn: true,
       },
     };
-    const guide = guides[jobCard.jobFinalStatus];
+    const guide = guides[jobCard.finalStatus || jobCard.jobFinalStatus];
     if (!guide) {
       box.hidden = true;
       return;
@@ -5237,6 +5292,7 @@ ${bodyHtml}
       {
         strip: [
           ['Job status', jobCard.jobFinalStatus, 'pill'],
+          ['Final status', jobCard.finalStatus, 'pill'],
           ['Job type', jobCard.billingJobType],
           ['Warranty', jobCard.finalWarrantyStatus || jobCard.warrantyStatus],
           ['Customer type', jobCard.customerType],
@@ -5395,7 +5451,10 @@ ${bodyHtml}
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
       $('#jobCardDetailStatus').innerHTML =
-        `<span class="status ${statusClass(jobCard.jobFinalStatus)}">${escapeHtml(jobCard.jobFinalStatus)}</span>`;
+        `<span class="status ${statusClass(jobCard.jobFinalStatus)}">${escapeHtml(jobCard.jobFinalStatus)}</span>` +
+        (jobCard.finalStatus
+          ? ` <span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>`
+          : '');
       renderWorkflowStepper(
         'jobCardWorkflowStepper',
         workflowStageForJobCardStatus(jobCard.status),

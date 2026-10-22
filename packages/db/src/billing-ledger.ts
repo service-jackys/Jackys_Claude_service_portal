@@ -108,7 +108,7 @@ export type AllocationRow = {
 };
 
 function where(query: BillingLedgerQuery) {
-  const clauses = [`${BILLED} > 0`, `j.job_final_status <> 'Cancelled'`];
+  const clauses = [`${BILLED} > 0`, `j.final_status IS DISTINCT FROM 'Cancelled'`];
   const values: unknown[] = [];
   const add = (sql: string, value: unknown) => {
     values.push(value);
@@ -171,7 +171,7 @@ export async function queryBillingLedger(
             j.invoice_no AS "invoiceNo", j.invoice_date::text AS "invoiceDate",
             j.payment_mode AS "paymentMode", j.payment_reference AS "paymentReference",
             j.payment_confirmed_at AS "paymentConfirmedAt",
-            ${STAGE} AS stage, j.job_final_status AS "jobFinalStatus"
+            ${STAGE} AS stage, COALESCE(j.final_status, j.job_final_status) AS "jobFinalStatus"
      FROM service_job_cards j ${clause}
      ORDER BY ${BILL_TO} ASC, j.job_card_date DESC NULLS LAST, j.id DESC
      LIMIT ${limit} OFFSET ${offset}`,
@@ -269,7 +269,7 @@ export async function costAllocation(
 export async function billToParties(client: PoolClient): Promise<string[]> {
   const result = await client.query<{ party: string }>(
     `SELECT DISTINCT ${BILL_TO} AS party FROM service_job_cards j
-     WHERE ${BILLED} > 0 AND j.job_final_status <> 'Cancelled' AND j.payment_by IS DISTINCT FROM 'Customer'
+     WHERE ${BILLED} > 0 AND j.final_status IS DISTINCT FROM 'Cancelled' AND j.payment_by IS DISTINCT FROM 'Customer'
      ORDER BY 1`,
   );
   return result.rows.map((r) => r.party);

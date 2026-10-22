@@ -1,5 +1,7 @@
 import type { PoolClient } from 'pg';
 import type {
+  FinalStatus,
+  FinalStatusReason,
   JobFinalStatus,
   JobCardPart,
   ServiceJobCardStatus,
@@ -58,6 +60,10 @@ export type ServiceJobCardRecord = {
   salesman: string | null;
   salesChannel: string | null;
   jobFinalStatus: JobFinalStatus;
+  // How the job was closed (migration 050); null while it is open.
+  finalStatus: FinalStatus | null;
+  finalStatusReason: FinalStatusReason | null;
+  finalStatusAt: Date | null;
   // Warranty and billing (migration 034).
   finalWarrantyStatus: string | null;
   warrantyOverrideReason: string | null;
@@ -139,6 +145,8 @@ export type ServiceJobCardContent = {
   salesman: string | null;
   salesChannel: string | null;
   jobFinalStatus: JobFinalStatus;
+  finalStatus: FinalStatus | null;
+  finalStatusReason: FinalStatusReason | null;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
   customerNumber: string | null;
@@ -205,6 +213,9 @@ const columns = `
   service_job_cards.salesman,
   service_job_cards.sales_channel AS "salesChannel",
   service_job_cards.job_final_status AS "jobFinalStatus",
+  service_job_cards.final_status AS "finalStatus",
+  service_job_cards.final_status_reason AS "finalStatusReason",
+  service_job_cards.final_status_at AS "finalStatusAt",
   service_job_cards.final_warranty_status AS "finalWarrantyStatus",
   service_job_cards.warranty_override_reason AS "warrantyOverrideReason",
   service_job_cards.payment_by AS "paymentBy",
@@ -270,7 +281,8 @@ export async function insertServiceJobCard(
        school_contact_person, school_contact_number, customer_number, legacy_reference,
        item_code, main_group, group_name, sub_group, item_in_master, serial_no, purchase_date,
        accessories_received, condition_notes, intake_at,
-       customer_type, customer_email, region, b2b_branch_school, sales_order_number
+       customer_type, customer_email, region, b2b_branch_school, sales_order_number,
+       final_status, final_status_reason, final_status_at
      ) VALUES (
        $1, $2, $3, $4, $4,
        $5, $6, $7, $8, $9,
@@ -281,7 +293,8 @@ export async function insertServiceJobCard(
        $30, $31, $32, $33,
        $34, $35, $36, $37, $38, $39, $40,
        $41, $42, $43,
-       $44, $45, $46, $47, $48
+       $44, $45, $46, $47, $48,
+       $49, $50, CASE WHEN $49::text IS NULL THEN NULL ELSE now() END
      )
      RETURNING id`,
     [
@@ -333,6 +346,8 @@ export async function insertServiceJobCard(
       c.region,
       c.b2bBranchSchool,
       c.salesOrderNumber,
+      c.finalStatus,
+      c.finalStatusReason,
     ],
   );
   const jobCard = await findServiceJobCardById(client, result.rows[0].id);
@@ -360,7 +375,11 @@ export async function updateServiceJobCardContent(
          item_in_master = $35, serial_no = $36, purchase_date = $37,
          accessories_received = $38, condition_notes = $39,
          customer_type = $40, customer_email = $41, region = $42, b2b_branch_school = $43,
-         sales_order_number = $44, updated_at = now()
+         sales_order_number = $44,
+         final_status_at = CASE WHEN $45::text IS NULL THEN NULL
+           WHEN final_status IS DISTINCT FROM $45::text THEN now() ELSE final_status_at END,
+         final_status = $45, final_status_reason = $46,
+         updated_at = now()
      WHERE id = $1
      RETURNING id`,
     [
@@ -408,6 +427,8 @@ export async function updateServiceJobCardContent(
       content.region,
       content.b2bBranchSchool,
       content.salesOrderNumber,
+      content.finalStatus,
+      content.finalStatusReason,
     ],
   );
   if (!result.rows[0]) return null;
@@ -493,11 +514,19 @@ export async function listServiceJobCards(
     filters.push(`service_job_cards.job_final_status = 'Customer approval pending'`);
   }
   if (query.status) {
-    // The filter offers job final statuses; the old workflow names still work.
-    const column = ['Open', 'In Progress', 'Completed'].includes(query.status)
-      ? 'status'
-      : 'job_final_status';
-    filters.push(`service_job_cards.${column} = ${add(query.status)}`);
+    // The filter offers the job statuses and the final statuses; the old workflow
+    // names still work.
+    if (['Open', 'In Progress', 'Completed'].includes(query.status)) {
+      filters.push(`service_job_cards.status = ${add(query.status)}`);
+    } else if (['Delivered', 'Rejected', 'Cancelled'].includes(query.status)) {
+      filters.push(`service_job_cards.final_status = ${add(query.status)}`);
+    } else if (query.status === 'Awaiting final status') {
+      filters.push(
+        `service_job_cards.final_status IS NULL AND service_job_cards.job_final_status IN ('Repair Completed', 'BER')`,
+      );
+    } else {
+      filters.push(`service_job_cards.job_final_status = ${add(query.status)}`);
+    }
   }
   if (query.search) {
     const parameter = add(`%${query.search}%`);
@@ -551,7 +580,20 @@ export async function updateServiceJobCardStatus(
   return { jobCard, previousStatus };
 }
 
+/** Closes the job with a final status (Delivered, Rejected, Cancelled). */
 export async function setServiceJobCardFinalStatus(
+  client: PoolClient,
+  id: string,
+  finalStatus: FinalStatus,
+): Promise<void> {
+  await client.query(
+    'UPDATE service_job_cards SET final_status = $2, final_status_at = now() WHERE id = $1',
+    [id, finalStatus],
+  );
+}
+
+/** Sets the job status (the stage the work is in). */
+export async function setServiceJobCardJobStatus(
   client: PoolClient,
   id: string,
   jobFinalStatus: JobFinalStatus,

@@ -1,11 +1,23 @@
 import type { PoolClient } from 'pg';
+import { AWAITING_FINAL_STATUS_DAYS } from '../../contracts/src/index.js';
 
 export type StatusCounts = Record<string, number>;
 
 export type DashboardSummary = {
   complaints: { byStatus: StatusCounts; total: number };
   appointments: { byStatus: StatusCounts; total: number; today: number };
-  jobCards: { byStatus: StatusCounts; total: number; awaitingCreation: number };
+  // byStatus counts the open jobs by job status; byFinalStatus counts the closed ones
+  // (Delivered, Rejected, Cancelled). berTotal counts every BER job, delivered or not,
+  // and awaitingFinalStatus the finished jobs (Repair Completed or BER) with no final
+  // status for AWAITING_FINAL_STATUS_DAYS or more.
+  jobCards: {
+    byStatus: StatusCounts;
+    byFinalStatus: StatusCounts;
+    total: number;
+    awaitingCreation: number;
+    berTotal: number;
+    awaitingFinalStatus: number;
+  };
   quotations: { total: number; thisMonth: number };
   inspections: { total: number; thisMonth: number };
   warrantyApprovals: { byStatus: StatusCounts; total: number };
@@ -24,9 +36,10 @@ async function statusCounts(
   client: PoolClient,
   table: string,
   statusColumn = 'status',
+  where = 'TRUE',
 ): Promise<{ byStatus: StatusCounts; total: number }> {
   const result = await client.query<{ status: string; count: string }>(
-    `SELECT ${statusColumn} AS status, count(*)::text AS count FROM ${table} GROUP BY ${statusColumn}`,
+    `SELECT ${statusColumn} AS status, count(*)::text AS count FROM ${table} WHERE ${where} GROUP BY ${statusColumn}`,
   );
   const byStatus: StatusCounts = {};
   let total = 0;
@@ -43,11 +56,9 @@ const JOB_STATUS_ORDER = [
   'WIP',
   'Spare pending',
   'BER',
-  'Rejected',
   'Repair Completed',
-  'Delivered',
-  'Cancelled',
 ];
+const FINAL_STATUS_ORDER = ['Delivered', 'Rejected', 'Cancelled'];
 
 /** Workflow order for the job status tiles, unknown statuses last. */
 function orderJobStatuses(byStatus: StatusCounts): StatusCounts {
@@ -58,6 +69,10 @@ function orderJobStatuses(byStatus: StatusCounts): StatusCounts {
   return Object.fromEntries(
     Object.entries(byStatus).sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b)),
   );
+}
+
+function orderFinalStatuses(byStatus: StatusCounts): StatusCounts {
+  return Object.fromEntries(FINAL_STATUS_ORDER.map((status) => [status, byStatus[status] ?? 0]));
 }
 
 async function simpleTotal(client: PoolClient, table: string): Promise<number> {
@@ -89,6 +104,9 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     appointments,
     appointmentsToday,
     jobCards,
+    jobCardsClosed,
+    jobCardsBer,
+    jobCardsAwaitingFinal,
     jobCardsAwaiting,
     quotationsTotal,
     quotationsMonth,
@@ -113,7 +131,21 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
       .then((result) => Number(result.rows[0].count)),
     // Job cards are tracked by their job status (WIP, Spare pending, ..., Delivered),
     // the same value the Service job cards list filters on.
-    statusCounts(client, 'service_job_cards', 'job_final_status'),
+    statusCounts(client, 'service_job_cards', 'job_final_status', 'final_status IS NULL'),
+    statusCounts(client, 'service_job_cards', 'final_status', 'final_status IS NOT NULL'),
+    client
+      .query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM service_job_cards WHERE job_final_status = 'BER'`,
+      )
+      .then((result) => Number(result.rows[0].count)),
+    client
+      .query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM service_job_cards
+         WHERE final_status IS NULL AND job_final_status IN ('Repair Completed', 'BER')
+           AND updated_at <= now() - make_interval(days => $1::int)`,
+        [AWAITING_FINAL_STATUS_DAYS],
+      )
+      .then((result) => Number(result.rows[0].count)),
     client
       .query<{ count: string }>(
         `SELECT count(*)::text AS count FROM appointments
@@ -140,9 +172,12 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     complaints,
     appointments: { ...appointments, today: appointmentsToday },
     jobCards: {
-      ...jobCards,
       byStatus: orderJobStatuses(jobCards.byStatus),
+      byFinalStatus: orderFinalStatuses(jobCardsClosed.byStatus),
+      total: jobCards.total + jobCardsClosed.total,
       awaitingCreation: jobCardsAwaiting,
+      berTotal: jobCardsBer,
+      awaitingFinalStatus: jobCardsAwaitingFinal,
     },
     quotations: { total: quotationsTotal, thisMonth: quotationsMonth },
     inspections: { total: inspectionsTotal, thisMonth: inspectionsMonth },
