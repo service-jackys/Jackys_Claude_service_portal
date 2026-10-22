@@ -5,6 +5,10 @@
 -- A reason is recorded when a BER, Rejected or Cancelled job is delivered, and a
 -- B2C job that still carries spare parts needs a manager's approval first.
 
+-- The old checks do not allow the new values, so drop them before the data moves.
+ALTER TABLE service_job_cards DROP CONSTRAINT IF EXISTS service_job_cards_job_final_status_check;
+ALTER TABLE service_job_cards DROP CONSTRAINT IF EXISTS service_job_cards_final_status_check;
+
 -- Cards that were closed as Rejected or Cancelled keep that outcome as their job
 -- status. They count as delivered only when a delivery date was recorded.
 UPDATE service_job_cards
@@ -22,13 +26,11 @@ UPDATE service_job_cards
  WHERE job_final_status = 'Customer approval pending'
    AND final_status_reason = 'Customer declined the quote' AND final_status IS NULL;
 
-ALTER TABLE service_job_cards DROP CONSTRAINT IF EXISTS service_job_cards_job_final_status_check;
 ALTER TABLE service_job_cards
   ADD CONSTRAINT service_job_cards_job_final_status_check
   CHECK (job_final_status IN
     ('Customer approval pending', 'WIP', 'Spare pending', 'BER', 'Rejected', 'Cancelled',
      'Repair Completed'));
-ALTER TABLE service_job_cards DROP CONSTRAINT IF EXISTS service_job_cards_final_status_check;
 ALTER TABLE service_job_cards
   ADD CONSTRAINT service_job_cards_final_status_check
   CHECK (final_status IS NULL OR final_status = 'Delivered');
