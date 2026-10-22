@@ -49,7 +49,10 @@ const PAYMENT_STATUS = `CASE
   ELSE 'Unassigned' END`;
 
 function filters(query: Pick<JobInvoiceQuery, 'type' | 'paymentBy' | 'paymentStatus' | 'search'>) {
-  const where = [`${AMOUNT} > 0`, `service_job_cards.final_status IS DISTINCT FROM 'Cancelled'`];
+  const where = [
+    `${AMOUNT} > 0`,
+    `service_job_cards.job_final_status IS DISTINCT FROM 'Cancelled'`,
+  ];
   const values: unknown[] = [];
   if (query.type) {
     values.push(query.type);
@@ -126,7 +129,7 @@ export type InvoiceSummary = {
 };
 
 export async function invoiceSummary(client: PoolClient): Promise<InvoiceSummary> {
-  const base = `FROM service_job_cards WHERE ${AMOUNT} > 0 AND service_job_cards.final_status IS DISTINCT FROM 'Cancelled'`;
+  const base = `FROM service_job_cards WHERE ${AMOUNT} > 0 AND service_job_cards.job_final_status IS DISTINCT FROM 'Cancelled'`;
   const byType = await client.query<{ billingJobType: string; jobs: number; amount: string }>(
     `SELECT COALESCE(billing_job_type, 'Unclassified') AS "billingJobType",
             count(*)::int AS jobs, COALESCE(sum(${AMOUNT}), 0)::text AS amount

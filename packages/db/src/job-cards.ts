@@ -1,5 +1,6 @@
 import type { PoolClient } from 'pg';
 import type {
+  ClosureApprovalStatus,
   FinalStatus,
   FinalStatusReason,
   JobFinalStatus,
@@ -64,6 +65,13 @@ export type ServiceJobCardRecord = {
   finalStatus: FinalStatus | null;
   finalStatusReason: FinalStatusReason | null;
   finalStatusAt: Date | null;
+  // Manager approval to close a B2C BER/Rejected job that carries spares (migration 051).
+  closureApprovalStatus: ClosureApprovalStatus | null;
+  closureApprovalRequestedBy: string | null;
+  closureApprovalRequestedAt: Date | null;
+  closureApprovalDecidedBy: string | null;
+  closureApprovalDecidedAt: Date | null;
+  closureApprovalNote: string | null;
   // Warranty and billing (migration 034).
   finalWarrantyStatus: string | null;
   warrantyOverrideReason: string | null;
@@ -216,6 +224,12 @@ const columns = `
   service_job_cards.final_status AS "finalStatus",
   service_job_cards.final_status_reason AS "finalStatusReason",
   service_job_cards.final_status_at AS "finalStatusAt",
+  service_job_cards.closure_approval_status AS "closureApprovalStatus",
+  service_job_cards.closure_approval_requested_by AS "closureApprovalRequestedBy",
+  service_job_cards.closure_approval_requested_at AS "closureApprovalRequestedAt",
+  service_job_cards.closure_approval_decided_by AS "closureApprovalDecidedBy",
+  service_job_cards.closure_approval_decided_at AS "closureApprovalDecidedAt",
+  service_job_cards.closure_approval_note AS "closureApprovalNote",
   service_job_cards.final_warranty_status AS "finalWarrantyStatus",
   service_job_cards.warranty_override_reason AS "warrantyOverrideReason",
   service_job_cards.payment_by AS "paymentBy",
@@ -518,12 +532,14 @@ export async function listServiceJobCards(
     // names still work.
     if (['Open', 'In Progress', 'Completed'].includes(query.status)) {
       filters.push(`service_job_cards.status = ${add(query.status)}`);
-    } else if (['Delivered', 'Rejected', 'Cancelled'].includes(query.status)) {
-      filters.push(`service_job_cards.final_status = ${add(query.status)}`);
+    } else if (query.status === 'Delivered') {
+      filters.push(`service_job_cards.final_status = 'Delivered'`);
     } else if (query.status === 'Awaiting final status') {
       filters.push(
-        `service_job_cards.final_status IS NULL AND service_job_cards.job_final_status IN ('Repair Completed', 'BER')`,
+        `service_job_cards.final_status IS NULL AND service_job_cards.job_final_status IN ('Repair Completed', 'BER', 'Rejected', 'Cancelled')`,
       );
+    } else if (query.status === 'Closure approval pending') {
+      filters.push(`service_job_cards.closure_approval_status = 'Pending'`);
     } else {
       filters.push(`service_job_cards.job_final_status = ${add(query.status)}`);
     }
@@ -580,7 +596,7 @@ export async function updateServiceJobCardStatus(
   return { jobCard, previousStatus };
 }
 
-/** Closes the job with a final status (Delivered, Rejected, Cancelled). */
+/** Closes the job with a final status (Delivered). */
 export async function setServiceJobCardFinalStatus(
   client: PoolClient,
   id: string,
@@ -824,5 +840,33 @@ export async function updateServiceJobCardBilling(
       billing.paymentConfirmed ?? null,
       profileId,
     ],
+  );
+}
+
+/** Records a closure-approval request or decision (migration 051). */
+export async function setServiceJobCardClosureApproval(
+  client: PoolClient,
+  id: string,
+  change:
+    | { status: 'Pending'; profileId: string }
+    | { status: 'Approved' | 'Declined'; profileId: string; note: string | null },
+): Promise<void> {
+  if (change.status === 'Pending') {
+    await client.query(
+      `UPDATE service_job_cards
+          SET closure_approval_status = 'Pending', closure_approval_requested_by = $2,
+              closure_approval_requested_at = now(), closure_approval_decided_by = NULL,
+              closure_approval_decided_at = NULL, closure_approval_note = NULL
+        WHERE id = $1`,
+      [id, change.profileId],
+    );
+    return;
+  }
+  await client.query(
+    `UPDATE service_job_cards
+        SET closure_approval_status = $2, closure_approval_decided_by = $3,
+            closure_approval_decided_at = now(), closure_approval_note = $4
+      WHERE id = $1`,
+    [id, change.status, change.profileId, change.note],
   );
 }

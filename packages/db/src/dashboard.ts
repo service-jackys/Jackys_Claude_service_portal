@@ -7,8 +7,8 @@ export type DashboardSummary = {
   complaints: { byStatus: StatusCounts; total: number };
   appointments: { byStatus: StatusCounts; total: number; today: number };
   // byStatus counts the open jobs by job status; byFinalStatus counts the closed ones
-  // (Delivered, Rejected, Cancelled). berTotal counts every BER job, delivered or not,
-  // and awaitingFinalStatus the finished jobs (Repair Completed or BER) with no final
+  // (Delivered). berTotal counts every BER job, delivered or not,
+  // and awaitingFinalStatus the jobs ready to hand back (Repair Completed, BER, Rejected or Cancelled) with no final
   // status for AWAITING_FINAL_STATUS_DAYS or more.
   jobCards: {
     byStatus: StatusCounts;
@@ -17,6 +17,7 @@ export type DashboardSummary = {
     awaitingCreation: number;
     berTotal: number;
     awaitingFinalStatus: number;
+    closureApprovalPending: number;
   };
   quotations: { total: number; thisMonth: number };
   inspections: { total: number; thisMonth: number };
@@ -56,9 +57,11 @@ const JOB_STATUS_ORDER = [
   'WIP',
   'Spare pending',
   'BER',
+  'Rejected',
+  'Cancelled',
   'Repair Completed',
 ];
-const FINAL_STATUS_ORDER = ['Delivered', 'Rejected', 'Cancelled'];
+const FINAL_STATUS_ORDER = ['Delivered'];
 
 /** Workflow order for the job status tiles, unknown statuses last. */
 function orderJobStatuses(byStatus: StatusCounts): StatusCounts {
@@ -107,6 +110,7 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     jobCardsClosed,
     jobCardsBer,
     jobCardsAwaitingFinal,
+    jobCardsClosureApproval,
     jobCardsAwaiting,
     quotationsTotal,
     quotationsMonth,
@@ -141,9 +145,14 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
     client
       .query<{ count: string }>(
         `SELECT count(*)::text AS count FROM service_job_cards
-         WHERE final_status IS NULL AND job_final_status IN ('Repair Completed', 'BER')
+         WHERE final_status IS NULL AND job_final_status IN ('Repair Completed', 'BER', 'Rejected', 'Cancelled')
            AND updated_at <= now() - make_interval(days => $1::int)`,
         [AWAITING_FINAL_STATUS_DAYS],
+      )
+      .then((result) => Number(result.rows[0].count)),
+    client
+      .query<{ count: string }>(
+        `SELECT count(*)::text AS count FROM service_job_cards WHERE closure_approval_status = 'Pending'`,
       )
       .then((result) => Number(result.rows[0].count)),
     client
@@ -178,6 +187,7 @@ export async function getDashboardSummary(client: PoolClient): Promise<Dashboard
       awaitingCreation: jobCardsAwaiting,
       berTotal: jobCardsBer,
       awaitingFinalStatus: jobCardsAwaitingFinal,
+      closureApprovalPending: jobCardsClosureApproval,
     },
     quotations: { total: quotationsTotal, thisMonth: quotationsMonth },
     inspections: { total: inspectionsTotal, thisMonth: inspectionsMonth },

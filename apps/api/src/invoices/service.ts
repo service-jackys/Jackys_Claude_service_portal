@@ -468,7 +468,7 @@ export function createInvoiceService(pool: Pool) {
           `Invoice ${job.portalInvoiceNo} was already issued for this job.`,
         );
       }
-      if (job.finalStatus === 'Cancelled') {
+      if (job.jobFinalStatus === 'Cancelled') {
         throw new InvoiceServiceError('blocked', 'A cancelled job cannot be invoiced.');
       }
       if (job.jobFinalStatus === 'Customer approval pending') {

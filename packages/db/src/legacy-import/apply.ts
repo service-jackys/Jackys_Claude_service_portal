@@ -297,7 +297,7 @@ export async function applyPlan(
       (j.jobFinalStatus === 'WIP' ||
         j.jobFinalStatus === 'Spare pending' ||
         j.jobFinalStatus === 'Customer approval pending');
-    const status = j.finalStatus === 'Cancelled' ? 'Cancelled' : open ? 'Open' : 'Completed';
+    const status = j.jobFinalStatus === 'Cancelled' ? 'Cancelled' : open ? 'Open' : 'Completed';
     const finalised = status === 'Completed' || status === 'Cancelled';
     const finalisedAt = finalised
       ? j.deliveryDate

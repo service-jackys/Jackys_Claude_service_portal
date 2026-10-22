@@ -338,7 +338,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     type: 'job-status-wise',
     label: 'Job Status Wise',
     description:
-      'Every job card grouped by job status and final status (BER, Rejected, awaiting final status, delivered, cancelled), with parts, value and age.',
+      'Every job card grouped by job status and final status (BER, Rejected, Cancelled, awaiting final status, delivered), with parts, value and age.',
     permission: 'service_job_card.read',
     from: `service_job_cards
       LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id`,
@@ -347,7 +347,8 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     referenceExpr: 'service_job_cards.job_card_reference',
     orderBy: `CASE service_job_cards.job_final_status
         WHEN 'Customer approval pending' THEN 1 WHEN 'WIP' THEN 2 WHEN 'Spare pending' THEN 3
-        WHEN 'BER' THEN 4 WHEN 'Repair Completed' THEN 5 ELSE 6 END,
+        WHEN 'BER' THEN 4 WHEN 'Rejected' THEN 5 WHEN 'Cancelled' THEN 6
+        WHEN 'Repair Completed' THEN 7 ELSE 8 END,
       service_job_cards.final_status NULLS FIRST,
       service_job_cards.job_card_date DESC NULLS LAST, service_job_cards.id DESC`,
     searchExprs: [
@@ -367,11 +368,12 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
         label: 'Status Group',
         expr: `CASE
           WHEN service_job_cards.final_status IS NOT NULL THEN service_job_cards.final_status
-          WHEN service_job_cards.job_final_status IN ('Repair Completed', 'BER')
+          WHEN service_job_cards.job_final_status IN ('Repair Completed', 'BER', 'Rejected', 'Cancelled')
             AND service_job_cards.updated_at < now() - interval '3 days' THEN 'Awaiting final status'
           ELSE 'Open' END`,
       },
       { label: 'Final Status Reason', expr: 'service_job_cards.final_status_reason' },
+      { label: 'Closure Approval', expr: 'service_job_cards.closure_approval_status' },
       { label: 'Number', expr: 'service_job_cards.job_card_reference' },
       { label: 'Job Card Date', expr: 'service_job_cards.job_card_date', kind: 'date' },
       { label: 'Customer Name', expr: 'service_job_cards.customer_name' },
@@ -406,7 +408,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'service_job_card.read',
     from: `(SELECT * FROM service_job_cards
         WHERE COALESCE(amount_chargeable, grand_total) > 0
-          AND final_status IS DISTINCT FROM 'Cancelled') AS service_job_cards
+          AND job_final_status IS DISTINCT FROM 'Cancelled') AS service_job_cards
       LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
       LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,
     dateExpr: 'COALESCE(service_job_cards.job_card_date, service_job_cards.created_at::date)',
@@ -475,7 +477,7 @@ export const REPORT_DEFINITIONS: ReportDefinition[] = [
     permission: 'service_job_card.read',
     from: `(SELECT * FROM service_job_cards
         WHERE COALESCE(amount_chargeable, grand_total) > 0
-          AND final_status IS DISTINCT FROM 'Cancelled'
+          AND job_final_status IS DISTINCT FROM 'Cancelled'
           AND payment_by = 'Sales channel') AS service_job_cards
       LEFT JOIN appointments ON appointments.id = service_job_cards.appointment_id
       LEFT JOIN complaints ON complaints.id = appointments.complaint_id`,

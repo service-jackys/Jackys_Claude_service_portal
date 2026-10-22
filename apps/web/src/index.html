@@ -4378,7 +4378,8 @@
       #jobCardDetail[data-jc-view='edit'] #jobCardDetailGrid,
       #jobCardDetail[data-jc-view='edit'] .jc-view-only,
       #jobCardDetail[data-jc-view='view'] #jobCardActions,
-      #jobCardDetail[data-jc-view='view'] #jobCardNextStep {
+      #jobCardDetail[data-jc-view='view'] #jobCardNextStep,
+      #jobCardDetail[data-jc-view='view'] #jobCardClosureApproval {
         display: none;
       }
       #jobCardDetail[data-jc-view='edit'] #jobCardActions {
@@ -9607,11 +9608,12 @@
                     <option>WIP</option>
                     <option>Spare pending</option>
                     <option>BER</option>
+                    <option>Rejected</option>
+                    <option>Cancelled</option>
                     <option>Repair Completed</option>
                     <option value="Awaiting final status">Awaiting final status</option>
-                    <option>Delivered</option>
-                    <option>Rejected</option>
-                    <option>Cancelled</option></select
+                    <option value="Closure approval pending">Closure approval pending</option>
+                    <option>Delivered</option></select
                   ><button class="button button-outline" type="button" id="exportJobCardsCsvButton">
                     Export CSV
                   </button>
@@ -9695,6 +9697,7 @@
                     </button>
                   </div>
                   <div class="next-step" id="jobCardNextStep" hidden></div>
+                  <div class="next-step is-warn" id="jobCardClosureApproval" hidden></div>
                   <div class="detail-grid" id="jobCardDetailGrid"></div>
                   <div class="detail-actions" id="jobCardActions" hidden>
                     <section

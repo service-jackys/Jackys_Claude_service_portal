@@ -1,9 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  BER_HANDLING_CHARGE,
   finalStatusesLocked,
   finalStatusNeedsReason,
   finalStatuses,
+  jobOutcomeStatuses,
   type FinalStatus,
   type JobFinalStatus,
   jobFinalStatusesReadyToDeliver,
@@ -28,6 +30,8 @@ import {
   listServiceJobCardHistory,
   listServiceJobCards,
   setServiceJobCardFinalStatus,
+  setServiceJobCardJobStatus,
+  setServiceJobCardClosureApproval,
   setServiceJobCardDeliveryDateIfBlank,
   updateServiceJobCardBilling,
   updateServiceJobCardContent,
@@ -78,7 +82,9 @@ export class ServiceJobCardError extends Error {
       | 'terminal-job-card'
       | 'billing-blocked'
       | 'approval-required'
-      | 'reason-required',
+      | 'reason-required'
+      | 'closure-approval-required'
+      | 'sales-channel-required',
     message: string,
   ) {
     super(message);
@@ -93,7 +99,6 @@ function isJobCardLocked(
 ): boolean {
   return (
     (card.finalStatus !== null && finalStatusesLocked.includes(card.finalStatus)) ||
-    card.status === 'Cancelled' ||
     (card.status === 'Completed' &&
       (card.jobFinalStatus === 'WIP' || card.jobFinalStatus === 'Spare pending'))
   );
@@ -469,11 +474,19 @@ function normaliseStatusAlias<T extends { jobFinalStatus?: string }>(
   return out as Omit<T, 'jobFinalStatus'> & { jobFinalStatus?: JobFinalStatus };
 }
 
+/** What the job's closing outcome bills: the rate card's OOW inspection charge and the
+ *  warranty the job is finally billed under. */
+type OutcomeRates = {
+  oowInspection: number | null;
+  effectiveWarranty: 'In Warranty' | 'Out Warranty' | null;
+};
+
 function mergeContent(
   defaults: ServiceJobCardContent,
   overrides: ServiceJobCardCreateInput | ServiceJobCardUpdateInput,
   mdaRate: number | null = null,
   createdAt: string | null = null,
+  outcomeRates: OutcomeRates | null = null,
 ): ServiceJobCardContent {
   const incoming: Record<string, unknown> = normaliseStatusAlias({ ...overrides });
   // Period from is the job created time: it is set once by the server when the
@@ -491,8 +504,31 @@ function mergeContent(
   // Major appliances (MDA) are always charged the rate card's "MDA – Standard"
   // service charge, in warranty and out of warranty, whatever the billing rule
   // or channel. It replaces any typed service charge.
-  const serviceCharge =
+  let serviceCharge =
     isMdaGroup(merged.mainGroup) && mdaRate !== null ? mdaRate : (merged.serviceCharge ?? 0);
+  const isOutcome = (jobOutcomeStatuses as readonly string[]).includes(merged.jobFinalStatus);
+  const wasOutcome = (jobOutcomeStatuses as readonly string[]).includes(defaults.jobFinalStatus);
+  if (isOutcome && outcomeRates) {
+    // A job that ends as BER, Rejected or Cancelled is not charged the repair rate.
+    // A business customer whose final warranty is Out Warranty is billed the rate
+    // card's OOW inspection charge (not for Cancelled); everyone else, and every
+    // B2C customer, pays nothing. Spare parts are not billed on these outcomes.
+    const channelPays =
+      merged.customerType !== 'B2C' &&
+      outcomeRates.effectiveWarranty === 'Out Warranty' &&
+      merged.jobFinalStatus !== 'Cancelled';
+    serviceCharge = channelPays ? (outcomeRates.oowInspection ?? BER_HANDLING_CHARGE) : 0;
+    merged.amountChargeable = serviceCharge;
+  } else if (wasOutcome && !isOutcome) {
+    // Back to repair work: the outcome charge no longer applies.
+    if (
+      overrides.serviceCharge === undefined &&
+      !(isMdaGroup(merged.mainGroup) && mdaRate !== null)
+    ) {
+      serviceCharge = 0;
+    }
+    if (overrides.amountChargeable === undefined) merged.amountChargeable = null;
+  }
   const { totalCost, grandTotal } = computeTotals(parts, serviceCharge);
   if (createdAt) merged.periodFrom = createdAt;
   // The delivery date is captured by the system when the job is Delivered,
@@ -515,6 +551,20 @@ export function createServiceJobCardService(pool: Pool) {
   const pricing = createPricingConfigService(pool);
   // The service charge MDA jobs bill, read from the live rate card so a price
   // change there applies to the next save.
+  // The rate card's OOW inspection line (AED 60), billed to the sales channel when a
+  // business job ends as BER or Rejected.
+  async function oowInspectionRate(): Promise<number | null> {
+    const rateCard = await pricing.get('rate_card');
+    const sections = (rateCard.payload ?? []) as { activities: { name: string; rate: number }[] }[];
+    for (const section of sections) {
+      for (const activity of section.activities ?? []) {
+        const name = String(activity.name).toLowerCase();
+        if (name.includes('oow') && name.includes('inspection')) return Number(activity.rate);
+      }
+    }
+    return null;
+  }
+
   async function mdaRate(): Promise<number | null> {
     const rateCard = await pricing.get('rate_card');
     return mdaStandardRate(rateCard.payload as Parameters<typeof mdaStandardRate>[0]);
@@ -1090,6 +1140,15 @@ export function createServiceJobCardService(pool: Pool) {
         },
         overrides,
         await mdaRate(),
+        null,
+        {
+          oowInspection: await oowInspectionRate(),
+          effectiveWarranty:
+            normalizeWarranty(billing.finalWarrantyStatus ?? current.finalWarrantyStatus) ??
+            normalizeWarranty(
+              (overrides as { warrantyStatus?: string }).warrantyStatus ?? current.warrantyStatus,
+            ),
+        },
       );
       if (nextFinal === 'Delivered' && !content.deliveryDate) {
         content.deliveryDate = businessToday();
@@ -1098,22 +1157,35 @@ export function createServiceJobCardService(pool: Pool) {
         list.filter((part) => part.partNo || part.description).length;
       if (
         nextFinal !== current.finalStatus &&
-        finalStatusNeedsReason({
-          jobStatus: nextJob,
-          finalStatus: nextFinal,
-          partsCount: partsOnCard(content.parts),
-          grandTotal: Number(content.grandTotal),
-        }) &&
+        finalStatusNeedsReason({ jobStatus: nextJob, finalStatus: nextFinal }) &&
         !content.finalStatusReason
       ) {
         throw new ServiceJobCardError(
           'reason-required',
-          'This BER or Rejected job carries spares or charges. Choose a reason before closing it.',
+          'Choose the reason this BER, Rejected or Cancelled job is being delivered back.',
         );
       }
       const partsBefore = partsOnCard(current.parts);
       const partsAfter = partsOnCard(content.parts);
-      if (partsAfter < partsBefore && (nextJob === 'BER' || nextFinal === 'Rejected')) {
+      // A B2C job that ends as BER or Rejected with spare parts fitted needs a manager's
+      // approval before the parts are removed or the job is delivered (it is not billed).
+      const needsClosureApproval =
+        content.customerType === 'B2C' && (nextJob === 'BER' || nextJob === 'Rejected');
+      if (
+        needsClosureApproval &&
+        !isAdmin &&
+        current.closureApprovalStatus !== 'Approved' &&
+        ((partsAfter < partsBefore && partsBefore > 0) ||
+          (nextFinal === 'Delivered' && current.finalStatus !== 'Delivered' && partsAfter > 0))
+      ) {
+        throw new ServiceJobCardError(
+          'closure-approval-required',
+          current.closureApprovalStatus === 'Pending'
+            ? 'This job is waiting for manager approval. The spare parts cannot be removed and the job cannot be delivered until it is approved.'
+            : 'This job carries spare parts. Send it for manager approval before removing the parts or delivering it.',
+        );
+      }
+      if (partsAfter < partsBefore && (jobOutcomeStatuses as readonly string[]).includes(nextJob)) {
         await insertAuditEvent(client, {
           actorProfileId: profileId,
           action: 'job_card.parts_removed',
@@ -1140,6 +1212,29 @@ export function createServiceJobCardService(pool: Pool) {
         profileId,
         nextFinal === 'Delivered' && current.finalStatus !== 'Delivered',
       );
+      if (
+        nextFinal === 'Delivered' &&
+        current.finalStatus !== 'Delivered' &&
+        (jobOutcomeStatuses as readonly string[]).includes(nextJob) &&
+        jobCard.paymentBy === 'Sales channel' &&
+        Number(jobCard.amountChargeable ?? jobCard.grandTotal) > 0 &&
+        !jobCard.billToChannel
+      ) {
+        throw new ServiceJobCardError(
+          'sales-channel-required',
+          'Choose the sales channel this job is billed to before delivering it. Open Warranty and billing and set the Sales channel or the Bill to channel.',
+        );
+      }
+      if (current.closureApprovalStatus && nextJob !== 'BER' && nextJob !== 'Rejected') {
+        // The job went back to repair work: an old approval no longer applies.
+        await client.query(
+          `UPDATE service_job_cards SET closure_approval_status = NULL,
+             closure_approval_requested_by = NULL, closure_approval_requested_at = NULL,
+             closure_approval_decided_by = NULL, closure_approval_decided_at = NULL,
+             closure_approval_note = NULL WHERE id = $1`,
+          [id],
+        );
+      }
       const finalChanged = nextFinal !== current.finalStatus;
       if (finalChanged) {
         await insertServiceJobCardHistory(
@@ -1209,6 +1304,83 @@ export function createServiceJobCardService(pool: Pool) {
         requestId,
       });
       return jobCard;
+    });
+  }
+
+  /** A CCE sends a B2C BER/Rejected job that carries spare parts for manager approval. */
+  async function requestClosureApproval(
+    id: string,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    return withTransaction(pool, async (client) => {
+      const job = await findServiceJobCardById(client, id, true);
+      if (!job) throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      if (job.customerType !== 'B2C' || !['BER', 'Rejected'].includes(job.jobFinalStatus)) {
+        throw new ServiceJobCardError(
+          'invalid-transition',
+          'Only a B2C job with the job status BER or Rejected can be sent for closure approval.',
+        );
+      }
+      if (!job.parts.some((part) => part.partNo || part.description)) {
+        throw new ServiceJobCardError(
+          'invalid-transition',
+          'This job has no spare parts, so it does not need approval.',
+        );
+      }
+      if (job.closureApprovalStatus === 'Pending' || job.finalStatus === 'Delivered') {
+        throw new ServiceJobCardError(
+          'invalid-transition',
+          job.finalStatus === 'Delivered'
+            ? 'This job is already delivered.'
+            : 'This job is already waiting for approval.',
+        );
+      }
+      await setServiceJobCardClosureApproval(client, id, { status: 'Pending', profileId });
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'job_card.closure_approval_requested',
+        targetType: 'service_job_card',
+        targetId: id,
+        metadata: { jobCardReference: job.jobCardReference },
+        requestId,
+      });
+      return (await findServiceJobCardById(client, id)) ?? job;
+    });
+  }
+
+  /** A manager approves or declines a closure-approval request. */
+  async function decideClosureApproval(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const body = (input ?? {}) as { decision?: string; note?: string };
+    if (body.decision !== 'Approved' && body.decision !== 'Declined') {
+      throw new ServiceJobCardError('invalid-transition', 'Choose Approved or Declined.');
+    }
+    const decision = body.decision;
+    const note = typeof body.note === 'string' && body.note.trim() ? body.note.trim() : null;
+    return withTransaction(pool, async (client) => {
+      const job = await findServiceJobCardById(client, id, true);
+      if (!job) throw new ServiceJobCardError('not-found', 'The service job card was not found.');
+      if (job.closureApprovalStatus !== 'Pending') {
+        throw new ServiceJobCardError(
+          'invalid-transition',
+          'This job is not waiting for closure approval.',
+        );
+      }
+      await setServiceJobCardClosureApproval(client, id, { status: decision, profileId, note });
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: `job_card.closure_approval_${decision.toLowerCase()}`,
+        targetType: 'service_job_card',
+        targetId: id,
+        metadata: { jobCardReference: job.jobCardReference, note },
+        requestId,
+      });
+      return (await findServiceJobCardById(client, id)) ?? job;
     });
   }
 
@@ -1309,7 +1481,7 @@ export function createServiceJobCardService(pool: Pool) {
         await setServiceJobCardFinalStatus(client, id, 'Delivered');
         await setServiceJobCardDeliveryDateIfBlank(client, id, businessToday());
       }
-      if (data.status === 'Cancelled') await setServiceJobCardFinalStatus(client, id, 'Cancelled');
+      if (data.status === 'Cancelled') await setServiceJobCardJobStatus(client, id, 'Cancelled');
       await insertServiceJobCardHistory(
         client,
         id,
@@ -1344,6 +1516,8 @@ export function createServiceJobCardService(pool: Pool) {
     byAppointment,
     history,
     changeStatus,
+    requestClosureApproval,
+    decideClosureApproval,
     prefillFromQuotation,
     createFromQuotation,
     byQuotation,

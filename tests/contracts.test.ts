@@ -98,23 +98,16 @@ test('job status and final status drive the internal job-card status', () => {
   assert.equal(serviceJobCardStatusForFinal('Repair Completed', null, 'In Progress'), 'Completed');
   assert.equal(serviceJobCardStatusForFinal('BER', null, 'In Progress'), 'Completed');
   assert.equal(serviceJobCardStatusForFinal('BER', 'Delivered', 'Completed'), 'Completed');
-  assert.equal(serviceJobCardStatusForFinal('WIP', 'Rejected', 'In Progress'), 'Completed');
-  assert.equal(serviceJobCardStatusForFinal('WIP', 'Cancelled', 'Open'), 'Cancelled');
+  assert.equal(serviceJobCardStatusForFinal('Rejected', null, 'In Progress'), 'Completed');
+  assert.equal(serviceJobCardStatusForFinal('Cancelled', null, 'Open'), 'Cancelled');
+  assert.equal(serviceJobCardStatusForFinal('Cancelled', 'Delivered', 'Cancelled'), 'Cancelled');
 });
 
-test('a closing needs a reason only for BER or Rejected jobs carrying spares or more than the flat charge', () => {
-  const base = { jobStatus: 'BER', finalStatus: 'Delivered', partsCount: 0, grandTotal: 60 };
-  assert.equal(finalStatusNeedsReason(base), false);
-  assert.equal(finalStatusNeedsReason({ ...base, grandTotal: 0 }), false);
-  assert.equal(finalStatusNeedsReason({ ...base, partsCount: 1 }), true);
-  assert.equal(finalStatusNeedsReason({ ...base, grandTotal: 60.5 }), true);
-  assert.equal(finalStatusNeedsReason({ ...base, finalStatus: null, partsCount: 2 }), false);
-  assert.equal(
-    finalStatusNeedsReason({ ...base, jobStatus: 'Repair Completed', partsCount: 3 }),
-    false,
-  );
-  assert.equal(
-    finalStatusNeedsReason({ ...base, jobStatus: 'WIP', finalStatus: 'Rejected', grandTotal: 200 }),
-    true,
-  );
+test('a delivered BER, Rejected or Cancelled job needs a reason', () => {
+  const base = { jobStatus: 'BER', finalStatus: 'Delivered' };
+  assert.equal(finalStatusNeedsReason(base), true);
+  assert.equal(finalStatusNeedsReason({ ...base, jobStatus: 'Rejected' }), true);
+  assert.equal(finalStatusNeedsReason({ ...base, jobStatus: 'Cancelled' }), true);
+  assert.equal(finalStatusNeedsReason({ ...base, finalStatus: null }), false);
+  assert.equal(finalStatusNeedsReason({ ...base, jobStatus: 'Repair Completed' }), false);
 });

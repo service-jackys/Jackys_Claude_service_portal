@@ -181,6 +181,9 @@ async function sampleWorkbook(dir: string): Promise<string> {
     row('JC-903', null, 'Spare pending', null, 0, null, true),
     // A BER job that was handed back keeps BER as its job status.
     row('JC-904', null, 'BER', new Date(Date.UTC(2099, 0, 10)), 60, null, true),
+    // Rejected and Cancelled are job statuses; the unit counts as returned with a delivery date.
+    row('JC-905', null, 'Rejected', new Date(Date.UTC(2099, 0, 11)), 0, null, true),
+    row('JC-906', null, 'Cancelled', null, 0, null, true),
   ]);
   return (async () => {
     const file = join(dir, 'sample.xlsx');
@@ -209,7 +212,7 @@ test(
       const file = await sampleWorkbook(dir);
       const plan = await buildPlan(file);
       assert.equal(plan.appointments.length, 2);
-      assert.equal(plan.jobCards.length, 4);
+      assert.equal(plan.jobCards.length, 6);
       assert.equal(plan.issues.filter((i) => i.level === 'error').length, 0);
       // The second job card for the same appointment is flagged and unlinked.
       const dup = plan.jobCards.find((j) => j.legacyRef === 'JC-902');
@@ -230,7 +233,7 @@ test(
       assert.equal(plan.appointments[0].technicianName, 'Imp Siva');
       // The skip mode leaves the duplicate out.
       const skipPlan = await buildPlan(file, { duplicateJobCards: 'skip' });
-      assert.equal(skipPlan.jobCards.length, 3);
+      assert.equal(skipPlan.jobCards.length, 5);
 
       const admin = await client.query<{ id: string }>(
         `SELECT id::text FROM profiles ORDER BY id LIMIT 1`,
@@ -242,7 +245,7 @@ test(
           sourceFile: file,
         });
         assert.equal(first.created.appointments, 2);
-        assert.equal(first.created.jobCards, 4);
+        assert.equal(first.created.jobCards, 6);
         const parity = await verifyParity(client, plan);
         assert.ok(
           parity.every((p) => p.ok),
@@ -254,7 +257,7 @@ test(
           sourceFile: file,
         });
         assert.equal(second.created.jobCards ?? 0, 0, 're-running creates nothing');
-        assert.equal(second.skippedExisting.jobCards, 4);
+        assert.equal(second.skippedExisting.jobCards, 6);
 
         const cards = await client.query(
           `SELECT legacy_reference, source_type, status, job_final_status, final_status, appointment_id IS NOT NULL AS linked
@@ -274,6 +277,8 @@ test(
             ['JC-902', 'Walk-in', 'Open', 'WIP', null, false],
             ['JC-903', 'Walk-in', 'Open', 'Spare pending', null, false],
             ['JC-904', 'Walk-in', 'Completed', 'BER', 'Delivered', false],
+            ['JC-905', 'Walk-in', 'Completed', 'Rejected', 'Delivered', false],
+            ['JC-906', 'Walk-in', 'Cancelled', 'Cancelled', null, false],
           ],
         );
         // New appointments continue after the imported APT numbers.

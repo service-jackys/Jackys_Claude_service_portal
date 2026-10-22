@@ -3151,3 +3151,24 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/reports/definitions.ts.
 
 **Needs you:** pull and restart the API. No migration.
+
+## Modification #127 — BER, Rejected and Cancelled: Final status is Delivered only, with billing rules
+
+**Date:** 2026-10-22
+
+**Why.** Every job ends with the unit going back to the customer, including BER, Rejected and Cancelled ones. The charge for those endings also differed by customer type, and a B2C customer who refused a quote could not collect the unit because the system wanted an invoice.
+
+**What changed.**
+- Job status now has seven values: Customer approval pending, WIP, Spare pending, BER, Rejected, Cancelled, Repair Completed. Final status has one: Delivered. It can be chosen when the job status is Repair Completed, BER, Rejected or Cancelled.
+- Choosing a final status on a BER, Rejected or Cancelled job opens a pop-up asking for the reason (parts written off, returned to stock, diagnosis charge only, customer declined the quote, no charge, duplicate job card, entered by mistake, customer cancelled the job, other).
+- B2C: BER and Rejected jobs are not charged. The MDA service charge is replaced by 0 and the job can be delivered without an invoice.
+- B2B (including sales-channel customers): when the final warranty status is Out Warranty, a BER or Rejected job is billed the rate card OOW inspection charge (AED 60) to the sales channel, replacing the MDA charge. It flows to Billing automatically. If the final warranty status is In Warranty nothing is billed. If no sales channel is set a pop-up asks for one before delivery.
+- Cancelled jobs are never billed.
+- B2C BER or Rejected job with spare parts: the CCE sends it for manager approval. Until it is approved the parts cannot be removed and the job cannot be delivered. After approval the CCE removes the parts and delivers. New permission "service_job_card.approve_closure" (admin and management). A "Closure approvals waiting" dashboard tile and filter show waiting jobs.
+- Delivered locks the card (admin can still edit). Cancelled jobs are no longer locked until they are delivered.
+- Reports: Job Status Wise now includes Rejected, Cancelled and Closure Approval.
+- Migration 051 moves jobs that were closed as Rejected or Cancelled back into job status. The Google Sheet importer sets both statuses the same way.
+
+**Files.** packages/db/migrations/051_job_status_outcomes.sql, packages/contracts, packages/db/src/{job-cards,dashboard,invoices,billing-ledger,budget-variance}.ts, packages/db/src/legacy-import/*, apps/api/src/{job-cards,invoices,reports,api}, apps/web/src/{app.js,index.html}, tests.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 051), restart the API, hard-refresh. Then re-run the sheet import on staging (clear, import, verify).
