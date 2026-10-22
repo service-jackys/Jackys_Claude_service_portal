@@ -1037,6 +1037,58 @@
       #complaintWorkspace .table-wrap table {
         font-size: 0.8rem;
       }
+      .job-card-table th,
+      .job-card-table td {
+        vertical-align: middle;
+      }
+      .job-card-table td:nth-child(1),
+      .job-card-table td:nth-child(2),
+      .job-card-table td:nth-child(4),
+      .job-card-table td:nth-child(5) {
+        white-space: nowrap;
+      }
+      .job-card-table td:nth-child(3) {
+        min-width: 11rem;
+        max-width: 18rem;
+        overflow-wrap: anywhere;
+      }
+      .ctype {
+        display: inline-block;
+        border-radius: 6px;
+        padding: 0.2rem 0.5rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1.2;
+        white-space: nowrap;
+        background: #eef2f7;
+        color: #334155;
+        border: 1px solid #d5dde8;
+      }
+      .ctype-b2c {
+        background: #e9f3fb;
+        color: #155b91;
+        border-color: #c4def2;
+      }
+      .ctype-b2b {
+        background: #fdf1dc;
+        color: #8a5a00;
+        border-color: #f1d9a8;
+      }
+      [data-theme='dark'] .ctype {
+        background: #1f2a3a;
+        color: #cbd5e1;
+        border-color: #334155;
+      }
+      [data-theme='dark'] .ctype-b2c {
+        background: #12304a;
+        color: #9fd0f5;
+        border-color: #1f4f78;
+      }
+      [data-theme='dark'] .ctype-b2b {
+        background: #3d2d0a;
+        color: #f3cf86;
+        border-color: #6b4e12;
+      }
       .status {
         display: inline-block;
         border-radius: 999px;
@@ -9641,7 +9693,7 @@
                   </button>
                 </div>
                 <div class="table-wrap">
-                  <table>
+                  <table class="job-card-table">
                     <caption class="visually-hidden">
                       Service job cards
                     </caption>
@@ -9650,6 +9702,7 @@
                         <th>Reference</th>
                         <th>Appointment</th>
                         <th>Customer</th>
+                        <th>Customer type</th>
                         <th>Schedule</th>
                         <th>Status</th>
                         <th>Final status</th>
