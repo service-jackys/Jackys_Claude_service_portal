@@ -39,6 +39,7 @@ test(
     const jobCardService = createServiceJobCardService(pool);
     const appointmentIds: string[] = [];
     const jobCardIds: string[] = [];
+    const branchNames: string[] = [];
     let profileId: string | undefined;
     let nextDay = 70;
 
@@ -223,6 +224,24 @@ test(
       assert.equal(cancelledDone.jobFinalStatus, 'Cancelled');
 
       // ---- Delivered is not allowed from WIP.
+      // ---- A business job picks up salesman and channel from its B2B Branch / School.
+      const branchName = `Link Test School ${randomUUID().slice(0, 8)}`;
+      await pool.query(
+        `INSERT INTO b2b_branches (cust_code, branch_name, salesman, sales_channel)
+         VALUES ($1, $2, 'Link Test Salesman', 'Link Test Channel')`,
+        [`LT-${randomUUID().slice(0, 8)}`, branchName],
+      );
+      branchNames.push(branchName);
+      const linked = await makeCard({ customerType: 'B2B', b2bBranchSchool: branchName });
+      const saved = await jobCardService.updateContent(
+        linked.id,
+        { complaint: 'Linking check' },
+        profileId,
+        'outcome-link',
+      );
+      assert.equal(saved.salesman, 'Link Test Salesman');
+      assert.equal(saved.salesChannel, 'Link Test Channel');
+
       const wip = await makeCard({});
       await assert.rejects(
         jobCardService.updateContent(
@@ -247,6 +266,9 @@ test(
           [id],
         );
         await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
+      }
+      for (const name of branchNames) {
+        await pool.query(`DELETE FROM b2b_branches WHERE branch_name = $1`, [name]);
       }
       if (profileId) await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);
       await pool.end();

@@ -1212,7 +1212,7 @@
         <div class="field"><label for="${prefix}CustomerType">Customer type</label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
         <div class="field"><label for="${prefix}CustomerEmail">Email address</label><input type="email" id="${prefix}CustomerEmail" maxlength="320"></div>
         <div class="field"><label for="${prefix}Region">Region</label><select id="${prefix}Region"><option value="">Select region</option>${REGION_LIST.map((r) => `<option>${r}</option>`).join('')}</select></div>
-        <div class="field"><label for="${prefix}B2bBranchSchool">B2B Branch / School</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300"></div>
+        <div class="field"><label for="${prefix}B2bBranchSchool">B2B Branch / School</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300" list="${prefix}BranchList" autocomplete="off"><datalist id="${prefix}BranchList"></datalist><small id="${prefix}BranchHint" class="field-hint" hidden></small></div>
         <div class="field"><label for="${prefix}SchoolContactPerson">Site contact person</label><input type="text" id="${prefix}SchoolContactPerson" maxlength="500"></div>
         <div class="field"><label for="${prefix}SchoolContactNumber">Site contact number</label><input type="text" id="${prefix}SchoolContactNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}CustomerNumber">Customer number</label><input type="text" id="${prefix}CustomerNumber" maxlength="100"></div>
@@ -1451,6 +1451,7 @@
         subGroup: $(`#${prefix}SubGroup`),
         onFilled: () => refreshBillingPreview(prefix),
       });
+      attachSalesLinking(prefix);
       $(`#${prefix}AddPartButton`).addEventListener('click', () => {
         jobCardPartsState[prefix].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
         renderJobCardParts(prefix);
@@ -1469,6 +1470,158 @@
       $(`#${prefix}PurchaseDate`).addEventListener('input', () => refreshWarrantyDaysPill(prefix));
       $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
       $(`#${prefix}PeriodTo`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
+    });
+  }
+
+  // Salesman -> Sales channel, and B2B Branch / School -> Salesman, Sales channel,
+  // Customer number and Sales order (modification #128). The masters supply the values;
+  // every field stays editable.
+  function channelForSalesman(name) {
+    const record = salesmenOptions.find(
+      (option) =>
+        String(option.name).toLowerCase() ===
+        String(name || '')
+          .trim()
+          .toLowerCase(),
+    );
+    return record?.salesChannel || '';
+  }
+
+  function setSelectValue(selector, value) {
+    const select = $(selector);
+    if (!select || !value) return;
+    if (![...select.options].some((option) => option.value === value)) {
+      select.insertAdjacentHTML(
+        'beforeend',
+        `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`,
+      );
+    }
+    select.value = value;
+  }
+
+  function clearMissingMark(element) {
+    element?.classList.remove('field-missing');
+    element?.closest('.field')?.classList.remove('field-missing');
+  }
+
+  // Scrolls to the first empty field a delivery needs and shades each one, so the CCE
+  // sees exactly what to fill. The shading clears as soon as the field is touched.
+  function highlightMissingForDelivery(prefix) {
+    const targets = [];
+    const type = $(`#${prefix}CustomerType`).value;
+    if (type && type !== 'B2C' && !$(`#${prefix}B2bBranchSchool`).value.trim()) {
+      targets.push($(`#${prefix}B2bBranchSchool`));
+    }
+    if (type && type !== 'B2C' && !$(`#${prefix}Salesman`).value) {
+      targets.push($(`#${prefix}Salesman`));
+    }
+    if (!$(`#${prefix}SalesChannel`).value && !$(`#${prefix}BillToChannel`)?.value) {
+      targets.push($(`#${prefix}SalesChannel`));
+    }
+    targets.forEach((input) => {
+      const field = input.closest('.field');
+      field?.classList.add('field-missing');
+      const clear = () => clearMissingMark(input);
+      input.addEventListener('input', clear, { once: true });
+      input.addEventListener('change', clear, { once: true });
+    });
+    const first = targets[0];
+    if (first) {
+      first.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      first.focus({ preventScroll: true });
+    }
+  }
+
+  function setBranchHint(prefix, text, kind) {
+    const hint = $(`#${prefix}BranchHint`);
+    if (!hint) return;
+    hint.hidden = !text;
+    hint.textContent = text || '';
+    hint.dataset.kind = kind || '';
+  }
+
+  async function applyBranchLookup(prefix) {
+    const input = $(`#${prefix}B2bBranchSchool`);
+    const name = input.value.trim();
+    if (!name || $(`#${prefix}CustomerType`).value === 'B2C') {
+      setBranchHint(prefix, '', '');
+      return;
+    }
+    let branch = null;
+    try {
+      const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(name));
+      branch = (result.branches || []).find(
+        (item) => String(item.branchName).trim().toLowerCase() === name.toLowerCase(),
+      );
+    } catch {
+      return;
+    }
+    if (input.value.trim() !== name) return;
+    if (!branch) {
+      setBranchHint(
+        prefix,
+        'This name is not in the B2B Branch / School list. Pick the correct school from the suggestions to load its salesman and sales channel.',
+        'warn',
+      );
+      return;
+    }
+    input.value = branch.branchName;
+    clearMissingMark(input);
+    if (branch.custCode) $(`#${prefix}CustomerNumber`).value = branch.custCode;
+    if (branch.lastSalesOrderNumber) {
+      $(`#${prefix}SalesOrderNumber`).value = branch.lastSalesOrderNumber;
+    }
+    if (branch.salesman) setSelectValue(`#${prefix}Salesman`, branch.salesman);
+    const channel = channelForSalesman(branch.salesman) || branch.salesChannel;
+    if (channel) setSelectValue(`#${prefix}SalesChannel`, channel);
+    clearMissingMark($(`#${prefix}Salesman`));
+    clearMissingMark($(`#${prefix}SalesChannel`));
+    markMasterFields(prefix, [
+      'b2bBranchSchool',
+      'customerNumber',
+      'salesOrderNumber',
+      'salesman',
+      'salesChannel',
+    ]);
+    setBranchHint(prefix, 'Matched in the B2B Branch / School list. Details loaded.', 'ok');
+    refreshBillingPreview(prefix);
+  }
+
+  function attachSalesLinking(prefix) {
+    const branch = $(`#${prefix}B2bBranchSchool`);
+    const list = $(`#${prefix}BranchList`);
+    let timer = null;
+    let seq = 0;
+    branch.addEventListener('input', () => {
+      clearTimeout(timer);
+      setBranchHint(prefix, '', '');
+      const term = branch.value.trim();
+      if (term.length < 2) {
+        list.innerHTML = '';
+        return;
+      }
+      timer = setTimeout(async () => {
+        const mine = ++seq;
+        try {
+          const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(term));
+          if (mine !== seq) return;
+          const names = [...new Set((result.branches || []).map((item) => item.branchName))];
+          list.innerHTML = names
+            .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+            .join('');
+        } catch {
+          list.innerHTML = '';
+        }
+      }, 250);
+    });
+    branch.addEventListener('change', () => applyBranchLookup(prefix));
+    $(`#${prefix}Salesman`).addEventListener('change', () => {
+      const channel = channelForSalesman($(`#${prefix}Salesman`).value);
+      if (channel) {
+        setSelectValue(`#${prefix}SalesChannel`, channel);
+        clearMissingMark($(`#${prefix}SalesChannel`));
+        refreshBillingPreview(prefix);
+      }
     });
   }
 
@@ -1914,6 +2067,7 @@
       );
       final.value = '';
       refreshFinalStatusReason(prefix);
+      highlightMissingForDelivery(prefix);
       return;
     }
     const field = $(`#${prefix}FinalStatusReasonField`);
@@ -6098,6 +6252,8 @@ ${bodyHtml}
       ) {
         // Keep the form as it is, so nothing typed is lost, and explain what is needed.
         await notifyDialog('Before this job can be closed', error.message);
+        if (/^Choose the sales channel/.test(error.message || ''))
+          highlightMissingForDelivery('jce');
       } else if (error.status === 400 || error.status === 404 || error.status === 409) {
         await loadJobCardDetail(currentJobCardId);
         setMessage('#workspaceMessage', error.message);

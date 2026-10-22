@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 128,
+    title: 'Salesman, Sales channel and B2B Branch / School linked on the job card',
+    area: 'Job cards',
+    date: '2026-10-22',
+    approxDate: false,
+    status: null,
+    summary:
+      'Delivering a business job needs a sales channel, but the Salesman and Sales channel were often blank and the CCE had to find them by hand. The masters already know them.',
+    changes: [
+      'Choosing a Salesman on the job card fills the Sales channel from the salesman master.',
+      'Choosing or correcting the B2B Branch / School (type-ahead from the master) loads the Salesman, Sales channel, Customer number and Sales order. A name that is not in the list shows a hint asking the CCE to pick the correct school.',
+      'After the "Choose the sales channel" pop-up (or the matching save error), the page scrolls to the empty required fields (B2B Branch / School, Salesman, Sales channel) and shades them. The shading clears when the field is touched.',
+      'Saving a business job card fills blank salesman, channel, customer number and sales order from a matching branch. Opening an existing job fills them on the form the same way.',
+      'Migration 052 fills these fields once on all existing business job cards (blank fields only). The sheet importer runs the same fill after a load.',
+    ],
+    needsYou:
+      'pull, run npm.cmd run db:migrate (expect "Applied migrations: 052", after 051 if not yet applied), restart the API, hard-refresh.',
+    migrations: ['052_link_job_sales_to_branches.sql'],
+    files:
+      'packages/db/migrations/052_link_job_sales_to_branches.sql, packages/db/src/{job-cards,legacy-import/apply}.ts, apps/api/src/job-cards/service.ts, apps/web/src/{app.js,index.html}…',
+  },
+  {
     id: 127,
     title: 'BER, Rejected and Cancelled: Final status is Delivered only, with billing rules',
     area: 'Invoices & billing',

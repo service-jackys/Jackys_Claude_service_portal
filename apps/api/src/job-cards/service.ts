@@ -225,14 +225,31 @@ async function masterContextFor(
       masterFields.add('salesOrderNumber');
     }
   }
-  if (content.salesman) {
-    const record = await findSalesmanByName(client, content.salesman);
-    if (record || (branch && sameText(content.salesman, branch.salesman))) {
+  if (branch) {
+    if (!content.customerNumber && branch.custCode) masterFill.customerNumber = branch.custCode;
+    if (!content.salesOrderNumber && branch.lastSalesOrderNumber) {
+      masterFill.salesOrderNumber = branch.lastSalesOrderNumber;
+    }
+    // A matched branch supplies the salesman when the job card has none.
+    if (!content.salesman && branch.salesman) masterFill.salesman = branch.salesman;
+  }
+  const salesmanName = content.salesman || masterFill.salesman;
+  if (salesmanName) {
+    const record = await findSalesmanByName(client, salesmanName);
+    if (record || (branch && sameText(salesmanName, branch.salesman))) {
       masterFields.add('salesman');
     }
-    if (record?.salesChannel && sameText(content.salesChannel, record.salesChannel)) {
+    // The salesman's own channel wins; otherwise the branch's channel.
+    const channel = record?.salesChannel || (branch?.salesChannel ?? null);
+    if (channel && !content.salesChannel) {
+      masterFill.salesChannel = channel;
+      masterFields.add('salesChannel');
+    } else if (channel && sameText(content.salesChannel, channel)) {
       masterFields.add('salesChannel');
     }
+  } else if (branch?.salesChannel && !content.salesChannel) {
+    masterFill.salesChannel = branch.salesChannel;
+    masterFields.add('salesChannel');
   }
 
   const item = await resolveStockItem(client, content.itemCode || content.modelNo, content.brand);
@@ -1200,6 +1217,20 @@ export function createServiceJobCardService(pool: Pool) {
           },
           requestId,
         });
+      }
+      if (content.customerType !== 'B2C') {
+        // A business job takes its salesman, sales channel, customer number and sales
+        // order from the B2B Branch / School master when they are blank (#128).
+        const linked = await masterContextFor(client, content);
+        for (const key of [
+          'salesman',
+          'salesChannel',
+          'customerNumber',
+          'salesOrderNumber',
+        ] as const) {
+          const value = linked.masterFill[key];
+          if (value && !content[key]) content[key] = value;
+        }
       }
       let jobCard = await updateServiceJobCardContent(client, id, content, profileId);
       if (!jobCard)

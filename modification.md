@@ -3172,3 +3172,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/051_job_status_outcomes.sql, packages/contracts, packages/db/src/{job-cards,dashboard,invoices,billing-ledger,budget-variance}.ts, packages/db/src/legacy-import/*, apps/api/src/{job-cards,invoices,reports,api}, apps/web/src/{app.js,index.html}, tests.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 051), restart the API, hard-refresh. Then re-run the sheet import on staging (clear, import, verify).
+
+## Modification #128 — Salesman, Sales channel and B2B Branch / School linked on the job card
+
+**Date:** 2026-10-22
+
+**Why.** Delivering a business job needs a sales channel, but the Salesman and Sales channel were often blank and the CCE had to find them by hand. The masters already know them.
+
+**What changed.**
+- Choosing a Salesman on the job card fills the Sales channel from the salesman master.
+- Choosing or correcting the B2B Branch / School (type-ahead from the master) loads the Salesman, Sales channel, Customer number and Sales order. A name that is not in the list shows a hint asking the CCE to pick the correct school.
+- After the "Choose the sales channel" pop-up (or the matching save error), the page scrolls to the empty required fields (B2B Branch / School, Salesman, Sales channel) and shades them. The shading clears when the field is touched.
+- Saving a business job card fills blank salesman, channel, customer number and sales order from a matching branch. Opening an existing job fills them on the form the same way.
+- Migration 052 fills these fields once on all existing business job cards (blank fields only). The sheet importer runs the same fill after a load.
+
+**Files.** packages/db/migrations/052_link_job_sales_to_branches.sql, packages/db/src/{job-cards,legacy-import/apply}.ts, apps/api/src/job-cards/service.ts, apps/web/src/{app.js,index.html}, tests/integration/final-status.test.ts.
+
+**Needs you:** pull, run `npm.cmd run db:migrate` (expect "Applied migrations: 052", after 051 if not yet applied), restart the API, hard-refresh.

@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { backfillJobCardSalesLinks } from '../job-cards.js';
 import {
   allocateInspectionReference,
   allocateJobCardReference,
@@ -424,6 +425,8 @@ export async function applyPlan(
     [batchId],
   );
   void yearOf;
+  // Business jobs take salesman / channel from the B2B Branch / School master (#128).
+  await backfillJobCardSalesLinks(client);
   return { batchId, created, skippedExisting };
 }
 
