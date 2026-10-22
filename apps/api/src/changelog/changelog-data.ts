@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 129,
+    title: 'Customer type column in the service job card list',
+    area: 'Job cards',
+    date: '2026-10-22',
+    approxDate: false,
+    status: null,
+    summary: 'The CCE could not tell a B2C job from a business job without opening it.',
+    changes: [
+      'What changed: The service job card list has a new "Customer type" column after Customer, shown as a small badge (B2C blue, B2B amber). The "Awaiting job card" list shows it too. Cells stay on one line and the customer column wraps, so…',
+    ],
+    needsYou: 'pull, restart the API, hard-refresh. No migration.',
+    migrations: [],
+    files: 'apps/web/src/{app.js,index.html}, packages/db/src/job-cards.ts.',
+  },
+  {
     id: 128,
     title: 'Salesman, Sales channel and B2B Branch / School linked on the job card',
     area: 'Job cards',

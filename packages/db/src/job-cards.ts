@@ -743,6 +743,7 @@ export type AwaitingJobCardAppointment = {
   complaintReference: string | null;
   customerName: string;
   contactNumber: string | null;
+  customerType: string | null;
   brand: string | null;
   model: string | null;
   faultDescription: string;
@@ -778,6 +779,7 @@ export async function listAppointmentsAwaitingJobCard(
             complaints.complaint_reference AS "complaintReference",
             appointments.customer_name AS "customerName",
             appointments.contact_number AS "contactNumber",
+            appointments.customer_type AS "customerType",
             appointments.brand AS brand,
             appointments.model AS model,
             appointments.fault_description AS "faultDescription",

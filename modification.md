@@ -3189,3 +3189,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/052_link_job_sales_to_branches.sql, packages/db/src/{job-cards,legacy-import/apply}.ts, apps/api/src/job-cards/service.ts, apps/web/src/{app.js,index.html}, tests/integration/final-status.test.ts.
 
 **Needs you:** pull, run `npm.cmd run db:migrate` (expect "Applied migrations: 052", after 051 if not yet applied), restart the API, hard-refresh.
+
+## Modification #129 — Customer type column in the service job card list
+
+**Date:** 2026-10-22
+
+**Why.** The CCE could not tell a B2C job from a business job without opening it.
+
+**What changed.** The service job card list has a new "Customer type" column after Customer, shown as a small badge (B2C blue, B2B amber). The "Awaiting job card" list shows it too. Cells stay on one line and the customer column wraps, so nothing overlaps; the table scrolls sideways on narrow screens.
+
+**Files.** apps/web/src/{app.js,index.html}, packages/db/src/job-cards.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.

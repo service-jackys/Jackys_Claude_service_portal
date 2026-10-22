@@ -3381,6 +3381,13 @@ ${bodyHtml}
   // are not job cards, so the list switches to /api/job-cards/awaiting.
   const AWAITING_JOB_CARD_FILTER = 'awaiting-job-card';
 
+  // Small badge for the customer type column (B2C / B2B / B2B-SalesChannel).
+  function customerTypeBadge(type) {
+    if (!type) return '';
+    const kind = type === 'B2C' ? 'ctype-b2c' : 'ctype-b2b';
+    return `<span class="ctype ${kind}">${escapeHtml(type)}</span>`;
+  }
+
   function renderAwaitingJobCards(appointments) {
     const body = $('#jobCardsBody');
     const canCreate = hasPermission('service_job_card.write');
@@ -3391,7 +3398,7 @@ ${bodyHtml}
           canCreate
             ? `<button class="button button-secondary" type="button" data-create-for="${escapeHtml(row.appointmentId)}">Create job card</button>`
             : '<em>Not created</em>'
-        }</td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(row.appointmentId)}">${escapeHtml(row.appointmentReference)}</button>${row.complaintReference ? '<br><small>' + escapeHtml(row.complaintReference) + '</small>' : ''}</td><td><strong>${escapeHtml(row.customerName)}</strong><br>${escapeHtml(row.contactNumber || '')}${item ? '<br><small>' + escapeHtml(item) + '</small>' : ''}</td><td>${escapeHtml(formatDate(row.appointmentDate))}${row.technicianName ? '<br><small>' + escapeHtml(row.technicianName) + '</small>' : ''}</td><td><span class="status status-in-progress">Awaiting job card</span></td></tr>`;
+        }</td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(row.appointmentId)}">${escapeHtml(row.appointmentReference)}</button>${row.complaintReference ? '<br><small>' + escapeHtml(row.complaintReference) + '</small>' : ''}</td><td><strong>${escapeHtml(row.customerName)}</strong><br>${escapeHtml(row.contactNumber || '')}${item ? '<br><small>' + escapeHtml(item) + '</small>' : ''}</td><td>${customerTypeBadge(row.customerType)}</td><td>${escapeHtml(formatDate(row.appointmentDate))}${row.technicianName ? '<br><small>' + escapeHtml(row.technicianName) + '</small>' : ''}</td><td><span class="status status-in-progress">Awaiting job card</span></td></tr>`;
       })
       .join('');
     const empty = $('#jobCardsEmpty');
@@ -3417,7 +3424,7 @@ ${bodyHtml}
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${customerTypeBadge(jobCard.customerType)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
@@ -3499,7 +3506,7 @@ ${bodyHtml}
     const awaiting = status === AWAITING_JOB_CARD_FILTER;
     if (status && !awaiting) params.set('status', status);
     $('#jobCardsBody').innerHTML =
-      '<tr><td colspan="6" class="empty-state">Loading service job cards…</td></tr>';
+      '<tr><td colspan="7" class="empty-state">Loading service job cards…</td></tr>';
     try {
       if (awaiting) {
         const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
