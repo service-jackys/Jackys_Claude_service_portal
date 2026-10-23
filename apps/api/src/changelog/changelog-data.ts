@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 132,
+    title: 'Revenue drill-down: ERP parent brand replaces Order status',
+    area: 'Revenue',
+    date: '2026-10-23',
+    approxDate: false,
+    status: null,
+    summary:
+      'The job list under a revenue drill-down showed Order status, which the team does not use there. The brand of the item is more useful.',
+    changes: [
+      'What changed: The job list table shows "ERP parent brand" (from the "ERP Parent Brand(s)" column of the master workbook) in place of Order status. Jobs that have no ERP match, such as warranty repairs, show an empty cell. Order status is…',
+    ],
+    needsYou:
+      'pull, restart the API, hard-refresh. No migration; the brand is read from data already stored with each upload, so no re-upload is needed.',
+    migrations: [],
+    files: 'packages/db/src/revenue-dashboard.ts, apps/web/src/app.js.',
+  },
+  {
     id: 131,
     title: 'Revenue dashboard upload: workbooks with Excel tables',
     area: 'Revenue',

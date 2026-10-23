@@ -3225,3 +3225,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/parser.ts, package.json (jszip listed as a direct dependency), package-lock.json.
 
 **Needs you:** pull, run `npm.cmd install`, restart the API, then upload the file again.
+
+## Modification #132 — Revenue drill-down: ERP parent brand replaces Order status
+
+**Date:** 2026-10-23
+
+**Why.** The job list under a revenue drill-down showed Order status, which the team does not use there. The brand of the item is more useful.
+
+**What changed.** The job list table shows "ERP parent brand" (from the "ERP Parent Brand(s)" column of the master workbook) in place of Order status. Jobs that have no ERP match, such as warranty repairs, show an empty cell. Order status is still in the Excel exports.
+
+**Files.** packages/db/src/revenue-dashboard.ts, apps/web/src/app.js.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration; the brand is read from data already stored with each upload, so no re-upload is needed.

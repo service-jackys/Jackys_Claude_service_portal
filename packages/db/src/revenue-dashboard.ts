@@ -436,7 +436,8 @@ const lineColumns = `
   csosc_status AS "orderStatus", job_sheet_status AS "jobSheetStatus",
   sales_person AS "salesPerson", qty, unit_price AS "unitPrice", revenue,
   original_job_value AS "originalJobValue", billing_code AS "billingCode",
-  sales_channel AS "salesChannel", cost_status AS "costStatus", remarks
+  sales_channel AS "salesChannel", cost_status AS "costStatus", remarks,
+  pricing->>'erpBrand' AS "erpBrand"
 `;
 
 export async function revenueLines(
