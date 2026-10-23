@@ -3213,3 +3213,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html (styles only).
 
 **Needs you:** pull and hard-refresh. No migration, no API restart.
+
+## Modification #131 — Revenue dashboard upload: workbooks with Excel tables
+
+**Date:** 2026-10-23
+
+**Why.** Uploading Service_Dashboard_Master_ACC_OCT_21_Final.xlsm showed "The file could not be read as an Excel workbook". The file is a valid workbook; the Excel library stopped on one of its Power Query tables.
+
+**What changed.** If the first read fails, the upload retries on a copy with the table definitions removed. Cell values are unchanged. The OCT 21 file now reads: 925 revenue lines.
+
+**Files.** apps/api/src/revenue-dashboard/parser.ts, package.json (jszip listed as a direct dependency), package-lock.json.
+
+**Needs you:** pull, run `npm.cmd install`, restart the API, then upload the file again.
