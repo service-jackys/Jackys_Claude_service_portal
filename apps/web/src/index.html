@@ -6715,55 +6715,80 @@
         height: 100%;
         border-radius: 999px;
       }
-      /* board */
+      /* board -- compact task-board look (modification #130) */
       .tk-board {
         display: grid;
-        grid-template-columns: repeat(4, minmax(230px, 1fr));
-        gap: 0.75rem;
+        grid-template-columns: repeat(4, minmax(240px, 1fr));
+        gap: 0.7rem;
+        align-items: start;
         overflow-x: auto;
         padding-bottom: 0.5rem;
       }
       .tk-col {
-        min-height: 220px;
-        padding: 0.6rem;
-        border: 1px solid var(--line);
-        border-radius: var(--tk-radius);
-        background: var(--surface-soft);
+        min-height: 160px;
+        min-width: 0;
+        padding: 0.55rem 0.5rem 0.6rem;
+        border: 1px solid #e3e8ef;
+        border-radius: 10px;
+        background: #f4f6f9;
       }
       .tk-col > header {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        margin-bottom: 0.6rem;
-        font-weight: 800;
-        color: var(--navy);
+        gap: 0.45rem;
+        margin: 0 0.2rem 0.55rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #51627a;
+      }
+      .tk-col > header .tk-dot {
+        width: 8px;
+        height: 8px;
+      }
+      .tk-col > header .tk-count {
+        margin-left: auto;
+        font-size: 0.68rem;
+        background: #e3e8ef;
       }
       .tk-col-over {
-        background: #e9f3fb;
+        background: #eaf2fb;
         border-color: var(--blue);
       }
       .tk-cards {
         display: flex;
         flex-direction: column;
-        gap: 0.55rem;
+        gap: 0.45rem;
+        max-height: calc(100vh - 300px);
+        min-height: 60px;
+        overflow-y: auto;
+        padding: 1px;
       }
       .tk-col-empty {
-        margin: 1.2rem 0;
+        margin: 1rem 0;
+        padding: 0.8rem;
+        border: 1px dashed #cdd6e1;
+        border-radius: 8px;
         text-align: center;
-        font-size: 0.8rem;
-        color: var(--muted);
+        font-size: 0.74rem;
+        color: #8795a8;
       }
       .tk-card {
-        padding: 0.65rem 0.75rem;
-        border: 1px solid var(--line);
-        border-left: 4px solid var(--line);
-        border-radius: 10px;
+        padding: 0.55rem 0.65rem 0.5rem;
+        border: 1px solid #e3e8ef;
+        border-left: 3px solid #cbd5e1;
+        border-radius: 8px;
         background: #fff;
-        box-shadow: 0 1px 2px rgb(16 43 78 / 6%);
+        box-shadow: 0 1px 1px rgb(16 43 78 / 4%);
         cursor: grab;
+        transition:
+          box-shadow 0.15s ease,
+          border-color 0.15s ease;
       }
       .tk-card:hover {
-        box-shadow: 0 6px 16px rgb(16 43 78 / 12%);
+        border-color: #cdd6e1;
+        box-shadow: 0 3px 10px rgb(16 43 78 / 10%);
       }
       .tk-dragging {
         opacity: 0.45;
@@ -6775,53 +6800,67 @@
         border-left-color: #f59e0b;
       }
       .tk-pb-medium {
-        border-left-color: #3b82f6;
+        border-left-color: #60a5fa;
       }
       .tk-pb-low {
         border-left-color: #cbd5e1;
       }
       .tk-card-title {
-        display: block;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        width: 100%;
         border: 0;
         background: none;
         padding: 0;
         text-align: left;
-        font-weight: 700;
-        font-size: 0.88rem;
+        font-family: inherit;
+        font-weight: 600;
+        font-size: 0.8rem;
+        line-height: 1.35;
         color: var(--ink);
         cursor: pointer;
+      }
+      .tk-card-title:hover {
+        color: var(--blue);
       }
       .tk-card-meta {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 0.35rem;
-        margin: 0.4rem 0;
+        gap: 0.3rem;
+        margin: 0.4rem 0 0.3rem;
       }
       .tk-card-meta .tk-kind {
         margin: 0;
+        padding: 1px 6px;
+        font-size: 0.64rem;
+        font-weight: 600;
       }
       .tk-prio {
-        padding: 1px 8px;
-        border-radius: 999px;
-        font-size: 0.68rem;
-        font-weight: 700;
+        padding: 1px 6px;
+        border-radius: 4px;
+        font-size: 0.64rem;
+        font-weight: 600;
+        letter-spacing: 0.01em;
       }
       .tk-due {
         display: inline-flex;
         align-items: center;
         gap: 3px;
-        font-size: 0.74rem;
+        font-size: 0.68rem;
         color: var(--muted);
       }
       .tk-due .tk-ico {
-        width: 12px;
-        height: 12px;
+        width: 11px;
+        height: 11px;
       }
       .tk-card-remarks {
-        margin: 0 0 0.4rem;
-        font-size: 0.78rem;
-        color: var(--muted);
+        margin: 0 0 0.35rem;
+        font-size: 0.72rem;
+        line-height: 1.35;
+        color: #6b7a90;
         display: -webkit-box;
         -webkit-line-clamp: 2;
         -webkit-box-orient: vertical;
@@ -6830,16 +6869,32 @@
       .tk-card-foot {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
+        gap: 0.4rem;
+        margin-top: 0.35rem;
+      }
+      .tk-card-foot .tk-progress {
+        flex: 1;
+        min-width: 0;
+        height: 4px;
       }
       .tk-pct {
-        font-size: 0.74rem;
-        font-weight: 700;
-        color: var(--navy);
+        min-width: 2.2rem;
+        font-size: 0.68rem;
+        font-weight: 600;
+        color: #6b7a90;
+        text-align: right;
       }
       .tk-card-foot select {
-        max-width: 108px;
-        font-size: 0.72rem;
+        flex: none;
+        max-width: 96px;
+        min-width: 0;
+        padding: 0.12rem 0.3rem;
+        border: 1px solid #e3e8ef;
+        border-radius: 6px;
+        background: #f8fafc;
+        font-size: 0.66rem;
+        font-weight: 600;
+        color: #51627a;
       }
       /* timeline */
       .tk-tl-bar {

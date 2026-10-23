@@ -3201,3 +3201,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html}, packages/db/src/job-cards.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #130 — Tasks board: compact, professional look
+
+**Date:** 2026-10-23
+
+**Why.** The Tasks board looked heavy: large bold titles, big chips and tall cards.
+
+**What changed.** Board view only. Smaller semi-bold card titles (three lines at most), small square priority and type tags, a thin progress bar with a muted percentage, a compact status selector, and quiet column headers (small capitals with a count). Each column scrolls on its own, and an empty column shows a dashed "Drop a card here" box. Drag and drop and every action are unchanged.
+
+**Files.** apps/web/src/index.html (styles only).
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
