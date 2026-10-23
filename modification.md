@@ -3237,3 +3237,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/revenue-dashboard.ts, apps/web/src/app.js.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration; the brand is read from data already stored with each upload, so no re-upload is needed.
+
+## Modification #133 — "Why some jobs show AED 0": explanation moved into a tooltip
+
+**Date:** 2026-10-23
+
+**Why.** The card was mostly a long paragraph; the useful parts are the button and the by-month bars.
+
+**What changed.** The explanation (delivery fee per invoice, 94 of 925 jobs, 53 invoices) is now an info icon beside the section title, shown on hover or focus. The card keeps "See the zero-revenue jobs" and "Zero-revenue jobs by month". If any job shows AED 0 for another reason, a one-line warning appears on the card so it is not hidden in the tooltip.
+
+**Files.** apps/web/src/{app.js,index.html}.
+
+**Needs you:** pull and hard-refresh. No migration or API restart. The old portal's Index.html is not changed by this; say if you want the same there.

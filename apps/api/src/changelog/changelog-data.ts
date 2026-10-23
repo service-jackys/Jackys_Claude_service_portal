@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 133,
+    title: '"Why some jobs show AED 0": explanation moved into a tooltip',
+    area: 'General',
+    date: '2026-10-23',
+    approxDate: false,
+    status: null,
+    summary:
+      'The card was mostly a long paragraph; the useful parts are the button and the by-month bars.',
+    changes: [
+      'What changed: The explanation (delivery fee per invoice, 94 of 925 jobs, 53 invoices) is now an info icon beside the section title, shown on hover or focus. The card keeps "See the zero-revenue jobs" and "Zero-revenue jobs by month". If…',
+    ],
+    needsYou:
+      "pull and hard-refresh. No migration or API restart. The old portal's Index.html is not changed by this; say if you want the same there.",
+    migrations: [],
+    files: 'apps/web/src/{app.js,index.html}.',
+  },
+  {
     id: 132,
     title: 'Revenue drill-down: ERP parent brand replaces Order status',
     area: 'Revenue',
