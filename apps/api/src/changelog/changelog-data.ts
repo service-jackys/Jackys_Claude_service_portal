@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 130,
+    title: 'Tasks board: compact, professional look',
+    area: 'Tasks',
+    date: '2026-10-23',
+    approxDate: false,
+    status: null,
+    summary: 'The Tasks board looked heavy: large bold titles, big chips and tall cards.',
+    changes: [
+      'What changed: Board view only. Smaller semi-bold card titles (three lines at most), small square priority and type tags, a thin progress bar with a muted percentage, a compact status selector, and quiet column headers (small capitals with…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart.',
+    migrations: [],
+    files: 'apps/web/src/index.html (styles only).',
+  },
+  {
     id: 129,
     title: 'Customer type column in the service job card list',
     area: 'Job cards',
