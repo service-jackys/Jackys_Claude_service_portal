@@ -18624,14 +18624,15 @@ ${bodyHtml}
         'Any job type',
       );
 
-      const zeroHtml =
-        '<div class="rl-zero"><div class="rl-zero-text"><h3>Why some jobs show AED 0</h3>' +
+      // The explanation sits in an info tooltip on the section title; the card itself keeps
+      // only the button and the by-month bars (modification #133).
+      const zeroExplain =
         (v3
-          ? '<p>A delivery-only invoice often has one line for each product delivered. The customer is charged <b>one delivery fee for the invoice</b>, not one per product. So the first delivery-only line carries the flat ' +
+          ? 'A delivery-only invoice often has one line for each product delivered. The customer is charged <b>one delivery fee for the invoice</b>, not one per product. So the first delivery-only line carries the flat ' +
             aed(d.csidoFlat) +
-            ' and the other lines of that invoice show AED 0. They are not missed revenue.</p>'
-          : '<p>Some lines show AED 0 because of how the workbook prices them (for example zero-cost RWR repairs).</p>') +
-        '<p><b>' +
+            ' and the other lines of that invoice show AED 0. They are not missed revenue.'
+          : 'Some lines show AED 0 because of how the workbook prices them (for example zero-cost RWR repairs).') +
+        '<br><br><b>' +
         rdMoney(z.lines) +
         '</b> of the ' +
         rdMoney(d.totals.lines) +
@@ -18647,8 +18648,21 @@ ${bodyHtml}
                 rdMoney(z.otherLines) +
                 '</b> show AED 0 for another reason and need a look.'
               : 'No job shows AED 0 for any other reason.')
+          : '');
+      const zeroTitle =
+        'Why some jobs show AED 0 ' +
+        tipHtml(zeroExplain, '', 'style="max-width:380px;width:380px"').replace(
+          'class="tooltip"',
+          'class="tooltip tooltip-below"',
+        );
+      const zeroHtml =
+        '<div class="rl-zero"><div class="rl-zero-text">' +
+        (v3 && z.otherLines
+          ? '<p class="rl-zero-warn"><b>' +
+            rdMoney(z.otherLines) +
+            '</b> jobs show AED 0 for a reason other than extra delivery lines.</p>'
           : '') +
-        '</p><button type="button" class="button button-outline" data-rl-zero-jobs>See the zero-revenue jobs</button></div>' +
+        '<button type="button" class="button button-outline" data-rl-zero-jobs>See the zero-revenue jobs</button></div>' +
         '<div class="rl-zero-bars"><div class="rl-bars-title">Zero-revenue jobs by month</div>' +
         z.byMonth
           .map(
@@ -18842,7 +18856,7 @@ ${bodyHtml}
           '<div class="rl-cards">' + cardsHtml + '</div>',
           'Live from your data',
         ) +
-        rdSection('Why some jobs show AED 0', zeroHtml) +
+        rdSection(zeroTitle, zeroHtml) +
         exampleHtml +
         ratesHtml +
         recHtml +
