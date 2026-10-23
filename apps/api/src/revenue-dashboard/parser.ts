@@ -1,4 +1,5 @@
 import ExcelJS from 'exceljs';
+import JSZip from 'jszip';
 import {
   DEFAULT_PRICING_RULES,
   type PricingMaster,
@@ -107,16 +108,43 @@ function isoDate(value: ExcelJS.CellValue | undefined): string | null {
   return null;
 }
 
+// Excel tables (and the Power Query "query tables" the master workbook uses) are not needed
+// to read the cells, but some of them make ExcelJS stop with an internal error. When the
+// first read fails, the table definitions are removed from a copy of the file and the
+// read is tried again. The cell values are untouched.
+async function withoutTables(buffer: Buffer): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(buffer);
+  for (const name of Object.keys(zip.files)) {
+    if (/^xl\/worksheets\/sheet\d+\.xml$/.test(name)) {
+      const xml = await zip.file(name)!.async('string');
+      zip.file(name, xml.replace(/<tableParts\b[\s\S]*?<\/tableParts>/g, ''));
+    } else if (/^xl\/worksheets\/_rels\/sheet\d+\.xml\.rels$/.test(name)) {
+      const xml = await zip.file(name)!.async('string');
+      zip.file(name, xml.replace(/<Relationship\b[^>]*relationships\/table"[^>]*\/>/g, ''));
+    } else if (/^xl\/tables\//.test(name)) {
+      zip.remove(name);
+    }
+  }
+  return zip.generateAsync({ type: 'nodebuffer' });
+}
+
 async function load(buffer: Buffer): Promise<ExcelJS.Workbook> {
-  const workbook = new ExcelJS.Workbook();
   try {
+    const workbook = new ExcelJS.Workbook();
     await workbook.xlsx.load(buffer as unknown as ArrayBuffer);
+    return workbook;
+  } catch {
+    // fall through to the retry below
+  }
+  try {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load((await withoutTables(buffer)) as unknown as ArrayBuffer);
+    return workbook;
   } catch {
     throw new WorkbookParseError(
       'The file could not be read as an Excel workbook (.xlsx / .xlsm).',
     );
   }
-  return workbook;
 }
 
 function headerIndex(sheet: ExcelJS.Worksheet): Map<string, number> {

@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 131,
+    title: 'Revenue dashboard upload: workbooks with Excel tables',
+    area: 'Revenue',
+    date: '2026-10-23',
+    approxDate: false,
+    status: null,
+    summary:
+      'Uploading Service_Dashboard_Master_ACC_OCT_21_Final.xlsm showed "The file could not be read as an Excel workbook". The file is a valid workbook; the Excel library stopped on one of its Power Query tables.',
+    changes: [
+      'What changed: If the first read fails, the upload retries on a copy with the table definitions removed. Cell values are unchanged. The OCT 21 file now reads: 925 revenue lines.',
+    ],
+    needsYou: 'pull, run npm.cmd install, restart the API, then upload the file again.',
+    migrations: [],
+    files:
+      'apps/api/src/revenue-dashboard/parser.ts, package.json (jszip listed as a direct dependency), package-lock.json.',
+  },
+  {
     id: 130,
     title: 'Tasks board: compact, professional look',
     area: 'Tasks',
