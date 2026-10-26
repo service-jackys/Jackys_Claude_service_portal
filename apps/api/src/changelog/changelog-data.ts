@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 137,
+    title: 'Monthly revenue budget and actual: no overflow, compact columns',
+    area: 'Revenue',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'The month-by-month table was wider than its card, so Actual Qty was cut off and an inner scrollbar appeared.',
+    changes: [
+      'What changed: The table now uses fixed proportional column widths (Period, Budget, Actual, Variance, Variance %, Budget qty, Actual qty) with tighter padding, so it always fits the card with no sideways scroll. The variance pill and its…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration or API restart.',
+    migrations: [],
+    files: 'apps/web/src/{app.js,index.html} (display only).',
+  },
+  {
     id: 136,
     title: 'Budget vs Actual: month-by-month table like the old portal',
     area: 'Revenue',

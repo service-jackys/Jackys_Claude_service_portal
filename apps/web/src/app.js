@@ -19779,7 +19779,7 @@ ${bodyHtml}
       '<span class="rd-var-caption">To date</span></td>' +
       varianceCells(ytdBudget, ytdActual, actualPeriods.length > 0).replace(
         /(Below budget|Above budget|On budget)/,
-        '$1 (vs budget to date)',
+        '$1 (to date)',
       ) +
       '<td class="rd-bm-num">' +
       rdMoney(periods.reduce((sum, p) => sum + (budgetVolume[p] || 0), 0)) +
