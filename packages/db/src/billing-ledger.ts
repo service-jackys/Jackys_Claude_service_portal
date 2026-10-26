@@ -6,9 +6,17 @@ import type { PoolClient } from 'pg';
 // otherwise service charge plus parts (the same rule as the delivery gate).
 const BILLED = 'COALESCE(j.amount_chargeable, j.grand_total)';
 
+// Warranty jobs (final warranty status In Warranty, job type CSIJW) are internal
+// billing: they go to JDI or JER-C/INS, there is no ERP invoice, and accounts
+// take the report and make the internal adjustments. They have their own stage and
+// stay out of the invoiced / not-yet-invoiced figures. Out-of-warranty jobs follow
+// the normal flow (customer pays, or the B2B sales channel is billed).
+const INTERNAL = `j.billing_job_type = 'CSIJW'`;
+
 // Where the job is in the accounts flow. Anyone who is not the paying customer
 // is billed through the sales channel, including jobs with no payer recorded.
 const STAGE = `CASE
+  WHEN ${INTERNAL} THEN 'Internal billing'
   WHEN j.payment_by = 'Customer' AND j.payment_confirmed_at IS NOT NULL THEN 'Paid'
   WHEN j.invoice_no IS NULL THEN 'Not invoiced'
   WHEN j.payment_by = 'Customer' THEN 'Invoiced, awaiting payment'
@@ -20,6 +28,7 @@ const BILL_TO = `CASE
   ELSE COALESCE(NULLIF(j.bill_to_channel, ''), NULLIF(j.sales_channel, ''), 'Not set') END`;
 
 export const BILLING_STAGES = [
+  'Internal billing',
   'Not invoiced',
   'Invoiced, awaiting payment',
   'Invoiced to channel',
@@ -84,6 +93,8 @@ export type BillingTotals = {
   billedAmount: number;
   invoicedAmount: number;
   notInvoicedAmount: number;
+  // Warranty jobs billed internally (no ERP invoice); not part of the two above.
+  internalAmount: number;
 };
 
 export type ChannelStatementRow = {
@@ -191,8 +202,9 @@ export async function billingTotals(
             COALESCE(sum(j.total_cost), 0)::float8 AS "partsCost",
             COALESCE(sum(${BILLED} - COALESCE(j.grand_total, 0)), 0)::float8 AS adjustment,
             COALESCE(sum(${BILLED}), 0)::float8 AS "billedAmount",
-            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL), 0)::float8 AS "invoicedAmount",
-            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL), 0)::float8 AS "notInvoicedAmount"
+            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL AND NOT (${INTERNAL})), 0)::float8 AS "invoicedAmount",
+            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL AND NOT (${INTERNAL})), 0)::float8 AS "notInvoicedAmount",
+            COALESCE(sum(${BILLED}) FILTER (WHERE ${INTERNAL}), 0)::float8 AS "internalAmount"
      FROM service_job_cards j ${clause}`,
     values,
   );
@@ -205,6 +217,7 @@ export async function billingTotals(
     billedAmount: num(row.billedAmount),
     invoicedAmount: num(row.invoicedAmount),
     notInvoicedAmount: num(row.notInvoicedAmount),
+    internalAmount: num(row.internalAmount),
   };
 }
 
@@ -218,8 +231,8 @@ export async function channelStatement(
             COALESCE(sum(${BILLED}) FILTER (WHERE j.billing_job_type = 'CSIJW'), 0)::float8 AS "warrantyAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE j.billing_job_type IS DISTINCT FROM 'CSIJW'), 0)::float8 AS "nonWarrantyAmount",
             COALESCE(sum(${BILLED}), 0)::float8 AS "billedAmount",
-            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL), 0)::float8 AS "invoicedAmount",
-            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL), 0)::float8 AS "notInvoicedAmount",
+            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL AND NOT (${INTERNAL})), 0)::float8 AS "invoicedAmount",
+            COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL AND NOT (${INTERNAL})), 0)::float8 AS "notInvoicedAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE j.payment_confirmed_at IS NOT NULL), 0)::float8 AS "paidAmount"
      FROM service_job_cards j ${clause}
      GROUP BY 1 ORDER BY "billedAmount" DESC, 1`,

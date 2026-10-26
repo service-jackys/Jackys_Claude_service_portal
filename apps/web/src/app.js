@@ -13647,7 +13647,9 @@ ${bodyHtml}
         ? 'status-ok'
         : stage === 'Not invoiced' || stage === 'Invoiced, awaiting payment'
           ? 'status-warn'
-          : '';
+          : stage === 'Internal billing'
+            ? 'status-muted'
+            : '';
     const RANGES = [
       ['month', 'This month'],
       ['last-month', 'Last month'],
@@ -13787,6 +13789,7 @@ ${bodyHtml}
         cell('Parts', money(t.partsCost)) +
         cell('Adjustment', money(t.adjustment)) +
         cell('Billed (AED)', money(t.billedAmount), 'acc-kpi-main') +
+        cell('Internal (warranty)', money(t.internalAmount || 0)) +
         cell('Invoiced in ERP', money(t.invoicedAmount)) +
         cell(
           'Not yet invoiced',
@@ -13903,9 +13906,11 @@ ${bodyHtml}
             plain(r.jobFinalStatus) +
             '</td>' +
             (canRecord
-              ? '<td><button class="button button-outline" type="button" data-acc-record-open="' +
-                plain(r.id) +
-                '">Record</button></td>'
+              ? r.stage === 'Internal billing'
+                ? '<td><small class="form-note" title="Warranty jobs are billed internally to JDI or JER-C/INS. No ERP invoice is recorded; accounts adjust from the report.">Internal</small></td>'
+                : '<td><button class="button button-outline" type="button" data-acc-record-open="' +
+                  plain(r.id) +
+                  '">Record</button></td>'
               : '') +
             '</tr>',
         )
@@ -13963,7 +13968,7 @@ ${bodyHtml}
           'One line per party that receives a bill: the sales channel (or the channel a billing rule redirects to), or the customer when the customer pays. Use these totals for the ERP billing run; open a party to see its jobs.',
         ) +
         '</div>' +
-        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (AED)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW (internal)</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (AED)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
         (rows
           .map(
             (r) =>
