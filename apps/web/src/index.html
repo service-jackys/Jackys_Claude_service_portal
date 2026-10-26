@@ -7877,6 +7877,46 @@
         white-space: nowrap;
         cursor: pointer;
       }
+      .ch-av {
+        position: relative;
+      }
+      .ch-av.ch-online::after {
+        content: '';
+        position: absolute;
+        right: -1px;
+        bottom: -1px;
+        width: 11px;
+        height: 11px;
+        border: 2px solid var(--surface);
+        border-radius: 50%;
+        background: #22c55e;
+      }
+      .ch-av-sm.ch-online::after {
+        width: 9px;
+        height: 9px;
+      }
+      .ch-typing {
+        margin: 0;
+        padding: 2px 1rem 4px;
+        color: var(--muted);
+        font-size: 0.76rem;
+        font-style: italic;
+      }
+      .ch-tick {
+        display: inline-flex;
+        align-items: center;
+        opacity: 0.7;
+      }
+      .ch-tick .ch-ico + .ch-ico {
+        margin-left: -7px;
+      }
+      .ch-tick.seen {
+        opacity: 1;
+        color: #7dd3fc;
+      }
+      .ch-msg:not(.ch-mine) .ch-tick {
+        display: none;
+      }
       .ch-attach {
         flex-shrink: 0;
         align-self: flex-end;

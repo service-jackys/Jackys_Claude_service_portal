@@ -1,6 +1,7 @@
 import path from 'node:path';
 import express from 'express';
 import helmet from 'helmet';
+import { startChatRetention } from './chat/retention.js';
 import swaggerUi from 'swagger-ui-express';
 import { z } from 'zod';
 import { createOpenApiDocument } from './api/openapi.js';
@@ -35,6 +36,7 @@ export function createApp() {
       ? createLocalAuth({ bootstrapToken: process.env.LOCAL_BOOTSTRAP_TOKEN }, pool)
       : null;
   const routes = createRouteCatalog(localAuth, pool);
+  if (pool) startChatRetention(pool);
 
   app.disable('x-powered-by');
   // helmet()'s defaults include a Content-Security-Policy with

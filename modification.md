@@ -3362,3 +3362,22 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/055_chat_attachments.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,app.js,index.html}, tests/integration/chat.test.ts.
 
 **Needs you:** pull, restart the API (applies migration 055), hard-refresh. In production make sure `ATTACHMENT_STORAGE_DIR` and `ATTACHMENT_URL_SECRET` are set (already needed for job-card photos).
+
+## Modification #143 — Chat (phase 3): live delivery, online status, typing and read ticks
+
+**Date:** 2026-10-26
+
+**Why.** Polling every few seconds felt slow for a conversation, and people could not tell whether a colleague was around or had seen their message.
+
+**What changed.**
+- **Instant delivery.** The portal keeps a live connection (Server-Sent Events) once you sign in. New messages, edits, deletes, reactions and pins appear immediately in open threads, and the menu badge and conversation list update without waiting. If the live connection drops it reconnects by itself and the screens fall back to polling meanwhile.
+- **Online status.** A green dot on a person's avatar (list, thread header, messages) when they have the portal open; "Online" shows under their name in a direct chat.
+- **Typing indicator.** "Reneesh is typing…" appears for the others in the conversation.
+- **Read ticks.** On your own messages: one tick = sent, two blue ticks = seen; hover shows who has seen it (channels and record threads show every follower who has read it).
+- **Retention.** New setting `CHAT_RETENTION_DAYS` in `.env` (blank or 0 keeps everything, minimum 30). Messages older than that and their files are removed every few hours; pinned messages are kept; each purge is written to the Activity log.
+
+**Note.** Live events are held in the memory of the API process. That is fine for the single server in use now; if the API is ever run as several copies, a shared channel (Postgres LISTEN/NOTIFY or Redis) is needed for instant delivery across copies (screens still work by polling).
+
+**Files.** apps/api/src/chat/{hub,retention,service,routes}.ts, apps/api/src/app.ts, apps/api/src/api/route-catalog.ts, packages/db/src/chat.ts, apps/web/src/{chat.js,app.js,index.html}, tests/integration/chat.test.ts, .env.example.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. If you sit behind a proxy that buffers responses (nginx), the stream header `X-Accel-Buffering: no` is already sent; Cloudflare/other proxies may need response buffering off for `/api/chat/stream`.

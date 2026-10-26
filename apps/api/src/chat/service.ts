@@ -28,6 +28,7 @@ import {
   insertChatMessage,
   isChatMember,
   listChatConversations,
+  listChatMemberReads,
   listChatMembers,
   listChatMessages,
   listChatPeopleAccess,
@@ -51,6 +52,7 @@ import {
   saveAttachmentFile,
   validateAttachment,
 } from '../attachments/storage.js';
+import { onlineProfileIds, sendToProfiles } from './hub.js';
 import { createSignedDownloadToken, verifySignedDownloadToken } from '../attachments/signed-url.js';
 
 export class ChatServiceError extends Error {
@@ -102,6 +104,88 @@ function withUrls<T extends ChatMessageRow>(message: T): T {
 }
 
 export function createChatService(pool: Pool) {
+  // ---- live events (see hub.ts): small nudges; screens refetch through the normal API.
+  async function followers(conversationId: string) {
+    const client = await pool.connect();
+    try {
+      return await listChatMemberReads(client, conversationId);
+    } finally {
+      client.release();
+    }
+  }
+  async function changed(conversationId: string) {
+    try {
+      sendToProfiles(
+        (await followers(conversationId)).map((m) => m.profileId),
+        { type: 'change', data: { conversationId } },
+      );
+    } catch {
+      /* live updates are best effort; polling still catches up */
+    }
+  }
+  async function announce(auth: ApplicationAuth, conversationId: string, message: ChatMessageRow) {
+    try {
+      const client = await pool.connect();
+      let title: string | null = null;
+      let kind = 'direct';
+      let recordType: string | null = null;
+      let recordId: string | null = null;
+      try {
+        const conversation = await findChatConversation(client, conversationId);
+        if (conversation) {
+          kind = conversation.kind;
+          recordType = conversation.recordType;
+          recordId = conversation.recordId === null ? null : String(conversation.recordId);
+          title = conversation.title;
+          if (kind === 'record') {
+            const record = await findChatRecord(
+              client,
+              conversation.recordType as never,
+              String(conversation.recordId),
+            );
+            title = record?.label ?? null;
+          }
+        }
+      } finally {
+        client.release();
+      }
+      const people = await followers(conversationId);
+      const mentioned = new Set(message.mentions.map((m) => m.id));
+      const preview = message.body
+        ? message.body.slice(0, 140)
+        : message.attachments.length
+          ? message.attachments.some((f) => f.contentType.startsWith('image/'))
+            ? 'Sent a photo'
+            : 'Sent a file'
+          : '';
+      const byId = new Map(people.map((m) => [m.profileId, m]));
+      sendToProfiles(
+        people.map((m) => m.profileId),
+        (profileId) =>
+          profileId === auth.profileId
+            ? { type: 'change', data: { conversationId } }
+            : {
+                type: 'message',
+                data: {
+                  conversationId,
+                  messageId: message.id,
+                  senderId: auth.profileId,
+                  senderName: auth.displayName,
+                  preview,
+                  kind,
+                  title,
+                  recordType,
+                  recordId,
+                  mention: mentioned.has(profileId),
+                  muted: Boolean(byId.get(profileId)?.muted),
+                },
+              },
+      );
+    } catch {
+      /* best effort */
+    }
+  }
+
   // A conversation the caller may read: direct chats and channels need membership
   // (administrators do not get to read other people's DMs); record threads need the
   // permission to open the record.
@@ -157,7 +241,7 @@ export function createChatService(pool: Pool) {
     };
   }
 
-  return {
+  const api = {
     async people(auth: ApplicationAuth) {
       const client = await pool.connect();
       try {
@@ -271,7 +355,7 @@ export function createChatService(pool: Pool) {
 
     async send(auth: ApplicationAuth, id: string, body: unknown, requestId?: string) {
       const data = parse(chatMessageWriteSchema, body);
-      return withTransaction(pool, async (client) => {
+      const sent = await withTransaction(pool, async (client) => {
         const { conversation, record } = await open(client, auth, id);
         if (data.replyToId) {
           const target = await findChatMessage(client, data.replyToId);
@@ -332,6 +416,8 @@ export function createChatService(pool: Pool) {
         });
         return withUrls(message);
       });
+      await announce(auth, sent.conversationId, sent);
+      return sent;
     },
 
     async read(auth: ApplicationAuth, id: string, body: unknown) {
@@ -341,9 +427,56 @@ export function createChatService(pool: Pool) {
         const { conversation } = await open(client, auth, id);
         await ensureChatMember(client, conversation.id, auth.profileId);
         await markChatRead(client, conversation.id, auth.profileId, data.messageId);
+        const people = await listChatMemberReads(client, conversation.id);
+        sendToProfiles(
+          people.filter((m) => m.profileId !== auth.profileId).map((m) => m.profileId),
+          {
+            type: 'read',
+            data: {
+              conversationId: conversation.id,
+              profileId: auth.profileId,
+              messageId: data.messageId,
+            },
+          },
+        );
       } finally {
         client.release();
       }
+    },
+
+    async reads(auth: ApplicationAuth, id: string) {
+      const client = await pool.connect();
+      try {
+        await open(client, auth, id);
+        return await listChatMemberReads(client, id);
+      } finally {
+        client.release();
+      }
+    },
+
+    async typing(auth: ApplicationAuth, id: string) {
+      const client = await pool.connect();
+      try {
+        const { conversation } = await open(client, auth, id);
+        const people = await listChatMemberReads(client, conversation.id);
+        sendToProfiles(
+          people.filter((m) => m.profileId !== auth.profileId).map((m) => m.profileId),
+          {
+            type: 'typing',
+            data: {
+              conversationId: conversation.id,
+              profileId: auth.profileId,
+              name: auth.displayName,
+            },
+          },
+        );
+      } finally {
+        client.release();
+      }
+    },
+
+    presence() {
+      return onlineProfileIds();
     },
 
     async answer(auth: ApplicationAuth, messageId: string) {
@@ -597,6 +730,22 @@ export function createChatService(pool: Pool) {
         await removeChatMember(client, conversation.id, auth.profileId);
       });
     },
+  };
+
+  // Edits, deletes, reactions, pins and answers nudge everyone following the thread.
+  const live = (run: (...args: never[]) => Promise<ChatMessageRow>) =>
+    (async (...args: never[]) => {
+      const message = await run(...args);
+      await changed(message.conversationId);
+      return message;
+    }) as never;
+  return {
+    ...api,
+    answer: live(api.answer as never) as typeof api.answer,
+    edit: live(api.edit as never) as typeof api.edit,
+    remove: live(api.remove as never) as typeof api.remove,
+    react: live(api.react as never) as typeof api.react,
+    pin: live(api.pin as never) as typeof api.pin,
   };
 }
 
