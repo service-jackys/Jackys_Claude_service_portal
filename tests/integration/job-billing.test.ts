@@ -54,6 +54,7 @@ test(
           faultDescription: 'Billing integration appointment',
           appointmentDate: dayOffset(nextDay++),
           jobWarranty: 'In Warranty',
+          salesman: 'Billing Salesman',
           ...overrides,
         },
         profileId!,
@@ -252,6 +253,47 @@ test(
       assert.match(exported.fileName, /^Billing_/);
       await pool.query(`DELETE FROM audit_events WHERE request_id = 'billing-export'`);
 
+      // A direct customer (B2C) job under warranty needs a salesman: it is billed internally
+      // to the salesman's sales channel, which fills in from the salesman master.
+      await pool.query(
+        `INSERT INTO salesmen (name, sales_channel) VALUES ('B2C Warranty Salesman', 'JDI')
+         ON CONFLICT (lower(name)) DO UPDATE SET sales_channel = 'JDI', active = true`,
+      );
+      const noSalesman = await makeCard({ salesman: undefined });
+      assert.equal(noSalesman.customerType, 'B2C');
+      assert.equal(noSalesman.billingJobType, 'CSIJW');
+      await assert.rejects(
+        jobCardService.updateContent(
+          noSalesman.id,
+          { complaint: 'Needs a salesman' },
+          profileId,
+          'billing-b2c-no-salesman',
+        ),
+        (error: unknown) =>
+          (error as { code?: string }).code === 'salesman-required' &&
+          /Choose the salesman/.test((error as Error).message),
+      );
+      const withSalesman = await jobCardService.updateContent(
+        noSalesman.id,
+        { complaint: 'Needs a salesman', salesman: 'B2C Warranty Salesman', serviceCharge: 40 },
+        profileId,
+        'billing-b2c-salesman',
+      );
+      assert.equal(withSalesman.salesChannel, 'JDI');
+      assert.equal(withSalesman.billToChannel, 'JDI');
+      assert.equal(withSalesman.paymentBy, 'Sales channel');
+      const b2cLedger = await invoiceService.ledger({ search: noSalesman.jobCardReference });
+      assert.equal(b2cLedger.rows[0].stage, 'Internal billing');
+      assert.equal(b2cLedger.rows[0].billTo, 'JDI');
+      // Out of warranty, or cancelled, does not need one.
+      const oowNoSalesman = await makeCard({ salesman: undefined, jobWarranty: 'Out Warranty' });
+      await jobCardService.updateContent(
+        oowNoSalesman.id,
+        { complaint: 'Customer pays' },
+        profileId,
+        'billing-b2c-oow',
+      );
+
       // Major appliances (MDA) bill the rate card's "MDA – Standard" charge, in
       // or out of warranty, whatever service charge was typed.
       const rateCard = await createPricingConfigService(pool).get('rate_card');
@@ -319,6 +361,7 @@ test(
         );
         await pool.query(`DELETE FROM appointments WHERE id = $1`, [id]);
       }
+      await pool.query(`DELETE FROM salesmen WHERE name = 'B2C Warranty Salesman'`);
       if (profileId) await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);
       await pool.end();
     }

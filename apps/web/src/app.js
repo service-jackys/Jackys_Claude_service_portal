@@ -1286,7 +1286,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Job card date</label><input type="date" id="${prefix}Date"></div>
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
-        <div class="field"><label for="${prefix}Salesman">Salesman ${tipHtml('Loaded from the B2B branch master for this school. Change it here only if this job should be credited to a different salesman.')}</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
+        <div class="field"><label for="${prefix}Salesman">Salesman ${tipHtml('Loaded from the B2B branch master for this school. Change it here only if this job should be credited to a different salesman. Required for a direct customer (B2C) job under warranty: the sales channel fills in from the salesman and the job is billed to it.')}</label><select id="${prefix}Salesman"><option value="">Select a salesman</option></select></div>
         <div class="field"><label for="${prefix}SalesChannel">Sales channel</label><select id="${prefix}SalesChannel"><option value="">Select a sales channel</option></select></div>
         <div class="field"><label for="${prefix}SalesOrderNumber">Sales order no.</label><input type="text" id="${prefix}SalesOrderNumber" maxlength="100"></div>
         <div class="field"><label for="${prefix}LegacyReference">Legacy reference</label><input type="text" id="${prefix}LegacyReference" maxlength="120" placeholder="Reference from the old system, if any"></div>
@@ -1449,6 +1449,48 @@
       !(box.dataset.jobId && amount > 0) || !hasPermission('invoices.read');
   }
 
+  // A B2C job under warranty is billed internally to the salesman's sales channel, so
+  // the salesman is required (modification #153). Marks the field and tells the user.
+  function salesmanRequired(prefix) {
+    const effective =
+      $(`#${prefix}FinalWarrantyStatus`).value ||
+      normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
+    const jobStatus = $(`#${prefix}JobFinalStatus`)?.value;
+    return (
+      $(`#${prefix}CustomerType`).value === 'B2C' &&
+      effective === 'In Warranty' &&
+      jobStatus !== 'Cancelled'
+    );
+  }
+
+  function refreshSalesmanRequirement(prefix) {
+    const label = $(`#${prefix}Salesman`)?.closest('.field')?.querySelector('label');
+    if (!label) return;
+    let star = label.querySelector('.required');
+    const needed = salesmanRequired(prefix);
+    if (needed && !star) {
+      label.insertAdjacentHTML('afterbegin', '<span class="required" aria-hidden="true">*</span> ');
+      star = label.querySelector('.required');
+    }
+    if (!needed && star) star.nextSibling?.nodeType === 3 && star.nextSibling.remove();
+    if (!needed && star) star.remove();
+    if (!needed) clearMissingMark($(`#${prefix}Salesman`));
+  }
+
+  async function demandSalesman(prefix) {
+    if (!salesmanRequired(prefix) || $(`#${prefix}Salesman`).value.trim()) return true;
+    const select = $(`#${prefix}Salesman`);
+    select.closest('.field')?.classList.add('field-missing');
+    select.addEventListener('change', () => clearMissingMark(select), { once: true });
+    await notifyDialog(
+      'Salesman is required',
+      "This is a direct customer (B2C) job under warranty. It is billed internally to the salesman's sales channel, so choose the salesman. The sales channel fills in by itself.",
+    );
+    select.closest('.field')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    select.focus({ preventScroll: true });
+    return false;
+  }
+
   function refreshBillingPreview(prefix) {
     const registered = normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
     const finalValue = $(`#${prefix}FinalWarrantyStatus`).value;
@@ -1460,6 +1502,7 @@
     if (effective === 'In Warranty') paymentBy.value = 'Sales channel';
     refreshInvoiceBox(prefix);
     refreshMdaServiceCharge(prefix);
+    refreshSalesmanRequirement(prefix);
     $(`#${prefix}BillingJobType`).value =
       effective === 'In Warranty'
         ? 'CSIJW - Warranty repair'
@@ -1511,6 +1554,13 @@
       ].forEach((selector) =>
         $(selector).addEventListener('input', () => refreshBillingPreview(prefix)),
       );
+      [`#${prefix}FinalWarrantyStatus`, `#${prefix}CustomerType`].forEach((selector) =>
+        $(selector).addEventListener('change', () => {
+          if (salesmanRequired(prefix) && !$(`#${prefix}Salesman`).value.trim()) {
+            demandSalesman(prefix);
+          }
+        }),
+      );
       $(`#${prefix}PurchaseDate`).addEventListener('input', () => refreshWarrantyDaysPill(prefix));
       $(`#${prefix}PeriodFrom`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
       $(`#${prefix}PeriodTo`).addEventListener('change', () => calcJobCardTimeConsumed(prefix));
@@ -1556,7 +1606,7 @@
     if (type && type !== 'B2C' && !$(`#${prefix}B2bBranchSchool`).value.trim()) {
       targets.push($(`#${prefix}B2bBranchSchool`));
     }
-    if (type && type !== 'B2C' && !$(`#${prefix}Salesman`).value) {
+    if (((type && type !== 'B2C') || salesmanRequired(prefix)) && !$(`#${prefix}Salesman`).value) {
       targets.push($(`#${prefix}Salesman`));
     }
     if (!$(`#${prefix}SalesChannel`).value && !$(`#${prefix}BillToChannel`)?.value) {
@@ -1660,12 +1710,13 @@
     });
     branch.addEventListener('change', () => applyBranchLookup(prefix));
     $(`#${prefix}Salesman`).addEventListener('change', () => {
+      clearMissingMark($(`#${prefix}Salesman`));
       const channel = channelForSalesman($(`#${prefix}Salesman`).value);
       if (channel) {
         setSelectValue(`#${prefix}SalesChannel`, channel);
         clearMissingMark($(`#${prefix}SalesChannel`));
-        refreshBillingPreview(prefix);
       }
+      refreshBillingPreview(prefix);
     });
   }
 
@@ -6114,6 +6165,7 @@ ${bodyHtml}
 
   async function submitJobCardCreate() {
     if (!currentAppointmentId) return;
+    if (!(await demandSalesman('jcc'))) return;
     const button = $('#submitJobCardCreateButton');
     setBusy(button, true, 'Creating…');
     try {
@@ -6184,6 +6236,7 @@ ${bodyHtml}
 
   async function submitJobCardCreateFromQuotation() {
     if (!currentQuotationId) return;
+    if (!(await demandSalesman('jcq'))) return;
     const button = $('#submitQuotationJobCardCreateButton');
     setBusy(button, true, 'Creating…');
     try {
@@ -6259,6 +6312,7 @@ ${bodyHtml}
 
   async function saveJobCardContent() {
     if (!currentJobCardId) return;
+    if (!(await demandSalesman('jce'))) return;
     const payload = collectJobCardForm('jce');
     let approvalFile = null;
     if (
@@ -6297,7 +6351,7 @@ ${bodyHtml}
         $('#jobCardContentAction').hidden = true;
         setMessage('#workspaceMessage', 'You are not authorized to edit service job cards.');
       } else if (
-        /^(Choose the reason this BER|Choose the sales channel this job|This job is waiting for manager approval|This job carries spare parts)/.test(
+        /^(Choose the reason this BER|Choose the sales channel this job|Choose the salesman|This job is waiting for manager approval|This job carries spare parts)/.test(
           error.message || '',
         )
       ) {
@@ -11213,7 +11267,7 @@ ${bodyHtml}
       '</div></section>' +
       '<section class="detail-action-card"><h4>Sales and handling</h4><div class="field-grid">' +
       '<div class="field"><label for="wiSalesOrderNumber">Sales order no.</label><input id="wiSalesOrderNumber" maxlength="100" /></div>' +
-      '<div class="field"><label for="wiSalesman">Salesman</label><select id="wiSalesman"><option value="">Select a salesman</option></select></div>' +
+      '<div class="field"><label for="wiSalesman">Salesman <span class="required" id="wiSalesmanStar" hidden>*</span></label><select id="wiSalesman"><option value="">Select a salesman</option></select><span class="field-error" data-error-for="wiSalesman"></span></div>' +
       '<div class="field"><label for="wiSalesChannel">Sales channel</label><select id="wiSalesChannel"><option value="">Select a sales channel</option></select></div>' +
       '<div class="field"><label for="wiTechnician">Technician (optional)</label><select id="wiTechnician"><option value="">Assign later</option></select></div>' +
       '</div></section>' +
@@ -11326,9 +11380,28 @@ ${bodyHtml}
     // Customer type: B2B shows the branch / school block and makes the contact
     // number optional, exactly like the New request form.
     const b2bBox = $$('wiB2bFields');
+    // A B2C walk-in under warranty is billed internally to the salesman's channel, so
+    // the salesman is required and fills the sales channel (modification #153).
+    const wiSalesmanNeeded = () =>
+      $$('wiCustomerType').value === 'B2C' && $$('wiWarrantyStatus').value === 'In Warranty';
+    const syncWiSalesman = () => {
+      $$('wiSalesmanStar').hidden = !wiSalesmanNeeded();
+      if (wiSalesmanNeeded() && !$$('wiSalesman').value) {
+        notifyDialog(
+          'Salesman is required',
+          "This is a direct customer (B2C) job under warranty. It is billed internally to the salesman's sales channel, so choose the salesman. The sales channel fills in by itself.",
+        );
+      }
+    };
     $$('wiCustomerType').addEventListener('change', () => {
       b2bBox.hidden = $$('wiCustomerType').value !== 'B2B';
       $$('wiContactStar').hidden = $$('wiCustomerType').value === 'B2B';
+      syncWiSalesman();
+    });
+    $$('wiWarrantyStatus').addEventListener('change', syncWiSalesman);
+    $$('wiSalesman').addEventListener('change', () => {
+      const channel = channelForSalesman($$('wiSalesman').value);
+      if (channel) setSelectValue('#wiSalesChannel', channel);
     });
     populateSelectOptions('#wiSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#wiSalesChannel', salesChannelOptions, 'Select a sales channel');
@@ -11475,6 +11548,14 @@ ${bodyHtml}
         need('wiCustomerContact', 'Enter a contact number.');
       }
       need('wiComplaint', 'Describe the fault.');
+      if (
+        $$('wiCustomerType').value === 'B2C' &&
+        $$('wiWarrantyStatus').value === 'In Warranty' &&
+        !$$('wiSalesman').value
+      ) {
+        showFieldError(form, 'wiSalesman', 'Choose the salesman for a B2C job under warranty.');
+        valid = false;
+      }
       if (!$$('wiModelNo').value.trim() && !$$('wiItemDescription').value.trim()) {
         showFieldError(form, 'wiModelNo', 'Enter the model, item code or description.');
         valid = false;

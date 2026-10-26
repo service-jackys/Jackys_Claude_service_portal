@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 153,
+    title: 'Salesman is required on a B2C job under warranty',
+    area: 'Complaints',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'A direct customer (B2C) job under warranty is billed internally to a sales channel (Internal billing, see #152), but a B2C job has no school or branch to supply a salesman, so these jobs had no channel and showed "Not set" as the bill-to party.',
+    changes: [
+      'When the customer type is B2C and the final warranty status is In Warranty (or, if no final status is set, the registered warranty is In Warranty), Salesman is required on the service job card (create and edit) and on the walk-in form.…',
+      'Choosing the salesman fills the Sales channel from the salesman master (also done by the API for B2C jobs), and billing uses it: payer Sales channel, bill to that channel, shown as Internal billing.',
+      'Cancelled jobs, out-of-warranty jobs and B2B jobs are not affected. B2B still takes the salesman from the branch master.',
+      'Delivery highlight now also marks a missing salesman on these jobs.',
+    ],
+    needsYou:
+      'pull, restart the API, hard-refresh. No migration. Existing B2C warranty jobs with no salesman will ask for one the next time they are saved.',
+    migrations: [],
+    files:
+      'apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.',
+  },
+  {
     id: 152,
     title: 'Billing: every job billed to a sales channel is "Internal billing"',
     area: 'Invoices & billing',
