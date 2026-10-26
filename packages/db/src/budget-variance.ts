@@ -323,3 +323,103 @@ export async function jobTypeTotals(client: PoolClient, revenueBatchId: string) 
   );
   return r.rows;
 }
+
+export type BudgetUploadSync = {
+  versionId: string;
+  versionName: string;
+  fiscalYear: number;
+  createdNewVersion: boolean;
+  streams: number;
+  annualRevenue: number;
+};
+
+/** Refreshes the budget version Budget Variance reads from a freshly uploaded budget workbook
+ *  (modification #134), so Budget Variance and Budget vs Actual use the same figures.
+ *  An approved version is never overwritten: a new draft "revised" version is created instead. */
+export async function syncBudgetVersionFromUpload(
+  client: PoolClient,
+  input: {
+    fileName: string;
+    periods: string[];
+    monthlyRevenue: number[];
+    streams: Array<{ streamCode: string; annualRevenue: number; annualVolume: number }>;
+    profileId: string;
+  },
+): Promise<BudgetUploadSync | null> {
+  if (!input.streams.length || !input.periods.length) return null;
+  const settings = await settingsMap(client);
+  const startMonth = Number(settings.fiscal_start_month ?? 7);
+  const first = new Date(input.periods[0] + 'T00:00:00Z');
+  const fiscalYear =
+    first.getUTCMonth() + 1 >= startMonth ? first.getUTCFullYear() : first.getUTCFullYear() - 1;
+
+  const total = input.monthlyRevenue.reduce((a, b) => a + b, 0);
+  let phasing: number[] | undefined;
+  if (input.monthlyRevenue.length === 12 && total > 0) {
+    phasing = input.monthlyRevenue.map((v) => Math.round((v / total) * 1e6) / 1e6);
+    const drift = 1 - phasing.reduce((a, b) => a + b, 0);
+    phasing[11] = Math.round((phasing[11]! + drift) * 1e6) / 1e6;
+  }
+
+  const stamp = new Date().toISOString().slice(0, 10);
+  const note = `Refreshed from ${input.fileName} on ${stamp}.`;
+  let version = await activeVersion(client, fiscalYear);
+  let createdNewVersion = false;
+  if (!version) {
+    version = await insertVersion(client, {
+      name: `Budget FY ${fiscalYear}-${String((fiscalYear + 1) % 100).padStart(2, '0')}`,
+      kind: 'original',
+      fiscalYear,
+      phasing: phasing ?? [
+        0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833, 0.0833,
+        0.0837,
+      ],
+      notes: note,
+      createdBy: input.profileId,
+    });
+    await client.query(`UPDATE budget_versions SET is_active = true WHERE id = $1`, [version.id]);
+    createdNewVersion = true;
+  } else if (version.status === 'approved') {
+    const copy = await insertVersion(client, {
+      name: `Revised from ${input.fileName}`.slice(0, 120),
+      kind: 'revised',
+      fiscalYear,
+      phasing: phasing ?? version.phasing,
+      notes: note + ' The approved version was left unchanged.',
+      createdBy: input.profileId,
+    });
+    await copyVersionStreams(client, version.id, copy.id);
+    version = copy;
+    createdNewVersion = true;
+  }
+
+  const existing = new Map(
+    (await versionStreams(client, version.id)).map((s) => [s.streamCode, s]),
+  );
+  let annualRevenue = 0;
+  for (const s of input.streams) {
+    const before = existing.get(s.streamCode);
+    await upsertVersionStream(client, version.id, {
+      streamCode: s.streamCode,
+      annualRevenue: s.annualRevenue,
+      annualVolume: s.annualVolume,
+      // The VAT flag set on the version is kept; the PMC budget is VAT-inclusive by default.
+      vatInclusive: before ? before.vatInclusive : s.streamCode === 'amc',
+    });
+    annualRevenue += s.annualRevenue;
+  }
+  await updateVersionFields(
+    client,
+    version.id,
+    { notes: createdNewVersion ? undefined : note, phasing },
+    input.profileId,
+  );
+  return {
+    versionId: version.id,
+    versionName: version.name,
+    fiscalYear,
+    createdNewVersion,
+    streams: input.streams.length,
+    annualRevenue,
+  };
+}

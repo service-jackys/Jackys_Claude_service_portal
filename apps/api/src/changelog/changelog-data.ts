@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 135,
+    title: 'Budget upload now refreshes Budget Variance',
+    area: 'Revenue',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Budget vs Actual showed the budget just uploaded (AED 527,660) while Budget Variance still showed an older split (about AED 350,000), because it reads its own budget version that was entered earlier and never changed on upload.',
+    changes: [
+      'What changed: Uploading the Service Budget workbook now also refreshes the active budget version for that fiscal year: the stream table "Proposed Revenue 2027" on the Service Price List sheet (Warranty, Non-Warranty, Del + Install…',
+    ],
+    needsYou:
+      'pull, restart the API, hard-refresh, then upload the budget workbook once more. No migration.',
+    migrations: [],
+    files: null,
+  },
+  {
     id: 133,
     title: '"Why some jobs show AED 0": explanation moved into a tooltip',
     area: 'General',

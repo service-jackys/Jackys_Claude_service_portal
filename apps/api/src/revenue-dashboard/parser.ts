@@ -54,10 +54,32 @@ export type ParsedBudgetLine = {
   sortOrder: number;
 };
 
+export type ParsedBudgetStream = {
+  /** Revenue stream code used by Budget Variance (revenue_streams.code). */
+  streamCode: string;
+  /** The label as written in the workbook. */
+  label: string;
+  annualRevenue: number;
+  annualVolume: number;
+};
+
 export type ParsedBudgetWorkbook = {
   lines: ParsedBudgetLine[];
   periods: string[];
   totalRevenue: number;
+  /** Stream split from the "Proposed Revenue 2027" table; empty when the sheet has none. */
+  streams: ParsedBudgetStream[];
+};
+
+// Workbook stream label -> Budget Variance stream code.
+const BUDGET_STREAM_CODES: Record<string, string> = {
+  'WARRANTY REPAIRS': 'warranty',
+  'NON-WARRANTY': 'non_warranty',
+  'DEL + INSTALL': 'del_install',
+  'INSPECTIONS / VISITS': 'inspections',
+  INSTALLATION: 'installation',
+  PROJECTS: 'projects',
+  'PREMIUM PMC': 'amc',
 };
 
 // Excel formula cells arrive as { formula, result }; rich text as
@@ -571,5 +593,41 @@ export async function parseBudgetWorkbook(buffer: Buffer): Promise<ParsedBudgetW
   if (!lines.some((line) => line.section === 'revenue')) {
     throw new WorkbookParseError('The "P&L -YTD" sheet has no REVENUE row.');
   }
-  return { lines, periods: months.map((m) => m.period), totalRevenue };
+  return {
+    lines,
+    periods: months.map((m) => m.period),
+    totalRevenue,
+    streams: parseBudgetStreams(workbook),
+  };
+}
+
+// Reads the "Proposed Revenue 2027" table on the "Service Price List" sheet: stream label in
+// one column, then proposed volume, current revenue and proposed revenue in the next columns.
+function parseBudgetStreams(workbook: ExcelJS.Workbook): ParsedBudgetStream[] {
+  const sheet = workbook.getWorksheet('Service Price List');
+  if (!sheet) return [];
+  const streams: ParsedBudgetStream[] = [];
+  let inTable = false;
+  for (let r = 1; r <= sheet.rowCount && r <= 120; r += 1) {
+    const row = sheet.getRow(r);
+    const label = text(row.getCell(2).value);
+    if (!label) continue;
+    const upper = label.replace(/\s+/g, ' ').trim().toUpperCase();
+    if (upper.startsWith('PROPOSED REVENUE')) {
+      inTable = true;
+      continue;
+    }
+    if (!inTable) continue;
+    if (upper === 'REVENUE STREAM') continue;
+    if (upper.startsWith('TOTAL')) break;
+    const code = BUDGET_STREAM_CODES[upper];
+    if (!code) continue;
+    streams.push({
+      streamCode: code,
+      label,
+      annualVolume: num(row.getCell(3).value),
+      annualRevenue: num(row.getCell(5).value),
+    });
+  }
+  return streams;
 }
