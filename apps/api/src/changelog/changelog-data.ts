@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 147,
+    title: 'Dashboard moved to the top, above Live Chat',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary: 'Overview held only Dashboard, so the group was an extra click for one item.',
+    changes: [
+      'What changed: Dashboard now sits first in the top block of the sidebar, with Live Chat below it. The empty Overview group is gone. Display only.',
+    ],
+    needsYou: 'pull and hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/index.html.',
+  },
+  {
     id: 146,
     title: 'Chat moved out of Records and renamed Live Chat',
     area: 'General',
