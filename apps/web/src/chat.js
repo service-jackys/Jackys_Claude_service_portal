@@ -38,6 +38,9 @@
     camera:
       '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/>',
     file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/>',
+    popout:
+      '<path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+    gear: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.900 4.900l2.100 2.100M17 17l2.100 2.100M4.900 19.100 7 17M17 7l2.100-2.100"/>',
     trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m6 6 1 14h10l1-14"/>',
     pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -166,6 +169,7 @@
     async function summary() {
       const data = await api('/api/chat/summary');
       if (deps.onUnread) deps.onUnread(data);
+      paintBubble(data.unread);
       return data;
     }
 
@@ -283,6 +287,8 @@
       tick();
       badgeTimer = window.setInterval(tick, 25000);
       offs = ['message', 'change', 'read', 'resync'].map((type) => bus.on(type, refreshSummary));
+      offs.push(bus.on('message', incoming));
+      mountBubble();
       connectStream();
     }
     function stopBadge() {
@@ -291,8 +297,428 @@
       offs.forEach((off) => off());
       offs = [];
       disconnectStream();
+      unmountBubble();
       if (deps.onUnread) deps.onUnread({ unread: 0, mentions: 0, needsReply: 0 });
     }
+
+    // ================================================================== alerts
+    // Pop-ups on any page, desktop notifications when the window is in the background,
+    // the floating chat bubble and its panel, and the notification settings.
+    const threadsOpen = new Set();
+    let floatUi = null;
+    const chatPageVisible = () => {
+      const workspace = document.getElementById('chatWorkspace');
+      return Boolean(page && workspace && !workspace.hidden);
+    };
+    const threadVisible = (id) =>
+      [...threadsOpen].some((h) => h.viewing() && String(h.id) === String(id));
+    const popOutMode = () => document.body.classList.contains('chat-popout');
+
+    function openAnywhere(id) {
+      if (chatPageVisible()) return page.open(String(id));
+      if (popOutMode() && page) return page.open(String(id));
+      return openInPanel(String(id));
+    }
+
+    function paintBubble(count) {
+      const badge = document.querySelector('.ch-bubble-badge');
+      if (!badge) return;
+      const n = Number(count || 0);
+      badge.hidden = n < 1;
+      badge.textContent = n > 99 ? '99+' : String(n);
+      const button = document.querySelector('.ch-bubble-btn');
+      if (button) button.setAttribute('aria-label', n ? 'Chat, ' + n + ' unread' : 'Chat');
+    }
+
+    function popup(data) {
+      let stack = document.querySelector('.ch-pop-stack');
+      if (!stack) {
+        stack = document.createElement('div');
+        stack.className = 'ch-pop-stack';
+        stack.setAttribute('role', 'region');
+        stack.setAttribute('aria-label', 'New messages');
+        document.body.appendChild(stack);
+      }
+      const where =
+        data.kind === 'direct'
+          ? ''
+          : '<span class="ch-pop-where">' + esc(data.title || 'Chat') + '</span>';
+      const node = document.createElement('div');
+      node.className = 'ch-pop' + (data.mention ? ' ch-pop-mention' : '');
+      node.innerHTML =
+        '<button type="button" class="ch-pop-main" data-pop-open>' +
+        avatar(data.senderName, 'direct', 'ch-av-sm') +
+        '<span class="ch-pop-text"><b>' +
+        esc(data.senderName) +
+        (data.mention ? ' mentioned you' : '') +
+        '</b>' +
+        where +
+        '<span class="ch-pop-body">' +
+        esc(data.preview) +
+        '</span></span></button>' +
+        '<button type="button" class="ch-iconbtn ch-pop-x" data-pop-close aria-label="Dismiss">' +
+        icon('close', 14) +
+        '</button>';
+      const dismiss = () => node.remove();
+      node.querySelector('[data-pop-open]').addEventListener('click', () => {
+        dismiss();
+        openAnywhere(data.conversationId);
+      });
+      node.querySelector('[data-pop-close]').addEventListener('click', dismiss);
+      stack.appendChild(node);
+      while (stack.children.length > 3) stack.firstElementChild.remove();
+      window.setTimeout(dismiss, data.mention ? 12000 : 7000);
+    }
+
+    function desktopNotify(data) {
+      if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+      try {
+        const note = new Notification(
+          data.mention ? data.senderName + ' mentioned you' : data.senderName,
+          {
+            body: (data.kind === 'direct' ? '' : (data.title || 'Chat') + ': ') + data.preview,
+            tag: 'chat-' + data.conversationId,
+            icon: '/portal/icon.svg',
+          },
+        );
+        note.onclick = () => {
+          window.focus();
+          note.close();
+          openAnywhere(data.conversationId);
+        };
+        return true;
+      } catch {
+        return false;
+      }
+    }
+
+    function incoming(data) {
+      if (data.muted && !data.mention) return;
+      const away = document.visibilityState === 'hidden' || !document.hasFocus();
+      if (!away && threadVisible(data.conversationId)) return;
+      if (away && desktopNotify(data)) return;
+      if (document.visibilityState === 'visible') popup(data);
+    }
+
+    // ---- floating bubble and panel
+    function mountBubble() {
+      if (document.querySelector('.ch-bubble-btn') || popOutMode()) return;
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'ch-bubble-btn';
+      button.setAttribute('aria-label', 'Chat');
+      button.setAttribute('aria-expanded', 'false');
+      button.innerHTML = icon('chat', 24) + '<span class="ch-bubble-badge" hidden></span>';
+      button.addEventListener('click', () =>
+        floatUi && floatUi.isOpen() ? closePanel() : openInPanel(),
+      );
+      document.body.appendChild(button);
+    }
+    function unmountBubble() {
+      closePanel();
+      document.querySelector('.ch-bubble-btn')?.remove();
+      document.querySelector('.ch-pop-stack')?.remove();
+    }
+    function closePanel() {
+      if (!floatUi) return;
+      floatUi.thread.stop();
+      floatUi.wrap.remove();
+      floatUi = null;
+      const button = document.querySelector('.ch-bubble-btn');
+      if (button) button.setAttribute('aria-expanded', 'false');
+    }
+
+    async function openInPanel(conversationId) {
+      if (!floatUi) {
+        const wrap = document.createElement('section');
+        wrap.className = 'ch-float';
+        wrap.setAttribute('aria-label', 'Chat');
+        wrap.innerHTML =
+          '<header class="ch-float-head"><b data-f-title>Chat</b><span class="ch-float-actions">' +
+          '<button type="button" class="ch-iconbtn" data-f-full aria-label="Open the full Chat page" title="Open the full Chat page">' +
+          icon('open') +
+          '</button>' +
+          (deps.popOut
+            ? '<button type="button" class="ch-iconbtn" data-f-pop aria-label="Pop out into its own window" title="Pop out into its own window">' +
+              icon('popout') +
+              '</button>'
+            : '') +
+          '<button type="button" class="ch-iconbtn" data-f-close aria-label="Close chat">' +
+          icon('close') +
+          '</button></span></header>' +
+          '<div class="ch-float-list" data-f-list></div><div class="ch-float-thread" data-f-thread hidden></div>';
+        document.body.appendChild(wrap);
+        const state = { wrap, me: null, active: null, isOpen: () => true };
+        const thread = createThread(wrap.querySelector('[data-f-thread]'), {
+          back: () => showList(),
+          onSent: () => summary().catch(() => {}),
+          onRead: () => summary().catch(() => {}),
+        });
+        state.thread = thread;
+        floatUi = state;
+        wrap.addEventListener('click', (event) => {
+          const button = event.target.closest('button');
+          if (!button) return;
+          if (button.matches('[data-f-close]')) return closePanel();
+          if (button.matches('[data-f-full]')) {
+            const id = floatUi.active;
+            closePanel();
+            if (deps.showChatPage) deps.showChatPage(id);
+            return;
+          }
+          if (button.matches('[data-f-pop]')) {
+            const id = floatUi.active;
+            closePanel();
+            deps.popOut(id);
+            return;
+          }
+          if (button.dataset.fOpen) return showThread(button.dataset.fOpen);
+        });
+        document.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape' && floatUi && !document.querySelector('.ch-modal-host'))
+            closePanel();
+        });
+        const bubbleButton = document.querySelector('.ch-bubble-btn');
+        if (bubbleButton) bubbleButton.setAttribute('aria-expanded', 'true');
+      }
+      if (conversationId) await showThread(conversationId);
+      else await showList();
+    }
+
+    async function showList() {
+      if (!floatUi) return;
+      floatUi.active = null;
+      floatUi.thread.stop();
+      floatUi.wrap.querySelector('[data-f-thread]').hidden = true;
+      const list = floatUi.wrap.querySelector('[data-f-list]');
+      list.hidden = false;
+      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Chat';
+      list.innerHTML = '<p class="ch-list-empty">Loading&hellip;</p>';
+      try {
+        const data = await api('/api/chat/conversations');
+        if (!floatUi) return;
+        floatUi.me = data.me;
+        floatUi.thread.setMe(data.me.id);
+        const rows = [...data.conversations]
+          .sort(
+            (a, b) =>
+              (b.unread > 0) - (a.unread > 0) ||
+              new Date(b.lastMessageAt || 0) - new Date(a.lastMessageAt || 0),
+          )
+          .slice(0, 15);
+        list.innerHTML = rows.length
+          ? rows
+              .map((c) => {
+                const title = convTitle(c);
+                return (
+                  '<button type="button" class="ch-item' +
+                  (c.unread > 0 ? ' unread' : '') +
+                  '" data-f-open="' +
+                  c.id +
+                  '">' +
+                  avatar(title, c.kind, '', c.otherProfileId) +
+                  '<span class="ch-item-main"><span class="ch-item-top"><b class="ch-item-title">' +
+                  esc(title) +
+                  '</b><time>' +
+                  esc(listTime(c.lastMessageAt)) +
+                  '</time></span><span class="ch-item-bottom"><span class="ch-preview">' +
+                  esc(c.lastBody || 'No messages yet') +
+                  '</span>' +
+                  (c.unread > 0
+                    ? '<span class="ch-badges"><span class="ch-count' +
+                      (c.muted ? ' muted' : '') +
+                      '">' +
+                      c.unread +
+                      '</span></span>'
+                    : '') +
+                  '</span></span></button>'
+                );
+              })
+              .join('')
+          : '<p class="ch-list-empty">No conversations yet. Open the Chat page to start one.</p>';
+        paintPresence();
+      } catch (error) {
+        list.innerHTML =
+          '<p class="ch-list-empty">' + esc(error.message || 'Could not load chats.') + '</p>';
+      }
+    }
+
+    async function showThread(id) {
+      if (!floatUi) return;
+      if (!floatUi.me) {
+        try {
+          const data = await api('/api/chat/conversations');
+          floatUi.me = data.me;
+          floatUi.thread.setMe(data.me.id);
+        } catch {
+          return;
+        }
+      }
+      floatUi.active = String(id);
+      floatUi.wrap.querySelector('[data-f-list]').hidden = true;
+      floatUi.wrap.querySelector('[data-f-thread]').hidden = false;
+      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Chat';
+      await floatUi.thread.show(String(id));
+    }
+
+    // ---- notification settings
+    const supportsPush = () =>
+      'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+    const keyBytes = (text) => {
+      const pad = '='.repeat((4 - (text.length % 4)) % 4);
+      const raw = atob((text + pad).replace(/-/g, '+').replace(/_/g, '/'));
+      return Uint8Array.from([...raw].map((c) => c.charCodeAt(0)));
+    };
+    async function pushSubscription() {
+      if (!supportsPush()) return null;
+      const reg = await navigator.serviceWorker.getRegistration('/portal/');
+      return reg ? reg.pushManager.getSubscription() : null;
+    }
+    async function enablePush(publicKey) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted')
+        throw new Error('Notifications are blocked for this site in the browser.');
+      const reg = await navigator.serviceWorker.register('/portal/sw.js', { scope: '/portal/' });
+      await navigator.serviceWorker.ready;
+      const sub =
+        (await reg.pushManager.getSubscription()) ||
+        (await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: keyBytes(publicKey),
+        }));
+      const json = sub.toJSON();
+      await api('/api/chat/push/subscribe', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint: json.endpoint, keys: json.keys }),
+      });
+    }
+    async function disablePush() {
+      const sub = await pushSubscription();
+      if (!sub) return;
+      await api('/api/chat/push/unsubscribe', {
+        method: 'POST',
+        body: JSON.stringify({ endpoint: sub.endpoint }),
+      }).catch(() => {});
+      await sub.unsubscribe();
+    }
+
+    async function settingsModal() {
+      let settings;
+      try {
+        settings = await api('/api/chat/settings');
+      } catch (error) {
+        return toast(error.message || 'Could not load settings.');
+      }
+      const canDesktop = 'Notification' in window;
+      const subscribed = Boolean(await pushSubscription().catch(() => null));
+      const permission = canDesktop ? Notification.permission : 'denied';
+      const row = (title, text, control) =>
+        '<div class="ch-setting"><div><b>' +
+        title +
+        '</b><p>' +
+        text +
+        '</p></div>' +
+        control +
+        '</div>';
+      modal(
+        '<header><h4>Notifications</h4><button type="button" class="ch-iconbtn" data-m-close aria-label="Close">' +
+          icon('close') +
+          '</button></header><div class="ch-modal-body">' +
+          row(
+            'Pop-ups on every page',
+            'A small card appears in the corner when a message arrives and you are not looking at that conversation. Always on.',
+            '<span class="ch-chip ch-chip-ok">On</span>',
+          ) +
+          row(
+            'Desktop alerts',
+            canDesktop
+              ? permission === 'denied'
+                ? 'Blocked in this browser. Allow notifications for this site in the browser settings to turn them on.'
+                : 'Shows a system notification when this window is in the background.'
+              : 'This browser does not support notifications.',
+            canDesktop && permission !== 'denied'
+              ? '<button type="button" class="ch-btn" data-s-desktop ' +
+                  (permission === 'granted' ? 'disabled' : '') +
+                  '>' +
+                  (permission === 'granted' ? 'On' : 'Turn on') +
+                  '</button>'
+              : '',
+          ) +
+          row(
+            'Alerts when the browser is closed',
+            !settings.pushAvailable
+              ? 'Not set up on the server yet. Ask your administrator to add the notification keys (VAPID).'
+              : !supportsPush()
+                ? 'This browser cannot do background alerts. On an iPhone, add the portal to the Home Screen first.'
+                : 'Works for this browser on this device, even with the portal closed.',
+            settings.pushAvailable && supportsPush()
+              ? '<button type="button" class="ch-btn" data-s-push>' +
+                  (subscribed ? 'Turn off' : 'Turn on') +
+                  '</button>'
+              : '',
+          ) +
+          row(
+            'Email when you are mentioned',
+            settings.emailAvailable
+              ? 'Sent only if you have not read the message after a few minutes.'
+              : 'Email is not set up on the server yet.',
+            '<label class="ch-switch"><input type="checkbox" data-s-email ' +
+              (settings.emailOnMention ? 'checked' : '') +
+              (settings.emailAvailable ? '' : ' disabled') +
+              '><span class="ch-sr">Email when mentioned</span></label>',
+          ) +
+          '<p class="ch-error" data-s-error role="alert" hidden></p></div>',
+        (wrap) => {
+          const errorEl = wrap.querySelector('[data-s-error]');
+          const fail = (error) => {
+            errorEl.textContent = error.message || 'That did not work.';
+            errorEl.hidden = false;
+          };
+          wrap.addEventListener('click', async (event) => {
+            const button = event.target.closest('button');
+            if (!button) return;
+            errorEl.hidden = true;
+            try {
+              if (button.matches('[data-s-desktop]')) {
+                const result = await Notification.requestPermission();
+                button.textContent = result === 'granted' ? 'On' : 'Blocked';
+                button.disabled = true;
+              } else if (button.matches('[data-s-push]')) {
+                button.disabled = true;
+                if (button.textContent === 'Turn off') {
+                  await disablePush();
+                  button.textContent = 'Turn on';
+                } else {
+                  await enablePush(settings.vapidPublicKey);
+                  button.textContent = 'Turn off';
+                }
+                button.disabled = false;
+              }
+            } catch (error) {
+              button.disabled = false;
+              fail(error);
+            }
+          });
+          wrap.querySelector('[data-s-email]').addEventListener('change', async (event) => {
+            try {
+              await api('/api/chat/settings', {
+                method: 'PATCH',
+                body: JSON.stringify({ emailOnMention: event.target.checked }),
+              });
+            } catch (error) {
+              event.target.checked = !event.target.checked;
+              fail(error);
+            }
+          });
+        },
+      );
+    }
+
+    if ('serviceWorker' in navigator)
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'open-chat' && event.data.conversationId)
+          openAnywhere(event.data.conversationId);
+      });
 
     // ================================================================== thread
     // One conversation: header, messages, composer. The Chat screen keeps one and
@@ -1298,7 +1724,8 @@
         if (target.matches('[data-th-members]') && opts.members) return opts.members(t.info);
       });
 
-      return {
+      const handle = {
+        viewing: () => t.id !== null && host.isConnected && host.getClientRects().length > 0,
         show,
         stop,
         setMe: (id) => (t.me = id),
@@ -1307,6 +1734,8 @@
         },
         focus: () => input.focus(),
       };
+      threadsOpen.add(handle);
+      return handle;
     }
 
     // ============================================================ chat screen
@@ -1351,6 +1780,14 @@
         '<button type="button" class="ch-btn ch-btn-primary" data-ch-new>' +
         icon('plus', 16) +
         'New chat</button>' +
+        (deps.popOut && !document.body.classList.contains('chat-popout')
+          ? '<button type="button" class="ch-iconbtn" data-ch-popout aria-label="Pop out into its own window" title="Pop out into its own window">' +
+            icon('popout') +
+            '</button>'
+          : '') +
+        '<button type="button" class="ch-iconbtn" data-ch-settings aria-label="Notification settings" title="Notification settings">' +
+        icon('bell') +
+        '</button>' +
         (deps.can('chat.create_channel')
           ? '<button type="button" class="ch-iconbtn" data-ch-channel aria-label="New channel" title="New channel">' +
             icon('hash') +
@@ -1739,6 +2176,8 @@
         }
         if (button.matches('[data-ch-new]')) return newChatModal();
         if (button.matches('[data-ch-channel]')) return channelModal();
+        if (button.matches('[data-ch-settings]')) return settingsModal();
+        if (button.matches('[data-ch-popout]')) return deps.popOut(st.active);
       });
       root.querySelector('[data-ch-search]').addEventListener('input', (event) => {
         st.search = event.target.value;
@@ -1832,7 +2271,14 @@
       await thread.show(String(conversation.id));
     }
 
-    return { renderPage, openRecord, startBadge, stopBadge, summary };
+    return {
+      renderPage,
+      openRecord,
+      startBadge,
+      stopBadge,
+      summary,
+      openConversation: openAnywhere,
+    };
   }
 
   window.JdChat = { create };

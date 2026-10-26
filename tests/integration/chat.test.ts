@@ -5,6 +5,7 @@ import express from 'express';
 import { connect } from '../../apps/api/src/chat/hub.js';
 import { createChatHandlers } from '../../apps/api/src/chat/routes.js';
 import { runChatRetention } from '../../apps/api/src/chat/retention.js';
+import { createChatNotifier } from '../../apps/api/src/chat/notifier.js';
 import { ChatServiceError, createChatService } from '../../apps/api/src/chat/service.js';
 import type { ApplicationAuth } from '../../apps/api/src/auth/application-auth.js';
 import { canReadChatRecord } from '../../packages/db/src/chat.js';
@@ -631,6 +632,135 @@ test(
       controller.abort();
     } finally {
       await new Promise((resolve) => server.close(resolve));
+      await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
+        ids,
+      ]);
+      await pool.end();
+    }
+  },
+);
+
+test(
+  'Chat: background push and unread-mention email go to the right people',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const pushes: { profileId: string; body: string }[] = [];
+    const mails: { to: string; subject: string }[] = [];
+    const notifier = createChatNotifier(pool, {
+      pushEnabled: () => true,
+      mailEnabled: () => true,
+      emailDelayMs: 150,
+      sendPush: async (subscription, payload) => {
+        pushes.push({ profileId: subscription.profileId, body: payload.body });
+        return subscription.endpoint.includes('gone') ? 'gone' : 'ok';
+      },
+      sendMail: async (mail) => {
+        mails.push({ to: mail.to, subject: mail.subject });
+        return true;
+      },
+    });
+    const service = createChatService(pool, notifier);
+    const ids: string[] = [];
+    const emails: string[] = [];
+    try {
+      for (const name of ['a', 'b', 'c']) {
+        const email = `chat6-${name}-${randomUUID()}@example.test`;
+        emails.push(email);
+        const result = await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, $2) RETURNING id`,
+          [email, `Chat6 ${name}`],
+        );
+        ids.push(result.rows[0].id);
+        await pool.query(
+          `INSERT INTO profile_roles (profile_id, role_id)
+           SELECT $1, id FROM roles WHERE code = 'user'`,
+          [result.rows[0].id],
+        );
+      }
+      const [a, b, c] = ids;
+      const userA = authFor(a);
+      const userB = authFor(b);
+      const userC = authFor(c);
+      const keys = { p256dh: 'p'.repeat(20), auth: 'a'.repeat(20) };
+      await assert.rejects(
+        service.pushSubscribe(userB, { endpoint: 'https://push.example/b1', keys }, null),
+        /not set up/,
+        'rejects when the server has no VAPID keys',
+      );
+      process.env.VAPID_PUBLIC_KEY = 'test-public';
+      process.env.VAPID_PRIVATE_KEY = 'test-private';
+      try {
+        await service.pushSubscribe(userB, { endpoint: 'https://push.example/b1', keys }, 'UA');
+        await service.pushSubscribe(userC, { endpoint: 'https://push.example/gone-c', keys }, 'UA');
+        const settings = await service.settings(userB);
+        assert.equal(settings.pushAvailable, true);
+        assert.equal(settings.emailOnMention, true);
+
+        const channel = (
+          await service.openConversation(authFor(a, ['chat.use', 'chat.create_channel']), {
+            kind: 'channel',
+            title: `Notify ${randomUUID().slice(0, 6)}`,
+            memberIds: [b, c],
+          })
+        ).conversation;
+
+        // Plain message: B and C are offline, so both get a push; no email.
+        await service.send(userA, channel.id, { body: 'plain note' });
+        assert.deepEqual(pushes.map((p) => p.profileId).sort(), [b, c].sort());
+        // C's browser subscription was gone, so it is cleaned up.
+        const left = await pool.query(
+          `SELECT endpoint FROM chat_push_subscriptions WHERE profile_id = $1`,
+          [c],
+        );
+        assert.equal(left.rowCount, 0);
+
+        // Muted and not mentioned: no push.
+        await service.mute(userB, channel.id, { muted: true });
+        pushes.length = 0;
+        await service.send(userA, channel.id, { body: 'quiet' });
+        assert.equal(pushes.length, 0);
+
+        // Mentioned while muted: push goes out, and the email follows if still unread.
+        const mention = await service.send(userA, channel.id, {
+          body: `urgent @Chat6 b`,
+          mentionIds: [b],
+        });
+        assert.equal(pushes.filter((p) => p.profileId === b).length, 1);
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        assert.equal(mails.filter((m) => m.to === emails[1]).length, 1);
+        assert.match(mails[0].subject, /mentioned you/);
+
+        // If the person reads it before the delay, no email.
+        mails.length = 0;
+        await service
+          .send(userA, channel.id, { body: 'second @Chat6 b', mentionIds: [b] })
+          .then(async (message) => {
+            await service.read(userB, channel.id, { messageId: message.id });
+          });
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        assert.equal(mails.length, 0);
+
+        // Turning email off stops it.
+        await service.updateSettings(userB, { emailOnMention: false });
+        await service.send(userA, channel.id, { body: 'third @Chat6 b', mentionIds: [b] });
+        await new Promise((resolve) => setTimeout(resolve, 400));
+        assert.equal(mails.length, 0);
+        void mention;
+      } finally {
+        delete process.env.VAPID_PUBLIC_KEY;
+        delete process.env.VAPID_PRIVATE_KEY;
+      }
+    } finally {
       await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
         ids,
       ]);

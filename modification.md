@@ -3381,3 +3381,25 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/chat/{hub,retention,service,routes}.ts, apps/api/src/app.ts, apps/api/src/api/route-catalog.ts, packages/db/src/chat.ts, apps/web/src/{chat.js,app.js,index.html}, tests/integration/chat.test.ts, .env.example.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh. If you sit behind a proxy that buffers responses (nginx), the stream header `X-Accel-Buffering: no` is already sent; Cloudflare/other proxies may need response buffering off for `/api/chat/stream`.
+
+## Modification #144 — Chat (phase 4): notifications, floating chat bubble and pop-out window
+
+**Date:** 2026-10-26
+
+**Why.** People are not always on the Chat page, or even in the portal. A new message needs to reach them wherever they are.
+
+**What changed.**
+- **Pop-up on any page.** When a message arrives and you are not looking at that conversation, a small card appears in the bottom-right corner (sender, where, first lines). Click it to open the conversation. Mentions stay longer and are highlighted. Muted conversations stay quiet unless you are mentioned.
+- **Floating chat bubble** (bottom-right, every page except Chat) with the unread count. It opens a compact chat panel: recent conversations, reply without leaving what you are doing, **Open full Chat** and **Pop out** buttons.
+- **Pop-out window.** Opens Chat in its own small browser window (already signed in), no menus, to keep beside other work. Also available from the Chat page header.
+- **Desktop alerts.** When the portal window is in the background, new messages show as a normal system notification; clicking it brings you back to the conversation. Turn on from Chat > bell icon (Notifications).
+- **Alerts when the browser is closed (background push).** Optional, per browser, from the same Notifications screen. Needs a one-time server setup (see below); on an iPhone the portal must be added to the Home Screen first.
+- **Email when mentioned.** Only if you have not read the message after a few minutes (default 5), and only if email is switched on for the server. Each person can turn it off in Notifications.
+
+**One-time server setup (optional features).** Everything above except background push and email works as soon as you pull and refresh.
+- Background push: run `npm run vapid`, put the two lines into `.env` as `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (and optionally `VAPID_SUBJECT=mailto:you@company.com`), restart the API. Browser push requires the portal to be served over HTTPS (localhost is fine for testing).
+- Email: `EMAIL_ENABLED=true`, `EMAIL_FROM` (a verified sender) and `EMAIL_PROVIDER_API_KEY` for **Resend** (resend.com; the only provider built in), plus `PORTAL_PUBLIC_URL` so the email links to the portal. Mail is only sent for mentions still unread after `CHAT_EMAIL_DELAY_MINUTES`. Timers live in the API process, so a restart inside that window drops a pending email.
+
+**Files.** packages/db/migrations/056_chat_notifications.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{notifier,push,service,routes}.ts, apps/api/src/mail/mailer.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,app.js,index.html,sw.js,icon.svg}, tests/integration/chat.test.ts, package.json (web-push), .env.example.
+
+**Needs you:** pull, `npm install` (new package `web-push`), restart the API (applies migration 056), hard-refresh. Then the optional VAPID and email setup above.

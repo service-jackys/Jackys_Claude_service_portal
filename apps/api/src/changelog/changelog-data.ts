@@ -15,6 +15,31 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 144,
+    title: 'Chat (phase 4): notifications, floating chat bubble and pop-out window',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'People are not always on the Chat page, or even in the portal. A new message needs to reach them wherever they are.',
+    changes: [
+      'Pop-up on any page. When a message arrives and you are not looking at that conversation, a small card appears in the bottom-right corner (sender, where, first lines). Click it to open the conversation. Mentions stay longer and are…',
+      'Floating chat bubble (bottom-right, every page except Chat) with the unread count. It opens a compact chat panel: recent conversations, reply without leaving what you are doing, Open full Chat and Pop out buttons.',
+      'Pop-out window. Opens Chat in its own small browser window (already signed in), no menus, to keep beside other work. Also available from the Chat page header.',
+      'Desktop alerts. When the portal window is in the background, new messages show as a normal system notification; clicking it brings you back to the conversation. Turn on from Chat > bell icon (Notifications).',
+      'Alerts when the browser is closed (background push). Optional, per browser, from the same Notifications screen. Needs a one-time server setup (see below); on an iPhone the portal must be added to the Home Screen first.',
+      'Email when mentioned. Only if you have not read the message after a few minutes (default 5), and only if email is switched on for the server. Each person can turn it off in Notifications.',
+      'Background push: run npm run vapid, put the two lines into .env as VAPID_PUBLIC_KEY / VAPID_PRIVATE_KEY (and optionally VAPID_SUBJECT=mailto:you@company.com), restart the API. Browser push requires the portal to be served over HTTPS…',
+      'Email: EMAIL_ENABLED=true, EMAIL_FROM (a verified sender) and EMAIL_PROVIDER_API_KEY for Resend (resend.com; the only provider built in), plus PORTAL_PUBLIC_URL so the email links to the portal. Mail is only sent for mentions still unread…',
+    ],
+    needsYou:
+      'pull, npm install (new package web-push), restart the API (applies migration 056), hard-refresh. Then the optional VAPID and email setup above.',
+    migrations: ['056_chat_notifications.sql'],
+    files:
+      'packages/db/migrations/056_chat_notifications.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{notifier,push,service,routes}.ts, apps/api/src/mail/mailer.ts…',
+  },
+  {
     id: 143,
     title: 'Chat (phase 3): live delivery, online status, typing and read ticks',
     area: 'Portal look & feel',

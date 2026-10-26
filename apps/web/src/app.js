@@ -635,9 +635,23 @@
     } else {
       showNoWorkspaceAccess();
     }
+    openChatFromLink();
     if (scrollIntoView) {
       $('#staff-workspace').scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  // ?chat=<id> comes from a notification click; ?chatPopout=1 is the pop-out window.
+  function openChatFromLink() {
+    if (!hasPermission('chat.use')) return;
+    const params = new URLSearchParams(location.search);
+    const popout = params.has('chatPopout');
+    const chatId = params.get('chat');
+    if (!popout && !chatId) return;
+    if (popout) document.body.classList.add('chat-popout');
+    pendingChatOpen = chatId;
+    setWorkspaceMode('chat');
+    history.replaceState(null, '', location.pathname + (popout ? '?chatPopout=1' : ''));
   }
 
   async function establishSession(result) {
@@ -660,6 +674,7 @@
   // since "please sign in again" is the expected, unremarkable outcome
   // here, not a failure.
   async function restoreSession() {
+    if (new URLSearchParams(location.search).has('chatPopout')) adoptPopoutToken();
     const token = getStoredToken();
     if (!token) return;
     authToken = token;
@@ -12857,11 +12872,50 @@ ${bodyHtml}
       setWorkspaceMode('daily-list');
     }
   }
+  // Chat pop-out window (modification #144): a small separate window showing only the
+  // Chat screen. The new window cannot see this tab's sign-in (it is per tab), so the
+  // token is passed through localStorage for a few seconds and removed on arrival.
+  let pendingChatOpen = null;
+  const POPOUT_TOKEN_KEY = 'jackys-service-portal:popoutToken';
+  function openChatPopOut(conversationId) {
+    try {
+      localStorage.setItem(POPOUT_TOKEN_KEY, JSON.stringify({ token: authToken, at: Date.now() }));
+    } catch {
+      /* the pop-out will ask to sign in */
+    }
+    const url =
+      '/portal/?chatPopout=1' +
+      (conversationId ? '&chat=' + encodeURIComponent(conversationId) : '');
+    const win = window.open(url, 'jd-chat-popout', 'popup=yes,width=440,height=720');
+    if (win) win.focus();
+  }
+  function adoptPopoutToken() {
+    try {
+      const raw = localStorage.getItem(POPOUT_TOKEN_KEY);
+      if (!raw) return;
+      localStorage.removeItem(POPOUT_TOKEN_KEY);
+      const handoff = JSON.parse(raw);
+      if (handoff && handoff.token && Date.now() - handoff.at < 30000 && !getStoredToken())
+        saveStoredToken(handoff.token);
+    } catch {
+      /* ignore */
+    }
+  }
   function getChatUi() {
     if (!chatUi) {
       chatUi = window.JdChat.create({
         apiRequest,
         apiUpload: apiUploadRequest,
+        showChatPage: (id) => {
+          pendingChatOpen = id ? String(id) : null;
+          setWorkspaceMode('chat');
+        },
+        consumePendingOpen: () => {
+          const id = pendingChatOpen;
+          pendingChatOpen = null;
+          return id;
+        },
+        popOut: openChatPopOut,
         apiFetch: (url, options = {}) => {
           const headers = new Headers(options.headers || {});
           if (authToken) headers.set('authorization', 'Bearer ' + authToken);

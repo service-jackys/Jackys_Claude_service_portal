@@ -14,17 +14,19 @@
     "db:migrate": "tsx packages/db/src/migrate.ts",
     "db:clear-test-data": "tsx packages/db/src/clear-test-data.ts",
     "import:sheets": "tsx packages/db/src/import-sheets.ts",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "vapid": "node -e \"const w=require('web-push');const k=w.generateVAPIDKeys();console.log('VAPID_PUBLIC_KEY='+k.publicKey);console.log('VAPID_PRIVATE_KEY='+k.privateKey)\""
   },
   "dependencies": {
     "dotenv": "^16.4.7",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
-    "jszip": "^3.10.1",
     "helmet": "^8.1.0",
+    "jszip": "^3.10.1",
     "multer": "^2.4.0",
     "pg": "^8.23.0",
     "swagger-ui-express": "^5.0.1",
+    "web-push": "^3.6.7",
     "zod": "^3.25.76"
   },
   "devDependencies": {
@@ -35,6 +37,7 @@
     "@types/node": "^22.15.21",
     "@types/pg": "^8.23.1",
     "@types/swagger-ui-express": "^4.1.8",
+    "@types/web-push": "^3.6.4",
     "prettier": "^3.5.3",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"

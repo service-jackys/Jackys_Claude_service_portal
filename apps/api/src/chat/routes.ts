@@ -200,6 +200,28 @@ export function createChatHandlers(
         res.json({ reads: await service.reads(auth, id(req)) });
       }),
     ],
+    settings: [use, wrap(async (auth, _req, res) => void res.json(await service.settings(auth)))],
+    updateSettings: [
+      use,
+      wrap(async (auth, req, res) => {
+        await service.updateSettings(auth, req.body);
+        res.status(204).end();
+      }),
+    ],
+    pushSubscribe: [
+      use,
+      wrap(async (auth, req, res) => {
+        await service.pushSubscribe(auth, req.body, req.header('user-agent') ?? null);
+        res.status(204).end();
+      }),
+    ],
+    pushUnsubscribe: [
+      use,
+      wrap(async (auth, req, res) => {
+        await service.pushUnsubscribe(auth, req.body);
+        res.status(204).end();
+      }),
+    ],
     mute: [
       use,
       wrap(async (auth, req, res) => {
