@@ -409,6 +409,10 @@
       .field {
         display: grid;
         gap: 0.35rem;
+        /* A field stretched to the tallest one in its row (e.g. one showing an
+           error message) keeps its label and input at the top instead of
+           spreading the extra height between them. */
+        align-content: start;
       }
       .field-wide {
         grid-column: 1 / -1;

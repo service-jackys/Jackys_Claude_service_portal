@@ -3451,3 +3451,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/auth/local-auth.ts, apps/api/src/api/openapi.ts, apps/web/src/{app.js,index.html}, README.md, tests/unit/password-rule.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #149 — Form fields no longer stretch apart when a neighbour shows an error
+
+**Date:** 2026-10-26
+
+**Why.** In "Add a teammate login", an error under Password made that row taller, and the Role box was pushed down and stretched.
+
+**What changed.** A form field now keeps its label and box at the top when a neighbouring field in the same row is taller. This applies to every form that uses the standard field layout. Display only.
+
+**Files.** apps/web/src/index.html.
+
+**Needs you:** pull and hard-refresh.
