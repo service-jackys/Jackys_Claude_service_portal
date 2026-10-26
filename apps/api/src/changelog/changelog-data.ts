@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 145,
+    title: 'Chat look: compact header, one-row filters, tidier composer',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'The "New chat" button wrapped onto two lines and stretched the header, the filter chips wrapped onto a second row, and the message box looked heavy.',
+    changes: [
+      'What changed: "New chat" is now a compact pill on one line with small icon buttons beside the title; the filters sit in one row (they scroll sideways if the window is narrow); the conversation list has softer rounded rows; the message box…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration or API restart.',
+    migrations: [],
+    files: 'apps/web/src/index.html.',
+  },
+  {
     id: 144,
     title: 'Chat (phase 4): notifications, floating chat bubble and pop-out window',
     area: 'Portal look & feel',
