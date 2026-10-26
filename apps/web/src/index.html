@@ -7877,6 +7877,138 @@
         white-space: nowrap;
         cursor: pointer;
       }
+      .ch-mini-danger:hover {
+        color: var(--red);
+      }
+      .ch-deleted {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        opacity: 0.75;
+        font-style: italic;
+      }
+      .ch-edited {
+        font-size: 0.66rem;
+        opacity: 0.7;
+      }
+      .ch-chip-pin {
+        background: var(--surface-soft);
+        color: var(--muted);
+      }
+      .ch-reactions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 4px;
+      }
+      .ch-react {
+        display: inline-flex;
+        min-height: 24px;
+        align-items: center;
+        gap: 4px;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.75rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .ch-react-mine {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+      .ch-emoji-pop {
+        position: absolute;
+        right: 0;
+        bottom: -34px;
+        z-index: 4;
+        display: flex;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        box-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
+      }
+      .ch-emoji-pop button {
+        width: 32px;
+        height: 32px;
+        border: 0;
+        border-radius: 50%;
+        background: transparent;
+        font-size: 1.05rem;
+        cursor: pointer;
+      }
+      .ch-emoji-pop button:hover {
+        background: var(--surface-soft);
+      }
+      .ch-flash .ch-bubble {
+        animation: ch-flash 1.8s ease-out;
+      }
+      @keyframes ch-flash {
+        0%,
+        40% {
+          box-shadow: 0 0 0 3px var(--blue);
+        }
+        100% {
+          box-shadow: 0 0 0 0 transparent;
+        }
+      }
+      .ch-list-heading {
+        margin: 0;
+        padding: 0.7rem 0.9rem 0.3rem;
+        color: var(--muted);
+        font-size: 0.7rem;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .ch-hit,
+      .ch-pinitem {
+        display: grid;
+        width: 100%;
+        gap: 2px;
+        padding: 0.55rem 0.9rem;
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        background: transparent;
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+      }
+      .ch-hit:hover,
+      .ch-pinitem:hover {
+        background: var(--surface-soft);
+      }
+      .ch-hit-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 0.82rem;
+      }
+      .ch-hit-top time,
+      .ch-pinitem time {
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+      .ch-hit-body,
+      .ch-pinitem span {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ch-pinlist {
+        max-height: 60vh;
+        overflow: auto;
+      }
+      .ch-empty-note {
+        margin: 0;
+        padding: 1.2rem 0.9rem;
+        color: var(--muted);
+      }
       .ch-jump {
         position: absolute;
         right: 1rem;

@@ -2,7 +2,11 @@ import type { Pool, PoolClient } from 'pg';
 import {
   chatConversationCreateSchema,
   chatMembersSchema,
+  chatMessageEditSchema,
   chatMessageWriteSchema,
+  chatPinSchema,
+  chatReactionSchema,
+  chatSearchQuerySchema,
   chatMessagesQuerySchema,
   chatMuteSchema,
   chatReadSchema,
@@ -11,6 +15,8 @@ import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
   canReadChatRecord,
   createChatChannel,
+  deleteChatMessage,
+  editChatMessage,
   ensureChatMember,
   findChatConversation,
   findChatMessage,
@@ -23,6 +29,10 @@ import {
   listChatMembers,
   listChatMessages,
   listChatPeopleAccess,
+  listPinnedChatMessages,
+  searchChatMessages,
+  setChatPinned,
+  toggleChatReaction,
   markChatAnswered,
   markChatRead,
   removeChatMember,
@@ -300,6 +310,133 @@ export function createChatService(pool: Pool) {
         await markChatAnswered(client, messageId, auth.profileId);
         return (await findChatMessage(client, messageId))!;
       });
+    },
+
+    async pins(auth: ApplicationAuth, id: string) {
+      const client = await pool.connect();
+      try {
+        await open(client, auth, id);
+        return await listPinnedChatMessages(client, id);
+      } finally {
+        client.release();
+      }
+    },
+
+    async edit(auth: ApplicationAuth, messageId: string, body: unknown, requestId?: string) {
+      const data = parse(chatMessageEditSchema, body);
+      return withTransaction(pool, async (client) => {
+        const message = await findChatMessage(client, messageId);
+        if (!message) throw new ChatServiceError('not-found', 'Message not found.');
+        const { conversation, record } = await open(client, auth, message.conversationId);
+        if (message.senderId !== auth.profileId)
+          throw new ChatServiceError('forbidden', 'You can only edit your own messages.');
+        if (message.deleted) throw new ChatServiceError('invalid', 'That message was deleted.');
+        const mentionIds = [...new Set(data.mentionIds)].filter((m) => m !== auth.profileId);
+        if (mentionIds.length) {
+          const allowed = new Set((await who(client, conversation, record)).map((p) => p.id));
+          if (mentionIds.some((m) => !allowed.has(m)))
+            throw new ChatServiceError(
+              'invalid',
+              'You can only mention people who can see this conversation.',
+            );
+        }
+        await editChatMessage(client, messageId, data.body, mentionIds);
+        await insertAuditEvent(client, {
+          actorProfileId: auth.profileId,
+          action: 'chat.message_edited',
+          targetType: 'chat_message',
+          targetId: messageId,
+          metadata: { conversationId: conversation.id, previousBody: message.body },
+          requestId,
+        });
+        return (await findChatMessage(client, messageId))!;
+      });
+    },
+
+    async remove(auth: ApplicationAuth, messageId: string, requestId?: string) {
+      return withTransaction(pool, async (client) => {
+        const message = await findChatMessage(client, messageId);
+        if (!message) throw new ChatServiceError('not-found', 'Message not found.');
+        const { conversation } = await open(client, auth, message.conversationId);
+        if (message.senderId !== auth.profileId && !can(auth, 'chat.moderate'))
+          throw new ChatServiceError('forbidden', 'You can only delete your own messages.');
+        if (message.deleted) return message;
+        await deleteChatMessage(client, messageId, auth.profileId);
+        await insertAuditEvent(client, {
+          actorProfileId: auth.profileId,
+          action: 'chat.message_deleted',
+          targetType: 'chat_message',
+          targetId: messageId,
+          metadata: {
+            conversationId: conversation.id,
+            byModerator: message.senderId !== auth.profileId,
+            previousBody: message.body,
+          },
+          requestId,
+        });
+        return (await findChatMessage(client, messageId))!;
+      });
+    },
+
+    async react(auth: ApplicationAuth, messageId: string, body: unknown) {
+      const data = parse(chatReactionSchema, body);
+      return withTransaction(pool, async (client) => {
+        const message = await findChatMessage(client, messageId);
+        if (!message) throw new ChatServiceError('not-found', 'Message not found.');
+        await open(client, auth, message.conversationId);
+        if (message.deleted) throw new ChatServiceError('invalid', 'That message was deleted.');
+        await toggleChatReaction(client, messageId, auth.profileId, data.emoji);
+        return (await findChatMessage(client, messageId))!;
+      });
+    },
+
+    async pin(auth: ApplicationAuth, messageId: string, body: unknown, requestId?: string) {
+      const data = parse(chatPinSchema, body);
+      return withTransaction(pool, async (client) => {
+        const message = await findChatMessage(client, messageId);
+        if (!message) throw new ChatServiceError('not-found', 'Message not found.');
+        await open(client, auth, message.conversationId);
+        if (message.deleted) throw new ChatServiceError('invalid', 'That message was deleted.');
+        await setChatPinned(client, messageId, auth.profileId, data.pinned);
+        await insertAuditEvent(client, {
+          actorProfileId: auth.profileId,
+          action: data.pinned ? 'chat.message_pinned' : 'chat.message_unpinned',
+          targetType: 'chat_message',
+          targetId: messageId,
+          metadata: { conversationId: message.conversationId },
+          requestId,
+        });
+        return (await findChatMessage(client, messageId))!;
+      });
+    },
+
+    async search(auth: ApplicationAuth, query: unknown) {
+      const q = parse(chatSearchQuerySchema, query);
+      const client = await pool.connect();
+      try {
+        const hits = await searchChatMessages(client, auth.profileId, q.q, q.limit * 3);
+        const result = [];
+        const seen = new Map<string, boolean>();
+        for (const hit of hits) {
+          if (hit.kind === 'record') {
+            const key = `${hit.recordType}:${hit.recordId}`;
+            if (!seen.has(key)) {
+              const record = await findChatRecord(
+                client,
+                hit.recordType as never,
+                String(hit.recordId),
+              );
+              seen.set(key, Boolean(record && canReadChatRecord(me(auth), record)));
+            }
+            if (!seen.get(key)) continue;
+          }
+          result.push(hit);
+          if (result.length >= q.limit) break;
+        }
+        return result;
+      } finally {
+        client.release();
+      }
     },
 
     async mute(auth: ApplicationAuth, id: string, body: unknown) {

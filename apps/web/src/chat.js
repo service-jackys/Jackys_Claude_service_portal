@@ -34,6 +34,9 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
     open: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
     flag: '<path d="M4 22V4"/><path d="M4 4h13l-2 4 2 4H4"/>',
+    trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m6 6 1 14h10l1-14"/>',
+    pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/>',
+    edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
   };
   const icon = (name, size) =>
     '<svg class="ch-ico" width="' +
@@ -186,6 +189,8 @@
         me: opts.me,
         messages: [],
         lastId: '0',
+        rev: '0',
+        editing: null,
         timer: null,
         reply: null,
         flag: false,
@@ -261,6 +266,9 @@
               icon('open') +
               '</button>'
             : '') +
+          '<button type="button" class="ch-iconbtn" data-th-pins aria-label="Pinned messages" title="Pinned messages">' +
+          icon('pin') +
+          '</button>' +
           (c.kind === 'channel'
             ? '<button type="button" class="ch-iconbtn" data-th-members aria-label="Members" title="Members">' +
               icon('users') +
@@ -280,6 +288,36 @@
               icon('close') +
               '</button>'
             : '') +
+          '</div>'
+        );
+      }
+
+      function reactionsHtml(m) {
+        if (!m.reactions || !m.reactions.length) return '';
+        return (
+          '<div class="ch-reactions">' +
+          m.reactions
+            .map((r) => {
+              const mineR = r.profileIds.includes(String(t.me));
+              return (
+                '<button type="button" class="ch-react' +
+                (mineR ? ' ch-react-mine' : '') +
+                '" data-th-chip="' +
+                m.id +
+                '" data-emoji="' +
+                esc(r.emoji) +
+                '" title="' +
+                esc(r.names.join(', ')) +
+                '" aria-pressed="' +
+                mineR +
+                '"><span>' +
+                esc(r.emoji) +
+                '</span>' +
+                r.profileIds.length +
+                '</button>'
+              );
+            })
+            .join('') +
           '</div>'
         );
       }
@@ -318,9 +356,16 @@
               esc(m.replyTo.body) +
               '</span></blockquote>'
             : '') +
-          '<div class="ch-text">' +
-          bodyHtml(m) +
-          '</div><div class="ch-meta">' +
+          (m.deleted
+            ? '<div class="ch-text ch-deleted">' +
+              icon('trash', 13) +
+              'This message was deleted</div>'
+            : '<div class="ch-text">' + bodyHtml(m) + '</div>') +
+          reactionsHtml(m) +
+          '<div class="ch-meta">' +
+          (m.pinned
+            ? '<span class="ch-chip ch-chip-pin">' + icon('pin', 12) + 'Pinned</span>'
+            : '') +
           (m.needsReply
             ? m.answeredAt
               ? '<span class="ch-chip ch-chip-ok">' +
@@ -331,15 +376,34 @@
               : '<span class="ch-chip ch-chip-warn">' + icon('flag', 12) + 'Needs reply</span>'
             : '') +
           '<span class="ch-msg-actions">' +
-          '<button type="button" class="ch-mini" data-th-reply="' +
-          m.id +
-          '" aria-label="Reply to this message">Reply</button>' +
-          (open && !mine
+          (m.deleted
+            ? ''
+            : '<button type="button" class="ch-mini" data-th-reply="' +
+              m.id +
+              '" aria-label="Reply to this message">Reply</button>' +
+              '<button type="button" class="ch-mini" data-th-react="' +
+              m.id +
+              '" aria-label="Add a reaction">React</button>' +
+              '<button type="button" class="ch-mini" data-th-pin="' +
+              m.id +
+              '">' +
+              (m.pinned ? 'Unpin' : 'Pin') +
+              '</button>' +
+              (mine
+                ? '<button type="button" class="ch-mini" data-th-edit="' + m.id + '">Edit</button>'
+                : '') +
+              (mine || deps.can('chat.moderate')
+                ? '<button type="button" class="ch-mini ch-mini-danger" data-th-delete="' +
+                  m.id +
+                  '">Delete</button>'
+                : '')) +
+          (open && !mine && !m.deleted
             ? '<button type="button" class="ch-mini" data-th-answer="' +
               m.id +
               '">Mark answered</button>'
             : '') +
           '</span>' +
+          (m.editedAt && !m.deleted ? '<span class="ch-edited">edited</span>' : '') +
           '<time datetime="' +
           esc(new Date(m.createdAt).toISOString()) +
           '">' +
@@ -392,54 +456,57 @@
         }
       }
 
+      const maxRev = (list) =>
+        list.reduce((hi, m) => (BigInt(m.rev) > BigInt(hi) ? m.rev : hi), '0');
+      // Replace (or append) one message in the view, keeping the scroll position.
+      function applyMessage(m) {
+        const i = t.messages.findIndex((x) => x.id === m.id);
+        if (BigInt(m.rev) > BigInt(t.rev)) t.rev = m.rev;
+        if (i === -1) {
+          t.messages.push(m);
+          t.messages.sort((x, y) => (BigInt(x.id) < BigInt(y.id) ? -1 : 1));
+          t.lastId = t.messages[t.messages.length - 1].id;
+          const empty = scroll.querySelector('.ch-empty-thread');
+          if (empty) empty.remove();
+          const at = t.messages.indexOf(m);
+          if (at === t.messages.length - 1)
+            scroll.insertAdjacentHTML('beforeend', messageHtml(m, t.messages[at - 1]));
+          else paint(true);
+          return true;
+        }
+        t.messages[i] = m;
+        const node = scroll.querySelector('[data-mid="' + m.id + '"]');
+        if (node) {
+          const tmp = document.createElement('div');
+          tmp.innerHTML = messageHtml(m, t.messages[i - 1]);
+          const article = tmp.querySelector('article');
+          if (article) node.replaceWith(article);
+        }
+        return false;
+      }
+
+      // One cheap call returns new messages and changes (edits, deletes, reactions, pins,
+      // answered flags) to ones already on screen.
       async function poll() {
         if (t.id === null || !host.isConnected || document.visibilityState === 'hidden') return;
         try {
           const data = await api(
-            '/api/chat/conversations/' +
-              t.id +
-              '/messages?after=' +
-              encodeURIComponent(t.lastId) +
-              '&limit=100',
+            '/api/chat/conversations/' + t.id + '/messages?sinceRev=' + t.rev + '&limit=100',
           );
-          const fresh = data.messages;
-          if (fresh.length) {
-            const stick = nearBottom();
-            t.lastId = fresh[fresh.length - 1].id;
-            appendMessages(fresh);
+          if (!data.messages.length) return;
+          const stick = nearBottom();
+          let added = false;
+          for (const m of data.messages) added = applyMessage(m) || added;
+          if (added) {
             if (stick) scrollBottom();
             else q('[data-th-jump]').hidden = false;
             await markRead();
-            refreshStates();
           }
         } catch (error) {
           if (error.status === 404) stop();
         }
       }
-      // Answered flags change on messages we already hold, so refresh them cheaply.
-      async function refreshStates() {
-        if (!t.messages.some((m) => m.needsReply && !m.answeredAt)) return;
-        try {
-          const data = await api('/api/chat/conversations/' + t.id + '/messages?limit=100');
-          for (const fresh of data.messages) {
-            const mine = t.messages.find((m) => m.id === fresh.id);
-            if (mine && fresh.answeredAt && !mine.answeredAt) {
-              mine.answeredAt = fresh.answeredAt;
-              mine.answeredByName = fresh.answeredByName;
-              const node = scroll.querySelector('[data-mid="' + mine.id + '"]');
-              if (node) {
-                const i = t.messages.indexOf(mine);
-                const tmp = document.createElement('div');
-                tmp.innerHTML = messageHtml(mine, t.messages[i - 1]);
-                const article = tmp.querySelector('article');
-                if (article) node.replaceWith(article);
-              }
-            }
-          }
-        } catch {
-          /* next poll */
-        }
-      }
+      const refreshStates = poll;
       function stop() {
         if (t.timer) window.clearInterval(t.timer);
         t.timer = null;
@@ -451,6 +518,8 @@
         t.info = null;
         t.messages = [];
         t.lastId = '0';
+        t.rev = '0';
+        t.editing = null;
         t.readUpTo = null;
         t.reply = null;
         t.flag = false;
@@ -466,15 +535,30 @@
         try {
           const [info, data] = await Promise.all([
             api('/api/chat/conversations/' + id),
-            api('/api/chat/conversations/' + id + '/messages?limit=60'),
+            api(
+              '/api/chat/conversations/' +
+                id +
+                '/messages?limit=60' +
+                (extra && extra.focus ? '&around=' + encodeURIComponent(extra.focus) : ''),
+            ),
           ]);
           if (t.id !== id) return;
           t.info = info;
           t.messages = data.messages;
           t.lastId = t.messages.length ? t.messages[t.messages.length - 1].id : '0';
+          t.rev = maxRev(t.messages);
+          if (extra && extra.focus) {
+            const latest = await api('/api/chat/conversations/' + id + '/messages?limit=1');
+            t.rev = maxRev([...t.messages, ...latest.messages]);
+          }
           q('[data-th-head]').innerHTML = headHtml();
           paint(true);
-          scrollBottom();
+          const focused =
+            extra && extra.focus && scroll.querySelector('[data-mid="' + extra.focus + '"]');
+          if (focused) {
+            focused.scrollIntoView({ block: 'center' });
+            focused.classList.add('ch-flash');
+          } else scrollBottom();
           await markRead();
           t.timer = window.setInterval(poll, 4000);
           if (!window.matchMedia('(pointer: coarse)').matches) input.focus();
@@ -486,9 +570,83 @@
         }
       }
 
+      async function toggleReaction(id, emoji) {
+        try {
+          const data = await api('/api/chat/messages/' + id + '/reactions', {
+            method: 'POST',
+            body: JSON.stringify({ emoji }),
+          });
+          applyMessage(data.message);
+        } catch (error) {
+          showError(error.message || 'Could not add the reaction.');
+        }
+      }
+
+      async function showPins() {
+        try {
+          const data = await api('/api/chat/conversations/' + t.id + '/pins');
+          modal(
+            '<div class="ch-modal-head"><h3>Pinned messages</h3><button type="button" class="ch-iconbtn" data-m-close aria-label="Close">' +
+              icon('close') +
+              '</button></div><div class="ch-pinlist">' +
+              (data.messages.length
+                ? data.messages
+                    .map(
+                      (m) =>
+                        '<button type="button" class="ch-pinitem" data-pin-go="' +
+                        m.id +
+                        '"><b>' +
+                        esc(m.senderName) +
+                        '</b><span>' +
+                        esc(m.body.slice(0, 200)) +
+                        '</span><time>' +
+                        esc(listTime(m.createdAt)) +
+                        '</time></button>',
+                    )
+                    .join('')
+                : '<p class="ch-empty-note">Nothing pinned yet. Use Pin on a message to keep it handy.</p>') +
+              '</div>',
+            (wrap, close) => {
+              wrap.addEventListener('click', (e) => {
+                const go = e.target.closest('[data-pin-go]');
+                if (!go) return;
+                close();
+                show(t.id, { muted: t.muted, focus: go.dataset.pinGo });
+              });
+            },
+          );
+        } catch (error) {
+          showError(error.message || 'Could not load pinned messages.');
+        }
+      }
+
       // ---- composer
+      function setEdit(message) {
+        t.editing = message || null;
+        if (message) {
+          setReply(null);
+          input.value = message.body;
+          for (const person of message.mentions || []) t.mentions.set(person.name, person.id);
+          const bar = q('[data-th-replybar]');
+          bar.hidden = false;
+          bar.innerHTML =
+            icon('edit', 14) +
+            '<span>Editing your message</span><button type="button" class="ch-iconbtn" data-th-unedit aria-label="Cancel editing">' +
+            icon('close', 14) +
+            '</button>';
+          autosize();
+          input.focus();
+        } else {
+          q('[data-th-replybar]').hidden = true;
+        }
+      }
+
       function setReply(message) {
         t.reply = message || null;
+        if (message && t.editing) {
+          t.editing = null;
+          input.value = '';
+        }
         const bar = q('[data-th-replybar]');
         bar.hidden = !message;
         bar.innerHTML = message
@@ -574,6 +732,18 @@
           .filter(([name]) => body.includes('@' + name))
           .map(([, id]) => id);
         try {
+          if (t.editing) {
+            const edited = await api('/api/chat/messages/' + t.editing.id, {
+              method: 'PATCH',
+              body: JSON.stringify({ body, mentionIds }),
+            });
+            applyMessage(edited.message);
+            setEdit(null);
+            input.value = '';
+            autosize();
+            t.mentions.clear();
+            return;
+          }
           const data = await api('/api/chat/conversations/' + t.id + '/messages', {
             method: 'POST',
             body: JSON.stringify({
@@ -589,15 +759,11 @@
           setReply(null);
           t.flag = false;
           q('[data-th-flag]').setAttribute('aria-pressed', 'false');
-          if (!t.messages.some((m) => m.id === data.message.id)) {
-            t.lastId = data.message.id;
-            appendMessages([data.message]);
-          }
+          if (!t.messages.some((m) => m.id === data.message.id)) applyMessage(data.message);
           scrollBottom();
           q('[data-th-jump]').hidden = true;
           t.readUpTo = data.message.id;
           if (opts.onSent) opts.onSent();
-          refreshStates();
         } catch (error) {
           showError(error.message || 'The message was not sent.');
         } finally {
@@ -655,6 +821,75 @@
           return;
         }
         if (target.matches('[data-th-unreply]')) return setReply(null);
+        if (target.matches('[data-th-unedit]')) {
+          input.value = '';
+          autosize();
+          return setEdit(null);
+        }
+        if (target.matches('[data-th-pins]')) return showPins();
+        if (target.dataset.thEmoji) {
+          const holder = target.closest('[data-mid]');
+          const pop = target.closest('.ch-emoji-pop');
+          if (pop) pop.remove();
+          return toggleReaction(holder.dataset.mid, target.dataset.thEmoji);
+        }
+        if (target.dataset.thChip)
+          return toggleReaction(target.dataset.thChip, target.dataset.emoji);
+        if (target.dataset.thReact) {
+          const holder = target.closest('.ch-bubble');
+          const existing = holder.querySelector('.ch-emoji-pop');
+          if (existing) return existing.remove();
+          holder.insertAdjacentHTML(
+            'beforeend',
+            '<div class="ch-emoji-pop" role="menu" aria-label="Choose a reaction">' +
+              ['👍', '✅', '👀', '❤️', '😂', '🙏']
+                .map(
+                  (e) =>
+                    '<button type="button" role="menuitem" data-th-emoji="' +
+                    e +
+                    '">' +
+                    e +
+                    '</button>',
+                )
+                .join('') +
+              '</div>',
+          );
+          return;
+        }
+        if (target.dataset.thEdit) {
+          return setEdit(t.messages.find((m) => m.id === target.dataset.thEdit));
+        }
+        if (target.dataset.thPin) {
+          const message = t.messages.find((m) => m.id === target.dataset.thPin);
+          try {
+            const data = await api('/api/chat/messages/' + message.id + '/pin', {
+              method: 'POST',
+              body: JSON.stringify({ pinned: !message.pinned }),
+            });
+            applyMessage(data.message);
+          } catch (error) {
+            showError(error.message || 'Could not pin the message.');
+          }
+          return;
+        }
+        if (target.dataset.thDelete) {
+          if (
+            !window.confirm(
+              'Delete this message for everyone? The conversation will show that it was deleted.',
+            )
+          )
+            return;
+          try {
+            const data = await api('/api/chat/messages/' + target.dataset.thDelete, {
+              method: 'DELETE',
+            });
+            applyMessage(data.message);
+            if (t.editing && t.editing.id === data.message.id) setEdit(null);
+          } catch (error) {
+            showError(error.message || 'Could not delete the message.');
+          }
+          return;
+        }
         if (target.matches('[data-th-back]') && opts.back) return opts.back();
         if (target.matches('[data-th-close]') && opts.close) return opts.close();
         if (target.matches('[data-th-record]') && deps.goToRecord) {
@@ -736,6 +971,7 @@
         convs: [],
         filter: 'all',
         search: '',
+        hits: [],
         active: null,
         people: null,
         timer: null,
@@ -755,7 +991,7 @@
         '</div></div>' +
         '<label class="ch-search">' +
         icon('search', 16) +
-        '<span class="ch-sr">Search conversations</span><input type="search" data-ch-search placeholder="Search conversations" autocomplete="off"></label>' +
+        '<span class="ch-sr">Search chats and messages</span><input type="search" data-ch-search placeholder="Search chats and messages" autocomplete="off"></label>' +
         '<div class="ch-filters" role="tablist" aria-label="Filter">' +
         [
           ['all', 'All'],
@@ -810,55 +1046,88 @@
           b.setAttribute('aria-selected', String(on));
         });
         const rows = st.convs.filter(matches);
+        const hitsHtml =
+          st.search.trim().length >= 2 && st.hits.length
+            ? '<h5 class="ch-list-heading">Messages</h5>' +
+              st.hits
+                .map(
+                  (h) =>
+                    '<button type="button" class="ch-hit" data-ch-hit="' +
+                    h.conversationId +
+                    '" data-ch-msg="' +
+                    h.messageId +
+                    '"><span class="ch-hit-top"><b>' +
+                    esc(
+                      convTitle({
+                        kind: h.kind,
+                        title: h.title,
+                        otherName: h.otherName,
+                        recordType: h.recordType,
+                        recordId: h.recordId,
+                      }),
+                    ) +
+                    '</b><time>' +
+                    esc(listTime(h.createdAt)) +
+                    '</time></span><span class="ch-hit-body">' +
+                    esc(h.senderName.split(' ')[0]) +
+                    ': ' +
+                    esc(h.body.slice(0, 140)) +
+                    '</span></button>',
+                )
+                .join('')
+            : '';
         if (!rows.length) {
           listEl.innerHTML =
-            '<div class="ch-list-empty">' +
-            (st.convs.length
-              ? 'Nothing matches this filter.'
-              : 'No conversations yet. Start a new chat, or use Discuss on a job card.') +
-            '</div>';
+            (hitsHtml
+              ? ''
+              : '<div class="ch-list-empty">' +
+                (st.convs.length
+                  ? 'Nothing matches this filter.'
+                  : 'No conversations yet. Start a new chat, or use Discuss on a job card.') +
+                '</div>') + hitsHtml;
           return;
         }
-        listEl.innerHTML = rows
-          .map((c) => {
-            const title = convTitle(c);
-            const preview = c.lastBody
-              ? (c.lastSenderName && c.kind !== 'direct'
-                  ? c.lastSenderName.split(' ')[0] + ': '
-                  : '') + c.lastBody
-              : 'No messages yet';
-            return (
-              '<button type="button" class="ch-item' +
-              (String(c.id) === String(st.active) ? ' active' : '') +
-              (c.unread > 0 ? ' unread' : '') +
-              '" data-ch-open="' +
-              c.id +
-              '">' +
-              avatar(title, c.kind) +
-              '<span class="ch-item-main"><span class="ch-item-top"><b class="ch-item-title">' +
-              esc(title) +
-              '</b><time>' +
-              esc(listTime(c.lastMessageAt)) +
-              '</time></span><span class="ch-item-bottom"><span class="ch-preview">' +
-              esc(preview) +
-              '</span><span class="ch-badges">' +
-              (c.needsReplyOpen > 0
-                ? '<span class="ch-dot" title="Needs your reply">' + icon('flag', 12) + '</span>'
-                : '') +
-              (c.mentionsUnread > 0
-                ? '<span class="ch-at" title="You were mentioned">@</span>'
-                : '') +
-              (c.unread > 0
-                ? '<span class="ch-count' +
-                  (c.muted ? ' muted' : '') +
-                  '">' +
-                  (c.unread > 99 ? '99+' : c.unread) +
-                  '</span>'
-                : '') +
-              '</span></span></span></button>'
-            );
-          })
-          .join('');
+        listEl.innerHTML =
+          rows
+            .map((c) => {
+              const title = convTitle(c);
+              const preview = c.lastBody
+                ? (c.lastSenderName && c.kind !== 'direct'
+                    ? c.lastSenderName.split(' ')[0] + ': '
+                    : '') + c.lastBody
+                : 'No messages yet';
+              return (
+                '<button type="button" class="ch-item' +
+                (String(c.id) === String(st.active) ? ' active' : '') +
+                (c.unread > 0 ? ' unread' : '') +
+                '" data-ch-open="' +
+                c.id +
+                '">' +
+                avatar(title, c.kind) +
+                '<span class="ch-item-main"><span class="ch-item-top"><b class="ch-item-title">' +
+                esc(title) +
+                '</b><time>' +
+                esc(listTime(c.lastMessageAt)) +
+                '</time></span><span class="ch-item-bottom"><span class="ch-preview">' +
+                esc(preview) +
+                '</span><span class="ch-badges">' +
+                (c.needsReplyOpen > 0
+                  ? '<span class="ch-dot" title="Needs your reply">' + icon('flag', 12) + '</span>'
+                  : '') +
+                (c.mentionsUnread > 0
+                  ? '<span class="ch-at" title="You were mentioned">@</span>'
+                  : '') +
+                (c.unread > 0
+                  ? '<span class="ch-count' +
+                    (c.muted ? ' muted' : '') +
+                    '">' +
+                    (c.unread > 99 ? '99+' : c.unread) +
+                    '</span>'
+                  : '') +
+                '</span></span></span></button>'
+              );
+            })
+            .join('') + hitsHtml;
       }
 
       async function loadList() {
@@ -878,14 +1147,14 @@
         }
       }
 
-      async function openConversation(id) {
+      async function openConversation(id, focus) {
         st.active = id;
         app.dataset.view = 'thread';
         placeholder.hidden = true;
         threadHost.hidden = false;
         paintList();
         const conv = st.convs.find((c) => String(c.id) === String(id));
-        await thread.show(String(id), { muted: conv && conv.muted });
+        await thread.show(String(id), { muted: conv && conv.muted, focus: focus || null });
         await loadList();
       }
 
@@ -1092,6 +1361,8 @@
       root.addEventListener('click', (event) => {
         const button = event.target.closest('button');
         if (!button) return;
+        if (button.dataset.chHit)
+          return openConversation(button.dataset.chHit, button.dataset.chMsg);
         if (button.dataset.chOpen) return openConversation(button.dataset.chOpen);
         if (button.dataset.chFilter) {
           st.filter = button.dataset.chFilter;
@@ -1103,6 +1374,22 @@
       root.querySelector('[data-ch-search]').addEventListener('input', (event) => {
         st.search = event.target.value;
         paintList();
+        window.clearTimeout(st.searchTimer);
+        const phrase = st.search.trim();
+        if (phrase.length < 2) {
+          st.hits = [];
+          return;
+        }
+        st.searchTimer = window.setTimeout(async () => {
+          try {
+            const data = await api('/api/chat/search?q=' + encodeURIComponent(phrase));
+            if (st.search.trim() !== phrase) return;
+            st.hits = data.results;
+            paintList();
+          } catch {
+            /* the conversation filter still works */
+          }
+        }, 300);
       });
 
       st.timer = window.setInterval(() => {
