@@ -26,6 +26,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     changes: [
       'When the customer type is B2C and the final warranty status is In Warranty (or, if no final status is set, the registered warranty is In Warranty), Salesman is required on the service job card (create and edit) and on the walk-in form.…',
       'Choosing the salesman fills the Sales channel from the salesman master (also done by the API for B2C jobs), and billing uses it: payer Sales channel, bill to that channel, shown as Internal billing.',
+      'If the chosen salesman is not linked to a sales channel in the Salesmen master (and no channel was picked by hand), a pop-up says to contact the admin to link the salesman to a channel, the Sales channel box is shaded, and saving is…',
+      'BER and Rejected jobs follow the same rule: it depends only on B2C and In Warranty.',
       'Cancelled jobs, out-of-warranty jobs and B2B jobs are not affected. B2B still takes the salesman from the branch master.',
       'Delivery highlight now also marks a missing salesman on these jobs.',
     ],

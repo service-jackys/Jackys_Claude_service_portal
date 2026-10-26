@@ -1491,6 +1491,30 @@
     return false;
   }
 
+  // A B2C warranty job is billed to the salesman's sales channel. If the salesman is not
+  // linked to a channel in the Salesmen master (and no channel is set by hand), tell the
+  // user to contact the admin instead of letting the job fail at delivery.
+  async function demandSalesmanChannel(prefix) {
+    if (!salesmanRequired(prefix)) return true;
+    const name = $(`#${prefix}Salesman`).value.trim();
+    if (!name) return true;
+    if ($(`#${prefix}SalesChannel`).value || $(`#${prefix}BillToChannel`)?.value) return true;
+    const field = $(`#${prefix}SalesChannel`).closest('.field');
+    field?.classList.add('field-missing');
+    $(`#${prefix}SalesChannel`).addEventListener(
+      'change',
+      () => clearMissingMark($(`#${prefix}SalesChannel`)),
+      {
+        once: true,
+      },
+    );
+    await notifyDialog(
+      'Salesman has no sales channel',
+      `${name} is not linked to a sales channel yet, so this job cannot be billed. Contact the admin to link the salesman to a channel under Salesmen, then try again. You can also pick the sales channel by hand.`,
+    );
+    return false;
+  }
+
   function refreshBillingPreview(prefix) {
     const registered = normalizeWarrantyText($(`#${prefix}WarrantyStatus`).value);
     const finalValue = $(`#${prefix}FinalWarrantyStatus`).value;
@@ -1717,6 +1741,7 @@
         clearMissingMark($(`#${prefix}SalesChannel`));
       }
       refreshBillingPreview(prefix);
+      if (!channel && $(`#${prefix}Salesman`).value) demandSalesmanChannel(prefix);
     });
   }
 
@@ -6165,7 +6190,7 @@ ${bodyHtml}
 
   async function submitJobCardCreate() {
     if (!currentAppointmentId) return;
-    if (!(await demandSalesman('jcc'))) return;
+    if (!(await demandSalesman('jcc')) || !(await demandSalesmanChannel('jcc'))) return;
     const button = $('#submitJobCardCreateButton');
     setBusy(button, true, 'Creating…');
     try {
@@ -6236,7 +6261,7 @@ ${bodyHtml}
 
   async function submitJobCardCreateFromQuotation() {
     if (!currentQuotationId) return;
-    if (!(await demandSalesman('jcq'))) return;
+    if (!(await demandSalesman('jcq')) || !(await demandSalesmanChannel('jcq'))) return;
     const button = $('#submitQuotationJobCardCreateButton');
     setBusy(button, true, 'Creating…');
     try {
@@ -6312,7 +6337,7 @@ ${bodyHtml}
 
   async function saveJobCardContent() {
     if (!currentJobCardId) return;
-    if (!(await demandSalesman('jce'))) return;
+    if (!(await demandSalesman('jce')) || !(await demandSalesmanChannel('jce'))) return;
     const payload = collectJobCardForm('jce');
     let approvalFile = null;
     if (
@@ -11399,9 +11424,19 @@ ${bodyHtml}
       syncWiSalesman();
     });
     $$('wiWarrantyStatus').addEventListener('change', syncWiSalesman);
+    const wiSalesmanNoChannel = () => {
+      const name = $$('wiSalesman').value;
+      return wiSalesmanNeeded() && name && !$$('wiSalesChannel').value && !channelForSalesman(name);
+    };
+    const wiChannelPopup = (name) =>
+      notifyDialog(
+        'Salesman has no sales channel',
+        `${name} is not linked to a sales channel yet, so this job cannot be billed. Contact the admin to link the salesman to a channel under Salesmen, then try again. You can also pick the sales channel by hand.`,
+      );
     $$('wiSalesman').addEventListener('change', () => {
       const channel = channelForSalesman($$('wiSalesman').value);
       if (channel) setSelectValue('#wiSalesChannel', channel);
+      else if (wiSalesmanNoChannel()) wiChannelPopup($$('wiSalesman').value);
     });
     populateSelectOptions('#wiSalesman', salesmenOptions, 'Select a salesman');
     populateSelectOptions('#wiSalesChannel', salesChannelOptions, 'Select a sales channel');
@@ -11554,6 +11589,14 @@ ${bodyHtml}
         !$$('wiSalesman').value
       ) {
         showFieldError(form, 'wiSalesman', 'Choose the salesman for a B2C job under warranty.');
+        valid = false;
+      } else if (wiSalesmanNoChannel()) {
+        showFieldError(
+          form,
+          'wiSalesman',
+          'This salesman has no sales channel. Contact the admin, or pick the channel by hand.',
+        );
+        wiChannelPopup($$('wiSalesman').value);
         valid = false;
       }
       if (!$$('wiModelNo').value.trim() && !$$('wiItemDescription').value.trim()) {
