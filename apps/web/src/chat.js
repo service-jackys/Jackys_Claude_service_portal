@@ -327,7 +327,8 @@
       badge.hidden = n < 1;
       badge.textContent = n > 99 ? '99+' : String(n);
       const button = document.querySelector('.ch-bubble-btn');
-      if (button) button.setAttribute('aria-label', n ? 'Chat, ' + n + ' unread' : 'Chat');
+      if (button)
+        button.setAttribute('aria-label', n ? 'Live Chat, ' + n + ' unread' : 'Live Chat');
     }
 
     function popup(data) {
@@ -434,7 +435,7 @@
         wrap.className = 'ch-float';
         wrap.setAttribute('aria-label', 'Chat');
         wrap.innerHTML =
-          '<header class="ch-float-head"><b data-f-title>Chat</b><span class="ch-float-actions">' +
+          '<header class="ch-float-head"><b data-f-title>Live Chat</b><span class="ch-float-actions">' +
           '<button type="button" class="ch-iconbtn" data-f-full aria-label="Open the full Chat page" title="Open the full Chat page">' +
           icon('open') +
           '</button>' +
@@ -492,7 +493,7 @@
       floatUi.wrap.querySelector('[data-f-thread]').hidden = true;
       const list = floatUi.wrap.querySelector('[data-f-list]');
       list.hidden = false;
-      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Chat';
+      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Live Chat';
       list.innerHTML = '<p class="ch-list-empty">Loading&hellip;</p>';
       try {
         const data = await api('/api/chat/conversations');
@@ -557,7 +558,7 @@
       floatUi.active = String(id);
       floatUi.wrap.querySelector('[data-f-list]').hidden = true;
       floatUi.wrap.querySelector('[data-f-thread]').hidden = false;
-      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Chat';
+      floatUi.wrap.querySelector('[data-f-title]').textContent = 'Live Chat';
       await floatUi.thread.show(String(id));
     }
 

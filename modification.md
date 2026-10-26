@@ -3415,3 +3415,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html.
 
 **Needs you:** pull and hard-refresh. No migration or API restart.
+
+## Modification #146 — Chat moved out of Records and renamed Live Chat
+
+**Date:** 2026-10-26
+
+**Why.** Chat is used all day and should not sit inside a menu group.
+
+**What changed.** The menu item is now **Live Chat**, shown on its own at the top of the sidebar above Overview (with its unread badge), instead of inside Records. The screen heading, the floating bubble and the chat panel use the same name. Display only.
+
+**Files.** apps/web/src/{index.html,app.js,chat.js}.
+
+**Needs you:** pull and hard-refresh.
