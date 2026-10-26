@@ -3,6 +3,7 @@ import multer from 'multer';
 import { MAX_ATTACHMENT_BYTES } from '../attachments/storage.js';
 import type { ApplicationAuth } from '../auth/application-auth.js';
 import { problem } from '../api/problem.js';
+import { connect } from './hub.js';
 import { ChatServiceError, type ChatService } from './service.js';
 
 const upload = multer({
@@ -174,6 +175,30 @@ export function createChatHandlers(
           next(error);
         }
       },
+    ],
+    // Live events (Server-Sent Events). Sent with the normal Authorization header.
+    stream: [
+      use,
+      wrap(async (auth, _req, res) => {
+        connect(auth.profileId, res);
+      }),
+    ],
+    presence: [
+      use,
+      wrap(async (_auth, _req, res) => void res.json({ online: service.presence() })),
+    ],
+    typing: [
+      use,
+      wrap(async (auth, req, res) => {
+        await service.typing(auth, id(req));
+        res.status(204).end();
+      }),
+    ],
+    reads: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ reads: await service.reads(auth, id(req)) });
+      }),
     ],
     mute: [
       use,

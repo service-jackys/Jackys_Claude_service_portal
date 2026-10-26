@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import express from 'express';
+import { connect } from '../../apps/api/src/chat/hub.js';
+import { createChatHandlers } from '../../apps/api/src/chat/routes.js';
+import { runChatRetention } from '../../apps/api/src/chat/retention.js';
 import { ChatServiceError, createChatService } from '../../apps/api/src/chat/service.js';
 import type { ApplicationAuth } from '../../apps/api/src/auth/application-auth.js';
 import { canReadChatRecord } from '../../packages/db/src/chat.js';
@@ -426,6 +430,207 @@ test(
       const last = (await service.conversations(userB)).conversations.find((x) => x.id === dm.id);
       assert.equal(last?.lastBody, 'Message deleted');
     } finally {
+      await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
+        ids,
+      ]);
+      await pool.end();
+    }
+  },
+);
+
+test(
+  'Chat: live events, read positions, typing and retention',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const service = createChatService(pool);
+    const ids: string[] = [];
+    try {
+      for (const name of ['a', 'b', 'c']) {
+        const result = await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, $2) RETURNING id`,
+          [`chat4-${name}-${randomUUID()}@example.test`, `Chat4 ${name}`],
+        );
+        ids.push(result.rows[0].id);
+        await pool.query(
+          `INSERT INTO profile_roles (profile_id, role_id)
+           SELECT $1, id FROM roles WHERE code = 'user'`,
+          [result.rows[0].id],
+        );
+      }
+      const [a, b, c] = ids;
+      const userA = authFor(a);
+      const userB = authFor(b);
+      const userC = authFor(c);
+
+      // Fake open browser tabs for B and C.
+      const frames: Record<string, string[]> = { [b]: [], [c]: [] };
+      const fakeResponse = (id: string) => {
+        const handlers: Record<string, () => void> = {};
+        return {
+          status() {},
+          setHeader() {},
+          flushHeaders() {},
+          write(chunk: string) {
+            frames[id].push(chunk);
+            return true;
+          },
+          on(event: string, fn: () => void) {
+            handlers[event] = fn;
+          },
+          close: () => handlers.close?.(),
+        };
+      };
+      const tabB = fakeResponse(b);
+      const tabC = fakeResponse(c);
+      connect(b, tabB as never);
+      connect(c, tabC as never);
+      assert.ok(frames[b][0].startsWith('event: hello'));
+      assert.ok(service.presence().includes(b));
+
+      const { conversation: dm } = await service.openConversation(userA, {
+        kind: 'direct',
+        profileId: b,
+      });
+      const sent = await service.send(userA, dm.id, { body: 'hello live' });
+      const got = frames[b].find((f) => f.startsWith('event: message'));
+      assert.ok(got, 'B receives the message event');
+      assert.match(got, new RegExp(`"messageId":"${sent.id}"`));
+      assert.match(got, /"preview":"hello live"/);
+      assert.equal(frames[c].filter((f) => f.startsWith('event: message')).length, 0);
+
+      // Typing and read receipts reach the other person only.
+      frames[b].length = 0;
+      await service.typing(userA, dm.id);
+      assert.ok(frames[b].some((f) => f.startsWith('event: typing')));
+      frames[b].length = 0;
+      await service.read(userB, dm.id, { messageId: sent.id });
+      const reads = await service.reads(userA, dm.id);
+      assert.equal(reads.find((r) => r.profileId === b)?.lastReadMessageId, sent.id);
+      assert.ok(!frames[b].some((f) => f.startsWith('event: read')), 'not echoed to the reader');
+      await service.read(userA, dm.id, { messageId: sent.id });
+      assert.ok(frames[b].some((f) => f.startsWith('event: read')));
+      await assert.rejects(service.reads(userC, dm.id), /not found/);
+
+      // Edits nudge followers.
+      frames[b].length = 0;
+      await service.edit(userA, sent.id, { body: 'hello again' });
+      assert.ok(frames[b].some((f) => f.startsWith('event: change')));
+
+      tabB.close();
+      assert.ok(!service.presence().includes(b));
+      assert.ok(frames[c].some((f) => f.includes('"online":false')));
+      tabC.close();
+
+      // Retention keeps pinned messages and removes old ones.
+      const old = await service.send(userA, dm.id, { body: 'old news' });
+      const keep = await service.send(userA, dm.id, { body: 'old but pinned' });
+      await service.pin(userA, keep.id, { pinned: true });
+      await pool.query(
+        `UPDATE chat_messages SET created_at = now() - interval '400 days' WHERE id = ANY($1::bigint[])`,
+        [[old.id, keep.id]],
+      );
+      const purged = await runChatRetention(pool, 365);
+      assert.ok(purged.messages >= 1);
+      const left = (await service.messages(userA, dm.id, {})).map((m) => m.id);
+      assert.ok(!left.includes(old.id));
+      assert.ok(left.includes(keep.id));
+    } finally {
+      await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
+        ids,
+      ]);
+      await pool.end();
+    }
+  },
+);
+
+test(
+  'Chat: the live stream works over real HTTP (headers, events, presence on close)',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const service = createChatService(pool);
+    const ids: string[] = [];
+    const server = await new Promise<import('node:http').Server>((resolve) => {
+      const app = express();
+      app.use(express.json());
+      const handlers = createChatHandlers(service, () => (request, response, next) => {
+        response.locals.auth = authFor(String(request.header('x-test-profile')));
+        next();
+      });
+      app.get('/stream', ...handlers.stream);
+      app.post('/conversations/:id/messages', ...handlers.send);
+      const listener = app.listen(0, () => resolve(listener));
+    });
+    const base = `http://127.0.0.1:${(server.address() as import('node:net').AddressInfo).port}`;
+    try {
+      for (const name of ['a', 'b']) {
+        const result = await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, $2) RETURNING id`,
+          [`chat5-${name}-${randomUUID()}@example.test`, `Chat5 ${name}`],
+        );
+        ids.push(result.rows[0].id);
+        await pool.query(
+          `INSERT INTO profile_roles (profile_id, role_id)
+           SELECT $1, id FROM roles WHERE code = 'user'`,
+          [result.rows[0].id],
+        );
+      }
+      const [a, b] = ids;
+      const { conversation: dm } = await service.openConversation(authFor(a), {
+        kind: 'direct',
+        profileId: b,
+      });
+      const controller = new AbortController();
+      const stream = await fetch(`${base}/stream`, {
+        headers: { 'x-test-profile': b },
+        signal: controller.signal,
+      });
+      assert.equal(stream.status, 200);
+      assert.match(stream.headers.get('content-type') ?? '', /text\/event-stream/);
+      const reader = stream.body!.getReader();
+      const decoder = new TextDecoder();
+      let text = '';
+      const until = async (needle: RegExp) => {
+        const deadline = Date.now() + 4000;
+        while (!needle.test(text) && Date.now() < deadline) {
+          const { value } = await Promise.race([
+            reader.read(),
+            new Promise<{ value?: Uint8Array }>((r) => setTimeout(() => r({}), 500)),
+          ]);
+          if (value) text += decoder.decode(value, { stream: true });
+        }
+        assert.match(text, needle);
+      };
+      await until(/event: hello/);
+      const response = await fetch(`${base}/conversations/${dm.id}/messages`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-test-profile': a },
+        body: JSON.stringify({ body: 'over the wire' }),
+      });
+      assert.equal(response.status, 201);
+      await until(/event: message\ndata: .*over the wire/);
+      controller.abort();
+    } finally {
+      await new Promise((resolve) => server.close(resolve));
       await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
         ids,
       ]);

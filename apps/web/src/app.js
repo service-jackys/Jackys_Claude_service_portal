@@ -12862,6 +12862,11 @@ ${bodyHtml}
       chatUi = window.JdChat.create({
         apiRequest,
         apiUpload: apiUploadRequest,
+        apiFetch: (url, options = {}) => {
+          const headers = new Headers(options.headers || {});
+          if (authToken) headers.set('authorization', 'Bearer ' + authToken);
+          return fetch(url, { ...options, headers });
+        },
         escapeHtml,
         can: (permission) => Boolean(hasPermission(permission)),
         onUnread: setChatBadge,

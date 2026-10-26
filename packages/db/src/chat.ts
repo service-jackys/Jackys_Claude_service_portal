@@ -769,3 +769,51 @@ export async function linkChatAttachments(
   );
   return result.rowCount ?? 0;
 }
+
+export type ChatMemberRead = {
+  profileId: string;
+  name: string;
+  muted: boolean;
+  lastReadMessageId: string | null;
+};
+
+// Everyone following a conversation with their read position and mute flag.
+export async function listChatMemberReads(
+  client: PoolClient,
+  conversationId: string,
+): Promise<ChatMemberRead[]> {
+  const result = await client.query<ChatMemberRead>(
+    `SELECT m.profile_id::text AS "profileId", p.display_name AS name, m.muted,
+            m.last_read_message_id::text AS "lastReadMessageId"
+       FROM chat_members m JOIN profiles p ON p.id = m.profile_id
+      WHERE m.conversation_id = $1 ORDER BY p.display_name`,
+    [conversationId],
+  );
+  return result.rows;
+}
+
+// Retention: removes messages older than the given number of days (and their files).
+// Pinned messages are kept. Returns the storage keys so the caller can delete the files.
+export async function purgeOldChatMessages(
+  client: PoolClient,
+  days: number,
+): Promise<{ messages: number; storageKeys: string[] }> {
+  const keys = await client.query<{ storage_key: string }>(
+    `SELECT a.storage_key FROM chat_attachments a JOIN chat_messages x ON x.id = a.message_id
+      WHERE x.created_at < now() - make_interval(days => $1) AND x.pinned_at IS NULL`,
+    [days],
+  );
+  const removed = await client.query(
+    `DELETE FROM chat_messages WHERE created_at < now() - make_interval(days => $1) AND pinned_at IS NULL`,
+    [days],
+  );
+  // Files uploaded but never sent are also dropped after a day.
+  const orphans = await client.query<{ storage_key: string }>(
+    `DELETE FROM chat_attachments WHERE message_id IS NULL AND created_at < now() - interval '1 day'
+      RETURNING storage_key`,
+  );
+  return {
+    messages: removed.rowCount ?? 0,
+    storageKeys: [...keys.rows, ...orphans.rows].map((row) => row.storage_key),
+  };
+}

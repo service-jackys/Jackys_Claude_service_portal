@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 143,
+    title: 'Chat (phase 3): live delivery, online status, typing and read ticks',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Polling every few seconds felt slow for a conversation, and people could not tell whether a colleague was around or had seen their message.',
+    changes: [
+      'Instant delivery. The portal keeps a live connection (Server-Sent Events) once you sign in. New messages, edits, deletes, reactions and pins appear immediately in open threads, and the menu badge and conversation list update without…',
+      'Online status. A green dot on a person\'s avatar (list, thread header, messages) when they have the portal open; "Online" shows under their name in a direct chat.',
+      'Typing indicator. "Reneesh is typing…" appears for the others in the conversation.',
+      'Read ticks. On your own messages: one tick = sent, two blue ticks = seen; hover shows who has seen it (channels and record threads show every follower who has read it).',
+      'Retention. New setting CHAT_RETENTION_DAYS in .env (blank or 0 keeps everything, minimum 30). Messages older than that and their files are removed every few hours; pinned messages are kept; each purge is written to the Activity log.',
+    ],
+    needsYou:
+      'pull, restart the API (no migration), hard-refresh. If you sit behind a proxy that buffers responses (nginx), the stream header X-Accel-Buffering: no is already sent; Cloudflare/other proxies may need response buffering off for /api/chat/stream.',
+    migrations: [],
+    files:
+      'apps/api/src/chat/{hub,retention,service,routes}.ts, apps/api/src/app.ts, apps/api/src/api/route-catalog.ts, packages/db/src/chat.ts, apps/web/src/{chat.js,app.js,index.html}…',
+  },
+  {
     id: 142,
     title: 'Chat (phase 2b): files and site photos',
     area: 'General',

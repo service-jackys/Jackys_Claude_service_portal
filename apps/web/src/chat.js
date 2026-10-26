@@ -113,7 +113,7 @@
     let badgeTimer = null;
     let page = null;
 
-    const avatar = (name, kind, size) => {
+    const avatar = (name, kind, size, pid) => {
       if (kind === 'channel')
         return (
           '<span class="ch-av ch-av-ch' +
@@ -133,7 +133,9 @@
       return (
         '<span class="ch-av' +
         (size ? ' ' + size : '') +
-        '" style="--av:' +
+        '"' +
+        (pid ? ' data-pid="' + esc(String(pid)) + '"' : '') +
+        ' style="--av:' +
         hue(name) +
         '" aria-hidden="true">' +
         esc(initials(name)) +
@@ -167,18 +169,128 @@
       return data;
     }
 
+    // ---- live events (Server-Sent Events over fetch, so the sign-in header is used).
+    // Events are only nudges; screens refetch through the normal API. Without a stream
+    // (older proxy, offline) every screen keeps polling, just more slowly when live.
+    const bus = {
+      handlers: {},
+      on(type, fn) {
+        (this.handlers[type] = this.handlers[type] || new Set()).add(fn);
+        return () => this.handlers[type].delete(fn);
+      },
+      emit(type, data) {
+        for (const fn of [...(this.handlers[type] || [])]) {
+          try {
+            fn(data);
+          } catch {
+            /* one broken listener must not stop the others */
+          }
+        }
+      },
+    };
+    const live = { online: new Set(), connected: false, controller: null, retry: null, wait: 2000 };
+
+    function paintPresence() {
+      document.querySelectorAll('.ch-av[data-pid]').forEach((el) => {
+        el.classList.toggle('ch-online', live.online.has(el.dataset.pid));
+      });
+    }
+
+    async function connectStream() {
+      if (!deps.apiFetch || live.controller) return;
+      const controller = new AbortController();
+      live.controller = controller;
+      try {
+        const response = await deps.apiFetch('/api/chat/stream', {
+          signal: controller.signal,
+          headers: { accept: 'text/event-stream' },
+        });
+        if (!response.ok || !response.body) throw new Error('stream unavailable');
+        live.connected = true;
+        live.wait = 2000;
+        bus.emit('resync', {});
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let cut;
+          while ((cut = buffer.indexOf('\n\n')) !== -1) {
+            const block = buffer.slice(0, cut);
+            buffer = buffer.slice(cut + 2);
+            let type = 'message';
+            let data = '';
+            for (const line of block.split('\n')) {
+              if (line.startsWith('event:')) type = line.slice(6).trim();
+              else if (line.startsWith('data:')) data += line.slice(5).trim();
+            }
+            if (!data) continue;
+            let payload;
+            try {
+              payload = JSON.parse(data);
+            } catch {
+              continue;
+            }
+            if (type === 'hello') {
+              live.online = new Set(payload.online);
+              paintPresence();
+              bus.emit('presence', {});
+            } else if (type === 'presence') {
+              if (payload.online) live.online.add(String(payload.profileId));
+              else live.online.delete(String(payload.profileId));
+              paintPresence();
+              bus.emit('presence', payload);
+            } else bus.emit(type, payload);
+          }
+        }
+      } catch {
+        /* reconnect below unless we were stopped */
+      }
+      live.connected = false;
+      const stopped = controller.signal.aborted;
+      live.controller = null;
+      live.online = new Set();
+      paintPresence();
+      if (!stopped) {
+        live.retry = window.setTimeout(connectStream, live.wait);
+        live.wait = Math.min(live.wait * 2, 30000);
+      }
+    }
+    function disconnectStream() {
+      window.clearTimeout(live.retry);
+      if (live.controller) live.controller.abort();
+      live.controller = null;
+      live.connected = false;
+    }
+
+    let summaryTimer = null;
+    const refreshSummary = () => {
+      window.clearTimeout(summaryTimer);
+      summaryTimer = window.setTimeout(() => summary().catch(() => {}), 400);
+    };
+    let offs = [];
+
     function startBadge() {
       stopBadge();
       const tick = () => {
         if (document.visibilityState === 'hidden') return;
+        if (live.connected && badgeTick++ % 3) return;
         summary().catch(() => {});
       };
+      let badgeTick = 0;
       tick();
       badgeTimer = window.setInterval(tick, 25000);
+      offs = ['message', 'change', 'read', 'resync'].map((type) => bus.on(type, refreshSummary));
+      connectStream();
     }
     function stopBadge() {
       if (badgeTimer) window.clearInterval(badgeTimer);
       badgeTimer = null;
+      offs.forEach((off) => off());
+      offs = [];
+      disconnectStream();
       if (deps.onUnread) deps.onUnread({ unread: 0, mentions: 0, needsReply: 0 });
     }
 
@@ -202,6 +314,10 @@
         stick: true,
         busy: false,
         pending: [],
+        reads: [],
+        typingTimer: null,
+        lastTypingSent: 0,
+        offs: [],
       };
       host.innerHTML =
         '<div class="ch-thread-head" data-th-head></div>' +
@@ -209,6 +325,7 @@
         '<button type="button" class="ch-jump" data-th-jump hidden>New messages ' +
         icon('back', 14) +
         '</button>' +
+        '<p class="ch-typing" data-th-typing aria-live="polite" hidden></p>' +
         '<form class="ch-composer" data-th-form autocomplete="off">' +
         '<div class="ch-replybar" data-th-replybar hidden></div>' +
         '<p class="ch-error" data-th-error role="alert" hidden></p>' +
@@ -255,13 +372,16 @@
           recordType: c.recordType,
           recordId: c.recordId,
         });
+        const other = c.kind === 'direct' ? t.info.people[0] : null;
         const sub =
-          c.kind === 'record'
-            ? (RECORD_LABELS[c.recordType] || 'Record') +
-              ' thread, shared with anyone who can open it'
-            : c.kind === 'channel'
-              ? t.info.members.length + ' member' + (t.info.members.length === 1 ? '' : 's')
-              : 'Direct message';
+          c.kind === 'direct' && other && live.online.has(String(other.id))
+            ? 'Online'
+            : c.kind === 'record'
+              ? (RECORD_LABELS[c.recordType] || 'Record') +
+                ' thread, shared with anyone who can open it'
+              : c.kind === 'channel'
+                ? t.info.members.length + ' member' + (t.info.members.length === 1 ? '' : 's')
+                : 'Direct message';
         const muted = Boolean(t.muted);
         return (
           (opts.back
@@ -269,7 +389,7 @@
               icon('back') +
               '</button>'
             : '') +
-          avatar(title, c.kind) +
+          avatar(title, c.kind, '', other ? other.id : '') +
           '<div class="ch-head-text"><h3>' +
           esc(title) +
           '</h3><p>' +
@@ -394,7 +514,7 @@
           (!mine
             ? group
               ? '<span class="ch-av-gap"></span>'
-              : avatar(m.senderName, 'direct', 'ch-av-sm')
+              : avatar(m.senderName, 'direct', 'ch-av-sm', m.senderId)
             : '') +
           '<div class="ch-bubble">' +
           (showName ? '<b class="ch-sender">' + esc(m.senderName) + '</b>' : '') +
@@ -454,6 +574,7 @@
             : '') +
           '</span>' +
           (m.editedAt && !m.deleted ? '<span class="ch-edited">edited</span>' : '') +
+          (mine && !m.deleted ? '<span class="ch-tick" data-tick="' + m.id + '"></span>' : '') +
           '<time datetime="' +
           esc(new Date(m.createdAt).toISOString()) +
           '">' +
@@ -473,6 +594,8 @@
               (t.info.conversation.kind === 'record' ? ' and keep the job details here.' : '.') +
               '</p></div>';
         }
+        paintTicks();
+        paintPresence();
       }
       function appendMessages(list) {
         if (!list.length) return;
@@ -506,6 +629,49 @@
         }
       }
 
+      // Sent / seen ticks on my own messages, from each follower's read position.
+      function paintTicks() {
+        const others = t.reads.filter((r) => String(r.profileId) !== String(t.me));
+        scroll.querySelectorAll('[data-tick]').forEach((el) => {
+          const id = BigInt(el.dataset.tick);
+          const seen = others.filter(
+            (r) => r.lastReadMessageId && BigInt(r.lastReadMessageId) >= id,
+          );
+          el.className = 'ch-tick' + (seen.length ? ' seen' : '');
+          el.title = seen.length ? 'Seen by ' + seen.map((r) => r.name).join(', ') : 'Sent';
+          el.innerHTML = icon('check', 12) + (seen.length ? icon('check', 12) : '');
+        });
+      }
+      async function loadReads() {
+        try {
+          t.reads = (await api('/api/chat/conversations/' + t.id + '/reads')).reads;
+          paintTicks();
+        } catch {
+          /* ticks are optional */
+        }
+      }
+      const typingEl = q('[data-th-typing]');
+      const typers = new Map();
+      function paintTyping() {
+        const names = [...typers.values()].map((x) => x.name.split(' ')[0]);
+        typingEl.hidden = !names.length;
+        typingEl.textContent = names.length
+          ? names.join(', ') + (names.length === 1 ? ' is typing\u2026' : ' are typing\u2026')
+          : '';
+      }
+      function someoneTyping(data) {
+        const id = String(data.profileId);
+        const old = typers.get(id);
+        if (old) window.clearTimeout(old.timer);
+        typers.set(id, {
+          name: data.name,
+          timer: window.setTimeout(() => {
+            typers.delete(id);
+            paintTyping();
+          }, 5000),
+        });
+        paintTyping();
+      }
       const maxRev = (list) =>
         list.reduce((hi, m) => (BigInt(m.rev) > BigInt(hi) ? m.rev : hi), '0');
       // Replace (or append) one message in the view, keeping the scroll position.
@@ -522,6 +688,8 @@
           if (at === t.messages.length - 1)
             scroll.insertAdjacentHTML('beforeend', messageHtml(m, t.messages[at - 1]));
           else paint(true);
+          paintTicks();
+          paintPresence();
           return true;
         }
         t.messages[i] = m;
@@ -532,6 +700,7 @@
           const article = tmp.querySelector('article');
           if (article) node.replaceWith(article);
         }
+        paintTicks();
         return false;
       }
 
@@ -560,6 +729,11 @@
       function stop() {
         if (t.timer) window.clearInterval(t.timer);
         t.timer = null;
+        t.offs.forEach((off) => off());
+        t.offs = [];
+        for (const x of typers.values()) window.clearTimeout(x.timer);
+        typers.clear();
+        paintTyping();
       }
 
       async function show(id, extra) {
@@ -570,6 +744,7 @@
         t.lastId = '0';
         t.rev = '0';
         t.editing = null;
+        t.reads = [];
         t.readUpTo = null;
         t.reply = null;
         t.flag = false;
@@ -612,7 +787,32 @@
             focused.classList.add('ch-flash');
           } else scrollBottom();
           await markRead();
-          t.timer = window.setInterval(poll, 4000);
+          let beat = 0;
+          t.timer = window.setInterval(() => {
+            if (!live.connected || ++beat % 5 === 0) poll();
+          }, 4000);
+          const mine = (data) => String(data.conversationId) === String(t.id);
+          t.offs = [
+            bus.on('message', (d) => mine(d) && poll()),
+            bus.on('change', (d) => mine(d) && poll()),
+            bus.on('typing', (d) => mine(d) && someoneTyping(d)),
+            bus.on('read', (d) => {
+              if (!mine(d)) return;
+              const row = t.reads.find((r) => String(r.profileId) === String(d.profileId));
+              if (row) row.lastReadMessageId = d.messageId;
+              else loadReads();
+              paintTicks();
+            }),
+            bus.on('presence', () => {
+              if (t.info && t.info.conversation.kind === 'direct')
+                q('[data-th-head]').innerHTML = headHtml();
+            }),
+            bus.on('resync', () => {
+              poll();
+              loadReads();
+            }),
+          ];
+          loadReads();
           if (!window.matchMedia('(pointer: coarse)').matches) input.focus();
         } catch (error) {
           scroll.innerHTML =
@@ -913,6 +1113,10 @@
       input.addEventListener('input', () => {
         autosize();
         updatePop();
+        if (input.value.trim() && t.id !== null && Date.now() - t.lastTypingSent > 3000) {
+          t.lastTypingSent = Date.now();
+          api('/api/chat/conversations/' + t.id + '/typing', { method: 'POST' }).catch(() => {});
+        }
       });
       input.addEventListener('keydown', (event) => {
         if (!pop.hidden && popItems.length) {
@@ -1267,7 +1471,7 @@
                 '" data-ch-open="' +
                 c.id +
                 '">' +
-                avatar(title, c.kind) +
+                avatar(title, c.kind, '', c.otherProfileId) +
                 '<span class="ch-item-main"><span class="ch-item-top"><b class="ch-item-title">' +
                 esc(title) +
                 '</b><time>' +
@@ -1302,6 +1506,7 @@
           thread.setMe(data.me.id);
           st.convs = data.conversations;
           paintList();
+          paintPresence();
           if (deps.onUnread) deps.onUnread(data);
         } catch (error) {
           listEl.innerHTML =
@@ -1556,13 +1761,24 @@
         }, 300);
       });
 
+      let reloadTimer = null;
+      const reload = () => {
+        window.clearTimeout(reloadTimer);
+        reloadTimer = window.setTimeout(() => root.isConnected && loadList(), 300);
+      };
+      const offs = ['message', 'change', 'read', 'resync'].map((type) => bus.on(type, reload));
+      offs.push(bus.on('presence', paintPresence));
+      let beat = 0;
       st.timer = window.setInterval(() => {
         if (!root.isConnected) return page && page.destroy();
-        if (document.visibilityState !== 'hidden') loadList();
+        if (document.visibilityState === 'hidden') return;
+        if (!live.connected || ++beat % 3 === 0) loadList();
       }, 10000);
       page = {
         destroy() {
           window.clearInterval(st.timer);
+          window.clearTimeout(reloadTimer);
+          offs.forEach((off) => off());
           thread.stop();
           page = null;
         },
