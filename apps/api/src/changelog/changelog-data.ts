@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 149,
+    title: 'Form fields no longer stretch apart when a neighbour shows an error',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'In "Add a teammate login", an error under Password made that row taller, and the Role box was pushed down and stretched.',
+    changes: [
+      'What changed: A form field now keeps its label and box at the top when a neighbouring field in the same row is taller. This applies to every form that uses the standard field layout. Display only.',
+    ],
+    needsYou: 'pull and hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/index.html.',
+  },
+  {
     id: 148,
     title: 'New password rule: 10 characters, capital first, number and symbol',
     area: 'Permissions',
