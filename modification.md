@@ -3427,3 +3427,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{index.html,app.js,chat.js}.
 
 **Needs you:** pull and hard-refresh.
+
+## Modification #147 — Dashboard moved to the top, above Live Chat
+
+**Date:** 2026-10-26
+
+**Why.** Overview held only Dashboard, so the group was an extra click for one item.
+
+**What changed.** **Dashboard** now sits first in the top block of the sidebar, with **Live Chat** below it. The empty Overview group is gone. Display only.
+
+**Files.** apps/web/src/index.html.
+
+**Needs you:** pull and hard-refresh.

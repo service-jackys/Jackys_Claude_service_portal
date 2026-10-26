@@ -5817,7 +5817,7 @@
       .nav-solo .dashboard-link[hidden] {
         display: none;
       }
-      .nav-solo:has(> .dashboard-link[hidden]) {
+      .nav-solo:not(:has(> .dashboard-link:not([hidden]))) {
         display: none;
       }
       .nav-group-inner {
@@ -10357,6 +10357,20 @@
                 <button
                   class="dashboard-link"
                   type="button"
+                  id="dashboardNav"
+                  hidden
+                  aria-label="Dashboard"
+                  title="Dashboard"
+                >
+                  <svg class="nav-icon" aria-hidden="true">
+                    <use href="#icon-dashboard"></use>
+                  </svg>
+                  <span class="nav-label">Dashboard</span>
+                  <span class="nav-arrow" aria-hidden="true">→</span>
+                </button>
+                <button
+                  class="dashboard-link"
+                  type="button"
                   id="chatNav"
                   hidden
                   aria-label="Live Chat"
@@ -10369,50 +10383,6 @@
                   <span class="nav-badge" id="chatNavBadge" hidden aria-live="polite"></span>
                   <span class="nav-arrow" aria-hidden="true">→</span>
                 </button>
-              </div>
-              <div class="nav-group" data-nav-group="overview">
-                <button
-                  class="nav-group-toggle"
-                  type="button"
-                  id="navGroup-overview"
-                  aria-expanded="true"
-                  aria-controls="navItems-overview"
-                >
-                  <span class="nav-group-title">Overview</span>
-                  <svg class="nav-chevron" aria-hidden="true" viewBox="0 0 12 12">
-                    <path
-                      d="M3 4.5 6 7.5 9 4.5"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    />
-                  </svg>
-                </button>
-                <div
-                  class="nav-group-items"
-                  id="navItems-overview"
-                  role="group"
-                  aria-labelledby="navGroup-overview"
-                >
-                  <div class="nav-group-inner">
-                    <button
-                      class="dashboard-link"
-                      type="button"
-                      id="dashboardNav"
-                      hidden
-                      aria-label="Dashboard"
-                      title="Dashboard"
-                    >
-                      <svg class="nav-icon" aria-hidden="true">
-                        <use href="#icon-dashboard"></use>
-                      </svg>
-                      <span class="nav-label">Dashboard</span>
-                      <span class="nav-arrow" aria-hidden="true">→</span>
-                    </button>
-                  </div>
-                </div>
               </div>
               <div class="nav-group" data-nav-group="service-desk">
                 <button
