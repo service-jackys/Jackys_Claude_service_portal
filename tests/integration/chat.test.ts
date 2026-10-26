@@ -334,3 +334,102 @@ test(
     }
   },
 );
+
+test(
+  'Chat: attachments upload, send, signed download and hide on delete',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const service = createChatService(pool);
+    const ids: string[] = [];
+    try {
+      for (const name of ['a', 'b', 'c']) {
+        const result = await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, $2) RETURNING id`,
+          [`chat3-${name}-${randomUUID()}@example.test`, `Chat3 ${name}`],
+        );
+        ids.push(result.rows[0].id);
+        await pool.query(
+          `INSERT INTO profile_roles (profile_id, role_id)
+           SELECT $1, id FROM roles WHERE code = 'user'`,
+          [result.rows[0].id],
+        );
+      }
+      const [a, b, c] = ids;
+      const userA = authFor(a);
+      const userB = authFor(b);
+      const userC = authFor(c);
+      const { conversation: dm } = await service.openConversation(userA, {
+        kind: 'direct',
+        profileId: b,
+      });
+      const png = Buffer.from(
+        'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==',
+        'base64',
+      );
+      const file = {
+        originalname: 'site.png',
+        mimetype: 'image/png',
+        size: png.length,
+        buffer: png,
+      };
+
+      await assert.rejects(
+        service.uploadAttachment(userA, dm.id, { ...file, mimetype: 'text/html' }),
+        /Unsupported file type/,
+      );
+      await assert.rejects(service.uploadAttachment(userC, dm.id, file), /not found/);
+      const uploaded = await service.uploadAttachment(userA, dm.id, file);
+      assert.match(uploaded.url, /^\/api\/chat\/attachments\//);
+
+      // Only the uploader can attach it, only once, only to the same conversation.
+      await assert.rejects(
+        service.send(userB, dm.id, { body: '', attachmentIds: [uploaded.id] }),
+        /could not be found/,
+      );
+      await assert.rejects(service.send(userA, dm.id, { body: '' }), /attach a file/);
+      const sent = await service.send(userA, dm.id, { body: '', attachmentIds: [uploaded.id] });
+      assert.equal(sent.attachments.length, 1);
+      assert.equal(sent.attachments[0].fileName, 'site.png');
+      await assert.rejects(
+        service.send(userA, dm.id, { body: 'again', attachmentIds: [uploaded.id] }),
+        /could not be found/,
+      );
+      const conv = (await service.conversations(userB)).conversations.find((x) => x.id === dm.id);
+      assert.equal(conv?.lastBody, 'Attachment');
+
+      // Signed download works without a login and rejects tampering.
+      const url = new URL(sent.attachments[0].url!, 'http://x');
+      const token = url.searchParams.get('token')!;
+      const expires = url.searchParams.get('expires')!;
+      const got = await service.downloadAttachment(uploaded.id, token, expires);
+      assert.equal(got.buffer.length, png.length);
+      await assert.rejects(
+        service.downloadAttachment(uploaded.id, 'bad' + token, expires),
+        /not valid/,
+      );
+
+      // Deleting the message hides the file.
+      await service.remove(userA, sent.id);
+      await assert.rejects(service.downloadAttachment(uploaded.id, token, expires), /no longer/);
+      const after = (await service.messages(userB, dm.id, {})).find((m) => m.id === sent.id)!;
+      assert.equal(after.attachments.length, 0);
+      const last = (await service.conversations(userB)).conversations.find((x) => x.id === dm.id);
+      assert.equal(last?.lastBody, 'Message deleted');
+    } finally {
+      await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
+        ids,
+      ]);
+      await pool.end();
+    }
+  },
+);

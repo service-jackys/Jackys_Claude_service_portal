@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 142,
+    title: 'Chat (phase 2b): files and site photos',
+    area: 'General',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Technicians and the office need to share site photos, warranty approvals and PDFs inside the conversation about the job, not through a separate app.',
+    changes: [
+      'A paperclip and a camera button in the message box. On a phone the camera button opens the camera directly; on a computer you can also paste a screenshot or drag files onto the thread.',
+      'JPEG, PNG, WebP, HEIC and PDF up to 20 MB, up to 10 per message; big phone photos are shrunk in the browser first to save mobile data. A message can be just a photo.',
+      'Photos show as thumbnails in the thread (click to open full size); PDFs show as a file chip.',
+      'Files use the same private storage as job-card attachments. Links are signed and expire after 12 hours (a fresh link is issued every time the thread is opened). Deleting a message hides its files. Uploads are written to the Activity log.',
+      'The conversation list shows "Attachment" for a photo-only message and "Message deleted" for a deleted one (previously the text of a deleted last message could still show there).',
+    ],
+    needsYou:
+      'pull, restart the API (applies migration 055), hard-refresh. In production make sure ATTACHMENT_STORAGE_DIR and ATTACHMENT_URL_SECRET are set (already needed for job-card photos).',
+    migrations: ['055_chat_attachments.sql'],
+    files:
+      'packages/db/migrations/055_chat_attachments.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts…',
+  },
+  {
     id: 141,
     title: 'Chat (phase 2a): edit, delete, reactions, pins and message search',
     area: 'Portal look & feel',

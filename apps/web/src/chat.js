@@ -34,6 +34,10 @@
     search: '<circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/>',
     open: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
     flag: '<path d="M4 22V4"/><path d="M4 4h13l-2 4 2 4H4"/>',
+    clip: '<path d="m21 11-8.5 8.5a5 5 0 0 1-7-7L14 4a3.3 3.3 0 0 1 4.7 4.7L10.2 17.2a1.7 1.7 0 0 1-2.4-2.4L15 7.6"/>',
+    camera:
+      '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z"/><path d="M14 3v5h5"/>',
     trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="m6 6 1 14h10l1-14"/>',
     pin: '<path d="M12 17v5"/><path d="M9 3h6l-1 6 3 3v2H7v-2l3-3Z"/>',
     edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
@@ -197,6 +201,7 @@
         mentions: new Map(),
         stick: true,
         busy: false,
+        pending: [],
       };
       host.innerHTML =
         '<div class="ch-thread-head" data-th-head></div>' +
@@ -208,7 +213,16 @@
         '<div class="ch-replybar" data-th-replybar hidden></div>' +
         '<p class="ch-error" data-th-error role="alert" hidden></p>' +
         '<div class="ch-mention-pop" data-th-pop role="listbox" aria-label="Mention someone" hidden></div>' +
+        '<div class="ch-files" data-th-files hidden></div>' +
         '<div class="ch-compose-row">' +
+        '<button type="button" class="ch-iconbtn ch-attach" data-th-attach aria-label="Attach a file or photo" title="Attach a file or photo">' +
+        icon('clip', 18) +
+        '</button>' +
+        '<button type="button" class="ch-iconbtn ch-attach ch-camera" data-th-camera aria-label="Take a photo" title="Take a photo">' +
+        icon('camera', 18) +
+        '</button>' +
+        '<input type="file" data-th-file hidden multiple accept="image/jpeg,image/png,image/webp,image/heic,application/pdf">' +
+        '<input type="file" data-th-photo hidden accept="image/*" capture="environment">' +
         '<textarea rows="1" maxlength="4000" data-th-input placeholder="Write a message" aria-label="Message"></textarea>' +
         '<button type="button" class="ch-flagbtn" data-th-flag aria-pressed="false" title="Ask for a reply: it stays flagged until answered">' +
         icon('flag', 16) +
@@ -292,6 +306,41 @@
         );
       }
 
+      const sizeLabel = (bytes) =>
+        bytes >= 1048576
+          ? (bytes / 1048576).toFixed(1) + ' MB'
+          : Math.max(1, Math.round(bytes / 1024)) + ' KB';
+      function attachmentsHtml(m) {
+        if (!m.attachments || !m.attachments.length) return '';
+        return (
+          '<div class="ch-files-grid">' +
+          m.attachments
+            .map((f) =>
+              /^image\//.test(f.contentType) && f.contentType !== 'image/heic'
+                ? '<a class="ch-photo" href="' +
+                  esc(f.url) +
+                  '" target="_blank" rel="noopener noreferrer" title="' +
+                  esc(f.fileName) +
+                  '"><img src="' +
+                  esc(f.url) +
+                  '" alt="' +
+                  esc(f.fileName) +
+                  '" loading="lazy"></a>'
+                : '<a class="ch-filechip" href="' +
+                  esc(f.url) +
+                  '" target="_blank" rel="noopener noreferrer">' +
+                  icon('file', 16) +
+                  '<span>' +
+                  esc(f.fileName) +
+                  '</span><small>' +
+                  sizeLabel(f.sizeBytes) +
+                  '</small></a>',
+            )
+            .join('') +
+          '</div>'
+        );
+      }
+
       function reactionsHtml(m) {
         if (!m.reactions || !m.reactions.length) return '';
         return (
@@ -361,6 +410,7 @@
               icon('trash', 13) +
               'This message was deleted</div>'
             : '<div class="ch-text">' + bodyHtml(m) + '</div>') +
+          attachmentsHtml(m) +
           reactionsHtml(m) +
           '<div class="ch-meta">' +
           (m.pinned
@@ -523,6 +573,8 @@
         t.readUpTo = null;
         t.reply = null;
         t.flag = false;
+        t.pending = [];
+        paintPending();
         t.mentions.clear();
         t.muted = Boolean(extra && extra.muted);
         input.value = '';
@@ -567,6 +619,84 @@
             '<p class="ch-loading">' +
             esc(error.message || 'Could not open this conversation.') +
             '</p>';
+        }
+      }
+
+      // ---- attachments
+      const filesEl = q('[data-th-files]');
+      function paintPending() {
+        filesEl.hidden = !t.pending.length;
+        filesEl.innerHTML = t.pending
+          .map(
+            (f) =>
+              '<span class="ch-pending' +
+              (f.error ? ' ch-pending-error' : '') +
+              '">' +
+              icon(/^image\//.test(f.type) ? 'camera' : 'file', 14) +
+              '<span class="ch-pending-name">' +
+              esc(f.name) +
+              '</span><small>' +
+              (f.error ? esc(f.error) : f.att ? sizeLabel(f.size) : 'Uploading\u2026') +
+              '</small><button type="button" class="ch-iconbtn" data-th-unfile="' +
+              f.key +
+              '" aria-label="Remove ' +
+              esc(f.name) +
+              '">' +
+              icon('close', 12) +
+              '</button></span>',
+          )
+          .join('');
+      }
+      // Phone photos are large; shrink big JPEG/PNG/WebP before sending to save mobile data.
+      async function shrink(file) {
+        if (!/^image\/(jpeg|png|webp)$/.test(file.type) || file.size < 1500000) return file;
+        try {
+          const bitmap = await createImageBitmap(file);
+          const scale = Math.min(1, 2000 / Math.max(bitmap.width, bitmap.height));
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.round(bitmap.width * scale);
+          canvas.height = Math.round(bitmap.height * scale);
+          canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+          const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.85));
+          if (!blob || blob.size >= file.size) return file;
+          return new File([blob], file.name.replace(/\.\w+$/, '') + '.jpg', {
+            type: 'image/jpeg',
+          });
+        } catch {
+          return file;
+        }
+      }
+      let fileKey = 0;
+      async function addFiles(list) {
+        if (t.id === null || !t.info) return;
+        for (const original of [...list].slice(0, 10 - t.pending.length)) {
+          const entry = {
+            key: ++fileKey,
+            name: original.name || 'photo.jpg',
+            type: original.type,
+            size: original.size,
+            att: null,
+            error: '',
+          };
+          t.pending.push(entry);
+          paintPending();
+          (async () => {
+            try {
+              const file = await shrink(original);
+              entry.size = file.size;
+              entry.type = file.type;
+              const form = new FormData();
+              form.append('file', file, file.name || entry.name);
+              const data = await (deps.apiUpload || api)(
+                '/api/chat/conversations/' + t.id + '/attachments',
+                form,
+              );
+              entry.att = data.attachment;
+            } catch (error) {
+              entry.error = error.message || 'Upload failed';
+            }
+            paintPending();
+          })();
         }
       }
 
@@ -723,7 +853,11 @@
       async function send() {
         if (t.busy || t.id === null || !t.info) return;
         const body = input.value.trim();
-        if (!body) return;
+        const ready = t.pending.filter((f) => f.att);
+        if (t.pending.some((f) => !f.att && !f.error))
+          return showError('Wait for the upload to finish.');
+        if (!body && !ready.length) return;
+        if (t.editing && !body) return;
         t.busy = true;
         showError('');
         const sendBtn = q('[data-th-send]');
@@ -751,11 +885,14 @@
               replyToId: t.reply ? t.reply.id : null,
               needsReply: t.flag,
               mentionIds,
+              attachmentIds: ready.map((f) => f.att.id),
             }),
           });
           input.value = '';
           autosize();
           t.mentions.clear();
+          t.pending = [];
+          paintPending();
           setReply(null);
           t.flag = false;
           q('[data-th-flag]').setAttribute('aria-pressed', 'false');
@@ -803,6 +940,27 @@
         event.preventDefault();
         send();
       });
+      host.addEventListener('change', (event) => {
+        const el = event.target;
+        if (el.matches('[data-th-file], [data-th-photo]')) {
+          addFiles(el.files);
+          el.value = '';
+        }
+      });
+      input.addEventListener('paste', (event) => {
+        const files = [...(event.clipboardData ? event.clipboardData.files : [])];
+        if (files.length) {
+          event.preventDefault();
+          addFiles(files);
+        }
+      });
+      host.addEventListener('dragover', (event) => event.preventDefault());
+      host.addEventListener('drop', (event) => {
+        if (event.dataTransfer && event.dataTransfer.files.length) {
+          event.preventDefault();
+          addFiles(event.dataTransfer.files);
+        }
+      });
       scroll.addEventListener('scroll', () => {
         if (nearBottom()) q('[data-th-jump]').hidden = true;
       });
@@ -821,6 +979,12 @@
           return;
         }
         if (target.matches('[data-th-unreply]')) return setReply(null);
+        if (target.matches('[data-th-attach]')) return q('[data-th-file]').click();
+        if (target.matches('[data-th-camera]')) return q('[data-th-photo]').click();
+        if (target.dataset.thUnfile) {
+          t.pending = t.pending.filter((f) => String(f.key) !== target.dataset.thUnfile);
+          return paintPending();
+        }
         if (target.matches('[data-th-unedit]')) {
           input.value = '';
           autosize();

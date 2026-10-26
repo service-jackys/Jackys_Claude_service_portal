@@ -1,7 +1,14 @@
 import type { RequestHandler, Response } from 'express';
+import multer from 'multer';
+import { MAX_ATTACHMENT_BYTES } from '../attachments/storage.js';
 import type { ApplicationAuth } from '../auth/application-auth.js';
 import { problem } from '../api/problem.js';
 import { ChatServiceError, type ChatService } from './service.js';
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: MAX_ATTACHMENT_BYTES, files: 1 },
+});
 
 function fail(error: unknown, response: Response): boolean {
   if (!(error instanceof ChatServiceError)) return false;
@@ -119,6 +126,54 @@ export function createChatHandlers(
       wrap(async (auth, req, res) => {
         res.json({ results: await service.search(auth, req.query) });
       }),
+    ],
+    upload: [
+      use,
+      upload.single('file'),
+      wrap(async (auth, req, res) => {
+        const file = (req as unknown as { file?: Express.Multer.File }).file;
+        if (!file) {
+          problem(res, 400, 'invalid', 'Bad Request', 'No file was uploaded.');
+          return;
+        }
+        res.status(201).json({
+          attachment: await service.uploadAttachment(
+            auth,
+            id(req),
+            {
+              originalname: file.originalname,
+              mimetype: file.mimetype,
+              size: file.size,
+              buffer: file.buffer,
+            },
+            requestId(req),
+          ),
+        });
+      }),
+    ],
+    // No bearer token: authorised by the signed token in the query string.
+    download: [
+      async (req, res, next) => {
+        try {
+          const { file, buffer } = await service.downloadAttachment(
+            String(req.params.id),
+            String(req.query.token ?? ''),
+            String(req.query.expires ?? ''),
+          );
+          res.setHeader('Content-Type', file.contentType);
+          res.setHeader('Content-Length', String(buffer.length));
+          res.setHeader(
+            'Content-Disposition',
+            `inline; filename="${file.fileName.replace(/["\\\r\n]/g, '')}"`,
+          );
+          res.setHeader('X-Content-Type-Options', 'nosniff');
+          res.setHeader('Cache-Control', 'private, max-age=300');
+          res.send(buffer);
+        } catch (error) {
+          if (fail(error, res)) return;
+          next(error);
+        }
+      },
     ],
     mute: [
       use,

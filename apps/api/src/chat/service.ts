@@ -18,7 +18,9 @@ import {
   deleteChatMessage,
   editChatMessage,
   ensureChatMember,
+  findChatAttachment,
   findChatConversation,
+  insertChatAttachment,
   findChatMessage,
   findChatRecord,
   findOrCreateDirectConversation,
@@ -38,10 +40,18 @@ import {
   removeChatMember,
   setChatMuted,
   type ChatConversationRow,
+  type ChatMessageRow,
   type ChatProfileAccess,
 } from '../../../../packages/db/src/chat.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import type { ApplicationAuth } from '../auth/application-auth.js';
+import {
+  deleteAttachmentFile,
+  readAttachmentFile,
+  saveAttachmentFile,
+  validateAttachment,
+} from '../attachments/storage.js';
+import { createSignedDownloadToken, verifySignedDownloadToken } from '../attachments/signed-url.js';
 
 export class ChatServiceError extends Error {
   constructor(
@@ -73,6 +83,22 @@ function parse<T>(
   if (!result.success)
     throw new ChatServiceError('invalid', result.error.issues[0]?.message ?? 'Invalid request.');
   return result.data;
+}
+
+// Signed links last 12 hours: long enough for an open chat screen, short enough that a
+// forwarded link stops working. The namespace stops a job-card attachment token being
+// reused for a chat attachment that happens to share its number.
+const ATTACHMENT_LINK_SECONDS = 12 * 60 * 60;
+function attachmentUrl(id: string): string {
+  const { token, expiresAt } = createSignedDownloadToken(`chat-${id}`, ATTACHMENT_LINK_SECONDS);
+  return `/api/chat/attachments/${id}/download?token=${encodeURIComponent(token)}&expires=${expiresAt}`;
+}
+function withUrls<T extends ChatMessageRow>(message: T): T {
+  if (!message.attachments?.length) return message;
+  return {
+    ...message,
+    attachments: message.attachments.map((file) => ({ ...file, url: attachmentUrl(file.id) })),
+  };
 }
 
 export function createChatService(pool: Pool) {
@@ -237,7 +263,7 @@ export function createChatService(pool: Pool) {
       const client = await pool.connect();
       try {
         await open(client, auth, id);
-        return await listChatMessages(client, id, q);
+        return (await listChatMessages(client, id, q)).map(withUrls);
       } finally {
         client.release();
       }
@@ -262,6 +288,22 @@ export function createChatService(pool: Pool) {
               'You can only mention people who can see this conversation.',
             );
         }
+        const attachmentIds = [...new Set(data.attachmentIds)];
+        if (!data.body && !attachmentIds.length)
+          throw new ChatServiceError('invalid', 'Write a message or attach a file.');
+        for (const attachmentId of attachmentIds) {
+          const file = await findChatAttachment(client, attachmentId);
+          if (
+            !file ||
+            file.conversationId !== conversation.id ||
+            file.uploadedBy !== auth.profileId ||
+            file.messageId !== null
+          )
+            throw new ChatServiceError(
+              'invalid',
+              'An attached file could not be found. Upload it again.',
+            );
+        }
         await ensureChatMember(client, conversation.id, auth.profileId);
         for (const mentioned of mentionIds)
           await ensureChatMember(client, conversation.id, mentioned);
@@ -272,6 +314,7 @@ export function createChatService(pool: Pool) {
           replyToId: data.replyToId ?? null,
           needsReply: Boolean(data.needsReply),
           mentionIds,
+          attachmentIds,
         });
         await insertAuditEvent(client, {
           actorProfileId: auth.profileId,
@@ -283,10 +326,11 @@ export function createChatService(pool: Pool) {
             kind: conversation.kind,
             mentions: mentionIds.length,
             needsReply: message.needsReply,
+            attachments: attachmentIds.length,
           },
           requestId,
         });
-        return message;
+        return withUrls(message);
       });
     },
 
@@ -308,7 +352,7 @@ export function createChatService(pool: Pool) {
         if (!message) throw new ChatServiceError('not-found', 'Message not found.');
         await open(client, auth, message.conversationId);
         await markChatAnswered(client, messageId, auth.profileId);
-        return (await findChatMessage(client, messageId))!;
+        return withUrls((await findChatMessage(client, messageId))!);
       });
     },
 
@@ -316,7 +360,7 @@ export function createChatService(pool: Pool) {
       const client = await pool.connect();
       try {
         await open(client, auth, id);
-        return await listPinnedChatMessages(client, id);
+        return (await listPinnedChatMessages(client, id)).map(withUrls);
       } finally {
         client.release();
       }
@@ -349,7 +393,7 @@ export function createChatService(pool: Pool) {
           metadata: { conversationId: conversation.id, previousBody: message.body },
           requestId,
         });
-        return (await findChatMessage(client, messageId))!;
+        return withUrls((await findChatMessage(client, messageId))!);
       });
     },
 
@@ -360,7 +404,7 @@ export function createChatService(pool: Pool) {
         const { conversation } = await open(client, auth, message.conversationId);
         if (message.senderId !== auth.profileId && !can(auth, 'chat.moderate'))
           throw new ChatServiceError('forbidden', 'You can only delete your own messages.');
-        if (message.deleted) return message;
+        if (message.deleted) return withUrls(message);
         await deleteChatMessage(client, messageId, auth.profileId);
         await insertAuditEvent(client, {
           actorProfileId: auth.profileId,
@@ -374,7 +418,7 @@ export function createChatService(pool: Pool) {
           },
           requestId,
         });
-        return (await findChatMessage(client, messageId))!;
+        return withUrls((await findChatMessage(client, messageId))!);
       });
     },
 
@@ -386,7 +430,7 @@ export function createChatService(pool: Pool) {
         await open(client, auth, message.conversationId);
         if (message.deleted) throw new ChatServiceError('invalid', 'That message was deleted.');
         await toggleChatReaction(client, messageId, auth.profileId, data.emoji);
-        return (await findChatMessage(client, messageId))!;
+        return withUrls((await findChatMessage(client, messageId))!);
       });
     },
 
@@ -406,7 +450,7 @@ export function createChatService(pool: Pool) {
           metadata: { conversationId: message.conversationId },
           requestId,
         });
-        return (await findChatMessage(client, messageId))!;
+        return withUrls((await findChatMessage(client, messageId))!);
       });
     },
 
@@ -434,6 +478,77 @@ export function createChatService(pool: Pool) {
           if (result.length >= q.limit) break;
         }
         return result;
+      } finally {
+        client.release();
+      }
+    },
+
+    async uploadAttachment(
+      auth: ApplicationAuth,
+      id: string,
+      file: { originalname: string; mimetype: string; size: number; buffer: Buffer },
+      requestId?: string,
+    ) {
+      try {
+        validateAttachment(file);
+      } catch (error) {
+        throw new ChatServiceError('invalid', (error as Error).message);
+      }
+      const client = await pool.connect();
+      try {
+        const { conversation } = await open(client, auth, id);
+        const storageKey = await saveAttachmentFile(file.buffer, file.mimetype);
+        try {
+          const row = await insertChatAttachment(client, {
+            conversationId: conversation.id,
+            uploadedBy: auth.profileId,
+            fileName: file.originalname.slice(0, 200) || 'file',
+            contentType: file.mimetype,
+            sizeBytes: file.size,
+            storageKey,
+          });
+          await insertAuditEvent(client, {
+            actorProfileId: auth.profileId,
+            action: 'chat.attachment_uploaded',
+            targetType: 'chat_attachment',
+            targetId: row.id,
+            metadata: {
+              conversationId: conversation.id,
+              fileName: row.fileName,
+              contentType: row.contentType,
+              sizeBytes: row.sizeBytes,
+            },
+            requestId,
+          });
+          return {
+            id: row.id,
+            fileName: row.fileName,
+            contentType: row.contentType,
+            sizeBytes: row.sizeBytes,
+            url: attachmentUrl(row.id),
+          };
+        } catch (error) {
+          await deleteAttachmentFile(storageKey);
+          throw error;
+        }
+      } finally {
+        client.release();
+      }
+    },
+
+    // Authorised by the signed token alone so it works as an <img src> / <a href>.
+    async downloadAttachment(id: string, token: string, expires: string) {
+      const client = await pool.connect();
+      try {
+        const file = await findChatAttachment(client, id);
+        if (!file || !verifySignedDownloadToken(`chat-${id}`, token, Number(expires)))
+          throw new ChatServiceError('not-found', 'This download link is not valid.');
+        if (file.messageId) {
+          const message = await findChatMessage(client, file.messageId);
+          if (!message || message.deleted)
+            throw new ChatServiceError('not-found', 'This file is no longer available.');
+        }
+        return { file, buffer: await readAttachmentFile(file.storageKey) };
       } finally {
         client.release();
       }
