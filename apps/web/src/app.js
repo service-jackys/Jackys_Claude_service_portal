@@ -16032,7 +16032,17 @@ ${bodyHtml}
         form.append('kind', kind);
         form.append('file', file);
         const result = await apiUploadRequest('/api/revenue-dashboard/import', form);
-        msg.textContent = 'Imported ' + rdMoney(result.batch.rowCount) + ' rows.';
+        msg.textContent =
+          'Imported ' +
+          rdMoney(result.batch.rowCount) +
+          ' rows.' +
+          (result.batch.budgetVersion
+            ? ' Budget Variance now uses this budget: ' +
+              result.batch.budgetVersion.versionName +
+              (result.batch.budgetVersion.createdNewVersion
+                ? ' (new version - activate it under Budget versions).'
+                : ' (refreshed).')
+            : '');
         onDone();
       } catch (error) {
         msg.textContent = error.message || 'The upload failed.';

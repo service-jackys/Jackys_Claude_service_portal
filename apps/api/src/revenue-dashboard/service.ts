@@ -40,6 +40,7 @@ import {
 } from './logic-summary.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { buildRevenueViewWorkbook } from './view-export.js';
+import { syncBudgetVersionFromUpload } from '../../../../packages/db/src/budget-variance.js';
 import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from './parser.js';
 
 export class RevenueDashboardServiceError extends Error {
@@ -109,15 +110,36 @@ export function createRevenueDashboardService(pool: Pool) {
             });
       if ('rates' in parsed) await insertRevenueLines(client, batch.id, parsed.lines);
       else await insertBudgetLines(client, batch.id, parsed.lines);
+      // A budget upload also refreshes the budget version Budget Variance reads, so both
+      // tabs show the same figures (modification #134).
+      let budgetVersion: Awaited<ReturnType<typeof syncBudgetVersionFromUpload>> = null;
+      if (!('rates' in parsed)) {
+        budgetVersion = await syncBudgetVersionFromUpload(client, {
+          fileName: file.originalname,
+          periods: parsed.periods,
+          monthlyRevenue: parsed.periods.map((period) =>
+            parsed.lines
+              .filter((line) => line.section === 'revenue' && line.period === period)
+              .reduce((sum, line) => sum + line.amount, 0),
+          ),
+          streams: parsed.streams,
+          profileId,
+        });
+      }
       await insertAuditEvent(client, {
         actorProfileId: profileId,
         action: 'revenue_dashboard.imported',
         targetType: 'revenue_import_batch',
         targetId: batch.id,
-        metadata: { kind, fileName: file.originalname, rowCount: batch.rowCount },
+        metadata: {
+          kind,
+          fileName: file.originalname,
+          rowCount: batch.rowCount,
+          budgetVersionId: budgetVersion?.versionId ?? null,
+        },
         requestId,
       });
-      return batch;
+      return budgetVersion ? { ...batch, budgetVersion } : batch;
     });
   }
 

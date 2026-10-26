@@ -3249,3 +3249,13 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html}.
 
 **Needs you:** pull and hard-refresh. No migration or API restart. The old portal's Index.html is not changed by this; say if you want the same there.
+
+## Modification #135 — Budget upload now refreshes Budget Variance
+
+**Date:** 2026-10-26
+
+**Why.** Budget vs Actual showed the budget just uploaded (AED 527,660) while Budget Variance still showed an older split (about AED 350,000), because it reads its own budget version that was entered earlier and never changed on upload.
+
+**What changed.** Uploading the Service Budget workbook now also refreshes the active budget version for that fiscal year: the stream table "Proposed Revenue 2027" on the Service Price List sheet (Warranty, Non-Warranty, Del + Install, Inspections, Installation, Projects, Premium PMC → AMC) fills each stream's annual revenue and volume, and the monthly phasing comes from the REVENUE row of the P&L sheet. An approved version is never overwritten: a new draft "revised" version is created for you to activate. The VAT setting already on each stream is kept (Premium PMC stays VAT-inclusive). The upload message says which version was refreshed.
+
+**Needs you:** pull, restart the API, hard-refresh, then upload the budget workbook once more. No migration.
