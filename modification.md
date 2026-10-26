@@ -3478,3 +3478,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/billing-ledger.ts, apps/web/src/{app.js,index.html}, tests/integration/job-billing.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #151 — Billing: jobs billed to a sales channel are no longer flagged "Not invoiced"
+
+**Date:** 2026-10-26
+
+**Why.** Out-of-warranty jobs where the sales channel pays (B2B, billed to JDI or JER-C/INS) showed **Not invoiced** in amber with a **Record** button, as if an ERP invoice were missing. For these jobs the amount is the current rate plus any spares added, and an ERP number may not exist.
+
+**What changed.**
+- A job paid by the sales channel with no ERP number now shows the grey stage **Billed to channel** and a small "Channel" note instead of the Record button. If an ERP number is recorded later (for example on the job card), it moves to **Invoiced to channel** and Record is available again.
+- **Not yet invoiced** now counts only jobs the customer pays. A new total, **Billed to channel, no ERP no.**, shows the channel amounts. "Billed to channel" is a Stage filter.
+- Customer-paid jobs are unchanged (Not invoiced, then awaiting payment, then Paid).
+
+**Check.** Two jobs in the list show bill-to "Not set" (JBC-2026-00142 and JBC-2026-00028): no sales channel is on the job or on its branch, so they cannot be billed to anyone yet. Set the channel on the job card.
+
+**Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.

@@ -13647,7 +13647,7 @@ ${bodyHtml}
         ? 'status-ok'
         : stage === 'Not invoiced' || stage === 'Invoiced, awaiting payment'
           ? 'status-warn'
-          : stage === 'Internal billing'
+          : stage === 'Internal billing' || stage === 'Billed to channel'
             ? 'status-muted'
             : '';
     const RANGES = [
@@ -13790,6 +13790,7 @@ ${bodyHtml}
         cell('Adjustment', money(t.adjustment)) +
         cell('Billed (AED)', money(t.billedAmount), 'acc-kpi-main') +
         cell('Internal (warranty)', money(t.internalAmount || 0)) +
+        cell('Billed to channel, no ERP no.', money(t.channelOpenAmount || 0)) +
         cell('Invoiced in ERP', money(t.invoicedAmount)) +
         cell(
           'Not yet invoiced',
@@ -13908,9 +13909,11 @@ ${bodyHtml}
             (canRecord
               ? r.stage === 'Internal billing'
                 ? '<td><small class="form-note" title="Warranty jobs are billed internally to JDI or JER-C/INS. No ERP invoice is recorded; accounts adjust from the report.">Internal</small></td>'
-                : '<td><button class="button button-outline" type="button" data-acc-record-open="' +
-                  plain(r.id) +
-                  '">Record</button></td>'
+                : r.stage === 'Billed to channel'
+                  ? '<td><small class="form-note" title="Billed to the sales channel at the amount shown. An ERP invoice number is optional and is not needed here.">Channel</small></td>'
+                  : '<td><button class="button button-outline" type="button" data-acc-record-open="' +
+                    plain(r.id) +
+                    '">Record</button></td>'
               : '') +
             '</tr>',
         )

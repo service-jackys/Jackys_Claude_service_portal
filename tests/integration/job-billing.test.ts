@@ -214,11 +214,12 @@ test(
       assert.equal(paid.totals.billedAmount, 120);
       const viaChannel = await invoiceService.ledger({ search: channelCard.jobCardReference });
       assert.equal(viaChannel.rows.length, 1);
-      assert.equal(viaChannel.rows[0].stage, 'Not invoiced');
+      assert.equal(viaChannel.rows[0].stage, 'Billed to channel');
       assert.equal(viaChannel.rows[0].billedAmount, 300);
       assert.equal(viaChannel.statement.length, 1);
       assert.equal(viaChannel.statement[0].nonWarrantyAmount, 300);
-      assert.equal(viaChannel.statement[0].notInvoicedAmount, 300);
+      assert.equal(viaChannel.statement[0].notInvoicedAmount, 0);
+      assert.equal(viaChannel.totals.channelOpenAmount, 300);
       // A warranty job with a charge is internal billing: it shows in the ledger with
       // its own stage but never counts as "not yet invoiced" (no ERP invoice is expected).
       const warrantyCard = await makeCard({});

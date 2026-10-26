@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 151,
+    title: 'Billing: jobs billed to a sales channel are no longer flagged "Not invoiced"',
+    area: 'Invoices & billing',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Out-of-warranty jobs where the sales channel pays (B2B, billed to JDI or JER-C/INS) showed Not invoiced in amber with a Record button, as if an ERP invoice were missing. For these jobs the amount is the current rate plus any spares added, and an ERP number may not exist.',
+    changes: [
+      'A job paid by the sales channel with no ERP number now shows the grey stage Billed to channel and a small "Channel" note instead of the Record button. If an ERP number is recorded later (for example on the job card), it moves to Invoiced…',
+      'Not yet invoiced now counts only jobs the customer pays. A new total, Billed to channel, no ERP no., shows the channel amounts. "Billed to channel" is a Stage filter.',
+      'Customer-paid jobs are unchanged (Not invoiced, then awaiting payment, then Paid).',
+    ],
+    needsYou: 'pull, restart the API, hard-refresh. No migration.',
+    migrations: [],
+    files:
+      'packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.',
+  },
+  {
     id: 150,
     title: 'Billing: warranty jobs are internal billing; frozen Job card column fixed',
     area: 'Invoices & billing',
