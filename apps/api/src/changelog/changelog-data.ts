@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 152,
+    title: 'Billing: every job billed to a sales channel is "Internal billing"',
+    area: 'Invoices & billing',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Warranty jobs and out-of-warranty B2B jobs are both billed to JDI or JER-C/INS, so both are internal billing with no ERP invoice to chase. Showing two different stages for them was confusing.',
+    changes: [
+      'What changed: Every job not paid by the customer, warranty or out of warranty, now shows the stage Internal billing and the note Channel in the last column instead of Record. The "Billed to channel" stage and its total from #151 are…',
+    ],
+    needsYou: 'pull, restart the API, hard-refresh. No migration.',
+    migrations: [],
+    files:
+      'packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.',
+  },
+  {
     id: 151,
     title: 'Billing: jobs billed to a sales channel are no longer flagged "Not invoiced"',
     area: 'Invoices & billing',

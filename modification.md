@@ -3495,3 +3495,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #152 — Billing: every job billed to a sales channel is "Internal billing"
+
+**Date:** 2026-10-26
+
+**Why.** Warranty jobs and out-of-warranty B2B jobs are both billed to JDI or JER-C/INS, so both are internal billing with no ERP invoice to chase. Showing two different stages for them was confusing.
+
+**What changed.** Every job not paid by the customer, warranty or out of warranty, now shows the stage **Internal billing** and the note **Channel** in the last column instead of Record. The "Billed to channel" stage and its total from #151 are removed; the **Internal billing** total covers all of them. Only jobs the customer pays (B2C) follow the invoice and payment flow: Not invoiced, Invoiced awaiting payment, Paid, with Record. "Not yet invoiced" and "Invoiced in ERP" count customer-paid jobs only.
+
+**Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
