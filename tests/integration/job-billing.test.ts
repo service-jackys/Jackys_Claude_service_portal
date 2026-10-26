@@ -289,7 +289,7 @@ test(
       assert.equal(mdaLedger.rows.length, 1);
       assert.equal(mdaLedger.rows[0].billedAmount, mdaRate + 20);
       assert.equal(mdaLedger.rows[0].payer, 'Sales channel');
-      assert.equal(mdaLedger.rows[0].stage, 'Not invoiced');
+      assert.equal(mdaLedger.rows[0].stage, 'Billed to channel');
       const channelOnly = await invoiceService.ledger({
         payer: 'Sales channel',
         search: mdaCard.jobCardReference,
