@@ -12861,6 +12861,7 @@ ${bodyHtml}
     if (!chatUi) {
       chatUi = window.JdChat.create({
         apiRequest,
+        apiUpload: apiUploadRequest,
         escapeHtml,
         can: (permission) => Boolean(hasPermission(permission)),
         onUnread: setChatBadge,

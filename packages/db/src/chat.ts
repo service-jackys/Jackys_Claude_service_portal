@@ -323,7 +323,9 @@ export async function listChatConversations(
            AND (c.kind = 'direct' OR EXISTS (
                  SELECT 1 FROM chat_message_mentions mm
                   WHERE mm.message_id = x.id AND mm.profile_id = $1)))::int AS "needsReplyOpen",
-       lm.body AS "lastBody", lp.display_name AS "lastSenderName",
+       CASE WHEN lm.deleted_at IS NOT NULL THEN 'Message deleted'
+            WHEN lm.body = '' THEN 'Attachment' ELSE lm.body END AS "lastBody",
+       lp.display_name AS "lastSenderName",
        CASE c.record_type
          WHEN 'job_card' THEN (SELECT 'Job card ' || job_card_reference FROM service_job_cards WHERE id = c.record_id)
          WHEN 'appointment' THEN (SELECT 'Appointment ' || appointment_reference FROM appointments WHERE id = c.record_id)
@@ -335,7 +337,7 @@ export async function listChatConversations(
      FROM chat_members m
      JOIN chat_conversations c ON c.id = m.conversation_id AND c.archived_at IS NULL
      LEFT JOIN LATERAL (
-       SELECT body, sender_id FROM chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1
+       SELECT body, sender_id, deleted_at FROM chat_messages WHERE conversation_id = c.id ORDER BY id DESC LIMIT 1
      ) lm ON true
      LEFT JOIN profiles lp ON lp.id = lm.sender_id
      LEFT JOIN chat_members o ON c.kind = 'direct' AND o.conversation_id = c.id AND o.profile_id <> $1
@@ -355,6 +357,14 @@ export async function listChatConversations(
 // -------------------------------------------------------------- messages ----
 export type ChatReaction = { emoji: string; profileIds: string[]; names: string[] };
 
+export type ChatAttachmentInfo = {
+  id: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  url?: string;
+};
+
 export type ChatMessageRow = {
   id: string;
   conversationId: string;
@@ -368,6 +378,7 @@ export type ChatMessageRow = {
   answeredByName: string | null;
   mentions: { id: string; name: string }[];
   reactions: ChatReaction[];
+  attachments: ChatAttachmentInfo[];
   editedAt: Date | null;
   deleted: boolean;
   pinned: boolean;
@@ -397,6 +408,10 @@ const messageSelect = `
                              FROM chat_reactions r JOIN profiles rp ON rp.id = r.profile_id
                             WHERE r.message_id = x.id GROUP BY r.emoji) g
                     WHERE x.deleted_at IS NULL), '[]'::json) AS reactions,
+         COALESCE((SELECT json_agg(json_build_object('id', a.id::text, 'fileName', a.file_name,
+                                                     'contentType', a.content_type, 'sizeBytes', a.size_bytes)
+                                   ORDER BY a.id)
+                     FROM chat_attachments a WHERE a.message_id = x.id AND x.deleted_at IS NULL), '[]'::json) AS attachments,
          x.edited_at AS "editedAt", (x.deleted_at IS NOT NULL) AS deleted,
          (x.pinned_at IS NOT NULL) AS pinned, x.rev::text AS rev,
          x.created_at AS "createdAt"
@@ -491,6 +506,7 @@ export async function insertChatMessage(
     replyToId: string | null;
     needsReply: boolean;
     mentionIds: string[];
+    attachmentIds?: string[];
   },
 ): Promise<ChatMessageRow> {
   const inserted = await client.query<{ id: string }>(
@@ -506,6 +522,13 @@ export async function insertChatMessage(
       [id, mentioned],
     );
   }
+  if (input.attachmentIds?.length)
+    await linkChatAttachments(client, {
+      messageId: id,
+      conversationId: input.conversationId,
+      uploadedBy: input.senderId,
+      ids: input.attachmentIds,
+    });
   await client.query(`UPDATE chat_conversations SET last_message_at = now() WHERE id = $1`, [
     input.conversationId,
   ]);
@@ -676,4 +699,73 @@ export async function searchChatMessages(
     conversationId: String(row.conversationId),
     recordId: row.recordId === null ? null : String(row.recordId),
   }));
+}
+
+export type ChatAttachmentRow = {
+  id: string;
+  conversationId: string;
+  messageId: string | null;
+  uploadedBy: string;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+  storageKey: string;
+};
+
+const attachmentColumns = `id::text, conversation_id::text AS "conversationId",
+  message_id::text AS "messageId", uploaded_by::text AS "uploadedBy",
+  file_name AS "fileName", content_type AS "contentType", size_bytes AS "sizeBytes",
+  storage_key AS "storageKey"`;
+
+export async function insertChatAttachment(
+  client: PoolClient,
+  input: {
+    conversationId: string;
+    uploadedBy: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    storageKey: string;
+  },
+): Promise<ChatAttachmentRow> {
+  const result = await client.query<ChatAttachmentRow>(
+    `INSERT INTO chat_attachments (conversation_id, uploaded_by, file_name, content_type, size_bytes, storage_key)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING ${attachmentColumns}`,
+    [
+      input.conversationId,
+      input.uploadedBy,
+      input.fileName,
+      input.contentType,
+      input.sizeBytes,
+      input.storageKey,
+    ],
+  );
+  return result.rows[0]!;
+}
+
+export async function findChatAttachment(
+  client: PoolClient,
+  id: string,
+): Promise<ChatAttachmentRow | null> {
+  if (!/^\d+$/.test(id)) return null;
+  const result = await client.query<ChatAttachmentRow>(
+    `SELECT ${attachmentColumns} FROM chat_attachments WHERE id = $1`,
+    [id],
+  );
+  return result.rows[0] ?? null;
+}
+
+// Attaches uploaded-but-unsent files to a message; only the uploader's own files in
+// this conversation that are not yet on a message can be attached. Returns how many.
+export async function linkChatAttachments(
+  client: PoolClient,
+  input: { messageId: string; conversationId: string; uploadedBy: string; ids: string[] },
+): Promise<number> {
+  if (!input.ids.length) return 0;
+  const result = await client.query(
+    `UPDATE chat_attachments SET message_id = $1
+      WHERE id = ANY($4::bigint[]) AND conversation_id = $2 AND uploaded_by = $3 AND message_id IS NULL`,
+    [input.messageId, input.conversationId, input.uploadedBy, input.ids],
+  );
+  return result.rowCount ?? 0;
 }

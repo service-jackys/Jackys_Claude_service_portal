@@ -1759,10 +1759,11 @@ export const chatConversationCreateSchema = z.discriminatedUnion('kind', [
 
 export const chatMessageWriteSchema = z
   .object({
-    body: z.string().trim().min(1).max(4000),
+    body: z.string().trim().max(4000),
     replyToId: chatId.nullish(),
     needsReply: z.boolean().optional(),
     mentionIds: z.array(chatId).max(20).default([]),
+    attachmentIds: z.array(chatId).max(10).default([]),
   })
   .strict();
 

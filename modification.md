@@ -3345,3 +3345,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/054_chat_message_tools.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,index.html}, tests/integration/chat.test.ts.
 
 **Needs you:** pull, restart the API (applies migration 054), hard-refresh.
+
+## Modification #142 — Chat (phase 2b): files and site photos
+
+**Date:** 2026-10-26
+
+**Why.** Technicians and the office need to share site photos, warranty approvals and PDFs inside the conversation about the job, not through a separate app.
+
+**What changed.**
+- A paperclip and a camera button in the message box. On a phone the camera button opens the camera directly; on a computer you can also paste a screenshot or drag files onto the thread.
+- JPEG, PNG, WebP, HEIC and PDF up to 20 MB, up to 10 per message; big phone photos are shrunk in the browser first to save mobile data. A message can be just a photo.
+- Photos show as thumbnails in the thread (click to open full size); PDFs show as a file chip.
+- Files use the same private storage as job-card attachments. Links are signed and expire after 12 hours (a fresh link is issued every time the thread is opened). Deleting a message hides its files. Uploads are written to the Activity log.
+- The conversation list shows "Attachment" for a photo-only message and "Message deleted" for a deleted one (previously the text of a deleted last message could still show there).
+
+**Files.** packages/db/migrations/055_chat_attachments.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,app.js,index.html}, tests/integration/chat.test.ts.
+
+**Needs you:** pull, restart the API (applies migration 055), hard-refresh. In production make sure `ATTACHMENT_STORAGE_DIR` and `ATTACHMENT_URL_SECRET` are set (already needed for job-card photos).
