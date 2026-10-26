@@ -71,6 +71,8 @@ import { createWarrantyApprovalService } from '../warranty-approvals/service.js'
 import { createDashboardHandlers } from '../dashboard/routes.js';
 import { createDashboardService } from '../dashboard/service.js';
 import { createPricingConfigHandlers } from '../pricing-config/routes.js';
+import { createChatHandlers } from '../chat/routes.js';
+import { createChatService } from '../chat/service.js';
 import { createRoiHandlers } from '../roi-tasks/routes.js';
 import { createRoiService } from '../roi-tasks/service.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
@@ -91,6 +93,7 @@ export type RouteDefinition = {
     | 'rolePermissions'
     | 'budgetVarianceConfig'
     | 'roiTask'
+    | 'chat'
     | 'roiSettings'
     | 'roiReport'
     | 'roiImport'
@@ -702,6 +705,22 @@ export function createRouteCatalog(
         'createVersion',
         'version',
         'updateVersion',
+      ]);
+  const chatHandlers = pool
+    ? createChatHandlers(createChatService(pool), requirePermission)
+    : unavailableHandlers([
+        'people',
+        'conversations',
+        'summary',
+        'open',
+        'details',
+        'messages',
+        'send',
+        'read',
+        'answer',
+        'mute',
+        'addMembers',
+        'leave',
       ]);
   const roiHandlers = pool
     ? createRoiHandlers(createRoiService(pool), requirePermission)
@@ -3162,6 +3181,141 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: dashboardHandlers.board,
+      },
+    ],
+    ...[
+      {
+        method: 'get' as const,
+        path: '/api/chat/people',
+        operationId: 'listChatPeople',
+        tags: ['Chat'],
+        summary: 'People you can chat with',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: chatHandlers.people,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/chat/conversations',
+        operationId: 'listChatConversations',
+        tags: ['Chat'],
+        summary: 'Your conversations with unread counts',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: chatHandlers.conversations,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/chat/summary',
+        operationId: 'getChatSummary',
+        tags: ['Chat'],
+        summary: 'Unread, mention and needs-reply totals for the badge',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: chatHandlers.summary,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/chat/conversations',
+        operationId: 'openChatConversation',
+        tags: ['Chat'],
+        summary: 'Open or create a direct chat, channel or record thread',
+        security: 'bearerAuth' as const,
+        requestBody: 'chat' as const,
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.open,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/chat/conversations/{id}',
+        operationId: 'getChatConversation',
+        tags: ['Chat'],
+        summary: 'Conversation details and who can be mentioned',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.details,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/chat/conversations/{id}/messages',
+        operationId: 'listChatMessages',
+        tags: ['Chat'],
+        summary: 'Messages (after = newer than id, before = older)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.messages,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/chat/conversations/{id}/messages',
+        operationId: 'sendChatMessage',
+        tags: ['Chat'],
+        summary: 'Send a message',
+        security: 'bearerAuth' as const,
+        requestBody: 'chat' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [201, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.send,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/chat/conversations/{id}/read',
+        operationId: 'markChatRead',
+        tags: ['Chat'],
+        summary: 'Mark messages read up to an id',
+        security: 'bearerAuth' as const,
+        requestBody: 'chat' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.read,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/chat/conversations/{id}',
+        operationId: 'muteChatConversation',
+        tags: ['Chat'],
+        summary: 'Mute or unmute a conversation',
+        security: 'bearerAuth' as const,
+        requestBody: 'chat' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.mute,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/chat/conversations/{id}/members',
+        operationId: 'addChatMembers',
+        tags: ['Chat'],
+        summary: 'Add people to a channel',
+        security: 'bearerAuth' as const,
+        requestBody: 'chat' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.addMembers,
+      },
+      {
+        method: 'delete' as const,
+        path: '/api/chat/conversations/{id}/members/me',
+        operationId: 'leaveChatConversation',
+        tags: ['Chat'],
+        summary: 'Leave a channel',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.leave,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/chat/messages/{id}/answered',
+        operationId: 'answerChatMessage',
+        tags: ['Chat'],
+        summary: 'Mark a needs-reply message answered',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: chatHandlers.answer,
       },
     ],
     ...[

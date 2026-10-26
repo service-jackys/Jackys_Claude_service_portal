@@ -1733,3 +1733,47 @@ export const roiDefaultRecipients = {
     'shameer.abdulla@jackys.com',
   ],
 } as const;
+
+// ---------------------------------------------------------------------------
+// Chat (modification #140)
+// ---------------------------------------------------------------------------
+const chatId = z.string().regex(/^\d+$/, 'Invalid id.');
+
+export const chatConversationCreateSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('direct'), profileId: chatId }).strict(),
+  z
+    .object({
+      kind: z.literal('channel'),
+      title: z.string().trim().min(1).max(80),
+      memberIds: z.array(chatId).max(200).default([]),
+    })
+    .strict(),
+  z
+    .object({
+      kind: z.literal('record'),
+      recordType: z.enum(['job_card', 'appointment', 'schedule', 'complaint', 'task']),
+      recordId: chatId,
+    })
+    .strict(),
+]);
+
+export const chatMessageWriteSchema = z
+  .object({
+    body: z.string().trim().min(1).max(4000),
+    replyToId: chatId.nullish(),
+    needsReply: z.boolean().optional(),
+    mentionIds: z.array(chatId).max(20).default([]),
+  })
+  .strict();
+
+export const chatMessagesQuerySchema = z
+  .object({
+    after: chatId.optional(),
+    before: chatId.optional(),
+    limit: z.coerce.number().int().min(1).max(100).default(50),
+  })
+  .strict();
+
+export const chatReadSchema = z.object({ messageId: chatId }).strict();
+export const chatMembersSchema = z.object({ profileIds: z.array(chatId).min(1).max(200) }).strict();
+export const chatMuteSchema = z.object({ muted: z.boolean() }).strict();

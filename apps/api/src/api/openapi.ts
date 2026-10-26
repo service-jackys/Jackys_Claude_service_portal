@@ -57,6 +57,14 @@ const requestBodies = {
       },
     },
   },
+  chat: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { type: 'object' },
+      },
+    },
+  },
   roiTask: {
     required: true,
     content: {

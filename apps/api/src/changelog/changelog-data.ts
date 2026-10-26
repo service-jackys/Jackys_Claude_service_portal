@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 140,
+    title: 'Chat (phase 1): direct messages, channels and record threads',
+    area: 'General',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'The office team needs to talk inside the portal about specific jobs, appointments, complaints and tasks, and to each other, with the conversation kept next to the record. WhatsApp stays for the future; this is internal.',
+    changes: [
+      'What changed: A new Chat item in the menu (with an unread badge) opens a two-pane screen: conversations on the left (search, filters All / Unread / Mentions / To reply / Records), the thread on the right. On a phone it is one pane at a…',
+      'Not in this phase:: attachments, email on mention, search inside messages, edit/delete, typing and online status, reactions. Schedule threads are supported by the API but have no Discuss button yet. The old portal is not changed.',
+    ],
+    needsYou:
+      'pull, restart the API (it applies migration 053), hard-refresh. Check Roles to see chat.use on every role.',
+    migrations: ['053_chat.sql'],
+    files:
+      'packages/db/migrations/053_chat.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/{route-catalog,openapi}.ts…',
+  },
+  {
     id: 139,
     title: 'Tasks: optional "Flow look" (dark glass theme)',
     area: 'Tasks',

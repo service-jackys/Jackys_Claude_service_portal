@@ -785,6 +785,14 @@
     $('#pricingMastersNav').hidden = !canReadPricingConfig;
     $('#reportsNav').hidden = !hasPermission('reports.read');
     $('#tasksNav').hidden = !hasPermission('tasks.use');
+    const canChat = hasPermission('chat.use');
+    $('#chatNav').hidden = !canChat;
+    ['discussJobCardButton', 'discussAppointmentButton', 'discussComplaintButton'].forEach((id) => {
+      const button = document.getElementById(id);
+      if (button) button.hidden = !canChat;
+    });
+    if (canChat && window.JdChat) getChatUi().startBadge();
+    else if (chatUi) chatUi.stopBadge();
     $('#rateCardNav').hidden = !hasPermission('rate_card.view');
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
@@ -7843,6 +7851,7 @@ ${bodyHtml}
     }
     authToken = null;
     clearStoredToken();
+    if (chatUi) chatUi.stopBadge();
     document.body.classList.remove('is-authenticated');
     currentUser = null;
     workspaceMode = 'complaints';
@@ -12817,6 +12826,54 @@ ${bodyHtml}
   // live in tasks.js; roi-core.js holds the week maths and email markup. The
   // Management Summary block below reads the same revenue / budget endpoints as
   // the Service Revenue Dashboard, so the ROI and the dashboard always agree.
+  // ---------------------------------------------------------------------------
+  // Chat -- modification.md #140. chat.js holds the screen, the record slide-over and
+  // the unread badge; this file only supplies the API, permissions and navigation.
+  let chatUi = null;
+  function setChatBadge(summary) {
+    const badge = document.getElementById('chatNavBadge');
+    if (!badge) return;
+    const count = Number(summary?.unread || 0);
+    badge.hidden = count < 1;
+    badge.textContent = count > 99 ? '99+' : String(count);
+    const nav = document.getElementById('chatNav');
+    if (nav) nav.setAttribute('aria-label', count ? 'Chat, ' + count + ' unread' : 'Chat');
+  }
+  function chatGoToRecord(type, id) {
+    document.querySelector('.ch-drawer-host')?.remove();
+    if (type === 'job_card') {
+      setWorkspaceMode('job-cards');
+      loadJobCardDetail(id);
+    } else if (type === 'appointment') {
+      setWorkspaceMode('appointments');
+      loadAppointmentDetail(id);
+    } else if (type === 'complaint') {
+      setWorkspaceMode('service-requests');
+      loadComplaintDetail(id);
+    } else if (type === 'task') {
+      setWorkspaceMode('tasks');
+      getTasksUi().openTask(id);
+    } else if (type === 'schedule') {
+      setWorkspaceMode('daily-list');
+    }
+  }
+  function getChatUi() {
+    if (!chatUi) {
+      chatUi = window.JdChat.create({
+        apiRequest,
+        escapeHtml,
+        can: (permission) => Boolean(hasPermission(permission)),
+        onUnread: setChatBadge,
+        goToRecord: chatGoToRecord,
+      });
+    }
+    return chatUi;
+  }
+  function discussRecord(type, id) {
+    if (!id || !hasPermission('chat.use')) return;
+    getChatUi().openRecord(type, id);
+  }
+
   let tasksUi = null;
   function getTasksUi() {
     if (!tasksUi) {
@@ -12828,6 +12885,7 @@ ${bodyHtml}
         isAdmin: () => Boolean(currentUser?.permissions?.includes('*')),
         getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
         canSummary: () => hasPermission('revenue_dashboard.read'),
+        openChatRecord: (type, id) => discussRecord(type, id),
         loadSummary: roiSummaryData,
         download: rdDownloadBlob,
         // Dashboard kanban -> the full task (or the Tasks page when no id is given).
@@ -12945,6 +13003,17 @@ ${bodyHtml}
       description: 'Stand-alone quote calculator, reading Thomson Pricing Admin’s admin data.',
       domains: ['thomson_pricing'],
       render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
+    },
+    chat: {
+      navId: 'chatNav',
+      workspaceId: 'chatWorkspace',
+      heading: 'Chat',
+      description:
+        'Message your team, or discuss a job card, appointment, complaint or task in its own thread.',
+      permission: 'chat.use',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => getChatUi().renderPage(root),
     },
     tasks: {
       navId: 'tasksNav',
@@ -19981,6 +20050,16 @@ ${bodyHtml}
   $('#changelogNav')?.addEventListener('click', () => setWorkspaceMode('changelog'));
   $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
   $('#tasksNav')?.addEventListener('click', () => setWorkspaceMode('tasks'));
+  $('#chatNav')?.addEventListener('click', () => setWorkspaceMode('chat'));
+  $('#discussJobCardButton')?.addEventListener('click', () =>
+    discussRecord('job_card', currentJobCardId),
+  );
+  $('#discussAppointmentButton')?.addEventListener('click', () =>
+    discussRecord('appointment', currentAppointmentId),
+  );
+  $('#discussComplaintButton')?.addEventListener('click', () =>
+    discussRecord('complaint', currentComplaintId),
+  );
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));

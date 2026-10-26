@@ -929,7 +929,10 @@
         '</div><footer>' +
         (isNew
           ? ''
-          : '<button type="button" class="button button-outline tk-btn tk-danger" data-tk-delete>Delete</button>') +
+          : '<button type="button" class="button button-outline tk-btn tk-danger" data-tk-delete>Delete</button>' +
+            (deps.openChatRecord
+              ? '<button type="button" class="button button-outline tk-btn" data-tk-discuss>Discuss</button>'
+              : '')) +
         '<span class="tk-spacer"></span><button type="button" class="button button-outline tk-btn" data-tk-close>Cancel</button><button type="submit" class="button button-primary tk-btn">' +
         (isNew ? 'Add' : 'Save') +
         '</button></footer></form></aside>'
@@ -1044,6 +1047,8 @@
           if (shell) shell.classList.toggle('tk-flow', st.flow);
           return;
         }
+        if (target.matches('[data-tk-discuss]') && st.panel && deps.openChatRecord)
+          return deps.openChatRecord('task', st.panel.task.id);
         if (target.matches('[data-tk-new]')) return openPanel(null, 'new');
         if (target.matches('[data-tk-send-roi]')) return openComposer({ source: 'tasks' });
         if (target.matches('[data-tk-import]')) return openImport();
