@@ -295,7 +295,7 @@ Name: Vysakh
 
 Keep the bootstrap token and administrator password private. The bootstrap token belongs in your ignored `.env` file as `LOCAL_BOOTSTRAP_TOKEN`; the password should only be entered locally. Neither secret belongs in this README, source code, screenshots, or GitHub.
 
-Start the backend, open `http://localhost:3100/portal/`, select **Staff workspace → First-time setup**, and enter the exact token from `.env`, the profile above, and a password of at least 12 characters. The web UI is the recommended setup method because it keeps the returned bearer token in memory for the protected workspace.
+Start the backend, open `http://localhost:3100/portal/`, select **Staff workspace → First-time setup**, and enter the exact token from `.env`, the profile above, and a password of at least 10 characters (capital letter first, with a number and a symbol). The web UI is the recommended setup method because it keeps the returned bearer token in memory for the protected workspace.
 
 For a direct API check, send one `POST` request to `/api/auth/bootstrap` with this structure:
 
@@ -308,7 +308,7 @@ For a direct API check, send one `POST` request to `/api/auth/bootstrap` with th
 }
 ```
 
-The `bootstrapToken` must be at least 32 characters and must exactly match `.env`. The password must be at least 12 characters. A successful response is HTTP `201 Created` and contains a temporary bearer token for local API checks. When `DATABASE_URL` is configured and migrations have run, bootstrap also creates the matching local PostgreSQL administrator profile and role assignment.
+The `bootstrapToken` must be at least 32 characters and must exactly match `.env`. The password must be at least 10 characters, start with a capital letter, and include a number and a symbol. A successful response is HTTP `201 Created` and contains a temporary bearer token for local API checks. When `DATABASE_URL` is configured and migrations have run, bootstrap also creates the matching local PostgreSQL administrator profile and role assignment.
 
 ### Adding teammate logins (so your team can test)
 

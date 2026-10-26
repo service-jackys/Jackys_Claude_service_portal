@@ -42,12 +42,29 @@ const rolePermissions: Record<LocalRole, readonly string[]> = {
   admin: ['*'],
 };
 
+// Password rule (modification #148): at least 10 characters, the first one a
+// capital letter, plus at least one number and one symbol.
+export const PASSWORD_RULE_MESSAGE =
+  'Use at least 10 characters: a capital letter first, then include a number and a symbol.';
+
+export function isStrongPassword(value: string): boolean {
+  return (
+    value.length >= 10 && /^[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9\s]/.test(value)
+  );
+}
+
+const newPasswordSchema = z
+  .string()
+  .min(10, PASSWORD_RULE_MESSAGE)
+  .max(200)
+  .refine(isStrongPassword, { message: PASSWORD_RULE_MESSAGE });
+
 export const bootstrapSchema = z
   .object({
     bootstrapToken: z.string().min(32).max(256),
     email: z.string().email().max(320),
     name: z.string().trim().min(1).max(120),
-    password: z.string().min(12).max(200),
+    password: newPasswordSchema,
   })
   .strict();
 
@@ -68,7 +85,7 @@ export const createUserSchema = z
   .object({
     email: z.string().email().max(320),
     name: z.string().trim().min(1).max(120),
-    password: z.string().min(12).max(200),
+    password: newPasswordSchema,
     role: z.enum(localRoles),
   })
   .strict();
@@ -82,7 +99,7 @@ export const updateUserSchema = z
     active: z.boolean().optional(),
     // Admin password reset (modification.md #55): sets a temporary password
     // the teammate must replace at their next sign-in.
-    password: z.string().min(12).max(200).optional(),
+    password: newPasswordSchema.optional(),
   })
   .strict()
   .refine(
@@ -97,7 +114,7 @@ export const updateUserSchema = z
 export const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1).max(200),
-    newPassword: z.string().min(12).max(200),
+    newPassword: newPasswordSchema,
   })
   .strict();
 
