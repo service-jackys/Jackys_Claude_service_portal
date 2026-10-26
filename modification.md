@@ -3403,3 +3403,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/056_chat_notifications.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{notifier,push,service,routes}.ts, apps/api/src/mail/mailer.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,app.js,index.html,sw.js,icon.svg}, tests/integration/chat.test.ts, package.json (web-push), .env.example.
 
 **Needs you:** pull, `npm install` (new package `web-push`), restart the API (applies migration 056), hard-refresh. Then the optional VAPID and email setup above.
+
+## Modification #145 — Chat look: compact header, one-row filters, tidier composer
+
+**Date:** 2026-10-26
+
+**Why.** The "New chat" button wrapped onto two lines and stretched the header, the filter chips wrapped onto a second row, and the message box looked heavy.
+
+**What changed.** "New chat" is now a compact pill on one line with small icon buttons beside the title; the filters sit in one row (they scroll sideways if the window is narrow); the conversation list has softer rounded rows; the message box is one rounded bar (attach, camera, text, needs-reply, send) that highlights when focused. Display only.
+
+**Files.** apps/web/src/index.html.
+
+**Needs you:** pull and hard-refresh. No migration or API restart.
