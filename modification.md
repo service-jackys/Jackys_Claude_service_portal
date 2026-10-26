@@ -3307,3 +3307,23 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{tasks.js,index.html} (display only).
 
 **Needs you:** pull and hard-refresh. No migration or API restart.
+
+## Modification #140 — Chat (phase 1): direct messages, channels and record threads
+
+**Date:** 2026-10-26
+
+**Why.** The office team needs to talk inside the portal about specific jobs, appointments, complaints and tasks, and to each other, with the conversation kept next to the record. WhatsApp stays for the future; this is internal.
+
+**What changed.** A new **Chat** item in the menu (with an unread badge) opens a two-pane screen: conversations on the left (search, filters All / Unread / Mentions / To reply / Records), the thread on the right. On a phone it is one pane at a time with a Back button.
+- **Direct messages** between two people, private to them (administrators cannot read other people's DMs).
+- **Channels** (group chats) for named teams, created by people with the new `chat.create_channel` permission (admin by default); the creator or a moderator adds people; anyone can leave or mute.
+- **Record threads:** a **Discuss** button on the job card, appointment and complaint detail screens and in the Tasks edit panel opens a slide-over thread for that record. Anyone who can open the record can read and write; the thread is hidden again if someone loses access.
+- **Messages:** replies with a quote, @mentions (only people who can see the conversation), links, day separators, and a **Needs reply** flag that stays highlighted until someone replies or presses Mark answered.
+- **Unread:** counts per conversation and in the menu, a mention marker, and a To reply filter. New messages appear within about 5 seconds while a thread is open (polling).
+- **Permissions:** `chat.use` (every role, so technicians on site can use it), `chat.create_channel` and `chat.moderate` (admin). Every message and channel change is written to the Activity log.
+
+**Not in this phase:** attachments, email on mention, search inside messages, edit/delete, typing and online status, reactions. Schedule threads are supported by the API but have no Discuss button yet. The old portal is not changed.
+
+**Files.** packages/db/migrations/053_chat.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/{route-catalog,openapi}.ts, apps/web/src/{chat.js,app.js,index.html,tasks.js}, tests/integration/chat.test.ts.
+
+**Needs you:** pull, restart the API (it applies migration 053), hard-refresh. Check Roles to see `chat.use` on every role.
