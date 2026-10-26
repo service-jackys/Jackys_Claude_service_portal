@@ -3507,3 +3507,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #153 — Salesman is required on a B2C job under warranty
+
+**Date:** 2026-10-26
+
+**Why.** A direct customer (B2C) job under warranty is billed internally to a sales channel (Internal billing, see #152), but a B2C job has no school or branch to supply a salesman, so these jobs had no channel and showed "Not set" as the bill-to party.
+
+**What changed.**
+- When the customer type is B2C and the final warranty status is In Warranty (or, if no final status is set, the registered warranty is In Warranty), **Salesman is required** on the service job card (create and edit) and on the walk-in form. The field gets a star, and a pop-up tells the user as soon as the customer type or warranty makes it required and again if they try to save without one. Saving is blocked until a salesman is chosen. The API enforces the same rule.
+- Choosing the salesman fills the **Sales channel** from the salesman master (also done by the API for B2C jobs), and billing uses it: payer Sales channel, bill to that channel, shown as **Internal billing**.
+- If the chosen salesman is not linked to a sales channel in the Salesmen master (and no channel was picked by hand), a pop-up says to **contact the admin** to link the salesman to a channel, the Sales channel box is shaded, and saving is blocked until it is fixed or a channel is picked.
+- BER and Rejected jobs follow the same rule: it depends only on B2C and In Warranty.
+- Cancelled jobs, out-of-warranty jobs and B2B jobs are not affected. B2B still takes the salesman from the branch master.
+- Delivery highlight now also marks a missing salesman on these jobs.
+
+**Files.** apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration. Existing B2C warranty jobs with no salesman will ask for one the next time they are saved.

@@ -84,11 +84,30 @@ export class ServiceJobCardError extends Error {
       | 'approval-required'
       | 'reason-required'
       | 'closure-approval-required'
-      | 'sales-channel-required',
+      | 'sales-channel-required'
+      | 'salesman-required',
     message: string,
   ) {
     super(message);
   }
+}
+
+export const SALESMAN_REQUIRED_MESSAGE =
+  "Choose the salesman. A direct customer (B2C) job under warranty is billed to the salesman's sales channel, so the salesman is required.";
+
+/** A B2C job under warranty is billed internally to the salesman's channel, so it needs one. */
+export function salesmanRequired(card: {
+  customerType: string | null | undefined;
+  effectiveWarranty: string | null | undefined;
+  jobFinalStatus: string | null | undefined;
+  salesman: string | null | undefined;
+}): boolean {
+  return (
+    card.customerType === 'B2C' &&
+    card.effectiveWarranty === 'In Warranty' &&
+    card.jobFinalStatus !== 'Cancelled' &&
+    !(card.salesman ?? '').trim()
+  );
 }
 
 // Delivered and Cancelled job cards are locked; an old-style Completed card
@@ -970,6 +989,16 @@ export function createServiceJobCardService(pool: Pool) {
 
   async function createWalkIn(input: unknown, profileId: string, requestId: string = randomUUID()) {
     const { billing, rest: data } = splitBilling(walkInJobCardCreateSchema.parse(input ?? {}));
+    if (
+      salesmanRequired({
+        customerType: data.customerType,
+        effectiveWarranty: normalizeWarranty(billing.finalWarrantyStatus ?? data.warrantyStatus),
+        jobFinalStatus: null,
+        salesman: data.salesman,
+      })
+    ) {
+      throw new ServiceJobCardError('salesman-required', SALESMAN_REQUIRED_MESSAGE);
+    }
     return withTransaction(pool, async (client) => {
       const intakeAt = new Date();
       const today = intakeAt.toISOString().slice(0, 10);
@@ -1024,6 +1053,10 @@ export function createServiceJobCardService(pool: Pool) {
         await mdaRate(),
         intakeAt.toISOString(),
       );
+      if (content.customerType === 'B2C' && content.salesman && !content.salesChannel) {
+        const channel = await resolveSalesChannelForSalesman(client, content.salesman);
+        if (channel) content.salesChannel = channel;
+      }
       const jobCardReference = await allocateWalkInJobCardReference(client, today);
       let jobCard = await insertServiceJobCard(client, {
         jobCardReference,
@@ -1218,7 +1251,28 @@ export function createServiceJobCardService(pool: Pool) {
           requestId,
         });
       }
-      if (content.customerType !== 'B2C') {
+      if (
+        salesmanRequired({
+          customerType: content.customerType,
+          effectiveWarranty:
+            normalizeWarranty(billing.finalWarrantyStatus ?? current.finalWarrantyStatus) ??
+            normalizeWarranty(
+              (overrides as { warrantyStatus?: string }).warrantyStatus ?? current.warrantyStatus,
+            ),
+          jobFinalStatus: content.jobFinalStatus,
+          salesman: content.salesman,
+        })
+      ) {
+        throw new ServiceJobCardError('salesman-required', SALESMAN_REQUIRED_MESSAGE);
+      }
+      if (content.customerType === 'B2C') {
+        // A direct customer has no branch master, but the salesman still supplies the
+        // sales channel the job is billed to.
+        if (content.salesman && !content.salesChannel) {
+          const channel = await resolveSalesChannelForSalesman(client, content.salesman);
+          if (channel) content.salesChannel = channel;
+        }
+      } else {
         // A business job takes its salesman, sales channel, customer number and sales
         // order from the B2B Branch / School master when they are blank (#128).
         const linked = await masterContextFor(client, content);
