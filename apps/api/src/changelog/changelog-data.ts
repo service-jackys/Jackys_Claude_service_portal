@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 136,
+    title: 'Budget vs Actual: month-by-month table like the old portal',
+    area: 'Revenue',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'The "Budget vs actual by month" grid (months across the page) was hard for management to read. The old portal\'s "Monthly revenue budget and actual" is easier.',
+    changes: [
+      'What changed: Under the bar chart, the grid is replaced by "Monthly revenue budget and actual": one row per month with Budget revenue, Actual revenue (from the uploaded master Excel), Variance as a coloured pill with "Above / Below…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration or API restart.',
+    migrations: [],
+    files: 'apps/web/src/{app.js,index.html} (display only).',
+  },
+  {
     id: 135,
     title: 'Budget upload now refreshes Budget Variance',
     area: 'Revenue',

@@ -2336,6 +2336,105 @@
         padding-bottom: 12px;
         border-bottom: 1px solid var(--line, #d7e0ea);
       }
+      /* Monthly revenue budget and actual (modification #136) */
+      .rd-bm-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .rd-bm-table th {
+        padding: 0.6rem 0.9rem;
+        text-align: right;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        color: #6b7a90;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+      }
+      .rd-bm-table th:first-child,
+      .rd-bm-table td:first-child {
+        text-align: left;
+      }
+      .rd-bm-table td {
+        padding: 0.55rem 0.9rem;
+        vertical-align: middle;
+        border-bottom: 1px solid var(--line);
+      }
+      .rd-bm-num {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .rd-bm-num .rd-var-caption {
+        display: block;
+      }
+      .rd-bm-period {
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .rd-bm-var {
+        text-align: right;
+      }
+      .rd-bm-future td {
+        color: #8795a8;
+      }
+      .rd-bm-table tfoot td {
+        font-weight: 700;
+        background: var(--surface-soft);
+        border-top: 2px solid var(--line);
+        border-bottom: 0;
+      }
+      .rd-var-stack {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 3px;
+      }
+      .rd-var-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 9px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .rd-var-pill.is-up {
+        background: #e3f5ec;
+        color: #176b4d;
+      }
+      .rd-var-pill.is-down {
+        background: #fdecec;
+        color: #b3372e;
+      }
+      .rd-var-pill.is-flat,
+      .rd-var-pill.is-none {
+        background: #eef2f6;
+        color: #6b7a90;
+      }
+      .rd-var-caption {
+        font-size: 0.7rem;
+        font-weight: 500;
+        color: #6b7a90;
+      }
+      [data-theme='dark'] .rd-var-pill.is-up {
+        background: #12301f;
+        color: #7fe0a8;
+      }
+      [data-theme='dark'] .rd-var-pill.is-down {
+        background: #3b1717;
+        color: #ff9a92;
+      }
+      [data-theme='dark'] .rd-var-pill.is-flat,
+      [data-theme='dark'] .rd-var-pill.is-none {
+        background: #1f2a3a;
+        color: #9fb0c6;
+      }
       .rd-budget-table th,
       .rd-budget-table td {
         text-align: right;
