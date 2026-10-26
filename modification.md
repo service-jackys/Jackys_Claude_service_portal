@@ -3327,3 +3327,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/053_chat.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/{route-catalog,openapi}.ts, apps/web/src/{chat.js,app.js,index.html,tasks.js}, tests/integration/chat.test.ts.
 
 **Needs you:** pull, restart the API (it applies migration 053), hard-refresh. Check Roles to see `chat.use` on every role.
+
+## Modification #141 — Chat (phase 2a): edit, delete, reactions, pins and message search
+
+**Date:** 2026-10-26
+
+**Why.** Phase 1 let people send messages but not correct a typo, take one back, acknowledge quickly, keep important ones handy or find an old one.
+
+**What changed.**
+- **Edit** your own message (shows "edited"; the old text is kept in the Activity log).
+- **Delete** your own message, or any message if you hold `chat.moderate` (admin). It is a soft delete: the thread shows "This message was deleted", the text is hidden from everyone, and the original is kept in the Activity log.
+- **Reactions** (thumbs up, tick, eyes, heart, laugh, thanks); click a reaction to add or remove yours; hover shows who.
+- **Pins**: Pin or Unpin a message; the pin icon in the thread header lists pinned messages and jumps to one.
+- **Search inside messages**: the search box now also searches message text across your chats and the record threads you can open, and clicking a result opens the thread at that message.
+- Open threads now pick up edits, deletes, reactions, pins and answered flags together with new messages in one request (a revision counter on every message).
+
+**Files.** packages/db/migrations/054_chat_message_tools.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/{chat.js,index.html}, tests/integration/chat.test.ts.
+
+**Needs you:** pull, restart the API (applies migration 054), hard-refresh.

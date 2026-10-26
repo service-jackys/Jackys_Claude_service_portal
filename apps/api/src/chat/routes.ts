@@ -84,6 +84,42 @@ export function createChatHandlers(
         res.json({ message: await service.answer(auth, id(req)) });
       }),
     ],
+    pins: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ messages: await service.pins(auth, id(req)) });
+      }),
+    ],
+    edit: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ message: await service.edit(auth, id(req), req.body, requestId(req)) });
+      }),
+    ],
+    remove: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ message: await service.remove(auth, id(req), requestId(req)) });
+      }),
+    ],
+    react: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ message: await service.react(auth, id(req), req.body) });
+      }),
+    ],
+    pin: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ message: await service.pin(auth, id(req), req.body, requestId(req)) });
+      }),
+    ],
+    search: [
+      use,
+      wrap(async (auth, req, res) => {
+        res.json({ results: await service.search(auth, req.query) });
+      }),
+    ],
     mute: [
       use,
       wrap(async (auth, req, res) => {

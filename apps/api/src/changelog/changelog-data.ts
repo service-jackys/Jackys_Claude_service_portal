@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 141,
+    title: 'Chat (phase 2a): edit, delete, reactions, pins and message search',
+    area: 'Portal look & feel',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Phase 1 let people send messages but not correct a typo, take one back, acknowledge quickly, keep important ones handy or find an old one.',
+    changes: [
+      'Edit your own message (shows "edited"; the old text is kept in the Activity log).',
+      'Delete your own message, or any message if you hold chat.moderate (admin). It is a soft delete: the thread shows "This message was deleted", the text is hidden from everyone, and the original is kept in the Activity log.',
+      'Reactions (thumbs up, tick, eyes, heart, laugh, thanks); click a reaction to add or remove yours; hover shows who.',
+      'Pins: Pin or Unpin a message; the pin icon in the thread header lists pinned messages and jumps to one.',
+      'Search inside messages: the search box now also searches message text across your chats and the record threads you can open, and clicking a result opens the thread at that message.',
+      'Open threads now pick up edits, deletes, reactions, pins and answered flags together with new messages in one request (a revision counter on every message).',
+    ],
+    needsYou: 'pull, restart the API (applies migration 054), hard-refresh.',
+    migrations: ['054_chat_message_tools.sql'],
+    files:
+      'packages/db/migrations/054_chat_message_tools.sql, packages/db/src/chat.ts, packages/contracts/src/index.ts, apps/api/src/chat/{service,routes}.ts, apps/api/src/api/route-catalog.ts…',
+  },
+  {
     id: 140,
     title: 'Chat (phase 1): direct messages, channels and record threads',
     area: 'General',

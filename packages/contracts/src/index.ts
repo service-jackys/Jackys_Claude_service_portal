@@ -1770,6 +1770,8 @@ export const chatMessagesQuerySchema = z
   .object({
     after: chatId.optional(),
     before: chatId.optional(),
+    around: chatId.optional(),
+    sinceRev: chatId.optional(),
     limit: z.coerce.number().int().min(1).max(100).default(50),
   })
   .strict();
@@ -1777,3 +1779,18 @@ export const chatMessagesQuerySchema = z
 export const chatReadSchema = z.object({ messageId: chatId }).strict();
 export const chatMembersSchema = z.object({ profileIds: z.array(chatId).min(1).max(200) }).strict();
 export const chatMuteSchema = z.object({ muted: z.boolean() }).strict();
+
+export const chatMessageEditSchema = z
+  .object({
+    body: z.string().trim().min(1).max(4000),
+    mentionIds: z.array(chatId).max(20).default([]),
+  })
+  .strict();
+export const chatReactionSchema = z.object({ emoji: z.string().min(1).max(16) }).strict();
+export const chatPinSchema = z.object({ pinned: z.boolean() }).strict();
+export const chatSearchQuerySchema = z
+  .object({
+    q: z.string().trim().min(2).max(100),
+    limit: z.coerce.number().int().min(1).max(50).default(30),
+  })
+  .strict();

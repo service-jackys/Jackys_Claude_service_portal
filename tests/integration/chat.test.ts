@@ -227,3 +227,110 @@ test(
     }
   },
 );
+
+test(
+  'Chat: edit, soft delete, reactions, pins, search and change feed',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const service = createChatService(pool);
+    const ids: string[] = [];
+    try {
+      for (const name of ['a', 'b', 'c']) {
+        const result = await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, $2) RETURNING id`,
+          [`chat2-${name}-${randomUUID()}@example.test`, `Chat2 ${name}`],
+        );
+        ids.push(result.rows[0].id);
+        await pool.query(
+          `INSERT INTO profile_roles (profile_id, role_id)
+           SELECT $1, id FROM roles WHERE code = 'user'`,
+          [result.rows[0].id],
+        );
+      }
+      const [a, b, c] = ids;
+      const userA = authFor(a);
+      const userB = authFor(b);
+      const userC = authFor(c);
+      const { conversation: dm } = await service.openConversation(userA, {
+        kind: 'direct',
+        profileId: b,
+      });
+      const word = `zebra${randomUUID().slice(0, 8)}`;
+      const m1 = await service.send(userA, dm.id, { body: `first ${word}` });
+      const baseline = (await service.messages(userA, dm.id, {})).at(-1)!.rev;
+
+      // Edit: own messages only, keeps an audit trail of the old text.
+      await assert.rejects(service.edit(userB, m1.id, { body: 'hijack' }), /only edit your own/);
+      const edited = await service.edit(userA, m1.id, { body: `edited ${word}` });
+      assert.equal(edited.body, `edited ${word}`);
+      assert.ok(edited.editedAt);
+
+      // Reactions toggle on and off, per person.
+      let reacted = await service.react(userB, m1.id, { emoji: '👍' });
+      assert.deepEqual(
+        reacted.reactions.map((r) => [r.emoji, r.profileIds]),
+        [['👍', [b]]],
+      );
+      reacted = await service.react(userA, m1.id, { emoji: '👍' });
+      assert.equal(reacted.reactions[0].profileIds.length, 2);
+      reacted = await service.react(userB, m1.id, { emoji: '👍' });
+      assert.deepEqual(reacted.reactions[0].profileIds, [a]);
+      await assert.rejects(service.react(userC, m1.id, { emoji: '👍' }), /not found/);
+
+      // Pins.
+      const pinned = await service.pin(userB, m1.id, { pinned: true });
+      assert.equal(pinned.pinned, true);
+      assert.equal((await service.pins(userA, dm.id)).length, 1);
+
+      // Search finds it for members only.
+      assert.equal((await service.search(userA, { q: word })).length, 1);
+      assert.equal((await service.search(userC, { q: word })).length, 0);
+      await assert.rejects(service.search(userA, { q: 'x' }), /./);
+
+      // Change feed returns edits, reactions and pins since a revision.
+      const changes = await service.messages(userA, dm.id, { sinceRev: baseline });
+      assert.equal(changes.length, 1);
+      assert.equal(changes[0].id, m1.id);
+
+      // Soft delete: author or moderator; body hidden, row kept, audited.
+      const m2 = await service.send(userA, dm.id, { body: `second ${word}`, needsReply: true });
+      await assert.rejects(service.remove(userB, m2.id), /only delete your own/);
+      const gone = await service.remove(userA, m2.id);
+      assert.equal(gone.deleted, true);
+      assert.equal(gone.body, '');
+      assert.equal(gone.needsReply, false);
+      assert.equal((await service.search(userA, { q: 'second' + word.slice(5) })).length, 0);
+      await assert.rejects(service.edit(userA, m2.id, { body: 'again' }), /deleted/);
+      const stored = await pool.query(`SELECT body, deleted_at FROM chat_messages WHERE id = $1`, [
+        m2.id,
+      ]);
+      assert.ok(stored.rows[0].deleted_at);
+      assert.match(stored.rows[0].body, /second/);
+      const moderated = await service.send(userB, dm.id, { body: 'rude message' });
+      const modAuth = authFor(c, ['chat.use', 'chat.moderate']);
+      await assert.rejects(service.remove(modAuth, moderated.id), /not found/); // not in the DM
+      const audit = await pool.query(
+        `SELECT action FROM audit_events WHERE action LIKE 'chat.message_%' AND target_id::text = ANY($1::text[])`,
+        [[m1.id, m2.id]],
+      );
+      const actions = audit.rows.map((row) => row.action);
+      for (const action of ['chat.message_edited', 'chat.message_deleted', 'chat.message_pinned'])
+        assert.ok(actions.includes(action), action);
+    } finally {
+      await pool.query(`DELETE FROM chat_conversations WHERE created_by = ANY($1::bigint[])`, [
+        ids,
+      ]);
+      await pool.end();
+    }
+  },
+);

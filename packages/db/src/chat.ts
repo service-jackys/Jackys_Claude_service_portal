@@ -353,6 +353,8 @@ export async function listChatConversations(
 }
 
 // -------------------------------------------------------------- messages ----
+export type ChatReaction = { emoji: string; profileIds: string[]; names: string[] };
+
 export type ChatMessageRow = {
   id: string;
   conversationId: string;
@@ -365,21 +367,38 @@ export type ChatMessageRow = {
   answeredAt: Date | null;
   answeredByName: string | null;
   mentions: { id: string; name: string }[];
+  reactions: ChatReaction[];
+  editedAt: Date | null;
+  deleted: boolean;
+  pinned: boolean;
+  rev: string;
   createdAt: Date;
 };
 
 const messageSelect = `
   SELECT x.id, x.conversation_id AS "conversationId", x.sender_id AS "senderId",
-         sp.display_name AS "senderName", x.body, x.reply_to_id AS "replyToId",
+         sp.display_name AS "senderName",
+         CASE WHEN x.deleted_at IS NULL THEN x.body ELSE '' END AS body,
+         x.reply_to_id AS "replyToId",
          CASE WHEN rt.id IS NULL THEN NULL
               ELSE json_build_object('id', rt.id::text, 'senderName', rtp.display_name,
-                                     'body', left(rt.body, 160)) END AS "replyTo",
+                                     'body', CASE WHEN rt.deleted_at IS NULL THEN left(rt.body, 160) ELSE '' END) END AS "replyTo",
          x.needs_reply AS "needsReply", x.answered_at AS "answeredAt",
          ap.display_name AS "answeredByName",
          COALESCE((SELECT json_agg(json_build_object('id', mp.id::text, 'name', mp.display_name)
                                    ORDER BY mp.display_name)
                      FROM chat_message_mentions mm JOIN profiles mp ON mp.id = mm.profile_id
-                    WHERE mm.message_id = x.id), '[]'::json) AS mentions,
+                    WHERE mm.message_id = x.id AND x.deleted_at IS NULL), '[]'::json) AS mentions,
+         COALESCE((SELECT json_agg(json_build_object('emoji', g.emoji, 'profileIds', g.ids, 'names', g.names)
+                                   ORDER BY g.first_at)
+                     FROM (SELECT r.emoji, min(r.created_at) AS first_at,
+                                  array_agg(r.profile_id::text ORDER BY r.created_at) AS ids,
+                                  array_agg(rp.display_name ORDER BY r.created_at) AS names
+                             FROM chat_reactions r JOIN profiles rp ON rp.id = r.profile_id
+                            WHERE r.message_id = x.id GROUP BY r.emoji) g
+                    WHERE x.deleted_at IS NULL), '[]'::json) AS reactions,
+         x.edited_at AS "editedAt", (x.deleted_at IS NOT NULL) AS deleted,
+         (x.pinned_at IS NOT NULL) AS pinned, x.rev::text AS rev,
          x.created_at AS "createdAt"
     FROM chat_messages x
     JOIN profiles sp ON sp.id = x.sender_id
@@ -397,17 +416,42 @@ function shape(row: ChatMessageRow): ChatMessageRow {
   };
 }
 
+export type ChatMessageQuery = {
+  after?: string;
+  before?: string;
+  around?: string;
+  sinceRev?: string;
+  limit: number;
+};
+
 export async function listChatMessages(
   client: PoolClient,
   conversationId: string,
-  options: { after?: string; before?: string; limit: number },
+  options: ChatMessageQuery,
 ): Promise<ChatMessageRow[]> {
+  if (options.sinceRev !== undefined) {
+    const result = await client.query<ChatMessageRow>(
+      `${messageSelect} WHERE x.conversation_id = $1 AND x.rev > $2 ORDER BY x.rev LIMIT $3`,
+      [conversationId, options.sinceRev, options.limit],
+    );
+    return result.rows.map(shape);
+  }
   if (options.after) {
     const result = await client.query<ChatMessageRow>(
       `${messageSelect} WHERE x.conversation_id = $1 AND x.id > $2 ORDER BY x.id LIMIT $3`,
       [conversationId, options.after, options.limit],
     );
     return result.rows.map(shape);
+  }
+  if (options.around) {
+    const half = Math.max(5, Math.floor(options.limit / 2));
+    const result = await client.query<ChatMessageRow>(
+      `(${messageSelect} WHERE x.conversation_id = $1 AND x.id <= $2 ORDER BY x.id DESC LIMIT $3)
+       UNION ALL
+       (${messageSelect} WHERE x.conversation_id = $1 AND x.id > $2 ORDER BY x.id LIMIT $3)`,
+      [conversationId, options.around, half],
+    );
+    return result.rows.map(shape).sort((a, b) => Number(BigInt(a.id) - BigInt(b.id)));
   }
   const result = await client.query<ChatMessageRow>(
     `${messageSelect} WHERE x.conversation_id = $1 AND ($2::bigint IS NULL OR x.id < $2)
@@ -424,6 +468,18 @@ export async function findChatMessage(
   if (!/^\d+$/.test(id)) return null;
   const result = await client.query<ChatMessageRow>(`${messageSelect} WHERE x.id = $1`, [id]);
   return result.rows[0] ? shape(result.rows[0]) : null;
+}
+
+export async function listPinnedChatMessages(
+  client: PoolClient,
+  conversationId: string,
+): Promise<ChatMessageRow[]> {
+  const result = await client.query<ChatMessageRow>(
+    `${messageSelect} WHERE x.conversation_id = $1 AND x.pinned_at IS NOT NULL AND x.deleted_at IS NULL
+      ORDER BY x.pinned_at DESC LIMIT 50`,
+    [conversationId],
+  );
+  return result.rows.map(shape);
 }
 
 export async function insertChatMessage(
@@ -456,7 +512,8 @@ export async function insertChatMessage(
   // Answering: a reply from someone else closes the "needs reply" it quotes.
   if (input.replyToId) {
     await client.query(
-      `UPDATE chat_messages SET answered_at = now(), answered_by = $2
+      `UPDATE chat_messages SET answered_at = now(), answered_by = $2,
+              rev = nextval('chat_message_rev_seq')
         WHERE id = $1 AND needs_reply AND answered_at IS NULL AND sender_id <> $2`,
       [input.replyToId, input.senderId],
     );
@@ -471,9 +528,82 @@ export async function markChatAnswered(
   profileId: string,
 ): Promise<void> {
   await client.query(
-    `UPDATE chat_messages SET answered_at = now(), answered_by = $2
+    `UPDATE chat_messages SET answered_at = now(), answered_by = $2,
+            rev = nextval('chat_message_rev_seq')
       WHERE id = $1 AND needs_reply AND answered_at IS NULL`,
     [messageId, profileId],
+  );
+}
+
+export async function editChatMessage(
+  client: PoolClient,
+  messageId: string,
+  body: string,
+  mentionIds: string[],
+): Promise<void> {
+  await client.query(
+    `UPDATE chat_messages SET body = $2, edited_at = now(), rev = nextval('chat_message_rev_seq')
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [messageId, body],
+  );
+  await client.query(`DELETE FROM chat_message_mentions WHERE message_id = $1`, [messageId]);
+  for (const mentioned of new Set(mentionIds)) {
+    await client.query(
+      `INSERT INTO chat_message_mentions (message_id, profile_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [messageId, mentioned],
+    );
+  }
+}
+
+export async function deleteChatMessage(
+  client: PoolClient,
+  messageId: string,
+  profileId: string,
+): Promise<void> {
+  await client.query(
+    `UPDATE chat_messages SET deleted_at = now(), deleted_by = $2, pinned_at = NULL,
+            needs_reply = false, rev = nextval('chat_message_rev_seq')
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [messageId, profileId],
+  );
+}
+
+export async function setChatPinned(
+  client: PoolClient,
+  messageId: string,
+  profileId: string,
+  pinned: boolean,
+): Promise<void> {
+  await client.query(
+    `UPDATE chat_messages
+        SET pinned_at = CASE WHEN $3 THEN now() ELSE NULL END,
+            pinned_by = CASE WHEN $3 THEN $2::bigint ELSE NULL END,
+            rev = nextval('chat_message_rev_seq')
+      WHERE id = $1 AND deleted_at IS NULL`,
+    [messageId, profileId, pinned],
+  );
+}
+
+// Adds the reaction, or removes it when this person already used it on the message.
+export async function toggleChatReaction(
+  client: PoolClient,
+  messageId: string,
+  profileId: string,
+  emoji: string,
+): Promise<void> {
+  const removed = await client.query(
+    `DELETE FROM chat_reactions WHERE message_id = $1 AND profile_id = $2 AND emoji = $3`,
+    [messageId, profileId, emoji],
+  );
+  if (removed.rowCount === 0)
+    await client.query(
+      `INSERT INTO chat_reactions (message_id, profile_id, emoji) VALUES ($1, $2, $3)`,
+      [messageId, profileId, emoji],
+    );
+  await client.query(
+    `UPDATE chat_messages SET rev = nextval('chat_message_rev_seq') WHERE id = $1`,
+    [messageId],
   );
 }
 
@@ -500,4 +630,50 @@ export async function setChatMuted(
     `UPDATE chat_members SET muted = $3 WHERE conversation_id = $1 AND profile_id = $2`,
     [conversationId, profileId, muted],
   );
+}
+
+export type ChatSearchHit = {
+  messageId: string;
+  conversationId: string;
+  kind: ChatKind;
+  title: string | null;
+  recordType: ChatRecordType | null;
+  recordId: string | null;
+  otherName: string | null;
+  senderName: string;
+  body: string;
+  createdAt: Date;
+};
+
+// Messages whose text contains the phrase, newest first, from conversations the person
+// belongs to plus record threads (the service filters those by record access).
+export async function searchChatMessages(
+  client: PoolClient,
+  profileId: string,
+  phrase: string,
+  limit: number,
+): Promise<ChatSearchHit[]> {
+  const like = '%' + phrase.replace(/[\\%_]/g, (ch) => '\\' + ch) + '%';
+  const result = await client.query<ChatSearchHit>(
+    `SELECT x.id AS "messageId", c.id AS "conversationId", c.kind, c.title,
+            c.record_type AS "recordType", c.record_id AS "recordId",
+            op.display_name AS "otherName", sp.display_name AS "senderName",
+            x.body, x.created_at AS "createdAt"
+       FROM chat_messages x
+       JOIN chat_conversations c ON c.id = x.conversation_id AND c.archived_at IS NULL
+       JOIN profiles sp ON sp.id = x.sender_id
+       LEFT JOIN chat_members me ON me.conversation_id = c.id AND me.profile_id = $1
+       LEFT JOIN chat_members o ON c.kind = 'direct' AND o.conversation_id = c.id AND o.profile_id <> $1
+       LEFT JOIN profiles op ON op.id = o.profile_id
+      WHERE x.deleted_at IS NULL AND x.body ILIKE $2 ESCAPE '\\'
+        AND (c.kind = 'record' OR me.profile_id IS NOT NULL)
+      ORDER BY x.id DESC LIMIT $3`,
+    [profileId, like, limit],
+  );
+  return result.rows.map((row) => ({
+    ...row,
+    messageId: String(row.messageId),
+    conversationId: String(row.conversationId),
+    recordId: row.recordId === null ? null : String(row.recordId),
+  }));
 }
