@@ -263,13 +263,20 @@
         return;
       }
       if (!st.anchor) st.anchor = defaultAnchor();
+      st.flow = pref('tk.flow', '0') === '1';
       root.innerHTML =
-        '<div class="tk">' +
+        '<div class="tk' +
+        (st.flow ? ' tk-flow' : '') +
+        '">' +
         '<div class="tk-head"><div class="tk-head-title"><h3>Tasks</h3>' +
         deps.tipHtml(
           'Your weekly task list. Completed tasks appear under Result, open tasks under Objective, and issues, innovations and requests under Issues / Innovation in the ROI email you send to management.',
         ) +
+        '<span class="tk-orb" data-tk-orb aria-hidden="true"><span class="tk-orb-fill"></span><b>0%</b></span>' +
         '</div><div class="tk-head-actions">' +
+        '<button class="tk-pill" type="button" data-tk-flow aria-pressed="' +
+        st.flow +
+        '" title="Dark glass look for the Tasks section">Flow look</button>' +
         '<button class="tk-pill tk-pill-accent" type="button" data-tk-send-roi>' +
         icon('send') +
         'Send ROI</button>' +
@@ -429,6 +436,16 @@
         '</span><span class="tk-kpi-sub">' +
         esc(sub) +
         '</span></div>';
+      const orb = st.root.querySelector('[data-tk-orb]');
+      if (orb) {
+        const all = live.filter((t) => t.kind === 'task');
+        const pct = all.length
+          ? Math.round((all.filter((t) => t.status === 'completed').length / all.length) * 100)
+          : 0;
+        orb.querySelector('.tk-orb-fill').style.height = pct + '%';
+        orb.querySelector('b').textContent = pct + '%';
+        orb.title = pct + '% of tasks completed';
+      }
       st.root.querySelector('[data-tk-kpis]').innerHTML =
         card(
           'Open tasks',
@@ -1019,6 +1036,14 @@
         if (!target) return;
         const id =
           (target.closest('[data-id]') || {}).dataset && target.closest('[data-id]').dataset.id;
+        if (target.matches('[data-tk-flow]')) {
+          st.flow = !st.flow;
+          setPref('tk.flow', st.flow ? '1' : '0');
+          target.setAttribute('aria-pressed', String(st.flow));
+          const shell = st.root.querySelector('.tk');
+          if (shell) shell.classList.toggle('tk-flow', st.flow);
+          return;
+        }
         if (target.matches('[data-tk-new]')) return openPanel(null, 'new');
         if (target.matches('[data-tk-send-roi]')) return openComposer({ source: 'tasks' });
         if (target.matches('[data-tk-import]')) return openImport();

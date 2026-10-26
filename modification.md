@@ -3295,3 +3295,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/tasks.js (display only).
 
 **Needs you:** pull and hard-refresh. No migration or API restart.
+
+## Modification #139 — Tasks: optional "Flow look" (dark glass theme)
+
+**Date:** 2026-10-26
+
+**Why.** Wanted the Tasks section to look like the "Flow Tasks" app (github.com/starboyy07/flow-tasks-): dark aurora background, frosted-glass cards, gradient accents.
+
+**What changed.** A "Flow look" switch at the top right of Tasks turns on a dark aurora and frosted-glass theme across the KPI cards, List, Board, Timeline and the New/Edit panel, with indigo-to-teal gradient buttons, glass priority and type chips, and a round progress orb next to the title showing the percentage of tasks completed. It is off by default and remembered per browser, so nobody's view changes unless they switch it on. The rest of the portal is untouched. The Outfit font is added for the heading. Same change in the old portal (Index.html v62).
+
+**Files.** apps/web/src/{tasks.js,index.html} (display only).
+
+**Needs you:** pull and hard-refresh. No migration or API restart.
