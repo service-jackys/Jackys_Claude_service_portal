@@ -86,6 +86,52 @@
       return task;
     }
 
+    // Admins add tasks for other people, so the owner is asked in a pop-up with nothing
+    // pre-selected; the task is not created until a person is chosen.
+    function pickOwner(title) {
+      return new Promise((resolve) => {
+        const mount = document.createElement('div');
+        mount.className = 'tk-modal-host';
+        (window.tkModalHost_ ? window.tkModalHost_() : document.body).appendChild(mount);
+        let settled = false;
+        const finish = (value) => {
+          if (settled) return;
+          settled = true;
+          mount.remove();
+          document.removeEventListener('keydown', onKey);
+          resolve(value);
+        };
+        const onKey = (e) => e.key === 'Escape' && finish(null);
+        document.addEventListener('keydown', onKey);
+        mount.innerHTML =
+          '<div class="tk-backdrop" data-o-close></div><div class="tk-modal tk-modal-sm" role="dialog" aria-modal="true" aria-labelledby="tkOwnerTitle"><header><h4 id="tkOwnerTitle">Who is this task for?</h4><button type="button" class="tk-x" data-o-close aria-label="Close">' +
+          icon('close') +
+          '</button></header><div class="tk-modal-body">' +
+          '<p class="tk-hint">Choose the owner of <strong>' +
+          esc(title) +
+          '</strong>. It will appear on their task board and in their weekly ROI.</p>' +
+          '<div class="tk-field"><label for="tkOwnerPick">Owner</label><select id="tkOwnerPick"><option value="">Select the owner&hellip;</option>' +
+          st.owners
+            .map((o) => '<option value="' + o.id + '">' + esc(o.name) + '</option>')
+            .join('') +
+          '</select></div><p class="tk-error" data-o-error hidden></p>' +
+          '<div class="tk-compose-actions"><button type="button" class="button button-outline tk-btn" data-o-close>Cancel</button><button type="button" class="button button-primary tk-btn" data-o-ok>Add task</button></div></div></div>';
+        const pick = mount.querySelector('#tkOwnerPick');
+        pick.focus();
+        mount.addEventListener('click', (e) => {
+          if (e.target.closest('[data-o-close]')) return finish(null);
+          if (!e.target.closest('[data-o-ok]')) return;
+          if (!pick.value) {
+            const err = mount.querySelector('[data-o-error]');
+            err.textContent = 'Select who this task is for.';
+            err.hidden = false;
+            return pick.focus();
+          }
+          finish(pick.value);
+        });
+      });
+    }
+
     // Shown right after a task reaches 100% / Completed so the ROI line can be worded
     // while it is fresh. Skipping keeps the existing remarks.
     function askCompletionRemarks(task) {
@@ -846,7 +892,7 @@
         '<div class="tk-field"><label for="tkNotes">Private notes <span class="tk-opt">not emailed</span></label><textarea id="tkNotes" name="notes" rows="3" maxlength="5000">' +
         esc(t.notes || '') +
         '</textarea></div>' +
-        (isAdmin() && st.owners.length
+        (!isNew && isAdmin() && st.owners.length
           ? '<div class="tk-field"><label for="tkOwner">Owner</label><select id="tkOwner" name="ownerProfileId">' +
             st.owners
               .map(
@@ -935,7 +981,11 @@
       if (!body.title) return fail('Enter a title.');
       if (body.startDate && body.dueDate && body.dueDate < body.startDate)
         return fail('The end date cannot be before the start date.');
-      const owner = get('ownerProfileId');
+      let owner = get('ownerProfileId');
+      if (st.panel.mode === 'new' && isAdmin() && st.owners.length) {
+        owner = await pickOwner(body.title);
+        if (!owner) return;
+      }
       const submit = form.querySelector('[type=submit]');
       submit.disabled = true;
       try {
@@ -1145,10 +1195,16 @@
           const input = event.target.querySelector('input');
           const title = input.value.trim();
           if (!title) return;
+          let chosen = '';
+          if (isAdmin() && st.owners.length) {
+            chosen = await pickOwner(title);
+            if (!chosen) return;
+          }
           input.disabled = true;
           try {
             const body = { title, startDate: today() };
-            if (st.owner !== 'me' && st.owner !== 'all') body.ownerProfileId = st.owner;
+            if (chosen) body.ownerProfileId = chosen;
+            else if (st.owner !== 'me' && st.owner !== 'all') body.ownerProfileId = st.owner;
             const { task } = await deps.apiRequest('/api/roi/tasks', {
               method: 'POST',
               body: JSON.stringify(body),
