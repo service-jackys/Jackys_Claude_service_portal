@@ -817,3 +817,101 @@ export async function purgeOldChatMessages(
     storageKeys: [...keys.rows, ...orphans.rows].map((row) => row.storage_key),
   };
 }
+
+// ------------------------------------------------------------ notifications ----
+export async function getChatPreferences(
+  client: PoolClient,
+  profileId: string,
+): Promise<{ emailOnMention: boolean }> {
+  const result = await client.query<{ emailOnMention: boolean }>(
+    `SELECT email_on_mention AS "emailOnMention" FROM chat_preferences WHERE profile_id = $1`,
+    [profileId],
+  );
+  return result.rows[0] ?? { emailOnMention: true };
+}
+
+export async function setChatPreferences(
+  client: PoolClient,
+  profileId: string,
+  emailOnMention: boolean,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO chat_preferences (profile_id, email_on_mention) VALUES ($1, $2)
+     ON CONFLICT (profile_id) DO UPDATE SET email_on_mention = $2, updated_at = now()`,
+    [profileId, emailOnMention],
+  );
+}
+
+export type ChatPushSubscription = {
+  id: string;
+  profileId: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+};
+
+export async function saveChatPushSubscription(
+  client: PoolClient,
+  input: {
+    profileId: string;
+    endpoint: string;
+    p256dh: string;
+    auth: string;
+    userAgent: string | null;
+  },
+): Promise<void> {
+  await client.query(
+    `INSERT INTO chat_push_subscriptions (profile_id, endpoint, p256dh, auth, user_agent)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (endpoint) DO UPDATE
+       SET profile_id = $1, p256dh = $3, auth = $4, user_agent = $5`,
+    [input.profileId, input.endpoint, input.p256dh, input.auth, input.userAgent],
+  );
+}
+
+export async function deleteChatPushSubscription(
+  client: PoolClient,
+  endpoint: string,
+  profileId?: string,
+): Promise<void> {
+  await client.query(
+    `DELETE FROM chat_push_subscriptions WHERE endpoint = $1 AND ($2::bigint IS NULL OR profile_id = $2)`,
+    [endpoint, profileId ?? null],
+  );
+}
+
+export async function listChatPushSubscriptions(
+  client: PoolClient,
+  profileIds: string[],
+): Promise<ChatPushSubscription[]> {
+  if (!profileIds.length) return [];
+  const result = await client.query<ChatPushSubscription>(
+    `SELECT id::text, profile_id::text AS "profileId", endpoint, p256dh, auth
+       FROM chat_push_subscriptions WHERE profile_id = ANY($1::bigint[])`,
+    [profileIds],
+  );
+  return result.rows;
+}
+
+// Who should get an email for a mention that is still unread: the person has not read
+// past the message, has not turned email off, is active and has an address.
+export async function findUnreadMentionEmail(
+  client: PoolClient,
+  messageId: string,
+  profileId: string,
+): Promise<{ email: string; name: string } | null> {
+  const result = await client.query<{ email: string; name: string }>(
+    `SELECT p.email, p.display_name AS name
+       FROM chat_message_mentions mm
+       JOIN chat_messages x ON x.id = mm.message_id AND x.deleted_at IS NULL
+       JOIN profiles p ON p.id = mm.profile_id
+       JOIN chat_members m ON m.conversation_id = x.conversation_id AND m.profile_id = mm.profile_id
+       LEFT JOIN chat_preferences pref ON pref.profile_id = mm.profile_id
+      WHERE mm.message_id = $1 AND mm.profile_id = $2
+        AND COALESCE(m.last_read_message_id, 0) < x.id
+        AND COALESCE(pref.email_on_mention, true)
+        AND p.active AND p.email IS NOT NULL AND p.email <> ''`,
+    [messageId, profileId],
+  );
+  return result.rows[0] ?? null;
+}

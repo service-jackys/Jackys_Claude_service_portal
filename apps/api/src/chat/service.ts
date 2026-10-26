@@ -5,8 +5,11 @@ import {
   chatMessageEditSchema,
   chatMessageWriteSchema,
   chatPinSchema,
+  chatPushSubscribeSchema,
+  chatPushUnsubscribeSchema,
   chatReactionSchema,
   chatSearchQuerySchema,
+  chatSettingsSchema,
   chatMessagesQuerySchema,
   chatMuteSchema,
   chatReadSchema,
@@ -16,10 +19,12 @@ import {
   canReadChatRecord,
   createChatChannel,
   deleteChatMessage,
+  deleteChatPushSubscription,
   editChatMessage,
   ensureChatMember,
   findChatAttachment,
   findChatConversation,
+  getChatPreferences,
   insertChatAttachment,
   findChatMessage,
   findChatRecord,
@@ -33,7 +38,9 @@ import {
   listChatMessages,
   listChatPeopleAccess,
   listPinnedChatMessages,
+  saveChatPushSubscription,
   searchChatMessages,
+  setChatPreferences,
   setChatPinned,
   toggleChatReaction,
   markChatAnswered,
@@ -52,7 +59,10 @@ import {
   saveAttachmentFile,
   validateAttachment,
 } from '../attachments/storage.js';
+import { mailEnabled } from '../mail/mailer.js';
 import { onlineProfileIds, sendToProfiles } from './hub.js';
+import { createChatNotifier, type ChatNotifier } from './notifier.js';
+import { pushEnabled, vapidPublicKey } from './push.js';
 import { createSignedDownloadToken, verifySignedDownloadToken } from '../attachments/signed-url.js';
 
 export class ChatServiceError extends Error {
@@ -103,7 +113,8 @@ function withUrls<T extends ChatMessageRow>(message: T): T {
   };
 }
 
-export function createChatService(pool: Pool) {
+export function createChatService(pool: Pool, notifier?: ChatNotifier) {
+  const notify = notifier ?? createChatNotifier(pool);
   // ---- live events (see hub.ts): small nudges; screens refetch through the normal API.
   async function followers(conversationId: string) {
     const client = await pool.connect();
@@ -181,6 +192,22 @@ export function createChatService(pool: Pool) {
                 },
               },
       );
+      const online = new Set(onlineProfileIds());
+      await notify.dispatch({
+        conversationId,
+        messageId: message.id,
+        senderName: auth.displayName,
+        title: title ?? (kind === 'direct' ? auth.displayName : 'Chat'),
+        preview,
+        recipients: people
+          .filter((m) => m.profileId !== auth.profileId)
+          .map((m) => ({
+            profileId: m.profileId,
+            muted: m.muted,
+            mention: mentioned.has(m.profileId),
+            online: online.has(m.profileId),
+          })),
+      });
     } catch {
       /* best effort */
     }
@@ -682,6 +709,59 @@ export function createChatService(pool: Pool) {
             throw new ChatServiceError('not-found', 'This file is no longer available.');
         }
         return { file, buffer: await readAttachmentFile(file.storageKey) };
+      } finally {
+        client.release();
+      }
+    },
+
+    async settings(auth: ApplicationAuth) {
+      const client = await pool.connect();
+      try {
+        const prefs = await getChatPreferences(client, auth.profileId);
+        return {
+          emailOnMention: prefs.emailOnMention,
+          emailAvailable: mailEnabled(),
+          pushAvailable: pushEnabled(),
+          vapidPublicKey: pushEnabled() ? vapidPublicKey() : null,
+        };
+      } finally {
+        client.release();
+      }
+    },
+
+    async updateSettings(auth: ApplicationAuth, body: unknown) {
+      const data = parse(chatSettingsSchema, body);
+      const client = await pool.connect();
+      try {
+        await setChatPreferences(client, auth.profileId, data.emailOnMention);
+      } finally {
+        client.release();
+      }
+    },
+
+    async pushSubscribe(auth: ApplicationAuth, body: unknown, userAgent: string | null) {
+      const data = parse(chatPushSubscribeSchema, body);
+      if (!pushEnabled())
+        throw new ChatServiceError('invalid', 'Background alerts are not set up on the server.');
+      const client = await pool.connect();
+      try {
+        await saveChatPushSubscription(client, {
+          profileId: auth.profileId,
+          endpoint: data.endpoint,
+          p256dh: data.keys.p256dh,
+          auth: data.keys.auth,
+          userAgent: userAgent?.slice(0, 300) ?? null,
+        });
+      } finally {
+        client.release();
+      }
+    },
+
+    async pushUnsubscribe(auth: ApplicationAuth, body: unknown) {
+      const data = parse(chatPushUnsubscribeSchema, body);
+      const client = await pool.connect();
+      try {
+        await deleteChatPushSubscription(client, data.endpoint, auth.profileId);
       } finally {
         client.release();
       }

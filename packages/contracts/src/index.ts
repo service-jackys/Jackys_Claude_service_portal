@@ -1795,3 +1795,14 @@ export const chatSearchQuerySchema = z
     limit: z.coerce.number().int().min(1).max(50).default(30),
   })
   .strict();
+
+export const chatSettingsSchema = z.object({ emailOnMention: z.boolean() }).strict();
+export const chatPushSubscribeSchema = z
+  .object({
+    endpoint: z.string().url().max(1000),
+    keys: z.object({ p256dh: z.string().min(10).max(200), auth: z.string().min(10).max(100) }),
+  })
+  .strict();
+export const chatPushUnsubscribeSchema = z
+  .object({ endpoint: z.string().url().max(1000) })
+  .strict();

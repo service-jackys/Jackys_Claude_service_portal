@@ -7285,7 +7285,9 @@
       }
       .ch-app,
       .ch-modal,
-      .ch-drawer {
+      .ch-drawer,
+      .ch-float,
+      .ch-pop-stack {
         --ch-mine: var(--blue);
         --ch-mine-ink: #fff;
         --ch-theirs: var(--surface-soft);
@@ -7307,7 +7309,9 @@
       }
       [data-theme='dark'] .ch-app,
       [data-theme='dark'] .ch-modal,
-      [data-theme='dark'] .ch-drawer {
+      [data-theme='dark'] .ch-drawer,
+      [data-theme='dark'] .ch-float,
+      [data-theme='dark'] .ch-pop-stack {
         --ch-mine: #2f7fc2;
         --ch-head: #e7ecf5;
         --ch-warn: #f3c969;
@@ -7416,6 +7420,9 @@
       .ch-textbtn:hover {
         background: var(--surface-soft);
       }
+      .ch-float button:focus-visible,
+      .ch-pop-stack button:focus-visible,
+      .ch-bubble-btn:focus-visible,
       .ch-app button:focus-visible,
       .ch-app textarea:focus-visible,
       .ch-app input:focus-visible,
@@ -7916,6 +7923,245 @@
       }
       .ch-msg:not(.ch-mine) .ch-tick {
         display: none;
+      }
+      .ch-bubble-btn {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        z-index: 60;
+        display: grid;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border: 0;
+        border-radius: 50%;
+        background: var(--blue);
+        box-shadow: 0 8px 24px rgb(16 43 78 / 32%);
+        color: #fff;
+        cursor: pointer;
+        transition: transform 0.12s;
+      }
+      .ch-bubble-btn:hover {
+        transform: scale(1.06);
+      }
+      .ch-bubble-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 20px;
+        padding: 1px 5px;
+        border: 2px solid var(--surface);
+        border-radius: 999px;
+        background: var(--red);
+        color: #fff;
+        font-size: 0.68rem;
+        font-weight: 800;
+        line-height: 1.2;
+        text-align: center;
+      }
+      .ch-float {
+        position: fixed;
+        right: 20px;
+        bottom: 88px;
+        z-index: 61;
+        display: flex;
+        width: min(380px, calc(100vw - 24px));
+        height: min(560px, calc(100dvh - 120px));
+        flex-direction: column;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: 0 18px 50px rgb(16 43 78 / 30%);
+        color: var(--ink);
+        animation: ch-rise 0.16s ease-out;
+      }
+      @keyframes ch-rise {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+      }
+      .ch-float-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.55rem 0.7rem 0.55rem 1rem;
+        border-bottom: 1px solid var(--line);
+        color: var(--ch-head);
+      }
+      .ch-float-actions {
+        display: inline-flex;
+        gap: 2px;
+      }
+      .ch-float-list {
+        min-height: 0;
+        flex: 1;
+        overflow: auto;
+      }
+      .ch-float-thread {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+      }
+      .ch-float-thread[hidden],
+      .ch-float-list[hidden] {
+        display: none;
+      }
+      .ch-float button,
+      .ch-float input,
+      .ch-float textarea,
+      .ch-pop-stack button {
+        font: inherit;
+      }
+      body:has(#chatWorkspace:not([hidden])) .ch-bubble-btn,
+      body:has(#chatWorkspace:not([hidden])) .ch-float,
+      body.chat-popout .ch-bubble-btn,
+      body.chat-popout .ch-float {
+        display: none;
+      }
+      .ch-pop-stack {
+        position: fixed;
+        right: 20px;
+        bottom: 88px;
+        z-index: 70;
+        display: flex;
+        width: min(340px, calc(100vw - 24px));
+        flex-direction: column;
+        gap: 8px;
+        pointer-events: none;
+      }
+      body:has(#chatWorkspace:not([hidden])) .ch-pop-stack {
+        bottom: 20px;
+      }
+      .ch-pop {
+        position: relative;
+        display: flex;
+        align-items: flex-start;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--blue);
+        border-radius: 12px;
+        background: var(--surface);
+        box-shadow: 0 10px 30px rgb(16 43 78 / 26%);
+        color: var(--ink);
+        pointer-events: auto;
+        animation: ch-rise 0.18s ease-out;
+      }
+      .ch-pop-mention {
+        border-left-color: var(--ch-warn);
+      }
+      .ch-pop-main {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 4px 10px 12px;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+      .ch-pop-text {
+        display: grid;
+        min-width: 0;
+        gap: 1px;
+      }
+      .ch-pop-text b {
+        font-size: 0.86rem;
+      }
+      .ch-pop-where {
+        color: var(--muted);
+        font-size: 0.72rem;
+      }
+      .ch-pop-body {
+        display: -webkit-box;
+        overflow: hidden;
+        font-size: 0.84rem;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+      }
+      .ch-pop-x {
+        flex-shrink: 0;
+        margin: 4px 4px 0 0;
+      }
+      .ch-setting {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 14px;
+        padding: 0.7rem 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .ch-setting b {
+        font-size: 0.9rem;
+      }
+      .ch-setting p {
+        margin: 2px 0 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .ch-switch input {
+        width: 38px;
+        height: 22px;
+        accent-color: var(--blue);
+      }
+      .ch-float .ch-flagbtn span {
+        display: none;
+      }
+      .ch-float .ch-flagbtn {
+        width: 42px;
+        justify-content: center;
+        padding: 0;
+      }
+      .ch-float .ch-hint {
+        display: none;
+      }
+      body.chat-popout .nav,
+      body.chat-popout nav,
+      body.chat-popout .dashboard-nav,
+      body.chat-popout .dashboard-header,
+      body.chat-popout .topbar,
+      body.chat-popout .hero,
+      body.chat-popout footer {
+        display: none !important;
+      }
+      body.chat-popout.is-authenticated .dashboard {
+        display: block;
+        min-height: 0;
+      }
+      body.chat-popout.is-authenticated .dashboard-content {
+        padding: 0.5rem;
+      }
+      body.chat-popout {
+        --nav-height: 0px;
+      }
+      body.chat-popout .ch-app {
+        height: calc(100dvh - 60px);
+      }
+      body.chat-popout #staff-workspace .card {
+        border: 0;
+        box-shadow: none;
+      }
+      @media (max-width: 640px) {
+        .ch-float {
+          right: 8px;
+          bottom: 80px;
+        }
+        .ch-pop-stack {
+          right: 12px;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ch-float,
+        .ch-pop,
+        .ch-bubble-btn {
+          animation: none;
+          transition: none;
+        }
       }
       .ch-attach {
         flex-shrink: 0;
