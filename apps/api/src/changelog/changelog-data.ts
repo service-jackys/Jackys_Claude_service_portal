@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 138,
+    title: 'Tasks: ask for the owner in a pop-up when adding a task',
+    area: 'Tasks',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Owner field sat at the bottom of the New item panel, so admins often skipped it and the task landed on the first person in the list.',
+    changes: [
+      'What changed: For admins, the Owner field is removed from the New item panel. Pressing Add (in the panel or the quick-add bar) opens a "Who is this task for?" pop-up with nothing pre-selected; the task is created only after an owner is…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration or API restart.',
+    migrations: [],
+    files: 'apps/web/src/tasks.js (display only).',
+  },
+  {
     id: 137,
     title: 'Monthly revenue budget and actual: no overflow, compact columns',
     area: 'Revenue',

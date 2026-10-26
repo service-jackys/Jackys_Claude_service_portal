@@ -3283,3 +3283,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html} (display only).
 
 **Needs you:** pull and hard-refresh. No migration or API restart.
+
+## Modification #138 — Tasks: ask for the owner in a pop-up when adding a task
+
+**Date:** 2026-10-26
+
+**Why.** The Owner field sat at the bottom of the New item panel, so admins often skipped it and the task landed on the first person in the list.
+
+**What changed.** For admins, the Owner field is removed from the New item panel. Pressing Add (in the panel or the quick-add bar) opens a "Who is this task for?" pop-up with nothing pre-selected; the task is created only after an owner is chosen, and Cancel / Esc adds nothing. Editing an existing task still shows the Owner field. Non-admins are unchanged (tasks are always their own). Same change made in the old portal (Index.html v61).
+
+**Files.** apps/web/src/tasks.js (display only).
+
+**Needs you:** pull and hard-refresh. No migration or API restart.
