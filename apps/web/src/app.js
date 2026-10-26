@@ -19713,54 +19713,79 @@ ${bodyHtml}
       ['Achievement', rdPercent(ytdActual, ytdBudget), 'Actual vs budget to date'],
     ]);
 
-    const cells = (fn) => periods.map((p) => '<td>' + fn(p) + '</td>').join('');
-    const compare =
-      '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>Measure</th>' +
-      periods.map((p) => '<th>' + monthName(p) + '</th>').join('') +
-      '<th>Total</th></tr></thead><tbody>' +
-      '<tr><td>Budget revenue</td>' +
-      cells((p) => rdMoney(budgetRevenue[p])) +
-      '<td><strong>' +
-      rdMoney(fyBudget) +
-      '</strong></td></tr>' +
-      '<tr><td>Actual revenue</td>' +
-      cells((p) => (actualMap[p] ? rdMoney(actualMap[p].revenue) : '&mdash;')) +
-      '<td><strong>' +
-      rdMoney(ytdActual) +
-      '</strong></td></tr>' +
-      '<tr><td>Variance</td>' +
-      cells((p) =>
-        actualMap[p]
-          ? '<span class="' +
-            varClass(actualMap[p].revenue - (budgetRevenue[p] || 0)).trim() +
-            '">' +
-            rdMoney(actualMap[p].revenue - (budgetRevenue[p] || 0)) +
-            '</span>'
-          : '&mdash;',
-      ) +
-      '<td><strong class="' +
-      varClass(ytdActual - ytdBudget).trim() +
+    // Month-by-month table for management (modification #136): one row per month with the
+    // variance as a coloured pill. Months with no actual revenue yet are "Not yet reported"
+    // rather than a -100% shortfall.
+    const pill = (value, text) =>
+      '<span class="rd-var-pill ' +
+      (value > 0 ? 'is-up' : value < 0 ? 'is-down' : 'is-flat') +
       '">' +
-      rdMoney(ytdActual - ytdBudget) +
-      '</strong></td></tr>' +
-      '<tr><td>Achievement</td>' +
-      cells((p) =>
-        actualMap[p] ? rdPercent(actualMap[p].revenue, budgetRevenue[p] || 0) : '&mdash;',
+      text +
+      '</span>';
+    const varianceCells = (budget, actual, reported) => {
+      if (!reported) {
+        return (
+          '<td class="rd-bm-var"><div class="rd-var-stack"><span class="rd-var-pill is-none">&mdash;</span><span class="rd-var-caption">Not yet reported</span></div></td>' +
+          '<td class="rd-bm-var"><div class="rd-var-stack"><span class="rd-var-pill is-none">&mdash;</span></div></td>'
+        );
+      }
+      const v = actual - budget;
+      const arrow = v > 0 ? '&#9650;' : v < 0 ? '&#9660;' : '&bull;';
+      const caption = v > 0 ? 'Above budget' : v < 0 ? 'Below budget' : 'On budget';
+      const pct = budget ? (v / budget) * 100 : null;
+      return (
+        '<td class="rd-bm-var"><div class="rd-var-stack">' +
+        pill(v, arrow + ' AED ' + rdMoney(Math.abs(v))) +
+        '<span class="rd-var-caption">' +
+        caption +
+        '</span></div></td>' +
+        '<td class="rd-bm-var"><div class="rd-var-stack">' +
+        pill(v, pct === null ? '&mdash;' : (pct >= 0 ? '+' : '') + pct.toFixed(1) + '%') +
+        '</div></td>'
+      );
+    };
+    const monthRows = periods
+      .map((p) => {
+        const reported = Boolean(actualMap[p]);
+        const budget = budgetRevenue[p] || 0;
+        const actual = reported ? actualMap[p].revenue : 0;
+        return (
+          '<tr' +
+          (reported ? '' : ' class="rd-bm-future"') +
+          '><td class="rd-bm-period">' +
+          monthName(p) +
+          '</td><td class="rd-bm-num">AED ' +
+          rdMoney(budget) +
+          '</td><td class="rd-bm-num">' +
+          (reported ? 'AED ' + rdMoney(actual) : '&mdash;') +
+          '</td>' +
+          varianceCells(budget, actual, reported) +
+          '<td class="rd-bm-num">' +
+          rdMoney(budgetVolume[p] || 0) +
+          '</td><td class="rd-bm-num">' +
+          (reported ? rdMoney(actualMap[p].qty) : '&mdash;') +
+          '</td></tr>'
+        );
+      })
+      .join('');
+    const totalActualQty = actualPeriods.reduce((sum, p) => sum + actualMap[p].qty, 0);
+    const compare =
+      '<div class="table-wrap"><table class="rd-bm-table"><thead><tr><th>Period</th><th>Budget revenue</th><th>Actual revenue</th><th>Variance</th><th>Variance %</th><th>Budget qty</th><th>Actual qty</th></tr></thead><tbody>' +
+      monthRows +
+      '</tbody><tfoot><tr><td class="rd-bm-period">Total</td><td class="rd-bm-num">AED ' +
+      rdMoney(fyBudget) +
+      '<span class="rd-var-caption">Full year</span></td><td class="rd-bm-num">AED ' +
+      rdMoney(ytdActual) +
+      '<span class="rd-var-caption">To date</span></td>' +
+      varianceCells(ytdBudget, ytdActual, actualPeriods.length > 0).replace(
+        /(Below budget|Above budget|On budget)/,
+        '$1 (vs budget to date)',
       ) +
-      '<td><strong>' +
-      rdPercent(ytdActual, ytdBudget) +
-      '</strong></td></tr>' +
-      '<tr><td>Budget volume</td>' +
-      cells((p) => rdMoney(budgetVolume[p])) +
-      '<td>' +
-      rdMoney(periods.reduce((s, p) => s + (budgetVolume[p] || 0), 0)) +
-      '</td></tr>' +
-      '<tr><td>Actual volume</td>' +
-      cells((p) => (actualMap[p] ? rdMoney(actualMap[p].qty) : '&mdash;')) +
-      '<td>' +
-      rdMoney(actualPeriods.reduce((s, p) => s + actualMap[p].qty, 0)) +
-      '</td></tr>' +
-      '</tbody></table></div>';
+      '<td class="rd-bm-num">' +
+      rdMoney(periods.reduce((sum, p) => sum + (budgetVolume[p] || 0), 0)) +
+      '</td><td class="rd-bm-num">' +
+      rdMoney(totalActualQty) +
+      '</td></tr></tfoot></table></div>';
 
     const pl =
       '<div class="table-wrap"><table class="rd-budget-table"><thead><tr><th>P&amp;L line (budget)</th>' +
@@ -19794,11 +19819,11 @@ ${bodyHtml}
         '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-budget"></canvas></div></div>',
       ) +
       rdSection(
-        'Budget vs actual by month',
+        'Monthly revenue budget and actual',
         compare +
           '<div class="card-help rd-pad"><span>About this view</span>' +
           tipHtml(
-            'Actuals come from the uploaded revenue workbook. The latest month can be partial until its data is complete.',
+            'Actuals come from the uploaded revenue workbook (master Excel). The latest month can be partial until its data is complete. Months with no revenue yet show "Not yet reported" instead of a shortfall.',
           ) +
           '</div>',
       ) +

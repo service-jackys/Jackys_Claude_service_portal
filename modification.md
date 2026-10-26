@@ -3259,3 +3259,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **What changed.** Uploading the Service Budget workbook now also refreshes the active budget version for that fiscal year: the stream table "Proposed Revenue 2027" on the Service Price List sheet (Warranty, Non-Warranty, Del + Install, Inspections, Installation, Projects, Premium PMC → AMC) fills each stream's annual revenue and volume, and the monthly phasing comes from the REVENUE row of the P&L sheet. An approved version is never overwritten: a new draft "revised" version is created for you to activate. The VAT setting already on each stream is kept (Premium PMC stays VAT-inclusive). The upload message says which version was refreshed.
 
 **Needs you:** pull, restart the API, hard-refresh, then upload the budget workbook once more. No migration.
+
+## Modification #136 — Budget vs Actual: month-by-month table like the old portal
+
+**Date:** 2026-10-26
+
+**Why.** The "Budget vs actual by month" grid (months across the page) was hard for management to read. The old portal's "Monthly revenue budget and actual" is easier.
+
+**What changed.** Under the bar chart, the grid is replaced by "Monthly revenue budget and actual": one row per month with Budget revenue, Actual revenue (from the uploaded master Excel), Variance as a coloured pill with "Above / Below budget", Variance %, Budget qty and Actual qty, and a Total row (full-year budget, actual to date, variance against budget to date). Months with no actual revenue yet show "Not yet reported" and are greyed, instead of -100%. Light and dark themes are covered.
+
+**Files.** apps/web/src/{app.js,index.html} (display only).
+
+**Needs you:** pull and hard-refresh. No migration or API restart.
