@@ -4110,6 +4110,10 @@
         background: #fff1d6;
         color: #8a5a00;
       }
+      .status.status-muted {
+        background: #e8eef5;
+        color: #3d5068;
+      }
       .acc-bar {
         display: flex;
         flex-wrap: wrap;
@@ -4289,6 +4293,17 @@
       .acc-table tbody tr:hover td {
         background: rgba(11, 107, 203, 0.08);
       }
+      /* The frozen Job card cell must stay solid on striped and hovered rows, or the
+         text scrolling underneath shows through it. The tint is layered over the
+         solid surface colour instead of replacing it. */
+      .acc-table tbody tr:nth-child(even) td.acc-sticky {
+        background:
+          linear-gradient(rgba(31, 58, 95, 0.035), rgba(31, 58, 95, 0.035)), var(--surface, #fff);
+      }
+      .acc-table tbody tr:hover td.acc-sticky {
+        background:
+          linear-gradient(rgba(11, 107, 203, 0.08), rgba(11, 107, 203, 0.08)), var(--surface, #fff);
+      }
       .acc-table .acc-sticky {
         position: sticky;
         left: 0;
@@ -4350,6 +4365,10 @@
       [data-theme='dark'] .status.status-warn {
         background: #4a3610;
         color: #ffd27a;
+      }
+      [data-theme='dark'] .status.status-muted {
+        background: #263445;
+        color: #b9c7d8;
       }
       .ws-tabs {
         display: flex;

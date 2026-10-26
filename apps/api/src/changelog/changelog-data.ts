@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 150,
+    title: 'Billing: warranty jobs are internal billing; frozen Job card column fixed',
+    area: 'Invoices & billing',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Jobs finished as In Warranty are billed internally to JDI or JER-C/INS. They usually carry no amount, and when spares or charges are added there is still no ERP invoice: accounts take the report and make internal adjustments. They were showing as "Not invoiced" with a Record button, which made the "Not yet invoiced"…',
+    changes: [
+      'Warranty jobs (job type CSIJW) now have their own stage, Internal billing, with a grey label and an "Internal" note in place of the Record button. They still appear in the ledger, the bill-to statement and the Excel download so accounts…',
+      'They no longer count in Invoiced in ERP or Not yet invoiced. A new total, Internal (warranty), shows what they add up to. The statement heading reads "Warranty CSIJW (internal)". "Internal billing" is also a Stage filter.',
+      'Out-of-warranty jobs are unchanged: B2C pays and needs an invoice and confirmed payment; B2B is billed to the channel at the current rate plus any spares added by hand, and the ERP number can be recorded when it exists.',
+      "The frozen Job card column no longer lets the next column's text show through on striped or hovered rows.",
+    ],
+    needsYou: 'pull, restart the API, hard-refresh. No migration.',
+    migrations: [],
+    files:
+      'packages/db/src/billing-ledger.ts, apps/web/src/{app.js,index.html}, tests/integration/job-billing.test.ts.',
+  },
+  {
     id: 149,
     title: 'Form fields no longer stretch apart when a neighbour shows an error',
     area: 'Portal look & feel',

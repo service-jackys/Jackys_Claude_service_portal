@@ -3463,3 +3463,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html.
 
 **Needs you:** pull and hard-refresh.
+## Modification #150 — Billing: warranty jobs are internal billing; frozen Job card column fixed
+
+**Date:** 2026-10-26
+
+**Why.** Jobs finished as In Warranty are billed internally to JDI or JER-C/INS. They usually carry no amount, and when spares or charges are added there is still no ERP invoice: accounts take the report and make internal adjustments. They were showing as "Not invoiced" with a Record button, which made the "Not yet invoiced" figure look wrong.
+
+**What changed.**
+- Warranty jobs (job type CSIJW) now have their own stage, **Internal billing**, with a grey label and an "Internal" note in place of the Record button. They still appear in the ledger, the bill-to statement and the Excel download so accounts can adjust from the report.
+- They no longer count in **Invoiced in ERP** or **Not yet invoiced**. A new total, **Internal (warranty)**, shows what they add up to. The statement heading reads "Warranty CSIJW (internal)". "Internal billing" is also a Stage filter.
+- Out-of-warranty jobs are unchanged: B2C pays and needs an invoice and confirmed payment; B2B is billed to the channel at the current rate plus any spares added by hand, and the ERP number can be recorded when it exists.
+- The frozen Job card column no longer lets the next column's text show through on striped or hovered rows.
+
+**Files.** packages/db/src/billing-ledger.ts, apps/web/src/{app.js,index.html}, tests/integration/job-billing.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
