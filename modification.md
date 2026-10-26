@@ -3439,3 +3439,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html.
 
 **Needs you:** pull and hard-refresh.
+
+## Modification #148 — New password rule: 10 characters, capital first, number and symbol
+
+**Date:** 2026-10-26
+
+**Why.** The 12-character minimum was too strict for the team.
+
+**What changed.** Every new password (first-time setup, adding a team login, an admin setting a temporary password, and a person choosing their own) must now be at least 10 characters, start with a capital letter, and include at least one number and one symbol, for example `Welcome@123`. The forms and the API both check it, and the hint text and README say so. Passwords already set keep working: sign-in is unchanged, and the rule only applies when a password is created or changed.
+
+**Files.** apps/api/src/auth/local-auth.ts, apps/api/src/api/openapi.ts, apps/web/src/{app.js,index.html}, README.md, tests/unit/password-rule.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.

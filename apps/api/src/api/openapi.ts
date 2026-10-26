@@ -485,7 +485,12 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             bootstrapToken: { type: 'string', minLength: 32, maxLength: 256 },
             email: { type: 'string', format: 'email', maxLength: 320 },
             name: { type: 'string', minLength: 1, maxLength: 120 },
-            password: { type: 'string', minLength: 12, maxLength: 200 },
+            password: {
+              type: 'string',
+              minLength: 10,
+              maxLength: 200,
+              pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
+            },
           },
         },
         LoginRequest: {
@@ -504,7 +509,12 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             email: { type: 'string', format: 'email', maxLength: 320 },
             name: { type: 'string', minLength: 1, maxLength: 120 },
-            password: { type: 'string', minLength: 12, maxLength: 200 },
+            password: {
+              type: 'string',
+              minLength: 10,
+              maxLength: 200,
+              pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
+            },
             role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
           },
         },
@@ -514,7 +524,12 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
             active: { type: 'boolean' },
-            password: { type: 'string', minLength: 12, maxLength: 200 },
+            password: {
+              type: 'string',
+              minLength: 10,
+              maxLength: 200,
+              pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
+            },
           },
         },
         ChangePasswordRequest: {
@@ -523,7 +538,12 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           required: ['currentPassword', 'newPassword'],
           properties: {
             currentPassword: { type: 'string', minLength: 1, maxLength: 200 },
-            newPassword: { type: 'string', minLength: 12, maxLength: 200 },
+            newPassword: {
+              type: 'string',
+              minLength: 10,
+              maxLength: 200,
+              pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
+            },
           },
         },
         RolePermissionsRequest: {

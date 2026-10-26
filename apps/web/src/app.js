@@ -596,6 +596,26 @@
   $('#loginTab').addEventListener('click', () => selectAuthTab('login'));
   $('#bootstrapTab').addEventListener('click', () => selectAuthTab('bootstrap'));
 
+  // Password rule (modification #148): 10+ characters, first one a capital
+  // letter, with at least one number and one symbol.
+  const PASSWORD_RULE_TEXT =
+    'Use at least 10 characters: a capital letter first, then include a number and a symbol.';
+  function isStrongPassword(value) {
+    return (
+      typeof value === 'string' &&
+      value.length >= 10 &&
+      /^[A-Z]/.test(value) &&
+      /\d/.test(value) &&
+      /[^A-Za-z0-9\s]/.test(value)
+    );
+  }
+
+  function checkPasswordField(form, id, value) {
+    if (isStrongPassword(value)) return true;
+    showFieldError(form, id, PASSWORD_RULE_TEXT);
+    return false;
+  }
+
   function validateAuthForm(form, fields) {
     clearErrors(form);
     let valid = true;
@@ -734,8 +754,9 @@
         ['bootstrapToken', 'Enter the bootstrap token.'],
         ['bootstrapName', 'Enter the administrator name.'],
         ['bootstrapEmail', 'Enter an email address.'],
-        ['bootstrapPassword', 'Use a password with at least 12 characters.'],
-      ])
+        ['bootstrapPassword', PASSWORD_RULE_TEXT],
+      ]) ||
+      !checkPasswordField(form, 'bootstrapPassword', $('#bootstrapPassword').value)
     )
       return;
     const button = $('#bootstrapButton');
@@ -4123,8 +4144,8 @@ ${bodyHtml}
       showFieldError(form, 'teamAccountEmail', 'Enter a valid email address.');
       valid = false;
     }
-    if (!password || password.length < 12) {
-      showFieldError(form, 'teamAccountPassword', 'Use a password with at least 12 characters.');
+    if (!isStrongPassword(password)) {
+      showFieldError(form, 'teamAccountPassword', PASSWORD_RULE_TEXT);
       valid = false;
     }
     if (!valid) return;
@@ -8299,8 +8320,8 @@ ${bodyHtml}
     $('#passwordMessage').hidden = true;
     $('#passwordDialogTitle').textContent = forced ? 'Choose your own password' : 'Change password';
     $('#passwordDialogNote').textContent = forced
-      ? 'You are signed in with a temporary password. Choose your own (at least 12 characters) to continue.'
-      : 'Use at least 12 characters. Other devices signed in with your old password are signed out.';
+      ? 'You are signed in with a temporary password. Choose your own (10+ characters, capital first, with a number and a symbol) to continue.'
+      : PASSWORD_RULE_TEXT + ' Other devices signed in with your old password are signed out.';
     $('#passwordCancel').textContent = forced ? 'Sign out' : 'Cancel';
     if (!dialog.open) dialog.showModal();
     $('#pwCurrent').focus();
@@ -8335,8 +8356,8 @@ ${bodyHtml}
       showFieldError(form, 'pwCurrent', 'Enter your current password.');
       valid = false;
     }
-    if (next.length < 12) {
-      showFieldError(form, 'pwNew', 'Use at least 12 characters.');
+    if (!isStrongPassword(next)) {
+      showFieldError(form, 'pwNew', PASSWORD_RULE_TEXT);
       valid = false;
     } else if (next === current) {
       showFieldError(form, 'pwNew', 'Choose a password different from the current one.');
@@ -8394,8 +8415,8 @@ ${bodyHtml}
     const form = event.currentTarget;
     clearErrors(form);
     const value = $('#resetPasswordValue').value;
-    if (value.length < 12) {
-      showFieldError(form, 'resetPasswordValue', 'Use at least 12 characters.');
+    if (!isStrongPassword(value)) {
+      showFieldError(form, 'resetPasswordValue', PASSWORD_RULE_TEXT);
       return;
     }
     const button = $('#resetPasswordSave');

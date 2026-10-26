@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 148,
+    title: 'New password rule: 10 characters, capital first, number and symbol',
+    area: 'Permissions',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary: 'The 12-character minimum was too strict for the team.',
+    changes: [
+      'What changed: Every new password (first-time setup, adding a team login, an admin setting a temporary password, and a person choosing their own) must now be at least 10 characters, start with a capital letter, and include at least one…',
+    ],
+    needsYou: 'pull, restart the API, hard-refresh. No migration.',
+    migrations: [],
+    files:
+      'apps/api/src/auth/local-auth.ts, apps/api/src/api/openapi.ts, apps/web/src/{app.js,index.html}, README.md, tests/unit/password-rule.test.ts.',
+  },
+  {
     id: 147,
     title: 'Dashboard moved to the top, above Live Chat',
     area: 'Portal look & feel',
