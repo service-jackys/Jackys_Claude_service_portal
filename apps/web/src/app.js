@@ -12852,7 +12852,8 @@ ${bodyHtml}
     badge.hidden = count < 1;
     badge.textContent = count > 99 ? '99+' : String(count);
     const nav = document.getElementById('chatNav');
-    if (nav) nav.setAttribute('aria-label', count ? 'Chat, ' + count + ' unread' : 'Chat');
+    if (nav)
+      nav.setAttribute('aria-label', count ? 'Live Chat, ' + count + ' unread' : 'Live Chat');
   }
   function chatGoToRecord(type, id) {
     document.querySelector('.ch-drawer-host')?.remove();
@@ -13067,7 +13068,7 @@ ${bodyHtml}
     chat: {
       navId: 'chatNav',
       workspaceId: 'chatWorkspace',
-      heading: 'Chat',
+      heading: 'Live Chat',
       description:
         'Message your team, or discuss a job card, appointment, complaint or task in its own thread.',
       permission: 'chat.use',

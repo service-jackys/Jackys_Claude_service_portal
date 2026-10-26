@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 146,
+    title: 'Chat moved out of Records and renamed Live Chat',
+    area: 'General',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary: 'Chat is used all day and should not sit inside a menu group.',
+    changes: [
+      'What changed: The menu item is now Live Chat, shown on its own at the top of the sidebar above Overview (with its unread badge), instead of inside Records. The screen heading, the floating bubble and the chat panel use the same name.…',
+    ],
+    needsYou: 'pull and hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/{index.html,app.js,chat.js}.',
+  },
+  {
     id: 145,
     title: 'Chat look: compact header, one-row filters, tidier composer',
     area: 'Portal look & feel',
