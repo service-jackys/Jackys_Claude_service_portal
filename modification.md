@@ -3271,3 +3271,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html} (display only).
 
 **Needs you:** pull and hard-refresh. No migration or API restart.
+
+## Modification #137 — Monthly revenue budget and actual: no overflow, compact columns
+
+**Date:** 2026-10-26
+
+**Why.** The month-by-month table was wider than its card, so Actual Qty was cut off and an inner scrollbar appeared.
+
+**What changed.** The table now uses fixed proportional column widths (Period, Budget, Actual, Variance, Variance %, Budget qty, Actual qty) with tighter padding, so it always fits the card with no sideways scroll. The variance pill and its "Below budget" caption sit on one row and wrap only on narrow screens. The Total row caption now reads "Below budget (to date)". Same change made in the old portal (Index.html v60).
+
+**Files.** apps/web/src/{app.js,index.html} (display only).
+
+**Needs you:** pull and hard-refresh. No migration or API restart.

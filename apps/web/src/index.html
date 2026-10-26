@@ -2339,15 +2339,34 @@
       /* Monthly revenue budget and actual (modification #136) */
       .rd-bm-table {
         width: 100%;
+        min-width: 720px;
+        table-layout: fixed;
         border-collapse: collapse;
-        font-size: 0.85rem;
+        font-size: 0.82rem;
+      }
+      .rd-bm-table th:nth-child(1) {
+        width: 9%;
+      }
+      .rd-bm-table th:nth-child(2),
+      .rd-bm-table th:nth-child(3) {
+        width: 15%;
+      }
+      .rd-bm-table th:nth-child(4) {
+        width: 24%;
+      }
+      .rd-bm-table th:nth-child(5) {
+        width: 11%;
+      }
+      .rd-bm-table th:nth-child(6),
+      .rd-bm-table th:nth-child(7) {
+        width: 13%;
       }
       .rd-bm-table th {
-        padding: 0.6rem 0.9rem;
+        padding: 0.5rem 0.7rem;
         text-align: right;
-        font-size: 0.7rem;
+        font-size: 0.66rem;
         font-weight: 700;
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         text-transform: uppercase;
         white-space: nowrap;
         color: #6b7a90;
@@ -2359,7 +2378,7 @@
         text-align: left;
       }
       .rd-bm-table td {
-        padding: 0.55rem 0.9rem;
+        padding: 0.4rem 0.7rem;
         vertical-align: middle;
         border-bottom: 1px solid var(--line);
       }
@@ -2370,6 +2389,7 @@
       }
       .rd-bm-num .rd-var-caption {
         display: block;
+        line-height: 1.1;
       }
       .rd-bm-period {
         font-weight: 600;
@@ -2389,9 +2409,10 @@
       }
       .rd-var-stack {
         display: flex;
-        flex-direction: column;
-        align-items: flex-end;
-        gap: 3px;
+        flex-flow: row wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 2px 8px;
       }
       .rd-var-pill {
         display: inline-flex;
