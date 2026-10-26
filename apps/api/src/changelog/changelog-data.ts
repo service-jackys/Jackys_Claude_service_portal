@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 139,
+    title: 'Tasks: optional "Flow look" (dark glass theme)',
+    area: 'Tasks',
+    date: '2026-10-26',
+    approxDate: false,
+    status: null,
+    summary:
+      'Wanted the Tasks section to look like the "Flow Tasks" app (github.com/starboyy07/flow-tasks-): dark aurora background, frosted-glass cards, gradient accents.',
+    changes: [
+      'What changed: A "Flow look" switch at the top right of Tasks turns on a dark aurora and frosted-glass theme across the KPI cards, List, Board, Timeline and the New/Edit panel, with indigo-to-teal gradient buttons, glass priority and type…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration or API restart.',
+    migrations: [],
+    files: 'apps/web/src/{tasks.js,index.html} (display only).',
+  },
+  {
     id: 138,
     title: 'Tasks: ask for the owner in a pop-up when adding a task',
     area: 'Tasks',
