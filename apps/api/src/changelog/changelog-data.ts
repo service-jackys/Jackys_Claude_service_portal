@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 164,
+    title: 'Completed Delivery & Installation jobs appear in the Billing ledger',
+    area: 'Invoices & billing',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'A completed Delivery & Installation job showed its internal billing on the job but not on the Billing page, so accounts had no single internal-billing report for the month. Once every October job is verified against the master workbook, Billing can be relied on for the whole picture.',
+    changes: [
+      "Billing ledger now also lists every line of a Completed Delivery & Installation job, one row per line. Stage is Internal billing (no Record button, same as warranty jobs billed to a channel); Bill to is the line's sales channel; Amount is…",
+      'The same rows feed the Billing totals, Bill-to statement, Cost allocation and the Excel export (new Source column). The "jobs" counts in these views count lines.',
+      'Clicking a D&I reference in the ledger opens that job in Delivery & Installation.',
+      'The Type filter gains CSIDI, CSIDO and CSIII.',
+    ],
+    needsYou:
+      'pull, restart the API (no migration), hard-refresh. Complete a D&I job and look for its lines under Billing, Stage "Internal billing".',
+    migrations: [],
+    files:
+      'packages/db/src/billing-ledger.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.',
+  },
+  {
     id: 163,
     title:
       'Admin → Masters (Stock master + Customers), customer lookup by code, tidier Compare table',

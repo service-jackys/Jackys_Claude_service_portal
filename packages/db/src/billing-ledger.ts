@@ -6,6 +6,40 @@ import type { PoolClient } from 'pg';
 // otherwise service charge plus parts (the same rule as the delivery gate).
 const BILLED = 'COALESCE(j.amount_chargeable, j.grand_total)';
 
+// Two sources feed the ledger, both read as "j":
+//  - service job cards (warranty and service jobs), and
+//  - Completed Delivery & Installation jobs, one row per line (item) with the
+//    revenue saved when the job was completed. They are billed to the line's
+//    sales channel as internal billing, so accounts have one report. Draft and
+//    Cancelled jobs are not in it, and a reopened job drops out until it is
+//    completed again.
+const SOURCE = `(
+  SELECT s.id::text AS id, s.id AS sort_id, 'job-card'::text AS source, s.id::text AS source_ref,
+         s.job_card_reference, s.job_card_date, s.delivery_date, s.billing_job_type,
+         s.warranty_status, s.final_warranty_status, s.warranty_override_reason,
+         s.payment_by, s.bill_to_channel, s.customer_name, s.customer_type,
+         s.b2b_branch_school, s.salesman, s.sales_channel, s.region, s.sales_order_number,
+         s.item_code, s.brand, s.main_group, s.group_name, s.sub_group, s.model_no,
+         s.serial_no, s.technician_name, s.service_charge, s.total_cost, s.grand_total,
+         s.amount_chargeable, s.invoice_no, s.invoice_date, s.payment_mode,
+         s.payment_reference, s.payment_confirmed_at, s.final_status, s.job_final_status,
+         s.created_at
+    FROM service_job_cards s
+  UNION ALL
+  SELECT 'di:' || l.id, l.id, 'dandi', d.id::text,
+         d.reference, d.service_date, d.service_date, l.txn_type,
+         NULL::text, NULL::text, NULL::text,
+         NULL::text, l.sales_channel, d.customer_name, 'B2B',
+         d.customer_name, d.salesman, l.sales_channel, d.region, d.delivery_note_ref,
+         l.item_code, l.brand, l.main_group, l.group_name, l.sub_group, l.item_code,
+         NULL::text, NULL::text, l.revenue, 0::numeric, l.revenue,
+         NULL::numeric, d.erp_inv_no, NULL::date, NULL::text,
+         NULL::text, NULL::timestamptz, 'Completed', 'Completed',
+         COALESCE(d.completed_at, d.created_at)
+    FROM di_job_lines l JOIN di_jobs d ON d.id = l.job_id
+   WHERE d.status = 'Completed'
+)`;
+
 // Anything not paid by the customer is internal billing: warranty jobs (CSIJW) and
 // out-of-warranty B2B jobs billed to the sales channel (JDI, JER-C/INS). There is
 // no ERP invoice to chase; accounts take the report and make the internal
@@ -46,6 +80,10 @@ export type BillingLedgerQuery = {
 export type BillingLedgerRow = {
   id: string;
   jobCardReference: string;
+  /** 'job-card' (service job card) or 'dandi' (a Completed Delivery & Installation line). */
+  source: string;
+  /** The job card id, or the Delivery & Installation job id, to open it. */
+  sourceRef: string;
   jobCardDate: string | null;
   deliveryDate: string | null;
   billingJobType: string | null;
@@ -151,13 +189,13 @@ export async function queryBillingLedger(
 ): Promise<{ rows: BillingLedgerRow[]; total: number }> {
   const { clause, values } = where(query);
   const total = await client.query<{ total: string }>(
-    `SELECT count(*)::text AS total FROM service_job_cards j ${clause}`,
+    `SELECT count(*)::text AS total FROM ${SOURCE} j ${clause}`,
     values,
   );
   const limit = paging ? Math.min(Math.max(paging.pageSize, 1), 200) : 50000;
   const offset = paging ? (Math.max(paging.page, 1) - 1) * limit : 0;
   const result = await client.query(
-    `SELECT j.id, j.job_card_reference AS "jobCardReference",
+    `SELECT j.id, j.source, j.source_ref AS "sourceRef", j.job_card_reference AS "jobCardReference",
             j.job_card_date::text AS "jobCardDate", j.delivery_date::text AS "deliveryDate",
             j.billing_job_type AS "billingJobType",
             j.warranty_status AS "registeredWarranty",
@@ -181,8 +219,8 @@ export async function queryBillingLedger(
             j.payment_mode AS "paymentMode", j.payment_reference AS "paymentReference",
             j.payment_confirmed_at AS "paymentConfirmedAt",
             ${STAGE} AS stage, COALESCE(j.final_status, j.job_final_status) AS "jobFinalStatus"
-     FROM service_job_cards j ${clause}
-     ORDER BY ${BILL_TO} ASC, j.job_card_date DESC NULLS LAST, j.id DESC
+     FROM ${SOURCE} j ${clause}
+     ORDER BY ${BILL_TO} ASC, j.job_card_date DESC NULLS LAST, j.sort_id DESC, j.id DESC
      LIMIT ${limit} OFFSET ${offset}`,
     values,
   );
@@ -203,7 +241,7 @@ export async function billingTotals(
             COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL AND NOT (${INTERNAL})), 0)::float8 AS "invoicedAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL AND NOT (${INTERNAL})), 0)::float8 AS "notInvoicedAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE ${INTERNAL}), 0)::float8 AS "internalAmount"
-     FROM service_job_cards j ${clause}`,
+     FROM ${SOURCE} j ${clause}`,
     values,
   );
   const row = result.rows[0];
@@ -232,7 +270,7 @@ export async function channelStatement(
             COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NOT NULL AND NOT (${INTERNAL})), 0)::float8 AS "invoicedAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE j.invoice_no IS NULL AND NOT (${INTERNAL})), 0)::float8 AS "notInvoicedAmount",
             COALESCE(sum(${BILLED}) FILTER (WHERE j.payment_confirmed_at IS NOT NULL), 0)::float8 AS "paidAmount"
-     FROM service_job_cards j ${clause}
+     FROM ${SOURCE} j ${clause}
      GROUP BY 1 ORDER BY "billedAmount" DESC, 1`,
     values,
   );
@@ -261,7 +299,7 @@ export async function costAllocation(
             COALESCE(sum(j.service_charge), 0)::float8 AS "serviceCharge",
             COALESCE(sum(j.total_cost), 0)::float8 AS "partsCost",
             COALESCE(sum(${BILLED}), 0)::float8 AS "billedAmount"
-     FROM service_job_cards j ${clause}
+     FROM ${SOURCE} j ${clause}
      GROUP BY 1, 2, 3 ORDER BY 1, 2, 3`,
     values,
   );
@@ -279,7 +317,7 @@ export async function costAllocation(
 // Channels that currently appear as a bill-to party, for the filter.
 export async function billToParties(client: PoolClient): Promise<string[]> {
   const result = await client.query<{ party: string }>(
-    `SELECT DISTINCT ${BILL_TO} AS party FROM service_job_cards j
+    `SELECT DISTINCT ${BILL_TO} AS party FROM ${SOURCE} j
      WHERE ${BILLED} > 0 AND j.job_final_status IS DISTINCT FROM 'Cancelled' AND j.payment_by IS DISTINCT FROM 'Customer'
      ORDER BY 1`,
   );

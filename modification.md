@@ -3694,3 +3694,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/062_b2b_customer_master.sql, packages/db/src/{b2b-master,b2b-branches}.ts, apps/api/src/b2b-master/{parser,download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/job-cards/service.ts, tests/integration/{b2b-master,final-status}.test.ts, tests/e2e/{master-downloads,delivery-installation}.spec.ts.
 
 **Needs you:** pull, restart the API (migration 062), hard-refresh. Admin → Masters → Customers → Download customer master to see what the portal holds today.
+
+## Modification #164 — Completed Delivery & Installation jobs appear in the Billing ledger
+
+**Date:** 2026-10-27
+
+**Why.** A completed Delivery & Installation job showed its internal billing on the job but not on the Billing page, so accounts had no single internal-billing report for the month. Once every October job is verified against the master workbook, Billing can be relied on for the whole picture.
+
+**What changed.**
+- **Billing ledger** now also lists every line of a **Completed** Delivery & Installation job, one row per line. Stage is **Internal billing** (no Record button, same as warranty jobs billed to a channel); **Bill to** is the line's sales channel; **Amount** is the revenue saved when the job was completed; **Type** is CSIDI, CSIDO or CSIII. Draft and Cancelled jobs are left out; a job you reopen drops out until it is completed again.
+- The same rows feed the Billing totals, Bill-to statement, Cost allocation and the Excel export (new Source column). The "jobs" counts in these views count lines.
+- Clicking a D&I reference in the ledger opens that job in Delivery & Installation.
+- The Type filter gains CSIDI, CSIDO and CSIII.
+
+**Files.** packages/db/src/billing-ledger.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. Complete a D&I job and look for its lines under Billing, Stage "Internal billing".
