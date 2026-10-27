@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 166,
+    title: 'Back bar polish, Warranty column shows the activity type for Delivery & Installation',
+    area: 'Complaints',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The "Back to" bar showed the sidebar arrow in the page names ("Back to Billing →") and looked plain; and in Billing the Warranty column was blank for Delivery & Installation lines, where warranty does not apply.',
+    changes: [
+      'Back bar: page names no longer carry the sidebar arrow. New look: a clean card with a blue edge, a soft "‹ Back to Billing" button, and a chevron breadcrumb with the current page highlighted. Opening a job from far down a long table now…',
+      'Billing ledger and Excel export: for jobs other than CSIJW / CSIJO (CSIDI, CSIDO, CSIII), Registered and Final Warranty show the activity type, the same as the Type column.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files:
+      'apps/web/src/app.js, apps/web/src/index.html, packages/db/src/billing-ledger.ts, tests/e2e/billing.spec.ts, tests/integration/dandi-billing-ledger.test.ts.',
+  },
+  {
     id: 165,
     title: '"Back to" bar between pages, clearer mixed-type Billing rows, Compare shows 0.00',
     area: 'Invoices & billing',

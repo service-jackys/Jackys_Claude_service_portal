@@ -891,7 +891,15 @@
   );
   function currentPageLabel() {
     const active = document.querySelector('.dashboard-nav [aria-current="page"]');
-    return active ? active.textContent.replace(/\s+/g, ' ').trim() : '';
+    if (!active) return '';
+    const label = active.querySelector('.nav-label');
+    const text = label
+      ? label.textContent
+      : active.getAttribute('aria-label') || active.textContent;
+    return text
+      .replace(/\s+/g, ' ')
+      .replace(/\s*[→›]+\s*$/, '')
+      .trim();
   }
   function goBackTo(level) {
     // level = index in navTrail of the page to return to; the pages after it are dropped.
@@ -921,9 +929,9 @@
       (navTrail.length - 1) +
       '" title="Back to ' +
       escapeHtml(top.label) +
-      '"><span aria-hidden="true">&larr;</span> Back to ' +
+      '"><svg class="return-chevron" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" /></svg><span>Back to ' +
       escapeHtml(top.label) +
-      '</button>' +
+      '</span></button>' +
       '<nav class="return-crumbs" aria-label="Where you came from"><ol>' +
       navTrail
         .map(
@@ -958,6 +966,8 @@
     }
     activateWorkspaceMode(mode);
     drawReturnBar();
+    // A link far down a long table opens the next page at its top, where the way back is.
+    if (drillIn && mode !== from) window.scrollTo({ top: 0 });
   }
 
   function activateWorkspaceMode(mode) {

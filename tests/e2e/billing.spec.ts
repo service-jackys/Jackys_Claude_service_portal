@@ -665,8 +665,8 @@ test.describe('warranty and billing', () => {
       jobCardDate: '2026-10-20',
       deliveryDate: '2026-10-20',
       billingJobType: 'CSIDI',
-      registeredWarranty: null,
-      finalWarranty: null,
+      registeredWarranty: 'CSIDI',
+      finalWarranty: 'CSIDI',
       warrantyChangeReason: null,
       payer: 'Sales channel',
       billTo: 'JDI',
@@ -768,6 +768,7 @@ test.describe('warranty and billing', () => {
     await expect(page.getByRole('button', { name: 'Record' })).toHaveCount(0);
 
     // A job with more than one activity type says so on each of its lines.
+    await expect(row.locator('td').nth(3)).toHaveText('CSIDI');
     await expect(row).toContainText('job also has CSIDO');
     await expect(row).toContainText('job total 117.00');
 
@@ -783,7 +784,9 @@ test.describe('warranty and billing', () => {
       page
         .getByRole('navigation', { name: 'Where you came from' })
         .locator('[aria-current="page"]'),
-    ).toContainText('Delivery');
+    ).toHaveText('Delivery & Installation');
+    // The sidebar arrow is not part of the page name.
+    await expect(back.first()).toHaveText('Back to Billing');
     await back.first().click();
     await expect(page.locator('select[data-acc="type"]')).toHaveValue('CSIDI');
     await expect(page.locator('#returnBar')).toBeHidden();

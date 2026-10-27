@@ -3725,3 +3725,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh. Open Billing, click a DIJ reference, then use Back to Billing.
+
+## Modification #166 — Back bar polish, Warranty column shows the activity type for Delivery & Installation
+
+**Date:** 2026-10-27
+
+**Why.** The "Back to" bar showed the sidebar arrow in the page names ("Back to Billing →") and looked plain; and in Billing the Warranty column was blank for Delivery & Installation lines, where warranty does not apply.
+
+**What changed.**
+- **Back bar:** page names no longer carry the sidebar arrow. New look: a clean card with a blue edge, a soft "‹ Back to Billing" button, and a chevron breadcrumb with the current page highlighted. Opening a job from far down a long table now scrolls to the top, where the bar is.
+- **Billing ledger and Excel export:** for jobs other than CSIJW / CSIJO (CSIDI, CSIDO, CSIII), Registered and Final Warranty show the activity type, the same as the Type column.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, packages/db/src/billing-ledger.ts, tests/e2e/billing.spec.ts, tests/integration/dandi-billing-ledger.test.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.
