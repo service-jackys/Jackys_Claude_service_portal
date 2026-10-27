@@ -257,9 +257,14 @@ export async function actualRevenue(
   revenueBatchId: string | null,
   fromDate: string,
   toDate: string,
-  options: { portalJobCards?: boolean } = {},
+  options: { portalJobCards?: boolean; portalDandi?: boolean } = {},
 ) {
   const rows: ActualRow[] = [];
+  // Job types the workbook upload no longer supplies once the portal supplies them.
+  const ignoredWorkbookTypes = [
+    ...(options.portalJobCards ? ['CSIJW', 'CSIJO'] : []),
+    ...(options.portalDandi ? ['CSIDI', 'CSIDO', 'CSIII'] : []),
+  ];
   if (revenueBatchId) {
     const r = await client.query<ActualRow>(
       `SELECT 'excel_job_type' AS kind, upper(job_type) AS "matchValue",
@@ -268,9 +273,9 @@ export async function actualRevenue(
        FROM revenue_lines
        WHERE batch_id = $1 AND year IS NOT NULL AND month_no BETWEEN 1 AND 12
          AND make_date(year, month_no, 1) >= $2::date AND make_date(year, month_no, 1) < $3::date
-         ${options.portalJobCards ? `AND upper(job_type) NOT IN ('CSIJW', 'CSIJO')` : ''}
+         AND upper(job_type) <> ALL($4::text[])
        GROUP BY 1, 2, 3`,
-      [revenueBatchId, fromDate, toDate],
+      [revenueBatchId, fromDate, toDate, ignoredWorkbookTypes],
     );
     rows.push(...r.rows);
   }
@@ -303,6 +308,18 @@ export async function actualRevenue(
          AND job_final_status IS DISTINCT FROM 'Cancelled'
          AND billing_job_type IN ('CSIJW', 'CSIJO')
          AND (invoice_no IS NOT NULL OR final_status = 'Delivered')`
+           : ''
+       }
+       ${
+         options.portalDandi
+           ? `UNION ALL
+       -- Delivery & Installation: Completed jobs, on the service date, at the figures
+       -- frozen when the job was completed. Delivery only counts one trip per charge.
+       SELECT 'portal_dandi_' || lower(l.txn_type), j.service_date, COALESCE(l.revenue, 0),
+              CASE WHEN l.txn_type = 'CSIDO' THEN (CASE WHEN COALESCE(l.charge, 0) > 0 THEN 1 ELSE 0 END)
+                   ELSE l.qty END
+       FROM di_job_lines l JOIN di_jobs j ON j.id = l.job_id
+       WHERE j.status = 'Completed'`
            : ''
        }
      ) x

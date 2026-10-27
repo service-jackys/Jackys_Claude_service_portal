@@ -28,6 +28,8 @@ import { createCategoryMappingHandlers } from '../category-mappings/routes.js';
 import { createCategoryMappingService } from '../category-mappings/service.js';
 import { createDiJobHandlers } from '../dandi-jobs/routes.js';
 import { createDiJobService } from '../dandi-jobs/jobs-service.js';
+import { createSalesmanAliasHandlers } from '../salesman-aliases/routes.js';
+import { createSalesmanAliasService } from '../salesman-aliases/service.js';
 import { createSalesChannelHandlers } from '../sales-channels/routes.js';
 import { createSalesChannelService } from '../sales-channels/service.js';
 import { createInvoiceHandlers } from '../invoices/routes.js';
@@ -117,6 +119,7 @@ export type RouteDefinition = {
     | 'diJob'
     | 'diPriceNote'
     | 'diSettings'
+    | 'salesmanAlias'
     | 'billingRule'
     | 'taxInvoiceIssue'
     | 'taxInvoiceUpdate'
@@ -425,6 +428,22 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
       };
+  const aliasHandlers = pool
+    ? createSalesmanAliasHandlers(createSalesmanAliasService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        remove: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
   const diJobHandlerKeys = [
     'options',
     'customers',
@@ -437,6 +456,7 @@ export function createRouteCatalog(
     'complete',
     'cancel',
     'reopen',
+    'compare',
     'updateSettings',
   ] as const;
   const diJobHandlers: Record<(typeof diJobHandlerKeys)[number], RequestHandler[]> = pool
@@ -1949,6 +1969,49 @@ export function createRouteCatalog(
         requestBody: 'diJob' as const,
         responses: [201, 400, 401, 403, 500],
         handlers: diJobHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/compare',
+        operationId: 'compareDiJobsWithWorkbook',
+        tags: ['Delivery & installation'],
+        summary: 'Compare one month of the master workbook with the Completed portal jobs',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'month', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 409, 500],
+        handlers: diJobHandlers.compare,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/salesman-aliases',
+        operationId: 'listSalesmanAliases',
+        tags: ['Master data'],
+        summary: 'List the other spellings of salesman names',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: aliasHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/salesman-aliases',
+        operationId: 'createSalesmanAlias',
+        tags: ['Master data'],
+        summary: 'Add another spelling of a salesman name',
+        security: 'bearerAuth' as const,
+        requestBody: 'salesmanAlias' as const,
+        responses: [201, 400, 401, 403, 409, 500],
+        handlers: aliasHandlers.create,
+      },
+      {
+        method: 'delete' as const,
+        path: '/api/salesman-aliases/{id}',
+        operationId: 'deleteSalesmanAlias',
+        tags: ['Master data'],
+        summary: 'Remove a salesman alias',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: aliasHandlers.remove,
       },
       {
         method: 'get' as const,

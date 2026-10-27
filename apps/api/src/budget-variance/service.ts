@@ -42,6 +42,9 @@ const SOURCE_KINDS = [
   'portal_thomson',
   'portal_job_csijw',
   'portal_job_csijo',
+  'portal_dandi_csidi',
+  'portal_dandi_csido',
+  'portal_dandi_csiii',
 ] as const;
 
 const phasingSchema = z
@@ -59,6 +62,7 @@ const configSchema = z.object({
       variance_months: z.enum(['closed', 'all']).optional(),
       amc_recognition: z.enum(['start']).optional(),
       portal_job_card_revenue: z.boolean().optional(),
+      portal_dandi_revenue: z.boolean().optional(),
       compare_quantity: z.boolean().optional(),
     })
     .optional(),
@@ -369,6 +373,7 @@ export function createBudgetVarianceService(pool: Pool) {
       const toDate = fm === 12 ? `${fy + 1}-01-01` : `${fy}-${String(fm + 1).padStart(2, '0')}-01`;
       const actual = await actualRevenue(client, revenueBatch?.id ?? null, fromDate, toDate, {
         portalJobCards: settings.portal_job_card_revenue === true,
+        portalDandi: settings.portal_dandi_revenue === true,
       });
 
       const mapIndex = new Map(

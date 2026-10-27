@@ -12948,6 +12948,51 @@
                 </section>
                 <section
                   class="detail-action-card"
+                  id="salesmanAliasSection"
+                  aria-labelledby="salesmanAliasHeading"
+                  hidden
+                >
+                  <h4 id="salesmanAliasHeading">Salesman spellings</h4>
+                  <p class="form-note">
+                    Some names are written differently in the B2B customer list or the master
+                    workbook (for example in capitals, or with one letter different). Add the other
+                    spelling here so the portal recognises it. The name in the Salesmen list stays
+                    the one spelling used everywhere else.
+                  </p>
+                  <div class="table-wrap">
+                    <table>
+                      <caption class="visually-hidden">
+                        Salesman spellings
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Other spelling</th>
+                          <th>Salesman</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="salesmanAliasBody"></tbody>
+                    </table>
+                  </div>
+                  <form id="salesmanAliasForm" class="field-grid" novalidate hidden>
+                    <div class="field">
+                      <label for="salesmanAliasText">Other spelling</label>
+                      <input id="salesmanAliasText" maxlength="200" />
+                    </div>
+                    <div class="field">
+                      <label for="salesmanAliasSalesman">Salesman</label>
+                      <select id="salesmanAliasSalesman">
+                        <option value="">Select a salesman</option>
+                      </select>
+                    </div>
+                    <div class="field">
+                      <label>&nbsp;</label>
+                      <button class="button button-primary" type="submit">Add spelling</button>
+                    </div>
+                  </form>
+                </section>
+                <section
+                  class="detail-action-card"
                   id="channelReportingSection"
                   aria-labelledby="channelReportingHeading"
                   hidden
