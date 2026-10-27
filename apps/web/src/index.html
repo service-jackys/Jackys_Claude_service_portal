@@ -205,6 +205,26 @@
         align-items: center;
         gap: 0.65rem;
       }
+      /* Small pill used for "Download Excel" buttons (stock master, revenue sources). */
+      .button.dl-pill {
+        min-height: 0;
+        gap: 0.35rem;
+        border: 1px solid var(--line, #c9d6e6);
+        border-radius: 999px;
+        padding: 0.2rem 0.7rem;
+        background: #fff;
+        color: #10233f;
+        font-size: 0.76rem;
+        font-weight: 600;
+        line-height: 1.4;
+        box-shadow: none;
+      }
+      .button.dl-pill:hover:not(:disabled) {
+        background: #eaf1fa;
+      }
+      .button.dl-pill:disabled {
+        opacity: 0.6;
+      }
       .button {
         display: inline-flex;
         min-height: 44px;
