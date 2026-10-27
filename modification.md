@@ -3540,3 +3540,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/057_dandi_masters.sql, packages/db/src/category-mappings.ts, packages/db/src/billing-rules.ts, packages/db/src/sales-channels.ts, apps/api/src/category-mappings/, apps/api/src/job-cards/billing.ts, apps/api/src/job-cards/service.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/billing.test.ts, tests/integration/dandi-masters.test.ts.
 
 **Needs you:** pull, npm install, restart the API (runs migration 057), hard-refresh. Then open Salesmen & channels: check the reporting names (JDI should show HAA, JER-C/INS should show INS), link the unmapped stock groups, and add the Raneesh Jose brand rules on Billing → Billing rules. The salesman name must be written as it is spelled in the Salesmen master; the Raneesh / Reneesh spelling difference with the workbook is handled in the comparison phase.
+
+## Modification #155 — Billing rules moved to Management → Billing
+
+**Date:** 2026-10-27
+
+**Why.** Billing rules decide which sales channel is billed, so they belong with the billing ledger, not with the job invoices.
+
+**What changed.**
+- **Management → Billing** has a fourth tab, **Billing rules**, after Cost allocation. The period filters and totals above the ledger are hidden on that tab because they do not apply to it.
+- The Invoices page no longer has a Billing rules tab; it shows the job invoices directly.
+- Same rules, same permissions: anyone who can open Billing can read the rules; only the super admin (sales channels write) sees the Add a rule form and the Turn on / Turn off buttons. Salesman and Brand are picked from the masters (see #154).
+
+**Files.** apps/web/src/app.js, tests/e2e/billing.spec.ts.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart needed.
