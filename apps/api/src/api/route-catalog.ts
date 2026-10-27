@@ -62,6 +62,8 @@ import { createAuditService } from '../audit/service.js';
 import { recordAuthEvent } from '../audit/record.js';
 import { createRateCardViewHandlers } from '../rate-card-view/routes.js';
 import { createRateCardViewService } from '../rate-card-view/service.js';
+import { createB2bMasterHandlers } from '../b2b-master/routes.js';
+import { createB2bMasterService } from '../b2b-master/service.js';
 import { createStockMasterHandlers } from '../stock-master/routes.js';
 import { createStockMasterService } from '../stock-master/service.js';
 import { createReportHandlers } from '../reports/routes.js';
@@ -766,6 +768,9 @@ export function createRouteCatalog(
         requireAnyPermission,
       )
     : unavailableHandlers(['upload', 'download', 'status', 'search', 'facets']);
+  const b2bMasterHandlers = pool
+    ? createB2bMasterHandlers(createB2bMasterService(pool), requirePermission)
+    : unavailableHandlers(['upload', 'download', 'status']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -2965,6 +2970,47 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: stockMasterHandlers.status,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/b2b-master/upload',
+        operationId: 'uploadB2bCustomerMaster',
+        tags: ['B2B Customer Master'],
+        summary:
+          'Upload the B2B customer list (.xlsx: Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date) into the customer master (multipart/form-data: file)',
+        security: 'bearerAuth' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: b2bMasterHandlers.upload,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/b2b-master/download',
+        operationId: 'downloadB2bCustomerMaster',
+        tags: ['B2B Customer Master'],
+        summary:
+          'Download the current B2B customer master as Excel (source=upload gives the last uploaded file as uploaded)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'source',
+            in: 'query',
+            required: false,
+            schema: { type: 'string', enum: ['master', 'upload'] },
+          },
+        ],
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: b2bMasterHandlers.download,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/b2b-master/status',
+        operationId: 'getB2bCustomerMasterStatus',
+        tags: ['B2B Customer Master'],
+        summary: 'Last upload, customer counts and how many customers are not in the latest file',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: b2bMasterHandlers.status,
       },
       {
         method: 'get' as const,

@@ -833,7 +833,7 @@
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
     $('#changelogNav').hidden = !hasPermission('admin.users');
-    $('#stockMasterNav').hidden = !hasPermission('stock.write');
+    $('#mastersNav').hidden = !(hasPermission('stock.write') || hasPermission('b2b_master.write'));
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
@@ -1670,8 +1670,12 @@
     let branch = null;
     try {
       const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(name));
+      // The field takes the customer name, or the customer code (Cust_Code) -- either loads the customer.
+      const wanted = name.toLowerCase();
       branch = (result.branches || []).find(
-        (item) => String(item.branchName).trim().toLowerCase() === name.toLowerCase(),
+        (item) =>
+          String(item.branchName).trim().toLowerCase() === wanted ||
+          String(item.custCode).trim().toLowerCase() === wanted,
       );
     } catch {
       return;
@@ -1680,7 +1684,7 @@
     if (!branch) {
       setBranchHint(
         prefix,
-        'This name is not in the B2B Branch / School list. Pick the correct school from the suggestions to load its salesman and sales channel.',
+        'This name or customer code is not in the B2B Branch / School list. Pick the correct school from the suggestions to load its salesman and sales channel.',
         'warn',
       );
       return;
@@ -1725,9 +1729,12 @@
         try {
           const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(term));
           if (mine !== seq) return;
-          const names = [...new Set((result.branches || []).map((item) => item.branchName))];
-          list.innerHTML = names
-            .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+          // The name is what gets filled in; the label also carries the customer code, which can be typed too.
+          list.innerHTML = (result.branches || [])
+            .map(
+              (item) =>
+                `<option value="${escapeHtml(item.branchName)}" label="${escapeHtml(item.branchName)} (${escapeHtml(item.custCode)})"></option>`,
+            )
             .join('');
         } catch {
           list.innerHTML = '';
@@ -2434,9 +2441,11 @@
         try {
           const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(term));
           if (mine !== seq) return;
-          const names = [...new Set((result.branches || []).map((branch) => branch.branchName))];
-          list.innerHTML = names
-            .map((name) => `<option value="${escapeHtml(name)}"></option>`)
+          list.innerHTML = (result.branches || [])
+            .map(
+              (branch) =>
+                `<option value="${escapeHtml(branch.branchName)}" label="${escapeHtml(branch.branchName)} (${escapeHtml(branch.custCode)})"></option>`,
+            )
             .join('');
         } catch {
           list.innerHTML = '';
@@ -11445,7 +11454,7 @@ ${bodyHtml}
   // Download an uploaded master file for checking. The server sends the file
   // exactly as uploaded when it still holds it, else an Excel rebuilt from the
   // stored rows (X-Download-Source says which). Returns a short status line.
-  async function downloadMasterFile(url, fallbackName) {
+  async function downloadMasterFile(url, fallbackName, rebuiltNote) {
     const headers = new Headers();
     if (authToken) headers.set('authorization', 'Bearer ' + authToken);
     const response = await fetch(url, { headers });
@@ -11466,7 +11475,8 @@ ${bodyHtml}
       ? 'Downloaded ' + fileName + ' (the file exactly as uploaded).'
       : 'Downloaded ' +
           fileName +
-          ' (rebuilt from the data the portal stored; the original file was uploaded before the portal kept copies).';
+          (rebuiltNote ||
+            ' (rebuilt from the data the portal stored; the original file was uploaded before the portal kept copies).');
   }
 
   function smReport(upload) {
@@ -11527,6 +11537,269 @@ ${bodyHtml}
       );
     }
     return parts.join('');
+  }
+
+  // Admin > Masters: one place for the master lists that the forms read.
+  let mastersTab = 'stock';
+  async function renderMastersPage(root) {
+    const tabs = [];
+    if (hasPermission('stock.write')) tabs.push(['stock', 'Stock master']);
+    if (hasPermission('b2b_master.write')) tabs.push(['customers', 'Customers']);
+    if (!tabs.some(([key]) => key === mastersTab)) mastersTab = tabs[0][0];
+    root.innerHTML =
+      '<div class="ws-tabs" role="tablist" aria-label="Masters">' +
+      tabs
+        .map(
+          ([key, label]) =>
+            '<button type="button" role="tab" class="ws-tab' +
+            (key === mastersTab ? ' is-active' : '') +
+            '" data-masters-tab="' +
+            key +
+            '" aria-selected="' +
+            (key === mastersTab ? 'true' : 'false') +
+            '">' +
+            label +
+            '</button>',
+        )
+        .join('') +
+      '</div><div data-masters-body></div>';
+    const body = root.querySelector('[data-masters-body]');
+    root.querySelectorAll('[data-masters-tab]').forEach((button) =>
+      button.addEventListener('click', () => {
+        mastersTab = button.dataset.mastersTab;
+        renderMastersPage(root);
+      }),
+    );
+    if (mastersTab === 'customers') await renderCustomerMasterPage(body);
+    else await renderStockMasterPage(body);
+  }
+
+  function b2bReport(upload) {
+    const report = upload.report || {};
+    const parts = [
+      '<p class="sm-summary"><strong>' +
+        escapeHtml(upload.fileName) +
+        '</strong> · ' +
+        upload.rowCount +
+        ' rows · ' +
+        upload.customerCount +
+        ' customers · <strong>' +
+        upload.newCustomers +
+        ' new</strong> · ' +
+        upload.changedCustomers +
+        ' changed</p>',
+    ];
+    if (report.changes && report.changes.length) {
+      parts.push(
+        '<details class="sm-details"><summary>Changed customers (' +
+          report.changeCount +
+          (report.changeCount > report.changes.length
+            ? ', first ' + report.changes.length + ' shown'
+            : '') +
+          ')</summary><ul>' +
+          report.changes
+            .map(
+              (change) =>
+                '<li><strong>' +
+                escapeHtml(change.custCode) +
+                '</strong>: ' +
+                change.fields
+                  .map(
+                    (f) =>
+                      escapeHtml(f.field) +
+                      ' “' +
+                      escapeHtml(f.from ?? '—') +
+                      '” → “' +
+                      escapeHtml(f.to ?? '—') +
+                      '”',
+                  )
+                  .join('; ') +
+                '</li>',
+            )
+            .join('') +
+          '</ul></details>',
+      );
+    }
+    if (report.warnings && report.warnings.length) {
+      parts.push(
+        '<details class="sm-details" open><summary>Warnings (' +
+          report.warningCount +
+          ')</summary><ul>' +
+          report.warnings.map((warning) => '<li>' + escapeHtml(warning) + '</li>').join('') +
+          '</ul></details>',
+      );
+    }
+    return parts.join('');
+  }
+
+  async function renderCustomerMasterPage(root) {
+    root.innerHTML = '<p class="form-note">Loading&hellip;</p>';
+    let status;
+    try {
+      status = await apiRequest('/api/b2b-master/status');
+    } catch (error) {
+      root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      return;
+    }
+    const last = status.lastUpload;
+    const n = (value) => Number(value).toLocaleString('en-GB');
+    root.innerHTML =
+      '<div class="rcv-banner"><strong>B2B customers</strong><span>' +
+      n(status.totalCustomers) +
+      ' customers · ' +
+      n(status.withoutSalesman) +
+      ' without a salesman · ' +
+      n(status.withoutChannel) +
+      ' without a sales channel</span></div>' +
+      '<section class="detail-action-card"><h4>Customer master ' +
+      tipHtml(
+        'The list behind every “Look up B2B customer / Branch / School” box: complaints, appointments, job cards and Delivery & Installation. ' +
+          'Each upload adds new customers and updates the ones that changed (matched by Cust Code). A blank cell keeps what is already stored. Customers that are not in the file are kept and counted below.',
+      ) +
+      '</h4>' +
+      (last
+        ? '<p>' +
+          escapeHtml(last.fileName) +
+          ' · ' +
+          n(last.customerCount) +
+          ' customers · uploaded ' +
+          escapeHtml(smDate(last.uploadedAt)) +
+          (last.uploadedByName ? ' by ' + escapeHtml(last.uploadedByName) : '') +
+          '</p>' +
+          (status.notInFileCount
+            ? '<p class="sm-warn">' +
+              n(status.notInFileCount) +
+              ' customer(s) not in the latest file (kept)</p>'
+            : '')
+        : '<p class="form-note">No upload yet. The list below came from the original import.</p>') +
+      '<p><button class="button dl-pill" type="button" data-b2b-dl>Download customer master</button>' +
+      (last && last.hasFile
+        ? ' <button class="button dl-pill" type="button" data-b2b-dl-up>Download last uploaded file</button>'
+        : '') +
+      '</p><p class="form-note" data-b2b-dl-msg role="status"></p></section>' +
+      '<section class="detail-action-card"><h4>Upload customer list ' +
+      tipHtml(
+        'Choose an .xlsx with the columns: Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date. Only Cust Code and Customer are required. ' +
+          'Download the customer master, edit it in Excel and upload it back. An ERP invoice report (Cust_Code, Customer, Salesman, Inv/Del No) also works: where a customer has several rows, the latest is used.',
+      ) +
+      '</h4>' +
+      '<div class="sm-upload"><input type="file" accept=".xlsx" data-b2b-file />' +
+      '<button class="button button-primary" type="button" data-b2b-upload>Upload</button></div>' +
+      '<p class="form-note" data-b2b-msg role="status"></p><div data-b2b-report></div></section>' +
+      '<section class="detail-action-card"><h4>Look up a customer</h4>' +
+      '<div class="field"><label for="b2bMasterSearch">Customer name or Cust Code</label>' +
+      '<input id="b2bMasterSearch" type="text" autocomplete="off" placeholder="e.g. GEMS Wellington or 191065" /></div>' +
+      '<div data-b2b-hits></div></section>' +
+      '<section class="detail-action-card"><h4>Recent uploads</h4>' +
+      (status.recentUploads.length
+        ? status.recentUploads
+            .map(
+              (upload) =>
+                '<details class="sm-details"><summary>' +
+                escapeHtml(upload.fileName) +
+                ' · ' +
+                escapeHtml(smDate(upload.uploadedAt)) +
+                '</summary>' +
+                b2bReport(upload) +
+                '</details>',
+            )
+            .join('')
+        : '<p class="form-note">Nothing uploaded yet.</p>') +
+      '</section>';
+
+    const note = root.querySelector('[data-b2b-dl-msg]');
+    const wireDownload = (selector, url, fallback, rebuiltNote) => {
+      const button = root.querySelector(selector);
+      if (!button) return;
+      button.addEventListener('click', async () => {
+        button.disabled = true;
+        note.textContent = 'Preparing the file…';
+        try {
+          note.textContent = await downloadMasterFile(url, fallback, rebuiltNote);
+        } catch (error) {
+          note.textContent = error.message || 'The download failed.';
+        } finally {
+          button.disabled = false;
+        }
+      });
+    };
+    wireDownload(
+      '[data-b2b-dl]',
+      '/api/b2b-master/download',
+      'B2B_customers.xlsx',
+      ' (every customer in the master; edit it and upload it back).',
+    );
+    wireDownload(
+      '[data-b2b-dl-up]',
+      '/api/b2b-master/download?source=upload',
+      'B2B_customers_upload.xlsx',
+    );
+
+    const button = root.querySelector('[data-b2b-upload]');
+    const msg = root.querySelector('[data-b2b-msg]');
+    button.addEventListener('click', async () => {
+      const file = root.querySelector('[data-b2b-file]').files[0];
+      if (!file) {
+        msg.textContent = 'Choose the .xlsx file first.';
+        return;
+      }
+      button.disabled = true;
+      msg.textContent = 'Uploading and reading the file…';
+      try {
+        const form = new FormData();
+        form.append('file', file);
+        const result = await apiUploadRequest('/api/b2b-master/upload', form);
+        await renderCustomerMasterPage(root);
+        root.querySelector('[data-b2b-report]').innerHTML = b2bReport(result.upload);
+        root.querySelector('[data-b2b-msg]').textContent = 'Upload complete.';
+      } catch (error) {
+        msg.textContent = error.message || 'The upload failed.';
+        button.disabled = false;
+      }
+    });
+
+    const search = root.querySelector('#b2bMasterSearch');
+    const hits = root.querySelector('[data-b2b-hits]');
+    let timer = null;
+    let seq = 0;
+    const draw = async () => {
+      const term = search.value.trim();
+      const mine = ++seq;
+      try {
+        const result = await apiRequest(
+          '/api/b2b-branches' + (term ? '?query=' + encodeURIComponent(term) : ''),
+        );
+        if (mine !== seq) return;
+        const rows = result.branches || [];
+        hits.innerHTML = rows.length
+          ? '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Cust Code</th><th>Customer</th><th>Salesman</th><th>Sales channel</th><th>Last sales order</th></tr></thead><tbody>' +
+            rows
+              .map(
+                (r) =>
+                  '<tr><td>' +
+                  escapeHtml(r.custCode) +
+                  '</td><td>' +
+                  escapeHtml(r.branchName) +
+                  '</td><td>' +
+                  escapeHtml(r.salesman || '—') +
+                  '</td><td>' +
+                  escapeHtml(r.salesChannel || '—') +
+                  '</td><td>' +
+                  escapeHtml(r.lastSalesOrderNumber || '—') +
+                  '</td></tr>',
+              )
+              .join('') +
+            '</tbody></table></div><p class="form-note">Showing up to 20 matches.</p>'
+          : '<p class="form-note">No customer matches.</p>';
+      } catch (error) {
+        hits.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
+      }
+    };
+    search.addEventListener('input', () => {
+      clearTimeout(timer);
+      timer = setTimeout(draw, 250);
+    });
+    draw();
   }
 
   async function renderStockMasterPage(root) {
@@ -11667,7 +11940,7 @@ ${bodyHtml}
       '<div class="field-grid" id="wiB2bFields" hidden>' +
       '<div class="field"><label for="wiB2bLookup">Look up B2B Branch / School ' +
       tip('Picks the branch, sales order no. and salesman together.') +
-      '</label><input id="wiB2bLookup" type="text" autocomplete="off" placeholder="Start typing a branch or school name…" /></div>' +
+      '</label><input id="wiB2bLookup" type="text" autocomplete="off" placeholder="Type a branch or school name, or its customer code (e.g. 191065)…" /></div>' +
       '<ul id="wiB2bResults" class="b2b-branch-results field-wide" hidden></ul>' +
       '<div class="field"><label for="wiB2bBranchSchool">B2B Branch / School <span class="required">*</span></label><input id="wiB2bBranchSchool" maxlength="300" /><span class="field-error" data-error-for="wiB2bBranchSchool"></span></div>' +
       '<div class="field"><label for="wiSchoolContactPerson">Site contact person</label><input id="wiSchoolContactPerson" maxlength="500" /></div>' +
@@ -13651,15 +13924,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderRateCardPage(root),
     },
-    'stock-master': {
-      navId: 'stockMasterNav',
-      workspaceId: 'stockMasterWorkspace',
-      heading: 'Stock master',
-      description: 'Upload the ERP Item Listing; items are searched by item code on the forms.',
-      permission: 'stock.write',
+    masters: {
+      navId: 'mastersNav',
+      workspaceId: 'mastersWorkspace',
+      heading: 'Masters',
+      description:
+        'Upload and check the master lists the forms read: stock items and B2B customers.',
+      permission: ['stock.write', 'b2b_master.write'],
       hideCurrencyNote: true,
       domains: [],
-      load: (root) => renderStockMasterPage(root),
+      load: (root) => renderMastersPage(root),
     },
     'walk-in': {
       navId: 'walkInNav',
@@ -13769,7 +14043,10 @@ ${bodyHtml}
   async function activatePricingCalcMode(mode) {
     const page = PRICING_CALC_PAGES[mode];
     if (!page) return;
-    if (!hasPermission(page.permission || 'pricing_config.read')) return;
+    const allowed = Array.isArray(page.permission)
+      ? page.permission.some((code) => hasPermission(code))
+      : hasPermission(page.permission || 'pricing_config.read');
+    if (!allowed) return;
     workspaceMode = mode;
     Object.values(PRICING_ADMIN_PAGES).forEach((other) => {
       $('#' + other.navId).setAttribute('aria-current', 'false');
@@ -14358,7 +14635,7 @@ ${bodyHtml}
         '<section class="detail-action-card"><h4>Customer and sales</h4><div class="field-grid">' +
         (locked()
           ? ''
-          : '<div class="field"><label for="diCustLookup">Look up B2B customer</label><input id="diCustLookup" type="text" autocomplete="off" placeholder="Start typing a branch or school name…" /></div>' +
+          : '<div class="field"><label for="diCustLookup">Look up B2B customer</label><input id="diCustLookup" type="text" autocomplete="off" placeholder="Type a branch or school name, or its customer code (e.g. 191065)…" /></div>' +
             '<ul id="diCustResults" class="b2b-branch-results field-wide" hidden></ul>') +
         '<div class="field"><label>B2B customer <span class="required">*</span></label><div class="di-readonly" data-di-customer></div><span class="field-error" data-error-for="diCustLookup"></span></div>' +
         '<div class="field"><label for="diSalesman">Salesman <span class="required">*</span></label><select id="diSalesman"' +
@@ -15370,14 +15647,17 @@ ${bodyHtml}
         };
         const shown = data.rows.filter((r) => c.showMatched || r.status !== 'match');
         html +=
-          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Status</th><th>Inv/Del No</th><th>Customer</th><th>Date</th><th class="num">Excel (AED)</th><th class="num">Portal (AED)</th><th class="num">Difference</th><th>Portal job</th><th>Notes</th></tr></thead><tbody>' +
+          '<p class="form-note">Click an Inv/Del No to see why it matches or differs in the worked example below.</p>' +
+          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Status</th><th>Inv/Del No</th><th>Customer</th><th>Date</th><th class="num">Excel (AED)</th><th class="num">Portal (AED)</th><th class="num">Difference</th><th>Portal job</th></tr></thead><tbody>' +
           (shown.length
             ? shown
                 .map(
                   (r) =>
-                    '<tr><td>' +
+                    '<tr><td><span class="di-st di-st-' +
+                    escapeHtml(r.status) +
+                    '">' +
                     escapeHtml(STATUS[r.status]) +
-                    '</td><td><button class="button-link" type="button" data-di-ex-key="' +
+                    '</span></td><td><button class="button-link" type="button" data-di-ex-key="' +
                     escapeHtml(r.key) +
                     '" title="Show the worked example">' +
                     escapeHtml(r.key) +
@@ -15402,12 +15682,10 @@ ${bodyHtml}
                           '</button>',
                       )
                       .join(' ') +
-                    '</td><td style="white-space:normal">' +
-                    r.notes.map((n) => escapeHtml(n)).join('<br>') +
                     '</td></tr>',
                 )
                 .join('')
-            : '<tr><td colspan="9" class="empty-state">Nothing to show.</td></tr>') +
+            : '<tr><td colspan="8" class="empty-state">Nothing to show.</td></tr>') +
           '</tbody></table></div>';
         html += exampleSectionHtml(data);
       }
@@ -22156,7 +22434,7 @@ ${bodyHtml}
   $('#activityLogNav')?.addEventListener('click', () => setWorkspaceMode('activity-log'));
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#changelogNav')?.addEventListener('click', () => setWorkspaceMode('changelog'));
-  $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
+  $('#mastersNav')?.addEventListener('click', () => setWorkspaceMode('masters'));
   // "Download Excel" on the revenue / budget source banner.
   document.addEventListener('click', async (event) => {
     const button = event.target instanceof Element ? event.target.closest('[data-rd-dl]') : null;

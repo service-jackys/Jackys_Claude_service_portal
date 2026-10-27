@@ -42,6 +42,11 @@ export async function searchB2bBranchesForStaff(
   }>
 > {
   const trimmed = (query ?? '').trim();
+  const columns = `cust_code AS "custCode", branch_name AS "branchName", salesman,
+                sales_channel AS "salesChannel",
+                last_sales_order_number AS "lastSalesOrderNumber"`;
+  // The text is looked for in the customer name and in the customer code (Cust_Code);
+  // an exact code comes first, then codes that start with it, then names.
   const result = await client.query<{
     custCode: string;
     branchName: string;
@@ -50,20 +55,18 @@ export async function searchB2bBranchesForStaff(
     lastSalesOrderNumber: string | null;
   }>(
     trimmed
-      ? `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
-                sales_channel AS "salesChannel",
-                last_sales_order_number AS "lastSalesOrderNumber"
+      ? `SELECT ${columns}
          FROM b2b_branches
-         WHERE branch_name ILIKE $1
-         ORDER BY branch_name
+         WHERE branch_name ILIKE $1 OR cust_code ILIKE $1
+         ORDER BY (upper(btrim(cust_code)) = upper($2)) DESC,
+                  (cust_code ILIKE $3) DESC,
+                  branch_name
          LIMIT 20`
-      : `SELECT cust_code AS "custCode", branch_name AS "branchName", salesman,
-                sales_channel AS "salesChannel",
-                last_sales_order_number AS "lastSalesOrderNumber"
+      : `SELECT ${columns}
          FROM b2b_branches
          ORDER BY branch_name
          LIMIT 20`,
-    trimmed ? [`%${trimmed}%`] : [],
+    trimmed ? [`%${trimmed}%`, trimmed, `${trimmed}%`] : [],
   );
   return result.rows;
 }

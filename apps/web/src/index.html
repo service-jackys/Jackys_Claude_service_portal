@@ -2220,6 +2220,29 @@
         color: #b45309;
         font-size: 0.85rem;
       }
+      .di-st {
+        display: inline-block;
+        padding: 0.1rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        white-space: nowrap;
+        background: #e5e7eb;
+        color: #374151;
+      }
+      .di-st-match {
+        background: #dcfce7;
+        color: #166534;
+      }
+      .di-st-differs {
+        background: #fef3c7;
+        color: #92400e;
+      }
+      .di-st-only-excel,
+      .di-st-only-portal {
+        background: #fee2e2;
+        color: #991b1b;
+      }
       .di-ex-zero td {
         color: var(--muted);
       }
@@ -10938,13 +10961,13 @@
                     <button
                       class="dashboard-link"
                       type="button"
-                      id="stockMasterNav"
+                      id="mastersNav"
                       hidden
-                      aria-label="Stock master"
-                      title="Stock master"
+                      aria-label="Masters"
+                      title="Masters"
                     >
                       <svg class="nav-icon" aria-hidden="true"><use href="#icon-list"></use></svg>
-                      <span class="nav-label">Stock master</span>
+                      <span class="nav-label">Masters</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
                     </button>
                   </div>
@@ -11483,7 +11506,7 @@
                             id="b2bBranchSearchInput"
                             type="text"
                             autocomplete="off"
-                            placeholder="Start typing a branch or school name…"
+                            placeholder="Type a branch or school name, or its customer code (e.g. 191065)…"
                           />
                           <span class="field-error" data-error-for="b2bBranchSearchInput"></span>
                         </div>
@@ -11604,7 +11627,7 @@
                               id="scheduleB2bBranchSearchInput"
                               type="text"
                               autocomplete="off"
-                              placeholder="Start typing a branch or school name…"
+                              placeholder="Type a branch or school name, or its customer code (e.g. 191065)…"
                             />
                           </div>
                           <ul id="scheduleB2bBranchResults" class="b2b-branch-results" hidden></ul>
@@ -12832,7 +12855,7 @@
                           id="newComplaintB2bBranchSearchInput"
                           type="text"
                           autocomplete="off"
-                          placeholder="Start typing a branch or school name…"
+                          placeholder="Type a branch or school name, or its customer code (e.g. 191065)…"
                         />
                       </div>
                       <ul
@@ -13527,9 +13550,9 @@
               </div>
             </div>
 
-            <div class="card" id="stockMasterWorkspace" hidden>
+            <div class="card" id="mastersWorkspace" hidden>
               <div class="card-body">
-                <div data-calc-root="stock-master">
+                <div data-calc-root="masters">
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>

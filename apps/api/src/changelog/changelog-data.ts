@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 163,
+    title:
+      'Admin → Masters (Stock master + Customers), customer lookup by code, tidier Compare table',
+    area: 'Permissions',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The B2B customer list behind every "Look up B2B customer / Branch / School" box lived only in the database and could be changed only by a developer running an import. Admins need to see it, download it and upload new customers the way they do the stock master. The Compare with Excel table also carried a Notes column…',
+    changes: [
+      'Admin → Masters (replaces the Stock master menu item) with two tabs: Stock master (unchanged) and Customers.',
+      'Customers master. Download the current customer master as Excel (Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date), edit it, and upload it back; or download the last uploaded file as uploaded. Each…',
+      'Look up by customer code. Every B2B customer lookup (complaints, New request, Schedule, Walk-in, job card, quotations, Delivery & Installation) now also finds a customer by its Cust Code (for example 191065 finds GEMS Wellington…',
+      'Compare with Excel table: the Notes column is removed (the reasons are in the worked example — click an Inv/Del No), and Status is shown as a coloured label.',
+    ],
+    needsYou:
+      'pull, restart the API (migration 062), hard-refresh. Admin → Masters → Customers → Download customer master to see what the portal holds today.',
+    migrations: ['062_b2b_customer_master.sql'],
+    files:
+      'packages/db/migrations/062_b2b_customer_master.sql, packages/db/src/{b2b-master,b2b-branches}.ts, apps/api/src/b2b-master/{parser,download,service,routes}.ts, apps/api/src/api/route-catalog.ts…',
+  },
+  {
     id: 162,
     title: 'Worked example on Delivery & Installation → Compare with Excel',
     area: 'General',
