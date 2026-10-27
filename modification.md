@@ -3555,3 +3555,22 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, tests/e2e/billing.spec.ts.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart needed.
+
+## Modification #156 — Delivery & installation pricing engine (phase 2)
+
+**Date:** 2026-10-27
+
+**Why.** Before the Delivery & Installation entry screen is built, the arithmetic has to match the master Excel to the fils. This is phase 2 of the plan in the project (claude/dandi-activity-capture-plan-2026-10-27). Nothing is visible in the screens yet.
+
+**What changed.**
+- A single pricing function prices one delivery note whose lines are each chosen as CSIDI, CSIDO or CSIII, with the rules of the Net Sale Current sheet: batch or standard rate and discount tier from the note's total quantity of that type (all categories together), net rate never below the minimum, one transport charge per note on CSIDI only when the note has more than 1 unit and no CSIDO line, no transport on CSIII, and one CSIDO charge per note (flat 100 alone, the regional 60 / 90 when the note also has CSIDI). Rates, tiers, transport and the flat CSIDO charge are read from Pricing Masters → D+I Admin Entry.
+- Item rules: an item whose group is not installable can only be CSIDO; an unlinked group cannot be priced as installed; CSIDO on an installable item gives a warning.
+- A service prices a note from item codes (stock master group → category mapping → pricing category). There is no screen or API route for it yet; the entry screen (phase 3) will use it for the live price.
+
+**Checked against the workbook (19 Oct 2026).**
+- Net Sale Current sample, 48 lines / 37 invoices: every line matches, except one CSIDI coded 3PL non-electronics item that the workbook prices at 60 (Default rate) and the portal only allows as delivery only (100). Portal total 4,890 instead of 4,850.
+- 629 lines of the CSIDI sheet / 434 invoices: all 312 CSIDI and 277 CSIDO lines match. 31 of the 40 CSIII lines differ by AED −703.25 in total: on notes with several installation-only lines, the stored history priced each line on its own quantity, while the live Net Sale Current formula (used here) prices on the note's total. Needs your decision (see below).
+
+**Files.** apps/api/src/dandi-jobs/pricing-engine.ts, apps/api/src/dandi-jobs/service.ts, packages/db/src/category-mappings.ts, tests/unit/dandi-pricing-engine.test.ts, tests/integration/dandi-pricing.test.ts, tests/fixtures/dandi-net-sale-19oct.json, tests/fixtures/dandi-csidi-sheet-19oct.json.
+
+**Needs you:** nothing to pull for use; decide the installation-only rule (below) before phase 3.
