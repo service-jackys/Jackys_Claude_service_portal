@@ -21024,54 +21024,6 @@ ${bodyHtml}
       const aed = (n) => 'AED ' + rdMoney2(n).replace(/\.00$/, '');
       const e = escapeHtml;
       const M = d.master;
-      const rwr = (M.jobRates.find((r) => r.jobType === 'RWR') || {}).price || 60;
-      const rate = (code) => (M.jobRates.find((r) => r.jobType === code) || {}).price || 0;
-      const transports = M.transport.map((t) => aed(t.roundTrip) + ' ' + t.region).join(' / ');
-      const sharePct = (n) => rdPercent(n, d.totals.revenue);
-
-      const RULES = {
-        CSIJW: {
-          what: 'Warranty repairs',
-          how:
-            'One job per invoice: quantity is always 1, billed at ' +
-            aed(rate('CSIJW')) +
-            '. BER / RWR jobs (status BER or RWR, or remarks that say the unit is not repairable / beyond repair, whatever the status) are billed a flat ' +
-            aed(rwr) +
-            ' per job.',
-        },
-        CSIJO: {
-          what: 'Non-warranty repairs',
-          how:
-            'Quantity × ' +
-            aed(rate('CSIJO')) +
-            ' per job. The same flat ' +
-            aed(rwr) +
-            ' applies to BER / RWR jobs (status BER or RWR, or remarks that say not repairable / beyond repair).',
-        },
-        CSIDI: {
-          what: 'Delivery + installation (fridges, washing machines, cookers)',
-          how: v3
-            ? 'Quantity × net rate. The net rate is the base rate less the volume discount, and never below the minimum rate. The base rate and the discount tier are decided on the invoice’s total delivery + installation quantity across all its categories: more than 1 unit means the batch rate for every line (even a line of 1), a single unit means the standard rate. One transport charge (' +
-              transports +
-              ') is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.'
-            : 'Priced per line from the workbook rate cards (the earlier per-line rules).',
-        },
-        CSIII: {
-          what: 'Installation only',
-          how: v3
-            ? 'Quantity × net rate from the installation rate card, with the same volume discount and minimum rate. No transport.'
-            : 'Priced per line from the workbook installation rate card.',
-        },
-        CSIDO: {
-          what: 'Delivery only (and every product that is not installable)',
-          how: v3
-            ? 'One flat ' +
-              aed(d.csidoFlat) +
-              ' per invoice, charged on the invoice’s first delivery-only line. The other delivery-only lines of the same invoice show AED 0.'
-            : 'Quantity × ' + aed(rate('CSIDO')) + ' per trip.',
-        },
-      };
-
       const steps = [
         [
           'Read the ERP line',
@@ -21126,37 +21078,6 @@ ${bodyHtml}
           )
           .join('') +
         '</tbody></table></div>';
-
-      const cardsHtml = d.byType
-        .map((t, i) => {
-          const rule = RULES[t.jobType] || { what: t.description, how: '' };
-          return (
-            '<div class="rl-card" style="--rl-accent:' +
-            rdJtColor(t.jobType, i) +
-            '"><div class="rl-card-head"><span class="rl-code">' +
-            e(t.jobType) +
-            '</span><span class="rl-what">' +
-            e(rule.what) +
-            '</span></div><p class="rl-how">' +
-            e(rule.how) +
-            '</p><div class="rl-stats"><div><b>' +
-            rdMoney(t.lines) +
-            '</b><span>jobs</span></div><div><b>' +
-            rdMoney(t.qty) +
-            '</b><span>quantity</span></div><div><b>' +
-            rdMoney(t.revenue) +
-            '</b><span>AED revenue</span></div><div><b>' +
-            sharePct(t.revenue) +
-            '</b><span>of total</span></div></div>' +
-            (t.zeroLines
-              ? '<div class="rl-zero-note">' +
-                rdMoney(t.zeroLines) +
-                ' of these jobs show AED 0 &mdash; see below</div>'
-              : '') +
-            '</div>'
-          );
-        })
-        .join('');
 
       const exampleTable = (ex) =>
         '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
@@ -21464,11 +21385,6 @@ ${bodyHtml}
               .join('') +
             '</div>'
           : '<p class="form-note">This workbook uses the earlier per-line rules. The rates below are read from it; the Revenue Logic sheet of the Excel export lists the detail.</p>') +
-        rdSection(
-          'Rules by job type',
-          '<div class="rl-cards">' + cardsHtml + '</div>',
-          'Live from your data',
-        ) +
         rdSection(zeroTitle, zeroHtml) +
         exampleHtml +
         ratesHtml +
