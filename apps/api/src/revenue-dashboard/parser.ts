@@ -32,6 +32,9 @@ export type ParsedRevenueLine = {
   salesChannel: string | null;
   costStatus: string | null;
   remarks: string | null;
+  /** Ref DocNo / date from the CSIJW / CSIJO sheet (repair jobs only). */
+  refDocNo: string | null;
+  refDocDt: string | null;
   pricing: SheetPricing | null;
 };
 
@@ -231,6 +234,8 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       salesChannel: text(at(row, 'Sales Channel')),
       costStatus: text(at(row, 'Cost Status')),
       remarks: text(at(row, 'Remarks')),
+      refDocNo: null,
+      refDocDt: null,
       pricing: null,
     });
   });
@@ -255,6 +260,7 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       }
     }
   }
+  attachRepairRefDocs(workbook, lines);
   const pricingRules = readPricingRules(workbook, rates);
   const { matched: pricingMatched, unmatched: pricingUnmatched } = attachSheetPricing(
     workbook,
@@ -373,6 +379,39 @@ function usesInvoiceLevelRules(workbook: ExcelJS.Workbook): boolean {
   if (!workbook.getWorksheet('Pricing Logic Guide')) return false;
   const sheet = workbook.getWorksheet('CSIDI');
   return !!sheet && headerIndex(sheet).has('erp city / region');
+}
+
+// Repair jobs (CSIJW / CSIJO): the workbook's own sheet for the type holds one
+// row per invoice with its Ref DocNo (a CSOSC order, "Direct", ...). Revenue
+// Source does not carry it, so it is joined here by Inv/Del No.
+function attachRepairRefDocs(workbook: ExcelJS.Workbook, lines: ParsedRevenueLine[]): void {
+  for (const type of ['CSIJW', 'CSIJO']) {
+    const sheet = workbook.getWorksheet(type);
+    if (!sheet) continue;
+    const col = headerIndex(sheet);
+    const invCol = col.get('inv/del no');
+    const refCol = col.get('ref docno.');
+    if (!invCol || !refCol) continue;
+    const dtCol = col.get('ref docdt.');
+    const byInv = new Map<string, { no: string | null; dt: string | null }>();
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const inv = text(row.getCell(invCol).value);
+      if (!inv || byInv.has(inv)) return;
+      byInv.set(inv, {
+        no: text(row.getCell(refCol).value),
+        dt: dtCol ? text(row.getCell(dtCol).value) : null,
+      });
+    });
+    for (const line of lines) {
+      if (line.jobType !== type || !line.invDelNo) continue;
+      const hit = byInv.get(line.invDelNo);
+      if (hit) {
+        line.refDocNo = hit.no;
+        line.refDocDt = hit.dt;
+      }
+    }
+  }
 }
 
 // CSIDI sheet = source of every CSIDI / CSIDO / CSIII line. Its pricing

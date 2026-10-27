@@ -250,6 +250,10 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     return `Flat AED ${revenue} (BER / RWR or special rule)`;
   };
 
+  // A repair job carries it on its line (read from the CSIJW / CSIJO sheet);
+  // a Delivery & Installation line carries it in its pricing detail.
+  const refDocNo = (x: Row) => (x.line.refDocNo as string | null) ?? x.pricing?.refDocNo ?? null;
+
   const common = (g: string): Col[] => [
     { h: 'Date', w: 12, group: g, core: true, get: L('orderDate') },
     { h: 'Month', w: 7, group: g, core: true, get: L('month') },
@@ -257,6 +261,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     { h: 'Job type', w: 10, group: g, core: true, get: L('jobType') },
     { h: 'Inv/Del no', w: 14, group: g, core: true, get: L('invDelNo') },
     { h: 'CSOSC order', w: 14, group: g, core: true, get: L('csoscOrderNo') },
+    { h: 'Ref doc no', w: 18, group: g, get: refDocNo },
     { h: 'Customer', w: 38, group: g, core: true, get: L('customer') },
     { h: 'Sales channel', w: 10, group: g, core: true, get: L('salesChannel') },
     { h: 'Salesperson', w: 16, group: g, core: true, get: L('salesPerson') },

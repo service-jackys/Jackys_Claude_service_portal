@@ -37,7 +37,7 @@ const line = (over: Record<string, unknown>) => ({
 
 test('export splits jobs into repair and delivery & install sheets', async () => {
   const lines = [
-    line({}),
+    line({ refDocNo: 'CSOSC - 16100001' }),
     line({ jobType: 'CSIJO', invDelNo: '2', qty: 1, unitPrice: 119, revenue: 119 }),
     line({
       jobType: 'CSIDO',
@@ -45,7 +45,12 @@ test('export splits jobs into repair and delivery & install sheets', async () =>
       qty: 1,
       unitPrice: 0,
       revenue: 100,
-      pricing: { erpCategory: 'Cooking', pricingType: 'Delivery', before: {} },
+      pricing: {
+        erpCategory: 'Cooking',
+        pricingType: 'Delivery',
+        refDocNo: 'CSOSC - 16100003',
+        before: {},
+      },
     }),
   ];
   const data = {
@@ -80,4 +85,10 @@ test('export splits jobs into repair and delivery & install sheets', async () =>
     jobs.getRow(3).getCell(header(jobs).indexOf('Appliance (from remarks)') + 1).value,
     'Washing machine / dryer',
   );
+  // Accounts need the workbook's Ref doc no on the review sheets too.
+  const refCol = (ws: ExcelJS.Worksheet) => header(ws).indexOf('Ref doc no') + 1;
+  assert.ok(refCol(jobs) > 0, 'Jobs has Ref doc no');
+  assert.ok(refCol(di) > 0, 'Delivery & Install has Ref doc no');
+  assert.equal(jobs.getRow(3).getCell(refCol(jobs)).value, 'CSOSC - 16100001');
+  assert.equal(di.getRow(3).getCell(refCol(di)).value, 'CSOSC - 16100003');
 });

@@ -3739,3 +3739,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, packages/db/src/billing-ledger.ts, tests/e2e/billing.spec.ts, tests/integration/dandi-billing-ledger.test.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #167 — Ref doc no on the Jobs and Delivery & Install sheets of the revenue report
+
+**Date:** 2026-10-27
+
+**Why.** Accounts use the master workbook's Ref DocNo (the CSOSC order an invoice came from, or "Direct"). The Service Revenue Dashboard → Reports → Export report (.xlsx) carried it only on the Source detail sheet.
+
+**What changed.**
+- **Delivery & Install** and **Jobs** sheets gain a **Ref doc no** column, next to CSOSC order. The Source detail sheet keeps its own.
+- **Jobs (CSIJW / CSIJO):** the portal now reads Ref DocNo from the workbook's CSIJW and CSIJO sheets (matched by Inv/Del No) when the master is uploaded, and stores it on the line (new columns ref_doc_no, ref_doc_dt; migration 063). Delivery & Installation lines already had it in their pricing detail, so they need no re-upload.
+- Checked on the 6 Oct workbook: all 556 repair lines and all 1,165 Delivery & Installation lines carry a Ref doc no.
+
+**Files.** packages/db/migrations/063_revenue_line_ref_doc.sql, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/{parser,export}.ts, tests/unit/{revenue-workbook,revenue-export-sheets}.test.ts.
+
+**Needs you:** pull, restart the API (migration 063). Re-upload the master workbook (Service Revenue Dashboard → upload) so the Jobs sheet gets its Ref doc no; until then that column is empty for repair jobs, while Delivery & Install shows it straight away.
