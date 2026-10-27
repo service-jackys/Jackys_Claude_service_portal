@@ -23,7 +23,7 @@ const SOURCE = `(
          s.serial_no, s.technician_name, s.service_charge, s.total_cost, s.grand_total,
          s.amount_chargeable, s.invoice_no, s.invoice_date, s.payment_mode,
          s.payment_reference, s.payment_confirmed_at, s.final_status, s.job_final_status,
-         s.created_at
+         s.created_at, NULL::text AS other_types, NULL::numeric AS job_total
     FROM service_job_cards s
   UNION ALL
   SELECT 'di:' || l.id, l.id, 'dandi', d.id::text,
@@ -35,7 +35,10 @@ const SOURCE = `(
          NULL::text, NULL::text, l.revenue, 0::numeric, l.revenue,
          NULL::numeric, d.erp_inv_no, NULL::date, NULL::text,
          NULL::text, NULL::timestamptz, 'Completed', 'Completed',
-         COALESCE(d.completed_at, d.created_at)
+         COALESCE(d.completed_at, d.created_at),
+         (SELECT string_agg(DISTINCT x.txn_type, ', ' ORDER BY x.txn_type)
+            FROM di_job_lines x WHERE x.job_id = d.id AND x.txn_type <> l.txn_type),
+         (SELECT sum(x.revenue) FROM di_job_lines x WHERE x.job_id = d.id)
     FROM di_job_lines l JOIN di_jobs d ON d.id = l.job_id
    WHERE d.status = 'Completed'
 )`;
@@ -84,6 +87,9 @@ export type BillingLedgerRow = {
   source: string;
   /** The job card id, or the Delivery & Installation job id, to open it. */
   sourceRef: string;
+  /** Delivery & Installation only: the other activity types on the same job, and the whole job's revenue. */
+  otherTypes: string | null;
+  jobTotal: number | null;
   jobCardDate: string | null;
   deliveryDate: string | null;
   billingJobType: string | null;
@@ -196,6 +202,7 @@ export async function queryBillingLedger(
   const offset = paging ? (Math.max(paging.page, 1) - 1) * limit : 0;
   const result = await client.query(
     `SELECT j.id, j.source, j.source_ref AS "sourceRef", j.job_card_reference AS "jobCardReference",
+            j.other_types AS "otherTypes", j.job_total::float8 AS "jobTotal",
             j.job_card_date::text AS "jobCardDate", j.delivery_date::text AS "deliveryDate",
             j.billing_job_type AS "billingJobType",
             j.warranty_status AS "registeredWarranty",

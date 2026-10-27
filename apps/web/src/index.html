@@ -818,6 +818,85 @@
         gap: 1.5rem;
         align-items: start;
       }
+      /* "Back to <page>" bar: shown when a link inside one page opened another page. */
+      .return-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin: 0 0 14px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface-soft);
+      }
+      .return-bar[hidden] {
+        display: none;
+      }
+      .return-bar button {
+        font: inherit;
+        cursor: pointer;
+      }
+      .return-back {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 36px;
+        padding: 0 14px;
+        border: 1px solid var(--blue);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--blue);
+        font-weight: 700;
+      }
+      .return-back:hover {
+        background: var(--blue-soft);
+      }
+      .return-crumbs ol {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .return-crumbs li + li::before {
+        content: '\203A';
+        margin-right: 4px;
+        color: var(--muted);
+      }
+      .return-crumbs li button {
+        padding: 2px 6px;
+        border: 0;
+        border-radius: 6px;
+        background: none;
+        color: var(--blue);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+      }
+      .return-crumbs li button:hover {
+        background: var(--blue-soft);
+      }
+      .return-crumbs [aria-current='page'] span {
+        color: var(--ink);
+        font-weight: 700;
+      }
+      .return-bar button:focus-visible {
+        outline: 3px solid var(--blue);
+        outline-offset: 2px;
+      }
+      @media (max-width: 640px) {
+        .return-crumbs {
+          display: none;
+        }
+        .return-back {
+          width: 100%;
+          justify-content: center;
+        }
+      }
       .dashboard-nav {
         position: sticky;
         top: 96px;
@@ -11218,6 +11297,7 @@
             </div>
           </aside>
           <div class="dashboard-content">
+            <div id="returnBar" class="return-bar" hidden></div>
             <div class="dashboard-header">
               <div>
                 <p class="eyebrow">Protected workspace</p>
