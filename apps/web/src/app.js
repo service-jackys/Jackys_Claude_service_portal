@@ -872,7 +872,95 @@
     );
   }
 
+  // ---- Way back (modification #165) ------------------------------------
+  // A link inside one page that opens another page (Billing -> a Delivery &
+  // Installation job, a job card -> its complaint, ...) remembers where the
+  // user came from and shows "Back to <page>" at the top of the new page.
+  // Only a click inside the page content counts; the sidebar starts a fresh trail.
+  const navTrail = [];
+  const pageMemo = {};
+  let returningFromLink = false;
+  const lastClick = { content: false, at: 0 };
+  document.addEventListener(
+    'click',
+    (event) => {
+      lastClick.content = !!(event.target.closest && event.target.closest('.dashboard-content'));
+      lastClick.at = Date.now();
+    },
+    true,
+  );
+  function currentPageLabel() {
+    const active = document.querySelector('.dashboard-nav [aria-current="page"]');
+    return active ? active.textContent.replace(/\s+/g, ' ').trim() : '';
+  }
+  function goBackTo(level) {
+    // level = index in navTrail of the page to return to; the pages after it are dropped.
+    const target = navTrail[level];
+    if (!target) return;
+    navTrail.length = level;
+    returningFromLink = true;
+    try {
+      activateWorkspaceMode(target.mode);
+    } finally {
+      returningFromLink = false;
+    }
+    drawReturnBar();
+    window.scrollTo({ top: 0 });
+  }
+  function drawReturnBar() {
+    const bar = document.getElementById('returnBar');
+    if (!bar) return;
+    bar.hidden = navTrail.length === 0;
+    if (!navTrail.length) {
+      bar.innerHTML = '';
+      return;
+    }
+    const top = navTrail[navTrail.length - 1];
+    bar.innerHTML =
+      '<button type="button" class="return-back" data-return-level="' +
+      (navTrail.length - 1) +
+      '" title="Back to ' +
+      escapeHtml(top.label) +
+      '"><span aria-hidden="true">&larr;</span> Back to ' +
+      escapeHtml(top.label) +
+      '</button>' +
+      '<nav class="return-crumbs" aria-label="Where you came from"><ol>' +
+      navTrail
+        .map(
+          (t, index) =>
+            '<li><button type="button" data-return-level="' +
+            index +
+            '">' +
+            escapeHtml(t.label) +
+            '</button></li>',
+        )
+        .join('') +
+      '<li aria-current="page"><span>' +
+      escapeHtml(currentPageLabel() || 'This page') +
+      '</span></li></ol></nav>';
+    bar
+      .querySelectorAll('[data-return-level]')
+      .forEach((el) =>
+        el.addEventListener('click', () => goBackTo(Number(el.dataset.returnLevel))),
+      );
+  }
   function setWorkspaceMode(mode) {
+    const from = workspaceMode;
+    const drillIn =
+      lastClick.content && Date.now() - lastClick.at < 10000 && from && from !== 'none';
+    if (!drillIn) {
+      navTrail.length = 0;
+    } else if (mode !== from) {
+      const seen = navTrail.findIndex((t) => t.mode === mode);
+      if (seen >= 0) navTrail.length = seen;
+      else navTrail.push({ mode: from, label: currentPageLabel() || 'previous page' });
+      if (navTrail.length > 6) navTrail.shift();
+    }
+    activateWorkspaceMode(mode);
+    drawReturnBar();
+  }
+
+  function activateWorkspaceMode(mode) {
     if (PRICING_ADMIN_PAGES[mode]) {
       activatePricingAdminMode(mode);
       return;
@@ -15483,9 +15571,9 @@ ${bodyHtml}
           ? '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Activity</th><th class="num">Excel qty</th><th class="num">Excel revenue</th><th class="num">Portal qty</th><th class="num">Portal revenue</th><th class="num">Difference</th></tr></thead><tbody>' +
             typeRows +
             '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' +
-            exMoney(cmp.excelTotal) +
+            fmt(cmp.excelTotal || 0) +
             '</strong></td><td></td><td class="num"><strong>' +
-            exMoney(cmp.portalTotal) +
+            fmt(cmp.portalTotal || 0) +
             '</strong></td><td class="num"><strong>' +
             fmt(cmp.difference) +
             '</strong></td></tr></tbody></table></div>'
@@ -15662,9 +15750,9 @@ ${bodyHtml}
                     '</td><td>' +
                     escapeHtml(r.date || '—') +
                     '</td><td class="num">' +
-                    (r.excel ? fmt(r.excel.total) : '—') +
+                    fmt(r.excel ? r.excel.total : 0) +
                     '</td><td class="num">' +
-                    (r.portal ? fmt(r.portal.total) : '—') +
+                    fmt(r.portal ? r.portal.total : 0) +
                     '</td><td class="num">' +
                     fmt(r.difference) +
                     '</td><td>' +
@@ -15893,7 +15981,7 @@ ${bodyHtml}
   async function renderBilling(root) {
     const canRecord = hasPermission('invoices.write');
     const range = pgRangeFor('ytd');
-    const state = {
+    const fresh = {
       tab: 'ledger',
       range: 'ytd',
       from: range.from,
@@ -15911,6 +15999,9 @@ ${bodyHtml}
       salesmen: [],
       brands: [],
     };
+    // Coming back from a job opened out of the ledger keeps the filters, tab and page.
+    const state = returningFromLink && pageMemo.billing ? pageMemo.billing : fresh;
+    pageMemo.billing = state;
     const canEditRules = hasPermission('sales_channels.write');
     const money = (value) => {
       const n = Number(value) || 0;
@@ -16143,6 +16234,14 @@ ${bodyHtml}
             plain(r.jobCardDate) +
             '</td><td>' +
             plain(r.billingJobType || '') +
+            (r.source === 'dandi' && r.otherTypes
+              ? '<br><small title="This line is one part of the job. Open the job to see all of it.">job also has ' +
+                plain(r.otherTypes) +
+                (r.jobTotal !== null && r.jobTotal !== undefined
+                  ? ' &middot; job total ' + money(r.jobTotal)
+                  : '') +
+                '</small>'
+              : '') +
             '</td><td>' +
             plain(r.registeredWarranty) +
             (r.finalWarranty && r.finalWarranty !== r.registeredWarranty
@@ -16203,8 +16302,14 @@ ${bodyHtml}
         )
         .join('');
       const t = d.totals;
+      const typeNote = ['CSIDI', 'CSIDO', 'CSIII'].includes(state.type)
+        ? '<p class="form-note">Showing only the ' +
+          state.type +
+          ' lines of Delivery &amp; Installation jobs. A job that also has other activity types appears again under those types; clear the Type filter to see the whole job.</p>'
+        : '';
       return (
         recordPanel() +
+        typeNote +
         '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (AED)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th><th></th>' +
         '</tr></thead><tbody>' +
         (body ||
@@ -16613,6 +16718,7 @@ ${bodyHtml}
       }
     }
 
+    syncTabs();
     drawBar();
     await load(true);
     drawBar();

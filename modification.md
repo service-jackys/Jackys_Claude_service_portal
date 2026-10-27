@@ -3710,3 +3710,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/src/billing-ledger.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh. Complete a D&I job and look for its lines under Billing, Stage "Internal billing".
+
+## Modification #165 — "Back to" bar between pages, clearer mixed-type Billing rows, Compare shows 0.00
+
+**Date:** 2026-10-27
+
+**Why.** (1) In Compare with Excel → Worked example, a note that exists only in the portal showed dashes for Excel, which looked like missing data. (2) A Delivery & Installation job with two activity types (for example DIJ-2026-00002: CSIDI and CSIDO) appeared in Billing under one type when filtered, which confused accounts. (3) Clicking a link inside a page (Billing → a job) moved the user to another page with no way back except the sidebar.
+
+**What changed.**
+- **Compare with Excel:** the Excel side shows 0.00 (not a dash) beside the Portal figure and the Difference, in the worked example and the comparison table.
+- **Billing ledger:** each Delivery & Installation line says "job also has CSIDO · job total 117.00" under its type, and filtering Type to CSIDI / CSIDO / CSIII shows a note that only those lines are listed and a job with other types appears again under them. Rows stay one per line because Cost allocation needs brand and group per line.
+- **Back to <page> bar (whole portal):** when a link inside a page opens another page, the new page shows a bar at the top, "← Back to Billing", with the trail as a breadcrumb (each earlier page is clickable). Going back returns to the page you left; Billing keeps its filters, tab and page. Clicking the sidebar always starts fresh. Works for every in-page link (job card → complaint, appointment → job card, Compare → job, and so on) because it hooks the shared page switch. Keyboard and screen-reader friendly (breadcrumb landmark, visible focus ring); on a phone only the Back button shows.
+
+**Files.** packages/db/src/billing-ledger.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. Open Billing, click a DIJ reference, then use Back to Billing.

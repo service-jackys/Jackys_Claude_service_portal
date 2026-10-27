@@ -659,6 +659,8 @@ test.describe('warranty and billing', () => {
       id: 'di:11',
       source: 'dandi',
       sourceRef: '5',
+      otherTypes: 'CSIDO',
+      jobTotal: 117,
       jobCardReference: 'DIJ-2026-00005',
       jobCardDate: '2026-10-20',
       deliveryDate: '2026-10-20',
@@ -765,8 +767,32 @@ test.describe('warranty and billing', () => {
     await expect(row).toContainText('JDI');
     await expect(page.getByRole('button', { name: 'Record' })).toHaveCount(0);
 
+    // A job with more than one activity type says so on each of its lines.
+    await expect(row).toContainText('job also has CSIDO');
+    await expect(row).toContainText('job total 117.00');
+
+    await page.locator('select[data-acc="type"]').selectOption('CSIDI');
+    await expect(page.getByText('Showing only the CSIDI lines')).toBeVisible();
+
+    // Opening the job shows a way back, and going back keeps the filter.
     await row.getByRole('button', { name: 'DIJ-2026-00005' }).click();
     await expect.poll(() => calls.includes('/api/di-jobs/5')).toBe(true);
+    const back = page.getByRole('button', { name: /Back to Billing/ });
+    await expect(back.first()).toBeVisible();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Where you came from' })
+        .locator('[aria-current="page"]'),
+    ).toContainText('Delivery');
+    await back.first().click();
+    await expect(page.locator('select[data-acc="type"]')).toHaveValue('CSIDI');
+    await expect(page.locator('#returnBar')).toBeHidden();
+
+    // A sidebar click starts fresh: no way-back bar.
+    await row.getByRole('button', { name: 'DIJ-2026-00005' }).click();
+    await expect(page.locator('#returnBar')).toBeVisible();
+    await page.locator('#billingNav').dispatchEvent('click');
+    await expect(page.locator('#returnBar')).toBeHidden();
   });
 
   test('Billing record panel greys out payment fields unless the customer pays', async ({

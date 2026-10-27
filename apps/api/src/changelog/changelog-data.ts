@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 165,
+    title: '"Back to" bar between pages, clearer mixed-type Billing rows, Compare shows 0.00',
+    area: 'Invoices & billing',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      '(1) In Compare with Excel → Worked example, a note that exists only in the portal showed dashes for Excel, which looked like missing data. (2) A Delivery & Installation job with two activity types (for example DIJ-2026-00002: CSIDI and CSIDO) appeared in Billing under one type when filtered, which confused accounts.…',
+    changes: [
+      'Compare with Excel: the Excel side shows 0.00 (not a dash) beside the Portal figure and the Difference, in the worked example and the comparison table.',
+      'Billing ledger: each Delivery & Installation line says "job also has CSIDO · job total 117.00" under its type, and filtering Type to CSIDI / CSIDO / CSIII shows a note that only those lines are listed and a job with other types appears…',
+      'Back to <page> bar (whole portal): when a link inside a page opens another page, the new page shows a bar at the top, "← Back to Billing", with the trail as a breadcrumb (each earlier page is clickable). Going back returns to the page you…',
+    ],
+    needsYou:
+      'pull, restart the API (no migration), hard-refresh. Open Billing, click a DIJ reference, then use Back to Billing.',
+    migrations: [],
+    files:
+      'packages/db/src/billing-ledger.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-billing-ledger.test.ts, tests/e2e/billing.spec.ts.',
+  },
+  {
     id: 164,
     title: 'Completed Delivery & Installation jobs appear in the Billing ledger',
     area: 'Invoices & billing',

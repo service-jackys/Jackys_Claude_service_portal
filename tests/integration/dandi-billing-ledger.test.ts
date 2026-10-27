@@ -98,6 +98,12 @@ test(
         assert.equal(row.brand, 'BILLBRAND');
         assert.equal(row.sourceRef, done.job.id);
         assert.equal(row.jobFinalStatus, 'Completed');
+        // Each line says what else the job holds, and the job's whole revenue.
+        assert.equal(row.otherTypes, row.billingJobType === 'CSIDI' ? 'CSIDO' : 'CSIDI');
+        assert.equal(
+          Math.round((row.jobTotal ?? 0) * 100),
+          Math.round(completed.totalRevenue * 100),
+        );
       }
       assert.deepEqual(mine.map((r) => r.billingJobType).sort(), ['CSIDI', 'CSIDO']);
       const sum = mine.reduce((n, r) => n + r.billedAmount, 0);
