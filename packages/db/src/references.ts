@@ -242,3 +242,22 @@ export async function allocateTaxInvoiceReference(
   }
   return `SINV-${scopeDate.slice(0, 4)}-${String(nextValue).padStart(5, '0')}`;
 }
+
+export async function allocateDiJobReference(
+  client: PoolClient,
+  scopeDate: string,
+): Promise<string> {
+  const result = await client.query<{ nextValue: string }>(
+    `INSERT INTO reference_counters (namespace, scope_date, next_value)
+     VALUES ('di_job', $1, 2)
+     ON CONFLICT (namespace, scope_date)
+     DO UPDATE SET next_value = reference_counters.next_value + 1, updated_at = now()
+     RETURNING next_value - 1 AS "nextValue"`,
+    [yearScope(scopeDate)],
+  );
+  const nextValue = Number(result.rows[0].nextValue);
+  if (!Number.isInteger(nextValue) || nextValue < 1 || nextValue > 99999) {
+    throw new Error('Delivery & installation job reference counter exceeded the five-digit range.');
+  }
+  return `DIJ-${scopeDate.slice(0, 4)}-${String(nextValue).padStart(5, '0')}`;
+}

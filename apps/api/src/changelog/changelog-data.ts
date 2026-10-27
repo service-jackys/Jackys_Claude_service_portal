@@ -15,6 +15,31 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 157,
+    title: 'Delivery & Installation: enter a job (phase 3)',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work was only in the master Excel. Phase 3 of the plan lets the team enter each job on the portal, with the price calculated as they type. The portal calculates but does not feed the revenue dashboard yet (phase 4), so the one-month…',
+    changes: [
+      'New page: Service desk → Delivery & Installation, with two tabs. New job is the entry form; Jobs lists and filters every job and opens one.',
+      'One job = one ERP delivery note. The form has: service date, region (Dubai / Sharjah, from the pricing master), ERP delivery note (Ref Inv, required), ERP Inv No (required only when the admin switch is on), CSOSC order no. (optional), B2B…',
+      'The B2B customer is picked from the B2B customer list. Picking it fills the salesman from the customer record; the salesman is a dropdown from the salesmen master, and the sales channel shows under it, read only. A salesman with no…',
+      'Items are picked from the stock master (vouchers and other charges are left out; 3PL items are allowed). Each line is item + quantity + the activity the user chooses: CSIDI, CSIDO or CSIII. An item whose group is not installable can only…',
+      'A live price panel shows CSIDI / CSIDO / CSIII totals and any errors or warnings, and the revenue of each line; it recalculates after every change.',
+      'Status is Draft, Completed or Cancelled. Only Completed counts as revenue, and the figures are frozen on the job and its lines at completion. Completing checks the customer, salesman and channel, delivery note, at least one line, a price…',
+      'The same delivery note on another job is a warning only. Each line keeps the channel of the salesman, unless a billing rule (for example salesman + brand) names another one.',
+      'Admin only: Reopen a completed or cancelled job as a draft (audited; the frozen figures are cleared), cancel a completed job, and the Jobs tab setting "The ERP Inv No is required before a job can be completed" (off to start with).',
+    ],
+    needsYou:
+      'pull, run npm install only if asked, restart the API (migration 058 runs on start), then hard-refresh. Check under Roles & permissions that the right roles have Delivery & Installation. Before the first real job: under Management → Salesmen & channels, make…',
+    migrations: ['058_dandi_jobs.sql'],
+    files:
+      'packages/db/migrations/058_dandi_jobs.sql, packages/db/src/di-jobs.ts, packages/db/src/references.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts…',
+  },
+  {
     id: 156,
     title: 'Delivery & installation pricing engine (phase 2)',
     area: 'Pricing & rates',

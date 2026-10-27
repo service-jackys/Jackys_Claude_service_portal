@@ -26,6 +26,8 @@ import { createSalesmanHandlers } from '../salesmen/routes.js';
 import { createSalesmanService } from '../salesmen/service.js';
 import { createCategoryMappingHandlers } from '../category-mappings/routes.js';
 import { createCategoryMappingService } from '../category-mappings/service.js';
+import { createDiJobHandlers } from '../dandi-jobs/routes.js';
+import { createDiJobService } from '../dandi-jobs/jobs-service.js';
 import { createSalesChannelHandlers } from '../sales-channels/routes.js';
 import { createSalesChannelService } from '../sales-channels/service.js';
 import { createInvoiceHandlers } from '../invoices/routes.js';
@@ -112,6 +114,9 @@ export type RouteDefinition = {
     | 'salesman'
     | 'salesChannel'
     | 'categoryMapping'
+    | 'diJob'
+    | 'diPriceNote'
+    | 'diSettings'
     | 'billingRule'
     | 'taxInvoiceIssue'
     | 'taxInvoiceUpdate'
@@ -420,6 +425,34 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
       };
+  const diJobHandlerKeys = [
+    'options',
+    'customers',
+    'items',
+    'price',
+    'list',
+    'get',
+    'create',
+    'update',
+    'complete',
+    'cancel',
+    'reopen',
+    'updateSettings',
+  ] as const;
+  const diJobHandlers: Record<(typeof diJobHandlerKeys)[number], RequestHandler[]> = pool
+    ? (createDiJobHandlers(createDiJobService(pool), requirePermission, (response, permission) => {
+        const auth = response.locals.auth as ApplicationAuth;
+        return auth.permissions.includes('*') || auth.permissions.includes(permission);
+      }) as Record<(typeof diJobHandlerKeys)[number], RequestHandler[]>)
+    : (Object.fromEntries(
+        diJobHandlerKeys.map((key) => [
+          key,
+          [
+            (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+              providerUnavailable(response),
+          ],
+        ]),
+      ) as unknown as Record<(typeof diJobHandlerKeys)[number], RequestHandler[]>);
   const salesChannelHandlers = pool
     ? createSalesChannelHandlers(createSalesChannelService(pool), requirePermission)
     : {
@@ -1843,6 +1876,135 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 409, 500],
         handlers: categoryMappingHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/options',
+        operationId: 'getDiJobOptions',
+        tags: ['Delivery & installation'],
+        summary: 'Regions, salesmen and settings for the delivery & installation form',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.options,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/customers',
+        operationId: 'searchDiJobCustomers',
+        tags: ['Delivery & installation'],
+        summary: 'Search B2B customers for a delivery & installation job',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.customers,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/items',
+        operationId: 'searchDiJobItems',
+        tags: ['Delivery & installation'],
+        summary: 'Search stock items with their category mapping result',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.items,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/di-jobs/price',
+        operationId: 'priceDiJobNote',
+        tags: ['Delivery & installation'],
+        summary: 'Live price of a delivery note (nothing is saved)',
+        security: 'bearerAuth' as const,
+        requestBody: 'diPriceNote' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.price,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/di-jobs/settings',
+        operationId: 'updateDiJobSettings',
+        tags: ['Delivery & installation'],
+        summary: 'Change the delivery & installation settings (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'diSettings' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.updateSettings,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs',
+        operationId: 'listDiJobs',
+        tags: ['Delivery & installation'],
+        summary: 'List delivery & installation jobs',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/di-jobs',
+        operationId: 'createDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Enter a delivery & installation job as a draft',
+        security: 'bearerAuth' as const,
+        requestBody: 'diJob' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: diJobHandlers.create,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/{id}',
+        operationId: 'getDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Open a delivery & installation job',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: diJobHandlers.get,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/di-jobs/{id}',
+        operationId: 'updateDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Edit a draft delivery & installation job',
+        security: 'bearerAuth' as const,
+        requestBody: 'diJob' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: diJobHandlers.update,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/di-jobs/{id}/complete',
+        operationId: 'completeDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Complete a job: validates, prices and freezes the figures',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 409, 422, 500],
+        handlers: diJobHandlers.complete,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/di-jobs/{id}/cancel',
+        operationId: 'cancelDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Cancel a job',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 409, 500],
+        handlers: diJobHandlers.cancel,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/di-jobs/{id}/reopen',
+        operationId: 'reopenDiJob',
+        tags: ['Delivery & installation'],
+        summary: 'Reopen a completed or cancelled job as a draft (admin, audited)',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 409, 500],
+        handlers: diJobHandlers.reopen,
       },
       {
         method: 'get' as const,
