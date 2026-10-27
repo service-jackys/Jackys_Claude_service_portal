@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 167,
+    title: 'Ref doc no on the Jobs and Delivery & Install sheets of the revenue report',
+    area: 'Revenue',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'Accounts use the master workbook\'s Ref DocNo (the CSOSC order an invoice came from, or "Direct"). The Service Revenue Dashboard → Reports → Export report (.xlsx) carried it only on the Source detail sheet.',
+    changes: [
+      'Delivery & Install and Jobs sheets gain a Ref doc no column, next to CSOSC order. The Source detail sheet keeps its own.',
+      "Jobs (CSIJW / CSIJO): the portal now reads Ref DocNo from the workbook's CSIJW and CSIJO sheets (matched by Inv/Del No) when the master is uploaded, and stores it on the line (new columns ref_doc_no, ref_doc_dt; migration 063). Delivery &…",
+      'Checked on the 6 Oct workbook: all 556 repair lines and all 1,165 Delivery & Installation lines carry a Ref doc no.',
+    ],
+    needsYou:
+      'pull, restart the API (migration 063). Re-upload the master workbook (Service Revenue Dashboard → upload) so the Jobs sheet gets its Ref doc no; until then that column is empty for repair jobs, while Delivery & Install shows it straight away.',
+    migrations: ['063_revenue_line_ref_doc.sql'],
+    files:
+      'packages/db/migrations/063_revenue_line_ref_doc.sql, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/{parser,export}.ts…',
+  },
+  {
     id: 166,
     title: 'Back bar polish, Warranty column shows the activity type for Delivery & Installation',
     area: 'Complaints',

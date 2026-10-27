@@ -265,6 +265,57 @@ async function enriched(buffer: Buffer) {
   return { parsed, lines };
 }
 
+test('repair jobs get their Ref DocNo from the CSIJW / CSIJO sheets', async () => {
+  const base = await buildWorkbook({ invoiceLevel: true, rows: CONFORMING });
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(base as unknown as ArrayBuffer);
+  const rs = wb.getWorksheet('Revenue Source')!;
+  const repair = (type: string, inv: string) =>
+    rs.addRow([
+      99,
+      type,
+      '',
+      inv,
+      '',
+      new Date('2026-09-02'),
+      2026,
+      36,
+      9,
+      'Customer',
+      '',
+      '',
+      '',
+      '',
+      1,
+      100,
+      100,
+      0,
+      type,
+      1,
+      '',
+      'SERV-REPAIR',
+      'INS',
+      'READY',
+    ]);
+  repair('CSIJW', '250532');
+  repair('CSIJO', '16100945');
+  repair('CSIJW', '999999'); // no row on the CSIJW sheet
+  const headers = ['Tranc', 'Inv/Del No', 'Date', 'Ref DocNo.', 'Ref DocDt.'];
+  const csijw = wb.addWorksheet('CSIJW');
+  csijw.addRow(headers);
+  csijw.addRow(['SI', '250532', '2026-09-02', 'CSOSC - 16104750', '']);
+  const csijo = wb.addWorksheet('CSIJO');
+  csijo.addRow(headers);
+  csijo.addRow(['SI', '16100945', '2026-09-02', 'Direct', '']);
+  const parsed = await parseRevenueWorkbook(Buffer.from(await wb.xlsx.writeBuffer()));
+  const ref = (inv: string) => parsed.lines.find((l) => l.invDelNo === inv)?.refDocNo;
+  assert.equal(ref('250532'), 'CSOSC - 16104750');
+  assert.equal(ref('16100945'), 'Direct');
+  assert.equal(ref('999999'), null);
+  // Delivery & Installation lines are untouched (their Ref DocNo is in the pricing detail).
+  assert.equal(ref('1001'), null);
+});
+
 test('an invoice with several rows of one type keeps each row its own pricing', async () => {
   const { parsed } = await enriched(await buildWorkbook({ invoiceLevel: true, rows: CONFORMING }));
   assert.equal(parsed.pricingUnmatched, 0);

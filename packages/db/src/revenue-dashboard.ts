@@ -54,6 +54,9 @@ export type RevenueLineInput = {
   salesChannel: string | null;
   costStatus: string | null;
   remarks: string | null;
+  /** Ref DocNo / date from the workbook's CSIJW / CSIJO sheet (repair jobs). */
+  refDocNo?: string | null;
+  refDocDt?: string | null;
   pricing?: Record<string, unknown> | null;
 };
 
@@ -111,7 +114,7 @@ export async function insertRevenueLines(
     const chunk = lines.slice(start, start + REVENUE_CHUNK);
     const params: unknown[] = [];
     const rows = chunk.map((line, i) => {
-      const base = i * 24;
+      const base = i * 26;
       params.push(
         batchId,
         line.sourceRow,
@@ -137,11 +140,13 @@ export async function insertRevenueLines(
         line.costStatus,
         line.remarks,
         line.pricing ? JSON.stringify(line.pricing) : null,
+        line.refDocNo ?? null,
+        line.refDocDt ?? null,
       );
       return (
         '(' +
         Array.from(
-          { length: 24 },
+          { length: 26 },
           (_, k) => '$' + (base + k + 1) + (k === 23 ? '::jsonb' : ''),
         ).join(', ') +
         ')'
@@ -152,7 +157,7 @@ export async function insertRevenueLines(
          (batch_id, source_row, job_type, description, inv_del_no, csosc_order_no, order_date,
           year, week_no, month_no, customer, lpo_no, csosc_status, job_sheet_status, sales_person,
           qty, unit_price, revenue, original_job_value, billing_code, sales_channel, cost_status, remarks,
-          pricing)
+          pricing, ref_doc_no, ref_doc_dt)
        VALUES ${rows.join(', ')}`,
       params,
     );
@@ -440,6 +445,7 @@ const lineColumns = `
   sales_person AS "salesPerson", qty, unit_price AS "unitPrice", revenue,
   original_job_value AS "originalJobValue", billing_code AS "billingCode",
   sales_channel AS "salesChannel", cost_status AS "costStatus", remarks,
+  ref_doc_no AS "refDocNo", ref_doc_dt AS "refDocDt",
   pricing->>'erpBrand' AS "erpBrand"
 `;
 
