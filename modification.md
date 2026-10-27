@@ -3769,3 +3769,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/revenue-dashboard/logic-summary.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts, tests/e2e/delivery-installation.spec.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #169 — Rules by job type removed from Logic applied
+
+**Date:** 2026-10-27
+
+**Why.** Requested: hide the Rules by job type cards from Service Revenue Dashboard → Logic applied for now.
+
+**What changed.**
+- The Rules by job type section (one card per job type) is no longer rendered. The steps, zero-revenue explanation, Worked example, rates and reconciliation sections are untouched.
+- The Revenue Logic sheet in the Excel export still has its rules section.
+
+**Files.** apps/web/src/app.js, apps/api/src/changelog/changelog-data.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.

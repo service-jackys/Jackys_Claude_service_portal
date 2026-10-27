@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 169,
+    title: 'Rules by job type removed from Logic applied',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The "Rules by job type" cards in Service Revenue Dashboard → Logic applied are hidden for now while the rules are being reviewed.',
+    changes: [
+      'Logic applied no longer shows the Rules by job type cards. The steps, the zero-revenue explanation, the Worked example and the rates stay.',
+      'The Revenue Logic sheet of the Excel export is unchanged.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js.',
+  },
+  {
     id: 168,
     title: 'Ref doc no pill on the worked examples',
     area: 'General',
