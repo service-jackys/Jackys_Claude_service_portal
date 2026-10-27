@@ -1045,6 +1045,7 @@
       resetNewComplaintForm();
     } else if (masterData) {
       loadSalesmen();
+      loadDandiMasters();
     } else {
       loadComplaints();
     }
@@ -4578,6 +4579,296 @@ ${bodyHtml}
       .join('');
     $('#salesmenEmpty').hidden = items.length > 0;
   }
+
+  // ---- Delivery & installation masters (modification.md #154): the channel
+  // "reporting name" (JDI -> HAA) and the category mapping (item group ->
+  // installable -> pricing category). Both sit under Salesmen & channels.
+  let categoryMappingState = { rows: [], unmapped: [], pricingCategories: [] };
+
+  async function loadDandiMasters() {
+    await Promise.all([loadChannelReporting(), loadCategoryMappings()]);
+  }
+
+  async function loadChannelReporting() {
+    const section = $('#channelReportingSection');
+    if (!hasPermission('sales_channels.read')) {
+      section.hidden = true;
+      return;
+    }
+    try {
+      const result = await apiRequest('/api/sales-channels?page=1&pageSize=200');
+      const canWrite = hasPermission('sales_channels.write');
+      $('#channelReportingBody').innerHTML = (result.salesChannels || [])
+        .map(
+          (c) =>
+            '<tr><td>' +
+            escapeHtml(c.name) +
+            (c.active ? '' : ' <span class="status status-muted">Inactive</span>') +
+            '</td><td>' +
+            (canWrite
+              ? '<input type="text" maxlength="50" data-reporting-for="' +
+                escapeHtml(c.id) +
+                '" value="' +
+                escapeHtml(c.reportingName || '') +
+                '" placeholder="e.g. HAA">'
+              : escapeHtml(c.reportingName || '—')) +
+            '</td><td>' +
+            (canWrite
+              ? '<button class="button-link" type="button" data-reporting-save="' +
+                escapeHtml(c.id) +
+                '" data-name="' +
+                escapeHtml(c.name) +
+                '">Save</button>'
+              : '') +
+            '</td></tr>',
+        )
+        .join('');
+      section.hidden = false;
+    } catch (error) {
+      section.hidden = true;
+    }
+  }
+
+  $('#channelReportingBody').addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-reporting-save]');
+    if (!button) return;
+    const id = button.dataset.reportingSave;
+    const input = $('#channelReportingBody input[data-reporting-for="' + id + '"]');
+    try {
+      await apiRequest('/api/sales-channels/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify({ name: button.dataset.name, reportingName: input.value.trim() }),
+      });
+      setMessage('#workspaceMessage', 'Reporting name saved.', true);
+      await loadChannelReporting();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+  });
+
+  function categoryPricingOptions(selected) {
+    return (
+      '<option value="">Select a category</option>' +
+      categoryMappingState.pricingCategories
+        .map(
+          (name) =>
+            '<option' +
+            (name === selected ? ' selected' : '') +
+            '>' +
+            escapeHtml(name) +
+            '</option>',
+        )
+        .join('')
+    );
+  }
+
+  function drawCategoryMappings() {
+    const canWrite = hasPermission('category_mappings.write');
+    $('#categoryMappingBody').innerHTML =
+      categoryMappingState.rows
+        .map((row) => {
+          const id = escapeHtml(row.id);
+          const group = canWrite
+            ? '<input type="text" maxlength="200" data-cm-group="' +
+              id +
+              '" value="' +
+              escapeHtml(row.groupName) +
+              '">'
+            : escapeHtml(row.groupName);
+          const installable = canWrite
+            ? '<input type="checkbox" data-cm-installable="' +
+              id +
+              '"' +
+              (row.installable ? ' checked' : '') +
+              ' aria-label="Installable">'
+            : row.installable
+              ? 'Yes'
+              : 'No';
+          const pricing = canWrite
+            ? '<select data-cm-pricing="' +
+              id +
+              '"' +
+              (row.installable ? '' : ' disabled') +
+              '>' +
+              categoryPricingOptions(row.pricingCategory) +
+              '</select>'
+            : escapeHtml(row.pricingCategory || '—');
+          const actions = canWrite
+            ? '<button class="button-link" type="button" data-cm-save="' +
+              id +
+              '">Save</button> <button class="button-link" type="button" data-cm-toggle="' +
+              id +
+              '">' +
+              (row.active ? 'Deactivate' : 'Reactivate') +
+              '</button>'
+            : '';
+          return (
+            '<tr><td>' +
+            group +
+            '</td><td>' +
+            installable +
+            '</td><td>' +
+            pricing +
+            '</td><td>' +
+            (row.active ? 'Active' : 'Inactive') +
+            '</td><td>' +
+            actions +
+            '</td></tr>'
+          );
+        })
+        .join('') || '<tr><td colspan="5" class="empty-state">No groups mapped yet.</td></tr>';
+    const unmapped = categoryMappingState.unmapped;
+    $('#categoryUnmapped').innerHTML = unmapped.length
+      ? '<p class="form-note"><strong>' +
+        unmapped.length +
+        ' stock group(s) are not linked yet</strong> (they cannot be used on a delivery job): ' +
+        unmapped
+          .slice(0, 12)
+          .map(
+            (g) =>
+              '<button class="button-link" type="button" data-cm-fill="' +
+              escapeHtml(g.groupName) +
+              '">' +
+              escapeHtml(g.groupName) +
+              ' (' +
+              g.itemCount +
+              ')</button>',
+          )
+          .join(', ') +
+        (unmapped.length > 12 ? ' and ' + (unmapped.length - 12) + ' more' : '') +
+        '</p>'
+      : '';
+    $('#categoryGroupList').innerHTML = unmapped
+      .map((g) => '<option value="' + escapeHtml(g.groupName) + '"></option>')
+      .join('');
+    $('#categoryPricing').innerHTML = categoryPricingOptions('');
+    $('#categoryPricing').disabled = $('#categoryInstallable').value !== 'yes';
+    $('#categoryMappingForm').hidden = !canWrite;
+  }
+
+  async function loadCategoryMappings() {
+    const section = $('#categoryMappingSection');
+    if (!hasPermission('category_mappings.read')) {
+      section.hidden = true;
+      return;
+    }
+    try {
+      const result = await apiRequest('/api/category-mappings');
+      categoryMappingState = {
+        rows: result.categoryMappings || [],
+        unmapped: result.unmappedGroups || [],
+        pricingCategories: result.pricingCategories || [],
+      };
+      drawCategoryMappings();
+      section.hidden = false;
+    } catch (error) {
+      section.hidden = true;
+    }
+  }
+
+  $('#categoryInstallable').addEventListener('change', () => {
+    $('#categoryPricing').disabled = $('#categoryInstallable').value !== 'yes';
+  });
+
+  $('#categoryUnmapped').addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-cm-fill]');
+    if (!button) return;
+    $('#categoryGroupName').value = button.dataset.cmFill;
+    $('#categoryGroupName').focus();
+  });
+
+  $('#categoryMappingBody').addEventListener('change', (event) => {
+    const box = event.target.closest('input[data-cm-installable]');
+    if (!box) return;
+    const select = $(
+      '#categoryMappingBody select[data-cm-pricing="' + box.dataset.cmInstallable + '"]',
+    );
+    select.disabled = !box.checked;
+    if (!box.checked) select.value = '';
+  });
+
+  async function saveCategoryMapping(id, overrides) {
+    const row = categoryMappingState.rows.find((r) => r.id === id);
+    const scope = '#categoryMappingBody ';
+    const installable = $(scope + 'input[data-cm-installable="' + id + '"]').checked;
+    const payload = {
+      groupName: $(scope + 'input[data-cm-group="' + id + '"]').value.trim(),
+      installable,
+      pricingCategory: installable
+        ? $(scope + 'select[data-cm-pricing="' + id + '"]').value || null
+        : null,
+      notes: row.notes,
+      ...overrides,
+    };
+    if (!payload.groupName) {
+      setMessage('#workspaceMessage', 'Enter the item group name.');
+      return;
+    }
+    if (payload.installable && !payload.pricingCategory) {
+      setMessage('#workspaceMessage', 'Choose the pricing category for an installable group.');
+      return;
+    }
+    try {
+      await apiRequest('/api/category-mappings/' + encodeURIComponent(id), {
+        method: 'PATCH',
+        body: JSON.stringify(payload),
+      });
+      setMessage('#workspaceMessage', 'Category mapping saved.', true);
+      await loadCategoryMappings();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+  }
+
+  $('#categoryMappingBody').addEventListener('click', (event) => {
+    const save = event.target.closest('button[data-cm-save]');
+    if (save) {
+      saveCategoryMapping(save.dataset.cmSave, {});
+      return;
+    }
+    const toggle = event.target.closest('button[data-cm-toggle]');
+    if (toggle) {
+      const row = categoryMappingState.rows.find((r) => r.id === toggle.dataset.cmToggle);
+      saveCategoryMapping(toggle.dataset.cmToggle, { active: !row.active });
+    }
+  });
+
+  $('#categoryMappingForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    clearErrors(form);
+    const groupName = $('#categoryGroupName').value.trim();
+    const installable = $('#categoryInstallable').value === 'yes';
+    const pricingCategory = $('#categoryPricing').value;
+    if (!groupName) {
+      showFieldError(form, 'categoryGroupName', 'Enter the item group name.');
+      return;
+    }
+    if (installable && !pricingCategory) {
+      showFieldError(form, 'categoryPricing', 'Choose the pricing category.');
+      return;
+    }
+    const button = $('#saveCategoryButton');
+    setBusy(button, true, 'Adding…');
+    try {
+      await apiRequest('/api/category-mappings', {
+        method: 'POST',
+        body: JSON.stringify({
+          groupName,
+          installable,
+          pricingCategory: installable ? pricingCategory : null,
+        }),
+      });
+      $('#categoryGroupName').value = '';
+      $('#categoryInstallable').value = 'no';
+      setMessage('#workspaceMessage', 'Item group mapped.', true);
+      await loadCategoryMappings();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    } finally {
+      setBusy(button, false);
+    }
+  });
 
   async function loadSalesChannelDropdownOptions() {
     if (!hasPermission('sales_channels.read')) {
@@ -14729,6 +15020,8 @@ ${bodyHtml}
             escapeHtml(r.salesman || 'Any') +
             '</td><td>' +
             escapeHtml(r.branchKeyword || 'Any') +
+            '</td><td>' +
+            escapeHtml(r.brand ? (r.brandMatch === 'is_not' ? 'Not ' : '') + r.brand : 'Any') +
             '</td><td><strong>' +
             escapeHtml(r.billToChannel) +
             '</strong></td><td>' +
@@ -14749,18 +15042,20 @@ ${bodyHtml}
       body.innerHTML =
         '<div class="card-help"><span>About this section</span>' +
         tipHtml(
-          "When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any) and the B2B branch / school name contains the keyword (blank = any). With no match, the job's own sales channel is billed.",
+          "When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any), the B2B branch / school name contains the keyword (blank = any) and the item brand is, or is not, the brand given (blank = any). When several rules match, the most specific one (the most conditions filled in) wins. With no match, the job's own sales channel is billed.",
         ) +
         '</div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
+        '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Brand</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
         (canEditRules ? '<th></th>' : '') +
         '</tr></thead><tbody>' +
-        (rows || '<tr><td colspan="6" class="empty-state">No rules yet.</td></tr>') +
+        (rows || '<tr><td colspan="7" class="empty-state">No rules yet.</td></tr>') +
         '</tbody></table></div>' +
         (canEditRules
           ? '<div class="detail-action-card"><h4>Add a rule</h4><div class="field-grid">' +
             '<div class="field"><label>Salesman<input type="text" data-rule="salesman" maxlength="200"></label></div>' +
             '<div class="field"><label>Branch / school contains<input type="text" data-rule="branchKeyword" maxlength="200" placeholder="e.g. GEMS"></label></div>' +
+            '<div class="field"><label>Brand<select data-rule="brandMatch"><option value="is">is</option><option value="is_not">is not</option></select></label></div>' +
+            '<div class="field"><label>Brand name<input type="text" data-rule="brand" maxlength="200" placeholder="e.g. VENUS"></label></div>' +
             '<div class="field"><label>Bill to channel<select data-rule="billToChannel"><option value="">Select channel</option>' +
             salesChannelOptions.map((c) => '<option>' + escapeHtml(c.name) + '</option>').join('') +
             '</select></label></div>' +
@@ -14772,6 +15067,10 @@ ${bodyHtml}
         const payload = { billToChannel: val('billToChannel') };
         if (val('salesman')) payload.salesman = val('salesman');
         if (val('branchKeyword')) payload.branchKeyword = val('branchKeyword');
+        if (val('brand')) {
+          payload.brand = val('brand');
+          payload.brandMatch = val('brandMatch');
+        }
         if (val('notes')) payload.notes = val('notes');
         try {
           await apiRequest('/api/billing-rules', { method: 'POST', body: JSON.stringify(payload) });
@@ -14791,6 +15090,8 @@ ${bodyHtml}
               body: JSON.stringify({
                 salesman: rule.salesman,
                 branchKeyword: rule.branchKeyword,
+                brand: rule.brand,
+                brandMatch: rule.brandMatch,
                 billToChannel: rule.billToChannel,
                 notes: rule.notes,
                 active: !rule.active,

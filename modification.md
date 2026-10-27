@@ -3525,3 +3525,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration/job-billing.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration. Existing B2C warranty jobs with no salesman will ask for one the next time they are saved.
+
+## Modification #154 — Delivery & installation masters (phase 1)
+
+**Date:** 2026-10-27
+
+**Why.** The portal can only create repair jobs. To capture Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work later, the portal needs the lookups the master Excel keeps in hidden sheets. This is phase 1 of the plan saved in the project (claude/dandi-activity-capture-plan-2026-10-27). No delivery job screen yet.
+
+**What changed.**
+- **Category mapping** (Salesmen & channels page, new section): item group → Installable yes/no → pricing category (Freestanding Refrigerator / Washing Machine / Cooker). Seeded from the workbook (FRIDGE, FREEZER, WASHING MACHINE, COOKER). An item group that is not installable can only be delivered (CSIDO). The page also lists stock-master groups that are not mapped yet, with their item counts, so the admin can link them. Admin edits it; every change is logged. New permissions category_mappings.read (admin, management, sales) and category_mappings.write (admin); the admin can grant them to other roles on the roles page.
+- **Channel reporting name** (same page): the workbook's name for each sales channel (JDI → HAA, JER-C/INS → INS), set by the admin. It labels revenue lines for the comparison and never changes a price.
+- **Billing rules can depend on the brand** (Billing → Billing rules): "brand is" or "brand is not". When several rules match, the most specific one (the most conditions) wins; between equally specific rules the oldest wins. Before this, the oldest matching rule always won. Example: salesman Raneesh Jose, brand is VENUS → JDI; salesman Raneesh Jose, brand is not VENUS → JER-C/INS. Repair job cards use the job card brand with the same rules.
+
+**Files.** packages/db/migrations/057_dandi_masters.sql, packages/db/src/category-mappings.ts, packages/db/src/billing-rules.ts, packages/db/src/sales-channels.ts, apps/api/src/category-mappings/, apps/api/src/job-cards/billing.ts, apps/api/src/job-cards/service.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/billing.test.ts, tests/integration/dandi-masters.test.ts.
+
+**Needs you:** pull, npm install, restart the API (runs migration 057), hard-refresh. Then open Salesmen & channels: check the reporting names (JDI should show HAA, JER-C/INS should show INS), link the unmapped stock groups, and add the Raneesh Jose brand rules on Billing → Billing rules. The salesman name must be written as it is spelled in the Salesmen master; the Raneesh / Reneesh spelling difference with the workbook is handled in the comparison phase.

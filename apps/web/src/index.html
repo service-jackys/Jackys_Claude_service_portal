@@ -12828,6 +12828,99 @@
                     </button>
                   </form>
                 </section>
+                <section
+                  class="detail-action-card"
+                  id="channelReportingSection"
+                  aria-labelledby="channelReportingHeading"
+                  hidden
+                >
+                  <h4 id="channelReportingHeading">Channel reporting names</h4>
+                  <p class="form-note">
+                    The name the master workbook uses for each sales channel (for example JDI is
+                    HAA). It only labels revenue lines for the comparison; it does not change a
+                    price.
+                  </p>
+                  <div class="table-wrap">
+                    <table>
+                      <caption class="visually-hidden">
+                        Channel reporting names
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Sales channel</th>
+                          <th>Reporting name</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="channelReportingBody"></tbody>
+                    </table>
+                  </div>
+                </section>
+                <section
+                  class="detail-action-card"
+                  id="categoryMappingSection"
+                  aria-labelledby="categoryMappingHeading"
+                  hidden
+                >
+                  <h4 id="categoryMappingHeading">Delivery &amp; installation categories</h4>
+                  <p class="form-note">
+                    Tick Installable for item groups that are delivered and installed (fridge,
+                    washing machine, cooker) and choose the pricing category its rates come from.
+                    Any other item can only be delivered (CSIDO). Groups from the stock master that
+                    are not listed here must be linked before they can be used on a delivery job.
+                  </p>
+                  <div class="table-wrap">
+                    <table>
+                      <caption class="visually-hidden">
+                        Delivery and installation categories
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Item group</th>
+                          <th>Installable</th>
+                          <th>Pricing category</th>
+                          <th>Active</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody id="categoryMappingBody"></tbody>
+                    </table>
+                  </div>
+                  <div id="categoryUnmapped"></div>
+                  <form id="categoryMappingForm" novalidate>
+                    <div class="field-grid">
+                      <div class="field field-wide">
+                        <label for="categoryGroupName">Add an item group</label>
+                        <input
+                          type="text"
+                          id="categoryGroupName"
+                          maxlength="200"
+                          list="categoryGroupList"
+                          required
+                        />
+                        <datalist id="categoryGroupList"></datalist>
+                        <span class="field-error" data-error-for="categoryGroupName"></span>
+                      </div>
+                      <div class="field">
+                        <label for="categoryInstallable">Installable</label>
+                        <select id="categoryInstallable">
+                          <option value="no">No (delivery only)</option>
+                          <option value="yes">Yes</option>
+                        </select>
+                      </div>
+                      <div class="field">
+                        <label for="categoryPricing">Pricing category</label>
+                        <select id="categoryPricing"></select>
+                        <span class="field-error" data-error-for="categoryPricing"></span>
+                      </div>
+                    </div>
+                    <div class="form-footer">
+                      <button class="button button-primary" type="submit" id="saveCategoryButton">
+                        Add group
+                      </button>
+                    </div>
+                  </form>
+                </section>
               </div>
             </div>
 

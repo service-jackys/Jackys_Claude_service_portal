@@ -24,6 +24,8 @@ import { createTechnicianHandlers } from '../technicians/routes.js';
 import { createTechnicianService } from '../technicians/service.js';
 import { createSalesmanHandlers } from '../salesmen/routes.js';
 import { createSalesmanService } from '../salesmen/service.js';
+import { createCategoryMappingHandlers } from '../category-mappings/routes.js';
+import { createCategoryMappingService } from '../category-mappings/service.js';
 import { createSalesChannelHandlers } from '../sales-channels/routes.js';
 import { createSalesChannelService } from '../sales-channels/service.js';
 import { createInvoiceHandlers } from '../invoices/routes.js';
@@ -109,6 +111,7 @@ export type RouteDefinition = {
     | 'availability'
     | 'salesman'
     | 'salesChannel'
+    | 'categoryMapping'
     | 'billingRule'
     | 'taxInvoiceIssue'
     | 'taxInvoiceUpdate'
@@ -387,6 +390,22 @@ export function createRouteCatalog(
       };
   const salesmanHandlers = pool
     ? createSalesmanHandlers(createSalesmanService(pool), requirePermission)
+    : {
+        list: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        create: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        update: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+      };
+  const categoryMappingHandlers = pool
+    ? createCategoryMappingHandlers(createCategoryMappingService(pool), requirePermission)
     : {
         list: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
@@ -1790,6 +1809,40 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: salesChannelHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/category-mappings',
+        operationId: 'listCategoryMappings',
+        tags: ['Master data'],
+        summary:
+          'List the delivery & installation category mapping, the pricing categories and the stock groups not mapped yet',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: categoryMappingHandlers.list,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/category-mappings',
+        operationId: 'createCategoryMapping',
+        tags: ['Master data'],
+        summary: 'Map an item group as installable or not (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'categoryMapping' as const,
+        responses: [201, 400, 401, 403, 409, 500],
+        handlers: categoryMappingHandlers.create,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/category-mappings/{id}',
+        operationId: 'updateCategoryMapping',
+        tags: ['Master data'],
+        summary: 'Change an item group mapping (admin)',
+        security: 'bearerAuth' as const,
+        requestBody: 'categoryMapping' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: categoryMappingHandlers.update,
       },
       {
         method: 'get' as const,

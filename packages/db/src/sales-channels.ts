@@ -8,6 +8,7 @@ export type SalesChannelRecord = {
   id: string;
   name: string;
   active: boolean;
+  reportingName: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -16,17 +17,19 @@ const columns = `
   sales_channels.id,
   sales_channels.name,
   sales_channels.active,
+  sales_channels.reporting_name AS "reportingName",
   sales_channels.created_at AS "createdAt",
   sales_channels.updated_at AS "updatedAt"
 `;
 
 export async function insertSalesChannel(
   client: PoolClient,
-  input: { name: string; active?: boolean },
+  input: { name: string; active?: boolean; reportingName?: string },
 ): Promise<SalesChannelRecord> {
   const result = await client.query<SalesChannelRecord>(
-    `INSERT INTO sales_channels (name, active) VALUES ($1, COALESCE($2, true)) RETURNING ${columns}`,
-    [input.name, input.active ?? null],
+    `INSERT INTO sales_channels (name, active, reporting_name)
+     VALUES ($1, COALESCE($2, true), NULLIF($3, '')) RETURNING ${columns}`,
+    [input.name, input.active ?? null, input.reportingName ?? null],
   );
   return result.rows[0];
 }
@@ -34,13 +37,16 @@ export async function insertSalesChannel(
 export async function updateSalesChannel(
   client: PoolClient,
   id: string,
-  input: { name: string; active?: boolean },
+  input: { name: string; active?: boolean; reportingName?: string },
 ): Promise<SalesChannelRecord | null> {
+  // reportingName: undefined keeps the saved value, an empty string clears it.
   const result = await client.query<SalesChannelRecord>(
     `UPDATE sales_channels
-     SET name = $2, active = COALESCE($3, active), updated_at = now()
+     SET name = $2, active = COALESCE($3, active),
+         reporting_name = CASE WHEN $4::text IS NULL THEN reporting_name ELSE NULLIF($4, '') END,
+         updated_at = now()
      WHERE id = $1 RETURNING ${columns}`,
-    [id, input.name, input.active ?? null],
+    [id, input.name, input.active ?? null, input.reportingName ?? null],
   );
   return result.rows[0] ?? null;
 }

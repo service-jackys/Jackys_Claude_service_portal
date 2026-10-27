@@ -685,6 +685,7 @@ export function createServiceJobCardService(pool: Pool) {
       salesman: saved.salesman,
       salesChannel: saved.salesChannel,
       b2bBranchSchool: saved.b2bBranchSchool,
+      brand: saved.brand,
       paymentBy:
         billing.paymentBy ??
         // Moving from In Warranty (always channel) to Out Warranty re-applies the default payer.
