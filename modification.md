@@ -3626,3 +3626,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/059_dandi_feed_compare.sql, packages/db/src/budget-variance.ts, packages/db/src/di-compare.ts, packages/db/src/salesman-aliases.ts, apps/api/src/budget-variance/service.ts, apps/api/src/dandi-jobs/compare.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/salesman-aliases/, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-compare.test.ts, tests/unit/dandi-job-routes.test.ts, tests/integration/dandi-feed-compare.test.ts, tests/e2e/delivery-installation.spec.ts.
 
 **Needs you:** pull, restart the API (migration 059), hard-refresh. Leave the new Budget Variance switch off until the Compare tab is clean for the month. Then add the spelling RENEESH JOSE → Raneesh Jose under Salesmen & channels.
+
+## Modification #160 — Download the master Excel files you uploaded
+
+**Date:** 2026-10-27
+
+**Why.** To check the stock master and the revenue / budget masters against the ERP and the Excel files, you need to be able to get the data back out of the portal as Excel.
+
+**What changed.**
+- **Stock master** (Stock master page): a "Download JDI / JMS / TGE Excel" button on each channel that has an upload, and "Download item list (all channels)" — one row per item code (ItemCode, ItemDesc, Grade, MainGroup, Group, SubGroup, Brand, TYPE, last channel, and whether each channel still sends it).
+- **Revenue and Budget masters** (Service Revenue and Budget Variance source line): a "Download Excel" button next to the source file name for admins who may upload.
+- **From now on** the portal keeps the original file of the newest stock upload per channel and the active revenue / budget workbook, and downloads give you that file exactly as uploaded. Older uploads of the same channel / kind keep their rows but not the file, so storage stays small.
+- **Files uploaded before this change** have no stored copy. For those the download is an Excel rebuilt from the rows the portal read: stock files have the same 18 ERP columns (and can be uploaded again as they are); the revenue master gives the "Revenue Source" sheet; the budget gives one row per P&L line with the 12 months. The page says which kind you got. Other sheets of the big master workbook (formulas, pricing sheets) are not kept by the portal and are not in a rebuilt file.
+- Every download is written to the audit log. Stock downloads need stock.write; revenue / budget downloads need revenue_dashboard.write (admin).
+
+**Files.** packages/db/migrations/060_master_file_downloads.sql, packages/db/src/stock-master.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/stock-master/{download,service,routes}.ts, apps/api/src/revenue-dashboard/{download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/master-downloads.test.ts, tests/e2e/master-downloads.spec.ts.
+
+**Needs you:** pull, restart the API (migration 060), hard-refresh. Re-upload the three stock files and the two workbooks once if you want the exact original files kept from now on.

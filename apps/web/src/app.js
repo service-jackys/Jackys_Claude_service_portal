@@ -11442,6 +11442,33 @@ ${bodyHtml}
     return value ? new Date(value).toLocaleString('en-GB') : '—';
   }
 
+  // Download an uploaded master file for checking. The server sends the file
+  // exactly as uploaded when it still holds it, else an Excel rebuilt from the
+  // stored rows (X-Download-Source says which). Returns a short status line.
+  async function downloadMasterFile(url, fallbackName) {
+    const headers = new Headers();
+    if (authToken) headers.set('authorization', 'Bearer ' + authToken);
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let body = null;
+      try {
+        body = await response.json();
+      } catch {
+        body = null;
+      }
+      throw new Error(body?.detail || body?.title || 'The download could not be completed.');
+    }
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = /filename="([^"]+)"/.exec(disposition);
+    const fileName = match ? match[1] : fallbackName;
+    rdDownloadBlob(await response.blob(), fileName);
+    return response.headers.get('x-download-source') === 'original'
+      ? 'Downloaded ' + fileName + ' (the file exactly as uploaded).'
+      : 'Downloaded ' +
+          fileName +
+          ' (rebuilt from the data the portal stored; the original file was uploaded before the portal kept copies).';
+  }
+
   function smReport(upload) {
     const report = upload.report || {};
     const parts = [];
@@ -11545,7 +11572,11 @@ ${bodyHtml}
                 channel.itemCount +
                 ' items · ' +
                 channel.positionRows +
-                ' location rows</p><p class="form-note">Uploaded ' +
+                ' location rows</p><p><button class="button button-secondary" type="button" data-sm-dl="' +
+                escapeHtml(channel.channel) +
+                '">Download ' +
+                escapeHtml(channel.channel) +
+                ' Excel</button></p><p class="form-note">Uploaded ' +
                 escapeHtml(smDate(channel.lastUpload.uploadedAt)) +
                 (channel.lastUpload.uploadedByName
                   ? ' by ' + escapeHtml(channel.lastUpload.uploadedByName)
@@ -11561,6 +11592,13 @@ ${bodyHtml}
         )
         .join('') +
       '</div>' +
+      '<section class="detail-action-card"><h4>Download for checking ' +
+      tipHtml(
+        'Each channel button gives the latest ERP file for that channel (same columns as the ERP “Current Stock Valuation” export). ' +
+          'The item list gives one row per item code across all channels, as the portal searches it.',
+      ) +
+      '</h4><p><button class="button button-secondary" type="button" data-sm-dl="items">Download item list (all channels)</button></p>' +
+      '<p class="form-note" data-sm-dl-msg role="status"></p></section>' +
       '<section class="detail-action-card"><h4>Upload ERP stock file ' +
       tipHtml(
         'Choose the channel, then the “Current Stock Valuation” .xlsx exported from the ERP. ' +
@@ -11593,6 +11631,24 @@ ${bodyHtml}
             .join('')
         : '<p class="form-note">Nothing uploaded yet.</p>') +
       '</section>';
+    root.querySelectorAll('[data-sm-dl]').forEach((dl) => {
+      dl.addEventListener('click', async () => {
+        const note = root.querySelector('[data-sm-dl-msg]');
+        const target = dl.getAttribute('data-sm-dl');
+        dl.disabled = true;
+        note.textContent = 'Preparing the file…';
+        try {
+          note.textContent = await downloadMasterFile(
+            '/api/stock/download?' + new URLSearchParams({ channel: target }),
+            'Stock_' + target + '.xlsx',
+          );
+        } catch (error) {
+          note.textContent = error.message || 'The download failed.';
+        } finally {
+          dl.disabled = false;
+        }
+      });
+    });
     const button = root.querySelector('[data-sm-upload]');
     const msg = root.querySelector('[data-sm-msg]');
     button.addEventListener('click', async () => {
@@ -17838,6 +17894,11 @@ ${bodyHtml}
       rdMoney(batch.rowCount) +
       ' rows &middot; AED ' +
       rdMoney(batch.totalAmount) +
+      (hasPermission('revenue_dashboard.write') && batch.id
+        ? ' &middot; <button class="button button-secondary rd-dl" type="button" data-rd-dl="' +
+          escapeHtml(String(batch.id)) +
+          '">Download Excel</button><span class="form-note" data-rd-dl-msg role="status"></span>'
+        : '') +
       '</p>'
     );
   }
@@ -21831,6 +21892,27 @@ ${bodyHtml}
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#changelogNav')?.addEventListener('click', () => setWorkspaceMode('changelog'));
   $('#stockMasterNav')?.addEventListener('click', () => setWorkspaceMode('stock-master'));
+  // "Download Excel" on the revenue / budget source banner.
+  document.addEventListener('click', async (event) => {
+    const button = event.target instanceof Element ? event.target.closest('[data-rd-dl]') : null;
+    if (!button) return;
+    const note = button.parentElement?.querySelector('[data-rd-dl-msg]');
+    button.disabled = true;
+    if (note) note.textContent = ' Preparing the file…';
+    try {
+      const text = await downloadMasterFile(
+        '/api/revenue-dashboard/import/' +
+          encodeURIComponent(button.getAttribute('data-rd-dl')) +
+          '/download',
+        'workbook.xlsx',
+      );
+      if (note) note.textContent = ' ' + text;
+    } catch (error) {
+      if (note) note.textContent = ' ' + (error.message || 'The download failed.');
+    } finally {
+      button.disabled = false;
+    }
+  });
   $('#tasksNav')?.addEventListener('click', () => setWorkspaceMode('tasks'));
   $('#chatNav')?.addEventListener('click', () => setWorkspaceMode('chat'));
   $('#discussJobCardButton')?.addEventListener('click', () =>

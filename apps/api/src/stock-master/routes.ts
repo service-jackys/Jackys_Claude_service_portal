@@ -48,6 +48,37 @@ export function createStockMasterHandlers(
         }
       },
     ],
+    download: [
+      requirePermission('stock.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const file = await service.download(
+            request.query.channel,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', `attachment; filename="${file.fileName.replace(/"/g, '')}"`)
+            .set('X-Download-Source', file.source)
+            .set('Cache-Control', 'no-store')
+            .send(file.buffer);
+        } catch (error) {
+          if (error instanceof StockMasterServiceError) {
+            problem(
+              response,
+              error.code === 'no-data' ? 404 : 400,
+              error.code,
+              error.code === 'no-data' ? 'Not Found' : 'Bad Request',
+              error.message,
+            );
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     status: [
       requirePermission('stock.write'),
       async (_request, response, next) => {

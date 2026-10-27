@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 160,
+    title: 'Download the master Excel files you uploaded',
+    area: 'Stock & masters',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'To check the stock master and the revenue / budget masters against the ERP and the Excel files, you need to be able to get the data back out of the portal as Excel.',
+    changes: [
+      'Stock master (Stock master page): a "Download JDI / JMS / TGE Excel" button on each channel that has an upload, and "Download item list (all channels)" — one row per item code (ItemCode, ItemDesc, Grade, MainGroup, Group, SubGroup, Brand…',
+      'Revenue and Budget masters (Service Revenue and Budget Variance source line): a "Download Excel" button next to the source file name for admins who may upload.',
+      'From now on the portal keeps the original file of the newest stock upload per channel and the active revenue / budget workbook, and downloads give you that file exactly as uploaded. Older uploads of the same channel / kind keep their rows…',
+      'Files uploaded before this change have no stored copy. For those the download is an Excel rebuilt from the rows the portal read: stock files have the same 18 ERP columns (and can be uploaded again as they are); the revenue master gives…',
+      'Every download is written to the audit log. Stock downloads need stock.write; revenue / budget downloads need revenue_dashboard.write (admin).',
+    ],
+    needsYou:
+      'pull, restart the API (migration 060), hard-refresh. Re-upload the three stock files and the two workbooks once if you want the exact original files kept from now on.',
+    migrations: ['060_master_file_downloads.sql'],
+    files:
+      'packages/db/migrations/060_master_file_downloads.sql, packages/db/src/stock-master.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/stock-master/{download,service,routes}.ts…',
+  },
+  {
     id: 159,
     title:
       'Delivery & Installation: revenue feed, comparison with the master Excel, salesman spellings (phase 4)',
