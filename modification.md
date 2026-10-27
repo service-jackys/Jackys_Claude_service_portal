@@ -3677,3 +3677,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/dandi-jobs/example.ts, apps/api/src/dandi-jobs/{jobs-service,routes}.ts, apps/api/src/api/route-catalog.ts, packages/db/src/{revenue-dashboard,di-jobs}.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-worked-example.test.ts, tests/unit/dandi-job-routes.test.ts, tests/e2e/delivery-installation.spec.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh. Open Compare with Excel for the month and try a matching invoice, then a "differs" one.
+
+## Modification #163 — Admin → Masters (Stock master + Customers), customer lookup by code, tidier Compare table
+
+**Date:** 2026-10-27
+
+**Why.** The B2B customer list behind every "Look up B2B customer / Branch / School" box lived only in the database and could be changed only by a developer running an import. Admins need to see it, download it and upload new customers the way they do the stock master. The Compare with Excel table also carried a Notes column that the worked example now explains better.
+
+**What changed.**
+- **Admin → Masters** (replaces the Stock master menu item) with two tabs: **Stock master** (unchanged) and **Customers**.
+- **Customers master.** Download the current customer master as Excel (Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date), edit it, and upload it back; or download the last uploaded file as uploaded. Each upload adds new customers and updates the ones that changed (matched by Cust Code); a blank salesman keeps the stored one; customers not in the file are kept and counted. Only Cust Code and Customer are required; any other column in the file is ignored (so an ERP customer or invoice report works), and where a customer has several rows the first is used. The upload report lists changed customers and warns about salesmen that are not in Salesmen & channels. A lookup box on the tab finds a customer by name or code. New permission `b2b_master.write` (admin); no changes to the customer table itself.
+- **The sales channel comes from the salesman only** (Salesmen & channels). The channel stored on a customer was only a tag from the original import, so it is no longer used: not in the customer file, not on the Walk-in / Schedule / job card lookups, not as a fallback when a salesman has no channel. Last sales order no and last invoice date are also not part of the file; values already stored are left as they are.
+- **Look up by customer code.** Every B2B customer lookup (complaints, New request, Schedule, Walk-in, job card, quotations, Delivery & Installation) now also finds a customer by its Cust Code (for example 191065 finds GEMS Wellington International School); an exact code comes first. Typing or picking a code in the B2B Branch / School field loads the customer's salesman and channel as the name does.
+- **Compare with Excel table:** the Notes column is removed (the reasons are in the worked example — click an Inv/Del No), and Status is shown as a coloured label.
+
+**Files.** packages/db/migrations/062_b2b_customer_master.sql, packages/db/src/{b2b-master,b2b-branches}.ts, apps/api/src/b2b-master/{parser,download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/job-cards/service.ts, tests/integration/{b2b-master,final-status}.test.ts, tests/e2e/{master-downloads,delivery-installation}.spec.ts.
+
+**Needs you:** pull, restart the API (migration 062), hard-refresh. Admin → Masters → Customers → Download customer master to see what the portal holds today.

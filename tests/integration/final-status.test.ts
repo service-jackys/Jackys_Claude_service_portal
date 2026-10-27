@@ -40,6 +40,7 @@ test(
     const appointmentIds: string[] = [];
     const jobCardIds: string[] = [];
     const branchNames: string[] = [];
+    const salesmanNames: string[] = [];
     let profileId: string | undefined;
     let nextDay = 70;
 
@@ -224,12 +225,19 @@ test(
       assert.equal(cancelledDone.jobFinalStatus, 'Cancelled');
 
       // ---- Delivered is not allowed from WIP.
-      // ---- A business job picks up salesman and channel from its B2B Branch / School.
+      // ---- A business job picks up the salesman from its B2B Branch / School and the
+      // channel from that salesman (Salesmen & channels), not from the customer.
       const branchName = `Link Test School ${randomUUID().slice(0, 8)}`;
+      const linkSalesman = `Link Test Salesman ${randomUUID().slice(0, 8)}`;
+      await pool.query(
+        `INSERT INTO salesmen (name, sales_channel) VALUES ($1, 'Link Test Channel')`,
+        [linkSalesman],
+      );
+      salesmanNames.push(linkSalesman);
       await pool.query(
         `INSERT INTO b2b_branches (cust_code, branch_name, salesman, sales_channel)
-         VALUES ($1, $2, 'Link Test Salesman', 'Link Test Channel')`,
-        [`LT-${randomUUID().slice(0, 8)}`, branchName],
+         VALUES ($1, $2, $3, 'Ignored Customer Channel')`,
+        [`LT-${randomUUID().slice(0, 8)}`, branchName, linkSalesman],
       );
       branchNames.push(branchName);
       const linked = await makeCard({ customerType: 'B2B', b2bBranchSchool: branchName });
@@ -239,7 +247,7 @@ test(
         profileId,
         'outcome-link',
       );
-      assert.equal(saved.salesman, 'Link Test Salesman');
+      assert.equal(saved.salesman, linkSalesman);
       assert.equal(saved.salesChannel, 'Link Test Channel');
 
       const wip = await makeCard({});
@@ -269,6 +277,9 @@ test(
       }
       for (const name of branchNames) {
         await pool.query(`DELETE FROM b2b_branches WHERE branch_name = $1`, [name]);
+      }
+      for (const name of salesmanNames) {
+        await pool.query(`DELETE FROM salesmen WHERE name = $1`, [name]);
       }
       if (profileId) await pool.query(`DELETE FROM profiles WHERE id = $1`, [profileId]);
       await pool.end();

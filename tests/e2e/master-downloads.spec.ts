@@ -55,6 +55,44 @@ async function mockApi(
         recentUploads: [upload],
       });
     }
+    if (url.pathname === '/api/b2b-master/status') {
+      const upload = {
+        id: '3',
+        fileName: 'customers.xlsx',
+        rowCount: 612,
+        customerCount: 610,
+        newCustomers: 3,
+        changedCustomers: 1,
+        report: {
+          warnings: ['Salesman "X" (2 customers) is not in Salesmen & channels.'],
+          warningCount: 1,
+        },
+        uploadedBy: '1',
+        uploadedByName: 'Admin',
+        uploadedAt: '2026-10-27T08:00:00Z',
+        hasFile: true,
+      };
+      return json({
+        lastUpload: upload,
+        totalCustomers: 610,
+        withoutSalesman: 0,
+        notInFileCount: 5,
+        recentUploads: [upload],
+      });
+    }
+    if (url.pathname === '/api/b2b-branches') {
+      const term = url.searchParams.get('query') ?? '';
+      calls.push('search:' + term);
+      return json({
+        branches: [
+          {
+            custCode: '191065',
+            branchName: 'GEMS Wellington International School',
+            salesman: 'Raneesh Jose',
+          },
+        ],
+      });
+    }
     if (url.pathname === '/api/revenue-dashboard/summary') {
       return json({
         batch: {
@@ -95,7 +133,7 @@ test('stock master offers one download of the uploaded item listing', async ({ p
     calls,
   );
   await signIn(page);
-  await page.locator('#stockMasterNav').dispatchEvent('click');
+  await page.locator('#mastersNav').dispatchEvent('click');
   await expect(page.locator('.rcv-banner')).toContainText('88,852 items');
   await expect(page.getByText('2 item(s) not in the latest file (kept)')).toBeVisible();
   // one master: no channel cards, no channel picker
@@ -109,6 +147,54 @@ test('stock master offers one download of the uploaded item listing', async ({ p
   expect(download.suggestedFilename()).toBe('ItemListing.xlsx');
   await expect(page.locator('[data-sm-dl-msg]')).toContainText('exactly as uploaded');
   expect(calls).toEqual(['/api/stock/download']);
+});
+
+test('Admin > Masters has Stock master and Customers tabs; customers download and look up by code', async ({
+  page,
+}) => {
+  const calls: string[] = [];
+  await mockApi(
+    page,
+    ['stock.read', 'stock.write', 'b2b_master.write'],
+    [
+      {
+        url: '/api/b2b-master/download',
+        source: 'rebuilt',
+        fileName: 'B2B_customers_2026-10-27.xlsx',
+      },
+    ],
+    calls,
+  );
+  await signIn(page);
+  await page.locator('#mastersNav').dispatchEvent('click');
+  await expect(page.getByRole('tab', { name: 'Stock master' })).toBeVisible();
+  await expect(page.locator('.rcv-banner')).toContainText('88,852 items');
+  await page.getByRole('tab', { name: 'Customers' }).click();
+  await expect(page.locator('.rcv-banner')).toContainText('610 customers');
+  await expect(page.getByText('5 customer(s) not in the latest file (kept)')).toBeVisible();
+  await expect(page.getByText('Salesman "X" (2 customers)')).toBeAttached();
+
+  // The lookup finds a customer by its code.
+  await page.locator('#b2bMasterSearch').fill('191065');
+  await expect(page.locator('[data-b2b-hits]')).toContainText(
+    'GEMS Wellington International School',
+  );
+  await expect.poll(() => calls.includes('search:191065')).toBe(true);
+
+  const [download] = await Promise.all([
+    page.waitForEvent('download'),
+    page.getByRole('button', { name: 'Download customer master' }).click(),
+  ]);
+  expect(download.suggestedFilename()).toBe('B2B_customers_2026-10-27.xlsx');
+  await expect(page.locator('[data-b2b-dl-msg]')).toContainText('every customer in the master');
+});
+
+test('Masters shows only the tabs the user may use', async ({ page }) => {
+  await mockApi(page, ['stock.read', 'stock.write'], [], []);
+  await signIn(page);
+  await page.locator('#mastersNav').dispatchEvent('click');
+  await expect(page.getByRole('tab', { name: 'Stock master' })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Customers' })).toHaveCount(0);
 });
 
 test('revenue dashboard banner offers the uploaded workbook to admins only', async ({ page }) => {

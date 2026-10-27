@@ -348,6 +348,9 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
     // (The worked-example picker above lists every invoice, so look at the table only.)
     const table = page.locator('[data-di-body] table', { hasText: 'Portal job' });
     await expect(table).toContainText('N2');
+    // Why a row differs is in the worked example, not in a Notes column.
+    await expect(table).not.toContainText('Notes');
+    await expect(table).not.toContainText('No Completed portal job carries');
     await expect(table).not.toContainText('School A');
     await page.locator('#diCShowMatched').check();
     await expect(table).toContainText('School A');
