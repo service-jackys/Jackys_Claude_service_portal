@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 155,
+    title: 'Billing rules moved to Management → Billing',
+    area: 'Invoices & billing',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'Billing rules decide which sales channel is billed, so they belong with the billing ledger, not with the job invoices.',
+    changes: [
+      'Management → Billing has a fourth tab, Billing rules, after Cost allocation. The period filters and totals above the ledger are hidden on that tab because they do not apply to it.',
+      'The Invoices page no longer has a Billing rules tab; it shows the job invoices directly.',
+      'Same rules, same permissions: anyone who can open Billing can read the rules; only the super admin (sales channels write) sees the Add a rule form and the Turn on / Turn off buttons. Salesman and Brand are picked from the masters (see…',
+    ],
+    needsYou: 'pull and hard-refresh. No migration, no API restart needed.',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/billing.spec.ts.',
+  },
+  {
     id: 154,
     title: 'Delivery & installation masters (phase 1)',
     area: 'Stock & masters',

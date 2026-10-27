@@ -422,14 +422,30 @@ test.describe('warranty and billing', () => {
     await expect(page.locator('#quotationsNav')).toBeVisible();
   });
 
-  test('Billing rules tab shows the rules and only the super admin can add one', async ({
+  test('Billing page has a Billing rules tab after Cost allocation; only the super admin can add a rule', async ({
     page,
   }) => {
     await mockApi(page, ['service_job_card.read', 'invoices.read', 'billing.read'], (url) => {
-      if (url.pathname === '/api/invoices/summary') {
-        return { summary: { byType: [], byPaymentStatus: [], outOfWarrantyPendingDelivery: [] } };
+      if (url.pathname === '/api/billing/ledger') {
+        return {
+          rows: [],
+          pagination: { page: 1, pageSize: 50, total: 0, totalPages: 1 },
+          totals: {
+            jobs: 0,
+            serviceCharge: 0,
+            partsCost: 0,
+            adjustment: 0,
+            billedAmount: 0,
+            invoicedAmount: 0,
+            notInvoicedAmount: 0,
+            internalAmount: 0,
+          },
+          statement: [],
+          allocation: [],
+          billToOptions: [],
+          stages: [],
+        };
       }
-      if (url.pathname === '/api/invoices') return { invoices: [], pagination: {} };
       if (url.pathname === '/api/billing-rules') {
         return {
           billingRules: [
@@ -447,12 +463,77 @@ test.describe('warranty and billing', () => {
       return undefined;
     });
     await signIn(page);
-    await page.locator('#invoicesNav').dispatchEvent('click');
+    await page.locator('#billingNav').dispatchEvent('click');
     await page.getByRole('tab', { name: 'Billing rules' }).click();
     await expect(page.getByText('Raneesh Jose')).toBeVisible();
     await expect(page.getByText('GEMS').first()).toBeVisible();
     await expect(page.getByText('Only the super admin can change billing rules.')).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add rule' })).toHaveCount(0);
+  });
+
+  test('Billing rules tab: the super admin picks salesman and brand from the masters', async ({
+    page,
+  }) => {
+    await mockApi(
+      page,
+      [
+        'service_job_card.read',
+        'billing.read',
+        'sales_channels.read',
+        'sales_channels.write',
+        'salesmen.read',
+        'stock.read',
+      ],
+      (url) => {
+        if (url.pathname === '/api/billing/ledger') {
+          return {
+            rows: [],
+            pagination: { page: 1, pageSize: 50, total: 0, totalPages: 1 },
+            totals: {
+              jobs: 0,
+              serviceCharge: 0,
+              partsCost: 0,
+              adjustment: 0,
+              billedAmount: 0,
+              invoicedAmount: 0,
+              notInvoicedAmount: 0,
+              internalAmount: 0,
+            },
+            statement: [],
+            allocation: [],
+            billToOptions: [],
+            stages: [],
+          };
+        }
+        if (url.pathname === '/api/billing-rules') return { billingRules: [] };
+        if (url.pathname === '/api/salesmen') {
+          return { salesmen: [{ id: '1', name: 'Raneesh Jose', active: true }], pagination: {} };
+        }
+        if (url.pathname === '/api/stock/facets') {
+          return {
+            brands: [
+              { brand: 'VENUS', count: 5 },
+              { brand: 'SAMSUNG', count: 3 },
+            ],
+            groups: [],
+          };
+        }
+        return undefined;
+      },
+    );
+    await signIn(page);
+    await page.locator('#billingNav').dispatchEvent('click');
+    await page.getByRole('tab', { name: 'Billing rules' }).click();
+    await expect(
+      page.locator('select[data-rule="salesman"] option', { hasText: 'Raneesh Jose' }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('select[data-rule="brand"] option', { hasText: 'VENUS' }),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('select[data-rule="brand"] option', { hasText: 'SAMSUNG' }),
+    ).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Add rule' })).toBeVisible();
   });
 
   test('Billing page shows the accounts ledger, statement and allocation, and downloads Excel', async ({

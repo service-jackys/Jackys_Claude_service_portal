@@ -14047,7 +14047,11 @@ ${bodyHtml}
       data: null,
       selected: null,
       downloading: false,
+      rules: [],
+      salesmen: [],
+      brands: [],
     };
+    const canEditRules = hasPermission('sales_channels.write');
     const money = (value) => {
       const n = Number(value) || 0;
       const text = Math.abs(n).toLocaleString('en-AE', {
@@ -14081,6 +14085,7 @@ ${bodyHtml}
       '<button type="button" role="tab" class="ws-tab is-active" data-acc-tab="ledger" aria-selected="true">Billing ledger</button>' +
       '<button type="button" role="tab" class="ws-tab" data-acc-tab="statement" aria-selected="false">Bill-to statement</button>' +
       '<button type="button" role="tab" class="ws-tab" data-acc-tab="allocation" aria-selected="false">Cost allocation</button>' +
+      '<button type="button" role="tab" class="ws-tab" data-acc-tab="rules" aria-selected="false">Billing rules</button>' +
       '</div><div data-acc-body></div>';
     const bar = root.querySelector('[data-acc-bar]');
     const msg = root.querySelector('[data-acc-msg]');
@@ -14491,6 +14496,13 @@ ${bodyHtml}
     }
 
     function drawBody() {
+      // The rules tab is not about the ledger: no filters or totals above it.
+      bar.hidden = state.tab === 'rules';
+      kpi.hidden = state.tab === 'rules';
+      if (state.tab === 'rules') {
+        loadRules();
+        return;
+      }
       if (!state.data) return;
       body.innerHTML =
         state.tab === 'statement'
@@ -14533,6 +14545,123 @@ ${bodyHtml}
         state.page += 1;
         load(true);
       });
+    }
+
+    // ---- Billing rules tab (moved here from Invoices, modification #155) ----
+    function drawRules() {
+      const rows = state.rules
+        .map(
+          (r) =>
+            '<tr><td>' +
+            escapeHtml(r.salesman || 'Any') +
+            '</td><td>' +
+            escapeHtml(r.branchKeyword || 'Any') +
+            '</td><td>' +
+            escapeHtml(r.brand ? (r.brandMatch === 'is_not' ? 'Not ' : '') + r.brand : 'Any') +
+            '</td><td><strong>' +
+            escapeHtml(r.billToChannel) +
+            '</strong></td><td>' +
+            (r.active ? 'Active' : 'Off') +
+            '</td><td>' +
+            escapeHtml(r.notes || '') +
+            '</td>' +
+            (canEditRules
+              ? '<td><button class="button button-outline" type="button" data-rule-toggle="' +
+                escapeHtml(r.id) +
+                '">' +
+                (r.active ? 'Turn off' : 'Turn on') +
+                '</button></td>'
+              : '') +
+            '</tr>',
+        )
+        .join('');
+      body.innerHTML =
+        '<div class="card-help"><span>About this section</span>' +
+        tipHtml(
+          "When a job is billed to a sales channel, the matching rule decides which channel. A rule matches when the salesman is the same (blank = any), the B2B branch / school name contains the keyword (blank = any) and the item brand is, or is not, the brand given (blank = any). When several rules match, the most specific one (the most conditions filled in) wins. With no match, the job's own sales channel is billed.",
+        ) +
+        '</div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Brand</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
+        (canEditRules ? '<th></th>' : '') +
+        '</tr></thead><tbody>' +
+        (rows || '<tr><td colspan="7" class="empty-state">No rules yet.</td></tr>') +
+        '</tbody></table></div>' +
+        (canEditRules
+          ? '<div class="detail-action-card"><h4>Add a rule</h4><div class="field-grid">' +
+            '<div class="field"><label>Salesman<select data-rule="salesman"><option value="">Any salesman</option>' +
+            state.salesmen.map((m) => '<option>' + escapeHtml(m) + '</option>').join('') +
+            '</select></label></div>' +
+            '<div class="field"><label>Branch / school contains<input type="text" data-rule="branchKeyword" maxlength="200" placeholder="e.g. GEMS"></label></div>' +
+            '<div class="field"><label>Brand<select data-rule="brandMatch"><option value="is">is</option><option value="is_not">is not</option></select></label></div>' +
+            '<div class="field"><label>Brand name' +
+            (state.brands.length
+              ? '<select data-rule="brand"><option value="">Any brand</option>' +
+                state.brands.map((b) => '<option>' + escapeHtml(b) + '</option>').join('') +
+                '</select>'
+              : '<input type="text" data-rule="brand" maxlength="200" placeholder="e.g. VENUS">') +
+            '</label></div>' +
+            '<div class="field"><label>Bill to channel<select data-rule="billToChannel"><option value="">Select channel</option>' +
+            salesChannelOptions.map((c) => '<option>' + escapeHtml(c.name) + '</option>').join('') +
+            '</select></label></div>' +
+            '<div class="field"><label>Notes<input type="text" data-rule="notes" maxlength="500"></label></div>' +
+            '</div><div class="form-footer"><span></span><button class="button button-primary" type="button" data-rule-add>Add rule</button></div></div>'
+          : '<p class="form-note">Only the super admin can change billing rules.</p>');
+      body.querySelector('[data-rule-add]')?.addEventListener('click', async () => {
+        const val = (name) => body.querySelector('[data-rule="' + name + '"]').value.trim();
+        const payload = { billToChannel: val('billToChannel') };
+        if (val('salesman')) payload.salesman = val('salesman');
+        if (val('branchKeyword')) payload.branchKeyword = val('branchKeyword');
+        if (val('brand')) {
+          payload.brand = val('brand');
+          payload.brandMatch = val('brandMatch');
+        }
+        if (val('notes')) payload.notes = val('notes');
+        try {
+          await apiRequest('/api/billing-rules', { method: 'POST', body: JSON.stringify(payload) });
+          say('Rule added.');
+          await loadRules();
+        } catch (error) {
+          say(error.message, true);
+        }
+      });
+      body.querySelectorAll('[data-rule-toggle]').forEach((el) =>
+        el.addEventListener('click', async () => {
+          const rule = state.rules.find((r) => r.id === el.dataset.ruleToggle);
+          if (!rule) return;
+          try {
+            await apiRequest('/api/billing-rules/' + encodeURIComponent(rule.id), {
+              method: 'PATCH',
+              body: JSON.stringify({
+                salesman: rule.salesman,
+                branchKeyword: rule.branchKeyword,
+                brand: rule.brand,
+                brandMatch: rule.brandMatch,
+                billToChannel: rule.billToChannel,
+                notes: rule.notes,
+                active: !rule.active,
+              }),
+            });
+            await loadRules();
+          } catch (error) {
+            say(error.message, true);
+          }
+        }),
+      );
+    }
+
+    async function loadRules() {
+      try {
+        const result = await apiRequest('/api/billing-rules');
+        state.rules = result.billingRules || [];
+        // Salesman and brand are picked from the masters, never typed. A saved rule
+        // whose salesman or brand is no longer in the master is still shown as is.
+        state.salesmen = (salesmenOptions || []).map((m) => m.name);
+        const facets = canEditRules ? await loadStockFacets() : { brands: [] };
+        state.brands = (facets.brands || []).map((b) => b.brand);
+        drawRules();
+      } catch (error) {
+        body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
+      }
     }
 
     function syncTabs() {
@@ -14624,15 +14753,11 @@ ${bodyHtml}
       search: '',
       rows: [],
       summary: null,
-      rules: [],
-      salesmen: [],
-      brands: [],
       selected: null,
       message: '',
       error: '',
     };
     const canRecord = hasPermission('invoices.write');
-    const canEditRules = hasPermission('sales_channels.write');
     const aed = (value) =>
       'AED ' +
       (Number(value) || 0).toLocaleString('en-AE', {
@@ -14653,10 +14778,7 @@ ${bodyHtml}
           : '';
 
     root.innerHTML =
-      '<div class="ws-tabs" role="tablist">' +
-      '<button type="button" role="tab" class="ws-tab is-active" data-inv-tab="invoices" aria-selected="true">Job invoices</button>' +
-      '<button type="button" role="tab" class="ws-tab" data-inv-tab="rules" aria-selected="false">Billing rules</button>' +
-      '</div><div data-inv-message class="form-note" role="status"></div><div data-inv-body></div>';
+      '<div data-inv-message class="form-note" role="status"></div><div data-inv-body></div>';
     const body = root.querySelector('[data-inv-body]');
     const messageEl = root.querySelector('[data-inv-message]');
 
@@ -15013,136 +15135,6 @@ ${bodyHtml}
       }
     }
 
-    // ---- Billing rules tab ----
-    function drawRules() {
-      const rows = state.rules
-        .map(
-          (r) =>
-            '<tr><td>' +
-            escapeHtml(r.salesman || 'Any') +
-            '</td><td>' +
-            escapeHtml(r.branchKeyword || 'Any') +
-            '</td><td>' +
-            escapeHtml(r.brand ? (r.brandMatch === 'is_not' ? 'Not ' : '') + r.brand : 'Any') +
-            '</td><td><strong>' +
-            escapeHtml(r.billToChannel) +
-            '</strong></td><td>' +
-            (r.active ? 'Active' : 'Off') +
-            '</td><td>' +
-            escapeHtml(r.notes || '') +
-            '</td>' +
-            (canEditRules
-              ? '<td><button class="button button-outline" type="button" data-rule-toggle="' +
-                escapeHtml(r.id) +
-                '">' +
-                (r.active ? 'Turn off' : 'Turn on') +
-                '</button></td>'
-              : '') +
-            '</tr>',
-        )
-        .join('');
-      body.innerHTML =
-        '<div class="card-help"><span>About this section</span>' +
-        tipHtml(
-          "When a job is billed to a sales channel, the matching rule decides which channel. A rule matches when the salesman is the same (blank = any), the B2B branch / school name contains the keyword (blank = any) and the item brand is, or is not, the brand given (blank = any). When several rules match, the most specific one (the most conditions filled in) wins. With no match, the job's own sales channel is billed.",
-        ) +
-        '</div>' +
-        '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Brand</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
-        (canEditRules ? '<th></th>' : '') +
-        '</tr></thead><tbody>' +
-        (rows || '<tr><td colspan="7" class="empty-state">No rules yet.</td></tr>') +
-        '</tbody></table></div>' +
-        (canEditRules
-          ? '<div class="detail-action-card"><h4>Add a rule</h4><div class="field-grid">' +
-            '<div class="field"><label>Salesman<select data-rule="salesman"><option value="">Any salesman</option>' +
-            state.salesmen.map((m) => '<option>' + escapeHtml(m) + '</option>').join('') +
-            '</select></label></div>' +
-            '<div class="field"><label>Branch / school contains<input type="text" data-rule="branchKeyword" maxlength="200" placeholder="e.g. GEMS"></label></div>' +
-            '<div class="field"><label>Brand<select data-rule="brandMatch"><option value="is">is</option><option value="is_not">is not</option></select></label></div>' +
-            '<div class="field"><label>Brand name' +
-            (state.brands.length
-              ? '<select data-rule="brand"><option value="">Any brand</option>' +
-                state.brands.map((b) => '<option>' + escapeHtml(b) + '</option>').join('') +
-                '</select>'
-              : '<input type="text" data-rule="brand" maxlength="200" placeholder="e.g. VENUS">') +
-            '</label></div>' +
-            '<div class="field"><label>Bill to channel<select data-rule="billToChannel"><option value="">Select channel</option>' +
-            salesChannelOptions.map((c) => '<option>' + escapeHtml(c.name) + '</option>').join('') +
-            '</select></label></div>' +
-            '<div class="field"><label>Notes<input type="text" data-rule="notes" maxlength="500"></label></div>' +
-            '</div><div class="form-footer"><span></span><button class="button button-primary" type="button" data-rule-add>Add rule</button></div></div>'
-          : '<p class="form-note">Only the super admin can change billing rules.</p>');
-      body.querySelector('[data-rule-add]')?.addEventListener('click', async () => {
-        const val = (name) => body.querySelector('[data-rule="' + name + '"]').value.trim();
-        const payload = { billToChannel: val('billToChannel') };
-        if (val('salesman')) payload.salesman = val('salesman');
-        if (val('branchKeyword')) payload.branchKeyword = val('branchKeyword');
-        if (val('brand')) {
-          payload.brand = val('brand');
-          payload.brandMatch = val('brandMatch');
-        }
-        if (val('notes')) payload.notes = val('notes');
-        try {
-          await apiRequest('/api/billing-rules', { method: 'POST', body: JSON.stringify(payload) });
-          say('Rule added.');
-          await loadRules();
-        } catch (error) {
-          say(error.message, true);
-        }
-      });
-      body.querySelectorAll('[data-rule-toggle]').forEach((el) =>
-        el.addEventListener('click', async () => {
-          const rule = state.rules.find((r) => r.id === el.dataset.ruleToggle);
-          if (!rule) return;
-          try {
-            await apiRequest('/api/billing-rules/' + encodeURIComponent(rule.id), {
-              method: 'PATCH',
-              body: JSON.stringify({
-                salesman: rule.salesman,
-                branchKeyword: rule.branchKeyword,
-                brand: rule.brand,
-                brandMatch: rule.brandMatch,
-                billToChannel: rule.billToChannel,
-                notes: rule.notes,
-                active: !rule.active,
-              }),
-            });
-            await loadRules();
-          } catch (error) {
-            say(error.message, true);
-          }
-        }),
-      );
-    }
-
-    async function loadRules() {
-      try {
-        const result = await apiRequest('/api/billing-rules');
-        state.rules = result.billingRules || [];
-        // Salesman and brand are picked from the masters, never typed. A saved rule
-        // whose salesman or brand is no longer in the master is still shown as is.
-        state.salesmen = (salesmenOptions || []).map((m) => m.name);
-        const facets = canEditRules ? await loadStockFacets() : { brands: [] };
-        state.brands = (facets.brands || []).map((b) => b.brand);
-        drawRules();
-      } catch (error) {
-        body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
-      }
-    }
-
-    root.querySelectorAll('[data-inv-tab]').forEach((tab) =>
-      tab.addEventListener('click', () => {
-        state.tab = tab.dataset.invTab;
-        root.querySelectorAll('[data-inv-tab]').forEach((other) => {
-          const active = other === tab;
-          other.classList.toggle('is-active', active);
-          other.setAttribute('aria-selected', String(active));
-        });
-        say('');
-        if (state.tab === 'rules') loadRules();
-        else loadInvoices();
-      }),
-    );
     await loadInvoices();
   }
 
