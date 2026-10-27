@@ -837,6 +837,7 @@
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
+    $('#deliveryInstallNav').hidden = !hasPermission('di_jobs.read');
     $('#invoicesNav').hidden = !hasPermission('invoices.read');
     $('#billingNav').hidden = !hasPermission('billing.read');
     if (hasPermission('scheduler.read')) {
@@ -13589,6 +13590,17 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderReportsPage(root),
     },
+    'delivery-install': {
+      navId: 'deliveryInstallNav',
+      workspaceId: 'deliveryInstallWorkspace',
+      heading: 'Delivery & Installation',
+      description:
+        'Enter delivery and installation jobs (CSIDI, CSIDO, CSIII) for B2B customers; the price shows live.',
+      permission: 'di_jobs.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderDeliveryInstall(root),
+    },
     invoices: {
       navId: 'invoicesNav',
       workspaceId: 'invoicesWorkspace',
@@ -14030,6 +14042,1014 @@ ${bodyHtml}
   // customer, and cost allocation by brand and product group, with an Excel
   // download of all three. Invoice numbers are the ERP's; the portal records
   // them (Record button) but never issues invoices.
+  // ---------------------------------------------------------------------
+  // Delivery & Installation (CSIDI / CSIDO / CSIII): one job = one ERP
+  // delivery note. Entered after the physical job; a job counts as revenue
+  // once it is Completed and its figures are then frozen.
+  // ---------------------------------------------------------------------
+  async function renderDeliveryInstall(root) {
+    const canWrite = hasPermission('di_jobs.write');
+    const canReopen = hasPermission('di_jobs.reopen');
+    const canConfigure = hasPermission('di_jobs.configure');
+    const fmt = (value) =>
+      (Number(value) || 0).toLocaleString('en-AE', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    const localToday = () => {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    };
+    const TYPE_LABELS = {
+      CSIDI: 'Delivery + Installation (CSIDI)',
+      CSIDO: 'Delivery only (CSIDO)',
+      CSIII: 'Installation only (CSIII)',
+    };
+    const blankForm = () => ({
+      serviceDate: localToday(),
+      region: 'Dubai',
+      salesman: '',
+      deliveryNoteRef: '',
+      erpInvNo: '',
+      csoscNo: '',
+      notes: '',
+    });
+    const state = {
+      tab: 'job',
+      options: { regions: ['Dubai', 'Sharjah'], salesmen: [], erpInvMandatory: false },
+      job: null,
+      form: blankForm(),
+      custCode: '',
+      customerName: '',
+      lines: [],
+      priced: null,
+      priceError: '',
+      duplicates: [],
+      completionWarnings: [],
+      list: { status: '', from: '', to: '', search: '', page: 1, data: null },
+    };
+    const locked = () => Boolean(state.job && state.job.status !== 'Draft') || !canWrite;
+
+    root.innerHTML =
+      '<div class="rcv-banner"><strong>Delivery &amp; Installation</strong><span>Enter the job after it is done — one entry for each ERP delivery note</span></div>' +
+      '<div class="ws-tabs" role="tablist">' +
+      '<button type="button" role="tab" class="ws-tab is-active" data-di-tab="job" aria-selected="true">New job</button>' +
+      '<button type="button" role="tab" class="ws-tab" data-di-tab="jobs" aria-selected="false">Jobs</button>' +
+      '</div><div data-di-body></div>';
+    const body = root.querySelector('[data-di-body]');
+    const q = (selector) => root.querySelector(selector);
+
+    try {
+      state.options = await apiRequest('/api/di-jobs/options');
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+
+    function syncTabs() {
+      root.querySelectorAll('[data-di-tab]').forEach((button) => {
+        const active = button.dataset.diTab === state.tab;
+        button.classList.toggle('is-active', active);
+        button.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      const tab = q('[data-di-tab="job"]');
+      tab.textContent = state.job ? state.job.reference : 'New job';
+    }
+
+    root.querySelectorAll('[data-di-tab]').forEach((button) => {
+      button.addEventListener('click', () => {
+        state.tab = button.dataset.diTab;
+        syncTabs();
+        if (state.tab === 'job') drawJob();
+        else loadJobs();
+      });
+    });
+
+    function channelOfSalesman(name) {
+      const found = state.options.salesmen.find(
+        (s) => s.name.toLowerCase() === String(name || '').toLowerCase(),
+      );
+      return found ? found.salesChannel || '' : '';
+    }
+
+    // ---------------- New job / open job ----------------
+    function resetJob() {
+      state.job = null;
+      state.form = blankForm();
+      state.custCode = '';
+      state.customerName = '';
+      state.lines = [];
+      state.priced = null;
+      state.priceError = '';
+      state.duplicates = [];
+      state.completionWarnings = [];
+    }
+
+    function applyJob(result) {
+      const job = result.job;
+      state.job = job;
+      state.form = {
+        serviceDate: job.serviceDate,
+        region: job.region,
+        salesman: job.salesman || '',
+        deliveryNoteRef: job.deliveryNoteRef || '',
+        erpInvNo: job.erpInvNo || '',
+        csoscNo: job.csoscNo || '',
+        notes: job.notes || '',
+      };
+      state.custCode = job.custCode || '';
+      state.customerName = job.customerName || '';
+      state.lines = job.lines.map((line) => ({
+        itemCode: line.itemCode,
+        itemDesc: line.itemDesc,
+        brand: line.brand,
+        groupName: line.groupName,
+        installable: line.installable,
+        qty: line.qty,
+        type: line.type,
+        salesChannel: line.salesChannel,
+        frozen: job.status === 'Completed' ? line : null,
+      }));
+      state.duplicates = result.duplicates || [];
+      state.priced = null;
+      state.priceError = '';
+    }
+
+    function jobHtml() {
+      const f = state.form;
+      const dis = locked() ? ' disabled' : '';
+      const erpStar = state.options.erpInvMandatory ? ' <span class="required">*</span>' : '';
+      const regionOptions = state.options.regions
+        .map(
+          (r) =>
+            '<option' + (r === f.region ? ' selected' : '') + '>' + escapeHtml(r) + '</option>',
+        )
+        .join('');
+      const salesmanOptions =
+        '<option value="">Select a salesman</option>' +
+        state.options.salesmen
+          .map(
+            (s) =>
+              '<option value="' +
+              escapeHtml(s.name) +
+              '"' +
+              (s.name === f.salesman ? ' selected' : '') +
+              '>' +
+              escapeHtml(s.name) +
+              '</option>',
+          )
+          .join('') +
+        (f.salesman && !state.options.salesmen.some((s) => s.name === f.salesman)
+          ? '<option selected value="' +
+            escapeHtml(f.salesman) +
+            '">' +
+            escapeHtml(f.salesman) +
+            '</option>'
+          : '');
+      const statusLine = state.job
+        ? '<p class="form-note"><strong>' +
+          escapeHtml(state.job.reference) +
+          '</strong> · ' +
+          escapeHtml(state.job.status) +
+          (state.job.completedAt ? ' on ' + escapeHtml(formatDate(state.job.completedAt)) : '') +
+          '</p>'
+        : '';
+      return (
+        statusLine +
+        '<div data-di-dup></div>' +
+        '<form id="diForm" novalidate>' +
+        '<section class="detail-action-card"><h4>Job</h4><div class="field-grid">' +
+        '<div class="field"><label for="diServiceDate">Service date <span class="required">*</span></label><input id="diServiceDate" type="date" value="' +
+        escapeHtml(f.serviceDate) +
+        '"' +
+        dis +
+        ' /><span class="field-error" data-error-for="diServiceDate"></span></div>' +
+        '<div class="field"><label for="diRegion">Region <span class="required">*</span></label><select id="diRegion"' +
+        dis +
+        '>' +
+        regionOptions +
+        '</select></div>' +
+        '<div class="field"><label for="diDeliveryNote">ERP delivery note (Ref Inv) <span class="required">*</span> ' +
+        tipHtml(
+          'One entry for each ERP delivery note. Delivery and installation on different days are two entries.',
+        ) +
+        '</label><input id="diDeliveryNote" maxlength="100" value="' +
+        escapeHtml(f.deliveryNoteRef) +
+        '"' +
+        dis +
+        ' /><span class="field-error" data-error-for="diDeliveryNote"></span></div>' +
+        '<div class="field"><label for="diErpInv">ERP Inv No' +
+        erpStar +
+        ' ' +
+        tipHtml('The zero-value CSIDI document number in the ERP.') +
+        '</label><input id="diErpInv" maxlength="100" value="' +
+        escapeHtml(f.erpInvNo) +
+        '"' +
+        dis +
+        ' /><span class="field-error" data-error-for="diErpInv"></span></div>' +
+        '<div class="field"><label for="diCsosc">CSOSC order no. (optional)</label><input id="diCsosc" maxlength="100" value="' +
+        escapeHtml(f.csoscNo) +
+        '"' +
+        dis +
+        ' /></div>' +
+        '</div></section>' +
+        '<section class="detail-action-card"><h4>Customer and sales</h4><div class="field-grid">' +
+        (locked()
+          ? ''
+          : '<div class="field"><label for="diCustLookup">Look up B2B customer</label><input id="diCustLookup" type="text" autocomplete="off" placeholder="Start typing a branch or school name…" /></div>' +
+            '<ul id="diCustResults" class="b2b-branch-results field-wide" hidden></ul>') +
+        '<div class="field"><label>B2B customer <span class="required">*</span></label><div class="di-readonly" data-di-customer></div><span class="field-error" data-error-for="diCustLookup"></span></div>' +
+        '<div class="field"><label for="diSalesman">Salesman <span class="required">*</span></label><select id="diSalesman"' +
+        dis +
+        '>' +
+        salesmanOptions +
+        '</select><span class="field-error" data-error-for="diSalesman"></span></div>' +
+        '<div class="field"><label>Sales channel</label><div class="di-readonly" data-di-channel></div></div>' +
+        '</div></section>' +
+        '<section class="detail-action-card"><h4>Items</h4>' +
+        (locked()
+          ? ''
+          : '<div class="field"><label for="diItemSearch">Add an item ' +
+            tipHtml(
+              'Type an item code or part of the description. The item master decides if it can be installed.',
+            ) +
+            '</label><input id="diItemSearch" type="text" autocomplete="off" placeholder="Item code or description…" /></div>' +
+            '<ul id="diItemResults" class="b2b-branch-results" hidden></ul>') +
+        '<div class="di-lines-wrap"><table class="di-lines"><thead><tr><th>#</th><th>Item</th><th>Group</th><th>Qty</th><th>Activity</th><th class="num">Net rate</th><th class="num">Revenue (AED)</th><th></th></tr></thead><tbody data-di-lines></tbody></table></div>' +
+        '<span class="field-error" data-error-for="diItemSearch"></span>' +
+        '</section>' +
+        '<div class="di-price" data-di-price></div>' +
+        '<section class="detail-action-card"><div class="field field-wide"><label for="diNotes">Notes (optional)</label><textarea id="diNotes" maxlength="1000"' +
+        dis +
+        '>' +
+        escapeHtml(f.notes) +
+        '</textarea></div></section>' +
+        '<div class="form-footer" data-di-actions></div>' +
+        '</form>'
+      );
+    }
+
+    function drawCustomer() {
+      const box = q('[data-di-customer]');
+      if (!box) return;
+      box.textContent = state.custCode
+        ? state.customerName + ' (' + state.custCode + ')'
+        : 'Not chosen yet';
+    }
+
+    function drawChannel() {
+      const box = q('[data-di-channel]');
+      if (!box) return;
+      const channel = channelOfSalesman(state.form.salesman);
+      const job = state.job && state.job.salesChannel;
+      if (locked() && job) box.textContent = job;
+      else if (!state.form.salesman) box.textContent = '—';
+      else if (channel) box.textContent = channel;
+      else {
+        box.textContent = 'No channel linked — contact the admin';
+        box.style.color = 'var(--red)';
+        return;
+      }
+      box.style.color = '';
+    }
+
+    function drawDuplicates() {
+      const box = q('[data-di-dup]');
+      if (!box) return;
+      box.innerHTML = state.duplicates.length
+        ? '<div class="di-banner"><strong>Warning:</strong> delivery note ' +
+          escapeHtml(state.form.deliveryNoteRef) +
+          ' is already on ' +
+          state.duplicates
+            .map((d) => escapeHtml(d.reference) + ' (' + escapeHtml(d.status) + ')')
+            .join(', ') +
+          '. You can still continue — check it is not entered twice.</div>'
+        : '';
+    }
+
+    function typeOptionsFor(line) {
+      return line.installable === false ? ['CSIDO'] : ['CSIDI', 'CSIDO', 'CSIII'];
+    }
+
+    function groupBadge(line) {
+      const group = escapeHtml(line.groupName || '—');
+      if (line.installable === true) return group + ' · installable';
+      if (line.installable === false) return group + ' · delivery only';
+      return group + ' · <span class="di-issue-warning">not linked</span>';
+    }
+
+    function drawLines() {
+      const tbody = q('[data-di-lines]');
+      if (!tbody) return;
+      const isLocked = locked();
+      tbody.innerHTML = state.lines.length
+        ? state.lines
+            .map((line, i) => {
+              const priceLine = line.frozen || (state.priced && state.priced.lines[i]) || null;
+              const options = typeOptionsFor(line)
+                .map(
+                  (t) =>
+                    '<option value="' +
+                    t +
+                    '"' +
+                    (t === line.type ? ' selected' : '') +
+                    '>' +
+                    escapeHtml(TYPE_LABELS[t]) +
+                    '</option>',
+                )
+                .join('');
+              return (
+                '<tr><td>' +
+                (i + 1) +
+                '</td><td><strong>' +
+                escapeHtml(line.itemCode) +
+                '</strong><br><span class="form-note">' +
+                escapeHtml(line.itemDesc || '') +
+                '</span></td><td>' +
+                groupBadge(line) +
+                '</td><td>' +
+                (isLocked
+                  ? escapeHtml(line.qty)
+                  : '<input type="number" min="1" step="1" data-di-qty="' +
+                    i +
+                    '" value="' +
+                    escapeHtml(line.qty) +
+                    '" aria-label="Quantity" />') +
+                '</td><td>' +
+                (isLocked
+                  ? escapeHtml(TYPE_LABELS[line.type])
+                  : '<select data-di-type="' +
+                    i +
+                    '" aria-label="Activity">' +
+                    options +
+                    '</select>') +
+                '</td><td class="num">' +
+                (priceLine && priceLine.netRate != null ? fmt(priceLine.netRate) : '—') +
+                '</td><td class="num" title="' +
+                escapeHtml((priceLine && (priceLine.note || priceLine.rateNote)) || '') +
+                '">' +
+                (priceLine && !priceLine.blocked ? fmt(priceLine.revenue) : '—') +
+                '</td><td>' +
+                (isLocked
+                  ? ''
+                  : '<button class="button-link" type="button" data-di-remove="' +
+                    i +
+                    '">Remove</button>') +
+                '</td></tr>'
+              );
+            })
+            .join('')
+        : '<tr><td colspan="8" class="empty-state">No items yet. Search for an item above.</td></tr>';
+    }
+
+    function frozenSummary() {
+      const job = state.job;
+      return {
+        totals: {
+          CSIDI: job.totalCsidi,
+          CSIDO: job.totalCsido,
+          CSIII: job.totalCsiii,
+          total: job.totalRevenue,
+        },
+        issues: [],
+      };
+    }
+
+    function drawPrice() {
+      const box = q('[data-di-price]');
+      if (!box) return;
+      const completed = state.job && state.job.status === 'Completed';
+      const source = completed ? frozenSummary() : state.priced;
+      let html = '<h4>' + (completed ? 'Frozen price' : 'Live price') + '</h4>';
+      if (!state.lines.length) {
+        html += '<p class="form-note">The price shows here as soon as you add items.</p>';
+      } else if (state.priceError) {
+        html += '<p class="di-issue-error">' + escapeHtml(state.priceError) + '</p>';
+      } else if (!source) {
+        html += '<p class="form-note">Calculating…</p>';
+      } else {
+        const t = source.totals;
+        html +=
+          '<div class="di-totals"><span>Delivery + Installation <strong>' +
+          fmt(t.CSIDI) +
+          '</strong></span><span>Delivery only <strong>' +
+          fmt(t.CSIDO) +
+          '</strong></span><span>Installation only <strong>' +
+          fmt(t.CSIII) +
+          '</strong></span><span>Total (AED) <strong>' +
+          fmt(t.total) +
+          '</strong></span></div>';
+        const issues = [...source.issues, ...state.completionWarnings.map((w) => w)];
+        if (issues.length) {
+          html +=
+            '<ul class="di-issues">' +
+            issues
+              .map(
+                (issue) =>
+                  '<li class="di-issue-' +
+                  (issue.level === 'error' ? 'error' : 'warning') +
+                  '">' +
+                  (issue.line != null ? 'Line ' + (issue.line + 1) + ': ' : '') +
+                  escapeHtml(issue.message) +
+                  '</li>',
+              )
+              .join('') +
+            '</ul>';
+        }
+        html += completed
+          ? '<p class="form-note">These figures were frozen when the job was completed.</p>'
+          : '<p class="form-note">Recalculated on every change from the Delivery + Installation pricing master. Figures freeze when you complete the job.</p>';
+      }
+      box.innerHTML = html;
+    }
+
+    function drawActions() {
+      const box = q('[data-di-actions]');
+      if (!box) return;
+      const job = state.job;
+      let html = '';
+      if (!locked()) {
+        html +=
+          '<button class="button button-outline" type="button" data-di-save>Save draft</button>' +
+          '<button class="button button-primary" type="button" data-di-complete>Complete job</button>';
+        if (job)
+          html +=
+            '<button class="button button-outline" type="button" data-di-cancel>Cancel job</button>';
+      } else if (job) {
+        if (job.status === 'Completed' && canReopen) {
+          html +=
+            '<button class="button button-outline" type="button" data-di-cancel>Cancel job</button>';
+        }
+        if (canReopen) {
+          html +=
+            '<button class="button button-outline" type="button" data-di-reopen>Reopen as draft</button>';
+        }
+      }
+      html += '<button class="button button-outline" type="button" data-di-new>New job</button>';
+      box.innerHTML = html;
+    }
+
+    let priceTimer = null;
+    let priceSequence = 0;
+    function schedulePrice() {
+      clearTimeout(priceTimer);
+      if (locked() && state.job && state.job.status === 'Completed') return;
+      if (!state.lines.length) {
+        state.priced = null;
+        state.priceError = '';
+        drawLines();
+        drawPrice();
+        return;
+      }
+      priceTimer = setTimeout(async () => {
+        const mine = ++priceSequence;
+        try {
+          const result = await apiRequest('/api/di-jobs/price', {
+            method: 'POST',
+            body: JSON.stringify({
+              region: state.form.region,
+              lines: state.lines.map((l) => ({
+                itemCode: l.itemCode,
+                qty: Number(l.qty) || 0,
+                type: l.type,
+              })),
+            }),
+          });
+          if (mine !== priceSequence) return;
+          state.priced = result;
+          state.priceError = '';
+        } catch (error) {
+          if (mine !== priceSequence) return;
+          state.priced = null;
+          state.priceError = error.message;
+        }
+        drawLines();
+        drawPrice();
+      }, 300);
+    }
+
+    function drawJob() {
+      body.innerHTML = jobHtml();
+      drawCustomer();
+      drawChannel();
+      drawDuplicates();
+      drawLines();
+      drawPrice();
+      drawActions();
+      wireJob();
+      schedulePrice();
+    }
+
+    function readFields() {
+      const form = q('#diForm');
+      if (!form) return;
+      state.form.serviceDate = q('#diServiceDate').value;
+      state.form.region = q('#diRegion').value;
+      state.form.salesman = q('#diSalesman').value;
+      state.form.deliveryNoteRef = q('#diDeliveryNote').value.trim();
+      state.form.erpInvNo = q('#diErpInv').value.trim();
+      state.form.csoscNo = q('#diCsosc').value.trim();
+      state.form.notes = q('#diNotes').value.trim();
+    }
+
+    function payload() {
+      readFields();
+      const f = state.form;
+      return {
+        serviceDate: f.serviceDate,
+        custCode: state.custCode || null,
+        salesman: f.salesman || null,
+        region: f.region,
+        deliveryNoteRef: f.deliveryNoteRef || null,
+        erpInvNo: f.erpInvNo || null,
+        csoscNo: f.csoscNo || null,
+        notes: f.notes || null,
+        lines: state.lines.map((l) => ({
+          itemCode: l.itemCode,
+          qty: Number(l.qty) || 0,
+          type: l.type,
+        })),
+      };
+    }
+
+    function validateForComplete() {
+      const form = q('#diForm');
+      clearErrors(form);
+      readFields();
+      let valid = true;
+      const need = (ok, id, message) => {
+        if (!ok) {
+          showFieldError(form, id, message);
+          valid = false;
+        }
+      };
+      need(Boolean(state.form.serviceDate), 'diServiceDate', 'Enter the service date.');
+      need(Boolean(state.custCode), 'diCustLookup', 'Choose the B2B customer from the list.');
+      need(Boolean(state.form.salesman), 'diSalesman', 'Choose the salesman.');
+      if (state.form.salesman && !channelOfSalesman(state.form.salesman)) {
+        showFieldError(
+          form,
+          'diSalesman',
+          'This salesman has no sales channel. Contact the admin to link one.',
+        );
+        valid = false;
+      }
+      need(Boolean(state.form.deliveryNoteRef), 'diDeliveryNote', 'Enter the ERP delivery note.');
+      if (state.options.erpInvMandatory) {
+        need(Boolean(state.form.erpInvNo), 'diErpInv', 'Enter the ERP Inv No.');
+      }
+      need(state.lines.length > 0, 'diItemSearch', 'Add at least one item.');
+      need(
+        state.lines.every((l) => Number(l.qty) > 0),
+        'diItemSearch',
+        'Every quantity must be more than zero.',
+      );
+      return valid;
+    }
+
+    async function save() {
+      const data = payload();
+      const result = state.job
+        ? await apiRequest('/api/di-jobs/' + encodeURIComponent(state.job.id), {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+          })
+        : await apiRequest('/api/di-jobs', { method: 'POST', body: JSON.stringify(data) });
+      applyJob(result);
+      return result;
+    }
+
+    function wireJob() {
+      const form = q('#diForm');
+      if (!form) return;
+      form.addEventListener('submit', (event) => event.preventDefault());
+      const isLocked = locked();
+      q('#diRegion').addEventListener('change', () => {
+        readFields();
+        schedulePrice();
+      });
+      q('#diDeliveryNote').addEventListener('change', readFields);
+      q('#diSalesman').addEventListener('change', () => {
+        readFields();
+        drawChannel();
+        if (state.form.salesman && !channelOfSalesman(state.form.salesman)) {
+          notifyDialog(
+            'Salesman has no sales channel',
+            state.form.salesman +
+              ' is not linked to a sales channel yet, so this job cannot be completed. Contact the admin to link the salesman to a channel under Salesmen & channels, then try again.',
+          );
+        }
+      });
+
+      if (!isLocked) {
+        // B2B customer type-ahead: picks the customer and fills the salesman from the customer record.
+        let custTimer = null;
+        let custSequence = 0;
+        const custResults = q('#diCustResults');
+        q('#diCustLookup').addEventListener('input', (event) => {
+          const text = event.target.value.trim();
+          clearTimeout(custTimer);
+          if (text.length < 2) {
+            custResults.hidden = true;
+            return;
+          }
+          custTimer = setTimeout(async () => {
+            const mine = ++custSequence;
+            try {
+              const result = await apiRequest(
+                '/api/di-jobs/customers?query=' + encodeURIComponent(text),
+              );
+              if (mine !== custSequence) return;
+              const customers = result.customers || [];
+              custResults.innerHTML = customers
+                .map(
+                  (c, index) =>
+                    '<li><button type="button" data-i="' +
+                    index +
+                    '"><span class="branch-name">' +
+                    escapeHtml(c.branchName) +
+                    '</span><br><span class="branch-code">Cust_Code ' +
+                    escapeHtml(c.custCode) +
+                    (c.salesman ? ' · ' + escapeHtml(c.salesman) : '') +
+                    '</span></button></li>',
+                )
+                .join('');
+              custResults.dataset.customers = JSON.stringify(customers);
+              custResults.hidden = customers.length === 0;
+            } catch {
+              custResults.hidden = true;
+            }
+          }, 250);
+        });
+        custResults.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-i]');
+          if (!button) return;
+          const customer = JSON.parse(custResults.dataset.customers || '[]')[
+            Number(button.dataset.i)
+          ];
+          if (!customer) return;
+          state.custCode = customer.custCode;
+          state.customerName = customer.branchName;
+          const match = state.options.salesmen.find(
+            (s) => s.name.toLowerCase() === String(customer.salesman || '').toLowerCase(),
+          );
+          readFields();
+          state.form.salesman = match ? match.name : '';
+          q('#diSalesman').value = state.form.salesman;
+          custResults.hidden = true;
+          q('#diCustLookup').value = '';
+          drawCustomer();
+          drawChannel();
+          clearErrors(form);
+          if (!match && customer.salesman) {
+            notifyDialog(
+              'Choose the salesman',
+              'The customer record names ' +
+                customer.salesman +
+                ', who is not in the salesmen list. Choose the salesman from the list.',
+            );
+          } else if (match && !match.salesChannel) {
+            notifyDialog(
+              'Salesman has no sales channel',
+              match.name +
+                ' is not linked to a sales channel yet, so this job cannot be completed. Contact the admin to link the salesman to a channel, then try again.',
+            );
+          }
+        });
+
+        // Item type-ahead.
+        let itemTimer = null;
+        let itemSequence = 0;
+        const itemResults = q('#diItemResults');
+        q('#diItemSearch').addEventListener('input', (event) => {
+          const text = event.target.value.trim();
+          clearTimeout(itemTimer);
+          if (text.length < 2) {
+            itemResults.hidden = true;
+            return;
+          }
+          itemTimer = setTimeout(async () => {
+            const mine = ++itemSequence;
+            try {
+              const result = await apiRequest(
+                '/api/di-jobs/items?query=' + encodeURIComponent(text),
+              );
+              if (mine !== itemSequence) return;
+              const items = result.items || [];
+              itemResults.innerHTML = items
+                .map(
+                  (item, index) =>
+                    '<li><button type="button" data-i="' +
+                    index +
+                    '"><span class="branch-name">' +
+                    escapeHtml(item.itemCode) +
+                    ' · ' +
+                    escapeHtml(item.itemDesc || '') +
+                    '</span><br><span class="branch-code">' +
+                    escapeHtml(item.brand || '') +
+                    ' · ' +
+                    groupBadge(item) +
+                    '</span></button></li>',
+                )
+                .join('');
+              itemResults.dataset.items = JSON.stringify(items);
+              itemResults.hidden = items.length === 0;
+            } catch {
+              itemResults.hidden = true;
+            }
+          }, 250);
+        });
+        itemResults.addEventListener('click', (event) => {
+          const button = event.target.closest('button[data-i]');
+          if (!button) return;
+          const item = JSON.parse(itemResults.dataset.items || '[]')[Number(button.dataset.i)];
+          if (!item) return;
+          const type = item.installable === false ? 'CSIDO' : 'CSIDI';
+          const same = state.lines.find((l) => l.itemCode === item.itemCode && l.type === type);
+          if (same) same.qty = Number(same.qty) + 1;
+          else {
+            state.lines.push({
+              itemCode: item.itemCode,
+              itemDesc: item.itemDesc,
+              brand: item.brand,
+              groupName: item.groupName,
+              installable: item.installable,
+              qty: 1,
+              type,
+              salesChannel: null,
+              frozen: null,
+            });
+          }
+          itemResults.hidden = true;
+          q('#diItemSearch').value = '';
+          clearErrors(form);
+          state.priced = null;
+          drawLines();
+          drawPrice();
+          schedulePrice();
+        });
+
+        const linesBody = q('[data-di-lines]');
+        linesBody.addEventListener('input', (event) => {
+          const qty = event.target.closest('[data-di-qty]');
+          if (!qty) return;
+          state.lines[Number(qty.dataset.diQty)].qty = qty.value;
+          schedulePrice();
+        });
+        linesBody.addEventListener('change', (event) => {
+          const select = event.target.closest('[data-di-type]');
+          if (!select) return;
+          const line = state.lines[Number(select.dataset.diType)];
+          line.type = select.value;
+          if (line.type === 'CSIDO' && line.installable !== false) {
+            notifyDialog(
+              'Delivery only for an installable item',
+              line.itemCode +
+                ' can be installed. Choose Delivery only (CSIDO) only when the installation was not done by us. You can continue.',
+            );
+          }
+          state.priced = null;
+          drawLines();
+          drawPrice();
+          schedulePrice();
+        });
+        linesBody.addEventListener('click', (event) => {
+          const remove = event.target.closest('[data-di-remove]');
+          if (!remove) return;
+          state.lines.splice(Number(remove.dataset.diRemove), 1);
+          state.priced = null;
+          drawLines();
+          drawPrice();
+          schedulePrice();
+        });
+      }
+
+      q('[data-di-actions]').addEventListener('click', async (event) => {
+        const button = event.target.closest('button');
+        if (!button) return;
+        try {
+          if (button.hasAttribute('data-di-new')) {
+            resetJob();
+            syncTabs();
+            drawJob();
+          } else if (button.hasAttribute('data-di-save')) {
+            await save();
+            setMessage('#workspaceMessage', state.job.reference + ' saved as a draft.', true);
+            syncTabs();
+            drawJob();
+          } else if (button.hasAttribute('data-di-complete')) {
+            if (!validateForComplete()) {
+              setMessage(
+                '#workspaceMessage',
+                'Some details are missing. Check the highlighted fields.',
+              );
+              return;
+            }
+            button.disabled = true;
+            await save();
+            const result = await apiRequest(
+              '/api/di-jobs/' + encodeURIComponent(state.job.id) + '/complete',
+              { method: 'POST' },
+            );
+            applyJob(result);
+            state.completionWarnings = result.warnings || [];
+            setMessage(
+              '#workspaceMessage',
+              state.job.reference + ' completed: AED ' + fmt(state.job.totalRevenue) + '.',
+              true,
+            );
+            syncTabs();
+            drawJob();
+          } else if (button.hasAttribute('data-di-cancel')) {
+            if (!confirm('Cancel ' + state.job.reference + '? It will not count as revenue.'))
+              return;
+            applyJob(
+              await apiRequest('/api/di-jobs/' + encodeURIComponent(state.job.id) + '/cancel', {
+                method: 'POST',
+              }),
+            );
+            setMessage('#workspaceMessage', state.job.reference + ' cancelled.', true);
+            syncTabs();
+            drawJob();
+          } else if (button.hasAttribute('data-di-reopen')) {
+            if (
+              !confirm(
+                'Reopen ' + state.job.reference + ' as a draft? Its frozen figures are cleared.',
+              )
+            )
+              return;
+            applyJob(
+              await apiRequest('/api/di-jobs/' + encodeURIComponent(state.job.id) + '/reopen', {
+                method: 'POST',
+              }),
+            );
+            setMessage('#workspaceMessage', state.job.reference + ' reopened as a draft.', true);
+            syncTabs();
+            drawJob();
+          }
+        } catch (error) {
+          button.disabled = false;
+          setMessage('#workspaceMessage', error.message);
+          if (state.job) {
+            syncTabs();
+          }
+        }
+      });
+    }
+
+    // ---------------- Jobs list ----------------
+    async function loadJobs() {
+      const f = state.list;
+      const params = new URLSearchParams({ page: String(f.page), pageSize: '50' });
+      if (f.status) params.set('status', f.status);
+      if (f.from) params.set('from', f.from);
+      if (f.to) params.set('to', f.to);
+      if (f.search) params.set('search', f.search);
+      body.innerHTML = '<p class="form-note">Loading…</p>';
+      try {
+        f.data = await apiRequest('/api/di-jobs?' + params.toString());
+      } catch (error) {
+        body.innerHTML = '';
+        setMessage('#workspaceMessage', error.message);
+        return;
+      }
+      drawJobs();
+    }
+
+    function drawJobs() {
+      const f = state.list;
+      const data = f.data;
+      const pages = Math.max(1, Math.ceil(data.total / data.pageSize));
+      const statusOptions = ['', 'Draft', 'Completed', 'Cancelled']
+        .map(
+          (s) =>
+            '<option value="' +
+            s +
+            '"' +
+            (s === f.status ? ' selected' : '') +
+            '>' +
+            (s || 'All statuses') +
+            '</option>',
+        )
+        .join('');
+      body.innerHTML =
+        '<div class="field-grid">' +
+        '<div class="field"><label for="diFStatus">Status</label><select id="diFStatus">' +
+        statusOptions +
+        '</select></div>' +
+        '<div class="field"><label for="diFFrom">From</label><input id="diFFrom" type="date" value="' +
+        escapeHtml(f.from) +
+        '" /></div>' +
+        '<div class="field"><label for="diFTo">To</label><input id="diFTo" type="date" value="' +
+        escapeHtml(f.to) +
+        '" /></div>' +
+        '<div class="field"><label for="diFSearch">Search</label><input id="diFSearch" placeholder="Reference, customer, delivery note…" value="' +
+        escapeHtml(f.search) +
+        '" /></div>' +
+        '</div>' +
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Delivery note</th><th>Salesman</th><th>Channel</th><th>Status</th><th class="num">Lines</th><th class="num">Revenue (AED)</th><th></th></tr></thead><tbody>' +
+        (data.jobs.length
+          ? data.jobs
+              .map(
+                (job) =>
+                  '<tr><td>' +
+                  escapeHtml(job.reference) +
+                  '</td><td>' +
+                  escapeHtml(job.serviceDate) +
+                  '</td><td>' +
+                  escapeHtml(job.customerName || '—') +
+                  '</td><td>' +
+                  escapeHtml(job.deliveryNoteRef || '—') +
+                  '</td><td>' +
+                  escapeHtml(job.salesman || '—') +
+                  '</td><td>' +
+                  escapeHtml(job.salesChannel || '—') +
+                  '</td><td>' +
+                  escapeHtml(job.status) +
+                  '</td><td class="num">' +
+                  job.lineCount +
+                  '</td><td class="num">' +
+                  (job.status === 'Completed' ? fmt(job.totalRevenue) : '—') +
+                  '</td><td><button class="button" type="button" data-di-open="' +
+                  escapeHtml(job.id) +
+                  '">Open</button></td></tr>',
+              )
+              .join('')
+          : '<tr><td colspan="10" class="empty-state">No jobs match.</td></tr>') +
+        '</tbody></table></div>' +
+        '<div class="form-footer"><span class="form-note">' +
+        data.total +
+        ' job(s) · page ' +
+        f.page +
+        ' of ' +
+        pages +
+        '</span>' +
+        '<button class="button button-outline" type="button" data-di-page="-1"' +
+        (f.page <= 1 ? ' disabled' : '') +
+        '>Previous</button>' +
+        '<button class="button button-outline" type="button" data-di-page="1"' +
+        (f.page >= pages ? ' disabled' : '') +
+        '>Next</button></div>' +
+        (canConfigure
+          ? '<section class="detail-action-card"><h4>Settings</h4><label><input type="checkbox" id="diErpMandatory"' +
+            (state.options.erpInvMandatory ? ' checked' : '') +
+            ' /> The ERP Inv No is required before a job can be completed</label><p class="form-note">Leave this off while testing; switch it on once the ERP Inv No is entered on every job.</p></section>'
+          : '');
+      const refilter = () => {
+        f.status = q('#diFStatus').value;
+        f.from = q('#diFFrom').value;
+        f.to = q('#diFTo').value;
+        f.search = q('#diFSearch').value.trim();
+        f.page = 1;
+        loadJobs();
+      };
+      ['#diFStatus', '#diFFrom', '#diFTo'].forEach((sel) =>
+        q(sel).addEventListener('change', refilter),
+      );
+      q('#diFSearch').addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') refilter();
+      });
+      q('#diFSearch').addEventListener('change', refilter);
+      body.querySelectorAll('[data-di-page]').forEach((button) =>
+        button.addEventListener('click', () => {
+          f.page += Number(button.dataset.diPage);
+          loadJobs();
+        }),
+      );
+      body.querySelectorAll('[data-di-open]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          try {
+            applyJob(await apiRequest('/api/di-jobs/' + encodeURIComponent(button.dataset.diOpen)));
+            state.tab = 'job';
+            syncTabs();
+            drawJob();
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message);
+          }
+        }),
+      );
+      const erp = q('#diErpMandatory');
+      if (erp) {
+        erp.addEventListener('change', async () => {
+          try {
+            await apiRequest('/api/di-jobs/settings', {
+              method: 'PATCH',
+              body: JSON.stringify({ erpInvMandatory: erp.checked }),
+            });
+            state.options.erpInvMandatory = erp.checked;
+            setMessage('#workspaceMessage', 'Setting saved.', true);
+          } catch (error) {
+            erp.checked = !erp.checked;
+            setMessage('#workspaceMessage', error.message);
+          }
+        });
+      }
+    }
+
+    syncTabs();
+    drawJob();
+  }
+
   async function renderBilling(root) {
     const canRecord = hasPermission('invoices.write');
     const range = pgRangeFor('ytd');
@@ -20582,6 +21602,7 @@ ${bodyHtml}
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
+  $('#deliveryInstallNav')?.addEventListener('click', () => setWorkspaceMode('delivery-install'));
   $('#invoicesNav')?.addEventListener('click', () => setWorkspaceMode('invoices'));
   $('#billingNav')?.addEventListener('click', () => setWorkspaceMode('billing'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));

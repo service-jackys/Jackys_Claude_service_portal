@@ -209,6 +209,20 @@ const requestBodies = {
       },
     },
   },
+  diJob: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/DiJobRequest' } } },
+  },
+  diPriceNote: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/DiPriceNoteRequest' } },
+    },
+  },
+  diSettings: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/DiSettingsRequest' } } },
+  },
   billingRule: {
     required: true,
     content: {
@@ -743,6 +757,64 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             active: { type: 'boolean' },
             reportingName: { type: 'string', maxLength: 50 },
           },
+        },
+        DiJobRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['serviceDate', 'region', 'lines'],
+          properties: {
+            serviceDate: { type: 'string', format: 'date' },
+            custCode: { type: 'string', maxLength: 100, nullable: true },
+            salesman: { type: 'string', maxLength: 200, nullable: true },
+            region: { type: 'string', minLength: 1, maxLength: 50 },
+            deliveryNoteRef: { type: 'string', maxLength: 100, nullable: true },
+            erpInvNo: { type: 'string', maxLength: 100, nullable: true },
+            csoscNo: { type: 'string', maxLength: 100, nullable: true },
+            notes: { type: 'string', maxLength: 1000, nullable: true },
+            lines: {
+              type: 'array',
+              maxItems: 200,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['itemCode', 'qty', 'type'],
+                properties: {
+                  itemCode: { type: 'string', minLength: 1, maxLength: 100 },
+                  qty: { type: 'number', exclusiveMinimum: 0, maximum: 100000 },
+                  type: { type: 'string', enum: ['CSIDI', 'CSIDO', 'CSIII'] },
+                },
+              },
+            },
+          },
+        },
+        DiPriceNoteRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['region', 'lines'],
+          properties: {
+            region: { type: 'string', maxLength: 50 },
+            lines: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 200,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['itemCode', 'qty', 'type'],
+                properties: {
+                  itemCode: { type: 'string', minLength: 1, maxLength: 100 },
+                  qty: { type: 'number' },
+                  type: { type: 'string', enum: ['CSIDI', 'CSIDO', 'CSIII'] },
+                },
+              },
+            },
+          },
+        },
+        DiSettingsRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['erpInvMandatory'],
+          properties: { erpInvMandatory: { type: 'boolean' } },
         },
         CategoryMappingRequest: {
           type: 'object',

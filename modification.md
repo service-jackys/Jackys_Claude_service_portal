@@ -3574,3 +3574,25 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/dandi-jobs/pricing-engine.ts, apps/api/src/dandi-jobs/service.ts, packages/db/src/category-mappings.ts, tests/unit/dandi-pricing-engine.test.ts, tests/integration/dandi-pricing.test.ts, tests/fixtures/dandi-net-sale-19oct.json, tests/fixtures/dandi-csidi-sheet-19oct.json.
 
 **Needs you:** nothing to pull for use; decide the installation-only rule (below) before phase 3.
+
+## Modification #157 — Delivery & Installation: enter a job (phase 3)
+
+**Date:** 2026-10-27
+
+**Why.** Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work was only in the master Excel. Phase 3 of the plan lets the team enter each job on the portal, with the price calculated as they type. The portal calculates but does not feed the revenue dashboard yet (phase 4), so the one-month parallel run against the Excel can start.
+
+**What changed.**
+- **New page: Service desk → Delivery & Installation**, with two tabs. **New job** is the entry form; **Jobs** lists and filters every job and opens one.
+- One job = one ERP delivery note. The form has: service date, region (Dubai / Sharjah, from the pricing master), ERP delivery note (Ref Inv, required), ERP Inv No (required only when the admin switch is on), CSOSC order no. (optional), B2B customer, salesman and notes.
+- The B2B customer is picked from the B2B customer list. Picking it fills the salesman from the customer record; the salesman is a dropdown from the salesmen master, and the sales channel shows under it, read only. A salesman with no channel gives a "contact the admin" pop-up and the job cannot be completed.
+- Items are picked from the stock master (vouchers and other charges are left out; 3PL items are allowed). Each line is item + quantity + the activity the user chooses: CSIDI, CSIDO or CSIII. An item whose group is not installable can only be Delivery only; choosing Delivery only on an installable item shows a warning pop-up and still lets the user continue.
+- A live price panel shows CSIDI / CSIDO / CSIII totals and any errors or warnings, and the revenue of each line; it recalculates after every change.
+- Status is Draft, Completed or Cancelled. Only Completed counts as revenue, and the figures are frozen on the job and its lines at completion. Completing checks the customer, salesman and channel, delivery note, at least one line, a price with no errors, and the ERP Inv No when required.
+- The same delivery note on another job is a warning only. Each line keeps the channel of the salesman, unless a billing rule (for example salesman + brand) names another one.
+- Admin only: **Reopen** a completed or cancelled job as a draft (audited; the frozen figures are cleared), cancel a completed job, and the Jobs tab setting "The ERP Inv No is required before a job can be completed" (off to start with).
+- Every job gets a reference DIJ-YYYY-NNNNN. Create, edit, complete, cancel, reopen and the setting change are on the Activity log.
+- New permissions (Roles & permissions): di_jobs.read and di_jobs.write (given to every role that has the service job card read / write), di_jobs.reopen and di_jobs.configure (admin).
+
+**Files.** packages/db/migrations/058_dandi_jobs.sql, packages/db/src/di-jobs.ts, packages/db/src/references.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-jobs.test.ts, tests/unit/dandi-job-routes.test.ts, tests/e2e/delivery-installation.spec.ts.
+
+**Needs you:** pull, run `npm install` only if asked, restart the API (migration 058 runs on start), then hard-refresh. Check under Roles & permissions that the right roles have Delivery & Installation. Before the first real job: under Management → Salesmen & channels, make sure each salesman has a channel and the unlinked stock groups are mapped.
