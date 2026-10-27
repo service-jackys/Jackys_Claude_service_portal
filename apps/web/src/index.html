@@ -9574,10 +9574,38 @@
       }
       .tk-panel footer {
         display: flex;
+        flex-wrap: wrap;
         align-items: center;
+        justify-content: space-between;
         gap: 0.5rem;
         padding: 0.8rem 1.1rem;
         border-top: 1px solid var(--line);
+      }
+      /* Delete / Discuss on the left, Cancel / Save changes on the right; the
+         groups wrap onto two lines on a narrow or zoomed screen so the Save
+         button is never pushed out of view. */
+      .tk-foot-side,
+      .tk-foot-main {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .tk-foot-main {
+        margin-left: auto;
+      }
+      .tk-panel footer .tk-btn {
+        white-space: nowrap;
+      }
+      /* The page footer rules (body.is-authenticated footer: sidebar-width left
+         padding, navy fill) also matched this panel's <footer> and pushed Save
+         changes out of view. Reset them for the panel. */
+      body.is-authenticated .tk-panel footer,
+      [data-theme='dark'] .tk-panel footer {
+        padding: 0.8rem 1.1rem;
+        background: transparent;
+        color: inherit;
+        border-top: 1px solid var(--line);
+        font-size: inherit;
       }
       .tk-spacer {
         flex: 1;
