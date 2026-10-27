@@ -11,9 +11,11 @@ import {
 } from '../../../../packages/contracts/src/index.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
+  budgetLinesForBatch,
   budgetVsActual,
   createImportBatch,
   findActiveBatch,
+  findBatchFile,
   insertBudgetLines,
   insertRevenueLines,
   listBatches,
@@ -23,13 +25,16 @@ import {
   revenueInvoiceLines,
   revenueInvoiceList,
   revenueLines,
+  revenueLinesForBatch,
   revenueMatrix,
   revenueSummary,
   REVENUE_EXCEPTIONS,
+  saveBatchFile,
   type RevenueDimension,
   type RevenueFilters,
 } from '../../../../packages/db/src/revenue-dashboard.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
+import { buildBudgetWorkbook, buildRevenueSourceWorkbook } from './download.js';
 import { buildRevenueReportWorkbook } from './export.js';
 import { applyFlatRates } from './pricing-logic.js';
 import {
@@ -45,7 +50,7 @@ import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from '.
 
 export class RevenueDashboardServiceError extends Error {
   constructor(
-    public readonly code: 'invalid-file' | 'no-data' | 'invalid-activity',
+    public readonly code: 'invalid-file' | 'no-data' | 'invalid-activity' | 'not-found',
     message: string,
   ) {
     super(message);
@@ -108,6 +113,7 @@ export function createRevenueDashboardService(pool: Pool) {
               summary: { periods: parsed.periods },
               uploadedBy: profileId,
             });
+      await saveBatchFile(client, batch.id, kind, file.buffer);
       if ('rates' in parsed) await insertRevenueLines(client, batch.id, parsed.lines);
       else await insertBudgetLines(client, batch.id, parsed.lines);
       // A budget upload also refreshes the budget version Budget Variance reads, so both
@@ -463,8 +469,59 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
+  /**
+   * Download an uploaded workbook for verification: exactly as uploaded when the
+   * portal still holds it (the newest upload of each kind), otherwise an Excel
+   * rebuilt from the rows that were read from it.
+   */
+  async function downloadBatch(
+    idInput: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const id = String(idInput ?? '').trim();
+    if (!/^\d{1,15}$/.test(id)) {
+      throw new RevenueDashboardServiceError('not-found', 'Choose an upload to download.');
+    }
+    const client = await pool.connect();
+    try {
+      const batch = await findBatchFile(client, id);
+      if (!batch) throw new RevenueDashboardServiceError('not-found', 'That upload was not found.');
+      let result: { fileName: string; buffer: Buffer; source: 'original' | 'rebuilt' };
+      if (batch.bytes) {
+        result = { fileName: batch.fileName, buffer: batch.bytes, source: 'original' };
+      } else {
+        const stem = batch.fileName.replace(/\.(xlsx|xlsm)$/i, '');
+        result =
+          batch.kind === 'revenue'
+            ? {
+                fileName: `${stem}_rebuilt.xlsx`,
+                buffer: await buildRevenueSourceWorkbook(await revenueLinesForBatch(client, id)),
+                source: 'rebuilt',
+              }
+            : {
+                fileName: `${stem}_rebuilt.xlsx`,
+                buffer: await buildBudgetWorkbook(await budgetLinesForBatch(client, id)),
+                source: 'rebuilt',
+              };
+      }
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.downloaded',
+        targetType: 'revenue_import_batch',
+        targetId: id,
+        metadata: { kind: batch.kind, source: result.source, fileName: result.fileName },
+        requestId,
+      });
+      return result;
+    } finally {
+      client.release();
+    }
+  }
+
   return {
     importWorkbook,
+    downloadBatch,
     batches,
     summary,
     lines,

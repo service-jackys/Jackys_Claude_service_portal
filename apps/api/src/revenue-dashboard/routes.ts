@@ -45,6 +45,31 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    downloadBatch: [
+      requirePermission('revenue_dashboard.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const file = await service.downloadBatch(
+            request.params.id,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', `attachment; filename="${file.fileName.replace(/"/g, '')}"`)
+            .set('X-Download-Source', file.source)
+            .set('Cache-Control', 'no-store')
+            .send(file.buffer);
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     batches: [
       requirePermission('revenue_dashboard.read'),
       async (_request, response, next) => {

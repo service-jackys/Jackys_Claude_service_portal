@@ -13,6 +13,8 @@ export type ImportBatch = {
   isActive: boolean;
   uploadedBy: string | null;
   uploadedAt: Date;
+  /** The original workbook is still held and can be downloaded as uploaded. */
+  hasFile: boolean;
 };
 
 const batchColumns = `
@@ -25,7 +27,8 @@ const batchColumns = `
   summary,
   is_active AS "isActive",
   uploaded_by AS "uploadedBy",
-  uploaded_at AS "uploadedAt"
+  uploaded_at AS "uploadedAt",
+  (file_bytes IS NOT NULL) AS "hasFile"
 `;
 
 export type RevenueLineInput = {
@@ -566,4 +569,70 @@ export async function budgetVsActual(
     actual = result.rows;
   }
   return { budget: budget.rows, actual };
+}
+
+/**
+ * Keep the original workbook of this batch and drop the bytes from older
+ * batches of the same kind (their rows stay as history).
+ */
+export async function saveBatchFile(
+  client: PoolClient,
+  batchId: string,
+  kind: BatchKind,
+  bytes: Buffer,
+): Promise<void> {
+  await client.query(`UPDATE revenue_import_batches SET file_bytes = $2 WHERE id = $1::bigint`, [
+    batchId,
+    bytes,
+  ]);
+  await client.query(
+    `UPDATE revenue_import_batches SET file_bytes = NULL
+      WHERE kind = $1 AND id <> $2::bigint AND file_bytes IS NOT NULL`,
+    [kind, batchId],
+  );
+}
+
+export type BatchFile = ImportBatch & { bytes: Buffer | null };
+
+export async function findBatchFile(
+  client: PoolClient,
+  batchId: string,
+): Promise<BatchFile | null> {
+  const result = await client.query<BatchFile>(
+    `SELECT ${batchColumns}, file_bytes AS bytes FROM revenue_import_batches WHERE id = $1::bigint`,
+    [batchId],
+  );
+  return result.rows[0] ?? null;
+}
+
+export async function revenueLinesForBatch(
+  client: PoolClient,
+  batchId: string,
+): Promise<RevenueLineInput[]> {
+  const result = await client.query<RevenueLineInput>(
+    `SELECT source_row AS "sourceRow", job_type AS "jobType", description, inv_del_no AS "invDelNo",
+            csosc_order_no AS "csoscOrderNo", to_char(order_date, 'YYYY-MM-DD') AS "orderDate",
+            year, week_no AS "weekNo", month_no AS "monthNo", customer, lpo_no AS "lpoNo",
+            csosc_status AS "csoscStatus", job_sheet_status AS "jobSheetStatus",
+            sales_person AS "salesPerson", qty::float8 AS qty, unit_price::float8 AS "unitPrice",
+            revenue::float8 AS revenue, original_job_value::float8 AS "originalJobValue",
+            billing_code AS "billingCode", sales_channel AS "salesChannel",
+            cost_status AS "costStatus", remarks
+       FROM revenue_lines WHERE batch_id = $1::bigint ORDER BY id`,
+    [batchId],
+  );
+  return result.rows;
+}
+
+export async function budgetLinesForBatch(
+  client: PoolClient,
+  batchId: string,
+): Promise<BudgetLineInput[]> {
+  const result = await client.query<BudgetLineInput>(
+    `SELECT section, line_item AS "lineItem", to_char(period, 'YYYY-MM-DD') AS period,
+            amount::float8 AS amount, sort_order AS "sortOrder"
+       FROM budget_lines WHERE batch_id = $1::bigint ORDER BY sort_order, period`,
+    [batchId],
+  );
+  return result.rows;
 }

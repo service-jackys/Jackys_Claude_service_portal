@@ -57,6 +57,8 @@ export type StockUploadSummary = {
   uploadedBy: string | null;
   uploadedByName: string | null;
   uploadedAt: Date;
+  /** The original file is still held and can be downloaded as uploaded. */
+  hasFile: boolean;
 };
 
 const DESCRIPTIVE_FIELDS: { key: keyof StockItem; label: string }[] = [
@@ -364,7 +366,7 @@ export async function stockStatus(db: Queryable): Promise<{
     `SELECT u.id::text AS id, u.channel, u.file_name AS "fileName", u.row_count AS "rowCount",
             u.item_count AS "itemCount", u.new_items AS "newItems", u.changed_items AS "changedItems",
             u.report, u.uploaded_by::text AS "uploadedBy", p.display_name AS "uploadedByName",
-            u.uploaded_at AS "uploadedAt"
+            u.uploaded_at AS "uploadedAt", (u.file_bytes IS NOT NULL) AS "hasFile"
        FROM stock_uploads u
        LEFT JOIN profiles p ON p.id = u.uploaded_by
       ORDER BY u.uploaded_at DESC, u.id DESC
@@ -422,4 +424,87 @@ export async function findStockItemByCode(
     [code],
   );
   return result.rows[0] ?? null;
+}
+
+/**
+ * Keep the original bytes of the newest upload of a channel and drop them from
+ * the channel's older uploads (their rows and reports stay).
+ */
+export async function saveStockUploadFile(
+  client: PoolClient,
+  uploadId: string,
+  channel: StockChannel,
+  bytes: Buffer,
+): Promise<void> {
+  await client.query(`UPDATE stock_uploads SET file_bytes = $2 WHERE id = $1::bigint`, [
+    uploadId,
+    bytes,
+  ]);
+  await client.query(
+    `UPDATE stock_uploads SET file_bytes = NULL
+      WHERE channel = $1 AND id <> $2::bigint AND file_bytes IS NOT NULL`,
+    [channel, uploadId],
+  );
+}
+
+export type StockUploadFile = {
+  id: string;
+  fileName: string;
+  uploadedAt: Date;
+  bytes: Buffer | null;
+};
+
+/** The channel's newest upload with its original bytes (null when not kept). */
+export async function latestStockUploadFile(
+  db: Queryable,
+  channel: StockChannel,
+): Promise<StockUploadFile | null> {
+  const result = await db.query<StockUploadFile>(
+    `SELECT id::text AS id, file_name AS "fileName", uploaded_at AS "uploadedAt", file_bytes AS bytes
+       FROM stock_uploads WHERE channel = $1 ORDER BY uploaded_at DESC, id DESC LIMIT 1`,
+    [channel],
+  );
+  return result.rows[0] ?? null;
+}
+
+/** Every location row of the channel's current stock file, in file order. */
+export async function stockPositionsForChannel(
+  db: Queryable,
+  channel: StockChannel,
+): Promise<StockRow[]> {
+  const result = await db.query<StockRow>(
+    `SELECT location, locn_desc AS "locnDesc", item_code AS "itemCode", item_desc AS "itemDesc",
+            grade, stock::float8 AS stock, wac::float8 AS wac, value::float8 AS value,
+            transit::float8 AS transit, reserved::float8 AS reserved, main_group AS "mainGroup",
+            group_name AS "groupName", sub_group AS "subGroup", brand, item_type AS "itemType",
+            last_grn::float8 AS "lastGrn", to_char(last_grn_date, 'YYYY-MM-DD') AS "lastGrnDate",
+            landed_cost::float8 AS "landedCost"
+       FROM stock_positions WHERE channel = $1 ORDER BY id`,
+    [channel],
+  );
+  return result.rows;
+}
+
+export type StockItemMasterRow = StockItem & {
+  firstSeenAt: Date;
+  updatedAt: Date;
+  channels: { channel: StockChannel; seen: boolean }[];
+};
+
+/** The unique item list (all channels, including non-product groups) for export. */
+export async function stockItemMaster(db: Queryable): Promise<StockItemMasterRow[]> {
+  const result = await db.query<StockItemMasterRow>(
+    `SELECT ${itemColumns}, first_seen_at AS "firstSeenAt", updated_at AS "updatedAt",
+            COALESCE((
+              SELECT json_agg(json_build_object(
+                       'channel', sic.channel,
+                       'seen', sic.last_seen_at >= (
+                         SELECT max(u.uploaded_at) FROM stock_uploads u WHERE u.channel = sic.channel
+                       )
+                     ) ORDER BY sic.channel)
+              FROM stock_item_channels sic WHERE sic.item_code = stock_items.item_code
+            ), '[]'::json) AS channels
+       FROM stock_items ORDER BY item_code`,
+  );
+  return result.rows;
 }

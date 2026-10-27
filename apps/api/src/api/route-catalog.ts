@@ -764,7 +764,7 @@ export function createRouteCatalog(
         requirePermission,
         requireAnyPermission,
       )
-    : unavailableHandlers(['upload', 'status', 'search', 'facets']);
+    : unavailableHandlers(['upload', 'download', 'status', 'search', 'facets']);
   const reportHandlers = pool
     ? createReportHandlers(createReportService(pool), requirePermission)
     : unavailableHandlers(['types', 'preview', 'download']);
@@ -828,6 +828,10 @@ export function createRouteCatalog(
     ? createRevenueDashboardHandlers(createRevenueDashboardService(pool), requirePermission)
     : {
         importWorkbook: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        downloadBatch: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -2929,6 +2933,26 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
+        path: '/api/stock/download',
+        operationId: 'downloadStockMaster',
+        tags: ['Stock Master'],
+        summary:
+          'Download a channel stock file (JDI, JMS or TGE) as uploaded, or rebuilt from the stored rows when the original is not kept; channel=items gives the unique item list',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'channel',
+            in: 'query',
+            required: true,
+            schema: { type: 'string', enum: ['JDI', 'JMS', 'TGE', 'items'] },
+          },
+        ],
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: stockMasterHandlers.download,
+      },
+      {
+        method: 'get' as const,
         path: '/api/stock/status',
         operationId: 'getStockMasterStatus',
         tags: ['Stock Master'],
@@ -3074,6 +3098,19 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [201, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.importWorkbook,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/import/{id}/download',
+        operationId: 'downloadRevenueImportBatch',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Download an uploaded revenue or budget workbook as uploaded, or rebuilt from the stored rows when the original is not kept',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 401, 403, 404, 500],
+        handlers: revenueDashboardHandlers.downloadBatch,
       },
       {
         method: 'get' as const,
