@@ -117,3 +117,62 @@ export async function listUnmappedGroups(client: PoolClient): Promise<UnmappedGr
   );
   return result.rows;
 }
+
+export type ItemCategory = {
+  itemCode: string;
+  /** Null when the item is not in the stock master. */
+  groupName: string | null;
+  /** Null when the item or its group is not linked (unmapped or mapping switched off). */
+  installable: boolean | null;
+  pricingCategory: string | null;
+};
+
+/**
+ * For each item code: its stock-master group and what the category mapping says
+ * about it. Codes are matched ignoring case and surrounding spaces; an item the
+ * stock master does not know comes back with nulls so the caller can say so.
+ */
+export async function resolveItemCategories(
+  client: PoolClient,
+  itemCodes: string[],
+): Promise<Map<string, ItemCategory>> {
+  const wanted = [...new Set(itemCodes.map((code) => code.trim()).filter(Boolean))];
+  const found = new Map<string, ItemCategory>();
+  if (wanted.length) {
+    const result = await client.query<ItemCategory & { requested: string }>(
+      `SELECT wanted.code AS requested,
+              stock_items.item_code AS "itemCode",
+              stock_items.group_name AS "groupName",
+              category_mappings.installable,
+              category_mappings.pricing_category AS "pricingCategory"
+       FROM unnest($1::text[]) AS wanted(code)
+       JOIN stock_items ON lower(stock_items.item_code) = lower(wanted.code)
+       LEFT JOIN category_mappings
+         ON category_mappings.active
+        AND lower(trim(category_mappings.group_name)) = lower(trim(stock_items.group_name))`,
+      [wanted],
+    );
+    for (const row of result.rows) {
+      found.set(row.requested.toLowerCase(), {
+        itemCode: row.itemCode,
+        groupName: row.groupName,
+        installable: row.installable,
+        pricingCategory: row.pricingCategory,
+      });
+    }
+  }
+  const out = new Map<string, ItemCategory>();
+  for (const code of itemCodes) {
+    const key = code.trim().toLowerCase();
+    out.set(
+      code,
+      found.get(key) ?? {
+        itemCode: code.trim(),
+        groupName: null,
+        installable: null,
+        pricingCategory: null,
+      },
+    );
+  }
+  return out;
+}

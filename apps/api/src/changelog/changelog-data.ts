@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 156,
+    title: 'Delivery & installation pricing engine (phase 2)',
+    area: 'Pricing & rates',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'Before the Delivery & Installation entry screen is built, the arithmetic has to match the master Excel to the fils. This is phase 2 of the plan in the project (claude/dandi-activity-capture-plan-2026-10-27). Nothing is visible in the screens yet.',
+    changes: [
+      "A single pricing function prices one delivery note whose lines are each chosen as CSIDI, CSIDO or CSIII, with the rules of the Net Sale Current sheet: batch or standard rate and discount tier from the note's total quantity of that type…",
+      'Item rules: an item whose group is not installable can only be CSIDO; an unlinked group cannot be priced as installed; CSIDO on an installable item gives a warning.',
+      'A service prices a note from item codes (stock master group → category mapping → pricing category). There is no screen or API route for it yet; the entry screen (phase 3) will use it for the live price.',
+      'Net Sale Current sample, 48 lines / 37 invoices: every line matches, except one CSIDI coded 3PL non-electronics item that the workbook prices at 60 (Default rate) and the portal only allows as delivery only (100). Portal total 4,890…',
+      '629 lines of the CSIDI sheet / 434 invoices: all 312 CSIDI and 277 CSIDO lines match. 31 of the 40 CSIII lines differ by AED −703.25 in total: on notes with several installation-only lines, the stored history priced each line on its own…',
+    ],
+    needsYou: 'nothing to pull for use; decide the installation-only rule (below) before phase 3.',
+    migrations: [],
+    files:
+      'apps/api/src/dandi-jobs/pricing-engine.ts, apps/api/src/dandi-jobs/service.ts, packages/db/src/category-mappings.ts, tests/unit/dandi-pricing-engine.test.ts, tests/integration/dandi-pricing.test.ts…',
+  },
+  {
     id: 155,
     title: 'Billing rules moved to Management → Billing',
     area: 'Invoices & billing',
