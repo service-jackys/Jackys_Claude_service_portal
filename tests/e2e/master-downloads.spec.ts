@@ -36,26 +36,22 @@ async function mockApi(
     if (url.pathname === '/api/stock/status') {
       const upload = {
         id: '1',
-        channel: 'JDI',
-        fileName: 'jdi.xlsx',
-        rowCount: 10,
-        itemCount: 8,
-        newItems: 8,
+        fileName: 'ItemListing.xlsx',
+        rowCount: 121617,
+        itemCount: 88850,
+        newItems: 88850,
         changedItems: 0,
         report: {},
         uploadedBy: '1',
         uploadedByName: 'Admin',
         uploadedAt: '2026-10-20T08:00:00Z',
-        hasFile: false,
+        hasFile: true,
       };
       return json({
-        channels: [
-          { channel: 'JDI', lastUpload: upload, itemCount: 8, notSeenCount: 0, positionRows: 10 },
-          { channel: 'JMS', lastUpload: null, itemCount: 0, notSeenCount: 0, positionRows: 0 },
-          { channel: 'TGE', lastUpload: null, itemCount: 0, notSeenCount: 0, positionRows: 0 },
-        ],
-        totalItems: 8,
-        searchableItems: 6,
+        lastUpload: upload,
+        totalItems: 88852,
+        searchableItems: 15284,
+        notInFileCount: 2,
         recentUploads: [upload],
       });
     }
@@ -84,48 +80,35 @@ async function signIn(page: Page) {
   await expect(page.locator('#staff-workspace')).toBeVisible();
 }
 
-test('stock master offers a download per uploaded channel and for the item list', async ({
-  page,
-}) => {
+test('stock master offers one download of the uploaded item listing', async ({ page }) => {
   const calls: string[] = [];
   await mockApi(
     page,
     ['stock.read', 'stock.write'],
     [
       {
-        url: '/api/stock/download?channel=JDI',
-        source: 'rebuilt',
-        fileName: 'Stock_JDI_rebuilt_2026-10-27.xlsx',
-      },
-      {
-        url: '/api/stock/download?channel=items',
-        source: 'rebuilt',
-        fileName: 'Stock_item_master_2026-10-27.xlsx',
+        url: '/api/stock/download',
+        source: 'original',
+        fileName: 'ItemListing.xlsx',
       },
     ],
     calls,
   );
   await signIn(page);
   await page.locator('#stockMasterNav').dispatchEvent('click');
-  await expect(page.getByRole('button', { name: 'Download JDI Excel' })).toBeVisible();
-  // channels with no upload offer no per-channel download
-  await expect(page.getByRole('button', { name: 'Download JMS Excel' })).toHaveCount(0);
+  await expect(page.locator('.rcv-banner')).toContainText('88,852 items');
+  await expect(page.getByText('2 item(s) not in the latest file (kept)')).toBeVisible();
+  // one master: no channel cards, no channel picker
+  await expect(page.locator('[data-sm-channel]')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Download Excel' })).toHaveCount(1);
 
-  const [channelDownload] = await Promise.all([
+  const [download] = await Promise.all([
     page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download JDI Excel' }).click(),
+    page.getByRole('button', { name: 'Download Excel' }).click(),
   ]);
-  expect(channelDownload.suggestedFilename()).toBe('Stock_JDI_rebuilt_2026-10-27.xlsx');
-  await expect(page.locator('[data-sm-dl-msg]')).toContainText(
-    'rebuilt from the data the portal stored',
-  );
-
-  const [itemsDownload] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('button', { name: 'Download item list (all channels)' }).click(),
-  ]);
-  expect(itemsDownload.suggestedFilename()).toBe('Stock_item_master_2026-10-27.xlsx');
-  expect(calls).toEqual(['/api/stock/download?channel=JDI', '/api/stock/download?channel=items']);
+  expect(download.suggestedFilename()).toBe('ItemListing.xlsx');
+  await expect(page.locator('[data-sm-dl-msg]')).toContainText('exactly as uploaded');
+  expect(calls).toEqual(['/api/stock/download']);
 });
 
 test('revenue dashboard banner offers the uploaded workbook to admins only', async ({ page }) => {

@@ -114,8 +114,8 @@ test(
       );
       profileId = profile.rows[0].id;
       await pool.query(
-        `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, sub_group, brand, last_channel)
-         VALUES ($1, 'Test cooker', 'MDA', 'COOKING', 'GAS COOKER', 'VENUS', 'JDI')`,
+        `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, sub_group, brand)
+         VALUES ($1, 'Test cooker', 'MDA', 'COOKING', 'GAS COOKER', 'VENUS')`,
         [itemCode],
       );
       const appointmentService = createAppointmentService(pool);
@@ -162,7 +162,7 @@ test(
       assert.ok(detail.masterFields.includes('brand'));
       assert.ok(detail.masterFields.includes('mainGroup'));
     } finally {
-      await pool.query(`DELETE FROM stock_items WHERE item_code = $1`, [itemCode]);
+      await pool.query(`DELETE FROM stock_master WHERE item_code = $1`, [itemCode]);
       await pool.end();
     }
   },

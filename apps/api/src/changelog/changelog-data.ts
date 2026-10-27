@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 161,
+    title: 'One stock master: the ERP Item Listing',
+    area: 'Stock & masters',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The stock master was built from three ERP stock-valuation files (JDI, JMS, TGE), so it only held items that had stock. The ERP Item Listing holds every item as soon as it is created, so it replaces them: one file, one table.',
+    changes: [
+      'One upload. Stock master → "Upload ERP Item Listing" takes the one file (columns read: Item Code, Item Desc, Maingrp Name, Grp Name, SUBGRPNAME, BRANDNAME). The channel picker and the three channel cards are gone. An item that appears on…',
+      'One table in the database. stock_items is now stock_master (item code, description, main group, group, sub group, brand, when last seen). The stock_positions (location, stock, WAC, value …) and stock_item_channels tables are dropped, and…',
+      'Everywhere the stock master is used now reads the same table, unchanged in behaviour: item and brand pickers on New request, Schedule, Warranty approvals, VAS sale, Quotation and Inspection; the job card prefill; Billing rules brand list…',
+      'Download. One "Download Excel" button gives the newest uploaded file exactly as uploaded (rebuilt from the table, with the same six columns, if no copy is kept).',
+    ],
+    needsYou:
+      'pull, restart the API (migration 061 — it removes the per-channel stock rows and keeps every item you already have), hard-refresh. Then Stock master → upload the Item Listing once. Category Mapping will list more item groups to link now that every item is…',
+    migrations: ['061_single_stock_master.sql'],
+    files:
+      'packages/db/migrations/061_single_stock_master.sql, packages/db/src/stock-master.ts, packages/db/src/category-mappings.ts, packages/db/src/di-jobs.ts…',
+  },
+  {
     id: 160,
     title: 'Download the master Excel files you uploaded',
     area: 'Stock & masters',

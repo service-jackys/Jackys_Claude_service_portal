@@ -1,53 +1,26 @@
 import type { PoolClient } from 'pg';
 
-export const STOCK_CHANNELS = ['JDI', 'JMS', 'TGE'] as const;
-export type StockChannel = (typeof STOCK_CHANNELS)[number];
-
-/** Main groups that the item search offers (service-relevant items only). */
+/** Main groups that the item search offers first (service-relevant items). */
 export const STOCK_SEARCH_GROUPS = ['MDA', 'SDA'] as const;
 
-export type StockRow = {
-  location: string | null;
-  locnDesc: string | null;
-  itemCode: string;
-  itemDesc: string;
-  grade: string | null;
-  stock: number | null;
-  wac: number | null;
-  value: number | null;
-  transit: number | null;
-  reserved: number | null;
-  mainGroup: string | null;
-  groupName: string | null;
-  subGroup: string | null;
-  brand: string | null;
-  itemType: string | null;
-  lastGrn: number | null;
-  lastGrnDate: string | null;
-  landedCost: number | null;
-};
-
+/** One row of the ERP Item Listing (Item Code, Item Desc, Maingrp Name, Grp Name,
+ *  SUBGRPNAME, BRANDNAME). */
 export type StockItem = {
   itemCode: string;
   itemDesc: string;
-  grade: string | null;
   mainGroup: string | null;
   groupName: string | null;
   subGroup: string | null;
   brand: string | null;
-  itemType: string | null;
-  lastChannel: StockChannel;
 };
 
 export type StockItemChange = {
   itemCode: string;
   fields: { field: string; from: string | null; to: string | null }[];
-  previousChannel: StockChannel;
 };
 
 export type StockUploadSummary = {
   id: string;
-  channel: StockChannel;
   fileName: string;
   rowCount: number;
   itemCount: number;
@@ -62,16 +35,14 @@ export type StockUploadSummary = {
 };
 
 const DESCRIPTIVE_FIELDS: { key: keyof StockItem; label: string }[] = [
-  { key: 'itemDesc', label: 'ItemDesc' },
-  { key: 'grade', label: 'Grade' },
-  { key: 'mainGroup', label: 'MainGroup' },
-  { key: 'groupName', label: 'Group' },
-  { key: 'subGroup', label: 'SubGroup' },
-  { key: 'brand', label: 'Brand' },
-  { key: 'itemType', label: 'TYPE' },
+  { key: 'itemDesc', label: 'Item Desc' },
+  { key: 'mainGroup', label: 'Maingrp Name' },
+  { key: 'groupName', label: 'Grp Name' },
+  { key: 'subGroup', label: 'SUBGRPNAME' },
+  { key: 'brand', label: 'BRANDNAME' },
 ];
 
-const CHUNK = 500;
+const CHUNK = 1000;
 
 export type ReplaceStockResult = {
   uploadId: string;
@@ -81,154 +52,109 @@ export type ReplaceStockResult = {
   changes: StockItemChange[];
 };
 
+const itemColumns = `
+  item_code AS "itemCode",
+  item_desc AS "itemDesc",
+  main_group AS "mainGroup",
+  group_name AS "groupName",
+  sub_group AS "subGroup",
+  brand
+`;
+
+type Queryable = Pick<PoolClient, 'query'>;
+
 /**
- * Replace one channel's positions with the uploaded rows and fold the unique
- * items into stock_items. Items that vanished from the channel are kept; they
- * simply stop being refreshed (see stock_item_channels.last_seen_at).
+ * Fold an uploaded Item Listing into the stock master: new item codes are added,
+ * known ones are updated to what the file says. Items that are no longer in the
+ * file are kept; they simply stop being refreshed (stock_master.last_seen_at is
+ * older than the latest upload, shown as "not in the latest file").
+ * `items` is keyed by upper-cased item code.
  */
-export async function replaceChannelStock(
+export async function upsertStockMaster(
   client: PoolClient,
   input: {
-    channel: StockChannel;
     fileName: string;
     fileSha256: string;
-    rows: StockRow[];
-    items: Map<string, StockRow>;
+    rowCount: number;
+    items: Map<string, StockItem>;
     uploadedBy: string | null;
   },
 ): Promise<ReplaceStockResult> {
   const upload = await client.query<{ id: string }>(
-    `INSERT INTO stock_uploads (channel, file_name, file_sha256, row_count, item_count, uploaded_by)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING id::text AS id`,
-    [
-      input.channel,
-      input.fileName,
-      input.fileSha256,
-      input.rows.length,
-      input.items.size,
-      input.uploadedBy,
-    ],
+    `INSERT INTO stock_uploads (file_name, file_sha256, row_count, item_count, uploaded_by)
+     VALUES ($1, $2, $3, $4, $5) RETURNING id::text AS id`,
+    [input.fileName, input.fileSha256, input.rowCount, input.items.size, input.uploadedBy],
   );
   const uploadId = upload.rows[0].id;
 
-  await client.query('DELETE FROM stock_positions WHERE channel = $1', [input.channel]);
-  for (let start = 0; start < input.rows.length; start += CHUNK) {
-    const chunk = input.rows.slice(start, start + CHUNK);
-    const params: unknown[] = [];
-    const tuples = chunk.map((row) => {
-      const base = params.length;
-      params.push(
-        input.channel,
-        uploadId,
-        row.location,
-        row.locnDesc,
-        row.itemCode,
-        row.itemDesc,
-        row.grade,
-        row.stock,
-        row.wac,
-        row.value,
-        row.transit,
-        row.reserved,
-        row.mainGroup,
-        row.groupName,
-        row.subGroup,
-        row.brand,
-        row.itemType,
-        row.lastGrn,
-        row.lastGrnDate,
-        row.landedCost,
-      );
-      return `(${Array.from({ length: 20 }, (_, i) => `$${base + i + 1}`).join(', ')})`;
-    });
-    await client.query(
-      `INSERT INTO stock_positions (
-         channel, upload_id, location, locn_desc, item_code, item_desc, grade, stock, wac, value,
-         transit, reserved, main_group, group_name, sub_group, brand, item_type, last_grn,
-         last_grn_date, landed_cost
-       ) VALUES ${tuples.join(', ')}`,
-      params,
-    );
-  }
-
-  const codes = [...input.items.keys()];
-  const existing = new Map<string, StockItem>();
-  for (let start = 0; start < codes.length; start += CHUNK) {
-    const result = await client.query<StockItem>(
-      `SELECT ${itemColumns} FROM stock_items WHERE item_code = ANY($1::text[])`,
-      [codes.slice(start, start + CHUNK)],
-    );
-    for (const row of result.rows) existing.set(row.itemCode, row);
-  }
-
+  const entries = [...input.items.entries()];
   let newItems = 0;
   let changedItems = 0;
   let unchangedItems = 0;
   const changes: StockItemChange[] = [];
-  for (const [code, row] of input.items) {
-    const next: StockItem = {
-      itemCode: code,
-      itemDesc: row.itemDesc,
-      grade: row.grade,
-      mainGroup: row.mainGroup,
-      groupName: row.groupName,
-      subGroup: row.subGroup,
-      brand: row.brand,
-      itemType: row.itemType,
-      lastChannel: input.channel,
-    };
-    const before = existing.get(code);
-    if (!before) {
-      newItems += 1;
-    } else {
-      const fields = DESCRIPTIVE_FIELDS.filter(
-        ({ key }) => (before[key] ?? null) !== (next[key] ?? null),
-      ).map(({ key, label }) => ({
-        field: label,
-        from: (before[key] as string | null) ?? null,
-        to: (next[key] as string | null) ?? null,
-      }));
-      if (fields.length === 0) {
-        unchangedItems += 1;
+
+  for (let start = 0; start < entries.length; start += CHUNK) {
+    const chunk = entries.slice(start, start + CHUNK);
+    const existing = new Map<string, StockItem>();
+    const found = await client.query<StockItem>(
+      `SELECT ${itemColumns} FROM stock_master WHERE upper(item_code) = ANY($1::text[])`,
+      [chunk.map(([upper]) => upper)],
+    );
+    for (const row of found.rows) existing.set(row.itemCode.toUpperCase(), row);
+
+    const codes: string[] = [];
+    const descs: string[] = [];
+    const mains: (string | null)[] = [];
+    const groups: (string | null)[] = [];
+    const subs: (string | null)[] = [];
+    const brands: (string | null)[] = [];
+    for (const [upper, item] of chunk) {
+      const before = existing.get(upper);
+      if (!before) {
+        newItems += 1;
       } else {
-        changedItems += 1;
-        changes.push({ itemCode: code, fields, previousChannel: before.lastChannel });
+        const fields = DESCRIPTIVE_FIELDS.filter(
+          ({ key }) => (before[key] ?? null) !== (item[key] ?? null),
+        ).map(({ key, label }) => ({
+          field: label,
+          from: before[key] ?? null,
+          to: item[key] ?? null,
+        }));
+        if (fields.length === 0) {
+          unchangedItems += 1;
+        } else {
+          changedItems += 1;
+          changes.push({ itemCode: before.itemCode, fields });
+        }
       }
+      // A code already stored keeps its stored spelling (lookups ignore case).
+      codes.push(before?.itemCode ?? item.itemCode);
+      descs.push(item.itemDesc);
+      mains.push(item.mainGroup);
+      groups.push(item.groupName);
+      subs.push(item.subGroup);
+      brands.push(item.brand);
     }
     await client.query(
-      `INSERT INTO stock_items (
-         item_code, item_desc, grade, main_group, group_name, sub_group, brand, item_type, last_channel
-       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, sub_group, brand, last_seen_at)
+       SELECT code, descr, main, grp, sub, brand, now()
+         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
+              AS t(code, descr, main, grp, sub, brand)
        ON CONFLICT (item_code) DO UPDATE SET
          item_desc = EXCLUDED.item_desc,
-         grade = EXCLUDED.grade,
          main_group = EXCLUDED.main_group,
          group_name = EXCLUDED.group_name,
          sub_group = EXCLUDED.sub_group,
          brand = EXCLUDED.brand,
-         item_type = EXCLUDED.item_type,
-         last_channel = EXCLUDED.last_channel,
-         updated_at = now()`,
-      [
-        code,
-        next.itemDesc,
-        next.grade,
-        next.mainGroup,
-        next.groupName,
-        next.subGroup,
-        next.brand,
-        next.itemType,
-        input.channel,
-      ],
-    );
-  }
-
-  for (let start = 0; start < codes.length; start += CHUNK) {
-    await client.query(
-      `INSERT INTO stock_item_channels (item_code, channel, last_seen_at)
-       SELECT code, $2, now() FROM unnest($1::text[]) AS code
-       ON CONFLICT (item_code, channel) DO UPDATE SET last_seen_at = EXCLUDED.last_seen_at`,
-      [codes.slice(start, start + CHUNK), input.channel],
+         last_seen_at = EXCLUDED.last_seen_at,
+         updated_at = CASE
+           WHEN (stock_master.item_desc, stock_master.main_group, stock_master.group_name,
+                 stock_master.sub_group, stock_master.brand)
+                IS NOT DISTINCT FROM
+                (EXCLUDED.item_desc, EXCLUDED.main_group, EXCLUDED.group_name,
+                 EXCLUDED.sub_group, EXCLUDED.brand)
+           THEN stock_master.updated_at ELSE now() END`,
+      [codes, descs, mains, groups, subs, brands],
     );
   }
 
@@ -251,23 +177,7 @@ export async function saveStockUploadReport(
   ]);
 }
 
-const itemColumns = `
-  item_code AS "itemCode",
-  item_desc AS "itemDesc",
-  grade,
-  main_group AS "mainGroup",
-  group_name AS "groupName",
-  sub_group AS "subGroup",
-  brand,
-  item_type AS "itemType",
-  last_channel AS "lastChannel"
-`;
-
-type Queryable = Pick<PoolClient, 'query'>;
-
-export type StockSearchHit = StockItem & {
-  channels: { channel: StockChannel; seen: boolean }[];
-};
+export type StockSearchHit = StockItem;
 
 /** Main groups that are not repairable products (charges, 3PL, vouchers). */
 export const STOCK_NON_PRODUCT_GROUPS = [
@@ -291,17 +201,8 @@ export async function searchStockItems(
   if (!term && !brand && !group) return [];
   const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
   const result = await db.query<StockSearchHit>(
-    `SELECT ${itemColumns},
-            COALESCE((
-              SELECT json_agg(json_build_object(
-                       'channel', sic.channel,
-                       'seen', sic.last_seen_at >= (
-                         SELECT max(u.uploaded_at) FROM stock_uploads u WHERE u.channel = sic.channel
-                       )
-                     ) ORDER BY sic.channel)
-              FROM stock_item_channels sic WHERE sic.item_code = stock_items.item_code
-            ), '[]'::json) AS channels
-       FROM stock_items
+    `SELECT ${itemColumns}
+       FROM stock_master
       WHERE ($1 = '' OR item_code ILIKE $2 ESCAPE '\\' OR item_desc ILIKE $3 ESCAPE '\\')
         AND ($4 = '' OR upper(brand) = upper($4))
         AND ($5 = '' OR upper(main_group) = upper($5))
@@ -334,13 +235,13 @@ export async function stockFacets(db: Queryable): Promise<{
 }> {
   const exclude = [...STOCK_NON_PRODUCT_GROUPS];
   const brands = await db.query<{ brand: string; count: number }>(
-    `SELECT brand, count(*)::int AS count FROM stock_items
+    `SELECT brand, count(*)::int AS count FROM stock_master
       WHERE brand IS NOT NULL AND COALESCE(main_group, '') <> ALL($1::text[])
       GROUP BY brand ORDER BY count(*) DESC, brand`,
     [exclude],
   );
   const groups = await db.query<{ group: string; count: number }>(
-    `SELECT main_group AS "group", count(*)::int AS count FROM stock_items
+    `SELECT main_group AS "group", count(*)::int AS count FROM stock_master
       WHERE main_group IS NOT NULL AND main_group <> ALL($1::text[])
       GROUP BY main_group ORDER BY (main_group = ANY($2::text[])) DESC, count(*) DESC`,
     [exclude, [...STOCK_SEARCH_GROUPS]],
@@ -348,22 +249,15 @@ export async function stockFacets(db: Queryable): Promise<{
   return { brands: brands.rows, groups: groups.rows };
 }
 
-export type StockChannelStatus = {
-  channel: StockChannel;
-  lastUpload: StockUploadSummary | null;
-  itemCount: number;
-  notSeenCount: number;
-  positionRows: number;
-};
-
 export async function stockStatus(db: Queryable): Promise<{
-  channels: StockChannelStatus[];
+  lastUpload: StockUploadSummary | null;
   totalItems: number;
   searchableItems: number;
+  notInFileCount: number;
   recentUploads: StockUploadSummary[];
 }> {
   const uploads = await db.query<StockUploadSummary>(
-    `SELECT u.id::text AS id, u.channel, u.file_name AS "fileName", u.row_count AS "rowCount",
+    `SELECT u.id::text AS id, u.file_name AS "fileName", u.row_count AS "rowCount",
             u.item_count AS "itemCount", u.new_items AS "newItems", u.changed_items AS "changedItems",
             u.report, u.uploaded_by::text AS "uploadedBy", p.display_name AS "uploadedByName",
             u.uploaded_at AS "uploadedAt", (u.file_bytes IS NOT NULL) AS "hasFile"
@@ -372,42 +266,20 @@ export async function stockStatus(db: Queryable): Promise<{
       ORDER BY u.uploaded_at DESC, u.id DESC
       LIMIT 30`,
   );
-  const counts = await db.query<{
-    channel: StockChannel;
-    items: string;
-    notSeen: string;
-  }>(
-    `SELECT sic.channel,
-            count(*)::text AS items,
-            count(*) FILTER (
-              WHERE sic.last_seen_at < (SELECT max(u.uploaded_at) FROM stock_uploads u WHERE u.channel = sic.channel)
-            )::text AS "notSeen"
-       FROM stock_item_channels sic
-      GROUP BY sic.channel`,
-  );
-  const positions = await db.query<{ channel: StockChannel; n: string }>(
-    `SELECT channel, count(*)::text AS n FROM stock_positions GROUP BY channel`,
-  );
-  const totals = await db.query<{ total: string; searchable: string }>(
+  const totals = await db.query<{ total: string; searchable: string; notInFile: string }>(
     `SELECT count(*)::text AS total,
-            count(*) FILTER (WHERE main_group = ANY($1::text[]))::text AS searchable
-       FROM stock_items`,
+            count(*) FILTER (WHERE main_group = ANY($1::text[]))::text AS searchable,
+            count(*) FILTER (
+              WHERE last_seen_at < (SELECT max(u.uploaded_at) FROM stock_uploads u)
+            )::text AS "notInFile"
+       FROM stock_master`,
     [[...STOCK_SEARCH_GROUPS]],
   );
   return {
-    channels: STOCK_CHANNELS.map((channel) => {
-      const count = counts.rows.find((row) => row.channel === channel);
-      const position = positions.rows.find((row) => row.channel === channel);
-      return {
-        channel,
-        lastUpload: uploads.rows.find((row) => row.channel === channel) ?? null,
-        itemCount: Number(count?.items ?? 0),
-        notSeenCount: Number(count?.notSeen ?? 0),
-        positionRows: Number(position?.n ?? 0),
-      };
-    }),
+    lastUpload: uploads.rows[0] ?? null,
     totalItems: Number(totals.rows[0]?.total ?? 0),
     searchableItems: Number(totals.rows[0]?.searchable ?? 0),
+    notInFileCount: Number(totals.rows[0]?.notInFile ?? 0),
     recentUploads: uploads.rows,
   };
 }
@@ -420,20 +292,19 @@ export async function findStockItemByCode(
   const code = itemCode.trim();
   if (!code) return null;
   const result = await db.query<StockItem>(
-    `SELECT ${itemColumns} FROM stock_items WHERE upper(item_code) = upper($1) LIMIT 1`,
+    `SELECT ${itemColumns} FROM stock_master WHERE upper(item_code) = upper($1) LIMIT 1`,
     [code],
   );
   return result.rows[0] ?? null;
 }
 
 /**
- * Keep the original bytes of the newest upload of a channel and drop them from
- * the channel's older uploads (their rows and reports stay).
+ * Keep the original bytes of the newest upload and drop them from older uploads
+ * (their rows and reports stay).
  */
 export async function saveStockUploadFile(
   client: PoolClient,
   uploadId: string,
-  channel: StockChannel,
   bytes: Buffer,
 ): Promise<void> {
   await client.query(`UPDATE stock_uploads SET file_bytes = $2 WHERE id = $1::bigint`, [
@@ -441,9 +312,8 @@ export async function saveStockUploadFile(
     bytes,
   ]);
   await client.query(
-    `UPDATE stock_uploads SET file_bytes = NULL
-      WHERE channel = $1 AND id <> $2::bigint AND file_bytes IS NOT NULL`,
-    [channel, uploadId],
+    `UPDATE stock_uploads SET file_bytes = NULL WHERE id <> $1::bigint AND file_bytes IS NOT NULL`,
+    [uploadId],
   );
 }
 
@@ -454,57 +324,23 @@ export type StockUploadFile = {
   bytes: Buffer | null;
 };
 
-/** The channel's newest upload with its original bytes (null when not kept). */
-export async function latestStockUploadFile(
-  db: Queryable,
-  channel: StockChannel,
-): Promise<StockUploadFile | null> {
+/** The newest upload with its original bytes (null when not kept). */
+export async function latestStockUploadFile(db: Queryable): Promise<StockUploadFile | null> {
   const result = await db.query<StockUploadFile>(
     `SELECT id::text AS id, file_name AS "fileName", uploaded_at AS "uploadedAt", file_bytes AS bytes
-       FROM stock_uploads WHERE channel = $1 ORDER BY uploaded_at DESC, id DESC LIMIT 1`,
-    [channel],
+       FROM stock_uploads ORDER BY uploaded_at DESC, id DESC LIMIT 1`,
   );
   return result.rows[0] ?? null;
 }
 
-/** Every location row of the channel's current stock file, in file order. */
-export async function stockPositionsForChannel(
-  db: Queryable,
-  channel: StockChannel,
-): Promise<StockRow[]> {
-  const result = await db.query<StockRow>(
-    `SELECT location, locn_desc AS "locnDesc", item_code AS "itemCode", item_desc AS "itemDesc",
-            grade, stock::float8 AS stock, wac::float8 AS wac, value::float8 AS value,
-            transit::float8 AS transit, reserved::float8 AS reserved, main_group AS "mainGroup",
-            group_name AS "groupName", sub_group AS "subGroup", brand, item_type AS "itemType",
-            last_grn::float8 AS "lastGrn", to_char(last_grn_date, 'YYYY-MM-DD') AS "lastGrnDate",
-            landed_cost::float8 AS "landedCost"
-       FROM stock_positions WHERE channel = $1 ORDER BY id`,
-    [channel],
-  );
-  return result.rows;
-}
+export type StockMasterRow = StockItem & { lastSeenAt: Date; inLatestFile: boolean };
 
-export type StockItemMasterRow = StockItem & {
-  firstSeenAt: Date;
-  updatedAt: Date;
-  channels: { channel: StockChannel; seen: boolean }[];
-};
-
-/** The unique item list (all channels, including non-product groups) for export. */
-export async function stockItemMaster(db: Queryable): Promise<StockItemMasterRow[]> {
-  const result = await db.query<StockItemMasterRow>(
-    `SELECT ${itemColumns}, first_seen_at AS "firstSeenAt", updated_at AS "updatedAt",
-            COALESCE((
-              SELECT json_agg(json_build_object(
-                       'channel', sic.channel,
-                       'seen', sic.last_seen_at >= (
-                         SELECT max(u.uploaded_at) FROM stock_uploads u WHERE u.channel = sic.channel
-                       )
-                     ) ORDER BY sic.channel)
-              FROM stock_item_channels sic WHERE sic.item_code = stock_items.item_code
-            ), '[]'::json) AS channels
-       FROM stock_items ORDER BY item_code`,
+/** The whole stock master, for the rebuilt download. */
+export async function stockMasterRows(db: Queryable): Promise<StockMasterRow[]> {
+  const result = await db.query<StockMasterRow>(
+    `SELECT ${itemColumns}, last_seen_at AS "lastSeenAt",
+            last_seen_at >= COALESCE((SELECT max(u.uploaded_at) FROM stock_uploads u), '-infinity') AS "inLatestFile"
+       FROM stock_master ORDER BY item_code`,
   );
   return result.rows;
 }

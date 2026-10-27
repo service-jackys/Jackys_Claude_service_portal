@@ -62,8 +62,8 @@ test(
         [codes.kettle, group],
       ] as const) {
         await pool.query(
-          `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, brand, last_channel)
-           VALUES ($1, 'Test item', 'MDA', $2, 'TESTBRAND', 'JDI')`,
+          `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, brand)
+           VALUES ($1, 'Test item', 'MDA', $2, 'TESTBRAND')`,
           [code, g],
         );
       }
@@ -221,7 +221,7 @@ test(
       await pool.query(`DELETE FROM di_jobs WHERE customer_name = $1`, [branchName]);
       await pool.query(`DELETE FROM b2b_branches WHERE cust_code = $1`, [custCode]);
       await pool.query(`DELETE FROM salesmen WHERE name = $1`, [salesmanName]);
-      await pool.query(`DELETE FROM stock_items WHERE item_code LIKE $1`, [`DF_-${tag}`]);
+      await pool.query(`DELETE FROM stock_master WHERE item_code LIKE $1`, [`DF_-${tag}`]);
       await pool.query(`DELETE FROM category_mappings WHERE group_name = $1`, [group]);
       await pool.end();
     }

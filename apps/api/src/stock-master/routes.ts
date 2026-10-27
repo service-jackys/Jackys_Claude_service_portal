@@ -33,7 +33,6 @@ export function createStockMasterHandlers(
           }
           const auth = response.locals.auth as ApplicationAuth;
           const result = await service.upload(
-            (request.body as { channel?: unknown } | undefined)?.channel,
             { originalname: file.originalname, size: file.size, buffer: file.buffer },
             auth.profileId,
             request.header('x-request-id') ?? undefined,
@@ -54,7 +53,6 @@ export function createStockMasterHandlers(
         try {
           const auth = response.locals.auth as ApplicationAuth;
           const file = await service.download(
-            request.query.channel,
             auth.profileId,
             request.header('x-request-id') ?? undefined,
           );

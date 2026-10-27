@@ -65,8 +65,8 @@ test(
       ];
       for (const [code, group, desc, brand] of stock) {
         await pool.query(
-          `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, brand, last_channel)
-           VALUES ($1, $2, 'MDA', $3, $4, 'JDI')`,
+          `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, brand)
+           VALUES ($1, $2, 'MDA', $3, $4)`,
           [code, desc, group, brand],
         );
       }
@@ -255,7 +255,7 @@ test(
         salesmanOk,
         salesmanNoChannel,
       ]);
-      await pool.query(`DELETE FROM stock_items WHERE item_code LIKE $1`, [`DJ_-${tag}`]);
+      await pool.query(`DELETE FROM stock_master WHERE item_code LIKE $1`, [`DJ_-${tag}`]);
       await pool.query(`DELETE FROM category_mappings WHERE group_name = $1`, [unmappedGroup]);
       await pool.query(
         `UPDATE revenue_settings SET value = 'false'::jsonb WHERE key = 'dandi_erp_inv_mandatory'`,
