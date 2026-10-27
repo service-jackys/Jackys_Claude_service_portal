@@ -73,8 +73,7 @@ export type EngineIssue = {
     | 'not-installable'
     | 'unmapped'
     | 'no-pricing-category'
-    | 'delivery-only-installable'
-    | 'unmapped-delivery';
+    | 'delivery-only-installable';
   message: string;
 };
 
@@ -160,14 +159,6 @@ export function priceDeliveryNote(
           code: 'delivery-only-installable',
           message:
             'This item is installable in the category mapping, but the line is Delivery only (CSIDO). Change it to Delivery + Installation if it is installed.',
-        });
-      } else if (line.installable === null) {
-        issues.push({
-          level: 'warning',
-          line: index,
-          code: 'unmapped-delivery',
-          message:
-            'This item group is not linked in the category mapping yet; ask the admin to link it.',
         });
       }
       return;

@@ -3596,3 +3596,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/058_dandi_jobs.sql, packages/db/src/di-jobs.ts, packages/db/src/references.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-jobs.test.ts, tests/unit/dandi-job-routes.test.ts, tests/e2e/delivery-installation.spec.ts.
 
 **Needs you:** pull, run `npm install` only if asked, restart the API (migration 058 runs on start), then hard-refresh. Check under Roles & permissions that the right roles have Delivery & Installation. Before the first real job: under Management → Salesmen & channels, make sure each salesman has a channel and the unlinked stock groups are mapped.
+
+## Modification #158 — Delivery & Installation: unlinked item groups are delivery only
+
+**Date:** 2026-10-27
+
+**Why.** The Category Mapping page said all 44 unlinked stock groups had to be linked before they could be used on a delivery job. That is not needed: an item that is not installable is only ever Delivery only.
+
+**What changed.**
+- A stock group that is not linked is treated as delivery only (CSIDO) with no warning, and a new line for it starts as CSIDO.
+- It still cannot be priced as Delivery + Installation or Installation only; the price panel says to link the group. Link only the groups that can be installed (for example air conditioners).
+- The help text on Salesmen & channels → Delivery & installation categories says so.
+
+**Files.** apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-pricing-engine.test.ts.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart needed for the screen text; restart the API for the price change.
