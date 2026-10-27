@@ -69,6 +69,7 @@ test('each D&I route asks for the right permission', async () => {
     reopen: async () => ({ job: {} }),
     updateSettings: async () => ({}),
     compare: async () => ({ rows: [] }),
+    workedExample: async () => ({ invoice: 'X' }),
   } as unknown as Partial<DiJobService>;
   assert.deepEqual((await call(service, 'list')).body?._needed, ['di_jobs.read']);
   const created = await call(service, 'create', { body: {} });
@@ -78,6 +79,7 @@ test('each D&I route asks for the right permission', async () => {
     'di_jobs.reopen',
   ]);
   assert.deepEqual((await call(service, 'compare')).body?._needed, ['di_jobs.compare']);
+  assert.deepEqual((await call(service, 'workedExample')).body?._needed, ['di_jobs.compare']);
   assert.deepEqual((await call(service, 'updateSettings', { body: {} })).body?._needed, [
     'di_jobs.configure',
   ]);

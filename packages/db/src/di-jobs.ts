@@ -283,6 +283,18 @@ export async function findDiJob(
   return { ...job.rows[0], lines: lines.rows };
 }
 
+/** Ids of the jobs (any status) whose delivery note or ERP Inv No is this number. */
+export async function findDiJobIdsByNote(client: PoolClient, key: string): Promise<string[]> {
+  const result = await client.query<{ id: string }>(
+    `SELECT id::text AS id FROM di_jobs
+      WHERE upper(btrim(delivery_note_ref)) = upper(btrim($1))
+         OR upper(btrim(erp_inv_no)) = upper(btrim($1))
+      ORDER BY service_date, id`,
+    [key],
+  );
+  return result.rows.map((row) => row.id);
+}
+
 export type DiJobTotals = {
   totalCsidi: number;
   totalCsido: number;

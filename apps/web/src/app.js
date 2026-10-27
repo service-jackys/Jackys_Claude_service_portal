@@ -14179,7 +14179,13 @@ ${bodyHtml}
       duplicates: [],
       completionWarnings: [],
       list: { status: '', from: '', to: '', search: '', page: 1, data: null },
-      compare: { month: localToday().slice(0, 7), data: null, error: '', showMatched: false },
+      compare: {
+        month: localToday().slice(0, 7),
+        data: null,
+        error: '',
+        showMatched: false,
+        example: { invoice: '', data: null, error: '', loading: false },
+      },
     };
     const locked = () => Boolean(state.job && state.job.status !== 'Draft') || !canWrite;
 
@@ -15007,6 +15013,291 @@ ${bodyHtml}
       drawCompare();
     }
 
+    // Worked example (Compare with Excel): pick any invoice / delivery note and
+    // see, line by line, how the master workbook priced it and how the portal
+    // prices it, so every figure can be checked by hand.
+    const EX_STATUS = {
+      match: 'Matches',
+      differs: 'Differs',
+      'only-excel': 'Only in Excel',
+      'only-portal': 'Only in the portal',
+      none: 'Not found',
+    };
+    const exMoney = (value) => (value === null || value === undefined ? '—' : fmt(value));
+    const exRate = (line) =>
+      line.baseRate === null || line.baseRate === undefined
+        ? line.charge
+          ? 'Charge ' + fmt(line.charge)
+          : '—'
+        : (line.rateKind === 'batch' ? 'Batch ' : 'Standard ') + fmt(line.baseRate);
+
+    function exampleExcelHtml(ex) {
+      if (!ex.excel) {
+        return '<p class="form-note">The master workbook has no Delivery &amp; Installation line for this number.</p>';
+      }
+      const rows = ex.excel.lines
+        .map(
+          (l) =>
+            '<tr' +
+            (l.revenue === 0 ? ' class="di-ex-zero"' : '') +
+            '><td>' +
+            escapeHtml(l.jobType) +
+            '</td><td>' +
+            escapeHtml(l.item || '—') +
+            '</td><td class="num">' +
+            escapeHtml(String(l.qty)) +
+            '</td><td style="white-space:normal">' +
+            escapeHtml(l.how) +
+            (l.check ? '<div class="di-ex-check">' + escapeHtml(l.check) + '</div>' : '') +
+            '</td><td class="num"><strong>' +
+            fmt(l.revenue) +
+            '</strong></td></tr>',
+        )
+        .join('');
+      return (
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Type</th><th>Item</th><th class="num">Qty</th><th>How the workbook priced it</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
+        rows +
+        '<tr><td></td><td><strong>Invoice total</strong></td><td></td><td></td><td class="num"><strong>' +
+        fmt(ex.excel.total) +
+        '</strong></td></tr></tbody></table></div>' +
+        (ex.excel.notes && ex.excel.notes.length
+          ? '<ul class="di-ex-notes">' +
+            ex.excel.notes.map((n) => '<li>' + escapeHtml(n) + '</li>').join('') +
+            '</ul>'
+          : '')
+      );
+    }
+
+    function exampleJobHtml(job) {
+      const head =
+        '<div class="di-ex-job"><div class="di-ex-job-head"><button class="button-link" type="button" data-di-cmp-open="' +
+        escapeHtml(job.id) +
+        '"><strong>' +
+        escapeHtml(job.reference) +
+        '</strong></button> <span class="di-ex-tag">' +
+        escapeHtml(job.status) +
+        '</span> <span>' +
+        escapeHtml(
+          [
+            job.serviceDate,
+            job.customerName,
+            job.salesman && 'Salesman ' + job.salesman,
+            job.salesChannel && 'Channel ' + job.salesChannel,
+            'Region ' + job.region,
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        ) +
+        '</span></div><p class="form-note">Delivery note ' +
+        escapeHtml(job.deliveryNoteRef || '—') +
+        (job.erpInvNo ? ' · ERP Inv No ' + escapeHtml(job.erpInvNo) : '') +
+        ' · Units on the note: Delivery + Installation ' +
+        job.note.csidiQty +
+        ', Installation only ' +
+        job.note.csiiiQty +
+        ', Delivery only lines ' +
+        job.note.csidoLines +
+        '. The note’s unit total decides the batch rate and the discount tier.</p>';
+      if (!job.lines.length) {
+        return (
+          head +
+          (job.messages.length
+            ? '<p class="form-note">' + escapeHtml(job.messages[0]) + '</p>'
+            : '') +
+          '</div>'
+        );
+      }
+      const rows = job.lines
+        .map(
+          (l) =>
+            '<tr' +
+            (l.revenue === 0 ? ' class="di-ex-zero"' : '') +
+            '><td>' +
+            l.lineNo +
+            '</td><td><strong>' +
+            escapeHtml(l.itemCode) +
+            '</strong><div class="form-note">' +
+            escapeHtml(l.itemDesc || '') +
+            '</div></td><td>' +
+            escapeHtml(l.type) +
+            '</td><td class="num">' +
+            escapeHtml(String(l.qty)) +
+            '</td><td>' +
+            escapeHtml(l.pricingCategory || '—') +
+            '</td><td class="num">' +
+            escapeHtml(exRate(l)) +
+            '</td><td class="num">' +
+            (l.discountTier
+              ? escapeHtml(String(Math.round((l.discountRate || 0) * 1000) / 10)) +
+                '% (' +
+                escapeHtml(l.discountTier) +
+                ')'
+              : '—') +
+            '</td><td class="num">' +
+            exMoney(l.netRate) +
+            '</td><td class="num">' +
+            exMoney(l.labour) +
+            '</td><td class="num">' +
+            exMoney(l.transport) +
+            '</td><td class="num">' +
+            exMoney(l.charge) +
+            '</td><td class="num"><strong>' +
+            exMoney(l.revenue) +
+            '</strong></td></tr>',
+        )
+        .join('');
+      const totals = job.totals;
+      return (
+        head +
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>#</th><th>Item</th><th>Type</th><th class="num">Qty</th><th>Pricing category</th><th class="num">Base rate</th><th class="num">Discount</th><th class="num">Net rate</th><th class="num">Labour</th><th class="num">Transport</th><th class="num">Delivery only charge</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
+        rows +
+        (totals
+          ? '<tr><td></td><td><strong>Total</strong></td><td colspan="9">Delivery + Installation ' +
+            fmt(totals.CSIDI) +
+            ' · Delivery only ' +
+            fmt(totals.CSIDO) +
+            ' · Installation only ' +
+            fmt(totals.CSIII) +
+            '</td><td class="num"><strong>' +
+            fmt(totals.total) +
+            '</strong></td></tr>'
+          : '') +
+        '</tbody></table></div>' +
+        '<ul class="di-ex-notes">' +
+        job.lines
+          .filter((l) => l.note)
+          .map((l) => '<li><strong>Line ' + l.lineNo + ':</strong> ' + escapeHtml(l.note) + '</li>')
+          .join('') +
+        job.messages.map((m) => '<li>' + escapeHtml(m) + '</li>').join('') +
+        '</ul></div>'
+      );
+    }
+
+    function exampleResultHtml(ex) {
+      const cmp = ex.comparison;
+      const typeRows = ['CSIDI', 'CSIDO', 'CSIII']
+        .map((type) => {
+          const t = cmp.byType[type];
+          if (!t.excelQty && !t.excelRevenue && !t.portalQty && !t.portalRevenue) return '';
+          return (
+            '<tr><td>' +
+            type +
+            '</td><td class="num">' +
+            t.excelQty +
+            '</td><td class="num">' +
+            fmt(t.excelRevenue) +
+            '</td><td class="num">' +
+            t.portalQty +
+            '</td><td class="num">' +
+            fmt(t.portalRevenue) +
+            '</td><td class="num">' +
+            fmt(t.portalRevenue - t.excelRevenue) +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      return (
+        '<h5>Excel &mdash; master workbook</h5>' +
+        exampleExcelHtml(ex) +
+        '<h5>Portal</h5>' +
+        (ex.jobs.length
+          ? ex.jobs.map(exampleJobHtml).join('')
+          : '<p class="form-note">No portal job carries this delivery note or ERP Inv No.</p>') +
+        '<h5>Comparison &mdash; ' +
+        escapeHtml(EX_STATUS[cmp.status] || cmp.status) +
+        '</h5>' +
+        (typeRows
+          ? '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Activity</th><th class="num">Excel qty</th><th class="num">Excel revenue</th><th class="num">Portal qty</th><th class="num">Portal revenue</th><th class="num">Difference</th></tr></thead><tbody>' +
+            typeRows +
+            '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' +
+            exMoney(cmp.excelTotal) +
+            '</strong></td><td></td><td class="num"><strong>' +
+            exMoney(cmp.portalTotal) +
+            '</strong></td><td class="num"><strong>' +
+            fmt(cmp.difference) +
+            '</strong></td></tr></tbody></table></div>'
+          : '') +
+        (cmp.notes.length
+          ? '<ul class="di-ex-notes">' +
+            cmp.notes.map((n) => '<li>' + escapeHtml(n) + '</li>').join('') +
+            '</ul>'
+          : '') +
+        '<p class="form-note">To check by hand: Net rate = the larger of the minimum rate and base rate × (1 − discount); Labour = net rate × quantity; Delivery + Installation revenue = labour + the transport charged once for the note; Delivery only = one charge for the note (flat, or regional transport when the note also has Delivery + Installation units).</p>'
+      );
+    }
+
+    function exampleSectionHtml(data) {
+      const ex = state.compare.example;
+      const STATUS_SHORT = {
+        match: 'matches',
+        differs: 'differs',
+        'only-excel': 'only in Excel',
+        'only-portal': 'only in portal',
+      };
+      const options = data.rows
+        .map(
+          (r) =>
+            '<option value="' +
+            escapeHtml(r.key) +
+            '"' +
+            (r.key === ex.invoice ? ' selected' : '') +
+            '>' +
+            escapeHtml(
+              r.key +
+                ' · ' +
+                (r.customer || 'No customer') +
+                ' · ' +
+                (r.date || '') +
+                ' · ' +
+                STATUS_SHORT[r.status] +
+                ' · AED ' +
+                fmt(r.excel ? r.excel.total : r.portal ? r.portal.total : 0),
+            ) +
+            '</option>',
+        )
+        .join('');
+      return (
+        '<section class="detail-action-card di-ex"><h4>Worked example &mdash; pick any invoice ' +
+        tipHtml(
+          'Choose an invoice or delivery note of the month, or type one. You see how the master workbook priced each line (the same reading as the Logic tab of the Service Revenue Dashboard), how the portal prices the job with that note, and the difference.',
+        ) +
+        '</h4><div class="field-grid"><div class="field"><label for="diExPick">Invoice / delivery note</label><select id="diExPick"><option value="">Choose…</option>' +
+        options +
+        '</select></div><div class="field"><label for="diExPaste">Or type one</label><span class="rl-paste-row"><input id="diExPaste" type="text" autocomplete="off" placeholder="e.g. 16101083" value="' +
+        escapeHtml(ex.invoice) +
+        '" /><button type="button" class="button button-primary" data-di-ex-load>Load</button></span></div></div>' +
+        '<p class="form-note" data-di-ex-msg role="status">' +
+        escapeHtml(ex.loading ? 'Loading…' : ex.error) +
+        '</p><div data-di-ex-out>' +
+        (ex.data ? exampleResultHtml(ex.data) : '') +
+        '</div></section>'
+      );
+    }
+
+    async function loadExample(invoice) {
+      const ex = state.compare.example;
+      const text = (invoice || '').trim();
+      if (!text) return;
+      ex.invoice = text;
+      ex.loading = true;
+      ex.error = '';
+      drawCompare();
+      try {
+        ex.data = await apiRequest(
+          '/api/di-jobs/compare/example?' + new URLSearchParams({ invoice: text }),
+        );
+        if (!ex.data.excel && !ex.data.jobs.length) {
+          ex.error = 'Nothing found for ' + text + ' in the master workbook or the portal jobs.';
+          ex.data = null;
+        }
+      } catch (error) {
+        ex.data = null;
+        ex.error = error.message || 'The example could not be loaded.';
+      }
+      ex.loading = false;
+      drawCompare();
+    }
+
     function drawCompare() {
       const c = state.compare;
       const data = c.data;
@@ -15086,9 +15377,11 @@ ${bodyHtml}
                   (r) =>
                     '<tr><td>' +
                     escapeHtml(STATUS[r.status]) +
-                    '</td><td>' +
+                    '</td><td><button class="button-link" type="button" data-di-ex-key="' +
                     escapeHtml(r.key) +
-                    '</td><td>' +
+                    '" title="Show the worked example">' +
+                    escapeHtml(r.key) +
+                    '</button></td><td>' +
                     escapeHtml(r.customer || '—') +
                     '</td><td>' +
                     escapeHtml(r.date || '—') +
@@ -15116,17 +15409,34 @@ ${bodyHtml}
                 .join('')
             : '<tr><td colspan="9" class="empty-state">Nothing to show.</td></tr>') +
           '</tbody></table></div>';
+        html += exampleSectionHtml(data);
       }
       body.innerHTML = html;
       q('#diCMonth').addEventListener('change', () => {
         if (!q('#diCMonth').value) return;
         c.month = q('#diCMonth').value;
+        c.example = { invoice: '', data: null, error: '', loading: false };
         loadCompare();
       });
       q('#diCShowMatched').addEventListener('change', () => {
         c.showMatched = q('#diCShowMatched').checked;
         drawCompare();
       });
+      const pick = q('#diExPick');
+      if (pick) {
+        pick.addEventListener('change', () => pick.value && loadExample(pick.value));
+        const paste = q('#diExPaste');
+        const go = () => paste.value.trim() && loadExample(paste.value);
+        q('[data-di-ex-load]').addEventListener('click', go);
+        paste.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') go();
+        });
+      }
+      body
+        .querySelectorAll('[data-di-ex-key]')
+        .forEach((button) =>
+          button.addEventListener('click', () => loadExample(button.dataset.diExKey)),
+        );
       body.querySelectorAll('[data-di-cmp-open]').forEach((button) =>
         button.addEventListener('click', async () => {
           try {

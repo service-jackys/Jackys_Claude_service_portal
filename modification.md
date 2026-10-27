@@ -3660,3 +3660,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/061_single_stock_master.sql, packages/db/src/stock-master.ts, packages/db/src/category-mappings.ts, packages/db/src/di-jobs.ts, apps/api/src/stock-master/{parser,download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/stock-parser.test.ts, tests/integration/{master-downloads,dandi-pricing,dandi-masters,dandi-jobs,dandi-feed-compare,job-card-master-prefill}.test.ts, tests/e2e/master-downloads.spec.ts.
 
 **Needs you:** pull, restart the API (migration 061 — it removes the per-channel stock rows and keeps every item you already have), hard-refresh. Then Stock master → upload the Item Listing once. Category Mapping will list more item groups to link now that every item is in; link only the installable ones (the rest are delivery only).
+
+## Modification #162 — Worked example on Delivery & Installation → Compare with Excel
+
+**Date:** 2026-10-27
+
+**Why.** To trust the comparison, a user has to be able to take one invoice or delivery note and check it line by line by hand, the way the Logic tab of the Service Revenue Dashboard lets them check the master workbook.
+
+**What changed.**
+- **New section "Worked example — pick any invoice"** at the top of Delivery & Installation → Compare with Excel. Pick any invoice / delivery note of the month from the list (every one is offered, matching or not), type one, or click an Inv/Del No in the comparison table.
+- **Excel — master workbook:** each CSIDI / CSIDO / CSIII line of that invoice with quantity, revenue and how the workbook priced it, the same reading as the Service Revenue Dashboard Logic tab (flags a line where the rules rebuild a different figure).
+- **Portal:** each portal job carrying that delivery note or ERP Inv No, line by line: pricing category, base rate (batch or standard), discount tier and %, net rate, labour, transport, the delivery-only charge, revenue and a plain-words note. Completed jobs show the figures saved when they were completed; a Draft is priced live ("if completed now") and is not counted; a Cancelled job is shown but not counted. The units on the note that decide the batch rate and discount tier are shown.
+- **Comparison:** Excel vs portal per activity (quantity, revenue, difference) and the same notes the table gives (salesman, channel, other month), plus a "To check by hand" formula line.
+- Needs di_jobs.compare (admin, management). No migration.
+
+**Files.** apps/api/src/dandi-jobs/example.ts, apps/api/src/dandi-jobs/{jobs-service,routes}.ts, apps/api/src/api/route-catalog.ts, packages/db/src/{revenue-dashboard,di-jobs}.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-worked-example.test.ts, tests/unit/dandi-job-routes.test.ts, tests/e2e/delivery-installation.spec.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. Open Compare with Excel for the month and try a matching invoice, then a "differs" one.
