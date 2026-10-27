@@ -28,6 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Revenue and Budget masters (Service Revenue and Budget Variance source line): a "Download Excel" button next to the source file name for admins who may upload.',
       'From now on the portal keeps the original file of the newest stock upload per channel and the active revenue / budget workbook, and downloads give you that file exactly as uploaded. Older uploads of the same channel / kind keep their rows…',
       'Files uploaded before this change have no stored copy. For those the download is an Excel rebuilt from the rows the portal read: stock files have the same 18 ERP columns (and can be uploaded again as they are); the revenue master gives…',
+      'The download buttons are small pill-shaped buttons so they do not dominate the page.',
       'Every download is written to the audit log. Stock downloads need stock.write; revenue / budget downloads need revenue_dashboard.write (admin).',
     ],
     needsYou:
