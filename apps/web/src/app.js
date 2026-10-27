@@ -11572,7 +11572,7 @@ ${bodyHtml}
                 channel.itemCount +
                 ' items · ' +
                 channel.positionRows +
-                ' location rows</p><p><button class="button button-secondary" type="button" data-sm-dl="' +
+                ' location rows</p><p><button class="button dl-pill" type="button" data-sm-dl="' +
                 escapeHtml(channel.channel) +
                 '">Download ' +
                 escapeHtml(channel.channel) +
@@ -11597,7 +11597,7 @@ ${bodyHtml}
         'Each channel button gives the latest ERP file for that channel (same columns as the ERP “Current Stock Valuation” export). ' +
           'The item list gives one row per item code across all channels, as the portal searches it.',
       ) +
-      '</h4><p><button class="button button-secondary" type="button" data-sm-dl="items">Download item list (all channels)</button></p>' +
+      '</h4><p><button class="button dl-pill" type="button" data-sm-dl="items">Download item list (all channels)</button></p>' +
       '<p class="form-note" data-sm-dl-msg role="status"></p></section>' +
       '<section class="detail-action-card"><h4>Upload ERP stock file ' +
       tipHtml(
@@ -17895,7 +17895,7 @@ ${bodyHtml}
       ' rows &middot; AED ' +
       rdMoney(batch.totalAmount) +
       (hasPermission('revenue_dashboard.write') && batch.id
-        ? ' &middot; <button class="button button-secondary rd-dl" type="button" data-rd-dl="' +
+        ? ' &middot; <button class="button dl-pill" type="button" data-rd-dl="' +
           escapeHtml(String(batch.id)) +
           '">Download Excel</button><span class="form-note" data-rd-dl-msg role="status"></span>'
         : '') +
