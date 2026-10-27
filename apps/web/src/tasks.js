@@ -927,15 +927,16 @@
           : '') +
         '<p class="tk-error" data-tk-error role="alert" hidden></p>' +
         '</div><footer>' +
+        '<div class="tk-foot-side">' +
         (isNew
           ? ''
           : '<button type="button" class="button button-outline tk-btn tk-danger" data-tk-delete>Delete</button>' +
             (deps.openChatRecord
               ? '<button type="button" class="button button-outline tk-btn" data-tk-discuss>Discuss</button>'
               : '')) +
-        '<span class="tk-spacer"></span><button type="button" class="button button-outline tk-btn" data-tk-close>Cancel</button><button type="submit" class="button button-primary tk-btn">' +
-        (isNew ? 'Add' : 'Save') +
-        '</button></footer></form></aside>'
+        '</div><div class="tk-foot-main"><button type="button" class="button button-outline tk-btn" data-tk-close>Cancel</button><button type="submit" class="button button-primary tk-btn">' +
+        (isNew ? 'Add' : 'Save changes') +
+        '</button></div></footer></form></aside>'
       );
     }
 

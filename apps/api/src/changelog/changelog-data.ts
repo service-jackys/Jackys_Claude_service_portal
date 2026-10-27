@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 170,
+    title: 'Tasks: Save changes button was pushed out of view',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'In the Tasks edit panel only Delete, Discuss and Cancel were visible, so remarks and other edits could not be saved.',
+    changes: [
+      'Cause: the page-footer styling (dark fill and sidebar-width left padding) also applied to the edit panel\'s own footer and pushed Cancel and Save off the right edge.',
+      'The panel footer now has its own layout: Delete and Discuss on the left, Cancel and Save changes on the right, wrapping on a narrow or zoomed screen.',
+      'The button reads Save changes when editing (Add for a new item).',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/index.html, apps/web/src/tasks.js.',
+  },
+  {
     id: 169,
     title: 'Rules by job type removed from Logic applied',
     area: 'General',

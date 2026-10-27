@@ -3783,3 +3783,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/api/src/changelog/changelog-data.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #170 — Tasks edit panel: Save changes button out of view
+
+**Date:** 2026-10-27
+
+**Why.** Editing a task (remarks, progress, dates) showed only Delete, Discuss and Cancel; there was no way to save.
+
+**What changed.**
+- Root cause: `body.is-authenticated footer` (navy fill, sidebar-width left padding) matched the edit panel's own `<footer>`, shifting its buttons right past the screen edge. The panel footer now resets those rules.
+- Footer layout: Delete / Discuss left, Cancel / Save changes right; wraps instead of overflowing. The edit button is labelled Save changes (Add for new items).
+
+**Files.** apps/web/src/index.html, apps/web/src/tasks.js, apps/api/src/changelog/changelog-data.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.
