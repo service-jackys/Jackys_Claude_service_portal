@@ -27,9 +27,19 @@ import {
   type DiJobStatus,
 } from '../../../../packages/db/src/di-jobs.js';
 import { allocateDiJobReference } from '../../../../packages/db/src/references.js';
-import { findSalesmanByName } from '../../../../packages/db/src/salesmen.js';
+import {
+  channelReportingNames,
+  portalDandiJobs,
+  workbookDandiLines,
+} from '../../../../packages/db/src/di-compare.js';
+import { findActiveBatch } from '../../../../packages/db/src/revenue-dashboard.js';
+import {
+  findSalesmanByNameOrAlias,
+  salesmanNameLookup,
+} from '../../../../packages/db/src/salesman-aliases.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { matchBillingRule } from '../job-cards/billing.js';
+import { compareDandi, type PortalJob, type WorkbookLine } from './compare.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { engineMasterFromDandi } from './pricing-engine.js';
 import { createDandiPricingService, priceNoteSchema, type PricedNote } from './service.js';
@@ -126,7 +136,16 @@ export function createDiJobService(pool: Pool) {
   async function customers(query: string | undefined) {
     const client = await pool.connect();
     try {
-      return { customers: await searchB2bBranchesForStaff(client, query) };
+      const found = await searchB2bBranchesForStaff(client, query);
+      // The customer record may spell the salesman differently from the master; show the master name.
+      const customers = [];
+      for (const customer of found) {
+        const record = customer.salesman
+          ? await findSalesmanByNameOrAlias(client, customer.salesman)
+          : null;
+        customers.push({ ...customer, salesman: record?.name ?? customer.salesman });
+      }
+      return { customers };
     } finally {
       client.release();
     }
@@ -173,7 +192,7 @@ export function createDiJobService(pool: Pool) {
     let salesman = typedSalesman;
     let salesChannel: string | null = null;
     if (typedSalesman) {
-      const record = await findSalesmanByName(client, typedSalesman);
+      const record = await findSalesmanByNameOrAlias(client, typedSalesman);
       if (record) {
         salesman = record.name;
         salesChannel = record.salesChannel ?? null;
@@ -479,6 +498,58 @@ export function createDiJobService(pool: Pool) {
     });
   }
 
+  const compareQuerySchema = z
+    .object({ month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/) })
+    .strict();
+
+  /** Workbook lines of one month against the Completed portal jobs: what matches and what does not. */
+  async function compare(query: unknown) {
+    const { month } = compareQuerySchema.parse(query ?? {});
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) {
+        throw new DiJobServiceError(
+          'conflict',
+          'No master workbook has been uploaded yet. Upload it under Revenue Dashboard first.',
+        );
+      }
+      const workbook: WorkbookLine[] = await workbookDandiLines(client, batch.id, month);
+      const keys = [
+        ...new Set(workbook.map((l) => (l.invDelNo ?? '').trim().toUpperCase()).filter(Boolean)),
+      ];
+      const rows = await portalDandiJobs(client, month, keys);
+      const jobs: PortalJob[] = rows.map((row) => ({
+        id: row.id,
+        reference: row.reference,
+        serviceDate: row.serviceDate,
+        customerName: row.customerName,
+        salesman: row.salesman,
+        deliveryNoteRef: row.deliveryNoteRef,
+        erpInvNo: row.erpInvNo,
+        channels: row.channels,
+        types: {
+          CSIDI: { qty: row.csidiQty, revenue: row.csidiRevenue },
+          CSIDO: { qty: row.csidoQty, revenue: row.csidoRevenue },
+          CSIII: { qty: row.csiiiQty, revenue: row.csiiiRevenue },
+        },
+      }));
+      const names = await salesmanNameLookup(client);
+      const reporting = await channelReportingNames(client);
+      const result = compareDandi(workbook, jobs, {
+        month,
+        resolveSalesman: (name) => names.get(name.trim().toLowerCase()) ?? name.trim(),
+        reportingName: (channel) => reporting.get(channel.trim().toLowerCase()) ?? channel,
+      });
+      return {
+        ...result,
+        workbook: { fileName: batch.fileName, uploadedAt: batch.uploadedAt },
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   async function updateSettings(
     input: unknown,
     profileId: string,
@@ -510,6 +581,7 @@ export function createDiJobService(pool: Pool) {
     complete,
     cancel,
     reopen,
+    compare,
     updateSettings,
   };
 }

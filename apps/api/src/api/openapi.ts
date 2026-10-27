@@ -219,6 +219,12 @@ const requestBodies = {
       'application/json': { schema: { $ref: '#/components/schemas/DiPriceNoteRequest' } },
     },
   },
+  salesmanAlias: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/SalesmanAliasRequest' } },
+    },
+  },
   diSettings: {
     required: true,
     content: { 'application/json': { schema: { $ref: '#/components/schemas/DiSettingsRequest' } } },
@@ -808,6 +814,15 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 },
               },
             },
+          },
+        },
+        SalesmanAliasRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['alias', 'salesmanId'],
+          properties: {
+            alias: { type: 'string', minLength: 1, maxLength: 200 },
+            salesmanId: { type: 'string', pattern: '^\\d+$' },
           },
         },
         DiSettingsRequest: {

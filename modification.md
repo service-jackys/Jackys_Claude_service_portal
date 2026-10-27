@@ -3611,3 +3611,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-pricing-engine.test.ts.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart needed for the screen text; restart the API for the price change.
+## Modification #159 — Delivery & Installation: revenue feed, comparison with the master Excel, salesman spellings (phase 4)
+
+**Date:** 2026-10-27
+
+**Why.** Phase 4 of the plan. During the one-month parallel run the portal calculates Delivery & Installation revenue next to the master Excel; this shows where the two agree, lets accounts switch the portal in when they do, and fixes the "RENEESH JOSE / Raneesh Jose" spelling problem.
+
+**What changed.**
+- **Compare with Excel** (new tab on Delivery & Installation, for admin and management): pick a month; the CSIDI / CSIDO / CSIII lines of the active master-workbook upload are matched to Completed portal jobs by the delivery note or the ERP Inv No. Shows the month totals per activity (Excel, portal, difference) and lists what needs attention: delivery notes only in Excel, only in the portal, or with a different revenue or quantity. A "Matches" list is one tick away. Notes also point out a different salesman or sales channel (after spellings and channel reporting names are applied) and a job dated in another month. Delivery-only quantity is not compared (the workbook counts per line, the portal per note).
+- **Revenue feed (off by default):** Management → Budget Variance → settings has a new switch, "Count CSIDI / CSIDO / CSIII from Completed Delivery & Installation jobs". When on, Completed jobs are counted on their service date at the figures frozen at completion, mapped to the same streams as the workbook job types, and those three job types in the workbook upload are ignored so nothing is counted twice. Cancelled or reopened jobs leave the figure.
+- **Salesman spellings** (Salesmen & channels): add another spelling of a salesman (for example RENEESH JOSE for Raneesh Jose). The B2B customer picker on Delivery & Installation then shows the master name and its channel, and the comparison treats both spellings as the same person.
+- New permission di_jobs.compare (admin, management). Spellings follow salesmen.read / salesmen.write.
+
+**Files.** packages/db/migrations/059_dandi_feed_compare.sql, packages/db/src/budget-variance.ts, packages/db/src/di-compare.ts, packages/db/src/salesman-aliases.ts, apps/api/src/budget-variance/service.ts, apps/api/src/dandi-jobs/compare.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/salesman-aliases/, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-compare.test.ts, tests/unit/dandi-job-routes.test.ts, tests/integration/dandi-feed-compare.test.ts, tests/e2e/delivery-installation.spec.ts.
+
+**Needs you:** pull, restart the API (migration 059), hard-refresh. Leave the new Budget Variance switch off until the Compare tab is clean for the month. Then add the spelling RENEESH JOSE → Raneesh Jose under Salesmen & channels.

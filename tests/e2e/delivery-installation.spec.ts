@@ -253,3 +253,140 @@ test.describe('delivery and installation', () => {
     await expect(page.locator('#deliveryInstallNav')).toBeHidden();
   });
 });
+
+test.describe('delivery and installation: comparison and salesman spellings', () => {
+  test('the Compare with Excel tab lists what does not match and opens the portal job', async ({
+    page,
+  }) => {
+    let comparedMonth = '';
+    await mockApi(page, ['di_jobs.read', 'di_jobs.write', 'di_jobs.compare'], (url) => {
+      if (url.pathname === '/api/di-jobs/options') {
+        return { regions: ['Dubai'], salesmen: [], erpInvMandatory: false };
+      }
+      if (url.pathname === '/api/di-jobs/compare') {
+        comparedMonth = url.searchParams.get('month') ?? '';
+        const zero = { qty: 0, revenue: 0 };
+        const totals = (revenue: number) => ({
+          CSIDI: { qty: 2, revenue },
+          CSIDO: zero,
+          CSIII: zero,
+          total: revenue,
+        });
+        return {
+          month: comparedMonth,
+          workbook: { fileName: 'Master.xlsm', uploadedAt: '2026-10-20T08:00:00Z' },
+          summary: {
+            byType: {
+              CSIDI: {
+                excelQty: 4,
+                excelRevenue: 228,
+                portalQty: 2,
+                portalRevenue: 114,
+                difference: -114,
+              },
+              CSIDO: {
+                excelQty: 0,
+                excelRevenue: 0,
+                portalQty: 0,
+                portalRevenue: 0,
+                difference: 0,
+              },
+              CSIII: {
+                excelQty: 0,
+                excelRevenue: 0,
+                portalQty: 0,
+                portalRevenue: 0,
+                difference: 0,
+              },
+            },
+            excelTotal: 228,
+            portalTotal: 114,
+            difference: -114,
+            counts: { match: 1, differs: 0, onlyExcel: 1, onlyPortal: 0 },
+          },
+          rows: [
+            {
+              status: 'only-excel',
+              key: 'N2',
+              customer: 'School B',
+              date: '2026-10-06',
+              excel: totals(114),
+              portal: null,
+              difference: -114,
+              jobs: [],
+              notes: ['No Completed portal job carries this delivery note or ERP Inv No.'],
+            },
+            {
+              status: 'match',
+              key: 'N1',
+              customer: 'School A',
+              date: '2026-10-05',
+              excel: totals(114),
+              portal: totals(114),
+              difference: 0,
+              jobs: [
+                {
+                  id: '5',
+                  reference: 'DIJ-2026-00005',
+                  serviceDate: '2026-10-05',
+                  matchedBy: 'Delivery note',
+                },
+              ],
+              notes: [],
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#deliveryInstallNav').click();
+    await page.getByRole('tab', { name: 'Compare with Excel' }).click();
+    await expect(page.locator('[data-di-body]')).toContainText('Master.xlsm');
+    await expect(page.locator('[data-di-body]')).toContainText('1 only in Excel');
+    // Only what needs attention is listed until the matches are asked for.
+    await expect(page.locator('[data-di-body]')).toContainText('N2');
+    await expect(page.locator('[data-di-body]')).not.toContainText('School A');
+    await page.locator('#diCShowMatched').check();
+    await expect(page.locator('[data-di-body]')).toContainText('School A');
+    expect(comparedMonth).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  test('the Compare tab is hidden without the compare permission', async ({ page }) => {
+    await mockApi(page, ['di_jobs.read'], (url) =>
+      url.pathname === '/api/di-jobs/options'
+        ? { regions: ['Dubai'], salesmen: [], erpInvMandatory: false }
+        : undefined,
+    );
+    await signIn(page);
+    await page.locator('#deliveryInstallNav').click();
+    await expect(page.getByRole('tab', { name: 'New job' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: 'Compare with Excel' })).toHaveCount(0);
+  });
+
+  test('Salesmen & channels lists the other spellings and adds one', async ({ page }) => {
+    let posted: unknown = null;
+    const aliases = [
+      { id: '1', alias: 'RENEESH JOSE', salesmanId: '3', salesmanName: 'Raneesh Jose' },
+    ];
+    await mockApi(page, ['salesmen.read', 'salesmen.write'], (url, method, body) => {
+      if (url.pathname === '/api/salesman-aliases' && method === 'GET') return { aliases };
+      if (url.pathname === '/api/salesman-aliases' && method === 'POST') {
+        posted = body;
+        return { alias: { id: '2' } };
+      }
+      if (url.pathname === '/api/salesmen') {
+        return { salesmen: [{ id: '3', name: 'Raneesh Jose', active: true }], total: 1 };
+      }
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#masterDataNav').dispatchEvent('click');
+    await expect(page.locator('#salesmanAliasBody')).toContainText('RENEESH JOSE');
+    await expect(page.locator('#salesmanAliasBody')).toContainText('Raneesh Jose');
+    await page.locator('#salesmanAliasText').fill('Reneesh J');
+    await page.locator('#salesmanAliasSalesman').selectOption('3');
+    await page.getByRole('button', { name: 'Add spelling' }).click();
+    await expect.poll(() => posted).toEqual({ alias: 'Reneesh J', salesmanId: '3' });
+  });
+});

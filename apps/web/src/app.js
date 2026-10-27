@@ -4587,8 +4587,88 @@ ${bodyHtml}
   let categoryMappingState = { rows: [], unmapped: [], pricingCategories: [] };
 
   async function loadDandiMasters() {
-    await Promise.all([loadChannelReporting(), loadCategoryMappings()]);
+    await Promise.all([loadChannelReporting(), loadCategoryMappings(), loadSalesmanAliases()]);
   }
+
+  async function loadSalesmanAliases() {
+    const section = $('#salesmanAliasSection');
+    if (!hasPermission('salesmen.read')) {
+      section.hidden = true;
+      return;
+    }
+    try {
+      const canWrite = hasPermission('salesmen.write');
+      const [aliases, salesmen] = await Promise.all([
+        apiRequest('/api/salesman-aliases'),
+        canWrite ? apiRequest('/api/salesmen?page=1&pageSize=200') : Promise.resolve(null),
+      ]);
+      $('#salesmanAliasBody').innerHTML =
+        (aliases.aliases || [])
+          .map(
+            (a) =>
+              '<tr><td>' +
+              escapeHtml(a.alias) +
+              '</td><td>' +
+              escapeHtml(a.salesmanName) +
+              '</td><td>' +
+              (canWrite
+                ? '<button class="button-link" type="button" data-alias-remove="' +
+                  escapeHtml(a.id) +
+                  '">Remove</button>'
+                : '') +
+              '</td></tr>',
+          )
+          .join('') || '<tr><td colspan="3" class="empty-state">No other spellings yet.</td></tr>';
+      if (salesmen) {
+        $('#salesmanAliasSalesman').innerHTML =
+          '<option value="">Select a salesman</option>' +
+          (salesmen.salesmen || [])
+            .map(
+              (s) => '<option value="' + escapeHtml(s.id) + '">' + escapeHtml(s.name) + '</option>',
+            )
+            .join('');
+      }
+      $('#salesmanAliasForm').hidden = !canWrite;
+      section.hidden = false;
+    } catch (error) {
+      section.hidden = true;
+    }
+  }
+
+  $('#salesmanAliasForm').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const alias = $('#salesmanAliasText').value.trim();
+    const salesmanId = $('#salesmanAliasSalesman').value;
+    if (!alias || !salesmanId) {
+      setMessage('#workspaceMessage', 'Enter the other spelling and choose the salesman.');
+      return;
+    }
+    try {
+      await apiRequest('/api/salesman-aliases', {
+        method: 'POST',
+        body: JSON.stringify({ alias, salesmanId }),
+      });
+      $('#salesmanAliasText').value = '';
+      setMessage('#workspaceMessage', 'Spelling added.', true);
+      await loadSalesmanAliases();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+  });
+
+  $('#salesmanAliasBody').addEventListener('click', async (event) => {
+    const button = event.target.closest('button[data-alias-remove]');
+    if (!button) return;
+    try {
+      await apiRequest('/api/salesman-aliases/' + encodeURIComponent(button.dataset.aliasRemove), {
+        method: 'DELETE',
+      });
+      setMessage('#workspaceMessage', 'Spelling removed.', true);
+      await loadSalesmanAliases();
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+  });
 
   async function loadChannelReporting() {
     const section = $('#channelReportingSection');
@@ -14088,6 +14168,7 @@ ${bodyHtml}
       duplicates: [],
       completionWarnings: [],
       list: { status: '', from: '', to: '', search: '', page: 1, data: null },
+      compare: { month: localToday().slice(0, 7), data: null, error: '', showMatched: false },
     };
     const locked = () => Boolean(state.job && state.job.status !== 'Draft') || !canWrite;
 
@@ -14096,6 +14177,9 @@ ${bodyHtml}
       '<div class="ws-tabs" role="tablist">' +
       '<button type="button" role="tab" class="ws-tab is-active" data-di-tab="job" aria-selected="true">New job</button>' +
       '<button type="button" role="tab" class="ws-tab" data-di-tab="jobs" aria-selected="false">Jobs</button>' +
+      (hasPermission('di_jobs.compare')
+        ? '<button type="button" role="tab" class="ws-tab" data-di-tab="compare" aria-selected="false">Compare with Excel</button>'
+        : '') +
       '</div><div data-di-body></div>';
     const body = root.querySelector('[data-di-body]');
     const q = (selector) => root.querySelector(selector);
@@ -14121,6 +14205,7 @@ ${bodyHtml}
         state.tab = button.dataset.diTab;
         syncTabs();
         if (state.tab === 'job') drawJob();
+        else if (state.tab === 'compare') loadCompare();
         else loadJobs();
       });
     });
@@ -14895,6 +14980,156 @@ ${bodyHtml}
           }
         }
       });
+    }
+
+    // ---------------- Compare with the master Excel ----------------
+    async function loadCompare() {
+      const c = state.compare;
+      body.innerHTML = '<p class="form-note">Loading…</p>';
+      try {
+        c.data = await apiRequest('/api/di-jobs/compare?month=' + encodeURIComponent(c.month));
+        c.error = '';
+      } catch (error) {
+        c.data = null;
+        c.error = error.message;
+      }
+      drawCompare();
+    }
+
+    function drawCompare() {
+      const c = state.compare;
+      const data = c.data;
+      const monthBar =
+        '<div class="field-grid"><div class="field"><label for="diCMonth">Month</label><input id="diCMonth" type="month" value="' +
+        escapeHtml(c.month) +
+        '" /></div><div class="field"><label><input type="checkbox" id="diCShowMatched"' +
+        (c.showMatched ? ' checked' : '') +
+        ' /> Also list the delivery notes that match</label></div></div>';
+      let html = monthBar;
+      if (!data) {
+        html +=
+          '<p class="di-issue-error">' +
+          escapeHtml(c.error || 'The comparison could not be loaded.') +
+          '</p>';
+      } else {
+        const s = data.summary;
+        html +=
+          '<p class="form-note">Master workbook: ' +
+          escapeHtml(data.workbook.fileName) +
+          ' (uploaded ' +
+          escapeHtml(formatDate(data.workbook.uploadedAt)) +
+          '). Excel lines are matched to Completed portal jobs by the delivery note or the ERP Inv No.</p>' +
+          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Activity</th><th class="num">Excel qty</th><th class="num">Excel revenue</th><th class="num">Portal qty</th><th class="num">Portal revenue</th><th class="num">Difference</th></tr></thead><tbody>' +
+          ['CSIDI', 'CSIDO', 'CSIII']
+            .map((type) => {
+              const t = s.byType[type];
+              return (
+                '<tr><td>' +
+                type +
+                '</td><td class="num">' +
+                t.excelQty +
+                '</td><td class="num">' +
+                fmt(t.excelRevenue) +
+                '</td><td class="num">' +
+                t.portalQty +
+                '</td><td class="num">' +
+                fmt(t.portalRevenue) +
+                '</td><td class="num">' +
+                fmt(t.difference) +
+                '</td></tr>'
+              );
+            })
+            .join('') +
+          '<tr><td><strong>Total</strong></td><td></td><td class="num"><strong>' +
+          fmt(s.excelTotal) +
+          '</strong></td><td></td><td class="num"><strong>' +
+          fmt(s.portalTotal) +
+          '</strong></td><td class="num"><strong>' +
+          fmt(s.difference) +
+          '</strong></td></tr></tbody></table></div>' +
+          '<p class="form-note">Delivery notes: <strong>' +
+          s.counts.match +
+          '</strong> match · <strong>' +
+          s.counts.differs +
+          '</strong> differ · <strong>' +
+          s.counts.onlyExcel +
+          '</strong> only in Excel · <strong>' +
+          s.counts.onlyPortal +
+          '</strong> only in the portal.' +
+          (s.counts.differs + s.counts.onlyExcel + s.counts.onlyPortal === 0
+            ? ' Nothing to reconcile for this month.'
+            : '') +
+          '</p>';
+        const STATUS = {
+          match: 'Matches',
+          differs: 'Differs',
+          'only-excel': 'Only in Excel',
+          'only-portal': 'Only in portal',
+        };
+        const shown = data.rows.filter((r) => c.showMatched || r.status !== 'match');
+        html +=
+          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Status</th><th>Inv/Del No</th><th>Customer</th><th>Date</th><th class="num">Excel (AED)</th><th class="num">Portal (AED)</th><th class="num">Difference</th><th>Portal job</th><th>Notes</th></tr></thead><tbody>' +
+          (shown.length
+            ? shown
+                .map(
+                  (r) =>
+                    '<tr><td>' +
+                    escapeHtml(STATUS[r.status]) +
+                    '</td><td>' +
+                    escapeHtml(r.key) +
+                    '</td><td>' +
+                    escapeHtml(r.customer || '—') +
+                    '</td><td>' +
+                    escapeHtml(r.date || '—') +
+                    '</td><td class="num">' +
+                    (r.excel ? fmt(r.excel.total) : '—') +
+                    '</td><td class="num">' +
+                    (r.portal ? fmt(r.portal.total) : '—') +
+                    '</td><td class="num">' +
+                    fmt(r.difference) +
+                    '</td><td>' +
+                    r.jobs
+                      .map(
+                        (j) =>
+                          '<button class="button-link" type="button" data-di-cmp-open="' +
+                          escapeHtml(j.id) +
+                          '">' +
+                          escapeHtml(j.reference) +
+                          '</button>',
+                      )
+                      .join(' ') +
+                    '</td><td style="white-space:normal">' +
+                    r.notes.map((n) => escapeHtml(n)).join('<br>') +
+                    '</td></tr>',
+                )
+                .join('')
+            : '<tr><td colspan="9" class="empty-state">Nothing to show.</td></tr>') +
+          '</tbody></table></div>';
+      }
+      body.innerHTML = html;
+      q('#diCMonth').addEventListener('change', () => {
+        if (!q('#diCMonth').value) return;
+        c.month = q('#diCMonth').value;
+        loadCompare();
+      });
+      q('#diCShowMatched').addEventListener('change', () => {
+        c.showMatched = q('#diCShowMatched').checked;
+        drawCompare();
+      });
+      body.querySelectorAll('[data-di-cmp-open]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          try {
+            applyJob(
+              await apiRequest('/api/di-jobs/' + encodeURIComponent(button.dataset.diCmpOpen)),
+            );
+            state.tab = 'job';
+            syncTabs();
+            drawJob();
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message);
+          }
+        }),
+      );
     }
 
     // ---------------- Jobs list ----------------
@@ -20682,6 +20917,9 @@ ${bodyHtml}
     portal_thomson: 'Portal: Thomson sales',
     portal_job_csijw: 'Portal: warranty job cards (CSIJW)',
     portal_job_csijo: 'Portal: non-warranty job cards (CSIJO)',
+    portal_dandi_csidi: 'Portal: Delivery + Installation jobs (CSIDI)',
+    portal_dandi_csido: 'Portal: Delivery only jobs (CSIDO)',
+    portal_dandi_csiii: 'Portal: Installation only jobs (CSIII)',
   };
   async function renderBudgetVariance(root, state) {
     const st = state || { tab: 'variance', versionId: '' };
@@ -21018,7 +21256,11 @@ ${bodyHtml}
       '<label><input id="bvSetJobCards" type="checkbox"' +
       (set.portal_job_card_revenue ? ' checked' : '') +
       dis +
-      ' /> Count CSIJW / CSIJO from portal job-card billing (ignores those two job types in the workbook upload)</label></div>';
+      ' /> Count CSIJW / CSIJO from portal job-card billing (ignores those two job types in the workbook upload)</label>' +
+      '<label><input id="bvSetDandi" type="checkbox"' +
+      (set.portal_dandi_revenue ? ' checked' : '') +
+      dis +
+      ' /> Count CSIDI / CSIDO / CSIII from Completed Delivery &amp; Installation jobs (ignores those three job types in the workbook upload)</label></div>';
     if (canWrite) {
       html +=
         '<button class="button button-primary" type="button" id="bvSaveCfg">Save mapping and settings</button> <span class="form-note" id="bvCfgMsg"></span>';
@@ -21090,6 +21332,7 @@ ${bodyHtml}
               variance_months: body.querySelector('#bvSetMonths').value,
               compare_quantity: body.querySelector('#bvSetQty').checked,
               portal_job_card_revenue: body.querySelector('#bvSetJobCards').checked,
+              portal_dandi_revenue: body.querySelector('#bvSetDandi').checked,
             },
           }),
         });

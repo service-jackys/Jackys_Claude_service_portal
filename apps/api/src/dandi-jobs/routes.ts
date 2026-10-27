@@ -128,6 +128,10 @@ export function createDiJobHandlers(
         service.reopen(String(request.params.id), profile(response), requestId(request)),
       ),
     ],
+    compare: [
+      requirePermission('di_jobs.compare'),
+      wrap((request) => service.compare(request.query)),
+    ],
     updateSettings: [
       requirePermission('di_jobs.configure'),
       wrap((request, response) =>

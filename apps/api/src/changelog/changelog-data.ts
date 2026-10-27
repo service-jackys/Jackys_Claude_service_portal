@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 159,
+    title:
+      'Delivery & Installation: revenue feed, comparison with the master Excel, salesman spellings (phase 4)',
+    area: 'Revenue',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'Phase 4 of the plan. During the one-month parallel run the portal calculates Delivery & Installation revenue next to the master Excel; this shows where the two agree, lets accounts switch the portal in when they do, and fixes the "RENEESH JOSE / Raneesh Jose" spelling problem.',
+    changes: [
+      'Compare with Excel (new tab on Delivery & Installation, for admin and management): pick a month; the CSIDI / CSIDO / CSIII lines of the active master-workbook upload are matched to Completed portal jobs by the delivery note or the ERP Inv…',
+      'Revenue feed (off by default): Management → Budget Variance → settings has a new switch, "Count CSIDI / CSIDO / CSIII from Completed Delivery & Installation jobs". When on, Completed jobs are counted on their service date at the figures…',
+      'Salesman spellings (Salesmen & channels): add another spelling of a salesman (for example RENEESH JOSE for Raneesh Jose). The B2B customer picker on Delivery & Installation then shows the master name and its channel, and the comparison…',
+      'New permission di_jobs.compare (admin, management). Spellings follow salesmen.read / salesmen.write.',
+    ],
+    needsYou:
+      'pull, restart the API (migration 059), hard-refresh. Leave the new Budget Variance switch off until the Compare tab is clean for the month. Then add the spelling RENEESH JOSE → Raneesh Jose under Salesmen & channels.',
+    migrations: ['059_dandi_feed_compare.sql'],
+    files:
+      'packages/db/migrations/059_dandi_feed_compare.sql, packages/db/src/budget-variance.ts, packages/db/src/di-compare.ts, packages/db/src/salesman-aliases.ts, apps/api/src/budget-variance/service.ts…',
+  },
+  {
     id: 158,
     title: 'Delivery & Installation: unlinked item groups are delivery only',
     area: 'General',
