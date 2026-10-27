@@ -83,6 +83,28 @@ test('buildWorkedExample covers any job type and orders lines by type', () => {
   assert.equal(ex.total, 350);
 });
 
+test('the worked example carries the invoice Ref DocNo, from pricing or the line', () => {
+  const rules = rulesOfBatch(batch);
+  const install = buildWorkedExample(rules, '5', [
+    line({
+      jobType: 'CSIDI',
+      invDelNo: '5',
+      pricing: { refDocNo: 'CSOSC - 16100001', before: {} } as never,
+    }),
+    line({
+      jobType: 'CSIDO',
+      invDelNo: '5',
+      pricing: { refDocNo: 'CSOSC - 16100001', before: {} } as never,
+    }),
+  ]);
+  assert.equal(install.refDocNo, 'CSOSC - 16100001');
+  const repair = buildWorkedExample(rules, '6', [
+    line({ jobType: 'CSIJW', invDelNo: '6', refDocNo: 'Direct' }),
+  ]);
+  assert.equal(repair.refDocNo, 'Direct');
+  assert.equal(buildWorkedExample(rules, '7', [line({ invDelNo: '7' })]).refDocNo, null);
+});
+
 test('original CSIJO job with an ERP value is tagged, not shown as qty x rate', () => {
   const rules = rulesOfBatch(batch);
   const ex = buildWorkedExample(rules, '16100997', [

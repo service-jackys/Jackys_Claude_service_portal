@@ -14507,6 +14507,22 @@ ${bodyHtml}
   // delivery note. Entered after the physical job; a job counts as revenue
   // once it is Completed and its figures are then frozen.
   // ---------------------------------------------------------------------
+  // Ref doc no pill (worked examples): colour by what the number is.
+  function refDocPill(refDocNo) {
+    if (!refDocNo) return '';
+    const kind = /^direct$/i.test(refDocNo)
+      ? 'direct'
+      : /csosc/i.test(refDocNo)
+        ? 'order'
+        : 'other';
+    return (
+      '<span class="ref-pill ref-pill-' +
+      kind +
+      '" title="Ref DocNo from the master workbook"><span class="ref-pill-label">Ref doc no</span>' +
+      escapeHtml(refDocNo) +
+      '</span>'
+    );
+  }
   // Set by the Billing ledger to open a Delivery & Installation job when that page opens.
   let pendingDiJobId = null;
   async function renderDeliveryInstall(root) {
@@ -15426,6 +15442,9 @@ ${bodyHtml}
         )
         .join('');
       return (
+        (ex.excel.refDocNo
+          ? '<p class="di-ex-ref">' + refDocPill(ex.excel.refDocNo) + '</p>'
+          : '') +
         '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Type</th><th>Item</th><th class="num">Qty</th><th>How the workbook priced it</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
         rows +
         '<tr><td></td><td><strong>Invoice total</strong></td><td></td><td></td><td class="num"><strong>' +
@@ -21142,7 +21161,9 @@ ${bodyHtml}
       const exampleTable = (ex) =>
         '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
         e(ex.invoice) +
-        '</b><span>' +
+        '</b>' +
+        refDocPill(ex.refDocNo) +
+        '<span>' +
         e((ex.customer || '') + (ex.date ? ' · ' + ex.date : '')) +
         '</span></div>' +
         table(

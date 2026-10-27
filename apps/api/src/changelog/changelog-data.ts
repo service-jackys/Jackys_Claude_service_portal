@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 168,
+    title: 'Ref doc no pill on the worked examples',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'When a reviewer picks an invoice in Service Revenue Dashboard → Logic applied → Worked example, the master workbook\'s Ref DocNo (the CSOSC order it came from, or "Direct") was not shown, though accounts use it.',
+    changes: [
+      'The worked example header shows the invoice\'s Ref doc no as a coloured pill beside the invoice number: indigo for a CSOSC order, teal for "Direct", pink for anything else. Nothing is shown when the workbook has none.',
+      'The same pill appears above the "Excel — master workbook" lines in Delivery & Installation → Compare with Excel → Worked example.',
+      'Delivery & Installation lines (CSIDI / CSIDO / CSIII) show it straight away; repair jobs (CSIJW / CSIJO) show it after the master is re-uploaded (see #167).',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files:
+      'apps/api/src/revenue-dashboard/logic-summary.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts, tests/e2e/delivery-installation.spec.ts.',
+  },
+  {
     id: 167,
     title: 'Ref doc no on the Jobs and Delivery & Install sheets of the revenue report',
     area: 'Revenue',
