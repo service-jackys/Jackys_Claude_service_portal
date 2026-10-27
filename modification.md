@@ -3754,3 +3754,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/063_revenue_line_ref_doc.sql, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/{parser,export}.ts, tests/unit/{revenue-workbook,revenue-export-sheets}.test.ts.
 
 **Needs you:** pull, restart the API (migration 063). Re-upload the master workbook (Service Revenue Dashboard → upload) so the Jobs sheet gets its Ref doc no; until then that column is empty for repair jobs, while Delivery & Install shows it straight away.
+
+## Modification #168 — Ref doc no pill on the worked examples
+
+**Date:** 2026-10-27
+
+**Why.** When a reviewer picks an invoice in Service Revenue Dashboard → Logic applied → Worked example, the master workbook's Ref DocNo (the CSOSC order it came from, or "Direct") was not shown, though accounts use it.
+
+**What changed.**
+- The worked example header shows the invoice's **Ref doc no** as a coloured pill beside the invoice number: indigo for a CSOSC order, teal for "Direct", pink for anything else. Nothing is shown when the workbook has none.
+- The same pill appears above the "Excel — master workbook" lines in Delivery & Installation → Compare with Excel → Worked example.
+- Delivery & Installation lines (CSIDI / CSIDO / CSIII) show it straight away; repair jobs (CSIJW / CSIJO) show it after the master is re-uploaded (see #167).
+
+**Files.** apps/api/src/revenue-dashboard/logic-summary.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts, tests/e2e/delivery-installation.spec.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.
