@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 158,
+    title: 'Delivery & Installation: unlinked item groups are delivery only',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Category Mapping page said all 44 unlinked stock groups had to be linked before they could be used on a delivery job. That is not needed: an item that is not installable is only ever Delivery only.',
+    changes: [
+      'A stock group that is not linked is treated as delivery only (CSIDO) with no warning, and a new line for it starts as CSIDO.',
+      'It still cannot be priced as Delivery + Installation or Installation only; the price panel says to link the group. Link only the groups that can be installed (for example air conditioners).',
+      'The help text on Salesmen & channels → Delivery & installation categories says so.',
+    ],
+    needsYou:
+      'pull and hard-refresh. No migration, no API restart needed for the screen text; restart the API for the price change.',
+    migrations: [],
+    files:
+      'apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-pricing-engine.test.ts.',
+  },
+  {
     id: 157,
     title: 'Delivery & Installation: enter a job (phase 3)',
     area: 'General',

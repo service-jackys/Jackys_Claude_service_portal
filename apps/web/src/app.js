@@ -4722,7 +4722,7 @@ ${bodyHtml}
     $('#categoryUnmapped').innerHTML = unmapped.length
       ? '<p class="form-note"><strong>' +
         unmapped.length +
-        ' stock group(s) are not linked yet</strong> (they cannot be used on a delivery job): ' +
+        ' stock group(s) are not linked yet</strong> (they can be delivered, but only groups linked as installable can be installed): ' +
         unmapped
           .slice(0, 12)
           .map(
@@ -14764,7 +14764,7 @@ ${bodyHtml}
           if (!button) return;
           const item = JSON.parse(itemResults.dataset.items || '[]')[Number(button.dataset.i)];
           if (!item) return;
-          const type = item.installable === false ? 'CSIDO' : 'CSIDI';
+          const type = item.installable === true ? 'CSIDI' : 'CSIDO';
           const same = state.lines.find((l) => l.itemCode === item.itemCode && l.type === type);
           if (same) same.qty = Number(same.qty) + 1;
           else {

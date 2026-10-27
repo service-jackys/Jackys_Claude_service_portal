@@ -276,3 +276,14 @@ test('golden: the 629 CSIDI-sheet lines reprice exactly, except installation-onl
   const delta = differences.reduce((sum, d) => sum + d.portal - d.workbook, 0);
   assert.equal(Math.round(delta * 100) / 100, -703.25);
 });
+
+test('a group that is not linked is delivery only: no warning, and it cannot be priced as installed', () => {
+  const delivered = price([del(3, null)]);
+  assert.equal(delivered.ok, true);
+  assert.deepEqual(delivered.issues, []);
+  assert.equal(delivered.totals.total, 100);
+
+  const installed = price([{ ...di(1), installable: null, pricingCategory: null }]);
+  assert.equal(installed.ok, false);
+  assert.equal(installed.issues[0]!.code, 'unmapped');
+});
