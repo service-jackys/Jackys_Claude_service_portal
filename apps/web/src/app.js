@@ -14625,6 +14625,8 @@ ${bodyHtml}
       rows: [],
       summary: null,
       rules: [],
+      salesmen: [],
+      brands: [],
       selected: null,
       message: '',
       error: '',
@@ -15042,7 +15044,7 @@ ${bodyHtml}
       body.innerHTML =
         '<div class="card-help"><span>About this section</span>' +
         tipHtml(
-          "When a job is billed to a sales channel, the first matching rule decides which channel. A rule matches when the salesman is the same (blank = any), the B2B branch / school name contains the keyword (blank = any) and the item brand is, or is not, the brand given (blank = any). When several rules match, the most specific one (the most conditions filled in) wins. With no match, the job's own sales channel is billed.",
+          "When a job is billed to a sales channel, the matching rule decides which channel. A rule matches when the salesman is the same (blank = any), the B2B branch / school name contains the keyword (blank = any) and the item brand is, or is not, the brand given (blank = any). When several rules match, the most specific one (the most conditions filled in) wins. With no match, the job's own sales channel is billed.",
         ) +
         '</div>' +
         '<div class="table-wrap"><table><thead><tr><th>Salesman</th><th>Branch / school contains</th><th>Brand</th><th>Bill to</th><th>Status</th><th>Notes</th>' +
@@ -15052,10 +15054,18 @@ ${bodyHtml}
         '</tbody></table></div>' +
         (canEditRules
           ? '<div class="detail-action-card"><h4>Add a rule</h4><div class="field-grid">' +
-            '<div class="field"><label>Salesman<input type="text" data-rule="salesman" maxlength="200"></label></div>' +
+            '<div class="field"><label>Salesman<select data-rule="salesman"><option value="">Any salesman</option>' +
+            state.salesmen.map((m) => '<option>' + escapeHtml(m) + '</option>').join('') +
+            '</select></label></div>' +
             '<div class="field"><label>Branch / school contains<input type="text" data-rule="branchKeyword" maxlength="200" placeholder="e.g. GEMS"></label></div>' +
             '<div class="field"><label>Brand<select data-rule="brandMatch"><option value="is">is</option><option value="is_not">is not</option></select></label></div>' +
-            '<div class="field"><label>Brand name<input type="text" data-rule="brand" maxlength="200" placeholder="e.g. VENUS"></label></div>' +
+            '<div class="field"><label>Brand name' +
+            (state.brands.length
+              ? '<select data-rule="brand"><option value="">Any brand</option>' +
+                state.brands.map((b) => '<option>' + escapeHtml(b) + '</option>').join('') +
+                '</select>'
+              : '<input type="text" data-rule="brand" maxlength="200" placeholder="e.g. VENUS">') +
+            '</label></div>' +
             '<div class="field"><label>Bill to channel<select data-rule="billToChannel"><option value="">Select channel</option>' +
             salesChannelOptions.map((c) => '<option>' + escapeHtml(c.name) + '</option>').join('') +
             '</select></label></div>' +
@@ -15109,6 +15119,11 @@ ${bodyHtml}
       try {
         const result = await apiRequest('/api/billing-rules');
         state.rules = result.billingRules || [];
+        // Salesman and brand are picked from the masters, never typed. A saved rule
+        // whose salesman or brand is no longer in the master is still shown as is.
+        state.salesmen = (salesmenOptions || []).map((m) => m.name);
+        const facets = canEditRules ? await loadStockFacets() : { brands: [] };
+        state.brands = (facets.brands || []).map((b) => b.brand);
         drawRules();
       } catch (error) {
         body.innerHTML = '<p class="form-note">' + escapeHtml(error.message) + '</p>';
