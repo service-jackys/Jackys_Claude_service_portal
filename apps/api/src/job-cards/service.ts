@@ -258,17 +258,14 @@ async function masterContextFor(
     if (record || (branch && sameText(salesmanName, branch.salesman))) {
       masterFields.add('salesman');
     }
-    // The salesman's own channel wins; otherwise the branch's channel.
-    const channel = record?.salesChannel || (branch?.salesChannel ?? null);
+    // The sales channel comes from the salesman (Salesmen & channels), not from the customer.
+    const channel = record?.salesChannel ?? null;
     if (channel && !content.salesChannel) {
       masterFill.salesChannel = channel;
       masterFields.add('salesChannel');
     } else if (channel && sameText(content.salesChannel, channel)) {
       masterFields.add('salesChannel');
     }
-  } else if (branch?.salesChannel && !content.salesChannel) {
-    masterFill.salesChannel = branch.salesChannel;
-    masterFields.add('salesChannel');
   }
 
   const item = await resolveStockItem(client, content.itemCode || content.modelNo, content.brand);
@@ -322,7 +319,6 @@ async function enrichDefaultsFromMasters(
     const record = await findSalesmanByName(client, content.salesman);
     if (record?.salesChannel) content.salesChannel = record.salesChannel;
   }
-  if (!content.salesChannel && branch?.salesChannel) content.salesChannel = branch.salesChannel;
 
   const context = await masterContextFor(client, content);
   const filled = { ...content, ...context.masterFill };

@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
-  b2bKnownNames,
+  b2bKnownSalesmen,
   b2bMasterRows,
   b2bStatus,
   latestB2bUploadFile,
@@ -50,25 +50,15 @@ export function createB2bMasterService(pool: Pool) {
     }
     const sha = createHash('sha256').update(file.buffer).digest('hex');
     return withTransaction(pool, async (client) => {
-      // Salesmen and channels the masters do not know are reported, not rejected: the
-      // customer is still stored, but a Delivery & Installation job for it needs both.
-      const known = await b2bKnownNames(client);
+      // Salesmen the master does not know are reported, not rejected: the customer is
+      // still stored, but a job for it needs a salesman linked to a sales channel.
+      const knownSalesmen = await b2bKnownSalesmen(client);
       const unknownSalesmen = new Map<string, number>();
-      const unknownChannels = new Map<string, number>();
       let withoutSalesman = 0;
       for (const customer of parsed.customers.values()) {
         if (!customer.salesman) withoutSalesman += 1;
-        else if (!known.salesmen.has(customer.salesman.trim().toLowerCase())) {
+        else if (!knownSalesmen.has(customer.salesman.trim().toLowerCase())) {
           unknownSalesmen.set(customer.salesman, (unknownSalesmen.get(customer.salesman) ?? 0) + 1);
-        }
-        if (
-          customer.salesChannel &&
-          !known.channels.has(customer.salesChannel.trim().toLowerCase())
-        ) {
-          unknownChannels.set(
-            customer.salesChannel,
-            (unknownChannels.get(customer.salesChannel) ?? 0) + 1,
-          );
         }
       }
       const warnings = [...parsed.warnings];
@@ -80,11 +70,6 @@ export function createB2bMasterService(pool: Pool) {
       for (const [name, count] of [...unknownSalesmen].slice(0, NAME_WARNING_LIMIT)) {
         warnings.push(
           `Salesman "${name}" (${count} customer${count === 1 ? '' : 's'}) is not in Salesmen & channels. Add it, or add it as another spelling of a salesman.`,
-        );
-      }
-      for (const [name, count] of [...unknownChannels].slice(0, NAME_WARNING_LIMIT)) {
-        warnings.push(
-          `Sales channel "${name}" (${count} customer${count === 1 ? '' : 's'}) is not in the Sales channels list.`,
         );
       }
 

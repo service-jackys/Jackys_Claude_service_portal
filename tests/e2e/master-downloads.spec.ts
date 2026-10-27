@@ -76,7 +76,6 @@ async function mockApi(
         lastUpload: upload,
         totalCustomers: 610,
         withoutSalesman: 0,
-        withoutChannel: 4,
         notInFileCount: 5,
         recentUploads: [upload],
       });
@@ -90,8 +89,6 @@ async function mockApi(
             custCode: '191065',
             branchName: 'GEMS Wellington International School',
             salesman: 'Raneesh Jose',
-            salesChannel: 'JDI',
-            lastSalesOrderNumber: 'SO-77',
           },
         ],
       });

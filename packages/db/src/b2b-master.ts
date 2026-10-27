@@ -10,10 +10,6 @@ export type B2bCustomer = {
   custCode: string;
   customerName: string;
   salesman: string | null;
-  salesChannel: string | null;
-  lastSalesOrderNumber: string | null;
-  /** YYYY-MM-DD */
-  lastInvoiceDate: string | null;
 };
 
 export type B2bCustomerChange = {
@@ -38,18 +34,12 @@ export type B2bUploadSummary = {
 const customerColumns = `
   cust_code AS "custCode",
   branch_name AS "customerName",
-  salesman,
-  sales_channel AS "salesChannel",
-  last_sales_order_number AS "lastSalesOrderNumber",
-  to_char(last_invoice_date, 'YYYY-MM-DD') AS "lastInvoiceDate"
+  salesman
 `;
 
 const FIELDS: { key: keyof B2bCustomer; label: string }[] = [
   { key: 'customerName', label: 'Customer' },
   { key: 'salesman', label: 'Salesman' },
-  { key: 'salesChannel', label: 'Sales channel' },
-  { key: 'lastSalesOrderNumber', label: 'Last sales order no' },
-  { key: 'lastInvoiceDate', label: 'Last invoice date' },
 ];
 
 const CHUNK = 500;
@@ -104,9 +94,6 @@ export async function upsertB2bCustomers(
     const codes: string[] = [];
     const names: string[] = [];
     const salesmen: (string | null)[] = [];
-    const channels: (string | null)[] = [];
-    const orders: (string | null)[] = [];
-    const dates: (string | null)[] = [];
     for (const [upper, customer] of chunk) {
       const before = existing.get(upper);
       // Blank in the file keeps what is stored.
@@ -114,9 +101,6 @@ export async function upsertB2bCustomers(
         custCode: before?.custCode ?? customer.custCode,
         customerName: customer.customerName,
         salesman: customer.salesman ?? before?.salesman ?? null,
-        salesChannel: customer.salesChannel ?? before?.salesChannel ?? null,
-        lastSalesOrderNumber: customer.lastSalesOrderNumber ?? before?.lastSalesOrderNumber ?? null,
-        lastInvoiceDate: customer.lastInvoiceDate ?? before?.lastInvoiceDate ?? null,
       };
       if (!before) {
         newCustomers += 1;
@@ -138,31 +122,21 @@ export async function upsertB2bCustomers(
       codes.push(merged.custCode);
       names.push(merged.customerName);
       salesmen.push(merged.salesman);
-      channels.push(merged.salesChannel);
-      orders.push(merged.lastSalesOrderNumber);
-      dates.push(merged.lastInvoiceDate);
     }
+    // Only the code, name and salesman come from the file; everything else on the row is left alone.
     await client.query(
-      `INSERT INTO b2b_branches (cust_code, branch_name, salesman, sales_channel,
-                                 last_sales_order_number, last_invoice_date, last_seen_at)
-       SELECT code, name, salesman, channel, ord, dt::date, now()
-         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
-              AS t(code, name, salesman, channel, ord, dt)
+      `INSERT INTO b2b_branches (cust_code, branch_name, salesman, last_seen_at)
+       SELECT code, name, salesman, now()
+         FROM unnest($1::text[], $2::text[], $3::text[]) AS t(code, name, salesman)
        ON CONFLICT (cust_code) DO UPDATE SET
          branch_name = EXCLUDED.branch_name,
          salesman = EXCLUDED.salesman,
-         sales_channel = EXCLUDED.sales_channel,
-         last_sales_order_number = EXCLUDED.last_sales_order_number,
-         last_invoice_date = EXCLUDED.last_invoice_date,
          last_seen_at = EXCLUDED.last_seen_at,
          updated_at = CASE
-           WHEN (b2b_branches.branch_name, b2b_branches.salesman, b2b_branches.sales_channel,
-                 b2b_branches.last_sales_order_number, b2b_branches.last_invoice_date)
-                IS NOT DISTINCT FROM
-                (EXCLUDED.branch_name, EXCLUDED.salesman, EXCLUDED.sales_channel,
-                 EXCLUDED.last_sales_order_number, EXCLUDED.last_invoice_date)
+           WHEN (b2b_branches.branch_name, b2b_branches.salesman)
+                IS NOT DISTINCT FROM (EXCLUDED.branch_name, EXCLUDED.salesman)
            THEN b2b_branches.updated_at ELSE now() END`,
-      [codes, names, salesmen, channels, orders, dates],
+      [codes, names, salesmen],
     );
   }
 
@@ -231,7 +205,6 @@ export async function b2bStatus(db: Queryable): Promise<{
   lastUpload: B2bUploadSummary | null;
   totalCustomers: number;
   withoutSalesman: number;
-  withoutChannel: number;
   notInFileCount: number;
   recentUploads: B2bUploadSummary[];
 }> {
@@ -249,12 +222,10 @@ export async function b2bStatus(db: Queryable): Promise<{
   const totals = await db.query<{
     total: string;
     noSalesman: string;
-    noChannel: string;
     notInFile: string;
   }>(
     `SELECT count(*)::text AS total,
             count(*) FILTER (WHERE salesman IS NULL OR btrim(salesman) = '')::text AS "noSalesman",
-            count(*) FILTER (WHERE sales_channel IS NULL OR btrim(sales_channel) = '')::text AS "noChannel",
             count(*) FILTER (
               WHERE last_seen_at < (SELECT max(u.uploaded_at) FROM b2b_uploads u)
             )::text AS "notInFile"
@@ -264,27 +235,19 @@ export async function b2bStatus(db: Queryable): Promise<{
     lastUpload: uploads.rows[0] ?? null,
     totalCustomers: Number(totals.rows[0]?.total ?? 0),
     withoutSalesman: Number(totals.rows[0]?.noSalesman ?? 0),
-    withoutChannel: Number(totals.rows[0]?.noChannel ?? 0),
     notInFileCount: Number(totals.rows[0]?.notInFile ?? 0),
     recentUploads: uploads.rows,
   };
 }
 
-/** Lower-cased salesman names / spellings and sales channels the masters know, to check an upload against. */
-export async function b2bKnownNames(
-  db: Queryable,
-): Promise<{ salesmen: Set<string>; channels: Set<string> }> {
+/** Lower-cased salesman names and spellings the Salesmen master knows, to check an upload against. */
+export async function b2bKnownSalesmen(db: Queryable): Promise<Set<string>> {
   const salesmen = new Set<string>();
-  const channels = new Set<string>();
   const s = await db.query<{ name: string }>('SELECT lower(btrim(name)) AS name FROM salesmen');
   for (const row of s.rows) salesmen.add(row.name);
   const a = await db.query<{ name: string }>(
     'SELECT lower(btrim(alias)) AS name FROM salesman_aliases',
   );
   for (const row of a.rows) salesmen.add(row.name);
-  const c = await db.query<{ name: string }>(
-    'SELECT lower(btrim(name)) AS name FROM sales_channels',
-  );
-  for (const row of c.rows) channels.add(row.name);
-  return { salesmen, channels };
+  return salesmen;
 }

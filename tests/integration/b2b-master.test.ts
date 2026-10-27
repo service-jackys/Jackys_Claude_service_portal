@@ -21,37 +21,30 @@ async function book(headers: string[], rows: unknown[][]): Promise<Buffer> {
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
-test('B2B customer master: the parser reads the portal file and an ERP invoice report', async () => {
+test('B2B customer master: the parser reads Cust Code, Customer, Salesman and ignores other columns', async () => {
   const own = await parseB2bWorkbook(
-    await book(
-      [
-        'Cust Code',
-        'Customer',
-        'Salesman',
-        'Sales Channel',
-        'Last Sales Order No',
-        'Last Invoice Date',
-      ],
-      [['C1', 'School One', 'Ann', 'JDI', 'SO1', '2026-10-01']],
-    ),
+    await book(['Cust Code', 'Customer', 'Salesman'], [['C1', 'School One', 'Ann']]),
   );
-  assert.equal(own.customers.get('C1')!.salesChannel, 'JDI');
-  assert.equal(own.customers.get('C1')!.lastInvoiceDate, '2026-10-01');
+  assert.deepEqual(own.customers.get('C1'), {
+    custCode: 'C1',
+    customerName: 'School One',
+    salesman: 'Ann',
+  });
 
-  // ERP invoice report: several rows per customer, the latest invoice wins.
+  // An ERP invoice report: other columns are ignored, the first row per customer is used.
   const erp = await parseB2bWorkbook(
     await book(
-      ['Cust_Code', 'Customer', 'Salesman', 'Inv/Del No', 'Invoice Date'],
+      ['Cust_Code', 'Customer', 'Salesman', 'Inv/Del No', 'Invoice Date', 'Sales Channel'],
       [
-        ['C2', 'School Two', 'Bob', 'INV-1', '05/09/2026'],
-        ['C2', 'School Two', 'Bob', 'INV-3', '20/10/2026'],
-        ['c2', 'School Two', 'Bob', 'INV-2', '01/10/2026'],
+        ['C2', 'School Two', 'Bob', 'INV-1', '05/09/2026', 'JDI'],
+        ['C2', 'School Two', 'Carl', 'INV-3', '20/10/2026', 'JDI'],
+        ['c2', 'School Two', 'Bob', 'INV-2', '01/10/2026', 'JDI'],
       ],
     ),
   );
   assert.equal(erp.customers.size, 1);
-  assert.equal(erp.customers.get('C2')!.lastSalesOrderNumber, 'INV-3');
-  assert.equal(erp.customers.get('C2')!.lastInvoiceDate, '2026-10-20');
+  assert.equal(erp.customers.get('C2')!.salesman, 'Bob');
+  assert.ok(erp.warnings.some((w) => w.includes('Carl')));
 
   await assert.rejects(
     parseB2bWorkbook(await book(['A', 'B'], [[1, 2]])),
@@ -78,14 +71,7 @@ test(
     const codeB = `ZB${tag}`;
     const known = `Known ${tag}`;
     const unknown = `Nobody ${tag}`;
-    const headers = [
-      'Cust Code',
-      'Customer',
-      'Salesman',
-      'Sales Channel',
-      'Last Sales Order No',
-      'Last Invoice Date',
-    ];
+    const headers = ['Cust Code', 'Customer', 'Salesman'];
     const uploadIds: string[] = [];
     try {
       const profile = await pool.query<{ id: string }>(
@@ -101,8 +87,8 @@ test(
           originalname: 'customers.xlsx',
           size: 1,
           buffer: await book(headers, [
-            [codeA, `Alpha School ${tag}`, known, null, 'SO-1', '2026-10-01'],
-            [codeB, `Beta School ${tag}`, unknown, null, null, null],
+            [codeA, `Alpha School ${tag}`, known],
+            [codeB, `Beta School ${tag}`, unknown],
           ]),
         },
         profileId,
@@ -115,14 +101,12 @@ test(
       );
       assert.ok(!first.report.warnings.some((w: string) => w.includes(known)));
 
-      // Second upload: new name for A, blank salesman / order for A keeps the stored ones.
+      // Second upload: new name for A; a blank salesman keeps the stored one.
       const second = await service.upload(
         {
           originalname: 'customers2.xlsx',
           size: 1,
-          buffer: await book(headers, [
-            [codeA, `Alpha School Renamed ${tag}`, null, 'JDI', null, null],
-          ]),
+          buffer: await book(headers, [[codeA, `Alpha School Renamed ${tag}`, null]]),
         },
         profileId,
       );
@@ -130,15 +114,11 @@ test(
       assert.equal(second.newCustomers, 0);
       assert.equal(second.changedCustomers, 1);
       const stored = await pool.query(
-        `SELECT branch_name, salesman, sales_channel, last_sales_order_number, to_char(last_invoice_date,'YYYY-MM-DD') AS d
-           FROM b2b_branches WHERE cust_code = $1`,
+        `SELECT branch_name, salesman FROM b2b_branches WHERE cust_code = $1`,
         [codeA],
       );
       assert.equal(stored.rows[0].branch_name, `Alpha School Renamed ${tag}`);
       assert.equal(stored.rows[0].salesman, known);
-      assert.equal(stored.rows[0].sales_channel, 'JDI');
-      assert.equal(stored.rows[0].last_sales_order_number, 'SO-1');
-      assert.equal(stored.rows[0].d, '2026-10-01');
 
       const status = await service.status();
       assert.ok(status.notInFileCount >= 1, 'customer B is not in the latest file');

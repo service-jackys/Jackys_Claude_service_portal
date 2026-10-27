@@ -1696,7 +1696,7 @@
       $(`#${prefix}SalesOrderNumber`).value = branch.lastSalesOrderNumber;
     }
     if (branch.salesman) setSelectValue(`#${prefix}Salesman`, branch.salesman);
-    const channel = channelForSalesman(branch.salesman) || branch.salesChannel;
+    const channel = channelForSalesman(branch.salesman);
     if (channel) setSelectValue(`#${prefix}SalesChannel`, channel);
     clearMissingMark($(`#${prefix}Salesman`));
     clearMissingMark($(`#${prefix}SalesChannel`));
@@ -11648,13 +11648,11 @@ ${bodyHtml}
       n(status.totalCustomers) +
       ' customers · ' +
       n(status.withoutSalesman) +
-      ' without a salesman · ' +
-      n(status.withoutChannel) +
-      ' without a sales channel</span></div>' +
+      ' without a salesman</span></div>' +
       '<section class="detail-action-card"><h4>Customer master ' +
       tipHtml(
         'The list behind every “Look up B2B customer / Branch / School” box: complaints, appointments, job cards and Delivery & Installation. ' +
-          'Each upload adds new customers and updates the ones that changed (matched by Cust Code). A blank cell keeps what is already stored. Customers that are not in the file are kept and counted below.',
+          'Each upload adds new customers and updates the ones that changed (matched by Cust Code). A blank salesman keeps what is already stored. Customers that are not in the file are kept and counted below. The sales channel is not part of this list: it comes from the salesman, on Salesmen & channels.',
       ) +
       '</h4>' +
       (last
@@ -11679,8 +11677,8 @@ ${bodyHtml}
       '</p><p class="form-note" data-b2b-dl-msg role="status"></p></section>' +
       '<section class="detail-action-card"><h4>Upload customer list ' +
       tipHtml(
-        'Choose an .xlsx with the columns: Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date. Only Cust Code and Customer are required. ' +
-          'Download the customer master, edit it in Excel and upload it back. An ERP invoice report (Cust_Code, Customer, Salesman, Inv/Del No) also works: where a customer has several rows, the latest is used.',
+        'Choose an .xlsx with the columns: Cust Code, Customer, Salesman. Only Cust Code and Customer are required; any other column is ignored. ' +
+          'Download the customer master, edit it in Excel and upload it back. Where a customer has several rows, the first is used.',
       ) +
       '</h4>' +
       '<div class="sm-upload"><input type="file" accept=".xlsx" data-b2b-file />' +
@@ -11772,7 +11770,7 @@ ${bodyHtml}
         if (mine !== seq) return;
         const rows = result.branches || [];
         hits.innerHTML = rows.length
-          ? '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Cust Code</th><th>Customer</th><th>Salesman</th><th>Sales channel</th><th>Last sales order</th></tr></thead><tbody>' +
+          ? '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Cust Code</th><th>Customer</th><th>Salesman</th></tr></thead><tbody>' +
             rows
               .map(
                 (r) =>
@@ -11782,10 +11780,6 @@ ${bodyHtml}
                   escapeHtml(r.branchName) +
                   '</td><td>' +
                   escapeHtml(r.salesman || '—') +
-                  '</td><td>' +
-                  escapeHtml(r.salesChannel || '—') +
-                  '</td><td>' +
-                  escapeHtml(r.lastSalesOrderNumber || '—') +
                   '</td></tr>',
               )
               .join('') +

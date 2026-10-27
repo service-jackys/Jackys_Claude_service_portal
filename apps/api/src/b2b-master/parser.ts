@@ -6,7 +6,7 @@ export class B2bParseError extends Error {}
 export type ParsedB2bFile = {
   sheetName: string;
   headerRow: number;
-  /** Data rows read (a customer can appear on several rows, e.g. one per invoice). */
+  /** Data rows read (a customer can appear on several rows). */
   rowCount: number;
   /** One entry per customer code, keyed by the upper-cased code. */
   customers: Map<string, B2bCustomer>;
@@ -41,45 +41,19 @@ function text(value: unknown): string | null {
 }
 
 /** The file's header names (normalised) per field. The first of each is what the
- *  portal's own download writes; the ERP invoice-report names are accepted too. */
+ *  portal's own download writes. Any other column in the file is ignored. */
 const COLUMN_NAMES = {
   custCode: ['custcode', 'customercode', 'code'],
   customerName: ['customer', 'customername', 'branchname', 'branchschool', 'name'],
   salesman: ['salesman', 'salesperson'],
-  salesChannel: ['saleschannel', 'channel'],
-  lastSalesOrderNumber: [
-    'lastsalesordernumber',
-    'lastsalesorderno',
-    'invdelno',
-    'salesorderno',
-    'salesordernumber',
-  ],
-  lastInvoiceDate: ['lastinvoicedate', 'invoicedate', 'invdate'],
 } as const;
 type Field = keyof typeof COLUMN_NAMES;
 
-function dateText(value: unknown): { iso: string | null; bad: boolean } {
-  if (value === null || value === undefined || value === '') return { iso: null, bad: false };
-  if (value instanceof Date) return { iso: value.toISOString().slice(0, 10), bad: false };
-  const raw = String(value).trim();
-  let match = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
-  if (match) return { iso: `${match[1]}-${match[2]}-${match[3]}`, bad: false };
-  match = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(raw);
-  if (match) {
-    return {
-      iso: `${match[3]}-${match[2].padStart(2, '0')}-${match[1].padStart(2, '0')}`,
-      bad: false,
-    };
-  }
-  return { iso: null, bad: true };
-}
-
 /**
- * Reads a customer list workbook: Cust Code, Customer, Salesman, Sales Channel,
- * Last Sales Order No, Last Invoice Date (the file the portal downloads). Only
- * Cust Code and Customer are required. A file made from the ERP invoice report
- * (Cust_Code, Customer, Salesman, Inv/Del No, …) also works: where a customer has
- * several rows, the one with the latest invoice date is used.
+ * Reads a customer list workbook: Cust Code, Customer, Salesman (the file the
+ * portal downloads). Only Cust Code and Customer are required; other columns are
+ * ignored, so an ERP customer or invoice report works as it is. Where a customer
+ * has several rows, the first is used.
  */
 export async function parseB2bWorkbook(buffer: Buffer): Promise<ParsedB2bFile> {
   const workbook = new ExcelJS.Workbook();
@@ -137,19 +111,10 @@ export async function parseB2bWorkbook(buffer: Buffer): Promise<ParsedB2bFile> {
         continue;
       }
       rowCount += 1;
-      const date = dateText(read('lastInvoiceDate'));
-      if (date.bad) {
-        warn(
-          `Row ${r}: ${custCode} has a last invoice date that is not a date (${String(read('lastInvoiceDate'))}); it was left blank.`,
-        );
-      }
       const customer: B2bCustomer = {
         custCode,
         customerName,
         salesman: text(read('salesman')),
-        salesChannel: text(read('salesChannel')),
-        lastSalesOrderNumber: text(read('lastSalesOrderNumber')),
-        lastInvoiceDate: date.iso,
       };
       const key = custCode.toUpperCase();
       const existing = customers.get(key);
@@ -158,23 +123,23 @@ export async function parseB2bWorkbook(buffer: Buffer): Promise<ParsedB2bFile> {
         seenAt.set(key, r);
         continue;
       }
-      // Several rows for one customer: the later invoice date wins; otherwise the first row.
-      const newer =
-        (customer.lastInvoiceDate ?? '') > (existing.lastInvoiceDate ?? '') ||
-        (existing.lastInvoiceDate === null && customer.lastInvoiceDate !== null);
+      // Several rows for one customer: the first row is used.
       if (customer.customerName !== existing.customerName) {
         warn(
-          `Row ${r}: ${custCode} is named "${customer.customerName}" here and "${existing.customerName}" on row ${seenAt.get(key)}; the ${newer ? 'later invoice' : 'first row'} is used.`,
+          `Row ${r}: ${custCode} is named "${customer.customerName}" here and "${existing.customerName}" on row ${seenAt.get(key)}; the first row is used.`,
+        );
+      } else if ((customer.salesman ?? null) !== (existing.salesman ?? null)) {
+        warn(
+          `Row ${r}: ${custCode} has salesman "${customer.salesman ?? ''}" here and "${existing.salesman ?? ''}" on row ${seenAt.get(key)}; the first row is used.`,
         );
       }
-      if (newer) customers.set(key, { ...customer, custCode: existing.custCode });
     }
     break;
   }
 
   if (headerRow === 0) {
     throw new B2bParseError(
-      'No header row with Cust Code and Customer was found in the first 40 rows. Use the file you download from this page, or an ERP invoice report with Cust_Code and Customer columns.',
+      'No header row with Cust Code and Customer was found in the first 40 rows. Use the file you download from this page, or any list with Cust Code and Customer columns.',
     );
   }
   if (customers.size === 0) {
