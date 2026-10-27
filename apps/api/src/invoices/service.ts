@@ -192,7 +192,8 @@ export function createInvoiceService(pool: Pool) {
     };
 
     const ledgerCols: [string, keyof (typeof data.rows)[number], boolean?][] = [
-      ['Job Card', 'jobCardReference'],
+      ['Job Card / D&I Job', 'jobCardReference'],
+      ['Source', 'source'],
       ['Job Card Date', 'jobCardDate'],
       ['Delivery Date', 'deliveryDate'],
       ['Job Type', 'billingJobType'],

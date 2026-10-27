@@ -14409,6 +14409,8 @@ ${bodyHtml}
   // delivery note. Entered after the physical job; a job counts as revenue
   // once it is Completed and its figures are then frozen.
   // ---------------------------------------------------------------------
+  // Set by the Billing ledger to open a Delivery & Installation job when that page opens.
+  let pendingDiJobId = null;
   async function renderDeliveryInstall(root) {
     const canWrite = hasPermission('di_jobs.write');
     const canReopen = hasPermission('di_jobs.reopen');
@@ -15874,6 +15876,16 @@ ${bodyHtml}
       }
     }
 
+    if (pendingDiJobId) {
+      const wanted = pendingDiJobId;
+      pendingDiJobId = null;
+      try {
+        applyJob(await apiRequest('/api/di-jobs/' + encodeURIComponent(wanted)));
+        state.tab = 'job';
+      } catch (error) {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
     syncTabs();
     drawJob();
   }
@@ -15984,6 +15996,9 @@ ${bodyHtml}
         opt('', 'All', state.type) +
         opt('CSIJW', 'CSIJW Warranty', state.type) +
         opt('CSIJO', 'CSIJO Non-warranty', state.type) +
+        opt('CSIDI', 'CSIDI Delivery + Installation', state.type) +
+        opt('CSIDO', 'CSIDO Delivery only', state.type) +
+        opt('CSIII', 'CSIII Installation only', state.type) +
         '</select></label></div>' +
         '<div class="th-field"><label>Payment by<select data-acc="payer">' +
         opt('', 'All', state.payer) +
@@ -16115,9 +16130,13 @@ ${bodyHtml}
       const body = rows
         .map(
           (r) =>
-            '<tr><td class="acc-sticky"><button class="table-link" type="button" data-acc-open="' +
-            plain(r.id) +
-            '">' +
+            '<tr><td class="acc-sticky"><button class="table-link" type="button" ' +
+            (r.source === 'dandi'
+              ? 'data-acc-open-di="' +
+                plain(r.sourceRef) +
+                '" title="Open the Delivery &amp; Installation job"'
+              : 'data-acc-open="' + plain(r.id) + '"') +
+            '>' +
             plain(r.jobCardReference) +
             '</button></td>' +
             '<td>' +
@@ -16358,6 +16377,12 @@ ${bodyHtml}
           : state.tab === 'allocation'
             ? allocationHtml()
             : ledgerHtml();
+      body.querySelectorAll('[data-acc-open-di]').forEach((el) =>
+        el.addEventListener('click', () => {
+          pendingDiJobId = el.dataset.accOpenDi;
+          setWorkspaceMode('delivery-install');
+        }),
+      );
       body.querySelectorAll('[data-acc-open]').forEach((el) =>
         el.addEventListener('click', () => {
           setWorkspaceMode('job-cards');

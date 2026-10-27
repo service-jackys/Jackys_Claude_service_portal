@@ -652,6 +652,123 @@ test.describe('warranty and billing', () => {
     expect(exportUrl).toContain('/api/billing/export');
   });
 
+  test('Completed Delivery & Installation lines show as internal billing and open their job', async ({
+    page,
+  }) => {
+    const diRow = {
+      id: 'di:11',
+      source: 'dandi',
+      sourceRef: '5',
+      jobCardReference: 'DIJ-2026-00005',
+      jobCardDate: '2026-10-20',
+      deliveryDate: '2026-10-20',
+      billingJobType: 'CSIDI',
+      registeredWarranty: null,
+      finalWarranty: null,
+      warrantyChangeReason: null,
+      payer: 'Sales channel',
+      billTo: 'JDI',
+      customerName: 'Test School',
+      customerType: 'B2B',
+      b2bBranchSchool: 'Test School',
+      salesman: 'Raneesh Jose',
+      salesChannel: 'JDI',
+      region: 'Dubai',
+      salesOrderNumber: 'DN-1',
+      itemCode: 'FR-100',
+      brand: 'VENUS',
+      mainGroup: 'MDA',
+      groupName: 'FRIDGE',
+      subGroup: null,
+      modelNo: 'FR-100',
+      serialNo: null,
+      technicianName: null,
+      serviceCharge: 57,
+      partsCost: 0,
+      grandTotal: 57,
+      adjustment: 0,
+      billedAmount: 57,
+      invoiceNo: null,
+      invoiceDate: null,
+      paymentMode: null,
+      paymentReference: null,
+      paymentConfirmedAt: null,
+      stage: 'Internal billing',
+      jobFinalStatus: 'Completed',
+    };
+    const calls: string[] = [];
+    await mockApi(
+      page,
+      ['service_job_card.read', 'invoices.read', 'billing.read', 'di_jobs.read'],
+      (url) => {
+        calls.push(url.pathname);
+        if (url.pathname === '/api/billing/ledger') {
+          return {
+            rows: [diRow],
+            total: 1,
+            page: 1,
+            pageSize: 50,
+            totals: {
+              jobs: 1,
+              serviceCharge: 57,
+              partsCost: 0,
+              adjustment: 0,
+              billedAmount: 57,
+              invoicedAmount: 0,
+              notInvoicedAmount: 0,
+              internalAmount: 57,
+            },
+            statement: [],
+            allocation: [],
+            billToOptions: ['JDI'],
+            stages: ['Internal billing'],
+          };
+        }
+        if (url.pathname === '/api/di-jobs/options') {
+          return { regions: ['Dubai'], salesmen: [], erpInvMandatory: false };
+        }
+        if (url.pathname === '/api/di-jobs/5') {
+          return {
+            job: {
+              id: '5',
+              reference: 'DIJ-2026-00005',
+              serviceDate: '2026-10-20',
+              status: 'Completed',
+              custCode: 'C100',
+              customerName: 'Test School',
+              salesman: 'Raneesh Jose',
+              salesChannel: 'JDI',
+              region: 'Dubai',
+              deliveryNoteRef: 'DN-1',
+              erpInvNo: null,
+              csoscNo: null,
+              notes: null,
+              totalCsidi: 57,
+              totalCsido: 0,
+              totalCsiii: 0,
+              totalRevenue: 57,
+              completedAt: '2026-10-21T08:00:00Z',
+              lines: [],
+            },
+            duplicates: [],
+          };
+        }
+        return undefined;
+      },
+    );
+    await signIn(page);
+    await page.locator('#billingNav').dispatchEvent('click');
+    const row = page.locator('.acc-table tbody tr', { hasText: 'DIJ-2026-00005' });
+    await expect(row).toBeVisible();
+    await expect(row.locator('.status', { hasText: 'Internal billing' })).toBeVisible();
+    await expect(row).toContainText('CSIDI');
+    await expect(row).toContainText('JDI');
+    await expect(page.getByRole('button', { name: 'Record' })).toHaveCount(0);
+
+    await row.getByRole('button', { name: 'DIJ-2026-00005' }).click();
+    await expect.poll(() => calls.includes('/api/di-jobs/5')).toBe(true);
+  });
+
   test('Billing record panel greys out payment fields unless the customer pays', async ({
     page,
   }) => {
