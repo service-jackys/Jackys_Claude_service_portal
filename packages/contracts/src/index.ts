@@ -218,14 +218,17 @@ export const billingRuleWriteSchema = z
   .object({
     salesman: z.string().trim().min(1).max(200).nullish(),
     branchKeyword: z.string().trim().min(1).max(200).nullish(),
+    brand: z.string().trim().min(1).max(200).nullish(),
+    brandMatch: z.enum(['is', 'is_not']).optional(),
     billToChannel: z.string().trim().min(1).max(200),
     active: z.boolean().optional(),
     notes: z.string().trim().max(500).nullish(),
   })
   .strict()
-  .refine((value) => Boolean(value.salesman) || Boolean(value.branchKeyword), {
-    message: 'Enter a salesman, a branch keyword, or both.',
-  });
+  .refine(
+    (value) => Boolean(value.salesman) || Boolean(value.branchKeyword) || Boolean(value.brand),
+    { message: 'Enter a salesman, a branch keyword, a brand, or a mix of them.' },
+  );
 export type BillingRuleWriteInput = z.infer<typeof billingRuleWriteSchema>;
 
 export const salesmanWriteSchema = z
@@ -241,9 +244,29 @@ export const salesChannelWriteSchema = z
   .object({
     name: z.string().trim().min(1).max(200),
     active: z.boolean().optional(),
+    // The channel's name in the master workbook (JDI -> HAA, JER-C/INS -> INS).
+    // Omitted = leave as is; an empty string clears it.
+    reportingName: z.string().trim().max(50).optional(),
   })
   .strict();
 export type SalesChannelWriteInput = z.infer<typeof salesChannelWriteSchema>;
+
+// Delivery & installation category mapping: item group -> installable -> pricing
+// category. A group that is installable needs a pricing category.
+export const categoryMappingWriteSchema = z
+  .object({
+    groupName: z.string().trim().min(1).max(200),
+    installable: z.boolean(),
+    pricingCategory: z.string().trim().min(1).max(200).nullish(),
+    active: z.boolean().optional(),
+    notes: z.string().trim().max(500).nullish(),
+  })
+  .strict()
+  .refine((value) => !value.installable || Boolean(value.pricingCategory), {
+    message: 'Choose the pricing category for an installable group.',
+    path: ['pricingCategory'],
+  });
+export type CategoryMappingWriteInput = z.infer<typeof categoryMappingWriteSchema>;
 
 export const masterDataListQuerySchema = z
   .object({

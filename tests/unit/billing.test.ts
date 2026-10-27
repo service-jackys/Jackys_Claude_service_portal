@@ -154,3 +154,95 @@ test('MDA product group bills the rate card MDA – Standard charge', () => {
   assert.equal(mdaStandardRate(sections), 100);
   assert.equal(mdaStandardRate([{ activities: [{ name: 'SDA', rate: 50 }] }]), null);
 });
+
+test('a billing rule can depend on the brand: is, or is not', () => {
+  const brandRules = [
+    {
+      salesman: 'Raneesh Jose',
+      branchKeyword: null,
+      brand: 'VENUS',
+      brandMatch: 'is' as const,
+      billToChannel: 'JDI',
+    },
+    {
+      salesman: 'Raneesh Jose',
+      branchKeyword: null,
+      brand: 'VENUS',
+      brandMatch: 'is_not' as const,
+      billToChannel: 'JER-C/INS',
+    },
+  ];
+  const job = { salesman: 'Raneesh Jose', b2bBranchSchool: 'Some Branch' };
+  assert.equal(matchBillingRule(brandRules, { ...job, brand: 'venus' })?.billToChannel, 'JDI');
+  assert.equal(
+    matchBillingRule(brandRules, { ...job, brand: 'SAMSUNG' })?.billToChannel,
+    'JER-C/INS',
+  );
+  // No brand known: an "is not VENUS" rule still holds, an "is VENUS" rule does not.
+  assert.equal(matchBillingRule(brandRules, job)?.billToChannel, 'JER-C/INS');
+  assert.equal(
+    matchBillingRule(brandRules, {
+      salesman: 'Someone Else',
+      b2bBranchSchool: null,
+      brand: 'VENUS',
+    }),
+    null,
+  );
+});
+
+test('the most specific billing rule wins, and the oldest between equals', () => {
+  const mixed = [
+    { salesman: 'Raneesh Jose', branchKeyword: null, billToChannel: 'JER-C/INS' },
+    { salesman: 'Raneesh Jose', branchKeyword: 'GEMS', billToChannel: 'JDI' },
+    {
+      salesman: 'Raneesh Jose',
+      branchKeyword: null,
+      brand: 'VENUS',
+      brandMatch: 'is' as const,
+      billToChannel: 'TGE',
+    },
+    { salesman: 'Raneesh Jose', branchKeyword: null, billToChannel: 'IGNORED-LATER-EQUAL' },
+  ];
+  // GEMS beats the plain salesman rule even though the plain rule is older.
+  assert.equal(
+    matchBillingRule(mixed, {
+      salesman: 'Raneesh Jose',
+      b2bBranchSchool: 'GEMS Academy',
+      brand: 'SAMSUNG',
+    })?.billToChannel,
+    'JDI',
+  );
+  // Two rules with two conditions (GEMS vs VENUS) tie: the oldest wins.
+  assert.equal(
+    matchBillingRule(
+      [
+        { salesman: 'Raneesh Jose', branchKeyword: null, billToChannel: 'A' },
+        {
+          salesman: 'Raneesh Jose',
+          branchKeyword: null,
+          brand: 'VENUS',
+          brandMatch: 'is' as const,
+          billToChannel: 'B',
+        },
+        {
+          salesman: null,
+          branchKeyword: 'GEMS',
+          brand: 'VENUS',
+          brandMatch: 'is' as const,
+          billToChannel: 'C',
+        },
+      ],
+      { salesman: 'Raneesh Jose', b2bBranchSchool: 'GEMS Academy', brand: 'VENUS' },
+    )?.billToChannel,
+    'B',
+  );
+  // Equally specific plain rules: the oldest wins.
+  assert.equal(
+    matchBillingRule(mixed, {
+      salesman: 'Raneesh Jose',
+      b2bBranchSchool: 'Other',
+      brand: 'SAMSUNG',
+    })?.billToChannel,
+    'JER-C/INS',
+  );
+});

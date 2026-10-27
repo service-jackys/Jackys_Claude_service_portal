@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 154,
+    title: 'Delivery & installation masters (phase 1)',
+    area: 'Stock & masters',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'The portal can only create repair jobs. To capture Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work later, the portal needs the lookups the master Excel keeps in hidden sheets. This is phase 1 of the plan saved in the project (claude/dandi-activity-capture-plan-2026-10-27). No…',
+    changes: [
+      'Category mapping (Salesmen & channels page, new section): item group → Installable yes/no → pricing category (Freestanding Refrigerator / Washing Machine / Cooker). Seeded from the workbook (FRIDGE, FREEZER, WASHING MACHINE, COOKER). An…',
+      "Channel reporting name (same page): the workbook's name for each sales channel (JDI → HAA, JER-C/INS → INS), set by the admin. It labels revenue lines for the comparison and never changes a price.",
+      'Billing rules can depend on the brand (Billing → Billing rules): "brand is" or "brand is not". When several rules match, the most specific one (the most conditions) wins; between equally specific rules the oldest wins. Before this, the…',
+    ],
+    needsYou:
+      'pull, npm install, restart the API (runs migration 057), hard-refresh. Then open Salesmen & channels: check the reporting names (JDI should show HAA, JER-C/INS should show INS), link the unmapped stock groups, and add the Raneesh Jose brand rules on Billing…',
+    migrations: ['057_dandi_masters.sql'],
+    files:
+      'packages/db/migrations/057_dandi_masters.sql, packages/db/src/category-mappings.ts, packages/db/src/billing-rules.ts, packages/db/src/sales-channels.ts, apps/api/src/category-mappings/…',
+  },
+  {
     id: 153,
     title: 'Salesman is required on a B2C job under warranty',
     area: 'Complaints',

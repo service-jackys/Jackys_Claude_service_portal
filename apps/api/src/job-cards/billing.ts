@@ -14,6 +14,9 @@
 export type BillingRule = {
   salesman: string | null;
   branchKeyword: string | null;
+  // Optional brand condition: the item brand is (default) or is not this brand.
+  brand?: string | null;
+  brandMatch?: 'is' | 'is_not';
   billToChannel: string;
 };
 
@@ -28,21 +31,38 @@ export function normalizeWarranty(value: string | null | undefined): WarrantyVal
   return null;
 }
 
+/**
+ * The rule that decides which channel is billed. Every filled-in condition must
+ * match; the most specific rule (most conditions) wins, and the oldest wins
+ * between equally specific rules.
+ */
 export function matchBillingRule(
   rules: BillingRule[],
-  job: { salesman: string | null; b2bBranchSchool: string | null },
+  job: { salesman: string | null; b2bBranchSchool: string | null; brand?: string | null },
 ): BillingRule | null {
   const salesman = (job.salesman ?? '').trim().toLowerCase();
   const branch = (job.b2bBranchSchool ?? '').trim().toLowerCase();
+  const brand = (job.brand ?? '').trim().toLowerCase();
+  let best: BillingRule | null = null;
+  let bestScore = 0;
   for (const rule of rules) {
     const ruleSalesman = (rule.salesman ?? '').trim().toLowerCase();
     const keyword = (rule.branchKeyword ?? '').trim().toLowerCase();
-    if (!ruleSalesman && !keyword) continue;
+    const ruleBrand = (rule.brand ?? '').trim().toLowerCase();
+    if (!ruleSalesman && !keyword && !ruleBrand) continue;
     if (ruleSalesman && ruleSalesman !== salesman) continue;
     if (keyword && !branch.includes(keyword)) continue;
-    return rule;
+    if (ruleBrand) {
+      const same = ruleBrand === brand;
+      if ((rule.brandMatch ?? 'is') === 'is' ? !same : same) continue;
+    }
+    const score = (ruleSalesman ? 1 : 0) + (keyword ? 1 : 0) + (ruleBrand ? 1 : 0);
+    if (score > bestScore) {
+      best = rule;
+      bestScore = score;
+    }
   }
-  return null;
+  return best;
 }
 
 export type BillingInput = {
@@ -52,6 +72,7 @@ export type BillingInput = {
   salesman: string | null;
   salesChannel: string | null;
   b2bBranchSchool: string | null;
+  brand?: string | null;
   // What the user asked for on this save (undefined = not sent).
   paymentBy: 'Sales channel' | 'Customer' | null | undefined;
   billToOverride: string | null | undefined;

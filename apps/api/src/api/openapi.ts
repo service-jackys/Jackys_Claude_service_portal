@@ -201,6 +201,14 @@ const requestBodies = {
       },
     },
   },
+  categoryMapping: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/CategoryMappingRequest' },
+      },
+    },
+  },
   billingRule: {
     required: true,
     content: {
@@ -693,6 +701,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             salesman: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
             branchKeyword: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
+            brand: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
+            brandMatch: { type: 'string', enum: ['is', 'is_not'] },
             billToChannel: { type: 'string', minLength: 1, maxLength: 200 },
             active: { type: 'boolean' },
             notes: { type: 'string', maxLength: 500, nullable: true },
@@ -731,6 +741,19 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           properties: {
             name: { type: 'string', minLength: 1, maxLength: 200 },
             active: { type: 'boolean' },
+            reportingName: { type: 'string', maxLength: 50 },
+          },
+        },
+        CategoryMappingRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['groupName', 'installable'],
+          properties: {
+            groupName: { type: 'string', minLength: 1, maxLength: 200 },
+            installable: { type: 'boolean' },
+            pricingCategory: { type: 'string', minLength: 1, maxLength: 200, nullable: true },
+            active: { type: 'boolean' },
+            notes: { type: 'string', maxLength: 500, nullable: true },
           },
         },
         AvailabilityRequest: {
