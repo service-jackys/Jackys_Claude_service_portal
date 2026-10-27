@@ -12,7 +12,8 @@ const BILLED = 'COALESCE(j.amount_chargeable, j.grand_total)';
 //    revenue saved when the job was completed. They are billed to the line's
 //    sales channel as internal billing, so accounts have one report. Draft and
 //    Cancelled jobs are not in it, and a reopened job drops out until it is
-//    completed again.
+//    completed again. The Warranty columns carry the activity type (CSIDI, CSIDO,
+//    CSIII), the same as the Type column, since warranty does not apply.
 const SOURCE = `(
   SELECT s.id::text AS id, s.id AS sort_id, 'job-card'::text AS source, s.id::text AS source_ref,
          s.job_card_reference, s.job_card_date, s.delivery_date, s.billing_job_type,
@@ -28,7 +29,7 @@ const SOURCE = `(
   UNION ALL
   SELECT 'di:' || l.id, l.id, 'dandi', d.id::text,
          d.reference, d.service_date, d.service_date, l.txn_type,
-         NULL::text, NULL::text, NULL::text,
+         l.txn_type, l.txn_type, NULL::text,
          NULL::text, l.sales_channel, d.customer_name, 'B2B',
          d.customer_name, d.salesman, l.sales_channel, d.region, d.delivery_note_ref,
          l.item_code, l.brand, l.main_group, l.group_name, l.sub_group, l.item_code,

@@ -822,13 +822,15 @@
       .return-bar {
         display: flex;
         align-items: center;
-        gap: 14px;
+        gap: 16px;
         flex-wrap: wrap;
-        margin: 0 0 14px;
-        padding: 8px 12px;
+        margin: 0 0 16px;
+        padding: 8px 14px 8px 8px;
         border: 1px solid var(--line);
+        border-left: 4px solid var(--blue);
         border-radius: 12px;
-        background: var(--surface-soft);
+        background: var(--surface);
+        box-shadow: 0 2px 8px rgb(16 43 78 / 6%);
       }
       .return-bar[hidden] {
         display: none;
@@ -842,45 +844,71 @@
         align-items: center;
         gap: 6px;
         min-height: 36px;
-        padding: 0 14px;
-        border: 1px solid var(--blue);
+        padding: 0 16px 0 10px;
+        border: 0;
         border-radius: 999px;
-        background: var(--surface);
+        background: var(--blue-soft);
         color: var(--blue);
+        font-size: 0.9rem;
         font-weight: 700;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
       }
       .return-back:hover {
-        background: var(--blue-soft);
+        background: var(--blue);
+        color: #fff;
+      }
+      .return-chevron {
+        width: 16px;
+        height: 16px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
       }
       .return-crumbs ol {
         display: flex;
         align-items: center;
         flex-wrap: wrap;
-        gap: 4px;
+        gap: 2px;
         margin: 0;
         padding: 0;
         list-style: none;
         font-size: 0.88rem;
         color: var(--muted);
       }
+      .return-crumbs li {
+        display: inline-flex;
+        align-items: center;
+      }
       .return-crumbs li + li::before {
-        content: '\203A';
-        margin-right: 4px;
-        color: var(--muted);
+        content: '';
+        width: 6px;
+        height: 6px;
+        margin: 0 8px 0 6px;
+        border-top: 1.5px solid var(--muted);
+        border-right: 1.5px solid var(--muted);
+        transform: rotate(45deg);
+        opacity: 0.7;
       }
       .return-crumbs li button {
-        padding: 2px 6px;
+        padding: 3px 8px;
         border: 0;
         border-radius: 6px;
         background: none;
-        color: var(--blue);
-        text-decoration: underline;
-        text-underline-offset: 2px;
+        color: var(--muted);
+        font-weight: 600;
       }
       .return-crumbs li button:hover {
         background: var(--blue-soft);
+        color: var(--blue);
       }
       .return-crumbs [aria-current='page'] span {
+        padding: 3px 10px;
+        border-radius: 999px;
+        background: var(--surface-soft);
         color: var(--ink);
         font-weight: 700;
       }

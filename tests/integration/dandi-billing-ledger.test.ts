@@ -98,6 +98,8 @@ test(
         assert.equal(row.brand, 'BILLBRAND');
         assert.equal(row.sourceRef, done.job.id);
         assert.equal(row.jobFinalStatus, 'Completed');
+        assert.equal(row.registeredWarranty, row.billingJobType);
+        assert.equal(row.finalWarranty, row.billingJobType);
         // Each line says what else the job holds, and the job's whole revenue.
         assert.equal(row.otherTypes, row.billingJobType === 'CSIDI' ? 'CSIDO' : 'CSIDI');
         assert.equal(
