@@ -345,11 +345,166 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
     await expect(page.locator('[data-di-body]')).toContainText('Master.xlsm');
     await expect(page.locator('[data-di-body]')).toContainText('1 only in Excel');
     // Only what needs attention is listed until the matches are asked for.
-    await expect(page.locator('[data-di-body]')).toContainText('N2');
-    await expect(page.locator('[data-di-body]')).not.toContainText('School A');
+    // (The worked-example picker above lists every invoice, so look at the table only.)
+    const table = page.locator('[data-di-body] table', { hasText: 'Portal job' });
+    await expect(table).toContainText('N2');
+    await expect(table).not.toContainText('School A');
     await page.locator('#diCShowMatched').check();
-    await expect(page.locator('[data-di-body]')).toContainText('School A');
+    await expect(table).toContainText('School A');
     expect(comparedMonth).toMatch(/^\d{4}-\d{2}$/);
+  });
+
+  test('the Compare tab shows a worked example for any invoice, line by line', async ({ page }) => {
+    const asked: string[] = [];
+    await mockApi(page, ['di_jobs.read', 'di_jobs.write', 'di_jobs.compare'], (url) => {
+      if (url.pathname === '/api/di-jobs/options') {
+        return { regions: ['Dubai'], salesmen: [], erpInvMandatory: false };
+      }
+      if (url.pathname === '/api/di-jobs/compare/example') {
+        asked.push(url.searchParams.get('invoice') ?? '');
+        const zero = { excelQty: 0, excelRevenue: 0, portalQty: 0, portalRevenue: 0 };
+        return {
+          invoice: 'N1',
+          workbook: { fileName: 'Master.xlsm', uploadedAt: '2026-10-20T08:00:00Z' },
+          excel: {
+            invoice: 'N1',
+            customer: 'School A',
+            date: '2026-10-05',
+            lines: [
+              {
+                jobType: 'CSIDI',
+                item: 'FRIDGE 300L',
+                qty: 2,
+                revenue: 114,
+                how: 'Batch rate 60 less 5% = 57 each, 2 units',
+              },
+            ],
+            total: 114,
+            notes: ['Two units on the note, so the batch rate applies.'],
+          },
+          jobs: [
+            {
+              id: '5',
+              reference: 'DIJ-2026-00005',
+              status: 'Completed',
+              counted: true,
+              basis: 'frozen',
+              serviceDate: '2026-10-05',
+              customerName: 'School A',
+              salesman: 'Raneesh Jose',
+              salesChannel: 'JDI',
+              region: 'Dubai',
+              deliveryNoteRef: 'N1',
+              erpInvNo: null,
+              note: { csidiQty: 2, csiiiQty: 0, csidoLines: 0 },
+              lines: [
+                {
+                  lineNo: 1,
+                  itemCode: 'FRG-300',
+                  itemDesc: 'Fridge 300L',
+                  groupName: 'FRIDGE',
+                  type: 'CSIDI',
+                  qty: 2,
+                  installable: true,
+                  pricingCategory: 'Fridge',
+                  rateKind: 'batch',
+                  baseRate: 60,
+                  discountTier: '2-4 units',
+                  discountRate: 0.05,
+                  netRate: 57,
+                  labour: 114,
+                  transport: 0,
+                  charge: null,
+                  revenue: 114,
+                  note: 'Batch rate 60, 5% discount, net 57.',
+                },
+              ],
+              totals: { CSIDI: 114, CSIDO: 0, CSIII: 0, total: 114 },
+              messages: [],
+            },
+          ],
+          comparison: {
+            status: 'match',
+            excelTotal: 114,
+            portalTotal: 114,
+            difference: 0,
+            byType: {
+              CSIDI: { excelQty: 2, excelRevenue: 114, portalQty: 2, portalRevenue: 114 },
+              CSIDO: zero,
+              CSIII: zero,
+            },
+            notes: [],
+          },
+        };
+      }
+      if (url.pathname === '/api/di-jobs/compare') {
+        const zero = { qty: 0, revenue: 0 };
+        const totals = { CSIDI: { qty: 2, revenue: 114 }, CSIDO: zero, CSIII: zero, total: 114 };
+        const none = {
+          excelQty: 0,
+          excelRevenue: 0,
+          portalQty: 0,
+          portalRevenue: 0,
+          difference: 0,
+        };
+        return {
+          month: url.searchParams.get('month'),
+          workbook: { fileName: 'Master.xlsm', uploadedAt: '2026-10-20T08:00:00Z' },
+          summary: {
+            byType: {
+              CSIDI: {
+                excelQty: 2,
+                excelRevenue: 114,
+                portalQty: 2,
+                portalRevenue: 114,
+                difference: 0,
+              },
+              CSIDO: none,
+              CSIII: none,
+            },
+            excelTotal: 114,
+            portalTotal: 114,
+            difference: 0,
+            counts: { match: 1, differs: 0, onlyExcel: 0, onlyPortal: 0 },
+          },
+          rows: [
+            {
+              status: 'match',
+              key: 'N1',
+              customer: 'School A',
+              date: '2026-10-05',
+              excel: totals,
+              portal: totals,
+              difference: 0,
+              jobs: [
+                {
+                  id: '5',
+                  reference: 'DIJ-2026-00005',
+                  serviceDate: '2026-10-05',
+                  matchedBy: 'Delivery note',
+                },
+              ],
+              notes: [],
+            },
+          ],
+        };
+      }
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#deliveryInstallNav').click();
+    await page.getByRole('tab', { name: 'Compare with Excel' }).click();
+    const body = page.locator('[data-di-body]');
+    await expect(body).toContainText('Worked example');
+    // Any invoice of the month can be picked, even a matching one the table hides.
+    await page.locator('#diExPick').selectOption('N1');
+    await expect(body).toContainText('Excel — master workbook');
+    await expect(body).toContainText('Batch rate 60 less 5% = 57 each');
+    await expect(body).toContainText('DIJ-2026-00005');
+    await expect(body).toContainText('FRG-300');
+    await expect(body).toContainText('Comparison — Matches');
+    await expect(body).toContainText('To check by hand');
+    expect(asked).toEqual(['N1']);
   });
 
   test('the Compare tab is hidden without the compare permission', async ({ page }) => {

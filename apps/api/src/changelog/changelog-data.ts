@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 162,
+    title: 'Worked example on Delivery & Installation → Compare with Excel',
+    area: 'General',
+    date: '2026-10-27',
+    approxDate: false,
+    status: null,
+    summary:
+      'To trust the comparison, a user has to be able to take one invoice or delivery note and check it line by line by hand, the way the Logic tab of the Service Revenue Dashboard lets them check the master workbook.',
+    changes: [
+      'New section "Worked example — pick any invoice" at the top of Delivery & Installation → Compare with Excel. Pick any invoice / delivery note of the month from the list (every one is offered, matching or not), type one, or click an Inv/Del…',
+      'Excel — master workbook: each CSIDI / CSIDO / CSIII line of that invoice with quantity, revenue and how the workbook priced it, the same reading as the Service Revenue Dashboard Logic tab (flags a line where the rules rebuild a different…',
+      'Portal: each portal job carrying that delivery note or ERP Inv No, line by line: pricing category, base rate (batch or standard), discount tier and %, net rate, labour, transport, the delivery-only charge, revenue and a plain-words note.…',
+      'Comparison: Excel vs portal per activity (quantity, revenue, difference) and the same notes the table gives (salesman, channel, other month), plus a "To check by hand" formula line.',
+      'Needs di_jobs.compare (admin, management). No migration.',
+    ],
+    needsYou:
+      'pull, restart the API (no migration), hard-refresh. Open Compare with Excel for the month and try a matching invoice, then a "differs" one.',
+    migrations: [],
+    files:
+      'apps/api/src/dandi-jobs/example.ts, apps/api/src/dandi-jobs/{jobs-service,routes}.ts, apps/api/src/api/route-catalog.ts, packages/db/src/{revenue-dashboard,di-jobs}.ts, apps/web/src/app.js…',
+  },
+  {
     id: 161,
     title: 'One stock master: the ERP Item Listing',
     area: 'Stock & masters',

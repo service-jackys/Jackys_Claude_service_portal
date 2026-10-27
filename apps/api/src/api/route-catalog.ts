@@ -457,6 +457,7 @@ export function createRouteCatalog(
     'cancel',
     'reopen',
     'compare',
+    'workedExample',
     'updateSettings',
   ] as const;
   const diJobHandlers: Record<(typeof diJobHandlerKeys)[number], RequestHandler[]> = pool
@@ -1984,6 +1985,18 @@ export function createRouteCatalog(
         parameters: [{ name: 'month', in: 'query', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 409, 500],
         handlers: diJobHandlers.compare,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/compare/example',
+        operationId: 'getDiJobsWorkedExample',
+        tags: ['Delivery & installation'],
+        summary:
+          'Worked example for one invoice / delivery note: how the master workbook priced its lines, how the portal job is priced, and the difference',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'invoice', in: 'query', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 409, 500],
+        handlers: diJobHandlers.workedExample,
       },
       {
         method: 'get' as const,

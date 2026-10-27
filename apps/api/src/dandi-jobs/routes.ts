@@ -132,6 +132,10 @@ export function createDiJobHandlers(
       requirePermission('di_jobs.compare'),
       wrap((request) => service.compare(request.query)),
     ],
+    workedExample: [
+      requirePermission('di_jobs.compare'),
+      wrap((request) => service.workedExample(request.query)),
+    ],
     updateSettings: [
       requirePermission('di_jobs.configure'),
       wrap((request, response) =>

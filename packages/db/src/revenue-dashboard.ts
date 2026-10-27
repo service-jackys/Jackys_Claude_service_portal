@@ -443,6 +443,25 @@ const lineColumns = `
   pricing->>'erpBrand' AS "erpBrand"
 `;
 
+/**
+ * Every Delivery & Installation line (CSIDI / CSIDO / CSIII) of one Inv/Del No,
+ * matched the way the portal comparison matches it (ignoring case and spaces).
+ */
+export async function revenueDandiInvoiceLines(
+  client: PoolClient,
+  batchId: string,
+  invoice: string,
+) {
+  const rows = await client.query(
+    `SELECT ${lineColumns}, pricing FROM revenue_lines
+     WHERE batch_id = $1 AND upper(btrim(inv_del_no)) = upper(btrim($2))
+       AND upper(job_type) IN ('CSIDI', 'CSIDO', 'CSIII')
+     ORDER BY source_row, id`,
+    [batchId, invoice],
+  );
+  return rows.rows;
+}
+
 export async function revenueLines(
   client: PoolClient,
   batchId: string,

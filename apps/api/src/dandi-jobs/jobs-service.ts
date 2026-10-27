@@ -12,6 +12,7 @@ import { settingsMap, setSetting } from '../../../../packages/db/src/budget-vari
 import {
   findDiItem,
   findDiJob,
+  findDiJobIdsByNote,
   findDuplicateDeliveryNotes,
   insertDiJob,
   listDiJobs,
@@ -32,7 +33,10 @@ import {
   portalDandiJobs,
   workbookDandiLines,
 } from '../../../../packages/db/src/di-compare.js';
-import { findActiveBatch } from '../../../../packages/db/src/revenue-dashboard.js';
+import {
+  findActiveBatch,
+  revenueDandiInvoiceLines,
+} from '../../../../packages/db/src/revenue-dashboard.js';
 import {
   findSalesmanByNameOrAlias,
   salesmanNameLookup,
@@ -40,6 +44,13 @@ import {
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { matchBillingRule } from '../job-cards/billing.js';
 import { compareDandi, type PortalJob, type WorkbookLine } from './compare.js';
+import { buildPortalExample, type ExampleJobInput } from './example.js';
+import {
+  buildWorkedExample,
+  rulesOfBatch,
+  type LogicSummaryLine,
+} from '../revenue-dashboard/logic-summary.js';
+import { applyFlatRates } from '../revenue-dashboard/pricing-logic.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { engineMasterFromDandi } from './pricing-engine.js';
 import { createDandiPricingService, priceNoteSchema, type PricedNote } from './service.js';
@@ -103,6 +114,8 @@ export const diJobListQuerySchema = z
   .strict();
 
 export const diJobSettingsSchema = z.object({ erpInvMandatory: z.boolean() }).strict();
+
+type ExcelRow = LogicSummaryLine & { salesPerson: string | null; salesChannel: string | null };
 
 type Duplicate = { id: string; reference: string; status: DiJobStatus; serviceDate: string };
 
@@ -550,6 +563,83 @@ export function createDiJobService(pool: Pool) {
     }
   }
 
+  const exampleQuerySchema = z.object({ invoice: z.string().trim().min(1).max(100) }).strict();
+
+  /**
+   * Worked example for one invoice / delivery note: how the master workbook priced
+   * its Delivery & Installation lines (the same reading as the Logic tab of the
+   * Service Revenue Dashboard), how the portal job(s) with that note are priced,
+   * and the comparison, so a user can check every figure by hand.
+   */
+  async function workedExample(query: unknown) {
+    const { invoice } = exampleQuerySchema.parse(query ?? {});
+    const dandi = (await pricingConfig.get('dandi_pricing')).payload as DandiPricingInput;
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) {
+        throw new DiJobServiceError(
+          'conflict',
+          'No master workbook has been uploaded yet. Upload it under Revenue Dashboard first.',
+        );
+      }
+      const rows = (await revenueDandiInvoiceLines(client, batch.id, invoice)) as ExcelRow[];
+      const logicLines: ExcelRow[] = rows.map((l) => ({
+        ...l,
+        qty: Number(l.qty ?? 0),
+        unitPrice: Number(l.unitPrice ?? 0),
+        revenue: Number(l.revenue ?? 0),
+        originalJobValue: Number(l.originalJobValue ?? 0),
+      }));
+      const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
+      const excel = logicLines.length
+        ? buildWorkedExample(rules, logicLines[0]!.invDelNo ?? invoice, logicLines)
+        : null;
+
+      const jobInputs: ExampleJobInput[] = [];
+      for (const id of await findDiJobIdsByNote(client, invoice)) {
+        const job = await findDiJob(client, id);
+        if (!job) continue;
+        // A Draft has no frozen figures yet: price it as if it were completed now.
+        const live =
+          job.status === 'Draft' && job.lines.length
+            ? await pricing.price({
+                region: job.region,
+                lines: job.lines.map((line) => ({
+                  itemCode: line.itemCode,
+                  qty: line.qty,
+                  type: line.type,
+                })),
+              })
+            : null;
+        jobInputs.push({ job, live });
+      }
+
+      const names = await salesmanNameLookup(client);
+      const reporting = await channelReportingNames(client);
+      const example = buildPortalExample({
+        invoice,
+        excel,
+        workbookLines: logicLines.map((l) => ({
+          jobType: l.jobType,
+          invDelNo: l.invDelNo,
+          customer: l.customer,
+          salesPerson: l.salesPerson,
+          salesChannel: l.salesChannel,
+          orderDate: l.orderDate,
+          qty: l.qty,
+          revenue: l.revenue,
+        })),
+        jobs: jobInputs,
+        resolveSalesman: (name) => names.get(name.trim().toLowerCase()) ?? name.trim(),
+        reportingName: (channel) => reporting.get(channel.trim().toLowerCase()) ?? channel,
+      });
+      return { ...example, workbook: { fileName: batch.fileName, uploadedAt: batch.uploadedAt } };
+    } finally {
+      client.release();
+    }
+  }
+
   async function updateSettings(
     input: unknown,
     profileId: string,
@@ -582,6 +672,7 @@ export function createDiJobService(pool: Pool) {
     cancel,
     reopen,
     compare,
+    workedExample,
     updateSettings,
   };
 }
