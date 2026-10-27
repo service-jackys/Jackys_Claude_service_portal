@@ -3644,3 +3644,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/060_master_file_downloads.sql, packages/db/src/stock-master.ts, packages/db/src/revenue-dashboard.ts, apps/api/src/stock-master/{download,service,routes}.ts, apps/api/src/revenue-dashboard/{download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/master-downloads.test.ts, tests/e2e/master-downloads.spec.ts.
 
 **Needs you:** pull, restart the API (migration 060), hard-refresh. Re-upload the three stock files and the two workbooks once if you want the exact original files kept from now on.
+
+## Modification #161 — One stock master: the ERP Item Listing
+
+**Date:** 2026-10-27
+
+**Why.** The stock master was built from three ERP stock-valuation files (JDI, JMS, TGE), so it only held items that had stock. The ERP Item Listing holds every item as soon as it is created, so it replaces them: one file, one table.
+
+**What changed.**
+- **One upload.** Stock master → "Upload ERP Item Listing" takes the one file (columns read: Item Code, Item Desc, Maingrp Name, Grp Name, SUBGRPNAME, BRANDNAME). The channel picker and the three channel cards are gone. An item that appears on several rows (one per barcode) is stored once; item codes that differ only in upper / lower case are one item. Each upload adds new items and updates the ones that changed (the report lists them). Items no longer in the file are kept and counted as "not in the latest file". The older ERP stock-valuation column names are still accepted. A full listing (about 120,000 rows) takes about 10 seconds.
+- **One table in the database.** `stock_items` is now `stock_master` (item code, description, main group, group, sub group, brand, when last seen). The `stock_positions` (location, stock, WAC, value …) and `stock_item_channels` tables are dropped, and the grade, type and channel columns are gone. `stock_uploads` stays as the upload log (what, when, who, the change report and the original file). The earlier per-channel upload rows stay as history only.
+- **Everywhere the stock master is used now reads the same table**, unchanged in behaviour: item and brand pickers on New request, Schedule, Warranty approvals, VAS sale, Quotation and Inspection; the job card prefill; Billing rules brand list; Delivery & Installation item search and pricing; Category Mapping (group list and item check). Appliances (MDA, SDA) are still offered first and vouchers / 3PL stay hidden.
+- **Download.** One "Download Excel" button gives the newest uploaded file exactly as uploaded (rebuilt from the table, with the same six columns, if no copy is kept).
+
+**Files.** packages/db/migrations/061_single_stock_master.sql, packages/db/src/stock-master.ts, packages/db/src/category-mappings.ts, packages/db/src/di-jobs.ts, apps/api/src/stock-master/{parser,download,service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/stock-parser.test.ts, tests/integration/{master-downloads,dandi-pricing,dandi-masters,dandi-jobs,dandi-feed-compare,job-card-master-prefill}.test.ts, tests/e2e/master-downloads.spec.ts.
+
+**Needs you:** pull, restart the API (migration 061 — it removes the per-channel stock rows and keeps every item you already have), hard-refresh. Then Stock master → upload the Item Listing once. Category Mapping will list more item groups to link now that every item is in; link only the installable ones (the rest are delivery only).

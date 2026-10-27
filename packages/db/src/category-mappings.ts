@@ -100,18 +100,18 @@ export type UnmappedGroup = { groupName: string; mainGroup: string | null; itemC
  */
 export async function listUnmappedGroups(client: PoolClient): Promise<UnmappedGroup[]> {
   const result = await client.query<UnmappedGroup>(
-    `SELECT stock_items.group_name AS "groupName",
-            min(stock_items.main_group) AS "mainGroup",
+    `SELECT stock_master.group_name AS "groupName",
+            min(stock_master.main_group) AS "mainGroup",
             count(*)::int AS "itemCount"
-     FROM stock_items
-     WHERE stock_items.group_name IS NOT NULL AND length(trim(stock_items.group_name)) > 0
-       AND COALESCE(stock_items.main_group, '') <> ALL($1::text[])
+     FROM stock_master
+     WHERE stock_master.group_name IS NOT NULL AND length(trim(stock_master.group_name)) > 0
+       AND COALESCE(stock_master.main_group, '') <> ALL($1::text[])
        AND NOT EXISTS (
          SELECT 1 FROM category_mappings
-         WHERE lower(trim(category_mappings.group_name)) = lower(trim(stock_items.group_name))
+         WHERE lower(trim(category_mappings.group_name)) = lower(trim(stock_master.group_name))
        )
-     GROUP BY stock_items.group_name
-     ORDER BY count(*) DESC, stock_items.group_name ASC
+     GROUP BY stock_master.group_name
+     ORDER BY count(*) DESC, stock_master.group_name ASC
      LIMIT 300`,
     [[...STOCK_NON_PRODUCT_GROUPS]],
   );
@@ -141,15 +141,15 @@ export async function resolveItemCategories(
   if (wanted.length) {
     const result = await client.query<ItemCategory & { requested: string }>(
       `SELECT wanted.code AS requested,
-              stock_items.item_code AS "itemCode",
-              stock_items.group_name AS "groupName",
+              stock_master.item_code AS "itemCode",
+              stock_master.group_name AS "groupName",
               category_mappings.installable,
               category_mappings.pricing_category AS "pricingCategory"
        FROM unnest($1::text[]) AS wanted(code)
-       JOIN stock_items ON lower(stock_items.item_code) = lower(wanted.code)
+       JOIN stock_master ON lower(stock_master.item_code) = lower(wanted.code)
        LEFT JOIN category_mappings
          ON category_mappings.active
-        AND lower(trim(category_mappings.group_name)) = lower(trim(stock_items.group_name))`,
+        AND lower(trim(category_mappings.group_name)) = lower(trim(stock_master.group_name))`,
       [wanted],
     );
     for (const row of result.rows) {

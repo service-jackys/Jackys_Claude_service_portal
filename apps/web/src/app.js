@@ -11474,10 +11474,8 @@ ${bodyHtml}
     const parts = [];
     parts.push(
       '<p class="sm-summary"><strong>' +
-        escapeHtml(upload.channel) +
-        '</strong> · ' +
         escapeHtml(upload.fileName) +
-        ' · ' +
+        '</strong> · ' +
         upload.rowCount +
         ' rows · ' +
         upload.itemCount +
@@ -11485,17 +11483,11 @@ ${bodyHtml}
         upload.newItems +
         ' new</strong> · ' +
         upload.changedItems +
-        ' changed' +
-        (report.conflictCount
-          ? ' (' + report.conflictCount + ' differ from another channel)'
-          : '') +
-        '</p>',
+        ' changed</p>',
     );
     if (report.changes && report.changes.length) {
       parts.push(
-        '<details class="sm-details"' +
-          (report.conflictCount ? ' open' : '') +
-          '><summary>Changed items (' +
+        '<details class="sm-details"><summary>Changed items (' +
           report.changeCount +
           (report.changes.length < report.changeCount
             ? ', showing first ' + report.changes.length
@@ -11507,9 +11499,6 @@ ${bodyHtml}
                 '<li><strong>' +
                 escapeHtml(change.itemCode) +
                 '</strong>' +
-                (change.conflict
-                  ? ' <span class="sm-tag">was ' + escapeHtml(change.previousChannel) + '</span>'
-                  : '') +
                 change.fields
                   .map(
                     (field) =>
@@ -11549,68 +11538,44 @@ ${bodyHtml}
       root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
       return;
     }
-    const channelNames = {
-      JDI: 'JDI · Jacky’s Distribution & Innovation',
-      JMS: 'JMS · Jacky’s Electronics (Corporate)',
-      TGE: 'TGE · Thomson Gulf Electronics',
-    };
+    const last = status.lastUpload;
     root.innerHTML =
       '<div class="rcv-banner"><strong>Stock master</strong><span>' +
-      status.totalItems +
-      ' unique items · ' +
-      status.searchableItems +
-      ' searchable (MDA and SDA)</span></div>' +
-      '<div class="sm-channels">' +
-      status.channels
-        .map(
-          (channel) =>
-            '<div class="sm-channel"><h4>' +
-            escapeHtml(channel.channel) +
-            '</h4>' +
-            (channel.lastUpload
-              ? '<p>' +
-                channel.itemCount +
-                ' items · ' +
-                channel.positionRows +
-                ' location rows</p><p><button class="button dl-pill" type="button" data-sm-dl="' +
-                escapeHtml(channel.channel) +
-                '">Download ' +
-                escapeHtml(channel.channel) +
-                ' Excel</button></p><p class="form-note">Uploaded ' +
-                escapeHtml(smDate(channel.lastUpload.uploadedAt)) +
-                (channel.lastUpload.uploadedByName
-                  ? ' by ' + escapeHtml(channel.lastUpload.uploadedByName)
-                  : '') +
-                '</p>' +
-                (channel.notSeenCount
-                  ? '<p class="sm-warn">' +
-                    channel.notSeenCount +
-                    ' item(s) not in the latest file (kept)</p>'
-                  : '')
-              : '<p class="form-note">No upload yet.</p>') +
-            '</div>',
-        )
-        .join('') +
-      '</div>' +
-      '<section class="detail-action-card"><h4>Download for checking ' +
+      status.totalItems.toLocaleString('en-GB') +
+      ' items · ' +
+      status.searchableItems.toLocaleString('en-GB') +
+      ' appliances (MDA and SDA)</span></div>' +
+      '<section class="detail-action-card"><h4>ERP Item Listing ' +
       tipHtml(
-        'Each channel button gives the latest ERP file for that channel (same columns as the ERP “Current Stock Valuation” export). ' +
-          'The item list gives one row per item code across all channels, as the portal searches it.',
-      ) +
-      '</h4><p><button class="button dl-pill" type="button" data-sm-dl="items">Download item list (all channels)</button></p>' +
-      '<p class="form-note" data-sm-dl-msg role="status"></p></section>' +
-      '<section class="detail-action-card"><h4>Upload ERP stock file ' +
-      tipHtml(
-        'Choose the channel, then the “Current Stock Valuation” .xlsx exported from the ERP. ' +
-          'Each upload replaces that channel’s location rows and updates the unique item list; items that are no longer in the file are kept.',
+        'The stock master is the ERP “Item Listing” (every item once it is created, with or without stock). ' +
+          'Each upload adds new items and updates the ones that changed. Items that are no longer in the file are kept and counted below.',
       ) +
       '</h4>' +
-      '<div class="sm-upload"><select data-sm-channel aria-label="Channel">' +
-      '<option value="">Select channel…</option>' +
-      Object.entries(channelNames)
-        .map(([code, label]) => '<option value="' + code + '">' + escapeHtml(label) + '</option>')
-        .join('') +
-      '</select><input type="file" accept=".xlsx" data-sm-file />' +
+      (last
+        ? '<p>' +
+          escapeHtml(last.fileName) +
+          ' · ' +
+          last.itemCount.toLocaleString('en-GB') +
+          ' items · uploaded ' +
+          escapeHtml(smDate(last.uploadedAt)) +
+          (last.uploadedByName ? ' by ' + escapeHtml(last.uploadedByName) : '') +
+          '</p>' +
+          (status.notInFileCount
+            ? '<p class="sm-warn">' +
+              status.notInFileCount.toLocaleString('en-GB') +
+              ' item(s) not in the latest file (kept)</p>'
+            : '') +
+          '<p><button class="button dl-pill" type="button" data-sm-dl>Download Excel</button></p>' +
+          '<p class="form-note" data-sm-dl-msg role="status"></p>'
+        : '<p class="form-note">No upload yet.</p>') +
+      '</section>' +
+      '<section class="detail-action-card"><h4>Upload ERP Item Listing ' +
+      tipHtml(
+        'Choose the “Item Listing” .xlsx exported from the ERP. Columns read: Item Code, Item Desc, Maingrp Name, Grp Name, SUBGRPNAME, BRANDNAME. ' +
+          'An item that appears on several rows (for example one per barcode) is stored once.',
+      ) +
+      '</h4>' +
+      '<div class="sm-upload"><input type="file" accept=".xlsx" data-sm-file />' +
       '<button class="button button-primary" type="button" data-sm-upload>Upload</button></div>' +
       '<p class="form-note" data-sm-msg role="status"></p><div data-sm-report></div></section>' +
       '<section class="detail-action-card"><h4>Recent uploads</h4>' +
@@ -11619,8 +11584,6 @@ ${bodyHtml}
             .map(
               (upload) =>
                 '<details class="sm-details"><summary>' +
-                escapeHtml(upload.channel) +
-                ' · ' +
                 escapeHtml(upload.fileName) +
                 ' · ' +
                 escapeHtml(smDate(upload.uploadedAt)) +
@@ -11631,42 +11594,34 @@ ${bodyHtml}
             .join('')
         : '<p class="form-note">Nothing uploaded yet.</p>') +
       '</section>';
-    root.querySelectorAll('[data-sm-dl]').forEach((dl) => {
-      dl.addEventListener('click', async () => {
+    const download = root.querySelector('[data-sm-dl]');
+    if (download) {
+      download.addEventListener('click', async () => {
         const note = root.querySelector('[data-sm-dl-msg]');
-        const target = dl.getAttribute('data-sm-dl');
-        dl.disabled = true;
+        download.disabled = true;
         note.textContent = 'Preparing the file…';
         try {
-          note.textContent = await downloadMasterFile(
-            '/api/stock/download?' + new URLSearchParams({ channel: target }),
-            'Stock_' + target + '.xlsx',
-          );
+          note.textContent = await downloadMasterFile('/api/stock/download', 'Stock_master.xlsx');
         } catch (error) {
           note.textContent = error.message || 'The download failed.';
         } finally {
-          dl.disabled = false;
+          download.disabled = false;
         }
       });
-    });
+    }
     const button = root.querySelector('[data-sm-upload]');
     const msg = root.querySelector('[data-sm-msg]');
     button.addEventListener('click', async () => {
-      const channel = root.querySelector('[data-sm-channel]').value;
       const file = root.querySelector('[data-sm-file]').files[0];
-      if (!channel) {
-        msg.textContent = 'Select the channel this file belongs to.';
-        return;
-      }
       if (!file) {
         msg.textContent = 'Choose the .xlsx file first.';
         return;
       }
       button.disabled = true;
-      msg.textContent = 'Uploading and reading the file…';
+      msg.textContent =
+        'Uploading and reading the file — about 10 seconds for a full item listing…';
       try {
         const form = new FormData();
-        form.append('channel', channel);
         form.append('file', file);
         const result = await apiUploadRequest('/api/stock/upload', form);
         stockFacetsPromise = null;
@@ -13700,7 +13655,7 @@ ${bodyHtml}
       navId: 'stockMasterNav',
       workspaceId: 'stockMasterWorkspace',
       heading: 'Stock master',
-      description: 'Upload the ERP stock file; items are searched by item code on the forms.',
+      description: 'Upload the ERP Item Listing; items are searched by item code on the forms.',
       permission: 'stock.write',
       hideCurrencyNote: true,
       domains: [],

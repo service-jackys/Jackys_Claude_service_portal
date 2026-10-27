@@ -445,23 +445,23 @@ export async function searchDiItems(
   if (!term) return [];
   const escaped = term.replace(/[\\%_]/g, (char) => `\\${char}`);
   const result = await client.query<DiItemHit>(
-    `SELECT stock_items.item_code AS "itemCode",
-            stock_items.item_desc AS "itemDesc",
-            stock_items.brand,
-            stock_items.main_group AS "mainGroup",
-            stock_items.group_name AS "groupName",
-            stock_items.sub_group AS "subGroup",
+    `SELECT stock_master.item_code AS "itemCode",
+            stock_master.item_desc AS "itemDesc",
+            stock_master.brand,
+            stock_master.main_group AS "mainGroup",
+            stock_master.group_name AS "groupName",
+            stock_master.sub_group AS "subGroup",
             category_mappings.installable,
             category_mappings.pricing_category AS "pricingCategory"
-     FROM stock_items
+     FROM stock_master
      LEFT JOIN category_mappings
        ON category_mappings.active
-      AND lower(trim(category_mappings.group_name)) = lower(trim(stock_items.group_name))
-     WHERE COALESCE(stock_items.main_group, '') <> 'VOUCHERS & OTHER CHARGES'
-       AND (stock_items.item_code ILIKE $2 ESCAPE '\\' OR stock_items.item_desc ILIKE $3 ESCAPE '\\')
-     ORDER BY (upper(stock_items.item_code) = upper($1)) DESC,
-              (stock_items.item_code ILIKE $2 ESCAPE '\\') DESC,
-              stock_items.item_code
+      AND lower(trim(category_mappings.group_name)) = lower(trim(stock_master.group_name))
+     WHERE COALESCE(stock_master.main_group, '') <> 'VOUCHERS & OTHER CHARGES'
+       AND (stock_master.item_code ILIKE $2 ESCAPE '\\' OR stock_master.item_desc ILIKE $3 ESCAPE '\\')
+     ORDER BY (upper(stock_master.item_code) = upper($1)) DESC,
+              (stock_master.item_code ILIKE $2 ESCAPE '\\') DESC,
+              stock_master.item_code
      LIMIT $4`,
     [term, `${escaped}%`, `%${escaped}%`, limit],
   );
@@ -470,19 +470,19 @@ export async function searchDiItems(
 
 export async function findDiItem(client: PoolClient, itemCode: string): Promise<DiItemHit | null> {
   const result = await client.query<DiItemHit>(
-    `SELECT stock_items.item_code AS "itemCode",
-            stock_items.item_desc AS "itemDesc",
-            stock_items.brand,
-            stock_items.main_group AS "mainGroup",
-            stock_items.group_name AS "groupName",
-            stock_items.sub_group AS "subGroup",
+    `SELECT stock_master.item_code AS "itemCode",
+            stock_master.item_desc AS "itemDesc",
+            stock_master.brand,
+            stock_master.main_group AS "mainGroup",
+            stock_master.group_name AS "groupName",
+            stock_master.sub_group AS "subGroup",
             category_mappings.installable,
             category_mappings.pricing_category AS "pricingCategory"
-     FROM stock_items
+     FROM stock_master
      LEFT JOIN category_mappings
        ON category_mappings.active
-      AND lower(trim(category_mappings.group_name)) = lower(trim(stock_items.group_name))
-     WHERE lower(stock_items.item_code) = lower($1)
+      AND lower(trim(category_mappings.group_name)) = lower(trim(stock_master.group_name))
+     WHERE lower(stock_master.item_code) = lower($1)
      LIMIT 1`,
     [itemCode.trim()],
   );

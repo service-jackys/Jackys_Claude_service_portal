@@ -23,69 +23,18 @@ async function sheetRows(buffer: Buffer, sheetName: string): Promise<unknown[][]
   return rows;
 }
 
-async function stockFile(tag: string): Promise<Buffer> {
+async function stockFile(
+  tag: string,
+  descOfSecond = 'Washer 8kg',
+  extra: unknown[][] = [],
+): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Stock');
-  sheet.addRow([
-    'Location',
-    'LocnDesc',
-    'ItemCode',
-    'ItemDesc',
-    'Grade',
-    'Stock',
-    'WAC',
-    'Value',
-    'Transit',
-    'Reserved',
-    'MainGroup',
-    'Group',
-    'SubGroup',
-    'Brand',
-    'TYPE',
-    'LastGRN',
-    'LastGRNDate',
-    'LandedCost',
-  ]);
-  sheet.addRow([
-    'W1',
-    'Main store',
-    `MD-${tag}-1`,
-    'Fridge 300L',
-    'A',
-    5,
-    1200.5,
-    6002.5,
-    1,
-    2,
-    'MDA',
-    'REFRIGERATORS',
-    'TOP MOUNT',
-    'TESTBRAND',
-    'FG',
-    40,
-    new Date('2026-09-30T00:00:00Z'),
-    1100,
-  ]);
-  sheet.addRow([
-    'W2',
-    'Showroom',
-    `MD-${tag}-2`,
-    'Washer 8kg',
-    'A',
-    3,
-    900,
-    2700,
-    0,
-    0,
-    'MDA',
-    'WASHERS',
-    'FRONT LOAD',
-    'TESTBRAND',
-    'FG',
-    12,
-    new Date('2026-08-01T00:00:00Z'),
-    850,
-  ]);
+  const sheet = workbook.addWorksheet('Item Listing with Barcode');
+  sheet.addRow(['Item Code', 'Item Desc', 'Maingrp Name', 'Grp Name', 'SUBGRPNAME', 'BRANDNAME']);
+  sheet.addRow([`MD-${tag}-1`, 'Fridge 300L', 'MDA', 'REFRIGERATORS', 'TOP MOUNT', 'TESTBRAND']);
+  sheet.addRow([`MD-${tag}-1`, 'Fridge 300L', 'MDA', 'REFRIGERATORS', 'TOP MOUNT', 'TESTBRAND']);
+  sheet.addRow([`MD-${tag}-2`, descOfSecond, 'MDA', 'WASHERS', 'FRONT LOAD', 'TESTBRAND']);
+  for (const row of extra) sheet.addRow(row);
   return Buffer.from(await workbook.xlsx.writeBuffer());
 }
 
@@ -114,71 +63,118 @@ test(
       const profileId = profile.rows[0]!.id;
       const stock = createStockMasterService(pool);
 
-      // --- stock: the file as uploaded --------------------------------------
+      // --- stock master: first upload adds the items ----------------------------
       const bytes = await stockFile(tag);
-      const uploaded = await stock.upload(
-        'TGE',
-        { originalname: `tge-${tag}.xlsx`, size: bytes.length, buffer: bytes },
+      const first = await stock.upload(
+        { originalname: `items-${tag}.xlsx`, size: bytes.length, buffer: bytes },
         profileId,
       );
-      uploadIds.push(uploaded.id);
-      const original = await stock.download('TGE', profileId);
+      uploadIds.push(first.id);
+      assert.equal(first.rowCount, 3);
+      assert.equal(first.itemCount, 2);
+      assert.equal(first.newItems, 2);
+      assert.equal(first.changedItems, 0);
+      const stored = await pool.query(`SELECT * FROM stock_master WHERE item_code LIKE $1`, [
+        `MD-${tag}-%`,
+      ]);
+      assert.equal(stored.rowCount, 2);
+      const status = await stock.status();
+      assert.equal(status.lastUpload?.id, first.id);
+      assert.equal(status.lastUpload?.hasFile, true);
+
+      // the file comes back exactly as uploaded
+      const original = await stock.download(profileId);
       assert.equal(original.source, 'original');
-      assert.equal(original.fileName, `tge-${tag}.xlsx`);
+      assert.equal(original.fileName, `items-${tag}.xlsx`);
       assert.ok(original.buffer.equals(bytes), 'downloaded bytes equal the uploaded bytes');
 
-      // a newer upload for the channel drops the older bytes
+      // --- a second upload updates what changed, adds new items, keeps the rest --
+      const lower = `md-${tag}-1`; // same code, different case: updates the stored one
+      const bytes2 = await stockFile(tag, 'Washer 9kg', [
+        [lower, 'Fridge 300L inverter', 'MDA', 'REFRIGERATORS', 'TOP MOUNT', 'TESTBRAND'],
+        [`MD-${tag}-3`, 'Cable', 'ACCESSORIES IT & SMARTPHONE', 'CABLES', 'USB CABLES', null],
+      ]);
       const second = await stock.upload(
-        'TGE',
-        { originalname: `tge2-${tag}.xlsx`, size: bytes.length, buffer: bytes },
+        { originalname: `items2-${tag}.xlsx`, size: bytes2.length, buffer: bytes2 },
         profileId,
       );
       uploadIds.push(second.id);
+      assert.equal(second.newItems, 1);
+      assert.equal(second.changedItems, 1);
+      assert.deepEqual(second.report.changes, [
+        {
+          itemCode: `MD-${tag}-2`,
+          fields: [{ field: 'Item Desc', from: 'Washer 8kg', to: 'Washer 9kg' }],
+        },
+      ]);
+      assert.match(String(second.report.warnings[0]), /upper \/ lower case/);
+      const all = await pool.query(
+        `SELECT item_code FROM stock_master WHERE upper(item_code) LIKE $1`,
+        [`MD-${tag}-%`],
+      );
+      assert.equal(all.rowCount, 3, 'no duplicate for the other-case code');
+
+      // items missing from the newest file are kept and counted
+      const bytes3 = await stockFile(tag, 'Washer 9kg');
+      const third = await stock.upload(
+        { originalname: `items3-${tag}.xlsx`, size: bytes3.length, buffer: bytes3 },
+        profileId,
+      );
+      uploadIds.push(third.id);
+      assert.equal(third.newItems, 0);
+      const afterThird = await stock.status();
+      assert.ok(afterThird.notInFileCount >= 1);
+      const gone = await pool.query<{ seen: boolean }>(
+        `SELECT last_seen_at >= (SELECT max(uploaded_at) FROM stock_uploads) AS seen FROM stock_master WHERE item_code = $1`,
+        [`MD-${tag}-3`],
+      );
+      assert.equal(gone.rows[0]!.seen, false);
+
+      // only the newest upload keeps its file
       const held = await pool.query<{ id: string; kept: boolean }>(
         `SELECT id::text AS id, file_bytes IS NOT NULL AS kept FROM stock_uploads WHERE id = ANY($1::bigint[]) ORDER BY id`,
         [uploadIds],
       );
       assert.deepEqual(
         held.rows.map((row) => row.kept),
-        [false, true],
+        [false, false, true],
       );
 
-      // --- stock: an old upload with no bytes is rebuilt from the rows --------
-      await pool.query(`UPDATE stock_uploads SET file_bytes = NULL WHERE id = $1::bigint`, [
-        second.id,
-      ]);
-      const rebuilt = await stock.download('TGE', profileId);
-      assert.equal(rebuilt.source, 'rebuilt');
-      assert.match(rebuilt.fileName, /^Stock_TGE_rebuilt_\d{4}-\d{2}-\d{2}\.xlsx$/);
-      const reparsed = await parseStockWorkbook(rebuilt.buffer);
-      assert.equal(reparsed.rows.length, 2);
-      const fridge = reparsed.rows.find((row) => row.itemCode === `MD-${tag}-1`)!;
-      assert.equal(fridge.itemDesc, 'Fridge 300L');
-      assert.equal(fridge.brand, 'TESTBRAND');
-      assert.equal(fridge.stock, 5);
-      assert.equal(fridge.wac, 1200.5);
-      assert.equal(fridge.lastGrnDate, '2026-09-30');
-      assert.equal(fridge.landedCost, 1100);
+      // search and facets read the one table
+      const hits = await stock.search({ q: `MD-${tag}-3`, limit: '5' });
+      assert.deepEqual(
+        hits.items.map((item) => item.itemCode),
+        [`MD-${tag}-3`],
+      );
+      assert.deepEqual(hits.items[0], {
+        itemCode: `MD-${tag}-3`,
+        itemDesc: 'Cable',
+        mainGroup: 'ACCESSORIES IT & SMARTPHONE',
+        groupName: 'CABLES',
+        subGroup: 'USB CABLES',
+        brand: null,
+      });
+      const facets = await stock.facets();
+      assert.ok(facets.brands.some((entry) => entry.brand === 'TESTBRAND'));
 
-      // --- stock: item list and bad input -----------------------------------
-      const items = await stock.download('items', profileId);
-      const itemRows = await sheetRows(items.buffer, 'Stock item master');
-      assert.deepEqual(itemRows[0]!.slice(0, 9), [
-        'ItemCode',
-        'ItemDesc',
-        'Grade',
-        'MainGroup',
-        'Group',
-        'SubGroup',
-        'Brand',
-        'TYPE',
-        'Last channel',
+      // --- an upload with no stored file is rebuilt from the stock master ------
+      await pool.query(`UPDATE stock_uploads SET file_bytes = NULL WHERE id = $1::bigint`, [
+        third.id,
       ]);
-      const itemRow = itemRows.find((row) => row[0] === `MD-${tag}-2`)!;
-      assert.equal(itemRow[1], 'Washer 8kg');
-      assert.equal(itemRow[8], 'TGE');
-      assert.equal(itemRow[11], 'In latest file');
-      await assert.rejects(stock.download('XYZ', profileId), /Choose what to download/);
+      const rebuilt = await stock.download(profileId);
+      assert.equal(rebuilt.source, 'rebuilt');
+      assert.match(rebuilt.fileName, /^Stock_master_\d{4}-\d{2}-\d{2}\.xlsx$/);
+      const reparsed = await parseStockWorkbook(rebuilt.buffer);
+      const washer = reparsed.items.get(`MD-${tag}-2`)!;
+      assert.equal(washer.itemDesc, 'Washer 9kg');
+      assert.equal(washer.brand, 'TESTBRAND');
+      assert.equal(reparsed.items.get(`MD-${tag}-3`)?.mainGroup, 'ACCESSORIES IT & SMARTPHONE');
+
+      // a file that is not an Item Listing is refused
+      await assert.rejects(
+        stock.upload({ originalname: 'x.csv', size: 1, buffer: Buffer.from('x') }, profileId),
+        /Upload the ERP Item Listing as .xlsx/,
+      );
 
       // --- revenue + budget batches -----------------------------------------
       const revenue = createRevenueDashboardService(pool);
@@ -241,12 +237,12 @@ test(
         `SELECT action FROM audit_events WHERE actor_profile_id = $1::bigint AND action IN ('stock.downloaded', 'revenue_dashboard.downloaded')`,
         [profileId],
       );
-      assert.equal(audit.rowCount, 6);
+      assert.equal(audit.rowCount, 5);
     } finally {
       if (uploadIds.length) {
         await pool.query(`DELETE FROM stock_uploads WHERE id = ANY($1::bigint[])`, [uploadIds]);
       }
-      await pool.query(`DELETE FROM stock_items WHERE item_code LIKE $1`, [`MD-${tag}-%`]);
+      await pool.query(`DELETE FROM stock_master WHERE item_code LIKE $1`, [`MD-${tag}-%`]);
       if (batchIds.length) {
         await pool.query(`DELETE FROM revenue_import_batches WHERE id = ANY($1::bigint[])`, [
           batchIds,

@@ -2926,7 +2926,7 @@ export function createRouteCatalog(
         operationId: 'uploadStockMaster',
         tags: ['Stock Master'],
         summary:
-          'Upload the ERP Current Stock Valuation (.xlsx) for one channel (multipart/form-data: file, channel=JDI|JMS|TGE)',
+          'Upload the ERP Item Listing (.xlsx) into the stock master (multipart/form-data: file)',
         security: 'bearerAuth' as const,
         responses: [201, 400, 401, 403, 500],
         handlers: stockMasterHandlers.upload,
@@ -2937,16 +2937,8 @@ export function createRouteCatalog(
         operationId: 'downloadStockMaster',
         tags: ['Stock Master'],
         summary:
-          'Download a channel stock file (JDI, JMS or TGE) as uploaded, or rebuilt from the stored rows when the original is not kept; channel=items gives the unique item list',
+          'Download the stock master Item Listing as uploaded, or rebuilt from the stock master when the original is not kept',
         security: 'bearerAuth' as const,
-        parameters: [
-          {
-            name: 'channel',
-            in: 'query',
-            required: true,
-            schema: { type: 'string', enum: ['JDI', 'JMS', 'TGE', 'items'] },
-          },
-        ],
         responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         responses: [200, 400, 401, 403, 404, 500],
         handlers: stockMasterHandlers.download,
@@ -2956,7 +2948,7 @@ export function createRouteCatalog(
         path: '/api/stock/status',
         operationId: 'getStockMasterStatus',
         tags: ['Stock Master'],
-        summary: 'Last upload, item counts and not-seen counts per channel',
+        summary: 'Last upload, item counts and how many items are not in the latest file',
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: stockMasterHandlers.status,

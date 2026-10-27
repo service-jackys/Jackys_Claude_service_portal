@@ -88,8 +88,8 @@ test(
       // An unmapped stock group is listed until it is mapped.
       const itemCode = `DI-${tag}`;
       await pool.query(
-        `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, brand, last_channel)
-         VALUES ($1, 'Test item', 'MDA', $2, 'TESTBRAND', 'JDI')`,
+        `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, brand)
+         VALUES ($1, 'Test item', 'MDA', $2, 'TESTBRAND')`,
         [itemCode, `UNMAPPED ${tag}`],
       );
       assert.ok(
@@ -99,7 +99,7 @@ test(
       assert.ok(
         !(await service.list()).unmappedGroups.some((g) => g.groupName === `UNMAPPED ${tag}`),
       );
-      await pool.query('DELETE FROM stock_items WHERE item_code = $1', [itemCode]);
+      await pool.query('DELETE FROM stock_master WHERE item_code = $1', [itemCode]);
 
       // Channel reporting name: set, keep when omitted, clear with an empty string.
       const client = await pool.connect();

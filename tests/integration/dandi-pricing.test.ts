@@ -38,8 +38,8 @@ test(
       ];
       for (const [code, group, desc] of items) {
         await pool.query(
-          `INSERT INTO stock_items (item_code, item_desc, main_group, group_name, brand, last_channel)
-           VALUES ($1, $2, 'MDA', $3, 'TESTBRAND', 'JDI')`,
+          `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, brand)
+           VALUES ($1, $2, 'MDA', $3, 'TESTBRAND')`,
           [code, desc, group],
         );
       }
@@ -108,7 +108,7 @@ test(
         service.price({ region: 'Dubai', lines: [{ itemCode: 'X', qty: 1, type: 'CSIJW' }] }),
       );
     } finally {
-      await pool.query(`DELETE FROM stock_items WHERE item_code LIKE $1`, [`DI_-${tag}`]);
+      await pool.query(`DELETE FROM stock_master WHERE item_code LIKE $1`, [`DI_-${tag}`]);
       await pool.query(`DELETE FROM category_mappings WHERE group_name = $1`, [unmappedGroup]);
       await pool.end();
     }
