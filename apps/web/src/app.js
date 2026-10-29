@@ -19168,7 +19168,6 @@ ${bodyHtml}
             escapeHtml(r.jobType) +
             '</td><td>' +
             escapeHtml(r.invDelNo || '') +
-            (r.refDocNo ? '<div class="rd-ref-line">' + refDocPill(r.refDocNo) + '</div>' : '') +
             '</td><td>' +
             escapeHtml(r.csoscOrderNo || '') +
             '</td><td>' +
@@ -19196,7 +19195,11 @@ ${bodyHtml}
             escapeHtml(r.description || '-') +
             '</div><div><strong>Job status</strong> ' +
             escapeHtml(r.jobSheetStatus || '-') +
-            '</div><div><strong>Original job value</strong> AED ' +
+            '</div>' +
+            (r.refDocNo
+              ? '<div><strong>Ref doc no</strong> ' + refDocPill(r.refDocNo) + '</div>'
+              : '') +
+            '<div><strong>Original job value</strong> AED ' +
             rdMoney2(r.originalJobValue) +
             '</div><div><strong>Workbook row</strong> ' +
             escapeHtml(r.sourceRow ?? '-') +

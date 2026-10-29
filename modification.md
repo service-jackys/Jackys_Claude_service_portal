@@ -3825,3 +3825,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard (unchanged view export column stays).
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #173 — Ref doc no moved into the job row details
+
+**Date:** 2026-10-29
+
+**Why.** The pill under the invoice number made the job tables busy; it should show only when a row is opened, in the table's font size.
+
+**What changed.** Reports drill-down and Explorer job tables: the Ref doc no pill is removed from the row and shown in the row's expanded detail line (small, coloured, label shown as the field name).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard (none), changelog data.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.

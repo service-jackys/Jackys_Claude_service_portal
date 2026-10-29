@@ -2359,9 +2359,14 @@
         background: #fce7f3;
         color: #9d174d;
       }
-      /* Job tables: the pill sits on its own line under the invoice number. */
-      .rd-ref-line {
-        margin-top: 4px;
+      /* Job tables: the pill shows in the row's detail line, sized like the data around it. */
+      .rd-detail-grid span.ref-pill {
+        padding: 0.05rem 0.55rem;
+        font-size: 0.74rem;
+        font-weight: 600;
+      }
+      .rd-detail-grid span.ref-pill .ref-pill-label {
+        display: none;
       }
       .di-ex-ref {
         margin: 0 0 0.5rem;
