@@ -24,7 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     summary:
       'The job table you reach when drilling down in Service Revenue Dashboard → Reports (and in Explorer) now shows each row\'s Ref doc no as a coloured pill.',
     changes: [
-      'New Ref doc no column (indigo pill for a CSOSC order, teal for "Direct", pink for anything else; blank when the workbook has none). It takes the place of the Cost status column.',
+      'New Ref doc no column (indigo pill for a CSOSC order, teal for "Direct", pink for anything else; blank when the workbook has none). It takes the place of the Cost status column. Delivery and installation lines take it from the pricing data, as the worked example does.',
       'Cost status is not lost: it is shown in the detail line when you click a row, and it is still a filter.',
       'Download this view (.xlsx) has a Ref doc no column after CSOSC order.',
     ],

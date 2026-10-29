@@ -445,7 +445,7 @@ const lineColumns = `
   sales_person AS "salesPerson", qty, unit_price AS "unitPrice", revenue,
   original_job_value AS "originalJobValue", billing_code AS "billingCode",
   sales_channel AS "salesChannel", cost_status AS "costStatus", remarks,
-  ref_doc_no AS "refDocNo", ref_doc_dt AS "refDocDt",
+  COALESCE(NULLIF(ref_doc_no, ''), pricing->>'refDocNo') AS "refDocNo", ref_doc_dt AS "refDocDt",
   pricing->>'erpBrand' AS "erpBrand"
 `;
 
