@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 173,
+    title: 'Ref doc no moved into the job row details',
+    area: 'General',
+    date: '2026-10-29',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Ref doc no pill under the invoice number made the job tables busy, so it now shows only when a row is opened.',
+    changes: [
+      'Reports drill-down and Explorer job tables: click a row and the detail line shows Ref doc no as a small coloured pill, in the same size as the other details. The row itself is back to its previous look.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, apps/web/src/index.html.',
+  },
+  {
     id: 172,
     title: 'Ref doc no pill under the invoice number in the job tables',
     area: 'General',
