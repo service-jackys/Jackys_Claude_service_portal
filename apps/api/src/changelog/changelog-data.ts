@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 171,
+    title: 'Ref doc no pill in the Explorer and Reports job tables',
+    area: 'General',
+    date: '2026-10-29',
+    approxDate: false,
+    status: null,
+    summary:
+      'The job table you reach when drilling down in Service Revenue Dashboard → Reports (and in Explorer) now shows each row\'s Ref doc no as a coloured pill.',
+    changes: [
+      'New Ref doc no column (indigo pill for a CSOSC order, teal for "Direct", pink for anything else; blank when the workbook has none). It takes the place of the Cost status column.',
+      'Cost status is not lost: it is shown in the detail line when you click a row, and it is still a filter.',
+      'Download this view (.xlsx) has a Ref doc no column after CSOSC order.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/view-export.ts.',
+  },
+  {
     id: 170,
     title: 'Tasks: Save changes button was pushed out of view',
     area: 'General',

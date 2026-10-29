@@ -14508,7 +14508,7 @@ ${bodyHtml}
   // once it is Completed and its figures are then frozen.
   // ---------------------------------------------------------------------
   // Ref doc no pill (worked examples): colour by what the number is.
-  function refDocPill(refDocNo) {
+  function refDocPill(refDocNo, compact) {
     if (!refDocNo) return '';
     const kind = /^direct$/i.test(refDocNo)
       ? 'direct'
@@ -14518,6 +14518,7 @@ ${bodyHtml}
     return (
       '<span class="ref-pill ref-pill-' +
       kind +
+      (compact ? ' ref-pill-compact' : '') +
       '" title="Ref DocNo from the master workbook"><span class="ref-pill-label">Ref doc no</span>' +
       escapeHtml(refDocNo) +
       '</span>'
@@ -19154,7 +19155,7 @@ ${bodyHtml}
   function rdJobsTable(lines) {
     if (!lines.length) return '<p class="form-note rd-pad">No jobs match the selected filters.</p>';
     return (
-      '<div class="table-wrap"><table class="rc-table rd-jobs-table"><thead><tr><th>Date</th><th>Wk</th><th>Type</th><th>Inv/Del no</th><th>CSOSC order</th><th>Customer</th><th>Channel</th><th>Salesperson</th><th>ERP parent brand</th><th>Billing code</th><th>Cost status</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Revenue</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table class="rc-table rd-jobs-table"><thead><tr><th>Date</th><th>Wk</th><th>Type</th><th>Inv/Del no</th><th>CSOSC order</th><th>Customer</th><th>Channel</th><th>Salesperson</th><th>ERP parent brand</th><th>Billing code</th><th>Ref doc no</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Revenue</th></tr></thead><tbody>' +
       lines
         .map(
           (r, i) =>
@@ -19181,7 +19182,7 @@ ${bodyHtml}
             '</td><td>' +
             escapeHtml(r.billingCode || '') +
             '</td><td>' +
-            escapeHtml(r.costStatus || '') +
+            refDocPill(r.refDocNo, true) +
             '</td><td class="num">' +
             rdMoney(r.qty) +
             '</td><td class="num">' +
@@ -19195,6 +19196,8 @@ ${bodyHtml}
             escapeHtml(r.description || '-') +
             '</div><div><strong>Job status</strong> ' +
             escapeHtml(r.jobSheetStatus || '-') +
+            '</div><div><strong>Cost status</strong> ' +
+            escapeHtml(r.costStatus || '-') +
             '</div><div><strong>Original job value</strong> AED ' +
             rdMoney2(r.originalJobValue) +
             '</div><div><strong>Workbook row</strong> ' +
