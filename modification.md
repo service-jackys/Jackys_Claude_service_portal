@@ -3811,3 +3811,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/view-export.ts, apps/api/src/changelog/changelog-data.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #172 — Ref doc no pill under the invoice number in the job tables
+
+**Date:** 2026-10-29
+
+**Why.** The Ref doc no column from #171 was blank for Delivery & Installation lines (their ref is held in the pricing data) and replaced Cost status; the chosen layout is the pill beside the invoice number, as in Logic applied.
+
+**What changed.**
+- Job tables (Reports drill-down, Explorer): the Ref doc no pill sits under the invoice number; Cost status column restored; the Ref doc no column removed.
+- The lines query returns the repair-sheet Ref doc no, or the pricing one when that is empty, so CSIDI / CSIDO / CSIII show it.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard (unchanged view export column stays).
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.

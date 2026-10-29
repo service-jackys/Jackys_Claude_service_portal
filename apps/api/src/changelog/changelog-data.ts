@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 172,
+    title: 'Ref doc no pill under the invoice number in the job tables',
+    area: 'General',
+    date: '2026-10-29',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Ref doc no column added in the previous change showed blank for delivery and installation lines, and replaced Cost status. It now works for every job type and Cost status is back.',
+    changes: [
+      'The Ref doc no shows as a coloured pill under the invoice number in the Reports drill-down and Explorer job tables, as in Logic applied (indigo CSOSC order, teal Direct, pink other).',
+      'Delivery and installation lines now find their Ref doc no (it is stored with the pricing data, not in the repair-sheet column), so the pill appears for CSIDI, CSIDO and CSIII too.',
+      'The separate Ref doc no column is removed and the Cost status column is back. Download this view (.xlsx) keeps its Ref doc no column.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, apps/web/src/index.html, packages/db/src/revenue-dashboard.ts.',
+  },
+  {
     id: 171,
     title: 'Ref doc no pill in the Explorer and Reports job tables',
     area: 'General',
