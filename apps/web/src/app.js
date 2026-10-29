@@ -14508,6 +14508,15 @@ ${bodyHtml}
   // once it is Completed and its figures are then frozen.
   // ---------------------------------------------------------------------
   // Ref doc no pill (worked examples): colour by what the number is.
+  // Customer code from the master workbook (Cust Code), shown beside the Ref doc no pill.
+  function custCodePill(custCode) {
+    if (!custCode) return '';
+    return (
+      '<span class="ref-pill ref-pill-cust" title="Cust Code from the master workbook"><span class="ref-pill-label">Cust code</span>' +
+      escapeHtml(custCode) +
+      '</span>'
+    );
+  }
   function refDocPill(refDocNo) {
     if (!refDocNo) return '';
     const kind = /^direct$/i.test(refDocNo)
@@ -15443,8 +15452,12 @@ ${bodyHtml}
         )
         .join('');
       return (
-        (ex.excel.refDocNo
-          ? '<p class="di-ex-ref">' + refDocPill(ex.excel.refDocNo) + '</p>'
+        (ex.excel.refDocNo || ex.excel.custCode
+          ? '<p class="di-ex-ref">' +
+            refDocPill(ex.excel.refDocNo) +
+            ' ' +
+            custCodePill(ex.excel.custCode) +
+            '</p>'
           : '') +
         '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Type</th><th>Item</th><th class="num">Qty</th><th>How the workbook priced it</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
         rows +
@@ -21125,6 +21138,7 @@ ${bodyHtml}
         e(ex.invoice) +
         '</b>' +
         refDocPill(ex.refDocNo) +
+        custCodePill(ex.custCode) +
         '<span>' +
         e((ex.customer || '') + (ex.date ? ' · ' + ex.date : '')) +
         '</span></div>' +

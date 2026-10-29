@@ -31,6 +31,8 @@ export type LogicSummaryLine = {
   originalJobValue?: number | null;
   /** Ref DocNo from the CSIJW / CSIJO sheet (repair jobs); install lines carry it in pricing. */
   refDocNo?: string | null;
+  /** Cust_Code from the CSIJW / CSIJO sheet (repair jobs); install lines carry it in pricing. */
+  custCode?: string | null;
   pricing: SheetPricing | null;
 };
 
@@ -60,6 +62,8 @@ export type WorkedExample = {
   date: string | null;
   /** The workbook's Ref DocNo for this invoice (a CSOSC order, "Direct", ...), when it has one. */
   refDocNo: string | null;
+  /** The workbook's Cust Code (customer code) for this invoice, when it has one. */
+  custCode: string | null;
   lines: ExampleLine[];
   total: number;
   /** How the invoice-level rules were applied to this invoice, in plain words. */
@@ -219,6 +223,16 @@ function refDocNoOf(set: LogicSummaryLine[]): string | null {
   return values.size ? [...values].join(', ') : null;
 }
 
+/** The invoice's Cust Code: the distinct values on its lines, most often just one. */
+function custCodeOf(set: LogicSummaryLine[]): string | null {
+  const values = new Set<string>();
+  for (const l of set) {
+    const v = (l.pricing?.custCode ?? l.custCode ?? '').toString().trim();
+    if (v) values.add(v);
+  }
+  return values.size ? [...values].join(', ') : null;
+}
+
 const JOB_ORDER = ['CSIJW', 'CSIJO', 'CSIDI', 'CSIII', 'CSIDO'];
 
 /** Worked example for one invoice: all its lines, in job-type order, with a check against the rules. */
@@ -235,6 +249,7 @@ export function buildWorkedExample(
     customer: set[0]?.customer ?? null,
     date: set[0]?.orderDate ?? null,
     refDocNo: refDocNoOf(set),
+    custCode: custCodeOf(set),
     lines: ordered.map((l) => {
       const out = exampleLineText(rules, l);
       if (['CSIDI', 'CSIII', 'CSIDO'].includes(l.jobType) && l.pricing) {

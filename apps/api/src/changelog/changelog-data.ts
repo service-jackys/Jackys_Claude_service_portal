@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 175,
+    title: 'Cust Code pill beside the Ref doc no pill in both worked examples',
+    area: 'Delivery & Installation',
+    date: '2026-10-29',
+    approxDate: false,
+    status: null,
+    summary:
+      'The master workbook carries a Cust Code on every transaction; the worked examples showed only the Ref doc no.',
+    changes: [
+      'Compare with Excel > Worked example and Logic applied > Worked example now show an amber Cust code pill next to the Ref doc no pill.',
+      'Delivery + installation lines read it from the CSIDI/CSIDO/CSIII sheet; repair jobs (CSIJW/CSIJO) read it from the workbook repair sheets and store it on the line.',
+    ],
+    needsYou:
+      'pull, restart the API (migration 064 runs on start). Re-upload the master workbook so repair jobs fill the Cust Code; D&I lines show it straight away.',
+    migrations: ['064_revenue_line_cust_code.sql'],
+    files:
+      'apps/api/src/revenue-dashboard/parser.ts, logic-summary.ts, packages/db/src/revenue-dashboard.ts, apps/web/src/app.js, index.html, tests.',
+  },
+  {
     id: 174,
     title: 'Compare with Excel: Refresh button, and a click jumps to the worked example',
     area: 'Delivery & Installation',
