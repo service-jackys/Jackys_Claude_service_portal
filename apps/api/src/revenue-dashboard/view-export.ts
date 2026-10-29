@@ -449,6 +449,7 @@ function addJobs(wb: ExcelJS.Workbook, data: RevenueViewData) {
     { h: 'Job type', w: 10, get: (l) => l.jobType },
     { h: 'Inv / Del no', w: 14, get: (l) => l.invDelNo },
     { h: 'CSOSC order', w: 14, get: (l) => l.csoscOrderNo },
+    { h: 'Ref doc no', w: 18, get: (l) => l.refDocNo },
     { h: 'Customer', w: 38, get: (l) => l.customer },
     { h: 'Sales channel', w: 11, get: (l) => l.salesChannel },
     { h: 'Salesperson', w: 18, get: (l) => l.salesPerson },

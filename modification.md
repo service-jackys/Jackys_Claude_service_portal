@@ -3797,3 +3797,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html, apps/web/src/tasks.js, apps/api/src/changelog/changelog-data.ts.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #171 — Ref doc no pill in the Explorer and Reports job tables
+
+**Date:** 2026-10-29
+
+**Why.** Accounts wanted the workbook's Ref DocNo against every transaction when drilling down in Reports, as already shown on the worked examples (#168).
+
+**What changed.**
+- The job table (Reports drill-down and Explorer) has a Ref doc no column with a coloured pill in place of Cost status. Cost status moves to the row's detail line and stays a filter.
+- Download this view (.xlsx) gets a Ref doc no column.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/view-export.ts, apps/api/src/changelog/changelog-data.ts.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.
