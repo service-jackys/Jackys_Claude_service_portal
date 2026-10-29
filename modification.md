@@ -3851,3 +3851,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, tests/e2e/delivery-installation.spec.ts, changelog data.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+---
+
+## Modification #175 — Cust Code pill beside the Ref doc no pill in the worked examples
+
+**Date:** 2026-10-29
+
+**Why.** The master workbook has a Cust Code on every transaction; the worked examples showed only the Ref doc no.
+
+**What changed.**
+- Amber "Cust code" pill next to the Ref doc no pill in Compare with Excel > Worked example and Logic applied > Worked example.
+- D&I lines take it from the CSIDI/CSIDO/CSIII sheet; repair jobs (CSIJW/CSIJO) take it from the workbook repair sheets, stored in new `revenue_lines.cust_code` (migration 064).
+
+**Files.** parser.ts, logic-summary.ts, packages/db/src/revenue-dashboard.ts, app.js, index.html, tests, changelog data.
+
+**Needs you:** pull, restart the API (migration 064), hard-refresh; re-upload the master workbook so repair jobs fill Cust Code.

@@ -375,6 +375,7 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
             customer: 'School A',
             date: '2026-10-05',
             refDocNo: 'CSOSC - 16100001',
+            custCode: '191065',
             lines: [
               {
                 jobType: 'CSIDI',
@@ -505,7 +506,8 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
     // Any invoice of the month can be picked, even a matching one the table hides.
     await page.locator('#diExPick').selectOption('N1');
     await expect(body).toContainText('Excel — master workbook');
-    await expect(body.locator('.ref-pill')).toContainText('CSOSC - 16100001');
+    await expect(body.locator('.ref-pill-order')).toContainText('CSOSC - 16100001');
+    await expect(body.locator('.ref-pill-cust')).toContainText('191065');
     await expect(body).toContainText('Batch rate 60 less 5% = 57 each');
     await expect(body).toContainText('DIJ-2026-00005');
     await expect(body).toContainText('FRG-300');

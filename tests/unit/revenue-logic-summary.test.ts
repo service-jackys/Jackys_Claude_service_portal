@@ -105,6 +105,23 @@ test('the worked example carries the invoice Ref DocNo, from pricing or the line
   assert.equal(buildWorkedExample(rules, '7', [line({ invDelNo: '7' })]).refDocNo, null);
 });
 
+test('the worked example carries the invoice Cust Code, from pricing or the line', () => {
+  const rules = rulesOfBatch(batch);
+  const install = buildWorkedExample(rules, '5', [
+    line({
+      jobType: 'CSIDI',
+      invDelNo: '5',
+      pricing: { custCode: '191065', before: {} } as never,
+    }),
+  ]);
+  assert.equal(install.custCode, '191065');
+  const repair = buildWorkedExample(rules, '6', [
+    line({ jobType: 'CSIJW', invDelNo: '6', custCode: '200114' }),
+  ]);
+  assert.equal(repair.custCode, '200114');
+  assert.equal(buildWorkedExample(rules, '7', [line({ invDelNo: '7' })]).custCode, null);
+});
+
 test('original CSIJO job with an ERP value is tagged, not shown as qty x rate', () => {
   const rules = rulesOfBatch(batch);
   const ex = buildWorkedExample(rules, '16100997', [

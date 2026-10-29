@@ -2368,11 +2368,24 @@
       .rd-detail-grid span.ref-pill .ref-pill-label {
         display: none;
       }
+      span.ref-pill-cust {
+        background: #fef3c7;
+        color: #92400e;
+      }
       .di-ex-ref {
         margin: 0 0 0.5rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
       }
       .rl-example-head .ref-pill {
-        margin: 0 auto 0 12px;
+        margin: 0 0 0 12px;
+      }
+      .rl-example-head .ref-pill + .ref-pill {
+        margin-left: 0;
+      }
+      .rl-example-head > span:last-child {
+        margin-left: auto;
       }
       .di-st {
         display: inline-block;

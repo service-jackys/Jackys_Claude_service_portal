@@ -35,6 +35,8 @@ export type ParsedRevenueLine = {
   /** Ref DocNo / date from the CSIJW / CSIJO sheet (repair jobs only). */
   refDocNo: string | null;
   refDocDt: string | null;
+  /** Cust_Code from the CSIJW / CSIJO sheet (repair jobs only; install lines carry it in pricing). */
+  custCode: string | null;
   pricing: SheetPricing | null;
 };
 
@@ -236,6 +238,7 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
       remarks: text(at(row, 'Remarks')),
       refDocNo: null,
       refDocDt: null,
+      custCode: null,
       pricing: null,
     });
   });
@@ -393,7 +396,8 @@ function attachRepairRefDocs(workbook: ExcelJS.Workbook, lines: ParsedRevenueLin
     const refCol = col.get('ref docno.');
     if (!invCol || !refCol) continue;
     const dtCol = col.get('ref docdt.');
-    const byInv = new Map<string, { no: string | null; dt: string | null }>();
+    const custCol = col.get('cust_code');
+    const byInv = new Map<string, { no: string | null; dt: string | null; cust: string | null }>();
     sheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return;
       const inv = text(row.getCell(invCol).value);
@@ -401,6 +405,7 @@ function attachRepairRefDocs(workbook: ExcelJS.Workbook, lines: ParsedRevenueLin
       byInv.set(inv, {
         no: text(row.getCell(refCol).value),
         dt: dtCol ? text(row.getCell(dtCol).value) : null,
+        cust: custCol ? text(row.getCell(custCol).value) : null,
       });
     });
     for (const line of lines) {
@@ -409,6 +414,7 @@ function attachRepairRefDocs(workbook: ExcelJS.Workbook, lines: ParsedRevenueLin
       if (hit) {
         line.refDocNo = hit.no;
         line.refDocDt = hit.dt;
+        line.custCode = hit.cust;
       }
     }
   }
