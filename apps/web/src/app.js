@@ -14567,6 +14567,7 @@ ${bodyHtml}
       completionWarnings: [],
       list: { status: '', from: '', to: '', search: '', page: 1, data: null },
       compare: {
+        refreshedAt: null,
         month: localToday().slice(0, 7),
         data: null,
         error: '',
@@ -15664,14 +15665,10 @@ ${bodyHtml}
       );
     }
 
-    async function loadExample(invoice) {
+    // Fetch the worked example for one invoice into state (no redraw).
+    async function fetchExample(text) {
       const ex = state.compare.example;
-      const text = (invoice || '').trim();
-      if (!text) return;
-      ex.invoice = text;
-      ex.loading = true;
       ex.error = '';
-      drawCompare();
       try {
         ex.data = await apiRequest(
           '/api/di-jobs/compare/example?' + new URLSearchParams({ invoice: text }),
@@ -15684,7 +15681,40 @@ ${bodyHtml}
         ex.data = null;
         ex.error = error.message || 'The example could not be loaded.';
       }
+    }
+
+    async function loadExample(invoice, scrollToIt) {
+      const ex = state.compare.example;
+      const text = (invoice || '').trim();
+      if (!text) return;
+      ex.invoice = text;
+      ex.loading = true;
+      ex.error = '';
+      drawCompare();
+      await fetchExample(text);
       ex.loading = false;
+      drawCompare();
+      // Clicking a row of the table jumps down to the worked example.
+      if (scrollToIt) body.querySelector('.di-ex')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
+    // Re-read the comparison (and the invoice shown in the worked example) from
+    // the database, so a job completed in another tab shows up without reloading.
+    async function refreshCompare() {
+      const c = state.compare;
+      const button = q('[data-di-cmp-refresh]');
+      if (button) {
+        button.disabled = true;
+        button.textContent = 'Refreshing…';
+      }
+      try {
+        c.data = await apiRequest('/api/di-jobs/compare?month=' + encodeURIComponent(c.month));
+        c.error = '';
+        if (c.example.invoice) await fetchExample(c.example.invoice);
+        c.refreshedAt = new Date();
+      } catch (error) {
+        c.error = error.message;
+      }
       drawCompare();
     }
 
@@ -15696,7 +15726,13 @@ ${bodyHtml}
         escapeHtml(c.month) +
         '" /></div><div class="field"><label><input type="checkbox" id="diCShowMatched"' +
         (c.showMatched ? ' checked' : '') +
-        ' /> Also list the delivery notes that match</label></div></div>';
+        ' /> Also list the delivery notes that match</label></div><div class="field"><label>&nbsp;</label><span class="rl-paste-row"><button type="button" class="button button-outline" data-di-cmp-refresh title="Read the jobs and the master workbook again, e.g. after completing a job in another tab">Refresh</button>' +
+        (c.refreshedAt
+          ? '<span class="form-note">Updated ' +
+            escapeHtml(c.refreshedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })) +
+            '</span>'
+          : '') +
+        '</span></div></div>';
       let html = monthBar;
       if (!data) {
         html +=
@@ -15809,6 +15845,7 @@ ${bodyHtml}
         c.example = { invoice: '', data: null, error: '', loading: false };
         loadCompare();
       });
+      q('[data-di-cmp-refresh]').addEventListener('click', refreshCompare);
       q('#diCShowMatched').addEventListener('change', () => {
         c.showMatched = q('#diCShowMatched').checked;
         drawCompare();
@@ -15826,7 +15863,7 @@ ${bodyHtml}
       body
         .querySelectorAll('[data-di-ex-key]')
         .forEach((button) =>
-          button.addEventListener('click', () => loadExample(button.dataset.diExKey)),
+          button.addEventListener('click', () => loadExample(button.dataset.diExKey, true)),
         );
       body.querySelectorAll('[data-di-cmp-open]').forEach((button) =>
         button.addEventListener('click', async () => {

@@ -358,6 +358,7 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
   });
 
   test('the Compare tab shows a worked example for any invoice, line by line', async ({ page }) => {
+    let compareCalls = 0;
     const asked: string[] = [];
     await mockApi(page, ['di_jobs.read', 'di_jobs.write', 'di_jobs.compare'], (url) => {
       if (url.pathname === '/api/di-jobs/options') {
@@ -442,6 +443,7 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
         };
       }
       if (url.pathname === '/api/di-jobs/compare') {
+        compareCalls += 1;
         const zero = { qty: 0, revenue: 0 };
         const totals = { CSIDI: { qty: 2, revenue: 114 }, CSIDO: zero, CSIII: zero, total: 114 };
         const none = {
@@ -510,6 +512,19 @@ test.describe('delivery and installation: comparison and salesman spellings', ()
     await expect(body).toContainText('Comparison — Matches');
     await expect(body).toContainText('To check by hand');
     expect(asked).toEqual(['N1']);
+    // Refresh re-reads the comparison and the invoice shown in the worked example,
+    // so a job completed in another tab appears without reloading the page.
+    const before = compareCalls;
+    await body.getByRole('button', { name: 'Refresh' }).click();
+    await expect(body).toContainText('Updated');
+    expect(compareCalls).toBe(before + 1);
+    expect(asked).toEqual(['N1', 'N1']);
+    // Clicking an invoice of the table scrolls down to the worked example.
+    await body.getByLabel('Also list the delivery notes that match').check();
+    await body.locator('[data-di-ex-key="N1"]').click();
+    await expect
+      .poll(async () => (await body.locator('.di-ex').boundingBox())?.y ?? 9999)
+      .toBeLessThan(300);
   });
 
   test('the Compare tab is hidden without the compare permission', async ({ page }) => {
