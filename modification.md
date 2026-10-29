@@ -3837,3 +3837,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard (none), changelog data.
 
 **Needs you:** pull, restart the API (no migration), hard-refresh.
+
+## Modification #174 — Compare with Excel: Refresh button and jump to the worked example
+
+**Date:** 2026-10-29
+
+**Why.** A job completed in another tab did not show in Compare with Excel until the page was reloaded; clicking a row of a long table left the worked example out of sight.
+
+**What changed.**
+- Compare with Excel has a Refresh button (next to the month): re-reads the comparison and the worked-example invoice from the database; shows when it was last updated.
+- Clicking an Inv/Del No in the table scrolls to the Worked example.
+
+**Files.** apps/web/src/app.js, tests/e2e/delivery-installation.spec.ts, changelog data.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.

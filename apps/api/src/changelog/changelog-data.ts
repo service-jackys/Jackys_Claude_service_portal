@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 174,
+    title: 'Compare with Excel: Refresh button, and a click jumps to the worked example',
+    area: 'Delivery & Installation',
+    date: '2026-10-29',
+    approxDate: false,
+    status: null,
+    summary:
+      'A job completed in another tab did not appear in Compare with Excel until the page was reloaded, and clicking a row left you at the top of a long page.',
+    changes: [
+      'New Refresh button on Compare with Excel: it re-reads the jobs and the master workbook from the database and reloads the invoice shown in the Worked example, with an "Updated hh:mm" note.',
+      'Clicking an Inv/Del No in the table (for example an Only in Excel row) now scrolls the page down to the Worked example.',
+    ],
+    needsYou: 'pull, restart the API (no migration), hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/delivery-installation.spec.ts.',
+  },
+  {
     id: 173,
     title: 'Ref doc no moved into the job row details',
     area: 'General',
