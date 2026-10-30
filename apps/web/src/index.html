@@ -2025,52 +2025,78 @@
       .pw-dialog .form-footer {
         justify-content: flex-end;
       }
-      .rm-wrap {
-        overflow-x: auto;
+      /* Roles & permissions (modification #55, custom roles #176, layout #177):
+         one toolbar, a role picker, and a matrix showing Administrator and
+         Management as fixed reference columns beside the role being edited. */
+      .rm-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        gap: 0.75rem 1.25rem;
+        margin: 0.4rem 0 0.9rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
       }
-      .rm-table td.rm-check,
-      .rm-table th.rm-check {
-        text-align: center;
-        width: 7rem;
+      .rm-picker {
+        display: grid;
+        gap: 0.3rem;
+        min-width: 15rem;
       }
-      .rm-table tr.rm-group td {
-        background: #eef3fa;
+      .rm-picker select {
+        min-height: 44px;
         font-weight: 700;
-        color: var(--navy);
-        font-size: 0.82rem;
-        text-transform: uppercase;
-        letter-spacing: 0.04em;
       }
-      .rm-table tr.rm-sensitive td:first-child {
-        border-left: 3px solid #e0a100;
-      }
-      .rm-table td small {
-        display: block;
-        color: #6b7a90;
-      }
-      .rm-table input[type='checkbox'] {
-        width: 1.1rem;
-        height: 1.1rem;
-        accent-color: var(--navy);
-      }
-      .rm-bar {
+      .rm-role-meta {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 0.75rem;
-        margin: 0.9rem 0;
-      }
-      .rm-table th.rm-custom small {
-        display: block;
-        font-weight: 400;
-        color: #6b7a90;
-      }
-      .rm-role-actions {
-        display: flex;
-        justify-content: center;
         gap: 0.5rem;
-        margin-top: 0.2rem;
-        font-weight: 400;
+        min-height: 44px;
+      }
+      .rm-toolbar-end {
+        display: flex;
+        gap: 0.5rem;
+        margin-left: auto;
+      }
+      .rm-btn {
+        min-height: 44px;
+        white-space: nowrap;
+      }
+      .rm-btn-sm {
+        min-height: 36px;
+        padding: 0.35rem 0.8rem;
+        font-size: 0.88rem;
+      }
+      .rm-btn-danger {
+        color: var(--red);
+        border-color: color-mix(in srgb, var(--red) 40%, var(--line));
+      }
+      .rm-btn-danger:hover:not(:disabled) {
+        background: color-mix(in srgb, var(--red) 8%, var(--surface));
+      }
+      .rm-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.2rem 0.65rem;
+        border-radius: 999px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .rm-chip-custom {
+        background: var(--blue-soft);
+        border-color: color-mix(in srgb, var(--blue) 35%, var(--line));
+        color: var(--blue);
+      }
+      .rm-usercount {
+        color: var(--muted);
+        font-size: 0.85rem;
+        white-space: nowrap;
       }
       .rm-new {
         display: flex;
@@ -2078,21 +2104,184 @@
         align-items: flex-end;
         gap: 0.75rem;
         margin: 0 0 0.9rem;
-        padding: 0.9rem;
-        border: 1px solid #d5deea;
-        border-radius: 8px;
-        background: #f7f9fc;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface-soft);
       }
       .rm-new[hidden] {
         display: none;
+      }
+      .rm-new .field {
+        min-width: 14rem;
       }
       .rm-form-actions {
         display: flex;
         gap: 0.5rem;
       }
-      .rm-locked {
-        color: #6b7a90;
-        font-size: 0.8rem;
+      .rm-savebar {
+        position: sticky;
+        top: 0;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 0.6rem;
+        margin: 0 0 0.6rem;
+        padding: 0.5rem 0;
+        background: var(--surface-soft);
+      }
+      .rm-status {
+        margin-right: auto;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .rm-status-dirty {
+        color: var(--warning);
+        font-weight: 700;
+      }
+      .rm-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .rm-table {
+        width: 100%;
+        min-width: 38rem;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      .rm-table th,
+      .rm-table td {
+        padding: 0.6rem 0.9rem;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+        text-align: left;
+      }
+      .rm-table thead th {
+        position: sticky;
+        top: 0;
+        background: var(--surface-soft);
+        color: var(--navy);
+        font-size: 0.78rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+      .rm-table th.rm-perm {
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 0.95rem;
+        color: var(--ink);
+        min-width: 17rem;
+      }
+      .rm-table thead th.rm-perm {
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-size: 0.78rem;
+        color: var(--navy);
+      }
+      .rm-table small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 400;
+      }
+      .rm-table th.rm-col {
+        width: 9.5rem;
+        min-width: 9.5rem;
+        text-align: center;
+      }
+      .rm-col-name {
+        display: block;
+      }
+      .rm-col-tag {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+      }
+      .rm-table th.rm-col-edit {
+        background: var(--blue-soft);
+        box-shadow: inset 0 -3px 0 var(--blue);
+      }
+      .rm-col-edit .rm-col-tag {
+        color: var(--blue);
+      }
+      .rm-table td.rm-cell {
+        text-align: center;
+        width: 9.5rem;
+      }
+      .rm-table td.rm-cell-edit {
+        background: color-mix(in srgb, var(--blue) 5%, var(--surface));
+      }
+      .rm-table td.rm-dirty {
+        background: color-mix(in srgb, var(--warning) 14%, var(--surface));
+        box-shadow: inset 3px 0 0 var(--warning);
+      }
+      .rm-table input[type='checkbox'] {
+        width: 1.2rem;
+        height: 1.2rem;
+        margin: 0;
+        accent-color: var(--navy);
+        cursor: pointer;
+      }
+      .rm-mark {
+        font-size: 1rem;
+        font-weight: 700;
+      }
+      .rm-on {
+        color: var(--success);
+      }
+      .rm-off {
+        color: var(--muted);
+        opacity: 0.55;
+      }
+      .rm-table tr.rm-group td {
+        background: var(--blue-soft);
+        color: var(--navy);
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        padding-block: 0.45rem;
+      }
+      .rm-table tr.rm-sensitive th.rm-perm {
+        box-shadow: inset 3px 0 0 #e0a100;
+      }
+      .rm-table tbody tr:last-child th,
+      .rm-table tbody tr:last-child td {
+        border-bottom: 0;
+      }
+      .rm-group-label {
+        position: sticky;
+        left: 0.9rem;
+      }
+      .rm-table tbody th.rm-perm {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--surface);
+      }
+      .rm-table thead th.rm-perm {
+        left: 0;
+        z-index: 2;
+      }
+      @media (max-width: 720px) {
+        .rm-table th.rm-perm {
+          min-width: 11rem;
+        }
+        .rm-toolbar-end {
+          margin-left: 0;
+        }
+        .rm-picker {
+          min-width: 100%;
+        }
       }
       .nav-badge {
         margin-left: auto;
