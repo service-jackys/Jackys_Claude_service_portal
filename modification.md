@@ -3887,3 +3887,22 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/065_custom_roles.sql, 066_starter_custom_roles.sql, packages/db/src/roles.ts, apps/api/src/roles/service.ts and routes.ts, apps/api/src/auth/local-auth.ts, route-catalog.ts, openapi.ts, apps/web/src/app.js, index.html, tests/integration/custom-roles.test.ts, changelog data.
 
 **Needs you:** pull, restart the API (migrations 065 and 066 run on start), hard-refresh. Open Roles & permissions to check what the three starter roles can do and adjust the ticks; then assign them in Users. The old Apps Script portal is not changed.
+
+---
+
+## Modification #177 — Roles & permissions: role picker, Administrator and Management always visible
+
+**Date:** 2026-10-30
+
+**Why.** With custom roles the matrix grew a column per role: names wrapped onto several lines and the Rename/Delete buttons sat misaligned under the headers.
+
+**What changed.**
+- One toolbar with a **Role to edit** drop-down (built-in and custom roles), a Built-in/Custom tag with the user count, **Rename** and **Delete** (custom roles only) and **+ New role**.
+- The matrix shows Administrator and Management as read-only **Reference** columns next to the one role being edited, so you can compare while you tick. Choosing Management edits Management itself.
+- Headers no longer wrap; the permission column and module headings stay in view when the table scrolls sideways on a small screen.
+- Unsaved ticks are kept when you switch roles; the drop-down marks roles with "(unsaved)", changed ticks are highlighted, and Save/Discard sit in one row above the table.
+- Creating a role selects it straight away so you can tick its permissions.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/custom-roles.spec.ts, changelog data.
+
+**Needs you:** pull and hard-refresh (no migration, no API restart).

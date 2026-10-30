@@ -105,32 +105,67 @@ test.describe('Custom roles', () => {
     const calls: string[] = [];
     await mockApi(page, builtIns(), calls);
     await openRoles(page);
-    const table = page.locator('#rolesWorkspace .rm-table');
+    const workspace = page.locator('#rolesWorkspace');
 
-    // Built-in columns have no Rename/Delete.
-    await expect(table.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+    // A built-in role is selected first: no Rename/Delete, and Administrator
+    // and Management stay on screen as reference columns beside it.
+    await expect(workspace.locator('#rmRoleSelect')).toHaveValue('sales');
+    await expect(workspace.getByRole('button', { name: 'Delete' })).toHaveCount(0);
+    await expect(workspace.locator('.rm-table th.rm-col')).toHaveText([
+      /Administrator\s*Reference/,
+      /Management\s*Reference/,
+      /Sales\s*Editing/,
+    ]);
 
-    await page.getByRole('button', { name: 'New role' }).click();
+    await workspace.getByRole('button', { name: '+ New role' }).click();
     await page.locator('#rmRoleName').fill('Service Coordinator');
     await page.locator('#rmRoleCopy').selectOption('sales');
     await page.getByRole('button', { name: 'Create role' }).click();
-    await expect(table.getByRole('columnheader', { name: /Service Coordinator/ })).toBeVisible();
+    // The new role becomes the one being edited, with the copied permissions ticked.
+    await expect(workspace.locator('#rmRoleSelect')).toHaveValue('service_coordinator');
     expect(calls[0]).toBe('POST {"name":"Service Coordinator","copyFrom":"sales"}');
-    // The copied permissions are ticked for the new role.
     await expect(
       page.locator('input[data-role="service_coordinator"][data-perm="quotation.read"]'),
     ).toBeChecked();
+    await expect(workspace.locator('.rm-table th.rm-col-edit')).toContainText(
+      'Service Coordinator',
+    );
 
-    await table.getByRole('button', { name: 'Rename' }).click();
+    await workspace.getByRole('button', { name: 'Rename' }).click();
     await page.locator('#rmRoleName').fill('Coordinator');
     await page.getByRole('button', { name: 'Save name' }).click();
-    await expect(table.getByRole('columnheader', { name: /^Coordinator/ })).toBeVisible();
+    await expect(workspace.locator('.rm-table th.rm-col-edit')).toContainText('Coordinator');
     expect(calls[1]).toBe('PATCH service_coordinator {"name":"Coordinator"}');
 
     page.once('dialog', (dialog) => dialog.accept());
-    await table.getByRole('button', { name: 'Delete' }).click();
-    await expect(table.getByRole('columnheader', { name: /Coordinator/ })).toHaveCount(0);
+    await workspace.getByRole('button', { name: 'Delete' }).click();
+    await expect(workspace.locator('#rmRoleSelect option', { hasText: 'Coordinator' })).toHaveCount(
+      0,
+    );
     expect(calls[2]).toBe('DELETE service_coordinator');
+  });
+
+  test('switching roles keeps unsaved ticks and shows Management as a reference', async ({
+    page,
+  }) => {
+    await mockApi(page, builtIns(), []);
+    await openRoles(page);
+    const workspace = page.locator('#rolesWorkspace');
+    const box = page.locator('input[data-role="sales"][data-perm="dashboard.read"]');
+    await box.uncheck();
+    await expect(workspace.locator('[data-rm-status]')).toContainText('1 role has unsaved changes');
+    await workspace.locator('#rmRoleSelect').selectOption('user');
+    await expect(workspace.locator('#rmRoleSelect option[value="sales"]')).toHaveText(
+      'Sales (unsaved)',
+    );
+    await workspace.locator('#rmRoleSelect').selectOption('sales');
+    await expect(box).not.toBeChecked();
+    // Management is the role being edited: it is not repeated as a reference.
+    await workspace.locator('#rmRoleSelect').selectOption('management');
+    await expect(workspace.locator('.rm-table th.rm-col')).toHaveText([
+      /Administrator\s*Reference/,
+      /Management\s*Editing/,
+    ]);
   });
 
   test('a role that users still hold cannot be deleted from the screen', async ({ page }) => {
@@ -139,7 +174,8 @@ test.describe('Custom roles', () => {
     roles.push({ code: 'finance', displayName: 'Finance', builtin: false, userCount: 2 });
     await mockApi(page, roles, calls);
     await openRoles(page);
-    await page.locator('#rolesWorkspace .rm-table').getByRole('button', { name: 'Delete' }).click();
+    await page.locator('#rmRoleSelect').selectOption('finance');
+    await page.locator('#rolesWorkspace').getByRole('button', { name: 'Delete' }).click();
     await expect(page.locator('#workspaceMessage')).toContainText(
       '2 users still have the role "Finance"',
     );
