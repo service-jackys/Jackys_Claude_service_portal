@@ -141,4 +141,33 @@ test.describe('Thomson Quote Calculator', () => {
     expect(asked).toBe(true);
     await expect(page.locator('[data-tq-facts]')).toContainText('Project');
   });
+
+  test('the total updates live with the item being chosen and a reminder appears after 10 seconds', async ({
+    page,
+  }) => {
+    await page.clock.install();
+    await openCalculator(page, []);
+    // Nothing added yet: the summary already previews the current selection.
+    // 1 x 100 + services (5 + 150 + 25) = 280; transport is not charged by default.
+    await expect(page.locator('[data-tq-total]')).toContainText('280.00');
+    await expect(page.locator('[data-tq-preview]')).toBeVisible();
+    await page.locator('[data-tcc-qty]').fill('3');
+    await expect(page.locator('[data-tq-total]')).toContainText('540.00');
+    // Transport is its own line (not charged in project mode by default).
+    await expect(page.locator('[data-tq-transport]')).toContainText('Not charged');
+    await page.locator('[data-tcc-transport-share]').fill('100');
+    await expect(page.locator('[data-tq-transport]')).toContainText('120.00'); // 2 trips x 60
+
+    // No reminder yet, then one after 10 seconds without adding.
+    await expect(page.locator('.tq-toast')).toHaveCount(0);
+    await page.clock.fastForward(10500);
+    await expect(page.locator('.tq-toast')).toContainText('Not added to your quote yet');
+
+    // Add from the toast: it closes and the preview badge goes away.
+    await page.locator('[data-tq-toast-add]').click();
+    await expect(page.locator('[data-tq-preview]')).toBeHidden();
+    await expect(page.locator('[data-tq-facts]')).toContainText('Lines added');
+    await page.clock.fastForward(11000);
+    await expect(page.locator('.tq-toast')).toHaveCount(0);
+  });
 });

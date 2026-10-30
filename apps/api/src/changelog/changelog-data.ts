@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 181,
+    title: 'Thomson Quote Calculator: live total, transport line and reminder',
+    area: 'Thomson',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary: 'The total only moved after Add to quote, so choosing items gave no feedback.',
+    changes: [
+      'The Quote total updates as you change region, appliance, quantity, site visits or training, and previews the item being chosen (marked Preview until added).',
+      'A one-line Transport amount sits under the total.',
+      'If an item is left un-added for 10 seconds, a notification offers Add to quote or Dismiss.',
+    ],
+    needsYou: 'pull and hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, index.html, tests/e2e/thomson-quote-calculator.spec.ts.',
+  },
+  {
     id: 180,
     title: 'Thomson Pricing Admin: Volume tier rates table',
     area: 'Thomson',

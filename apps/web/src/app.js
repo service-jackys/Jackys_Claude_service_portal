@@ -13425,6 +13425,8 @@ ${bodyHtml}
       '<aside class="tq-summary" aria-label="Quote summary">' +
       '<div class="card-row-header"><h4>Quote total</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
       '<div class="tq-total" data-tq-total>0.00 <small>AED</small></div>' +
+      '<p class="tq-preview" data-tq-preview hidden></p>' +
+      '<p class="tq-transport-line" data-tq-transport></p>' +
       '<dl class="tq-facts" data-tq-facts></dl>' +
       '<p class="tq-note" data-tq-note></p>' +
       '</aside>' +
@@ -13481,6 +13483,8 @@ ${bodyHtml}
     const totalHost = container.querySelector('[data-tq-total]');
     const factsHost = container.querySelector('[data-tq-facts]');
     const noteHost = container.querySelector('[data-tq-note]');
+    const previewHost = container.querySelector('[data-tq-preview]');
+    const transportLineHost = container.querySelector('[data-tq-transport]');
 
     const addonRate = (name) => (addons[name].on ? addons[name].rate : 0);
 
@@ -13673,8 +13677,8 @@ ${bodyHtml}
 
     // Lines + quote-level extras (single-unit call-out and minimum charge are
     // added once, to the first line, so the saved lines still add up).
-    function computeQuote() {
-      const computed = lineItems.map(computeLine);
+    function computeQuote(extraLine) {
+      const computed = (extraLine ? [...lineItems, extraLine] : lineItems).map(computeLine);
       let callOut = 0;
       let minTopUp = 0;
       if (mode === 'single' && computed.length) {
@@ -13745,9 +13749,7 @@ ${bodyHtml}
         linesHost.innerHTML = '';
         tableHost.innerHTML = '<p class="empty-state">No items added yet. Use step 2.</p>';
         internalBody.innerHTML = '<p class="form-note">Nothing to show yet.</p>';
-        totalHost.innerHTML = '0.00 <small>AED</small>';
-        factsHost.innerHTML = '';
-        noteHost.textContent = '';
+        refreshSummary();
         return;
       }
       const { computed, callOut, minTopUp } = computeQuote();
@@ -13862,22 +13864,157 @@ ${bodyHtml}
         marginPct.toFixed(1) +
         '%)</strong></td></tr></tfoot></table></div>';
 
-      // Summary panel.
-      totalHost.innerHTML = money(totalPrice) + ' <small>AED</small>';
-      factsHost.innerHTML =
-        '<div><dt>Type</dt><dd>' +
-        (mode === 'single' ? 'Single unit' : 'Project') +
-        '</dd></div><div><dt>Lines</dt><dd>' +
-        computed.length +
-        '</dd></div><div><dt>Units</dt><dd>' +
-        units +
-        '</dd></div>';
+      // Summary panel (also reflects the item currently being chosen).
+      refreshSummary();
+    }
+
+    // ---- Live preview ---------------------------------------------------
+    // The summary shows what the quote would be including the item currently
+    // picked in step 2, before it has been added, plus the transport as its
+    // own line. A reminder appears if that item sits there un-added.
+    let lastAddedSig = null;
+    let reminderTimer = null;
+    let remindedSig = null;
+    let toastEl = null;
+
+    function draftSignature() {
+      return [
+        regionSelect.value,
+        applianceSelect.value,
+        parseNumber(qtyInput.value),
+        mode === 'single' ? 0 : parseNumber(visitsInput.value),
+        mode === 'single' ? 0 : parseNumber(trainingInput.value),
+        mode,
+      ].join('|');
+    }
+
+    function currentDraft() {
+      const qty = parseNumber(qtyInput.value);
+      if (qty <= 0 || !appliances.length || !regions.length) return null;
+      if (mode === 'single' && qty >= 50) return null;
+      if (draftSignature() === lastAddedSig) return null;
+      if (!appliances[Number(applianceSelect.value)]) return null;
+      return {
+        mode,
+        region: regionSelect.value,
+        applianceIdx: Number(applianceSelect.value),
+        qty,
+        siteVisits: mode === 'single' ? 0 : parseNumber(visitsInput.value),
+        trainingSessions: mode === 'single' ? 0 : parseNumber(trainingInput.value),
+      };
+    }
+
+    function refreshSummary() {
+      const base = lineItems.length ? computeQuote() : null;
+      const draft = currentDraft();
+      const preview = draft ? computeQuote(draft) : base;
+      const previewComputed = preview ? preview.computed : [];
+      const totalPrice = previewComputed.reduce((sum, c) => sum + c.totalPrice, 0);
+      const transport = previewComputed.reduce((sum, c) => sum + c.customerTransportCharge, 0);
+      const text = money(totalPrice) + ' <small>AED</small>';
+      if (totalHost.innerHTML !== text) {
+        totalHost.innerHTML = text;
+        totalHost.classList.remove('is-updating');
+        void totalHost.offsetWidth;
+        totalHost.classList.add('is-updating');
+      }
+      previewHost.hidden = !draft;
+      previewHost.textContent = draft ? 'Preview · includes the item not yet added' : '';
+      if (!previewComputed.length) {
+        transportLineHost.textContent = '';
+      } else if (transport > 0) {
+        transportLineHost.innerHTML =
+          '<span>Transport' +
+          (draft ? ' &middot; ' + escapeHtml(draft.region) : '') +
+          '</span><strong>' +
+          money(transport) +
+          ' AED</strong>';
+      } else {
+        transportLineHost.innerHTML =
+          '<span>Transport</span><strong class="tq-muted">Not charged to the customer</strong>';
+      }
+      const computed = base ? base.computed : [];
+      const units = computed.reduce((s, c) => s + c.qty, 0);
+      factsHost.innerHTML = computed.length
+        ? '<div><dt>Type</dt><dd>' +
+          (mode === 'single' ? 'Single unit' : 'Project') +
+          '</dd></div><div><dt>Lines added</dt><dd>' +
+          computed.length +
+          '</dd></div><div><dt>Units</dt><dd>' +
+          units +
+          '</dd></div>'
+        : '';
       const notes = [];
-      if (callOut) notes.push('Includes a call-out charge of ' + money(callOut) + ' AED.');
-      if (minTopUp) {
-        notes.push('Raised by ' + money(minTopUp) + ' AED to meet the minimum charge.');
+      if (preview && preview.callOut) {
+        notes.push('Includes a call-out charge of ' + money(preview.callOut) + ' AED.');
+      }
+      if (preview && preview.minTopUp) {
+        notes.push('Raised by ' + money(preview.minTopUp) + ' AED to meet the minimum charge.');
       }
       noteHost.textContent = notes.join(' ');
+    }
+
+    function hideReminder() {
+      if (reminderTimer) clearTimeout(reminderTimer);
+      reminderTimer = null;
+      if (toastEl) {
+        const el = toastEl;
+        toastEl = null;
+        el.classList.remove('is-in');
+        setTimeout(() => el.remove(), 250);
+      }
+    }
+
+    function showReminder(draft) {
+      if (!container.isConnected) return;
+      const appliance = appliances[draft.applianceIdx];
+      const preview = computeQuote(draft);
+      const total = preview.computed.reduce((sum, c) => sum + c.totalPrice, 0);
+      remindedSig = draftSignature();
+      const el = document.createElement('div');
+      el.className = 'tq-toast';
+      el.setAttribute('role', 'status');
+      el.setAttribute('aria-live', 'polite');
+      el.innerHTML =
+        '<span class="tq-toast-icon" aria-hidden="true">!</span>' +
+        '<div class="tq-toast-body"><strong>Not added to your quote yet</strong>' +
+        '<span>' +
+        escapeHtml(appliance.name) +
+        ' &times; ' +
+        draft.qty +
+        ' &middot; ' +
+        escapeHtml(draft.region) +
+        ' &middot; ' +
+        money(total) +
+        ' AED</span>' +
+        '<div class="tq-toast-actions">' +
+        '<button type="button" class="button button-primary" data-tq-toast-add>Add to quote</button>' +
+        '<button type="button" class="button button-outline" data-tq-toast-close>Dismiss</button>' +
+        '</div></div>';
+      document.body.appendChild(el);
+      toastEl = el;
+      requestAnimationFrame(() => el.classList.add('is-in'));
+      el.querySelector('[data-tq-toast-add]').addEventListener('click', () => {
+        hideReminder();
+        addButton.click();
+      });
+      el.querySelector('[data-tq-toast-close]').addEventListener('click', hideReminder);
+      reminderTimer = setTimeout(hideReminder, 15000);
+    }
+
+    // Called whenever the item being chosen changes: restarts the 10 second
+    // wait. The reminder shows once per selection.
+    function onDraftChange() {
+      tierHint.innerHTML = tierHintHtml();
+      refreshSummary();
+      hideReminder();
+      const draft = currentDraft();
+      if (!draft || draftSignature() === remindedSig) return;
+      reminderTimer = setTimeout(() => {
+        reminderTimer = null;
+        const latest = currentDraft();
+        if (latest) showReminder(latest);
+      }, 10000);
     }
 
     // Empties the quote lines entirely -- used by the explicit Clear
@@ -13886,6 +14023,8 @@ ${bodyHtml}
     // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
     function clearLineItems() {
       lineItems.length = 0;
+      lastAddedSig = null;
+      hideReminder();
       renderAll();
     }
 
@@ -13915,6 +14054,8 @@ ${bodyHtml}
         return;
       }
       lineItems.length = 0;
+      lastAddedSig = null;
+      hideReminder();
       mode = button.dataset.tqMode;
       applyMode();
       renderAll();
@@ -13935,15 +14076,17 @@ ${bodyHtml}
         siteVisits: mode === 'single' ? 0 : parseNumber(visitsInput.value),
         trainingSessions: mode === 'single' ? 0 : parseNumber(trainingInput.value),
       });
+      // The selection is now in the quote, so it is no longer "pending".
+      lastAddedSig = draftSignature();
+      hideReminder();
       renderAll();
     });
     clearButton.addEventListener('click', clearLineItems);
     transportShareInput.addEventListener('input', renderAll);
-    [applianceSelect, qtyInput].forEach((el) =>
-      el.addEventListener('input', () => {
-        tierHint.innerHTML = tierHintHtml();
-      }),
-    );
+    [regionSelect, applianceSelect, qtyInput, visitsInput, trainingInput].forEach((el) => {
+      el.addEventListener('input', onDraftChange);
+      el.addEventListener('change', onDraftChange);
+    });
     if (addonsResetButton) {
       addonsResetButton.addEventListener('click', () => {
         addons = cloneAddonDefaults();
