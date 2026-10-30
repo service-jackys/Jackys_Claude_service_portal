@@ -10122,6 +10122,34 @@ ${bodyHtml}
         data,
         ctx.markDirty,
       );
+      // Single-unit / small-job quotes (modification #179).
+      if (!data.smallJob) data.smallJob = { callOutFee: 0, minimumCharge: 0 };
+      const smallJobCardHost = document.createElement('div');
+      smallJobCardHost.className = 'detail-action-card';
+      smallJobCardHost.innerHTML =
+        '<h4>Single-unit quotes</h4><p class="form-note">Used when the Thomson Quote Calculator is set to Single unit. Leave at 0 for none.</p>';
+      grid.appendChild(smallJobCardHost);
+      const smallJobHost = document.createElement('div');
+      smallJobCardHost.appendChild(smallJobHost);
+      pcRenderScalarFields(
+        smallJobHost,
+        [
+          {
+            path: 'smallJob.callOutFee',
+            label: 'Call-out charge (AED)',
+            type: 'number',
+            tooltip: 'Flat charge added once to a single-unit quote to cover the visit.',
+          },
+          {
+            path: 'smallJob.minimumCharge',
+            label: 'Minimum quote total (AED)',
+            type: 'number',
+            tooltip: 'If a single-unit quote comes to less than this, it is raised to this amount.',
+          },
+        ],
+        data,
+        ctx.markDirty,
+      );
       const regionsHost = document.createElement('div');
       regionsHost.className = 'detail-action-card';
       regionsHost.innerHTML = '<h4>Regions</h4>';
@@ -13158,23 +13186,32 @@ ${bodyHtml}
     }</tbody></table>`;
   }
 
+  function isThomsonSingleSale(sale) {
+    return (sale.lineItems || []).some((li) => li.quoteMode === 'single');
+  }
+
   function buildThomsonSaleCertificateBody(sale) {
     return `
-      ${printDocHeadWithLogo('Thomson Project Quotation', sale.thomsonSaleReference)}
+      ${printDocHeadWithLogo(
+        isThomsonSingleSale(sale) ? 'Thomson Quotation' : 'Thomson Project Quotation',
+        sale.thomsonSaleReference,
+      )}
       <h2>Quotation details</h2>
       ${printFieldGrid([
         ['Sale date', sale.saleDate],
         ['Client', sale.clientName],
         ['Contact number', sale.contactNumber],
         ['Site / location', sale.siteLocation],
-        ['Customer transport share', String(sale.transportSharePercent) + '%'],
+        ...(isThomsonSingleSale(sale)
+          ? []
+          : [['Customer transport share', String(sale.transportSharePercent) + '%']]),
         ['Contract ref.', sale.contractRef || sale.thomsonSaleReference],
       ])}
-      <h2>Project lines</h2>
+      <h2>${isThomsonSingleSale(sale) ? 'Quotation lines' : 'Project lines'}</h2>
       ${printThomsonLineItemsTable(sale.lineItems)}
       <div class="cert-feebox">
         <div class="fee">${money(sale.totalPrice)} AED</div>
-        <div>Total project price</div>
+        <div>${isThomsonSingleSale(sale) ? 'Total price' : 'Total project price'}</div>
       </div>
       <h2>Signatures</h2>
       <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing and payment terms.</p>
@@ -13195,16 +13232,29 @@ ${bodyHtml}
   function renderThomsonCalc(container, data) {
     const regions = data.regions.filter((r) => r.active !== false);
     const appliances = data.appliances.filter((a) => a.active !== false);
+    // Single-unit settings from Thomson Pricing Admin (modification #179).
+    const smallJob = {
+      callOutFee: Number(data.smallJob?.callOutFee) || 0,
+      minimumCharge: Number(data.smallJob?.minimumCharge) || 0,
+    };
     // The 4 "Additional Services" rows from Thomson Pricing Admin, as a
     // mutable working copy -- a pricing_config.write user can amend these
     // for this quote only (modification.md #48); editing them never writes
-    // back to the saved admin defaults in data.addons.
+    // back to the saved admin defaults in data.addons. `on` lets the quote
+    // leave a service out (modification #179); all are on by default so the
+    // numbers match the workbook exactly.
     const THOMSON_ADDON_NAMES = [
       'Project Management Fee',
       'Site Survey',
       'Testing & Commissioning',
       'Training (End User)',
     ];
+    const ADDON_COVERS = {
+      'Project Management Fee': 'A percentage of the equipment price',
+      'Site Survey': 'Per site visit on a line',
+      'Testing & Commissioning': 'Per unit installed',
+      'Training (End User)': 'Per training session on a line',
+    };
     const canAmendAddons = hasPermission('pricing_config.write');
     function cloneAddonDefaults() {
       return THOMSON_ADDON_NAMES.reduce((acc, name) => {
@@ -13213,6 +13263,7 @@ ${bodyHtml}
           rate: Number(entry.rate) || 0,
           hours: Number(entry.hours) || 0,
           note: entry.note || '',
+          on: true,
         };
         return acc;
       }, {});
@@ -13220,27 +13271,48 @@ ${bodyHtml}
     let addons = cloneAddonDefaults();
     const teamCapacity = data.techCount * data.hoursDay;
     const lineItems = [];
+    // 'project' (several units / sites, tiered rates, project services) or
+    // 'single' (one item or a small job: base rate, call-out, minimum charge).
+    let mode = 'project';
+    let includeCallOut = smallJob.callOutFee > 0;
     // The most recently computed line rows (null whenever there are no
-    // lines) -- read by the Issue-a-Sale section below when Save is
-    // clicked, so it always saves the exact numbers currently on screen,
-    // same pattern as AMC's lastRows (modification.md #39).
+    // lines) -- read by the Save section when Save is clicked, so it always
+    // saves the exact numbers currently on screen, same pattern as AMC's
+    // lastRows (modification.md #39).
     let lastComputed = null;
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
       tipHtml(
-        'Add project line items (region + appliance + quantity), then read the total project price, cost and margin off the bottom row. Matches the workbook’s “Project Pricing Calculator” section exactly. Switch to "Thomson Issued" to find and reprint any previously saved sale.',
+        'Work down the numbered steps: client, items, services, review, save. The total on the right updates as you go. Choose <strong>Single unit</strong> for one item or a small job; <strong>Project</strong> is for several units or sites. Prices use the rates set in Thomson Pricing Admin.',
       ) +
       '</div>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="Thomson Quote Calculator sections">' +
-      '<button type="button" class="action-tab active" data-th-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
-      '<button type="button" class="action-tab" data-th-tab="issued" role="tab" aria-selected="false">Thomson Issued</button>' +
+      '<button type="button" class="action-tab active" data-th-tab="quote" role="tab" aria-selected="true">New quote</button>' +
+      '<button type="button" class="action-tab" data-th-tab="issued" role="tab" aria-selected="false">Issued quotes</button>' +
       '</div>' +
       '<div class="vc-tab-panels">' +
       '<section data-th-panel="quote">' +
-      '<div class="pc-split-grid">' +
-      '<div class="detail-action-card">' +
-      '<h4>Add a line</h4>' +
+      '<div class="tq-mode" role="radiogroup" aria-label="What are you quoting?">' +
+      '<button type="button" class="tq-mode-btn active" role="radio" aria-checked="true" data-tq-mode="project"><strong>Project</strong><span>Several units or sites</span></button>' +
+      '<button type="button" class="tq-mode-btn" role="radio" aria-checked="false" data-tq-mode="single"><strong>Single unit</strong><span>One item or a small job</span></button>' +
+      '</div>' +
+      '<div class="tq-layout">' +
+      '<div class="tq-steps">' +
+      // 1
+      '<section class="tq-step"><h4><span class="tq-num">1</span>Client &amp; site</h4>' +
+      '<div class="field-grid">' +
+      calcField('Client', '<input type="text" data-ths-client />') +
+      calcField('Contact number', '<input type="text" data-ths-contact-number />') +
+      calcField('Site / location', '<input type="text" data-ths-location />') +
+      calcField(
+        'Contract ref.',
+        '<input type="text" data-ths-contract-ref />',
+        'Optional — auto-generated if left blank',
+      ) +
+      '</div></section>' +
+      // 2
+      '<section class="tq-step"><h4><span class="tq-num">2</span>Items</h4>' +
       '<div class="field-grid">' +
       calcField(
         'Region',
@@ -13261,60 +13333,74 @@ ${bodyHtml}
             .join('') +
           '</select>',
       ) +
-      calcField('Qty', '<input type="number" min="0" step="1" value="1" data-tcc-qty />') +
+      calcField('Quantity', '<input type="number" min="1" step="1" value="1" data-tcc-qty />') +
+      '<span data-tq-project-only>' +
       calcField(
         'Site visits',
         '<input type="number" min="0" step="1" value="1" data-tcc-visits />',
+        'How many survey visits to the site this line needs. Each is charged at the Site Survey rate.',
       ) +
+      '</span>' +
+      '<span data-tq-project-only>' +
       calcField(
         'Training sessions',
         '<input type="number" min="0" step="1" value="0" data-tcc-training />',
+        'How many end-user training sessions this line needs. Each is charged at the Training rate.',
       ) +
+      '</span>' +
       '</div>' +
+      '<p class="tq-hint" data-tq-tier-hint></p>' +
       '<div class="form-footer">' +
-      '<button class="button button-primary" type="button" data-tcc-add>Add line</button> ' +
-      '<button class="button button-outline" type="button" data-tcc-clear>Clear</button>' +
+      '<button class="button button-primary rm-btn" type="button" data-tcc-add>Add to quote</button> ' +
+      '<button class="button button-outline rm-btn" type="button" data-tcc-clear>Clear all</button>' +
       '</div>' +
-      '</div>' +
-      '<div class="detail-action-card">' +
-      '<h4>Transport ' +
-      tipHtml(
-        'The rest of the transport cost is absorbed by us (matches the workbook’s default of 0%).',
-      ) +
-      '</h4>' +
-      calcField(
-        'Customer transport share %',
-        '<input type="number" min="0" max="100" step="1" value="0" data-tcc-transport-share />',
-      ) +
-      '</div>' +
-      '<div class="detail-action-card pc-span-full">' +
-      '<div class="card-row-header"><h4>Additional Services ' +
-      tipHtml(
-        canAmendAddons
-          ? 'Rates come from Thomson Pricing Admin. Amend them below to override for this quote only — this never changes the saved admin defaults.'
-          : 'Rates used in this quote, set in Thomson Pricing Admin.',
-      ) +
-      '</h4>' +
-      (canAmendAddons
-        ? '<button class="button button-outline" type="button" data-tcc-addons-reset>Reset to admin defaults</button>'
-        : '') +
-      '</div>' +
+      '<div data-tq-lines></div>' +
+      '</section>' +
+      // 3 (project)
+      '<section class="tq-step" data-tq-project-only><h4><span class="tq-num">3</span>Services &amp; transport</h4>' +
+      '<p class="form-note">Untick a service to leave it out of this quote.</p>' +
       '<div data-tcc-addons></div>' +
+      (canAmendAddons
+        ? '<details class="tq-advanced"><summary>Adjust rates and technician hours for this quote only</summary>' +
+          '<div data-tcc-addons-edit></div>' +
+          '<button class="button button-outline rm-btn rm-btn-sm" type="button" data-tcc-addons-reset>Reset to admin defaults</button>' +
+          '</details>'
+        : '') +
+      '<div class="field-grid tq-transport">' +
+      calcField(
+        'Customer pays this % of transport',
+        '<input type="number" min="0" max="100" step="1" value="0" data-tcc-transport-share />',
+        '0% means we absorb the transport cost (the workbook default). 100% charges the customer the full transport cost.',
+      ) +
       '</div>' +
-      '<div class="detail-action-card pc-span-full">' +
-      '<div class="card-row-header"><h4>Quote</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
+      '</section>' +
+      // 3 (single)
+      '<section class="tq-step" data-tq-single-only hidden><h4><span class="tq-num">3</span>Call-out &amp; minimum charge</h4>' +
+      '<div data-tq-single-extras></div>' +
+      '</section>' +
+      // 4
+      '<section class="tq-step"><h4><span class="tq-num">4</span>Review</h4>' +
       '<div data-tcc-table></div>' +
-      '</div>' +
-      '<div class="detail-action-card pc-span-full">' +
-      '<h4>Issue a Thomson Sale — Printable Quotation</h4>' +
+      '<details class="tq-internal" data-tq-internal><summary>Internal view: cost and margin (not for the customer)</summary>' +
+      '<div data-tq-internal-body></div></details>' +
+      '</section>' +
+      // 5
+      '<section class="tq-step"><h4><span class="tq-num">5</span>Save &amp; print</h4>' +
       '<div data-tcc-sale></div>' +
+      '</section>' +
       '</div>' +
+      '<aside class="tq-summary" aria-label="Quote summary">' +
+      '<div class="card-row-header"><h4>Quote total</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
+      '<div class="tq-total" data-tq-total>0.00 <small>AED</small></div>' +
+      '<dl class="tq-facts" data-tq-facts></dl>' +
+      '<p class="tq-note" data-tq-note></p>' +
+      '</aside>' +
       '</div>' +
       '</section>' +
       '<section data-th-panel="issued" hidden>' +
-      '<h4>Thomson Issued ' +
+      '<h4>Issued quotes ' +
       tipHtml(
-        'Every Thomson sale saved from the calculator above. Print re-opens that exact quotation.',
+        'Every Thomson quotation saved from the calculator. Print re-opens that exact quotation.',
       ) +
       '</h4>' +
       '<div data-tcc-issued></div>' +
@@ -13350,69 +13436,137 @@ ${bodyHtml}
     const clearButton = container.querySelector('[data-tcc-clear]');
     const transportShareInput = container.querySelector('[data-tcc-transport-share]');
     const tableHost = container.querySelector('[data-tcc-table]');
+    const linesHost = container.querySelector('[data-tq-lines]');
+    const internalBody = container.querySelector('[data-tq-internal-body]');
     const saleHost = container.querySelector('[data-tcc-sale]');
     const livePill = container.querySelector('[data-tcc-live-pill]');
     const addonsHost = container.querySelector('[data-tcc-addons]');
+    const addonsEditHost = container.querySelector('[data-tcc-addons-edit]');
     const addonsResetButton = container.querySelector('[data-tcc-addons-reset]');
+    const tierHint = container.querySelector('[data-tq-tier-hint]');
+    const singleExtrasHost = container.querySelector('[data-tq-single-extras]');
+    const totalHost = container.querySelector('[data-tq-total]');
+    const factsHost = container.querySelector('[data-tq-facts]');
+    const noteHost = container.querySelector('[data-tq-note]');
 
-    // Renders the "Additional Services" table -- editable inputs for a
-    // pricing_config.write user, plain values for everyone else (they can
-    // still see which rates this quote is using, just not change them).
+    const addonRate = (name) => (addons[name].on ? addons[name].rate : 0);
+
+    // "What's included" table: one tick per service, plus how it is charged.
     function renderAddonsTable() {
       addonsHost.innerHTML =
-        '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Service</th><th>Rate (or % for PM fee)</th><th>Technician hours</th><th>Note</th>' +
+        '<div class="table-wrap"><table class="tq-table"><thead><tr>' +
+        '<th>Include</th><th>Service</th><th>Charged as</th><th class="num">Rate</th>' +
+        '</tr></thead><tbody>' +
+        THOMSON_ADDON_NAMES.map((name, i) => {
+          const entry = addons[name];
+          const isPct = name === 'Project Management Fee';
+          return (
+            '<tr><td><input type="checkbox" data-tcc-addon-on="' +
+            i +
+            '"' +
+            (entry.on ? ' checked' : '') +
+            ' aria-label="Include ' +
+            escapeHtml(name) +
+            '" /></td><td>' +
+            escapeHtml(name) +
+            '</td><td>' +
+            escapeHtml(ADDON_COVERS[name]) +
+            '</td><td class="num">' +
+            (isPct ? (entry.rate * 100).toFixed(1).replace(/\.0$/, '') + '%' : money(entry.rate)) +
+            '</td></tr>'
+          );
+        }).join('') +
+        '</tbody></table></div>';
+      addonsHost.querySelectorAll('[data-tcc-addon-on]').forEach((box) => {
+        box.addEventListener('change', () => {
+          addons[THOMSON_ADDON_NAMES[Number(box.dataset.tccAddonOn)]].on = box.checked;
+          renderAll();
+        });
+      });
+    }
+
+    // Editable rates and hours for a pricing_config.write user (this quote only).
+    function renderAddonsEditTable() {
+      if (!addonsEditHost) return;
+      addonsEditHost.innerHTML =
+        '<div class="table-wrap"><table class="tq-table"><thead><tr>' +
+        '<th>Service</th><th>Rate (or fraction for PM fee)</th><th>Technician hours</th>' +
         '</tr></thead><tbody>' +
         THOMSON_ADDON_NAMES.map((name, i) => {
           const entry = addons[name];
           return (
             '<tr><td>' +
             escapeHtml(name) +
-            '</td><td>' +
-            (canAmendAddons
-              ? '<input type="number" step="0.01" value="' +
-                entry.rate +
-                '" data-tcc-addon-rate="' +
-                i +
-                '" />'
-              : escapeHtml(String(entry.rate))) +
-            '</td><td>' +
-            (canAmendAddons
-              ? '<input type="number" step="0.25" value="' +
-                entry.hours +
-                '" data-tcc-addon-hours="' +
-                i +
-                '" />'
-              : escapeHtml(String(entry.hours))) +
-            '</td><td>' +
-            escapeHtml(entry.note || '') +
-            '</td></tr>'
+            '</td><td><input type="number" step="0.01" value="' +
+            entry.rate +
+            '" data-tcc-addon-rate="' +
+            i +
+            '" /></td><td><input type="number" step="0.25" value="' +
+            entry.hours +
+            '" data-tcc-addon-hours="' +
+            i +
+            '" /></td></tr>'
           );
         }).join('') +
         '</tbody></table></div>';
-      if (!canAmendAddons) return;
-      addonsHost.querySelectorAll('[data-tcc-addon-rate]').forEach((input) => {
+      addonsEditHost.querySelectorAll('[data-tcc-addon-rate]').forEach((input) => {
         input.addEventListener('input', () => {
           addons[THOMSON_ADDON_NAMES[Number(input.dataset.tccAddonRate)]].rate = parseNumber(
             input.value,
           );
-          renderTable();
+          renderAddonsTable();
+          renderAll();
         });
       });
-      addonsHost.querySelectorAll('[data-tcc-addon-hours]').forEach((input) => {
+      addonsEditHost.querySelectorAll('[data-tcc-addon-hours]').forEach((input) => {
         input.addEventListener('input', () => {
           addons[THOMSON_ADDON_NAMES[Number(input.dataset.tccAddonHours)]].hours = parseNumber(
             input.value,
           );
-          renderTable();
+          renderAll();
         });
       });
     }
 
-    // Briefly flashes the "Live" pill -- called every time renderTable()
-    // actually re-renders, so a Transport % edit (or adding/removing a
-    // line) gives a visible confirmation the Quote table just updated
-    // (modification.md #47).
+    function renderSingleExtras() {
+      const bits = [];
+      if (smallJob.callOutFee > 0) {
+        bits.push(
+          '<label class="tq-check"><input type="checkbox" data-tq-callout' +
+            (includeCallOut ? ' checked' : '') +
+            ' /> Add the call-out charge (' +
+            money(smallJob.callOutFee) +
+            ' AED, once per quote)</label>',
+        );
+      }
+      bits.push(
+        smallJob.minimumCharge > 0
+          ? '<p class="form-note">Minimum quote total: <strong>' +
+              money(smallJob.minimumCharge) +
+              ' AED</strong>. If the quote comes to less, it is raised to this amount.</p>'
+          : '<p class="form-note">No minimum charge is set.</p>',
+      );
+      if (!smallJob.callOutFee && !smallJob.minimumCharge) {
+        bits.push(
+          '<p class="form-note">A call-out charge and a minimum total can be set in Thomson Pricing Admin &rarr; Single-unit quotes.</p>',
+        );
+      }
+      bits.push(
+        '<p class="form-note">Single-unit quotes use the base rate, with no project fee, survey or training, and no transport charge to the customer.</p>',
+      );
+      singleExtrasHost.innerHTML = bits.join('');
+      const box = singleExtrasHost.querySelector('[data-tq-callout]');
+      if (box) {
+        box.addEventListener('change', () => {
+          includeCallOut = box.checked;
+          renderAll();
+        });
+      }
+    }
+
+    // Briefly flashes the "Live" pill -- called every time the quote
+    // re-renders, so a Transport % edit (or adding/removing a line) gives a
+    // visible confirmation the totals just updated (modification.md #47).
     function flashLivePill() {
       if (!livePill) return;
       livePill.classList.remove('is-flashing');
@@ -13426,27 +13580,40 @@ ${bodyHtml}
     function computeLine(li) {
       const region = regions.find((r) => r.name === li.region) || regions[0];
       const appliance = appliances[li.applianceIdx];
-      const tier = thomsonCalcTier(li.qty);
+      const single = li.mode === 'single';
+      // A single-unit quote always uses the base rate (no volume tier).
+      const tier = single ? 'Base' : thomsonCalcTier(li.qty);
       const baseRate = appliance.rates.Base;
-      const unitRate = thomsonCalcUnitRate(appliance, li.qty);
+      const unitRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
       const applianceSubtotal = li.qty * unitRate;
       const installLaborCost = li.qty * (appliance.avgMin / 60) * data.techRate;
       const installDays =
         teamCapacity > 0 ? Math.ceil((li.qty * (appliance.avgMin / 60)) / teamCapacity) : 0;
-      const testingTotal = li.qty * addons['Testing & Commissioning'].rate;
-      const pmFee = applianceSubtotal * addons['Project Management Fee'].rate;
-      const addonRevenue =
-        li.siteVisits * addons['Site Survey'].rate +
-        li.trainingSessions * addons['Training (End User)'].rate +
-        testingTotal +
-        pmFee;
-      const addonServicesCost =
-        li.siteVisits * addons['Site Survey'].hours * data.techRate +
-        li.qty * addons['Testing & Commissioning'].hours * data.techRate +
-        li.trainingSessions * addons['Training (End User)'].hours * data.techRate;
-      const totalTrips = installDays + li.siteVisits + li.trainingSessions;
+      let addonRevenue = 0;
+      let addonServicesCost = 0;
+      let siteTrips = 0;
+      let trainingTrips = 0;
+      if (!single) {
+        const survey = addons['Site Survey'];
+        const training = addons['Training (End User)'];
+        const testing = addons['Testing & Commissioning'];
+        const visits = survey.on ? li.siteVisits : 0;
+        const sessions = training.on ? li.trainingSessions : 0;
+        siteTrips = visits;
+        trainingTrips = sessions;
+        addonRevenue =
+          visits * survey.rate +
+          sessions * training.rate +
+          (testing.on ? li.qty * testing.rate : 0) +
+          applianceSubtotal * addonRate('Project Management Fee');
+        addonServicesCost =
+          visits * survey.hours * data.techRate +
+          (testing.on ? li.qty * testing.hours * data.techRate : 0) +
+          sessions * training.hours * data.techRate;
+      }
+      const totalTrips = installDays + siteTrips + trainingTrips;
       const transportCost = totalTrips * region.roundTripCost;
-      const transportSharePct = parseNumber(transportShareInput.value) / 100;
+      const transportSharePct = single ? 0 : parseNumber(transportShareInput.value) / 100;
       const customerTransportCharge = transportCost * transportSharePct;
       const totalPrice = applianceSubtotal + addonRevenue + customerTransportCharge;
       const totalCost = installLaborCost + addonServicesCost + transportCost;
@@ -13459,6 +13626,7 @@ ${bodyHtml}
         unitRate,
         applianceSubtotal,
         addonRevenue,
+        customerTransportCharge,
         transportCost,
         totalPrice,
         totalCost,
@@ -13466,22 +13634,97 @@ ${bodyHtml}
       };
     }
 
-    function renderTable() {
+    // Lines + quote-level extras (single-unit call-out and minimum charge are
+    // added once, to the first line, so the saved lines still add up).
+    function computeQuote() {
+      const computed = lineItems.map(computeLine);
+      let callOut = 0;
+      let minTopUp = 0;
+      if (mode === 'single' && computed.length) {
+        const first = computed[0];
+        const bump = (amount) => {
+          first.addonRevenue += amount;
+          first.totalPrice += amount;
+          first.margin += amount;
+        };
+        callOut = includeCallOut ? smallJob.callOutFee : 0;
+        if (callOut) bump(callOut);
+        const subtotal = computed.reduce((sum, c) => sum + c.totalPrice, 0);
+        if (smallJob.minimumCharge > subtotal) {
+          minTopUp = smallJob.minimumCharge - subtotal;
+          bump(minTopUp);
+        }
+      }
+      return { computed, callOut, minTopUp };
+    }
+
+    function tierHintHtml() {
+      const appliance = appliances[Number(applianceSelect.value)];
+      const qty = parseNumber(qtyInput.value);
+      if (!appliance || qty <= 0) return '';
+      if (mode === 'single') {
+        return qty >= 50
+          ? 'This is a large quantity. Switch to <strong>Project</strong> to get the volume rates.'
+          : 'Rate: <strong>' +
+              money(appliance.rates.Base) +
+              ' AED</strong> per unit (base rate; single-unit quotes have no volume tiers).';
+      }
+      const tier = thomsonCalcTier(qty);
+      let html =
+        'Rate for ' +
+        qty +
+        (qty === 1 ? ' unit' : ' units') +
+        ' on this line: <strong>' +
+        money(thomsonCalcUnitRate(appliance, qty)) +
+        ' AED</strong> per unit (' +
+        (tier === 'Base' ? 'base rate' : 'tier ' + tier) +
+        ').';
+      const next = [
+        [50, '50+'],
+        [150, '150+'],
+        [300, '300+'],
+        [500, '500+'],
+      ].find(([min]) => qty < min);
+      if (next) {
+        const more = next[0] - qty;
+        html +=
+          ' Add ' +
+          more +
+          (more === 1 ? ' more unit' : ' more units') +
+          ' to reach the ' +
+          next[1] +
+          ' tier at ' +
+          money(appliance.rates[next[1]]) +
+          ' AED per unit.';
+      }
+      return html;
+    }
+
+    function renderAll() {
       flashLivePill();
+      tierHint.innerHTML = tierHintHtml();
       if (!lineItems.length) {
-        tableHost.innerHTML = '<p class="empty-state">No lines added yet.</p>';
         lastComputed = null;
+        linesHost.innerHTML = '';
+        tableHost.innerHTML = '<p class="empty-state">No items added yet. Use step 2.</p>';
+        internalBody.innerHTML = '<p class="form-note">Nothing to show yet.</p>';
+        totalHost.innerHTML = '0.00 <small>AED</small>';
+        factsHost.innerHTML = '';
+        noteHost.textContent = '';
         return;
       }
-      const computed = lineItems.map(computeLine);
+      const { computed, callOut, minTopUp } = computeQuote();
       lastComputed = computed;
       const totalPrice = computed.reduce((s, c) => s + c.totalPrice, 0);
       const totalCost = computed.reduce((s, c) => s + c.totalCost, 0);
       const margin = totalPrice - totalCost;
       const marginPct = totalPrice ? (margin / totalPrice) * 100 : 0;
-      tableHost.innerHTML =
-        '<div class="table-wrap"><table class="calc-quote-table" style="table-layout: fixed"><thead><tr>' +
-        '<th style="width: 8%">Region</th><th style="width: 15%">Appliance</th><th style="width: 5%">Qty</th><th style="width: 11%">Unit rate</th><th style="width: 11%">Appliance subtotal</th><th style="width: 10%">Add-on revenue</th><th style="width: 10%">Transport cost</th><th style="width: 9%">Total price</th><th style="width: 9%">Total cost</th><th style="width: 9%">Margin</th><th style="width: 3%"></th>' +
+      const units = computed.reduce((s, c) => s + c.qty, 0);
+
+      // Step 2: the lines added so far.
+      linesHost.innerHTML =
+        '<div class="table-wrap"><table class="tq-table"><thead><tr>' +
+        '<th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th></th>' +
         '</tr></thead><tbody>' +
         computed
           .map(
@@ -13490,94 +13733,205 @@ ${bodyHtml}
               escapeHtml(c.region) +
               '</td><td>' +
               escapeHtml(c.applianceName) +
-              '</td><td>' +
+              '</td><td class="num">' +
               c.qty +
-              '</td><td>' +
+              '</td><td class="num">' +
               money(c.unitRate) +
-              (c.tier === 'Base'
-                ? '<span class="cell-sub">Base rate</span>'
-                : '<span class="cell-sub">Tier ' +
-                  escapeHtml(c.tier) +
-                  ' &middot; base ' +
-                  money(c.baseRate) +
-                  '</span>') +
-              '</td><td>' +
-              money(c.applianceSubtotal) +
-              '</td><td>' +
-              money(c.addonRevenue) +
-              '</td><td>' +
-              money(c.transportCost) +
-              '</td><td>' +
-              money(c.totalPrice) +
-              '</td><td>' +
-              money(c.totalCost) +
-              '</td><td>' +
-              money(c.margin) +
-              '</td><td><button class="button button-outline" type="button" data-tcc-remove="' +
+              '<span class="cell-sub">' +
+              (c.tier === 'Base' ? 'Base rate' : 'Tier ' + escapeHtml(c.tier)) +
+              '</span></td><td class="num"><button class="button button-outline rm-btn rm-btn-sm" type="button" data-tcc-remove="' +
               i +
               '">Remove</button></td></tr>',
           )
           .join('') +
-        '</tbody><tfoot><tr><td colspan="7"><strong>Grand total</strong></td><td><strong>' +
+        '</tbody></table></div>';
+      linesHost.querySelectorAll('[data-tcc-remove]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+          lineItems.splice(Number(btn.getAttribute('data-tcc-remove')), 1);
+          renderAll();
+        });
+      });
+
+      // Step 4: what the customer sees.
+      const extrasLabel = mode === 'single' ? 'Call-out / extras' : 'Services';
+      tableHost.innerHTML =
+        '<div class="table-wrap"><table class="tq-table calc-quote-table"><thead><tr>' +
+        '<th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Equipment</th>' +
+        '<th class="num">' +
+        extrasLabel +
+        '</th>' +
+        (mode === 'single' ? '' : '<th class="num">Transport charged</th>') +
+        '<th class="num">Line total</th></tr></thead><tbody>' +
+        computed
+          .map(
+            (c) =>
+              '<tr><td>' +
+              escapeHtml(c.applianceName) +
+              '<span class="cell-sub">' +
+              escapeHtml(c.region) +
+              '</span></td><td class="num">' +
+              c.qty +
+              '</td><td class="num">' +
+              money(c.unitRate) +
+              '</td><td class="num">' +
+              money(c.applianceSubtotal) +
+              '</td><td class="num">' +
+              money(c.addonRevenue) +
+              '</td>' +
+              (mode === 'single'
+                ? ''
+                : '<td class="num">' + money(c.customerTransportCharge) + '</td>') +
+              '<td class="num"><strong>' +
+              money(c.totalPrice) +
+              '</strong></td></tr>',
+          )
+          .join('') +
+        '</tbody><tfoot><tr><td colspan="' +
+        (mode === 'single' ? 5 : 6) +
+        '"><strong>Total price (AED)</strong></td><td class="num"><strong>' +
         money(totalPrice) +
-        '</strong></td><td><strong>' +
+        '</strong></td></tr></tfoot></table></div>';
+
+      // Internal view: cost and margin.
+      internalBody.innerHTML =
+        '<div class="table-wrap"><table class="tq-table"><thead><tr>' +
+        '<th>Appliance</th><th class="num">Qty</th><th class="num">Transport cost</th><th class="num">Total cost</th><th class="num">Line total</th><th class="num">Margin</th>' +
+        '</tr></thead><tbody>' +
+        computed
+          .map(
+            (c) =>
+              '<tr><td>' +
+              escapeHtml(c.applianceName) +
+              '</td><td class="num">' +
+              c.qty +
+              '</td><td class="num">' +
+              money(c.transportCost) +
+              '</td><td class="num">' +
+              money(c.totalCost) +
+              '</td><td class="num">' +
+              money(c.totalPrice) +
+              '</td><td class="num">' +
+              money(c.margin) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody><tfoot><tr><td colspan="3"><strong>Total</strong></td><td class="num"><strong>' +
         money(totalCost) +
-        '</strong></td><td><strong>' +
+        '</strong></td><td class="num"><strong>' +
+        money(totalPrice) +
+        '</strong></td><td class="num"><strong>' +
         money(margin) +
         ' (' +
         marginPct.toFixed(1) +
-        '%)</strong></td><td></td></tr></tfoot></table></div>';
-      tableHost.querySelectorAll('[data-tcc-remove]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          lineItems.splice(Number(btn.getAttribute('data-tcc-remove')), 1);
-          renderTable();
-        });
-      });
+        '%)</strong></td></tr></tfoot></table></div>';
+
+      // Summary panel.
+      totalHost.innerHTML = money(totalPrice) + ' <small>AED</small>';
+      factsHost.innerHTML =
+        '<div><dt>Type</dt><dd>' +
+        (mode === 'single' ? 'Single unit' : 'Project') +
+        '</dd></div><div><dt>Lines</dt><dd>' +
+        computed.length +
+        '</dd></div><div><dt>Units</dt><dd>' +
+        units +
+        '</dd></div>';
+      const notes = [];
+      if (callOut) notes.push('Includes a call-out charge of ' + money(callOut) + ' AED.');
+      if (minTopUp) {
+        notes.push('Raised by ' + money(minTopUp) + ' AED to meet the minimum charge.');
+      }
+      noteHost.textContent = notes.join(' ');
     }
 
-    // Empties the project lines entirely -- used by the explicit Clear
+    // Empties the quote lines entirely -- used by the explicit Clear
     // button and automatically once a Thomson sale has been saved, so the
     // next customer's quote starts from nothing (modification.md #44,
     // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
     function clearLineItems() {
       lineItems.length = 0;
-      renderTable();
+      renderAll();
     }
+
+    function applyMode() {
+      container.querySelectorAll('[data-tq-mode]').forEach((button) => {
+        const active = button.dataset.tqMode === mode;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-checked', active ? 'true' : 'false');
+      });
+      container
+        .querySelectorAll('[data-tq-project-only]')
+        .forEach((el) => (el.hidden = mode === 'single'));
+      container
+        .querySelectorAll('[data-tq-single-only]')
+        .forEach((el) => (el.hidden = mode !== 'single'));
+      qtyInput.max = mode === 'single' ? '49' : '';
+      if (mode === 'single') {
+        transportShareInput.value = '0';
+        renderSingleExtras();
+      }
+    }
+
+    container.querySelector('.tq-mode').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-tq-mode]');
+      if (!button || button.dataset.tqMode === mode) return;
+      if (lineItems.length && !confirm('Switching clears the items you have added. Continue?')) {
+        return;
+      }
+      lineItems.length = 0;
+      mode = button.dataset.tqMode;
+      applyMode();
+      renderAll();
+    });
 
     addButton.addEventListener('click', () => {
       const qty = parseNumber(qtyInput.value);
       if (qty <= 0 || !appliances.length || !regions.length) return;
+      if (mode === 'single' && qty >= 50) {
+        tierHint.innerHTML = tierHintHtml();
+        return;
+      }
       lineItems.push({
+        mode,
         region: regionSelect.value,
         applianceIdx: Number(applianceSelect.value),
         qty,
-        siteVisits: parseNumber(visitsInput.value),
-        trainingSessions: parseNumber(trainingInput.value),
+        siteVisits: mode === 'single' ? 0 : parseNumber(visitsInput.value),
+        trainingSessions: mode === 'single' ? 0 : parseNumber(trainingInput.value),
       });
-      renderTable();
+      renderAll();
     });
     clearButton.addEventListener('click', clearLineItems);
-    transportShareInput.addEventListener('input', renderTable);
+    transportShareInput.addEventListener('input', renderAll);
+    [applianceSelect, qtyInput].forEach((el) =>
+      el.addEventListener('input', () => {
+        tierHint.innerHTML = tierHintHtml();
+      }),
+    );
     if (addonsResetButton) {
       addonsResetButton.addEventListener('click', () => {
         addons = cloneAddonDefaults();
         renderAddonsTable();
-        renderTable();
+        renderAddonsEditTable();
+        renderAll();
       });
     }
 
     renderAddonsTable();
-    renderTable();
+    renderAddonsEditTable();
+    applyMode();
+    renderAll();
     renderThomsonSaleSection(
       saleHost,
       () => lastComputed,
       transportShareInput,
       clearLineItems,
       () => {
-        // Keep the Thomson Issued list in sync if it's the tab currently open.
+        // Keep the Issued quotes list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-th-panel="issued"]');
         if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost);
       },
+      container,
+      () => mode,
     );
   }
 
@@ -13600,7 +13954,7 @@ ${bodyHtml}
       }
       host.innerHTML =
         '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Reference</th><th>Issued</th><th>Client</th><th>Lines</th><th>Total price</th><th>Margin</th><th></th>' +
+        '<th>Reference</th><th>Issued</th><th>Client</th><th>Type</th><th>Lines</th><th>Total price</th><th>Margin</th><th></th>' +
         '</tr></thead><tbody>' +
         sales
           .map(
@@ -13612,6 +13966,8 @@ ${bodyHtml}
               escapeHtml(formatDate(sale.createdAt)) +
               '</td><td>' +
               escapeHtml(sale.clientName || '—') +
+              '</td><td>' +
+              (isThomsonSingleSale(sale) ? 'Single unit' : 'Project') +
               '</td><td>' +
               String((sale.lineItems || []).length) +
               '</td><td>' +
@@ -13661,6 +14017,8 @@ ${bodyHtml}
     transportShareInput,
     clearLineItems,
     onSaved,
+    formRoot,
+    getMode,
   ) {
     if (!hasPermission('thomson_sale.write')) {
       saleHost.innerHTML =
@@ -13668,24 +14026,10 @@ ${bodyHtml}
       return;
     }
     saleHost.innerHTML =
-      '<div class="card-help"><span>About this section</span>' +
-      tipHtml(
-        'Uses the project lines built above. Fill in the client details and save the sale, then print the quotation.',
-      ) +
-      '</div>' +
-      '<div class="field-grid">' +
-      calcField('Client', '<input type="text" data-ths-client />') +
-      calcField('Contact number', '<input type="text" data-ths-contact-number />') +
-      calcField('Site / location', '<input type="text" data-ths-location />') +
-      calcField(
-        'Contract ref.',
-        '<input type="text" data-ths-contract-ref />',
-        'Optional — auto-generated if left blank',
-      ) +
-      '</div>' +
+      '<p class="form-note">Save the quotation, then print it. Client details come from step 1; you can reprint any saved quote from Issued quotes.</p>' +
       '<p>' +
-      '<button type="button" class="button button-primary" data-ths-save>Save Thomson sale</button> ' +
-      '<button type="button" class="button button-outline" data-ths-print disabled>Print quotation</button>' +
+      '<button type="button" class="button button-primary rm-btn" data-ths-save>Save quotation</button> ' +
+      '<button type="button" class="button button-outline rm-btn" data-ths-print disabled>Print quotation</button>' +
       '</p>' +
       '<div data-ths-message></div>';
 
@@ -13695,9 +14039,13 @@ ${bodyHtml}
     let savedSale = null;
 
     function clearSaleFormInputs() {
-      saleHost.querySelectorAll('.field-grid input').forEach((el) => {
-        el.value = '';
-      });
+      formRoot
+        .querySelectorAll(
+          '[data-ths-client],[data-ths-contact-number],[data-ths-location],[data-ths-contract-ref]',
+        )
+        .forEach((el) => {
+          el.value = '';
+        });
     }
 
     saveButton.addEventListener('click', async () => {
@@ -13707,18 +14055,19 @@ ${bodyHtml}
       const computed = getComputed();
       if (!computed || !computed.length) {
         messageHost.innerHTML =
-          '<p class="form-note">Add at least one project line above before saving.</p>';
+          '<p class="form-note">Add at least one item in step 2 before saving.</p>';
         return;
       }
       const totalPrice = computed.reduce((s, c) => s + c.totalPrice, 0);
       const totalCost = computed.reduce((s, c) => s + c.totalCost, 0);
       const margin = totalPrice - totalCost;
-      const field = (selector) => saleHost.querySelector(selector).value.trim();
+      const field = (selector) => formRoot.querySelector(selector).value.trim();
+      const single = getMode() === 'single';
       const payload = {
         clientName: field('[data-ths-client]') || undefined,
         contactNumber: field('[data-ths-contact-number]') || undefined,
         siteLocation: field('[data-ths-location]') || undefined,
-        transportSharePercent: parseNumber(transportShareInput.value),
+        transportSharePercent: single ? 0 : parseNumber(transportShareInput.value),
         lineItems: computed.map((c) => ({
           region: c.region,
           applianceName: c.applianceName,
@@ -13732,6 +14081,7 @@ ${bodyHtml}
           totalPrice: c.totalPrice,
           totalCost: c.totalCost,
           margin: c.margin,
+          quoteMode: single ? 'single' : 'project',
         })),
         totalPrice,
         totalCost,
@@ -13747,7 +14097,7 @@ ${bodyHtml}
         messageHost.innerHTML =
           '<p class="form-note">Saved as <strong>' +
           escapeHtml(savedSale.thomsonSaleReference) +
-          '</strong> and added to the "Thomson Issued" tab. Print below, or reprint it any time from Thomson Issued. The project lines have been reset for the next customer.</p>';
+          '</strong> and added to Issued quotes. Print it now, or reprint it any time from Issued quotes. The quote has been reset for the next customer.</p>';
         printButton.disabled = false;
         clearSaleFormInputs();
         clearLineItems();
