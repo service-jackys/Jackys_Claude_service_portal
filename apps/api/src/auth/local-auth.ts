@@ -13,12 +13,18 @@ import {
   updateLocalAuthUser,
   type LocalAuthUserRecord,
 } from '../../../../packages/db/src/local-auth-users.js';
+import { roleExists } from '../../../../packages/db/src/roles.js';
 
 const scryptAsync = promisify(scrypt);
 const SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
+// The four built-in roles. Administrators can add their own roles from
+// Roles & permissions (modification.md #176), so a login's role is any code in
+// the `roles` table; it is checked against that table when a login is created
+// or changed, and the database holds a foreign key as the last line of defense.
 export const localRoles = ['user', 'sales', 'management', 'admin'] as const;
-export type LocalRole = (typeof localRoles)[number];
+export type LocalRole = string;
+const roleCodeSchema = z.string().regex(/^[a-z][a-z0-9_]{1,39}$/, 'Choose an existing role.');
 
 export type AuthUser = {
   id: string;
@@ -35,7 +41,7 @@ type Session = {
   expiresAt: number;
 };
 
-const rolePermissions: Record<LocalRole, readonly string[]> = {
+const rolePermissions: Record<string, readonly string[]> = {
   user: ['dashboard.read'],
   sales: ['dashboard.read', 'quotation.read', 'quotation.write'],
   management: ['dashboard.read', 'reports.read'],
@@ -86,7 +92,7 @@ export const createUserSchema = z
     email: z.string().email().max(320),
     name: z.string().trim().min(1).max(120),
     password: newPasswordSchema,
-    role: z.enum(localRoles),
+    role: roleCodeSchema,
   })
   .strict();
 
@@ -95,7 +101,7 @@ export const createUserSchema = z
 // PATCH isn't silently a no-op that still returns 200.
 export const updateUserSchema = z
   .object({
-    role: z.enum(localRoles).optional(),
+    role: roleCodeSchema.optional(),
     active: z.boolean().optional(),
     // Admin password reset (modification.md #55): sets a temporary password
     // the teammate must replace at their next sign-in.
@@ -158,7 +164,7 @@ function publicUser(user: LocalAuthUserRecord): AuthUser {
     email: user.email,
     name: user.name,
     role,
-    permissions: rolePermissions[role],
+    permissions: rolePermissions[role] ?? [],
     active: user.active,
     mustChangePassword: user.mustChangePassword,
   };
@@ -254,6 +260,7 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
       if (await findLocalAuthUserByEmail(client, email)) {
         return { kind: 'email-taken' as const };
       }
+      if (!(await roleExists(client, data.role))) return { kind: 'unknown-role' as const };
       const user = await insertLocalAuthUser(client, {
         email,
         name: data.name,
@@ -273,6 +280,9 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
     const data = updateUserSchema.parse(input);
     const client = await pool.connect();
     try {
+      if (data.role !== undefined && !(await roleExists(client, data.role))) {
+        return { kind: 'unknown-role' as const };
+      }
       let user = await updateLocalAuthUser(client, id, { role: data.role, active: data.active });
       if (!user) return { kind: 'not-found' as const };
       if (data.password !== undefined) {
@@ -399,5 +409,5 @@ export function createLocalAuth(options: LocalAuthOptions, pool: Pool) {
 }
 
 export function getLocalRolePermissions(role: LocalRole): readonly string[] {
-  return rolePermissions[role];
+  return rolePermissions[role] ?? [];
 }

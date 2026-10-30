@@ -129,6 +129,18 @@ const requestBodies = {
       },
     },
   },
+  createRole: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/CreateRoleRequest' } },
+    },
+  },
+  renameRole: {
+    required: true,
+    content: {
+      'application/json': { schema: { $ref: '#/components/schemas/RenameRoleRequest' } },
+    },
+  },
   updateStaffUser: {
     required: true,
     content: {
@@ -492,7 +504,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             id: { type: 'string' },
             email: { type: 'string', format: 'email' },
             name: { type: 'string' },
-            role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
+            role: { type: 'string', pattern: '^[a-z][a-z0-9_]{1,39}$' },
             permissions: { type: 'array', items: { type: 'string' } },
             active: { type: 'boolean' },
           },
@@ -543,14 +555,14 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               maxLength: 200,
               pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
             },
-            role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
+            role: { type: 'string', pattern: '^[a-z][a-z0-9_]{1,39}$' },
           },
         },
         UpdateStaffUserRequest: {
           type: 'object',
           additionalProperties: false,
           properties: {
-            role: { type: 'string', enum: ['user', 'sales', 'management', 'admin'] },
+            role: { type: 'string', pattern: '^[a-z][a-z0-9_]{1,39}$' },
             active: { type: 'boolean' },
             password: {
               type: 'string',
@@ -573,6 +585,21 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               pattern: '^[A-Z](?=.*[0-9])(?=.*[^A-Za-z0-9\\s]).{9,}$',
             },
           },
+        },
+        CreateRoleRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name'],
+          properties: {
+            name: { type: 'string', minLength: 2, maxLength: 40 },
+            copyFrom: { type: 'string', maxLength: 40 },
+          },
+        },
+        RenameRoleRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name'],
+          properties: { name: { type: 'string', minLength: 2, maxLength: 40 } },
         },
         RolePermissionsRequest: {
           type: 'object',

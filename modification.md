@@ -3867,3 +3867,23 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** parser.ts, logic-summary.ts, packages/db/src/revenue-dashboard.ts, app.js, index.html, tests, changelog data.
 
 **Needs you:** pull, restart the API (migration 064), hard-refresh; re-upload the master workbook so repair jobs fill Cust Code.
+
+---
+
+## Modification #176 — Custom roles (New role, rename, delete) with Finance, Sales Coordinator and Receptionist
+
+**Date:** 2026-10-30
+
+**Why.** Roles & permissions only had the four built-in roles. An administrator could not add a role such as Service Coordinator.
+
+**What changed.**
+- Roles & permissions has a **New role** button: enter a name and optionally copy the permissions of an existing role (saved permissions), then tick or untick permissions like any other role.
+- Roles you create show **Rename** and **Delete** in their column header, with the number of users who hold them. Delete is refused while any user still has the role; the four built-in roles cannot be renamed or deleted, and Administrator stays fixed.
+- Users page: the Role drop-down (new login and per-row) lists every role, including custom ones; a login can only be given a role that exists.
+- Starter roles added: **Finance** (revenue dashboard, budget vs actual, reports, invoices), **Sales Coordinator** (Sales permissions plus job cards, invoices, D&I jobs read) and **Receptionist** (complaints, appointments, customers, scheduler, job cards). They are ordinary custom roles: edit, rename or delete them.
+- Migration 065 replaces the four-role CHECK constraints with a format check and a foreign key (`local_auth_users.role` -> `roles.code`, ON DELETE RESTRICT), adds `roles.is_builtin` and a unique role name. Migration 066 seeds the three starter roles.
+- API: `POST /api/role-matrix`, `PATCH /api/role-matrix/{role}`, `DELETE /api/role-matrix/{role}`; each is audited (`roles.created`, `roles.renamed`, `roles.deleted`).
+
+**Files.** packages/db/migrations/065_custom_roles.sql, 066_starter_custom_roles.sql, packages/db/src/roles.ts, apps/api/src/roles/service.ts and routes.ts, apps/api/src/auth/local-auth.ts, route-catalog.ts, openapi.ts, apps/web/src/app.js, index.html, tests/integration/custom-roles.test.ts, changelog data.
+
+**Needs you:** pull, restart the API (migrations 065 and 066 run on start), hard-refresh. Open Roles & permissions to check what the three starter roles can do and adjust the ticks; then assign them in Users. The old Apps Script portal is not changed.
