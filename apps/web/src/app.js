@@ -13611,9 +13611,13 @@ ${bodyHtml}
           (testing.on ? li.qty * testing.hours * data.techRate : 0) +
           sessions * training.hours * data.techRate;
       }
-      const totalTrips = installDays + siteTrips + trainingTrips;
+      // A single-unit job is at least one visit to the region.
+      const totalTrips = single
+        ? Math.max(1, installDays)
+        : installDays + siteTrips + trainingTrips;
       const transportCost = totalTrips * region.roundTripCost;
-      const transportSharePct = single ? 0 : parseNumber(transportShareInput.value) / 100;
+      // Single-unit quotes charge the region's round trip in full.
+      const transportSharePct = single ? 1 : parseNumber(transportShareInput.value) / 100;
       const customerTransportCharge = transportCost * transportSharePct;
       const totalPrice = applianceSubtotal + addonRevenue + customerTransportCharge;
       const totalCost = installLaborCost + addonServicesCost + transportCost;
@@ -13667,7 +13671,7 @@ ${bodyHtml}
           ? 'This is a large quantity. Switch to <strong>Project</strong> to get the volume rates.'
           : 'Rate: <strong>' +
               money(appliance.rates.Base) +
-              ' AED</strong> per unit (base rate; single-unit quotes have no volume tiers).';
+              ' AED</strong> per unit (base rate; single-unit quotes have no volume tiers). Transport for the selected region is added.';
       }
       const tier = thomsonCalcTier(qty);
       let html =
@@ -13760,7 +13764,7 @@ ${bodyHtml}
         '<th class="num">' +
         extrasLabel +
         '</th>' +
-        (mode === 'single' ? '' : '<th class="num">Transport charged</th>') +
+        '<th class="num">Transport</th>' +
         '<th class="num">Line total</th></tr></thead><tbody>' +
         computed
           .map(
@@ -13778,16 +13782,16 @@ ${bodyHtml}
               '</td><td class="num">' +
               money(c.addonRevenue) +
               '</td>' +
-              (mode === 'single'
-                ? ''
-                : '<td class="num">' + money(c.customerTransportCharge) + '</td>') +
+              '<td class="num">' +
+              money(c.customerTransportCharge) +
+              '</td>' +
               '<td class="num"><strong>' +
               money(c.totalPrice) +
               '</strong></td></tr>',
           )
           .join('') +
         '</tbody><tfoot><tr><td colspan="' +
-        (mode === 'single' ? 5 : 6) +
+        6 +
         '"><strong>Total price (AED)</strong></td><td class="num"><strong>' +
         money(totalPrice) +
         '</strong></td></tr></tfoot></table></div>';
@@ -14067,7 +14071,7 @@ ${bodyHtml}
         clientName: field('[data-ths-client]') || undefined,
         contactNumber: field('[data-ths-contact-number]') || undefined,
         siteLocation: field('[data-ths-location]') || undefined,
-        transportSharePercent: single ? 0 : parseNumber(transportShareInput.value),
+        transportSharePercent: single ? 100 : parseNumber(transportShareInput.value),
         lineItems: computed.map((c) => ({
           region: c.region,
           applianceName: c.applianceName,
@@ -14076,7 +14080,8 @@ ${bodyHtml}
           trainingSessions: c.trainingSessions,
           unitRate: c.unitRate,
           applianceSubtotal: c.applianceSubtotal,
-          addonRevenue: c.addonRevenue,
+          // Single-unit quotes fold the region transport into the extras column.
+          addonRevenue: single ? c.addonRevenue + c.customerTransportCharge : c.addonRevenue,
           transportCost: c.transportCost,
           totalPrice: c.totalPrice,
           totalCost: c.totalCost,

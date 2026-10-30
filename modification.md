@@ -3936,7 +3936,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - Step 2 shows the rate and a hint for the next volume tier ("Add 47 more units to reach the 50+ tier at 74.00 AED per unit"). Labels are plain language ("Customer pays this % of transport", with a tooltip).
 - Step 3 lets you untick a service to leave it out of a quote; editing the rates and technician hours for one quote moved under "Adjust rates...". With every service ticked the numbers are exactly the same as before.
 - Step 4 shows the customer view; cost and margin are in a collapsed "Internal view".
-- New **Project / Single unit** switch. Single unit uses the base rate, no project fee, survey or training, adds an optional call-out charge once and raises the total to a minimum charge when needed. Saved quotes are tagged and show as "Single unit" in Issued quotes; the printout title and totals wording follow.
+- New **Project / Single unit** switch. Single unit uses the base rate, no project fee, survey or training, charges the selected region's round-trip transport (one trip per line, so price changes with the region), adds an optional call-out charge once and raises the total to a minimum charge when needed. Saved quotes are tagged and show as "Single unit" in Issued quotes; the printout title and totals wording follow.
 - Thomson Pricing Admin has a **Single-unit quotes** card: Call-out charge and Minimum quote total (both 0 until set). No database change (stored with the Thomson pricing configuration; the sale line carries `quoteMode`).
 - Test fix: the permission-copy check in `permissions-flat-rates` now covers built-in roles only (the starter custom roles from #176 were failing it).
 

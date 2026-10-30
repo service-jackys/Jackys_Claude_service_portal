@@ -28,7 +28,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       'Step 2 shows the rate and a hint for the next volume tier. Labels are plain language.',
       'Step 3 lets you untick a service to leave it out of a quote; rate and hours overrides moved under Adjust rates. With every service ticked the numbers are unchanged.',
       'Step 4 shows the customer view; cost and margin are in a collapsed Internal view.',
-      'New Project / Single unit switch. Single unit uses the base rate with no project fee, survey or training, adds an optional call-out charge and raises the total to a minimum charge. Saved quotes are tagged and show as Single unit in Issued quotes.',
+      'New Project / Single unit switch. Single unit uses the base rate with no project fee, survey or training, charges the selected region's round-trip transport, adds an optional call-out charge and raises the total to a minimum charge. Saved quotes are tagged and show as Single unit in Issued quotes.',
       'Thomson Pricing Admin has a Single-unit quotes card: Call-out charge and Minimum quote total (both 0 until set).',
     ],
     needsYou:
