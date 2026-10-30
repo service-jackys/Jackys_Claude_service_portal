@@ -3906,3 +3906,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/custom-roles.spec.ts, changelog data.
 
 **Needs you:** pull and hard-refresh (no migration, no API restart).
+
+---
+
+## Modification #178 — Roles & permissions: smaller, tidier buttons and rows
+
+**Date:** 2026-10-30
+
+**Why.** After the role-picker layout the buttons, drop-down, tags and table rows looked oversized.
+
+**What changed.**
+- Buttons, drop-down and tags are about a quarter smaller (34 px high, Rename/Delete 28 px), with a small upper-case label over the drop-down.
+- Table rows, headers, check boxes and module headings are tighter, so many more permissions fit on screen; the toolbar and Save/Discard bar take less height.
+
+**Files.** apps/web/src/index.html, changelog data.
+
+**Needs you:** pull and hard-refresh (no migration, no API restart).
