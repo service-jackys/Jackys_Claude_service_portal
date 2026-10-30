@@ -3922,3 +3922,24 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html, changelog data.
 
 **Needs you:** pull and hard-refresh (no migration, no API restart).
+
+---
+
+## Modification #179 — Thomson Quote Calculator: step-by-step page, Single unit mode
+
+**Date:** 2026-10-30
+
+**Why.** The Quote Calculator tab was confusing (tab named like the page, five cards in no clear order, client details at the bottom, cost and margin beside the customer price) and a single unit was priced like a whole project (project fee, survey visit, two transport trips).
+
+**What changed.**
+- Tabs renamed **New quote** and **Issued quotes**. The page is five numbered steps: 1 Client & site, 2 Items, 3 Services & transport, 4 Review, 5 Save & print. A sticky **Quote total** on the right updates as you go.
+- Step 2 shows the rate and a hint for the next volume tier ("Add 47 more units to reach the 50+ tier at 74.00 AED per unit"). Labels are plain language ("Customer pays this % of transport", with a tooltip).
+- Step 3 lets you untick a service to leave it out of a quote; editing the rates and technician hours for one quote moved under "Adjust rates...". With every service ticked the numbers are exactly the same as before.
+- Step 4 shows the customer view; cost and margin are in a collapsed "Internal view".
+- New **Project / Single unit** switch. Single unit uses the base rate, no project fee, survey or training, adds an optional call-out charge once and raises the total to a minimum charge when needed. Saved quotes are tagged and show as "Single unit" in Issued quotes; the printout title and totals wording follow.
+- Thomson Pricing Admin has a **Single-unit quotes** card: Call-out charge and Minimum quote total (both 0 until set). No database change (stored with the Thomson pricing configuration; the sale line carries `quoteMode`).
+- Test fix: the permission-copy check in `permissions-flat-rates` now covers built-in roles only (the starter custom roles from #176 were failing it).
+
+**Files.** apps/web/src/app.js, index.html, packages/contracts/src/index.ts, tests/e2e/thomson-quote-calculator.spec.ts, tests/unit/thomson-single-unit.test.ts, tests/integration/permissions-flat-rates.test.ts, changelog data.
+
+**Needs you:** pull, restart the API (contracts changed; no migration), hard-refresh. Then set the call-out charge and minimum in Thomson Pricing Admin > Single-unit quotes.

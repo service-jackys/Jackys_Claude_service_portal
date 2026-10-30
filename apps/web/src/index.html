@@ -2300,6 +2300,182 @@
           min-width: 100%;
         }
       }
+      /* Thomson Quote Calculator (modification #179): numbered steps, a mode
+         switch and a sticky live total. */
+      .tq-mode {
+        display: inline-flex;
+        gap: 0.5rem;
+        margin: 0.4rem 0 0.8rem;
+        padding: 0.3rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .tq-mode-btn {
+        display: grid;
+        gap: 0.1rem;
+        min-width: 11rem;
+        padding: 0.45rem 0.9rem;
+        border: 1px solid transparent;
+        border-radius: 9px;
+        background: transparent;
+        color: var(--ink);
+        text-align: left;
+        cursor: pointer;
+      }
+      .tq-mode-btn span {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+      .tq-mode-btn.active {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+      .tq-mode-btn.active strong {
+        color: var(--blue);
+      }
+      .tq-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 20rem;
+        gap: 1rem;
+        align-items: start;
+      }
+      .tq-steps {
+        display: grid;
+        gap: 0.8rem;
+        min-width: 0;
+      }
+      .tq-step {
+        padding: 0.8rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .tq-step[hidden] {
+        display: none;
+      }
+      .tq-step h4 {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+        margin: 0 0 0.6rem;
+        color: var(--navy);
+      }
+      .tq-num {
+        display: inline-grid;
+        place-items: center;
+        width: 1.5rem;
+        height: 1.5rem;
+        border-radius: 50%;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      .tq-hint {
+        margin: 0.5rem 0;
+        padding: 0.4rem 0.6rem;
+        border-left: 3px solid var(--blue);
+        background: var(--blue-soft);
+        border-radius: 6px;
+        font-size: 0.85rem;
+      }
+      .tq-hint:empty {
+        display: none;
+      }
+      .tq-table th,
+      .tq-table td {
+        padding: 0.4rem 0.6rem;
+      }
+      .tq-table .num {
+        text-align: right;
+        white-space: nowrap;
+      }
+      .tq-advanced,
+      .tq-internal {
+        margin-top: 0.7rem;
+        font-size: 0.9rem;
+      }
+      .tq-advanced summary,
+      .tq-internal summary {
+        cursor: pointer;
+        color: var(--blue);
+        font-weight: 600;
+      }
+      .tq-transport {
+        margin-top: 0.7rem;
+      }
+      .tq-check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-weight: 600;
+      }
+      .tq-summary {
+        position: sticky;
+        top: 0.8rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .tq-summary h4 {
+        margin: 0;
+        color: var(--navy);
+      }
+      .tq-total {
+        margin: 0.4rem 0;
+        color: var(--navy);
+        font-size: 1.9rem;
+        font-weight: 800;
+      }
+      .tq-total small {
+        color: var(--muted);
+        font-size: 0.9rem;
+        font-weight: 600;
+      }
+      .tq-facts {
+        display: grid;
+        gap: 0.2rem;
+        margin: 0;
+        font-size: 0.85rem;
+      }
+      .tq-facts div {
+        display: flex;
+        justify-content: space-between;
+      }
+      .tq-facts dt {
+        color: var(--muted);
+      }
+      .tq-facts dd {
+        margin: 0;
+        font-weight: 700;
+      }
+      .tq-note {
+        margin: 0.5rem 0 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .tq-note:empty {
+        display: none;
+      }
+      @media (max-width: 980px) {
+        .tq-layout {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .tq-summary {
+          position: static;
+          order: -1;
+        }
+        .tq-mode {
+          display: flex;
+          width: 100%;
+        }
+        .tq-mode-btn {
+          flex: 1;
+          min-width: 0;
+        }
+      }
       .nav-badge {
         margin-left: auto;
         margin-right: 0.4rem;

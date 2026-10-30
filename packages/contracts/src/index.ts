@@ -833,6 +833,9 @@ export const thomsonSaleLineItemSchema = z
     totalPrice: z.number().min(0).max(100000000),
     totalCost: z.number().min(0).max(100000000),
     margin: z.number().min(-100000000).max(100000000),
+    // 'single' = a single-unit / small-job quote (modification #179);
+    // absent on older sales, which are project quotes.
+    quoteMode: z.enum(['project', 'single']).optional(),
   })
   .strict();
 
@@ -1540,6 +1543,13 @@ export const thomsonPricingSchema = z
     costPerKm: nonNegSchema,
     regions: z.array(thomsonRegionSchema).min(1),
     appliances: z.array(thomsonApplianceSchema).min(1),
+    // Single-unit / small-job quotes (modification #179): a flat call-out
+    // charge and a minimum quote total. Optional so existing saved
+    // configurations stay valid; both read as 0 when absent.
+    smallJob: z
+      .object({ callOutFee: nonNegSchema, minimumCharge: nonNegSchema })
+      .strict()
+      .optional(),
     addons: z
       .object({
         'Project Management Fee': thomsonAddonSchema,

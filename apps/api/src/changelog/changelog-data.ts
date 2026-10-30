@@ -15,6 +15,29 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 179,
+    title: 'Thomson Quote Calculator: step-by-step page and Single unit mode',
+    area: 'Thomson',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Quote Calculator tab was confusing, and a single unit was priced like a whole project.',
+    changes: [
+      'Tabs renamed New quote and Issued quotes. The page is five numbered steps (Client & site, Items, Services & transport, Review, Save & print) with a sticky Quote total on the right.',
+      'Step 2 shows the rate and a hint for the next volume tier. Labels are plain language.',
+      'Step 3 lets you untick a service to leave it out of a quote; rate and hours overrides moved under Adjust rates. With every service ticked the numbers are unchanged.',
+      'Step 4 shows the customer view; cost and margin are in a collapsed Internal view.',
+      'New Project / Single unit switch. Single unit uses the base rate with no project fee, survey or training, adds an optional call-out charge and raises the total to a minimum charge. Saved quotes are tagged and show as Single unit in Issued quotes.',
+      'Thomson Pricing Admin has a Single-unit quotes card: Call-out charge and Minimum quote total (both 0 until set).',
+    ],
+    needsYou:
+      'pull, restart the API (no migration), hard-refresh; then set the call-out charge and minimum in Thomson Pricing Admin.',
+    migrations: [],
+    files:
+      'apps/web/src/app.js, index.html, packages/contracts/src/index.ts, tests, changelog data.',
+  },
+  {
     id: 178,
     title: 'Roles & permissions: smaller, tidier buttons and rows',
     area: 'Permissions',
@@ -154,7 +177,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     approxDate: false,
     status: null,
     summary:
-      'The job table you reach when drilling down in Service Revenue Dashboard → Reports (and in Explorer) now shows each row\'s Ref doc no as a coloured pill.',
+      "The job table you reach when drilling down in Service Revenue Dashboard → Reports (and in Explorer) now shows each row's Ref doc no as a coloured pill.",
     changes: [
       'New Ref doc no column (indigo pill for a CSOSC order, teal for "Direct", pink for anything else; blank when the workbook has none). It takes the place of the Cost status column.',
       'Cost status is not lost: it is shown in the detail line when you click a row, and it is still a filter.',
@@ -162,7 +185,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     ],
     needsYou: 'pull, restart the API (no migration), hard-refresh.',
     migrations: [],
-    files: 'apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/view-export.ts.',
+    files:
+      'apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/view-export.ts.',
   },
   {
     id: 170,
@@ -174,7 +198,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     summary:
       'In the Tasks edit panel only Delete, Discuss and Cancel were visible, so remarks and other edits could not be saved.',
     changes: [
-      'Cause: the page-footer styling (dark fill and sidebar-width left padding) also applied to the edit panel\'s own footer and pushed Cancel and Save off the right edge.',
+      "Cause: the page-footer styling (dark fill and sidebar-width left padding) also applied to the edit panel's own footer and pushed Cancel and Save off the right edge.",
       'The panel footer now has its own layout: Delete and Discuss on the left, Cancel and Save changes on the right, wrapping on a narrow or zoomed screen.',
       'The button reads Save changes when editing (Add for a new item).',
     ],

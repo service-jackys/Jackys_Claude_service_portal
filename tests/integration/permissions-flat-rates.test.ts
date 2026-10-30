@@ -29,8 +29,10 @@ test(
       );
       assert.equal(codes.rowCount, 4);
 
-      // The migration copies access: any role that could open the page through the
-      // old permission can still open it through the new one.
+      // The migration copies access: any built-in role that could open the page
+      // through the old permission can still open it through the new one. Custom
+      // roles (modification #176) are set up by an administrator afterwards, so
+      // they are not part of that copy.
       const gaps = await pool.query<{ role: string; has: string; missing: string }>(
         `SELECT r.code AS role, old.code AS has, new.code AS missing
          FROM (VALUES
@@ -43,7 +45,8 @@ test(
          JOIN permissions new ON new.code = pair.new_code
          JOIN role_permissions rp_old ON rp_old.permission_id = old.id
          JOIN roles r ON r.id = rp_old.role_id
-         WHERE NOT EXISTS (
+         WHERE r.is_builtin
+           AND NOT EXISTS (
            SELECT 1 FROM role_permissions rp_new
            WHERE rp_new.role_id = r.id AND rp_new.permission_id = new.id
          )`,
