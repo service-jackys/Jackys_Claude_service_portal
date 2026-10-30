@@ -100,7 +100,7 @@ test.describe('Thomson Quote Calculator', () => {
 
     await page.locator('[data-ths-client]').fill('Test Customer');
     await page.locator('[data-tcc-add]').click();
-    // 1 x 100 + 50 call-out = 150, below the 250 minimum -> raised to 250.
+    // 1 x 100 + 60 region transport + 50 call-out = 210, below the 250 minimum -> raised to 250.
     await expect(page.locator('[data-tq-total]')).toContainText('250.00');
     await expect(page.locator('[data-tq-note]')).toContainText('minimum charge');
 
@@ -108,12 +108,12 @@ test.describe('Thomson Quote Calculator', () => {
     await page.locator('[data-tq-callout]').uncheck();
     await expect(page.locator('[data-tq-total]')).toContainText('250.00');
 
-    // 4 units: 400 + 50 call-out = 450, above the minimum.
+    // 4 units: 400 + 60 transport + 50 call-out = 510, above the minimum.
     await page.locator('[data-tq-callout]').check();
     await page.locator('[data-tcc-clear]').click();
     await page.locator('[data-tcc-qty]').fill('4');
     await page.locator('[data-tcc-add]').click();
-    await expect(page.locator('[data-tq-total]')).toContainText('450.00');
+    await expect(page.locator('[data-tq-total]')).toContainText('510.00');
 
     await page.getByRole('button', { name: 'Save quotation' }).click();
     await expect(page.locator('[data-ths-message]')).toContainText('TH-2026-00009');
@@ -124,8 +124,8 @@ test.describe('Thomson Quote Calculator', () => {
       lineItems: { quoteMode: string; unitRate: number }[];
     };
     expect(body.clientName).toBe('Test Customer');
-    expect(body.totalPrice).toBe(450);
-    expect(body.transportSharePercent).toBe(0);
+    expect(body.totalPrice).toBe(510);
+    expect(body.transportSharePercent).toBe(100);
     expect(body.lineItems[0]).toMatchObject({ quoteMode: 'single', unitRate: 100 });
   });
 
