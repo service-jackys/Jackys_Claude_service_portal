@@ -3957,3 +3957,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/thomson-admin-tiers.spec.ts.
 
 **Needs you:** pull and hard-refresh.
+
+---
+
+## Modification #181 — Thomson Quote Calculator: live total, transport line, "not added yet" reminder
+
+**Date:** 2026-10-30
+
+**Why.** The total only moved after pressing Add to quote, so choosing a region, appliance or quantity gave no feedback.
+
+**What changed.**
+- The **Quote total** now updates as you change region, appliance, quantity, site visits or training sessions, including the item being chosen (a "Preview" badge shows it is not added yet). Adding it removes the badge; nothing is counted twice.
+- One-line **Transport** under the total, with the region and amount (or "Not charged to the customer" when the share is 0%).
+- If an item sits un-added for 10 seconds, a small notification appears bottom right: "Not added to your quote yet" with the item, region and price, an **Add to quote** button and **Dismiss**. It shows once per selection and closes itself after 15 seconds.
+- No database or API change.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull and hard-refresh.
