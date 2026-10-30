@@ -2032,28 +2032,37 @@
         display: flex;
         flex-wrap: wrap;
         align-items: flex-end;
-        gap: 0.75rem 1.25rem;
-        margin: 0.4rem 0 0.9rem;
-        padding: 0.9rem 1rem;
+        gap: 0.5rem 1rem;
+        margin: 0.3rem 0 0.6rem;
+        padding: 0.6rem 0.8rem;
         border: 1px solid var(--line);
-        border-radius: 12px;
+        border-radius: 10px;
         background: var(--surface);
       }
       .rm-picker {
         display: grid;
-        gap: 0.3rem;
-        min-width: 15rem;
+        gap: 0.2rem;
+        min-width: 13rem;
+      }
+      .rm-picker label {
+        font-size: 0.75rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
       }
       .rm-picker select {
-        min-height: 44px;
-        font-weight: 700;
+        min-height: 34px;
+        padding: 0.3rem 0.6rem;
+        border-radius: 8px;
+        font-size: 0.88rem;
+        font-weight: 600;
       }
       .rm-role-meta {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 0.5rem;
-        min-height: 44px;
+        gap: 0.4rem;
+        min-height: 34px;
       }
       .rm-toolbar-end {
         display: flex;
@@ -2061,13 +2070,21 @@
         margin-left: auto;
       }
       .rm-btn {
-        min-height: 44px;
+        min-height: 34px;
+        padding: 0.3rem 0.8rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
         white-space: nowrap;
       }
+      .rm-btn:hover:not(:disabled) {
+        transform: none;
+        box-shadow: 0 2px 6px rgb(16 43 78 / 12%);
+      }
       .rm-btn-sm {
-        min-height: 36px;
-        padding: 0.35rem 0.8rem;
-        font-size: 0.88rem;
+        min-height: 28px;
+        padding: 0.15rem 0.6rem;
+        font-size: 0.78rem;
       }
       .rm-btn-danger {
         color: var(--red);
@@ -2079,12 +2096,12 @@
       .rm-chip {
         display: inline-flex;
         align-items: center;
-        padding: 0.2rem 0.65rem;
+        padding: 0.1rem 0.55rem;
         border-radius: 999px;
         background: var(--surface-soft);
         border: 1px solid var(--line);
         color: var(--muted);
-        font-size: 0.8rem;
+        font-size: 0.72rem;
         font-weight: 700;
         white-space: nowrap;
       }
@@ -2095,7 +2112,7 @@
       }
       .rm-usercount {
         color: var(--muted);
-        font-size: 0.85rem;
+        font-size: 0.8rem;
         white-space: nowrap;
       }
       .rm-new {
@@ -2103,10 +2120,10 @@
         flex-wrap: wrap;
         align-items: flex-end;
         gap: 0.75rem;
-        margin: 0 0 0.9rem;
-        padding: 0.9rem 1rem;
+        margin: 0 0 0.6rem;
+        padding: 0.6rem 0.8rem;
         border: 1px solid var(--line);
-        border-radius: 12px;
+        border-radius: 10px;
         background: var(--surface-soft);
       }
       .rm-new[hidden] {
@@ -2126,15 +2143,15 @@
         display: flex;
         align-items: center;
         justify-content: flex-end;
-        gap: 0.6rem;
-        margin: 0 0 0.6rem;
-        padding: 0.5rem 0;
+        gap: 0.5rem;
+        margin: 0 0 0.4rem;
+        padding: 0.3rem 0;
         background: var(--surface-soft);
       }
       .rm-status {
         margin-right: auto;
         color: var(--muted);
-        font-size: 0.9rem;
+        font-size: 0.82rem;
       }
       .rm-status-dirty {
         color: var(--warning);
@@ -2143,7 +2160,7 @@
       .rm-wrap {
         overflow-x: auto;
         border: 1px solid var(--line);
-        border-radius: 12px;
+        border-radius: 10px;
         background: var(--surface);
       }
       .rm-table {
@@ -2154,7 +2171,7 @@
       }
       .rm-table th,
       .rm-table td {
-        padding: 0.6rem 0.9rem;
+        padding: 0.35rem 0.75rem;
         border-bottom: 1px solid var(--line);
         vertical-align: middle;
         text-align: left;
@@ -2164,7 +2181,7 @@
         top: 0;
         background: var(--surface-soft);
         color: var(--navy);
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         letter-spacing: 0.05em;
         text-transform: uppercase;
         white-space: nowrap;
@@ -2173,26 +2190,26 @@
         font-weight: 400;
         text-transform: none;
         letter-spacing: 0;
-        font-size: 0.95rem;
+        font-size: 0.86rem;
         color: var(--ink);
-        min-width: 17rem;
+        min-width: 16rem;
       }
       .rm-table thead th.rm-perm {
         font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.05em;
-        font-size: 0.78rem;
+        font-size: 0.72rem;
         color: var(--navy);
       }
       .rm-table small {
         display: block;
         color: var(--muted);
-        font-size: 0.78rem;
+        font-size: 0.7rem;
         font-weight: 400;
       }
       .rm-table th.rm-col {
-        width: 9.5rem;
-        min-width: 9.5rem;
+        width: 8rem;
+        min-width: 8rem;
         text-align: center;
       }
       .rm-col-name {
@@ -2200,9 +2217,9 @@
       }
       .rm-col-tag {
         display: block;
-        margin-top: 0.15rem;
+        margin-top: 0.05rem;
         color: var(--muted);
-        font-size: 0.68rem;
+        font-size: 0.6rem;
         font-weight: 700;
         letter-spacing: 0.06em;
       }
@@ -2215,7 +2232,7 @@
       }
       .rm-table td.rm-cell {
         text-align: center;
-        width: 9.5rem;
+        width: 8rem;
       }
       .rm-table td.rm-cell-edit {
         background: color-mix(in srgb, var(--blue) 5%, var(--surface));
@@ -2225,14 +2242,14 @@
         box-shadow: inset 3px 0 0 var(--warning);
       }
       .rm-table input[type='checkbox'] {
-        width: 1.2rem;
-        height: 1.2rem;
+        width: 1rem;
+        height: 1rem;
         margin: 0;
         accent-color: var(--navy);
         cursor: pointer;
       }
       .rm-mark {
-        font-size: 1rem;
+        font-size: 0.9rem;
         font-weight: 700;
       }
       .rm-on {
@@ -2245,11 +2262,11 @@
       .rm-table tr.rm-group td {
         background: var(--blue-soft);
         color: var(--navy);
-        font-size: 0.78rem;
+        font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        padding-block: 0.45rem;
+        padding-block: 0.3rem;
       }
       .rm-table tr.rm-sensitive th.rm-perm {
         box-shadow: inset 3px 0 0 #e0a100;

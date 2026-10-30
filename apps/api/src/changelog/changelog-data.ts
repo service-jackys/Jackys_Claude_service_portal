@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 178,
+    title: 'Roles & permissions: smaller, tidier buttons and rows',
+    area: 'Permissions',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary:
+      'After the role-picker layout the buttons, drop-down, tags and table rows looked oversized.',
+    changes: [
+      'Buttons, drop-down and tags are about a quarter smaller (34 px high, Rename/Delete 28 px), with a small upper-case label over the drop-down.',
+      'Table rows, headers, check boxes and module headings are tighter, so many more permissions fit on screen; the toolbar and Save/Discard bar take less height.',
+    ],
+    needsYou: 'pull and hard-refresh (no migration, no API restart).',
+    migrations: [],
+    files: 'apps/web/src/index.html, changelog data.',
+  },
+  {
     id: 177,
     title: 'Roles & permissions: role picker, Administrator and Management always visible',
     area: 'Permissions',
