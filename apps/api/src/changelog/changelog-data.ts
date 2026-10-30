@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 177,
+    title: 'Roles & permissions: role picker, Administrator and Management always visible',
+    area: 'Permissions',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary:
+      'With custom roles the matrix grew a column per role: names wrapped onto several lines and the Rename/Delete buttons sat misaligned under the headers.',
+    changes: [
+      'One toolbar with a Role to edit drop-down (built-in and custom roles), a Built-in/Custom tag with the user count, Rename and Delete (custom roles only) and + New role.',
+      'The matrix shows Administrator and Management as read-only Reference columns next to the role being edited, so you can compare while you tick. Choosing Management edits Management itself.',
+      'Headers no longer wrap; the permission column and module headings stay in view when the table scrolls sideways on a small screen.',
+      'Unsaved ticks are kept when you switch roles; the drop-down marks roles with (unsaved), changed ticks are highlighted, and Save/Discard sit in one row above the table.',
+      'Creating a role selects it straight away so you can tick its permissions.',
+    ],
+    needsYou: 'pull and hard-refresh (no migration, no API restart).',
+    migrations: [],
+    files:
+      'apps/web/src/app.js, apps/web/src/index.html, tests/e2e/custom-roles.spec.ts, changelog data.',
+  },
+  {
     id: 176,
     title:
       'Custom roles (New role, rename, delete) with Finance, Sales Coordinator and Receptionist',

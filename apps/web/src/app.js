@@ -17574,6 +17574,10 @@ ${bodyHtml}
   }
 
   // ---------- Roles & permissions (modification #55, custom roles #176) ----------
+  // The role being edited on Roles & permissions; kept across re-renders so
+  // saving, renaming or creating a role does not jump back to the first one.
+  let rolesPageSelected = '';
+
   async function renderRolesPage(root) {
     root.innerHTML = '<p class="form-note">Loading roles&hellip;</p>';
     let data;
@@ -17583,6 +17587,7 @@ ${bodyHtml}
       root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
       return;
     }
+    const roleByCode = new Map(data.roles.map((role) => [role.code, role]));
     const editable = data.roles.filter((role) => role.code !== 'admin');
     const original = {};
     const draft = {};
@@ -17597,58 +17602,35 @@ ${bodyHtml}
       groups.get(key).push(permission);
     });
     const roleLabel = (role) => (role.code === 'admin' ? 'Administrator' : role.displayName);
-    const head = data.roles
-      .map((role) =>
-        role.builtin
-          ? '<th class="rm-check">' + escapeHtml(roleLabel(role)) + '</th>'
-          : '<th class="rm-check rm-custom">' +
-            escapeHtml(roleLabel(role)) +
-            '<small>' +
-            role.userCount +
-            (role.userCount === 1 ? ' user' : ' users') +
-            '</small><span class="rm-role-actions"><button type="button" class="button-link" data-rm-rename="' +
-            escapeHtml(role.code) +
-            '">Rename</button><button type="button" class="button-link" data-rm-delete="' +
-            escapeHtml(role.code) +
-            '">Delete</button></span></th>',
-      )
-      .join('');
-    let rows = '';
-    groups.forEach((permissions, key) => {
-      rows +=
-        '<tr class="rm-group"><td colspan="' +
-        (data.roles.length + 1) +
-        '">' +
-        escapeHtml(AL_MODULE_LABELS[key] || alSentence(key)) +
-        '</td></tr>';
-      permissions.forEach((permission) => {
-        const cells = data.roles
-          .map((role) =>
-            role.code === 'admin'
-              ? '<td class="rm-check"><span class="rm-locked" title="Always on">✓</span></td>'
-              : '<td class="rm-check"><input type="checkbox" data-role="' +
-                escapeHtml(role.code) +
-                '" data-perm="' +
-                escapeHtml(permission.code) +
-                '" aria-label="' +
-                escapeHtml(roleLabel(role) + ': ' + permission.code) +
-                '"' +
-                (draft[role.code].has(permission.code) ? ' checked' : '') +
-                ' /></td>',
-          )
-          .join('');
-        rows +=
-          '<tr' +
-          (key === 'admin' ? ' class="rm-sensitive"' : '') +
-          '><td>' +
-          escapeHtml(permission.description) +
-          '<small>' +
-          escapeHtml(permission.code) +
-          '</small></td>' +
-          cells +
-          '</tr>';
-      });
-    });
+    if (!roleByCode.has(rolesPageSelected) || rolesPageSelected === 'admin') {
+      rolesPageSelected = (editable.find((role) => role.code === 'sales') || editable[0]).code;
+    }
+    const isChanged = (code) => {
+      const before = original[code];
+      const after = draft[code];
+      return before.size !== after.size || [...after].some((item) => !before.has(item));
+    };
+    const changedRoles = () => editable.filter((role) => isChanged(role.code));
+
+    const optionHtml = (role) =>
+      '<option value="' +
+      escapeHtml(role.code) +
+      '"' +
+      (role.code === rolesPageSelected ? ' selected' : '') +
+      '>' +
+      escapeHtml(roleLabel(role)) +
+      (isChanged(role.code) ? ' (unsaved)' : '') +
+      '</option>';
+    const builtinOptions = () =>
+      editable
+        .filter((role) => role.builtin)
+        .map(optionHtml)
+        .join('');
+    const customOptions = () =>
+      editable
+        .filter((role) => !role.builtin)
+        .map(optionHtml)
+        .join('');
     const copyOptions = data.roles
       .map(
         (role) =>
@@ -17659,8 +17641,15 @@ ${bodyHtml}
           '</option>',
       )
       .join('');
+
     root.innerHTML =
-      '<div class="rm-bar"><button type="button" class="button" data-rm-new>New role</button></div>' +
+      '<div class="rm-toolbar">' +
+      '<div class="rm-picker"><label for="rmRoleSelect">Role to edit</label>' +
+      '<select id="rmRoleSelect"></select></div>' +
+      '<div class="rm-role-meta" data-rm-meta></div>' +
+      '<div class="rm-toolbar-end">' +
+      '<button type="button" class="button button-outline rm-btn" data-rm-new>+ New role</button>' +
+      '</div></div>' +
       '<form class="rm-new" data-rm-form hidden novalidate>' +
       '<div class="field"><label for="rmRoleName" data-rm-form-title>Role name</label>' +
       '<input type="text" id="rmRoleName" maxlength="40" autocomplete="off" placeholder="e.g. Service Coordinator" />' +
@@ -17669,147 +17658,179 @@ ${bodyHtml}
       '<select id="rmRoleCopy"><option value="">Start with no permissions</option>' +
       copyOptions +
       '</select></div>' +
-      '<div class="rm-form-actions"><button type="submit" class="button button-primary" data-rm-form-save>Create role</button>' +
-      '<button type="button" class="button" data-rm-form-cancel>Cancel</button></div>' +
+      '<div class="rm-form-actions"><button type="submit" class="button button-primary rm-btn" data-rm-form-save>Create role</button>' +
+      '<button type="button" class="button button-outline rm-btn" data-rm-form-cancel>Cancel</button></div>' +
       '<span class="field-error" data-rm-form-error></span></form>' +
-      '<div class="rm-bar"><button type="button" class="button button-primary" data-rm-save disabled>Save changes</button>' +
-      '<button type="button" class="button" data-rm-discard disabled>Discard</button>' +
-      '<span class="form-note" data-rm-status>No changes</span></div>' +
-      '<div class="rm-wrap"><table class="rc-table rm-table"><thead><tr><th>Permission</th>' +
-      head +
-      '</tr></thead><tbody>' +
-      rows +
-      '</tbody></table></div>' +
+      '<div class="rm-savebar"><span class="rm-status" data-rm-status role="status">No changes</span>' +
+      '<button type="button" class="button button-outline rm-btn" data-rm-discard disabled>Discard</button>' +
+      '<button type="button" class="button button-primary rm-btn" data-rm-save disabled>Save changes</button></div>' +
+      '<div class="rm-wrap" data-rm-wrap></div>' +
       '<div class="card-help"><span>About this section</span>' +
       tipHtml(
-        'Rows marked with an amber edge (admin.*) control who can manage logins and permissions &mdash; grant them with care.',
+        'Pick a role in <strong>Role to edit</strong> and tick what it can do. Administrator and Management stay on screen so you can compare. Rows marked with an amber edge (admin.*) control who can manage logins and permissions &mdash; grant them with care.',
       ) +
       '</div>';
+
+    const select = root.querySelector('#rmRoleSelect');
+    const meta = root.querySelector('[data-rm-meta]');
+    const wrap = root.querySelector('[data-rm-wrap]');
     const saveButton = root.querySelector('[data-rm-save]');
     const discardButton = root.querySelector('[data-rm-discard]');
     const status = root.querySelector('[data-rm-status]');
-    const changedRoles = () =>
-      editable.filter((role) => {
-        const before = original[role.code];
-        const after = draft[role.code];
-        return before.size !== after.size || [...after].some((code) => !before.has(code));
+
+    const fillSelect = () => {
+      const custom = customOptions();
+      select.innerHTML = custom
+        ? '<optgroup label="Built-in roles">' +
+          builtinOptions() +
+          '</optgroup><optgroup label="Custom roles">' +
+          custom +
+          '</optgroup>'
+        : builtinOptions();
+      select.value = rolesPageSelected;
+    };
+
+    const renderMeta = () => {
+      const role = roleByCode.get(rolesPageSelected);
+      if (role.builtin) {
+        meta.innerHTML = '<span class="rm-chip">Built-in role</span>';
+        return;
+      }
+      meta.innerHTML =
+        '<span class="rm-chip rm-chip-custom">Custom role</span>' +
+        '<span class="rm-usercount">' +
+        role.userCount +
+        (role.userCount === 1 ? ' user' : ' users') +
+        '</span>' +
+        '<button type="button" class="button button-outline rm-btn rm-btn-sm" data-rm-rename>Rename</button>' +
+        '<button type="button" class="button button-outline rm-btn rm-btn-sm rm-btn-danger" data-rm-delete>Delete</button>';
+      meta
+        .querySelector('[data-rm-rename]')
+        .addEventListener('click', () =>
+          openForm({ kind: 'rename', code: role.code, name: role.displayName }),
+        );
+      meta
+        .querySelector('[data-rm-delete]')
+        .addEventListener('click', () => deleteRoleAction(role));
+    };
+
+    // Administrator and Management are always shown as read-only reference
+    // columns; the role being edited gets the only editable column. When the
+    // role being edited is Management itself, its column is the editable one.
+    const renderTable = () => {
+      const selected = roleByCode.get(rolesPageSelected);
+      const referenceCodes = ['admin', 'management'].filter(
+        (code) => roleByCode.has(code) && code !== rolesPageSelected,
+      );
+      const columns = [
+        ...referenceCodes.map((code) => ({ role: roleByCode.get(code), editing: false })),
+        { role: selected, editing: true },
+      ].sort((x, y) => {
+        const order = { admin: 0, management: 1 };
+        return (order[x.role.code] ?? 2) - (order[y.role.code] ?? 2);
       });
+      const head = columns
+        .map(
+          ({ role, editing }) =>
+            '<th class="rm-col' +
+            (editing ? ' rm-col-edit' : ' rm-col-ref') +
+            '" scope="col"><span class="rm-col-name">' +
+            escapeHtml(roleLabel(role)) +
+            '</span><span class="rm-col-tag">' +
+            (editing ? 'Editing' : 'Reference') +
+            '</span></th>',
+        )
+        .join('');
+      let rows = '';
+      groups.forEach((permissions, key) => {
+        rows +=
+          '<tr class="rm-group"><td colspan="' +
+          (columns.length + 1) +
+          '"><span class="rm-group-label">' +
+          escapeHtml(AL_MODULE_LABELS[key] || alSentence(key)) +
+          '</span></td></tr>';
+        permissions.forEach((permission) => {
+          const cells = columns
+            .map(({ role, editing }) => {
+              if (role.code === 'admin') {
+                return '<td class="rm-cell rm-cell-ref" title="Always on"><span class="rm-mark rm-on" aria-label="Allowed">✓</span></td>';
+              }
+              const on = draft[role.code].has(permission.code);
+              if (!editing) {
+                return (
+                  '<td class="rm-cell rm-cell-ref"><span class="rm-mark ' +
+                  (on ? 'rm-on" aria-label="Allowed">✓' : 'rm-off" aria-label="Not allowed">–') +
+                  '</span></td>'
+                );
+              }
+              const dirty = on !== original[role.code].has(permission.code);
+              return (
+                '<td class="rm-cell rm-cell-edit' +
+                (dirty ? ' rm-dirty' : '') +
+                '"><input type="checkbox" data-role="' +
+                escapeHtml(role.code) +
+                '" data-perm="' +
+                escapeHtml(permission.code) +
+                '" aria-label="' +
+                escapeHtml(roleLabel(role) + ': ' + permission.code) +
+                '"' +
+                (on ? ' checked' : '') +
+                ' /></td>'
+              );
+            })
+            .join('');
+          rows +=
+            '<tr' +
+            (key === 'admin' ? ' class="rm-sensitive"' : '') +
+            '><th scope="row" class="rm-perm">' +
+            escapeHtml(permission.description) +
+            '<small>' +
+            escapeHtml(permission.code) +
+            '</small></th>' +
+            cells +
+            '</tr>';
+        });
+      });
+      wrap.innerHTML =
+        '<table class="rm-table"><thead><tr><th class="rm-perm" scope="col">Permission</th>' +
+        head +
+        '</tr></thead><tbody>' +
+        rows +
+        '</tbody></table>';
+    };
+
     const refresh = () => {
       const count = changedRoles().length;
       saveButton.disabled = !count;
       discardButton.disabled = !count;
       status.textContent = count
-        ? count + (count === 1 ? ' role' : ' roles') + ' with unsaved changes'
+        ? count + (count === 1 ? ' role has' : ' roles have') + ' unsaved changes'
         : 'No changes';
+      status.classList.toggle('rm-status-dirty', count > 0);
+      fillSelect();
     };
-    root.addEventListener('change', (event) => {
+
+    wrap.addEventListener('change', (event) => {
       const box = event.target.closest('input[data-role]');
       if (!box) return;
       const set = draft[box.dataset.role];
       if (box.checked) set.add(box.dataset.perm);
       else set.delete(box.dataset.perm);
+      box
+        .closest('td')
+        .classList.toggle(
+          'rm-dirty',
+          box.checked !== original[box.dataset.role].has(box.dataset.perm),
+        );
       refresh();
     });
+    select.addEventListener('change', () => {
+      rolesPageSelected = select.value;
+      root.querySelector('[data-rm-form]').hidden = true;
+      renderMeta();
+      renderTable();
+    });
     discardButton.addEventListener('click', () => renderRolesPage(root));
-
-    // ---- New role / rename / delete (custom roles, modification #176) ----
-    const roleForm = root.querySelector('[data-rm-form]');
-    const formError = root.querySelector('[data-rm-form-error]');
-    const nameInput = root.querySelector('#rmRoleName');
-    const formSave = root.querySelector('[data-rm-form-save]');
-    let formMode = { kind: 'create', code: '' };
-    const openForm = (mode) => {
-      formMode = mode;
-      formError.textContent = '';
-      roleForm.hidden = false;
-      root.querySelector('[data-rm-form-title]').textContent =
-        mode.kind === 'create' ? 'Role name' : 'New name for this role';
-      root.querySelector('[data-rm-copy-field]').hidden = mode.kind !== 'create';
-      formSave.textContent = mode.kind === 'create' ? 'Create role' : 'Save name';
-      formSave.dataset.label = formSave.textContent;
-      nameInput.value = mode.name || '';
-      nameInput.focus();
-    };
-    const loseDraftOk = () =>
-      !changedRoles().length ||
-      confirm('You have unsaved permission changes. Continue and discard them?');
-    root
-      .querySelector('[data-rm-new]')
-      .addEventListener('click', () => openForm({ kind: 'create' }));
-    root.querySelector('[data-rm-form-cancel]').addEventListener('click', () => {
-      roleForm.hidden = true;
-    });
-    // Bound on the freshly rendered buttons (not on `root`, which is reused
-    // across renders and would collect duplicate listeners).
-    root.querySelectorAll('button[data-rm-rename]').forEach((button) => {
-      button.addEventListener('click', () => {
-        const role = data.roles.find((item) => item.code === button.dataset.rmRename);
-        openForm({ kind: 'rename', code: role.code, name: role.displayName });
-      });
-    });
-    root.querySelectorAll('button[data-rm-delete]').forEach((button) => {
-      button.addEventListener('click', async () => {
-        const role = data.roles.find((item) => item.code === button.dataset.rmDelete);
-        if (role.userCount > 0) {
-          setMessage(
-            '#workspaceMessage',
-            role.userCount +
-              (role.userCount === 1 ? ' user still has' : ' users still have') +
-              ' the role "' +
-              role.displayName +
-              '". Move them to another role in Users first.',
-          );
-          return;
-        }
-        if (!confirm('Delete the role "' + role.displayName + '"? This cannot be undone.')) return;
-        if (!loseDraftOk()) return;
-        try {
-          await apiRequest('/api/role-matrix/' + encodeURIComponent(role.code), {
-            method: 'DELETE',
-          });
-          await renderRolesPage(root);
-          setMessage('#workspaceMessage', 'Role "' + role.displayName + '" deleted.', true);
-        } catch (error) {
-          setMessage('#workspaceMessage', error.message);
-        }
-      });
-    });
-    roleForm.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const name = nameInput.value.trim();
-      formError.textContent = '';
-      if (name.length < 2) {
-        formError.textContent = 'Enter a role name of at least 2 characters.';
-        return;
-      }
-      if (!loseDraftOk()) return;
-      setBusy(formSave, true, formMode.kind === 'create' ? 'Creating…' : 'Saving…');
-      try {
-        if (formMode.kind === 'create') {
-          const copyFrom = root.querySelector('#rmRoleCopy').value;
-          await apiRequest('/api/role-matrix', {
-            method: 'POST',
-            body: JSON.stringify(copyFrom ? { name, copyFrom } : { name }),
-          });
-        } else {
-          await apiRequest('/api/role-matrix/' + encodeURIComponent(formMode.code), {
-            method: 'PATCH',
-            body: JSON.stringify({ name }),
-          });
-        }
-        await renderRolesPage(root);
-        setMessage(
-          '#workspaceMessage',
-          formMode.kind === 'create'
-            ? 'Role "' + name + '" created. Tick its permissions, then assign it in Users.'
-            : 'Role renamed to "' + name + '".',
-          true,
-        );
-      } catch (error) {
-        setBusy(formSave, false);
-        formError.textContent = error.message;
-      }
-    });
     saveButton.addEventListener('click', async () => {
       setBusy(saveButton, true, 'Saving…');
       try {
@@ -17826,6 +17847,100 @@ ${bodyHtml}
         status.textContent = error.message;
       }
     });
+
+    // ---- New role / rename / delete (custom roles, modification #176) ----
+    const roleForm = root.querySelector('[data-rm-form]');
+    const formError = root.querySelector('[data-rm-form-error]');
+    const nameInput = root.querySelector('#rmRoleName');
+    const formSave = root.querySelector('[data-rm-form-save]');
+    let formMode = { kind: 'create', code: '' };
+    function openForm(mode) {
+      formMode = mode;
+      formError.textContent = '';
+      roleForm.hidden = false;
+      root.querySelector('[data-rm-form-title]').textContent =
+        mode.kind === 'create' ? 'Role name' : 'New name for this role';
+      root.querySelector('[data-rm-copy-field]').hidden = mode.kind !== 'create';
+      formSave.textContent = mode.kind === 'create' ? 'Create role' : 'Save name';
+      formSave.dataset.label = formSave.textContent;
+      nameInput.value = mode.name || '';
+      nameInput.focus();
+    }
+    const loseDraftOk = () =>
+      !changedRoles().length ||
+      confirm('You have unsaved permission changes. Continue and discard them?');
+    root
+      .querySelector('[data-rm-new]')
+      .addEventListener('click', () => openForm({ kind: 'create' }));
+    root.querySelector('[data-rm-form-cancel]').addEventListener('click', () => {
+      roleForm.hidden = true;
+    });
+    async function deleteRoleAction(role) {
+      if (role.userCount > 0) {
+        setMessage(
+          '#workspaceMessage',
+          role.userCount +
+            (role.userCount === 1 ? ' user still has' : ' users still have') +
+            ' the role "' +
+            role.displayName +
+            '". Move them to another role in Users first.',
+        );
+        return;
+      }
+      if (!confirm('Delete the role "' + role.displayName + '"? This cannot be undone.')) return;
+      if (!loseDraftOk()) return;
+      try {
+        await apiRequest('/api/role-matrix/' + encodeURIComponent(role.code), {
+          method: 'DELETE',
+        });
+        rolesPageSelected = '';
+        await renderRolesPage(root);
+        setMessage('#workspaceMessage', 'Role "' + role.displayName + '" deleted.', true);
+      } catch (error) {
+        setMessage('#workspaceMessage', error.message);
+      }
+    }
+    roleForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      formError.textContent = '';
+      if (name.length < 2) {
+        formError.textContent = 'Enter a role name of at least 2 characters.';
+        return;
+      }
+      if (!loseDraftOk()) return;
+      setBusy(formSave, true, formMode.kind === 'create' ? 'Creating…' : 'Saving…');
+      try {
+        if (formMode.kind === 'create') {
+          const copyFrom = root.querySelector('#rmRoleCopy').value;
+          const created = await apiRequest('/api/role-matrix', {
+            method: 'POST',
+            body: JSON.stringify(copyFrom ? { name, copyFrom } : { name }),
+          });
+          if (created && created.code) rolesPageSelected = created.code;
+        } else {
+          await apiRequest('/api/role-matrix/' + encodeURIComponent(formMode.code), {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+          });
+        }
+        await renderRolesPage(root);
+        setMessage(
+          '#workspaceMessage',
+          formMode.kind === 'create'
+            ? 'Role "' + name + '" created. Tick its permissions below, then assign it in Users.'
+            : 'Role renamed to "' + name + '".',
+          true,
+        );
+      } catch (error) {
+        setBusy(formSave, false);
+        formError.textContent = error.message;
+      }
+    });
+
+    fillSelect();
+    renderMeta();
+    renderTable();
   }
 
   async function renderReportsPage(root) {
