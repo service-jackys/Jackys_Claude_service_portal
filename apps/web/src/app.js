@@ -10190,6 +10190,36 @@ ${bodyHtml}
           },
         );
       rerenderRegions();
+      // Volume tier rates, next to Regions: the same per-unit rates the Quote
+      // Calculator shows ("tier 300+"). Derived from Base by default; an
+      // admin can overwrite a tier here. Changing a Base rate below
+      // re-derives that appliance's tiers.
+      const tiersHost = document.createElement('div');
+      tiersHost.className = 'detail-action-card pc-tiers-card';
+      tiersHost.innerHTML =
+        '<h4>Volume tier rates ' +
+        tipHtml(
+          'Per-unit rate by quantity on a line: Base under 50, then 50+, 150+, 300+ and 500+. These are what the Thomson Quote Calculator uses. Changing a Base rate in Appliance Rates re-calculates its tiers (-5%, -10%, -12%, -15%); you can then adjust any tier here.',
+        ) +
+        '</h4>';
+      grid.appendChild(tiersHost);
+      const tiersTable = document.createElement('div');
+      tiersHost.appendChild(tiersTable);
+      const rerenderTiers = () =>
+        pcRenderTable(
+          tiersTable,
+          data.appliances,
+          [
+            { key: 'name', label: 'Appliance', type: 'readonly', width: '35%' },
+            { key: 'rates.Base', label: 'Base', type: 'readonly', width: '13%' },
+            { key: 'rates.50+', label: '50+', type: 'number', step: '1', width: '13%' },
+            { key: 'rates.150+', label: '150+', type: 'number', step: '1', width: '13%' },
+            { key: 'rates.300+', label: '300+', type: 'number', step: '1', width: '13%' },
+            { key: 'rates.500+', label: '500+', type: 'number', step: '1', width: '13%' },
+          ],
+          { minRows: 1, noRemove: true, markDirty: ctx.markDirty, rerender: rerenderTiers },
+        );
+      rerenderTiers();
       // Appliance Rates spans the full row (like AMC's Appliance Catalog
       // and D+I's Common Master Inputs) so the Appliance name column has
       // room to actually read (modification.md #31).
@@ -10198,7 +10228,7 @@ ${bodyHtml}
       appliancesHost.innerHTML =
         '<h4>Appliance Rates ' +
         tipHtml(
-          'Only the Base rate is editable — the 50+/150+/300+/500+ volume-tier rates are always derived from Base (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula.',
+          'Editing a Base rate re-calculates the 50+/150+/300+/500+ tier rates (Built-in Hob rounds down at the 50+ tier; every other appliance and tier rounds up), matching the workbook’s own formula. The tiers are shown, and can be adjusted, in Volume tier rates next to Regions.',
         ) +
         '</h4>';
       grid.appendChild(appliancesHost);
@@ -10233,8 +10263,11 @@ ${bodyHtml}
             markDirty: ctx.markDirty,
             rerender: rerenderAppliances,
             onCellChange: (row, key) => {
-              if (key === 'rates.Base')
+              if (key === 'rates.Base') {
                 row.rates = pcDeriveThomsonRates(Number(row.rates.Base) || 0, row.name);
+                rerenderTiers();
+              }
+              if (key === 'name') rerenderTiers();
             },
             onAdd: () => ({
               name: 'New appliance',
