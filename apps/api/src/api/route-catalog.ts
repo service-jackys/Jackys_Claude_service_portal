@@ -99,6 +99,8 @@ export type RouteDefinition = {
     | 'updateStaffUser'
     | 'changePassword'
     | 'rolePermissions'
+    | 'createRole'
+    | 'renameRole'
     | 'budgetVarianceConfig'
     | 'roiTask'
     | 'chat'
@@ -757,7 +759,7 @@ export function createRouteCatalog(
     : unavailableHandlers(['list']);
   const roleHandlers = pool
     ? createRoleHandlers(createRoleService(pool), requirePermission)
-    : unavailableHandlers(['matrix', 'update']);
+    : unavailableHandlers(['matrix', 'update', 'create', 'rename', 'remove']);
   const rateCardViewHandlers = pool
     ? createRateCardViewHandlers(createRateCardViewService(pool), requirePermission)
     : unavailableHandlers(['view']);
@@ -1195,6 +1197,10 @@ export function createRouteCatalog(
               );
               return;
             }
+            if (result.kind === 'unknown-role') {
+              problem(response, 400, 'unknown-role', 'Bad Request', 'Choose an existing role.');
+              return;
+            }
             if (pool) {
               await ensureLocalProfile(pool, result.user.email, result.user.name, result.user.role);
             }
@@ -1270,6 +1276,10 @@ export function createRouteCatalog(
           }
           try {
             const result = await localAuth.updateUser(targetId, request.body);
+            if (result.kind === 'unknown-role') {
+              problem(response, 400, 'unknown-role', 'Bad Request', 'Choose an existing role.');
+              return;
+            }
             if (result.kind === 'not-found') {
               problem(
                 response,
@@ -1424,6 +1434,40 @@ export function createRouteCatalog(
       parameters: [{ name: 'role', in: 'path', required: true, schema: { type: 'string' } }],
       responses: [200, 400, 401, 403, 404, 409, 500],
       handlers: roleHandlers.update,
+    },
+    {
+      method: 'post',
+      path: '/api/role-matrix',
+      operationId: 'createRole',
+      tags: ['Authentication'],
+      summary: "Create a custom role, optionally copying another role's permissions (admin only)",
+      security: 'bearerAuth',
+      requestBody: 'createRole',
+      responses: [201, 400, 401, 403, 404, 409, 500],
+      handlers: roleHandlers.create,
+    },
+    {
+      method: 'patch',
+      path: '/api/role-matrix/{role}',
+      operationId: 'renameRole',
+      tags: ['Authentication'],
+      summary: 'Rename a custom role (admin only; the four built-in roles are fixed)',
+      security: 'bearerAuth',
+      requestBody: 'renameRole',
+      parameters: [{ name: 'role', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: [200, 400, 401, 403, 404, 409, 500],
+      handlers: roleHandlers.rename,
+    },
+    {
+      method: 'delete',
+      path: '/api/role-matrix/{role}',
+      operationId: 'deleteRole',
+      tags: ['Authentication'],
+      summary: 'Delete a custom role that no user holds (admin only)',
+      security: 'bearerAuth',
+      parameters: [{ name: 'role', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: [200, 401, 403, 404, 409, 500],
+      handlers: roleHandlers.remove,
     },
     {
       method: 'post',

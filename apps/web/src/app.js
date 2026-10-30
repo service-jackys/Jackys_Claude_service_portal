@@ -4224,17 +4224,53 @@ ${bodyHtml}
     $('#teamAccountRole').value = 'sales';
   }
 
-  const teamAccountRoleOptions = ['user', 'sales', 'management', 'admin'];
+  // Roles come from the server (built-in + custom roles an administrator
+  // created in Roles & permissions, modification #176); the list below is only
+  // the fallback until /api/role-matrix answers.
+  let teamAccountRoles = [
+    { code: 'user', displayName: 'User' },
+    { code: 'sales', displayName: 'Sales' },
+    { code: 'management', displayName: 'Management' },
+    { code: 'admin', displayName: 'Administrator' },
+  ];
+
+  function fillTeamAccountRoleSelect() {
+    const select = $('#teamAccountRole');
+    const keep = select.value || 'sales';
+    select.innerHTML = teamAccountRoles
+      .map(
+        (role) =>
+          `<option value="${escapeHtml(role.code)}">${escapeHtml(role.displayName)}</option>`,
+      )
+      .join('');
+    select.value = teamAccountRoles.some((role) => role.code === keep) ? keep : 'sales';
+  }
+
+  async function loadTeamAccountRoles() {
+    try {
+      const data = await apiRequest('/api/role-matrix');
+      teamAccountRoles = data.roles.map((role) => ({
+        code: role.code,
+        displayName: role.code === 'admin' ? 'Administrator' : role.displayName,
+      }));
+    } catch (error) {
+      // keep the fallback list; the Users page still works for built-in roles
+    }
+    fillTeamAccountRoleSelect();
+  }
 
   function renderTeamAccounts(users) {
     const body = $('#teamAccountsBody');
     body.innerHTML = users
       .map((user) => {
         const isSelf = user.id === currentUser?.id;
-        const roleOptions = teamAccountRoleOptions
+        const knownRoles = teamAccountRoles.some((role) => role.code === user.role)
+          ? teamAccountRoles
+          : [...teamAccountRoles, { code: user.role, displayName: user.role }];
+        const roleOptions = knownRoles
           .map(
             (role) =>
-              `<option value="${role}" ${role === user.role ? 'selected' : ''}>${escapeHtml(role)}</option>`,
+              `<option value="${escapeHtml(role.code)}" ${role.code === user.role ? 'selected' : ''}>${escapeHtml(role.displayName)}</option>`,
           )
           .join('');
         return `<tr data-user-id="${escapeHtml(user.id)}"><td>${escapeHtml(user.name)}</td><td>${escapeHtml(user.email)}</td><td><select class="team-account-role-select" data-user-id="${escapeHtml(user.id)}" ${isSelf ? 'disabled' : ''}>${roleOptions}</select></td><td>${user.active ? 'Active' : 'Inactive'}</td><td>${
@@ -4253,6 +4289,7 @@ ${bodyHtml}
     $('#teamAccountsBody').innerHTML =
       '<tr><td colspan="5" class="empty-state">Loading team logins…</td></tr>';
     try {
+      await loadTeamAccountRoles();
       const result = await apiRequest('/api/auth/users');
       renderTeamAccounts(result.users || []);
     } catch (error) {
@@ -15708,7 +15745,8 @@ ${bodyHtml}
       ex.loading = false;
       drawCompare();
       // Clicking a row of the table jumps down to the worked example.
-      if (scrollToIt) body.querySelector('.di-ex')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      if (scrollToIt)
+        body.querySelector('.di-ex')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     // Re-read the comparison (and the invoice shown in the worked example) from
@@ -15742,7 +15780,9 @@ ${bodyHtml}
         ' /> Also list the delivery notes that match</label></div><div class="field"><label>&nbsp;</label><span class="rl-paste-row"><button type="button" class="button button-outline" data-di-cmp-refresh title="Read the jobs and the master workbook again, e.g. after completing a job in another tab">Refresh</button>' +
         (c.refreshedAt
           ? '<span class="form-note">Updated ' +
-            escapeHtml(c.refreshedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })) +
+            escapeHtml(
+              c.refreshedAt.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+            ) +
             '</span>'
           : '') +
         '</span></div></div>';
@@ -17533,7 +17573,7 @@ ${bodyHtml}
     });
   }
 
-  // ---------- Roles & permissions (modification #55) ----------  // ---------- Roles & permissions (modification #55) ----------
+  // ---------- Roles & permissions (modification #55, custom roles #176) ----------
   async function renderRolesPage(root) {
     root.innerHTML = '<p class="form-note">Loading roles&hellip;</p>';
     let data;
@@ -17558,7 +17598,20 @@ ${bodyHtml}
     });
     const roleLabel = (role) => (role.code === 'admin' ? 'Administrator' : role.displayName);
     const head = data.roles
-      .map((role) => '<th class="rm-check">' + escapeHtml(roleLabel(role)) + '</th>')
+      .map((role) =>
+        role.builtin
+          ? '<th class="rm-check">' + escapeHtml(roleLabel(role)) + '</th>'
+          : '<th class="rm-check rm-custom">' +
+            escapeHtml(roleLabel(role)) +
+            '<small>' +
+            role.userCount +
+            (role.userCount === 1 ? ' user' : ' users') +
+            '</small><span class="rm-role-actions"><button type="button" class="button-link" data-rm-rename="' +
+            escapeHtml(role.code) +
+            '">Rename</button><button type="button" class="button-link" data-rm-delete="' +
+            escapeHtml(role.code) +
+            '">Delete</button></span></th>',
+      )
       .join('');
     let rows = '';
     groups.forEach((permissions, key) => {
@@ -17596,7 +17649,29 @@ ${bodyHtml}
           '</tr>';
       });
     });
+    const copyOptions = data.roles
+      .map(
+        (role) =>
+          '<option value="' +
+          escapeHtml(role.code) +
+          '">' +
+          escapeHtml(roleLabel(role)) +
+          '</option>',
+      )
+      .join('');
     root.innerHTML =
+      '<div class="rm-bar"><button type="button" class="button" data-rm-new>New role</button></div>' +
+      '<form class="rm-new" data-rm-form hidden novalidate>' +
+      '<div class="field"><label for="rmRoleName" data-rm-form-title>Role name</label>' +
+      '<input type="text" id="rmRoleName" maxlength="40" autocomplete="off" placeholder="e.g. Service Coordinator" />' +
+      '</div>' +
+      '<div class="field" data-rm-copy-field><label for="rmRoleCopy">Copy permissions from</label>' +
+      '<select id="rmRoleCopy"><option value="">Start with no permissions</option>' +
+      copyOptions +
+      '</select></div>' +
+      '<div class="rm-form-actions"><button type="submit" class="button button-primary" data-rm-form-save>Create role</button>' +
+      '<button type="button" class="button" data-rm-form-cancel>Cancel</button></div>' +
+      '<span class="field-error" data-rm-form-error></span></form>' +
       '<div class="rm-bar"><button type="button" class="button button-primary" data-rm-save disabled>Save changes</button>' +
       '<button type="button" class="button" data-rm-discard disabled>Discard</button>' +
       '<span class="form-note" data-rm-status>No changes</span></div>' +
@@ -17636,6 +17711,105 @@ ${bodyHtml}
       refresh();
     });
     discardButton.addEventListener('click', () => renderRolesPage(root));
+
+    // ---- New role / rename / delete (custom roles, modification #176) ----
+    const roleForm = root.querySelector('[data-rm-form]');
+    const formError = root.querySelector('[data-rm-form-error]');
+    const nameInput = root.querySelector('#rmRoleName');
+    const formSave = root.querySelector('[data-rm-form-save]');
+    let formMode = { kind: 'create', code: '' };
+    const openForm = (mode) => {
+      formMode = mode;
+      formError.textContent = '';
+      roleForm.hidden = false;
+      root.querySelector('[data-rm-form-title]').textContent =
+        mode.kind === 'create' ? 'Role name' : 'New name for this role';
+      root.querySelector('[data-rm-copy-field]').hidden = mode.kind !== 'create';
+      formSave.textContent = mode.kind === 'create' ? 'Create role' : 'Save name';
+      formSave.dataset.label = formSave.textContent;
+      nameInput.value = mode.name || '';
+      nameInput.focus();
+    };
+    const loseDraftOk = () =>
+      !changedRoles().length ||
+      confirm('You have unsaved permission changes. Continue and discard them?');
+    root
+      .querySelector('[data-rm-new]')
+      .addEventListener('click', () => openForm({ kind: 'create' }));
+    root.querySelector('[data-rm-form-cancel]').addEventListener('click', () => {
+      roleForm.hidden = true;
+    });
+    // Bound on the freshly rendered buttons (not on `root`, which is reused
+    // across renders and would collect duplicate listeners).
+    root.querySelectorAll('button[data-rm-rename]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const role = data.roles.find((item) => item.code === button.dataset.rmRename);
+        openForm({ kind: 'rename', code: role.code, name: role.displayName });
+      });
+    });
+    root.querySelectorAll('button[data-rm-delete]').forEach((button) => {
+      button.addEventListener('click', async () => {
+        const role = data.roles.find((item) => item.code === button.dataset.rmDelete);
+        if (role.userCount > 0) {
+          setMessage(
+            '#workspaceMessage',
+            role.userCount +
+              (role.userCount === 1 ? ' user still has' : ' users still have') +
+              ' the role "' +
+              role.displayName +
+              '". Move them to another role in Users first.',
+          );
+          return;
+        }
+        if (!confirm('Delete the role "' + role.displayName + '"? This cannot be undone.')) return;
+        if (!loseDraftOk()) return;
+        try {
+          await apiRequest('/api/role-matrix/' + encodeURIComponent(role.code), {
+            method: 'DELETE',
+          });
+          await renderRolesPage(root);
+          setMessage('#workspaceMessage', 'Role "' + role.displayName + '" deleted.', true);
+        } catch (error) {
+          setMessage('#workspaceMessage', error.message);
+        }
+      });
+    });
+    roleForm.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const name = nameInput.value.trim();
+      formError.textContent = '';
+      if (name.length < 2) {
+        formError.textContent = 'Enter a role name of at least 2 characters.';
+        return;
+      }
+      if (!loseDraftOk()) return;
+      setBusy(formSave, true, formMode.kind === 'create' ? 'Creating…' : 'Saving…');
+      try {
+        if (formMode.kind === 'create') {
+          const copyFrom = root.querySelector('#rmRoleCopy').value;
+          await apiRequest('/api/role-matrix', {
+            method: 'POST',
+            body: JSON.stringify(copyFrom ? { name, copyFrom } : { name }),
+          });
+        } else {
+          await apiRequest('/api/role-matrix/' + encodeURIComponent(formMode.code), {
+            method: 'PATCH',
+            body: JSON.stringify({ name }),
+          });
+        }
+        await renderRolesPage(root);
+        setMessage(
+          '#workspaceMessage',
+          formMode.kind === 'create'
+            ? 'Role "' + name + '" created. Tick its permissions, then assign it in Users.'
+            : 'Role renamed to "' + name + '".',
+          true,
+        );
+      } catch (error) {
+        setBusy(formSave, false);
+        formError.textContent = error.message;
+      }
+    });
     saveButton.addEventListener('click', async () => {
       setBusy(saveButton, true, 'Saving…');
       try {

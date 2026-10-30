@@ -15,6 +15,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 176,
+    title:
+      'Custom roles (New role, rename, delete) with Finance, Sales Coordinator and Receptionist',
+    area: 'Permissions',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary:
+      'Roles & permissions only had the four built-in roles. An administrator could not add a role such as Service Coordinator.',
+    changes: [
+      'Roles & permissions has a New role button: enter a name and optionally copy the permissions of an existing role (saved permissions), then tick or untick permissions like any other role.',
+      'Roles you create show Rename and Delete in their column header, with the number of users who hold them. Delete is refused while any user still has the role; the four built-in roles cannot be renamed or deleted, and Administrator stays…',
+      'Users page: the Role drop-down (new login and per-row) lists every role, including custom ones; a login can only be given a role that exists.',
+      'Starter roles added: Finance (revenue dashboard, budget vs actual, reports, invoices), Sales Coordinator (Sales permissions plus job cards, invoices, D&I jobs read) and Receptionist (complaints, appointments, customers, scheduler, job…',
+      'Migration 065 replaces the four-role CHECK constraints with a format check and a foreign key (local_auth_users.role -> roles.code, ON DELETE RESTRICT), adds roles.is_builtin and a unique role name. Migration 066 seeds the three starter…',
+      'API: POST /api/role-matrix, PATCH /api/role-matrix/{role}, DELETE /api/role-matrix/{role}; each is audited (roles.created, roles.renamed, roles.deleted).',
+    ],
+    needsYou:
+      'pull, restart the API (migrations 065 and 066 run on start), hard-refresh. Open Roles & permissions to check what the three starter roles can do and adjust the ticks; then assign them in Users. The old Apps Script portal is not changed.',
+    migrations: ['065_custom_roles.sql', '066_starter_custom_roles.sql'],
+    files:
+      'packages/db/migrations/065_custom_roles.sql, 066_starter_custom_roles.sql, packages/db/src/roles.ts, apps/api/src/roles/service.ts and routes.ts, apps/api/src/auth/local-auth.ts, route-catalog.ts…',
+  },
+  {
     id: 175,
     title: 'Cust Code pill beside the Ref doc no pill in both worked examples',
     area: 'Delivery & Installation',
