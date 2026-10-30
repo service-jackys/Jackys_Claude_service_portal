@@ -5598,6 +5598,17 @@
       /* Opt a card out of the 2-column split to run the full row width --
          used for a card whose field count makes a half-width column feel
          cramped (e.g. D+I's "Common Master Inputs"). */
+      .pricing-config-card .pc-tiers-card td input[type='number'] {
+        min-width: 0;
+        width: 100%;
+        padding-left: 6px;
+        padding-right: 4px;
+      }
+      .pricing-config-card .pc-tiers-card th,
+      .pricing-config-card .pc-tiers-card td {
+        padding-left: 4px;
+        padding-right: 4px;
+      }
       .pricing-config-card .pc-split-grid > .detail-action-card.pc-span-full {
         grid-column: 1 / -1;
       }

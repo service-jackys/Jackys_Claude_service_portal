@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 180,
+    title: 'Thomson Pricing Admin: Volume tier rates table',
+    area: 'Thomson',
+    date: '2026-10-30',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Quote Calculator uses tier rates (50+, 150+, 300+, 500+) but Thomson Pricing Admin only showed the Base rate.',
+    changes: [
+      'New Volume tier rates card next to Regions: Base (read-only) plus editable 50+, 150+, 300+ and 500+ rates for each appliance.',
+      'Changing a Base rate in Appliance Rates re-calculates its tiers as before; any tier can then be adjusted by hand.',
+    ],
+    needsYou: 'pull and hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, index.html, tests/e2e/thomson-admin-tiers.spec.ts.',
+  },
+  {
     id: 179,
     title: 'Thomson Quote Calculator: step-by-step page and Single unit mode',
     area: 'Thomson',

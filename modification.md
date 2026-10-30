@@ -3943,3 +3943,17 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, index.html, packages/contracts/src/index.ts, tests/e2e/thomson-quote-calculator.spec.ts, tests/unit/thomson-single-unit.test.ts, tests/integration/permissions-flat-rates.test.ts, changelog data.
 
 **Needs you:** pull, restart the API (contracts changed; no migration), hard-refresh. Then set the call-out charge and minimum in Thomson Pricing Admin > Single-unit quotes.
+
+---
+
+## Modification #180 — Thomson Pricing Admin: Volume tier rates table
+
+**Date:** 2026-10-30
+
+**Why.** The Quote Calculator shows the rate for a line by tier ("87.00 AED per unit (tier 300+)"), but Thomson Pricing Admin only showed the Base rate, so an admin could not see or adjust the tier rates the calculator uses.
+
+**What changed.** New **Volume tier rates** card next to Regions in Thomson Pricing Admin: for each appliance it shows Base (read-only) and the 50+, 150+, 300+ and 500+ rates as editable fields. Editing a Base rate in Appliance Rates re-calculates that appliance's tiers as before; you can then adjust any tier. Saved with the normal Save button; the Quote Calculator uses the stored tier rates. No database change, no API change.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/thomson-admin-tiers.spec.ts.
+
+**Needs you:** pull and hard-refresh.
