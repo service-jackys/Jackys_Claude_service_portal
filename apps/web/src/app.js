@@ -970,7 +970,12 @@
     if (drillIn && mode !== from) window.scrollTo({ top: 0 });
   }
 
+  let keepQuotationJobPanel = false;
   function activateWorkspaceMode(mode) {
+    if (!keepQuotationJobPanel) {
+      const quotationJobPanel = document.getElementById('quotationJobCardCreatePanel');
+      if (quotationJobPanel) quotationJobPanel.hidden = true;
+    }
     if (PRICING_ADMIN_PAGES[mode]) {
       activatePricingAdminMode(mode);
       return;
@@ -4239,12 +4244,103 @@ ${bodyHtml}
   }
 
   // ---- Quotations ----
+  // "2 of 5" chip: how many of a quotation's units already have a service job card.
+  // Only an Approved quotation can have job cards, so the others show a dash.
+  function quotationJobsChip(q) {
+    if (q.quotationStatus !== 'Approved') return '—';
+    const total = Math.max(Number(q.unitCount) || 0, 1);
+    const done = Math.min(Number(q.jobCardCount) || 0, total);
+    if (done >= total) {
+      return `<span class="jobs-chip jobs-done" title="Every unit has a service job card">All ${total} created</span>`;
+    }
+    const tone = done > 0 ? 'jobs-partial' : '';
+    return `<span class="jobs-chip ${tone}" title="${done} of ${total} unit(s) have a service job card">${done} of ${total} created</span>`;
+  }
+
+  // Header chips on the edit page: status, customer type, branch, units and job cards.
+  function renderQuotationMeta(q) {
+    const chips = [
+      `<span class="q-chip status-${escapeHtml(String(q.quotationStatus || 'Pending').toLowerCase())}">${escapeHtml(q.quotationStatus || 'Pending')}</span>`,
+    ];
+    if (q.customerType) chips.push(`<span class="q-chip">${escapeHtml(q.customerType)}</span>`);
+    if (q.b2bBranchSchool)
+      chips.push(`<span class="q-chip">${escapeHtml(q.b2bBranchSchool)}</span>`);
+    const units = Number(q.unitCount) || 0;
+    chips.push(
+      `<span class="q-chip q-chip-info">${units || 'No'} unit${units === 1 ? '' : 's'}</span>`,
+    );
+    chips.push(`<span class="q-chip">AED ${money(Number(q.grandTotal) || 0)}</span>`);
+    $('#quotationDetailMeta').innerHTML = chips.join('');
+  }
+
+  // Job cards made from this quotation. With two or more units there is one job card per
+  // unit: show the progress and a Create button on each unit still waiting for one.
+  function renderQuotationJobCards(quotation, jobResult, approved) {
+    const host = $('#quotationJobUnits');
+    const canWrite = hasPermission('service_job_card.write');
+    const jobs = jobResult.jobCards || (jobResult.jobCard ? [jobResult.jobCard] : []);
+    $('#quotationJobCardStatus').textContent = '';
+    $('#createJobCardFromQuotationButton').hidden = true;
+    host.hidden = true;
+    host.innerHTML = '';
+    if (!approved) {
+      $('#quotationJobCardStatus').textContent =
+        'Status is ' +
+        (quotation.quotationStatus || 'Pending') +
+        '. Save the quotation as Approved (approval / LPO received) to create service job cards.';
+      return;
+    }
+    const openJob = (id) => {
+      setWorkspaceMode('job-cards');
+      loadJobCardDetail(id);
+    };
+    if (!jobResult.perUnit) {
+      if (jobs[0]) {
+        $('#quotationJobCardStatus').innerHTML =
+          `Service job card already created: <button class="table-link" type="button" id="viewQuotationJobCardButton">${escapeHtml(jobs[0].jobCardReference)}</button>`;
+        $('#viewQuotationJobCardButton').addEventListener('click', () => openJob(jobs[0].id));
+      } else {
+        $('#createJobCardFromQuotationButton').hidden = !canWrite;
+      }
+      return;
+    }
+    const total = jobResult.unitCount;
+    const done = jobResult.jobCardCount;
+    const percent = total ? Math.round((done / total) * 100) : 0;
+    const tone = done >= total ? 'jobs-done' : done > 0 ? 'jobs-partial' : '';
+    host.innerHTML = `<div class="q-jobs-head">
+        <div><strong>Service job cards</strong> <span class="jobs-chip ${tone}">${done} of ${total} units</span></div>
+        <div class="q-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}" aria-label="Units with a service job card"><span style="width:${percent}%"></span></div>
+      </div>
+      <ul class="q-job-list">${jobResult.units
+        .map((unit, index) => {
+          const action = unit.jobCard
+            ? `<button class="table-link" type="button" data-open-job="${escapeHtml(unit.jobCard.id)}">${escapeHtml(unit.jobCard.jobCardReference)}</button>`
+            : canWrite
+              ? `<button class="button button-outline" type="button" data-create-unit="${escapeHtml(unit.unitKey)}">Create job card</button>`
+              : '<span class="form-note">Not created yet</span>';
+          return `<li><span class="q-job-unit"><span class="q-job-dot ${unit.jobCard ? 'done' : ''}" aria-hidden="true"></span>Unit ${index + 1}: ${escapeHtml(unit.label)}</span>${action}</li>`;
+        })
+        .join('')}</ul>`;
+    host.hidden = false;
+    host
+      .querySelectorAll('[data-open-job]')
+      .forEach((button) => button.addEventListener('click', () => openJob(button.dataset.openJob)));
+    host
+      .querySelectorAll('[data-create-unit]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          createJobCardFromQuotation(button.dataset.createUnit),
+        ),
+      );
+  }
+
   function renderQuotations(quotations) {
     const body = $('#quotationsBody');
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4304,39 +4400,27 @@ ${bodyHtml}
       fillQuotationForm('qte', result.quotation);
       $('#saveQuotationButton').hidden = !hasPermission('quotation.write');
       $('#quotationJobCardCreatePanel').hidden = true;
-      $('#quotationJobCardStatus').textContent = '';
+      renderQuotationMeta(result.quotation);
       renderQuotationApprovalLine(result.quotation);
       $('#createJobCardFromQuotationButton').hidden = true;
+      $('#quotationJobUnits').hidden = true;
       const approved = result.quotation.quotationStatus === 'Approved';
       if (hasPermission('service_job_card.read')) {
         try {
-          const jobCardResult = await apiRequest(
+          const jobResult = await apiRequest(
             '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card',
           );
-          if (jobCardResult.jobCard) {
-            const jobCardId = jobCardResult.jobCard.id;
-            $('#quotationJobCardStatus').innerHTML =
-              `Service job card already created: <button class="table-link" type="button" id="viewQuotationJobCardButton">${escapeHtml(jobCardResult.jobCard.jobCardReference)}</button>`;
-            $('#viewQuotationJobCardButton').addEventListener('click', () => {
-              setWorkspaceMode('job-cards');
-              loadJobCardDetail(jobCardId);
-            });
-          } else {
-            $('#createJobCardFromQuotationButton').hidden =
-              !approved || !hasPermission('service_job_card.write');
-            if (!approved) {
-              $('#quotationJobCardStatus').textContent =
-                'Status is ' +
-                (result.quotation.quotationStatus || 'Pending') +
-                '. Save the quotation as Approved (approval / LPO received) to create a service job card.';
-            }
-          }
+          renderQuotationJobCards(result.quotation, jobResult, approved);
         } catch (jobCardError) {
           if (jobCardError.status !== 403) throw jobCardError;
         }
       }
       $('#quotationDetail').hidden = false;
-      $('#quotationDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Open straight into edit mode: bring the edit page to the top of the screen.
+      requestAnimationFrame(() => {
+        $('#quotationDetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        $('#quotationDetailHeading').focus({ preventScroll: true });
+      });
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -7252,20 +7336,45 @@ ${bodyHtml}
   // editable form first, nothing is created until the form is submitted --
   // reusing the same jobCardFieldsHtml/fillJobCardForm/collectJobCardForm
   // machinery with its own 'jcq' field prefix.
-  async function createJobCardFromQuotation() {
+  let quotationJobUnitKey = '';
+  async function createJobCardFromQuotation(unitKey = '') {
     if (!currentQuotationId || !hasPermission('service_job_card.write')) return;
+    // The click handler passes the click event; only a string is a unit key.
+    quotationJobUnitKey = typeof unitKey === 'string' ? unitKey : '';
     const button = $('#createJobCardFromQuotationButton');
-    setBusy(button, true, 'Loading…');
+    const unitButton = quotationJobUnitKey
+      ? document.querySelector(`[data-create-unit="${CSS.escape(quotationJobUnitKey)}"]`)
+      : null;
+    const busyButton = unitButton || button;
+    setBusy(busyButton, true, 'Loading…');
     try {
       const result = await apiRequest(
-        '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card/prefill',
+        '/api/quotations/' +
+          encodeURIComponent(currentQuotationId) +
+          '/job-card/prefill' +
+          (quotationJobUnitKey ? '?unit=' + encodeURIComponent(quotationJobUnitKey) : ''),
       );
       fillJobCardForm('jcq', result.content);
       if (result.initialJobFinalStatus) {
         $('#jcqJobFinalStatus').value = result.initialJobFinalStatus;
       }
-      $('#quotationJobCardCreatePanel').hidden = false;
-      $('#quotationJobCardCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      // Job cards are created on the Service job cards page, not under the quotation:
+      // move the form there, and bring it to the top.
+      const unitIndex = currentQuotation?.products
+        ? currentQuotation.products.findIndex(
+            (unit, index) => (unit.unitKey || `u${index + 1}`) === quotationJobUnitKey,
+          )
+        : -1;
+      $('#quotationJobCardCreateContext').textContent = quotationJobUnitKey
+        ? `From quotation ${currentQuotation?.quotationReference || ''}, unit ${unitIndex + 1} of ${currentQuotation.products.length}`
+        : `From quotation ${currentQuotation?.quotationReference || ''}`;
+      keepQuotationJobPanel = true;
+      setWorkspaceMode('job-cards');
+      keepQuotationJobPanel = false;
+      const panel = $('#quotationJobCardCreatePanel');
+      $('#jobCardWorkspace > .card-body').prepend(panel);
+      panel.hidden = false;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -7277,7 +7386,7 @@ ${bodyHtml}
         setMessage('#workspaceMessage', error.message);
       }
     } finally {
-      setBusy(button, false);
+      setBusy(busyButton, false);
     }
   }
 
@@ -7288,7 +7397,10 @@ ${bodyHtml}
     setBusy(button, true, 'Creating…');
     try {
       const result = await apiRequest(
-        '/api/quotations/' + encodeURIComponent(currentQuotationId) + '/job-card',
+        '/api/quotations/' +
+          encodeURIComponent(currentQuotationId) +
+          '/job-card' +
+          (quotationJobUnitKey ? '?unit=' + encodeURIComponent(quotationJobUnitKey) : ''),
         { method: 'POST', body: JSON.stringify(collectJobCardForm('jcq')) },
       );
       $('#quotationJobCardCreatePanel').hidden = true;
@@ -9278,8 +9390,13 @@ ${bodyHtml}
     await submitJobCardCreate();
   });
   $('#createJobCardFromQuotationButton').addEventListener('click', createJobCardFromQuotation);
-  $('#cancelQuotationJobCardCreateButton').addEventListener('click', () => {
+  $('#cancelQuotationJobCardCreateButton').addEventListener('click', async () => {
     $('#quotationJobCardCreatePanel').hidden = true;
+    // Back to the quotation the job card was being made from.
+    if (currentQuotationId) {
+      setWorkspaceMode('quotations');
+      await loadQuotationDetail(currentQuotationId);
+    }
   });
   $('#quotationJobCardCreateForm').addEventListener('submit', async (event) => {
     event.preventDefault();

@@ -122,9 +122,66 @@ test(
         `units-approve-${suffix}`,
       );
       assert.equal(approved.quotationStatus, 'Approved');
-      const prefill = await jobs.prefillFromQuotation(created.id);
+      // Two units: the job card is made one unit at a time, so the unit has to be named.
+      await assert.rejects(() => jobs.prefillFromQuotation(created.id), {
+        code: 'unit-required',
+      });
+      const prefill = await jobs.prefillFromQuotation(created.id, 'u2');
       assert.equal(prefill.content.customerType, 'B2B');
       assert.equal(prefill.content.b2bBranchSchool, 'GEMS Wellington');
+      assert.equal(prefill.content.complaint, 'No spin');
+      assert.equal(prefill.content.itemDescription, 'Washing machine');
+      assert.equal(prefill.content.brand, 'LG');
+      assert.equal(prefill.content.serialNo, 'SN-u2');
+      assert.match(String(prefill.content.customerAddress), /Apartment 3/);
+
+      // The list shows 2 units and 0 job cards; each job card then counts one unit.
+      assert.equal((await quotations.detail(created.id)).unitCount, 2);
+      assert.equal((await quotations.detail(created.id)).jobCardCount, 0);
+      const first = await jobs.createFromQuotation(
+        created.id,
+        {},
+        profileId,
+        `units-job1-${suffix}`,
+        'u1',
+      );
+      assert.equal(first.quotationUnitKey, 'u1');
+      assert.equal(first.complaint, 'Drum noise');
+      await assert.rejects(() => jobs.prefillFromQuotation(created.id, 'u1'), {
+        code: 'duplicate',
+      });
+      await assert.rejects(
+        () =>
+          jobs.createFromQuotation(
+            created.id,
+            {},
+            profileId as string,
+            `units-dup-${suffix}`,
+            'u1',
+          ),
+        { code: 'duplicate' },
+      );
+      await assert.rejects(() => jobs.prefillFromQuotation(created.id, 'u9'), {
+        code: 'not-found',
+      });
+      let progress = await jobs.byQuotation(created.id);
+      assert.equal(progress.perUnit, true);
+      assert.deepEqual([progress.jobCardCount, progress.unitCount], [1, 2]);
+      assert.deepEqual(
+        progress.units.map((u: { unitKey: string; jobCard: unknown }) => [
+          u.unitKey,
+          Boolean(u.jobCard),
+        ]),
+        [
+          ['u1', true],
+          ['u2', false],
+        ],
+      );
+      assert.equal((await quotations.detail(created.id)).jobCardCount, 1);
+      await jobs.createFromQuotation(created.id, {}, profileId, `units-job2-${suffix}`, 'u2');
+      progress = await jobs.byQuotation(created.id);
+      assert.deepEqual([progress.jobCardCount, progress.unitCount], [2, 2]);
+      assert.equal((await quotations.detail(created.id)).jobCardCount, 2);
 
       const edited = await quotations.update(
         created.id,
@@ -136,7 +193,10 @@ test(
       assert.equal(Number(edited.vatAmount), 0);
       assert.equal(Number(edited.grandTotal), 450);
     } finally {
-      if (quotationId) await pool.query('DELETE FROM quotations WHERE id = $1', [quotationId]);
+      if (quotationId) {
+        await pool.query('DELETE FROM service_job_cards WHERE quotation_id = $1', [quotationId]);
+        await pool.query('DELETE FROM quotations WHERE id = $1', [quotationId]);
+      }
       if (profileId) await pool.query('DELETE FROM profiles WHERE id = $1', [profileId]);
       await pool.end();
     }

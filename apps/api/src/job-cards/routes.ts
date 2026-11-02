@@ -261,7 +261,12 @@ export function createServiceJobCardHandlers(
       requirePermission('service_job_card.write'),
       async (request, response, next) => {
         try {
-          response.json(await service.prefillFromQuotation(String(request.params.quotationId)));
+          response.json(
+            await service.prefillFromQuotation(
+              String(request.params.quotationId),
+              String(request.query.unit ?? ''),
+            ),
+          );
         } catch (error) {
           if (error instanceof ServiceJobCardError) {
             serviceError(error, response);
@@ -282,6 +287,7 @@ export function createServiceJobCardHandlers(
               request.body,
               auth.profileId,
               request.header('x-request-id') ?? undefined,
+              String(request.query.unit ?? ''),
             ),
           });
         } catch (error) {

@@ -24,6 +24,7 @@ import {
   listAppointmentsAwaitingJobCard,
   findServiceJobCardByAppointmentId,
   findServiceJobCardByQuotationId,
+  listServiceJobCardsByQuotationId,
   findServiceJobCardById,
   insertServiceJobCard,
   insertServiceJobCardHistory,
@@ -77,6 +78,7 @@ export class ServiceJobCardError extends Error {
       | 'not-found'
       | 'appointment-ineligible'
       | 'quotation-ineligible'
+      | 'unit-required'
       | 'duplicate'
       | 'invalid-transition'
       | 'terminal-job-card'
@@ -392,20 +394,74 @@ function defaultsFromAppointment(
  *  fields (site contact person/number, customer number) or a salesman/sales
  *  channel, so those are left blank here -- a "soft N/A" the CCE can still
  *  fill in by hand, never disabled (see modification.md #18). */
-function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardContent {
+/** A quotation with two or more units gets one job card per unit; otherwise one for the whole quotation. */
+function quotationIsPerUnit(quotation: QuotationRecord): boolean {
+  return quotation.products.length >= 2;
+}
+
+function quotationUnitKeyAt(quotation: QuotationRecord, index: number): string {
+  return quotation.products[index]?.unitKey || `u${index + 1}`;
+}
+
+function quotationUnitLabel(quotation: QuotationRecord, index: number): string {
+  const unit = quotation.products[index];
+  const name = unit?.description || unit?.partNo || '';
+  return [unit?.location, name].filter(Boolean).join(' - ') || `Unit ${index + 1}`;
+}
+
+/** Which units of a quotation already have a job card (a whole-quotation job card covers every unit). */
+function quotationJobCoverage(quotation: QuotationRecord, jobs: ServiceJobCardRecord[]) {
+  const whole = jobs.find((job) => job.quotationUnitKey === '') ?? null;
+  const perUnit = quotationIsPerUnit(quotation);
+  const units = perUnit
+    ? quotation.products.map((_, index) => {
+        const unitKey = quotationUnitKeyAt(quotation, index);
+        return {
+          unitKey,
+          label: quotationUnitLabel(quotation, index),
+          jobCard: whole ?? jobs.find((job) => job.quotationUnitKey === unitKey) ?? null,
+        };
+      })
+    : [];
+  return {
+    perUnit,
+    units,
+    unitCount: perUnit ? units.length : 1,
+    jobCardCount: perUnit ? units.filter((unit) => unit.jobCard).length : jobs.length ? 1 : 0,
+  };
+}
+
+function defaultsFromQuotation(quotation: QuotationRecord, unitKey = ''): ServiceJobCardContent {
+  const unitIndex = unitKey
+    ? quotation.products.findIndex((_, index) => quotationUnitKeyAt(quotation, index) === unitKey)
+    : -1;
+  const unit = unitIndex >= 0 ? quotation.products[unitIndex] : null;
+  // A multi-unit quotation keeps each complaint on its unit, so a whole-quotation job card
+  // (and the old quote-level box, hidden for B2B) falls back to the unit complaints.
+  const unitComplaints = quotation.products
+    .map((product, index) =>
+      product.complaint ? `${quotationUnitLabel(quotation, index)}: ${product.complaint}` : '',
+    )
+    .filter(Boolean)
+    .join('\n');
   return {
     jobCardDate: new Date().toISOString().slice(0, 10),
     customerName: quotation.customerName,
     customerContact: quotation.contactNumber,
-    customerAddress: quotation.siteLocation,
-    itemDescription:
-      quotation.products
-        .map((product) => product.description)
-        .filter(Boolean)
-        .join(', ') || null,
+    customerAddress: unit?.location
+      ? [quotation.siteLocation, unit.location].filter(Boolean).join(', ')
+      : quotation.siteLocation,
+    itemDescription: unit
+      ? unit.description || unit.partNo || null
+      : quotation.products
+          .map((product) => product.description)
+          .filter(Boolean)
+          .join(', ') || null,
     modelNo: null,
     warrantyStatus: null,
-    complaint: quotation.customerComplaint,
+    complaint: unit
+      ? unit.complaint || quotation.customerComplaint
+      : quotation.customerComplaint || unitComplaints || null,
     serviceRendered: null,
     periodFrom: null,
     periodTo: null,
@@ -418,7 +474,7 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
     invoiceNo: null,
     deliveryDate: null,
     technicianName: quotation.technicianName,
-    brand: null,
+    brand: unit?.brand || null,
     salesman: null,
     salesChannel: null,
     jobFinalStatus: 'WIP',
@@ -433,12 +489,12 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
     b2bBranchSchool: quotation.b2bBranchSchool,
     salesOrderNumber: null,
     legacyReference: quotation.legacyReference,
-    itemCode: null,
+    itemCode: unit?.partNo || null,
     mainGroup: null,
     groupName: null,
     subGroup: null,
     itemInMaster: null,
-    serialNo: null,
+    serialNo: unit?.serialNo || null,
     purchaseDate: null,
     accessoriesReceived: null,
     conditionNotes: null,
@@ -636,34 +692,71 @@ export function createServiceJobCardService(pool: Pool) {
 
   // ---- Quotation-sourced job cards (modification.md #18) ----
 
-  async function prefillFromQuotation(quotationId: string) {
+  async function prefillFromQuotation(quotationId: string, unitKey = '') {
     const client = await pool.connect();
     try {
       const quotation = await findQuotationById(client, quotationId);
       if (!quotation) {
         throw new ServiceJobCardError('not-found', 'The quotation was not found.');
       }
-      if (quotation.quotationStatus !== 'Approved') {
-        throw new ServiceJobCardError(
-          'quotation-ineligible',
-          'Only an Approved quotation (approval or LPO received) can be made into a service job card.',
-        );
-      }
-      if (await findServiceJobCardByQuotationId(client, quotationId)) {
-        throw new ServiceJobCardError(
-          'duplicate',
-          'This quotation already has a service job card.',
-        );
-      }
+      const unit = await checkQuotationJobCardTarget(client, quotation, unitKey, false);
       const approval = await findLatestApprovalForQuotation(client, quotationId);
       // A job made from a quotation waits for the customer's approval unless the
       // quotation's approval request has already been approved.
       const initialJobFinalStatus =
         approval?.status === 'Approved' ? 'WIP' : 'Customer approval pending';
-      return { quotation, content: defaultsFromQuotation(quotation), initialJobFinalStatus };
+      return {
+        quotation,
+        unitKey: unit,
+        content: defaultsFromQuotation(quotation, unit),
+        initialJobFinalStatus,
+      };
     } finally {
       client.release();
     }
+  }
+
+  /** Approved, the unit is named when the quotation has several, and that unit has no job card yet. Returns the unit key to store. */
+  async function checkQuotationJobCardTarget(
+    client: Parameters<typeof findServiceJobCardById>[0],
+    quotation: QuotationRecord,
+    unitKey: string,
+    lock: boolean,
+  ): Promise<string> {
+    if (quotation.quotationStatus !== 'Approved') {
+      throw new ServiceJobCardError(
+        'quotation-ineligible',
+        'Only an Approved quotation (approval or LPO received) can be made into a service job card.',
+      );
+    }
+    const jobs = await listServiceJobCardsByQuotationId(client, quotation.id, lock);
+    const coverage = quotationJobCoverage(quotation, jobs);
+    if (!coverage.perUnit) {
+      if (jobs.length) {
+        throw new ServiceJobCardError(
+          'duplicate',
+          'This quotation already has a service job card.',
+        );
+      }
+      return '';
+    }
+    if (!unitKey) {
+      throw new ServiceJobCardError(
+        'unit-required',
+        'This quotation has several units. Choose the unit to create the job card for.',
+      );
+    }
+    const unit = coverage.units.find((u) => u.unitKey === unitKey);
+    if (!unit) {
+      throw new ServiceJobCardError('not-found', 'That unit is not on this quotation.');
+    }
+    if (unit.jobCard) {
+      throw new ServiceJobCardError(
+        'duplicate',
+        `${unit.label} already has service job card ${unit.jobCard.jobCardReference}.`,
+      );
+    }
+    return unitKey;
   }
 
   /** Resolves and stores the warranty/billing fields for a job card, then enforces the delivery gate. */
@@ -774,6 +867,7 @@ export function createServiceJobCardService(pool: Pool) {
     input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
+    requestedUnitKey = '',
   ) {
     const { billing, rest: overrides } = splitBilling(
       serviceJobCardCreateSchema.parse(input ?? {}),
@@ -783,21 +877,10 @@ export function createServiceJobCardService(pool: Pool) {
       if (!quotation) {
         throw new ServiceJobCardError('not-found', 'The quotation was not found.');
       }
-      if (quotation.quotationStatus !== 'Approved') {
-        throw new ServiceJobCardError(
-          'quotation-ineligible',
-          'Only an Approved quotation (approval or LPO received) can be made into a service job card.',
-        );
-      }
-      if (await findServiceJobCardByQuotationId(client, quotationId, true)) {
-        throw new ServiceJobCardError(
-          'duplicate',
-          'This quotation already has a service job card.',
-        );
-      }
+      const unitKey = await checkQuotationJobCardTarget(client, quotation, requestedUnitKey, true);
 
       const content = mergeContent(
-        defaultsFromQuotation(quotation),
+        defaultsFromQuotation(quotation, unitKey),
         overrides,
         await mdaRate(),
         new Date().toISOString(),
@@ -817,6 +900,7 @@ export function createServiceJobCardService(pool: Pool) {
           jobCardReference,
           appointmentId: null,
           quotationId,
+          quotationUnitKey: unitKey,
           sourceType: 'Quotation',
           createdBy: profileId,
           content,
@@ -856,6 +940,7 @@ export function createServiceJobCardService(pool: Pool) {
           jobCardReference: jobCard.jobCardReference,
           quotationId,
           quotationReference: quotation.quotationReference,
+          quotationUnitKey: unitKey,
         },
         requestId,
       });
@@ -868,8 +953,17 @@ export function createServiceJobCardService(pool: Pool) {
     try {
       const quotation = await findQuotationById(client, quotationId);
       if (!quotation) throw new ServiceJobCardError('not-found', 'The quotation was not found.');
-      const jobCard = await findServiceJobCardByQuotationId(client, quotationId);
-      return { jobCard };
+      const jobCards = await listServiceJobCardsByQuotationId(client, quotationId);
+      const coverage = quotationJobCoverage(quotation, jobCards);
+      return {
+        // First job card, kept for older callers; jobCards and units hold the full picture.
+        jobCard: jobCards[0] ?? null,
+        jobCards,
+        perUnit: coverage.perUnit,
+        unitCount: coverage.unitCount,
+        jobCardCount: coverage.jobCardCount,
+        units: coverage.units,
+      };
     } finally {
       client.release();
     }

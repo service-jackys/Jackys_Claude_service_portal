@@ -31,12 +31,28 @@ const legacyQuotation = {
   updatedAt: '2026-10-14T08:00:00.000Z',
 };
 
-async function mockPortal(page: import('@playwright/test').Page, calls: { create?: Json }) {
+type MockOptions = {
+  permissions?: string[];
+  quotations?: Json[];
+  // Answers a request first; return true when it did.
+  handle?: (
+    url: URL,
+    request: import('@playwright/test').Request,
+    json: (body: unknown, status?: number) => Promise<void>,
+  ) => Promise<boolean>;
+};
+
+async function mockPortal(
+  page: import('@playwright/test').Page,
+  calls: { create?: Json },
+  options: MockOptions = {},
+) {
   await page.route('**/api/**', async (route) => {
     const request = route.request();
     const url = new URL(request.url());
     const json = (body: unknown, status = 200) =>
       route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (options.handle && (await options.handle(url, request, json))) return;
     if (url.pathname === '/api/auth/login') return json({ token: 'test-token' });
     if (url.pathname === '/api/auth/me') {
       return json({
@@ -50,12 +66,13 @@ async function mockPortal(page: import('@playwright/test').Page, calls: { create
             'quotation.write',
             'inspection.read',
             'inspection.write',
+            ...(options.permissions ?? []),
           ],
         },
       });
     }
     if (url.pathname === '/api/quotations' && request.method() === 'GET') {
-      return json({ quotations: [legacyQuotation] });
+      return json({ quotations: options.quotations ?? [legacyQuotation] });
     }
     if (url.pathname === '/api/quotations' && request.method() === 'POST') {
       calls.create = request.postDataJSON() as Json;
@@ -272,4 +289,91 @@ test('inspection form has customer type and B2B lookup, without a status popup',
   await expect.poll(() => created).toBeTruthy();
   expect(created).toMatchObject({ customerType: 'B2C' });
   await expect(page.locator('.q-status-dialog')).toHaveCount(0);
+});
+
+test('a school quote shows its units and job cards, and each unit gets its own job card page', async ({
+  page,
+}) => {
+  const school = {
+    ...legacyQuotation,
+    id: '900',
+    quotationReference: 'QO-2026-00900',
+    quotationStatus: 'Approved',
+    customerComplaint: null,
+    products: [1, 2, 3].map((n) => ({
+      unitKey: `u${n}`,
+      partNo: '',
+      description: 'Split AC',
+      brand: 'LG',
+      serialNo: '',
+      warranty: '',
+      location: `Room ${n}`,
+      complaint: `Not cooling ${n}`,
+      diagnosis: '',
+      qty: 1,
+      unitPrice: 0,
+    })),
+    unitCount: 3,
+    jobCardCount: 1,
+  };
+  const prefillUrls: string[] = [];
+  await mockPortal(
+    page,
+    {},
+    {
+      permissions: ['service_job_card.write'],
+      quotations: [school],
+      handle: async (url, request, json) => {
+        if (url.pathname === '/api/quotations/900') {
+          await json({ quotation: school });
+          return true;
+        }
+        if (url.pathname === '/api/quotations/900/job-card' && request.method() === 'GET') {
+          await json({
+            jobCard: { id: '71', jobCardReference: 'JC-1' },
+            jobCards: [{ id: '71', jobCardReference: 'JC-1', quotationUnitKey: 'u1' }],
+            perUnit: true,
+            unitCount: 3,
+            jobCardCount: 1,
+            units: [
+              {
+                unitKey: 'u1',
+                label: 'Room 1 - Split AC',
+                jobCard: { id: '71', jobCardReference: 'JC-1' },
+              },
+              { unitKey: 'u2', label: 'Room 2 - Split AC', jobCard: null },
+              { unitKey: 'u3', label: 'Room 3 - Split AC', jobCard: null },
+            ],
+          });
+          return true;
+        }
+        if (url.pathname === '/api/quotations/900/job-card/prefill') {
+          prefillUrls.push(url.search);
+          await json({
+            content: { customerName: 'GEMS Wellington', complaint: 'Not cooling 2' },
+            initialJobFinalStatus: 'Customer approval pending',
+          });
+          return true;
+        }
+        return false;
+      },
+    },
+  );
+  // The list shows the unit count and how many job cards exist.
+  const row = page.locator('#quotationsBody tr', { hasText: 'QO-2026-00900' });
+  await expect(row).toContainText('1 of 3 created');
+  await expect(row.locator('td.num').first()).toHaveText('3');
+  // Opening a quotation brings the edit page into view with its job-card progress.
+  await row.getByRole('button', { name: 'QO-2026-00900' }).click();
+  await expect(page.locator('#quotationJobUnits')).toContainText('1 of 3 units');
+  await expect(page.locator('#quotationDetailMeta')).toContainText('3 units');
+  await expect(page.locator('#quotationDetailHeading')).toBeFocused();
+  // Creating a job card for unit 2 opens the Service job cards page, not the quotation page.
+  await page.locator('[data-create-unit="u2"]').click();
+  await expect.poll(() => prefillUrls).toEqual(['?unit=u2']);
+  await expect(page.locator('#jobCardWorkspace')).toBeVisible();
+  await expect(page.locator('#quotationWorkspace')).toBeHidden();
+  const panel = page.locator('#jobCardWorkspace #quotationJobCardCreatePanel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('unit 2 of 3');
 });
