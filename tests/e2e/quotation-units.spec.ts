@@ -210,6 +210,21 @@ test.describe('quotation customer type, status and job card', () => {
     await expect(page.locator('#qtcB2bBranchSchool')).toBeDisabled();
   });
 
+  test('B2B hides the quote-level complaint and diagnosis, B2C shows them', async ({ page }) => {
+    await mockPortal(page, {});
+    await page.getByRole('tab', { name: 'New quotation' }).click();
+    await page.locator('#qtcCustomerType').selectOption('B2C');
+    await expect(page.locator('#qtcCustomerComplaint')).toBeVisible();
+    await expect(page.locator('#qtcTechnicalDiagnosis')).toBeVisible();
+    await page.locator('#qtcCustomerType').selectOption('B2B');
+    await expect(page.locator('#qtcCustomerComplaint')).toBeHidden();
+    await expect(page.locator('#qtcTechnicalDiagnosis')).toBeHidden();
+    // The units section stays, and each unit keeps its own complaint.
+    await expect(page.locator('#qtcUnits')).toBeVisible();
+    await page.locator('#qtcCustomerType').selectOption('B2C');
+    await expect(page.locator('#qtcCustomerComplaint')).toBeVisible();
+  });
+
   test('the list shows type, total and status, and a Pending quote cannot start a job card', async ({
     page,
   }) => {
