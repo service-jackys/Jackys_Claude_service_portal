@@ -4009,3 +4009,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, index.html, packages/contracts/src/index.ts, packages/db/src/quotations.ts, inspections.ts, apps/api/src/quotations, inspections, job-cards, migration 068.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart, hard-refresh.
+
+## Modification #184 — Quotations: complaint and diagnosis hidden for B2B
+
+**Date:** 2026-11-02
+
+**Why.** A B2B quote (a school or building) has several units, each with its own complaint, so the single quote-level boxes were confusing. A B2C quote has one unit and still needs them.
+
+**What changed.**
+- Choosing Customer type B2B hides the quote-level "Customer complaint" and "Technical diagnosis" boxes; B2C shows them.
+- Nothing is deleted: text already saved on a quote stays and still prints. Each unit keeps its own complaint.
+- Inspections are unchanged.
+
+**Files.** apps/web/src/app.js, tests/e2e/quotation-units.spec.ts.
+
+**Needs you:** pull, hard-refresh. No database change.

@@ -2485,8 +2485,10 @@
         <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status ${tipHtml('The service job warranty status. Out-of-warranty approval requests raised from this quotation pull it in automatically.')}</label><select id="${prefix}WarrantyStatus"><option value="">Select</option><option>In Warranty</option><option>Out Warranty</option></select></div>
       </div>
+      <div id="${prefix}ComplaintBlock">
       <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}TechnicalDiagnosis">Technical diagnosis</label><textarea id="${prefix}TechnicalDiagnosis" maxlength="10000"></textarea></div>
+      </div>
       <h5>Units</h5>
       <p class="form-note">Add one unit for each appliance. For a school or a building, enter the villa or apartment and that unit's own complaint, then add its charges under it.</p>
       <div id="${prefix}Units"></div>
@@ -2525,6 +2527,12 @@
       branch.value = '';
       setBranchHint(prefix, '', '');
     }
+    // A B2B quote covers several units, each with its own complaint, so the single
+    // quote-level complaint and diagnosis boxes are only shown for B2C (one unit).
+    // Text already saved on the quote is kept; the boxes are just hidden.
+    const complaintBlock = $(`#${prefix}ComplaintBlock`);
+    if (complaintBlock)
+      complaintBlock.hidden = String($(`#${prefix}CustomerType`).value).startsWith('B2B');
   }
 
   async function matchBranch(prefix) {
