@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 186,
+    "title": "Quotation edit page: cleaner Remove buttons and Service job cards box",
+    "area": "Job cards",
+    "date": "2026-11-02",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Remove unit button looked like an unstyled browser button, and the Service job cards list repeated the long item description for every unit.",
+    "changes": [
+      "Remove unit and the charge Remove buttons are now outlined red buttons with a hover state and keyboard focus ring.",
+      "Service job cards box: a header with the title and a \"1 of 3 created\" chip and progress bar; each unit is a row with a number badge (a tick once done), the item code and a brand chip, the location below, and either a Create job card…",
+      "Each unit in the job-card list now comes with its item code, brand and location from the server."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No database change.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, index.html, apps/api/src/job-cards/service.ts, tests/e2e/quotation-units.spec.ts."
+  },
+  {
     "id": 185,
     "title": "Quotations: one service job card per unit, Units and Job cards columns, edit page, job card opens on its own page",
     "area": "Job cards",

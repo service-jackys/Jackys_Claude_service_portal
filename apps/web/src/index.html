@@ -756,17 +756,33 @@
         flex-wrap: wrap;
         align-items: center;
         justify-content: space-between;
-        gap: 0.6rem 1rem;
-        padding: 0.85rem 1rem;
-        background: var(--surface-soft);
+        gap: 0.75rem 1.25rem;
+        padding: 1rem 1.25rem;
+        background: linear-gradient(to bottom, #f8fafc, var(--surface-soft));
         border-bottom: 1px solid var(--line);
       }
-      .q-jobs-head strong {
+      .q-jobs-title {
+        display: grid;
+        gap: 0.1rem;
+      }
+      .q-jobs-title strong {
         color: var(--navy);
+        font-size: 1rem;
+      }
+      .q-jobs-title span {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .q-jobs-progress {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        flex: 1 1 240px;
+        justify-content: flex-end;
       }
       .q-progress {
-        flex: 1 1 180px;
-        max-width: 280px;
+        flex: 1 1 140px;
+        max-width: 220px;
         height: 8px;
         border-radius: 999px;
         background: #e3eaf1;
@@ -785,33 +801,133 @@
         padding: 0;
       }
       .q-job-list li {
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 34px minmax(0, 1fr) auto;
         align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem 1rem;
-        padding: 0.65rem 1rem;
+        gap: 0.9rem;
+        padding: 0.75rem 1.25rem;
         border-top: 1px solid var(--line);
+        transition: background 0.15s ease;
       }
       .q-job-list li:first-child {
         border-top: 0;
       }
-      .q-job-unit {
-        display: flex;
-        align-items: center;
-        gap: 0.6rem;
-        min-width: 0;
-        font-weight: 600;
+      .q-job-list li:hover {
+        background: #fafcfe;
       }
-      .q-job-dot {
-        flex: none;
-        width: 10px;
-        height: 10px;
+      .q-job-num {
+        display: grid;
+        place-items: center;
+        width: 30px;
+        height: 30px;
         border-radius: 50%;
-        background: #c9d4df;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
       }
-      .q-job-dot.done {
-        background: var(--success);
+      .q-job-list li.is-done .q-job-num {
+        background: #e0f4ea;
+        border-color: #b7e0c9;
+        color: var(--success);
+      }
+      .q-job-info {
+        min-width: 0;
+      }
+      .q-job-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        color: var(--ink);
+        font-size: 0.92rem;
+      }
+      .q-job-title strong {
+        font-weight: 700;
+        letter-spacing: 0.01em;
+      }
+      .q-job-brand {
+        padding: 0.05rem 0.55rem;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 0.74rem;
+        font-weight: 700;
+      }
+      .q-job-sub {
+        margin-top: 0.1rem;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .q-job-create {
+        min-height: 36px;
+        padding: 0.35rem 0.9rem;
+        font-size: 0.85rem;
+        white-space: nowrap;
+      }
+      .q-job-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.35rem 0.8rem;
+        border: 1px solid #b7e0c9;
+        border-radius: 999px;
+        background: #e0f4ea;
+        color: var(--success);
+        font-weight: 700;
+        font-size: 0.84rem;
+        cursor: pointer;
+      }
+      .q-job-link:hover {
+        background: #d2eede;
+      }
+      .q-remove {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        min-height: 34px;
+        padding: 0.3rem 0.8rem;
+        border: 1px solid #f1bcbc;
+        border-radius: 8px;
+        background: #fff;
+        color: var(--red);
+        font: inherit;
+        font-size: 0.82rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease;
+      }
+      .q-remove::before {
+        content: '\00d7';
+        font-size: 1.2em;
+        line-height: 1;
+      }
+      .q-remove:hover {
+        background: #fde6e6;
+        border-color: #e69a9a;
+      }
+      .q-remove:focus-visible {
+        outline: 2px solid var(--red);
+        outline-offset: 2px;
+      }
+      .q-remove-sm {
+        min-height: 28px;
+        padding: 0.15rem 0.55rem;
+        font-size: 0.75rem;
+      }
+      @media (max-width: 640px) {
+        .q-job-list li {
+          grid-template-columns: 34px minmax(0, 1fr);
+        }
+        .q-job-action {
+          grid-column: 2;
+        }
+        .q-jobs-progress {
+          justify-content: flex-start;
+        }
       }
       .q-job-context {
         font-weight: 600;
@@ -840,7 +956,7 @@
         border-top: 1px solid var(--line);
         border-radius: 0 0 14px 14px;
       }
-      .q-job-list .table-link:focus-visible,
+      .q-job-link:focus-visible,
       .q-jobs .button:focus-visible,
       .q-unit input:focus-visible,
       .q-unit select:focus-visible,

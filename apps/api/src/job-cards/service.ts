@@ -419,6 +419,10 @@ function quotationJobCoverage(quotation: QuotationRecord, jobs: ServiceJobCardRe
         return {
           unitKey,
           label: quotationUnitLabel(quotation, index),
+          partNo: quotation.products[index]?.partNo ?? '',
+          brand: quotation.products[index]?.brand ?? '',
+          description: quotation.products[index]?.description ?? '',
+          location: quotation.products[index]?.location ?? '',
           jobCard: whole ?? jobs.find((job) => job.quotationUnitKey === unitKey) ?? null,
         };
       })

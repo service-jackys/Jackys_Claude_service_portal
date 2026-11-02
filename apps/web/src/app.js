@@ -2731,7 +2731,7 @@
       <td><input type="number" min="0" step="0.01" data-cfield="unitPrice" value="${c.unitPrice}" aria-label="Unit price (AED)" style="width:95px;"></td>
       <td class="num" data-cell="vat">${money(amount * rate)}</td>
       <td class="num" data-cell="total">${money(amount * (1 + rate))}</td>
-      <td><button type="button" class="button-link" data-remove-charge="${idx}">Remove</button></td>
+      <td><button type="button" class="q-remove q-remove-sm" data-remove-charge="${idx}">Remove</button></td>
     </tr>`;
   }
 
@@ -2752,7 +2752,7 @@
     const field = (label, name, extra = '') =>
       `<div class="field"><label>${label}</label><input type="text" data-ufield="${name}" value="${escapeHtml(unit[name])}" maxlength="300" ${extra}></div>`;
     return `<section class="q-unit" data-unit="${escapeHtml(unit.unitKey)}">
-      <header><strong>Unit ${number}</strong><button type="button" class="button-link" data-remove-unit="${escapeHtml(unit.unitKey)}">Remove unit</button></header>
+      <header><strong>Unit ${number}</strong><button type="button" class="q-remove" data-remove-unit="${escapeHtml(unit.unitKey)}">Remove unit</button></header>
       <div class="field-grid">
         ${field('Item code', 'partNo', 'autocomplete="off" list="qUnitCodes"')}
         ${field('Description', 'description', 'autocomplete="off" list="qUnitNames"')}
@@ -4309,17 +4309,28 @@ ${bodyHtml}
     const percent = total ? Math.round((done / total) * 100) : 0;
     const tone = done >= total ? 'jobs-done' : done > 0 ? 'jobs-partial' : '';
     host.innerHTML = `<div class="q-jobs-head">
-        <div><strong>Service job cards</strong> <span class="jobs-chip ${tone}">${done} of ${total} units</span></div>
-        <div class="q-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}" aria-label="Units with a service job card"><span style="width:${percent}%"></span></div>
+        <div class="q-jobs-title"><strong>Service job cards</strong><span>One job card for each unit</span></div>
+        <div class="q-jobs-progress">
+          <span class="jobs-chip ${tone}">${done} of ${total} created</span>
+          <div class="q-progress" role="progressbar" aria-valuemin="0" aria-valuemax="${total}" aria-valuenow="${done}" aria-label="Units with a service job card"><span style="width:${percent}%"></span></div>
+        </div>
       </div>
       <ul class="q-job-list">${jobResult.units
         .map((unit, index) => {
           const action = unit.jobCard
-            ? `<button class="table-link" type="button" data-open-job="${escapeHtml(unit.jobCard.id)}">${escapeHtml(unit.jobCard.jobCardReference)}</button>`
+            ? `<button class="q-job-link" type="button" data-open-job="${escapeHtml(unit.jobCard.id)}">${escapeHtml(unit.jobCard.jobCardReference)}<span aria-hidden="true">›</span></button>`
             : canWrite
-              ? `<button class="button button-outline" type="button" data-create-unit="${escapeHtml(unit.unitKey)}">Create job card</button>`
+              ? `<button class="button button-outline q-job-create" type="button" data-create-unit="${escapeHtml(unit.unitKey)}">Create job card</button>`
               : '<span class="form-note">Not created yet</span>';
-          return `<li><span class="q-job-unit"><span class="q-job-dot ${unit.jobCard ? 'done' : ''}" aria-hidden="true"></span>Unit ${index + 1}: ${escapeHtml(unit.label)}</span>${action}</li>`;
+          const code = unit.partNo || unit.description || `Unit ${index + 1}`;
+          return `<li class="${unit.jobCard ? 'is-done' : ''}">
+            <span class="q-job-num" aria-hidden="true">${unit.jobCard ? '✓' : index + 1}</span>
+            <div class="q-job-info">
+              <div class="q-job-title"><strong>${escapeHtml(code)}</strong>${unit.brand ? `<span class="q-job-brand">${escapeHtml(unit.brand)}</span>` : ''}</div>
+              ${unit.location ? `<div class="q-job-sub">${escapeHtml(unit.location)}</div>` : ''}
+            </div>
+            <div class="q-job-action">${action}</div>
+          </li>`;
         })
         .join('')}</ul>`;
     host.hidden = false;
