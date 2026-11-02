@@ -3931,7 +3931,12 @@ ${bodyHtml}
     const unitNo = new Map(units.map((u, i) => [unitKeyOf(u, i), i + 1]));
     const general = charges.filter((c) => !c.unitKey || !unitNo.has(c.unitKey));
     const same = (a, b) =>
-      String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+      String(a || '')
+        .trim()
+        .toLowerCase() ===
+      String(b || '')
+        .trim()
+        .toLowerCase();
     const isB2B = quotation.customerType === 'B2B';
     const branch = quotation.b2bBranchSchool;
     // Customer details: skip empty fields, and skip name / project when they just repeat the branch.
@@ -3940,11 +3945,15 @@ ${bodyHtml}
       ['Customer type', quotation.customerType],
       ['B2B branch / school', isB2B ? branch : ''],
       ['Status', quotation.quotationStatus],
-      ['Customer name', isB2B && same(quotation.customerName, branch) ? '' : quotation.customerName],
+      [
+        'Customer name',
+        isB2B && same(quotation.customerName, branch) ? '' : quotation.customerName,
+      ],
       ['Contact number', quotation.contactNumber],
       [
         'Project name',
-        isB2B && (same(quotation.projectName, branch) || same(quotation.projectName, quotation.customerName))
+        isB2B &&
+        (same(quotation.projectName, branch) || same(quotation.projectName, quotation.customerName))
           ? ''
           : quotation.projectName,
       ],
@@ -3981,7 +3990,10 @@ ${bodyHtml}
       ? `<h2>Charges</h2><table class="compact"><thead><tr>${units.length > 1 ? '<th>Unit</th>' : ''}<th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (AED)</th></tr></thead><tbody>${chargeRows
           .map((c) => {
             const amount = (c.qty || 0) * (c.unitPrice || 0);
-            const unitCell = units.length > 1 ? `<td>${unitNo.get(c.unitKey) ? `U${unitNo.get(c.unitKey)}` : 'All'}</td>` : '';
+            const unitCell =
+              units.length > 1
+                ? `<td>${unitNo.get(c.unitKey) ? `U${unitNo.get(c.unitKey)}` : 'All'}</td>`
+                : '';
             return `<tr>${unitCell}<td>${escapeHtml(c.type || 'Part')}</td><td>${escapeHtml([c.partNo, c.description].filter(Boolean).join(' - '))}</td><td class="num">${escapeHtml(String(c.qty ?? 0))}</td><td class="num">${money(c.unitPrice || 0)}</td><td class="num">${money(amount)}</td><td class="num">${money(amount * rate)}</td><td class="num">${money(amount * (1 + rate))}</td></tr>`;
           })
           .join('')}</tbody></table>`
