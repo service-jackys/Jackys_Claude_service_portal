@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import { z } from 'zod';
 import {
   quotationWriteSchema,
   quotationListQuerySchema,
@@ -42,6 +43,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     customerType: null,
     b2bBranchSchool: null,
     quotationStatus: 'Pending',
+    erpStatus: '',
     products: [],
     parts: [],
     labourAmount: 0,
@@ -72,6 +74,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     customerType: input.customerType ?? base.customerType,
     b2bBranchSchool: input.b2bBranchSchool ?? base.b2bBranchSchool,
     quotationStatus: input.quotationStatus ?? base.quotationStatus,
+    erpStatus: input.erpStatus ?? base.erpStatus,
     products: input.products ?? base.products,
     parts: input.parts ?? base.parts,
     labourAmount: input.labourAmount ?? base.labourAmount,
@@ -87,6 +90,12 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     signatureDate: input.signatureDate ?? base.signatureDate,
     legacyReference: input.legacyReference ?? base.legacyReference,
   };
+  // ERP / ORION status is mandatory: every saved quotation says whether it is invoiced yet.
+  if (!merged.erpStatus) {
+    throw new z.ZodError([
+      { code: 'custom', path: ['erpStatus'], message: 'ERP/ORION status is required.' },
+    ]);
+  }
   // The total is always worked out here from the lines, never taken from the client.
   const totals = computeQuotationTotals(merged);
   merged.subtotalAmount = totals.subtotal;
@@ -143,6 +152,7 @@ export function createQuotationService(pool: Pool) {
         customerType: current.customerType,
         b2bBranchSchool: current.b2bBranchSchool,
         quotationStatus: current.quotationStatus,
+        erpStatus: current.erpStatus,
         products: current.products,
         parts: current.parts,
         labourAmount: Number(current.labourAmount),
@@ -181,6 +191,7 @@ export function createQuotationService(pool: Pool) {
         appointmentId: data.appointmentId,
         unused: data.unused === 'true',
         quotationStatus: data.quotationStatus,
+        erpStatus: data.erpStatus,
         customerType: data.customerType,
         page: data.page,
         pageSize: data.pageSize,

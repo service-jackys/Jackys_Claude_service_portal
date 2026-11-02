@@ -28,6 +28,7 @@ const legacyQuotation = {
   customerType: 'B2B',
   b2bBranchSchool: 'GEMS Wellington',
   quotationStatus: 'Pending',
+  erpStatus: 'Pending invoice',
   updatedAt: '2026-10-14T08:00:00.000Z',
 };
 

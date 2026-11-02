@@ -2480,6 +2480,7 @@
     return `
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field erp-status-field"><label for="${prefix}ErpStatus">ERP / ORION status <span class="required">*</span> ${tipHtml('Whether this quotation has been invoiced in the ERP (ORION). An Invoiced quotation is already inside that month&#39;s revenue, so it is left out of LPO pending on the Reports tab.')}</label><select id="${prefix}ErpStatus" class="erp-status-select" required><option value="">Select status</option><option value="Pending invoice">Pending invoice</option><option value="Invoiced">Invoiced</option></select></div>
         <div class="field"><label for="${prefix}CustomerType">Customer type <span class="required">*</span></label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
         <div class="field"><label for="${prefix}B2bBranchSchool">Look up B2B Branch / School ${tipHtml('For a B2B customer, type the school or branch name (or customer code) and pick it from the list. This loads the correct customer name and project.')}</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300" list="${prefix}BranchList" autocomplete="off"><datalist id="${prefix}BranchList"></datalist><small id="${prefix}BranchHint" class="field-hint" hidden></small></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
@@ -2645,8 +2646,29 @@
     });
   }
 
+  // ERP / ORION status select: red until Pending invoice, green once Invoiced.
+  function syncErpStatusLook(prefix) {
+    const select = $(`#${prefix}ErpStatus`);
+    if (!select) return;
+    select.classList.toggle('erp-unset', !select.value);
+    select.classList.toggle('erp-pending', select.value === 'Pending invoice');
+    select.classList.toggle('erp-invoiced', select.value === 'Invoiced');
+  }
+
+  function erpStatusChip(value) {
+    if (value === 'Invoiced') return '<span class="erp-chip erp-chip-invoiced">Invoiced</span>';
+    if (value === 'Pending invoice')
+      return '<span class="erp-chip erp-chip-pending">Pending invoice</span>';
+    return '<span class="erp-chip erp-chip-pending">Not set</span>';
+  }
+
   // Customer type is required; a B2B record also needs its branch / school.
   function quotationFormProblem(prefix) {
+    const erp = $(`#${prefix}ErpStatus`);
+    if (!erp.value) {
+      erp.focus();
+      return 'Select the ERP / ORION status (Pending invoice or Invoiced).';
+    }
     const type = $(`#${prefix}CustomerType`);
     if (!type.value) {
       type.focus();
@@ -2975,6 +2997,9 @@
   function initQuotationForm(prefix) {
     attachProjectNameLookup(prefix);
     attachBranchLookup(prefix);
+    const erp = $(`#${prefix}ErpStatus`);
+    erp.addEventListener('change', () => syncErpStatusLook(prefix));
+    syncErpStatusLook(prefix);
     quotationState[prefix] = { units: [], charges: [], vat: true };
     wireQuotationEditor(prefix);
     renderQuotationEditor(prefix);
@@ -2982,6 +3007,8 @@
 
   function fillQuotationForm(prefix, q) {
     $(`#${prefix}Date`).value = (q.quotationDate || '').slice(0, 10);
+    $(`#${prefix}ErpStatus`).value = q.erpStatus || '';
+    syncErpStatusLook(prefix);
     $(`#${prefix}CustomerType`).value = q.customerType || '';
     $(`#${prefix}B2bBranchSchool`).value = q.b2bBranchSchool || '';
     setBranchHint(prefix, '', '');
@@ -3048,6 +3075,7 @@
     const state = quotationState[prefix];
     return {
       quotationDate: $(`#${prefix}Date`).value || undefined,
+      erpStatus: $(`#${prefix}ErpStatus`).value || undefined,
       customerType: $(`#${prefix}CustomerType`).value || undefined,
       b2bBranchSchool:
         $(`#${prefix}CustomerType`).value === 'B2C'
@@ -4426,7 +4454,7 @@ ${bodyHtml}
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${erpStatusChip(q.erpStatus)}</td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4442,7 +4470,7 @@ ${bodyHtml}
     const search = $('#quotationSearch').value.trim();
     if (search) params.set('search', search);
     $('#quotationsBody').innerHTML =
-      '<tr><td colspan="10" class="empty-state">Loading quotations…</td></tr>';
+      '<tr><td colspan="11" class="empty-state">Loading quotations…</td></tr>';
     try {
       const result = await apiRequest('/api/quotations?' + params);
       renderQuotations(result.quotations || []);
