@@ -145,7 +145,8 @@ async function main() {
         profileId: profile.rows[0].id,
         sourceFile: file,
       });
-      const checks = await verifyParity(client, plan);
+      // Compare only what this run created: records from earlier imports may have been edited in the portal.
+      const checks = await verifyParity(client, plan, result.batchId);
       if (!checks.every((c) => c.ok)) {
         console.table(checks);
         throw new Error('Parity check failed after import; rolled back.');

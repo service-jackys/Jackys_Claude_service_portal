@@ -259,6 +259,40 @@ test(
         assert.equal(second.created.jobCards ?? 0, 0, 're-running creates nothing');
         assert.equal(second.skippedExisting.jobCards, 6);
 
+        // Top-up import: portal edits to earlier records are kept and are not re-compared.
+        await client.query(`DELETE FROM legacy_references WHERE legacy_reference = 'JC-906'`);
+        await client.query(`DELETE FROM service_job_cards WHERE legacy_reference = 'JC-906'`);
+        await client.query(
+          `UPDATE service_job_cards SET service_charge = service_charge + 77 WHERE legacy_reference = 'JC-901'`,
+        );
+        const before = await client.query(
+          `SELECT service_charge::text FROM service_job_cards WHERE legacy_reference = 'JC-901'`,
+        );
+        const topUp = await applyPlan(client, plan, {
+          profileId: admin.rows[0].id,
+          sourceFile: file,
+        });
+        assert.equal(topUp.created.jobCards, 1, 'only the missing job card is added');
+        assert.equal(topUp.skippedExisting.jobCards, 5);
+        const after = await client.query(
+          `SELECT service_charge::text FROM service_job_cards WHERE legacy_reference = 'JC-901'`,
+        );
+        assert.equal(
+          after.rows[0].service_charge,
+          before.rows[0].service_charge,
+          'edited job is untouched',
+        );
+        const scoped = await verifyParity(client, plan, topUp.batchId);
+        assert.ok(
+          scoped.every((p) => p.ok),
+          JSON.stringify(scoped),
+        );
+        const full = await verifyParity(client, plan);
+        assert.ok(
+          full.some((p) => !p.ok),
+          'a full comparison flags the portal edit, which is why the top-up compares its own batch only',
+        );
+
         const cards = await client.query(
           `SELECT legacy_reference, source_type, status, job_final_status, final_status, appointment_id IS NOT NULL AS linked
          FROM service_job_cards WHERE legacy_reference LIKE 'JC-9%' ORDER BY legacy_reference`,

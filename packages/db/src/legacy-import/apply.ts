@@ -432,29 +432,60 @@ export async function applyPlan(
 
 // Counts and money totals read back from the database for the imported rows,
 // to set beside the plan. Any difference is a reconciliation failure.
-export async function verifyParity(client: PoolClient, plan: Plan) {
+//
+// With `batchId`, only the records created by that import batch are compared
+// (and only the matching part of the plan). Use it after a top-up import: the
+// records imported earlier may have been edited in the portal since, so their
+// money no longer equals the sheet and must not be compared again.
+export async function verifyParity(client: PoolClient, plan: Plan, batchId?: string) {
+  const batch = batchId ?? null;
   const count = async (type: string) =>
     Number(
       (
         await client.query<{ n: string }>(
-          `SELECT count(*)::text AS n FROM legacy_references WHERE source_name = $1 AND entity_type = $2`,
-          [SOURCE_NAME, type],
+          `SELECT count(*)::text AS n FROM legacy_references
+           WHERE source_name = $1 AND entity_type = $2 AND ($3::bigint IS NULL OR import_batch_id = $3::bigint)`,
+          [SOURCE_NAME, type, batch],
         )
       ).rows[0].n,
     );
   const sum = async (sql: string) =>
-    Number((await client.query<{ s: string }>(sql, [SOURCE_NAME])).rows[0].s ?? 0);
+    Number((await client.query<{ s: string }>(sql, [SOURCE_NAME, batch])).rows[0].s ?? 0);
+  const inBatch = new Map<string, Set<string>>();
+  if (batch) {
+    const refs = await client.query<{ entity_type: string; legacy_reference: string }>(
+      `SELECT entity_type, legacy_reference FROM legacy_references WHERE source_name = $1 AND import_batch_id = $2::bigint`,
+      [SOURCE_NAME, batch],
+    );
+    for (const r of refs.rows) {
+      if (!inBatch.has(r.entity_type)) inBatch.set(r.entity_type, new Set());
+      inBatch.get(r.entity_type)?.add(r.legacy_reference);
+    }
+  }
+  const scoped = <T extends { legacyRef: string }>(type: string, items: T[]) =>
+    batch ? items.filter((i) => inBatch.get(type)?.has(i.legacyRef)) : items;
+  const jobCards = scoped('job_card', plan.jobCards);
+  const quotations = scoped('quotation', plan.quotations);
+  const thomson = scoped('thomson_proposal', plan.thomson);
   const jcSum = (col: string) =>
     sum(`SELECT COALESCE(sum(j.${col}), 0)::text AS s FROM service_job_cards j
-         JOIN legacy_references l ON l.entity_id = j.id AND l.entity_type = 'job_card' AND l.source_name = $1`);
+         JOIN legacy_references l ON l.entity_id = j.id AND l.entity_type = 'job_card' AND l.source_name = $1 AND ($2::bigint IS NULL OR l.import_batch_id = $2::bigint)`);
   const planSum = (f: (j: Plan['jobCards'][number]) => number) =>
-    plan.jobCards.reduce((s, j) => s + f(j), 0);
+    jobCards.reduce((s, j) => s + f(j), 0);
   const checks = [
-    { name: 'Appointments', plan: plan.appointments.length, db: await count('appointment') },
-    { name: 'Job cards', plan: plan.jobCards.length, db: await count('job_card') },
-    { name: 'Quotations', plan: plan.quotations.length, db: await count('quotation') },
-    { name: 'Inspections', plan: plan.inspections.length, db: await count('inspection') },
-    { name: 'Thomson proposals', plan: plan.thomson.length, db: await count('thomson_proposal') },
+    {
+      name: 'Appointments',
+      plan: scoped('appointment', plan.appointments).length,
+      db: await count('appointment'),
+    },
+    { name: 'Job cards', plan: jobCards.length, db: await count('job_card') },
+    { name: 'Quotations', plan: quotations.length, db: await count('quotation') },
+    {
+      name: 'Inspections',
+      plan: scoped('inspection', plan.inspections).length,
+      db: await count('inspection'),
+    },
+    { name: 'Thomson proposals', plan: thomson.length, db: await count('thomson_proposal') },
     {
       name: 'Job card service charge (AED)',
       plan: planSum((j) => j.serviceCharge),
@@ -472,15 +503,15 @@ export async function verifyParity(client: PoolClient, plan: Plan) {
     },
     {
       name: 'Quotation grand total (AED)',
-      plan: plan.quotations.reduce((s, q) => s + q.grandTotal, 0),
+      plan: quotations.reduce((s, q) => s + q.grandTotal, 0),
       db: await sum(`SELECT COALESCE(sum(q.grand_total), 0)::text AS s FROM quotations q
-                     JOIN legacy_references l ON l.entity_id = q.id AND l.entity_type = 'quotation' AND l.source_name = $1`),
+                     JOIN legacy_references l ON l.entity_id = q.id AND l.entity_type = 'quotation' AND l.source_name = $1 AND ($2::bigint IS NULL OR l.import_batch_id = $2::bigint)`),
     },
     {
       name: 'Thomson total price (AED)',
-      plan: plan.thomson.reduce((s, t) => s + t.totalPrice, 0),
+      plan: thomson.reduce((s, t) => s + t.totalPrice, 0),
       db: await sum(`SELECT COALESCE(sum(t.total_price), 0)::text AS s FROM thomson_sales t
-                     JOIN legacy_references l ON l.entity_id = t.id AND l.entity_type = 'thomson_proposal' AND l.source_name = $1`),
+                     JOIN legacy_references l ON l.entity_id = t.id AND l.entity_type = 'thomson_proposal' AND l.source_name = $1 AND ($2::bigint IS NULL OR l.import_batch_id = $2::bigint)`),
     },
   ];
   return checks.map((c) => ({ ...c, ok: Math.abs(c.plan - c.db) < 0.005 }));
