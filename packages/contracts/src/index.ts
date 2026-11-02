@@ -616,12 +616,18 @@ export function computeQuotationTotals<
   return { subtotal, vat, grandTotal: round2(subtotal + vat), vatRate: rate };
 }
 
+export const quotationStatuses = ['Pending', 'Approved', 'Rejected'] as const;
+export type QuotationStatus = (typeof quotationStatuses)[number];
+
 export const quotationWriteSchema = z
   .object({
     appointmentId: z.string().regex(/^\d+$/).optional(),
     quotationDate: dateSchema.optional(),
     customerName: optionalText(200),
     contactNumber: optionalText(50),
+    customerType: customerTypeSchema.optional(),
+    b2bBranchSchool: optionalText(300),
+    quotationStatus: z.enum(quotationStatuses).optional(),
     projectName: optionalText(200),
     siteLocation: optionalText(500),
     dateOfCollection: dateSchema.optional(),
@@ -652,6 +658,8 @@ export const quotationListQuerySchema = z
     // "true" excludes quotations that already have a service job card --
     // used by the "create job card from Quotation" picker (modification.md #18).
     unused: z.enum(['true', 'false']).optional(),
+    quotationStatus: z.enum(quotationStatuses).optional(),
+    customerType: customerTypeSchema.optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })
@@ -675,6 +683,8 @@ export const inspectionWriteSchema = z
     recommendedAction: optionalText(10000),
     refQuotationNo: optionalText(120),
     warrantyStatus: optionalText(50),
+    customerType: customerTypeSchema.optional(),
+    b2bBranchSchool: optionalText(300),
     estRepairCost: z.number().min(0).max(10000000).optional(),
     inspectedBy: optionalText(120),
     inspectedDate: dateSchema.optional(),

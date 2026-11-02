@@ -650,6 +650,29 @@
         color: var(--muted);
         font-size: 0.78rem;
       }
+      .q-status-dialog {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--ink);
+        padding: 1.2rem 1.4rem;
+        min-width: min(420px, 92vw);
+      }
+      .q-status-dialog::backdrop {
+        background: rgba(8, 26, 48, 0.45);
+      }
+      .status-pending {
+        background: #fdf3dc;
+        color: #8a5a00;
+      }
+      .status-approved {
+        background: #e0f4ea;
+        color: var(--success);
+      }
+      .status-rejected {
+        background: #fde6e6;
+        color: var(--red);
+      }
       .q-unit {
         border: 1px solid var(--line);
         border-radius: 12px;
@@ -12988,8 +13011,11 @@
                       <tr>
                         <th>Reference</th>
                         <th>Customer</th>
+                        <th>Type</th>
                         <th>Project / site</th>
-                        <th>Approval</th>
+                        <th>Total (AED)</th>
+                        <th>Status</th>
+                        <th>Customer approval</th>
                         <th>Updated</th>
                       </tr>
                     </thead>

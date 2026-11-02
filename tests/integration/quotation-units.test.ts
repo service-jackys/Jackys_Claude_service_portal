@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import test from 'node:test';
+import { createServiceJobCardService } from '../../apps/api/src/job-cards/service.js';
 import { createQuotationService } from '../../apps/api/src/quotations/service.js';
 import { createDbPool } from '../../packages/db/src/client.js';
 import { migrate } from '../../packages/db/src/migrate.js';
@@ -100,6 +101,31 @@ test(
       assert.equal(read.parts.length, 4);
 
       // Editing without VAT recalculates; the stored total never goes stale.
+      // Status, customer type and B2B branch are stored; a Pending quotation cannot become a job card.
+      const b2b = await quotations.update(
+        created.id,
+        { customerType: 'B2B', b2bBranchSchool: 'GEMS Wellington', quotationStatus: 'Pending' },
+        profileId,
+        `units-b2b-${suffix}`,
+      );
+      assert.equal(b2b.customerType, 'B2B');
+      assert.equal(b2b.b2bBranchSchool, 'GEMS Wellington');
+      assert.equal(b2b.quotationStatus, 'Pending');
+      const jobs = createServiceJobCardService(pool);
+      await assert.rejects(() => jobs.prefillFromQuotation(created.id), {
+        code: 'quotation-ineligible',
+      });
+      const approved = await quotations.update(
+        created.id,
+        { quotationStatus: 'Approved' },
+        profileId,
+        `units-approve-${suffix}`,
+      );
+      assert.equal(approved.quotationStatus, 'Approved');
+      const prefill = await jobs.prefillFromQuotation(created.id);
+      assert.equal(prefill.content.customerType, 'B2B');
+      assert.equal(prefill.content.b2bBranchSchool, 'GEMS Wellington');
+
       const edited = await quotations.update(
         created.id,
         { vatRate: 0, labourAmount: 30 },

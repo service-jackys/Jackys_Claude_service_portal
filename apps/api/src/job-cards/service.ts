@@ -427,10 +427,10 @@ function defaultsFromQuotation(quotation: QuotationRecord): ServiceJobCardConten
     schoolContactPerson: null,
     schoolContactNumber: null,
     customerNumber: null,
-    customerType: null,
+    customerType: quotation.customerType,
     customerEmail: null,
     region: null,
-    b2bBranchSchool: null,
+    b2bBranchSchool: quotation.b2bBranchSchool,
     salesOrderNumber: null,
     legacyReference: quotation.legacyReference,
     itemCode: null,
@@ -643,6 +643,12 @@ export function createServiceJobCardService(pool: Pool) {
       if (!quotation) {
         throw new ServiceJobCardError('not-found', 'The quotation was not found.');
       }
+      if (quotation.quotationStatus !== 'Approved') {
+        throw new ServiceJobCardError(
+          'quotation-ineligible',
+          'Only an Approved quotation (approval or LPO received) can be made into a service job card.',
+        );
+      }
       if (await findServiceJobCardByQuotationId(client, quotationId)) {
         throw new ServiceJobCardError(
           'duplicate',
@@ -776,6 +782,12 @@ export function createServiceJobCardService(pool: Pool) {
       const quotation = await findQuotationById(client, quotationId, true);
       if (!quotation) {
         throw new ServiceJobCardError('not-found', 'The quotation was not found.');
+      }
+      if (quotation.quotationStatus !== 'Approved') {
+        throw new ServiceJobCardError(
+          'quotation-ineligible',
+          'Only an Approved quotation (approval or LPO received) can be made into a service job card.',
+        );
       }
       if (await findServiceJobCardByQuotationId(client, quotationId, true)) {
         throw new ServiceJobCardError(

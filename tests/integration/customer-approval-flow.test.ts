@@ -37,7 +37,11 @@ test(
 
       // Quotation A: customer approves through the link.
       const quotationA = await quotations.create(
-        { customerName: `Flow A ${suffix}`, warrantyStatus: 'Out Warranty' },
+        {
+          customerName: `Flow A ${suffix}`,
+          warrantyStatus: 'Out Warranty',
+          quotationStatus: 'Approved',
+        },
         profileId,
         `flow-a-${suffix}`,
       );
@@ -75,7 +79,7 @@ test(
 
       // Quotation B: staff record a phone approval on the request.
       const quotationB = await quotations.create(
-        { customerName: `Flow B ${suffix}` },
+        { customerName: `Flow B ${suffix}`, quotationStatus: 'Approved' },
         profileId,
         `flow-b-${suffix}`,
       );
@@ -97,7 +101,7 @@ test(
 
       // Quotation C: moving to WIP by hand needs the approval method.
       const quotationC = await quotations.create(
-        { customerName: `Flow C ${suffix}` },
+        { customerName: `Flow C ${suffix}`, quotationStatus: 'Approved' },
         profileId,
         `flow-c-${suffix}`,
       );

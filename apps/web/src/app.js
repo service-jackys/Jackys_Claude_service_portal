@@ -2475,6 +2475,8 @@
     return `
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}CustomerType">Customer type <span class="required">*</span></label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
+        <div class="field"><label for="${prefix}B2bBranchSchool">Look up B2B Branch / School ${tipHtml('For a B2B customer, type the school or branch name (or customer code) and pick it from the list. This loads the correct customer name and project.')}</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300" list="${prefix}BranchList" autocomplete="off"><datalist id="${prefix}BranchList"></datalist><small id="${prefix}BranchHint" class="field-hint" hidden></small></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
         <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
         <div class="field"><label for="${prefix}ProjectName">Project name ${tipHtml('Start typing to pick a school or branch from the B2B Branch / School master; only the name is filled in. You can also type any other project name.')}</label><input type="text" id="${prefix}ProjectName" maxlength="200" list="${prefix}ProjectList" autocomplete="off"><datalist id="${prefix}ProjectList"></datalist></div>
@@ -2513,6 +2515,138 @@
 
   // Project name type-ahead: suggests names from the B2B Branch / School master.
   // Only the name is used; anything typed that is not in the master is kept as is.
+  // Customer type + "Look up B2B Branch / School", shared by quotations and inspections.
+  // B2C has no branch; for B2B, picking a branch loads the customer name and project.
+  function applyQuotationCustomerType(prefix) {
+    const isB2c = $(`#${prefix}CustomerType`).value === 'B2C';
+    const branch = $(`#${prefix}B2bBranchSchool`);
+    branch.disabled = isB2c;
+    if (isB2c) {
+      branch.value = '';
+      setBranchHint(prefix, '', '');
+    }
+  }
+
+  async function matchBranch(prefix) {
+    const input = $(`#${prefix}B2bBranchSchool`);
+    const name = input.value.trim();
+    if (!name || $(`#${prefix}CustomerType`).value === 'B2C') return;
+    let branch = null;
+    try {
+      const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(name));
+      const wanted = name.toLowerCase();
+      branch = (result.branches || []).find(
+        (item) =>
+          String(item.branchName).trim().toLowerCase() === wanted ||
+          String(item.custCode).trim().toLowerCase() === wanted,
+      );
+    } catch {
+      return;
+    }
+    if (input.value.trim() !== name) return;
+    if (!branch) {
+      setBranchHint(
+        prefix,
+        'This name or code is not in the B2B Branch / School list. Pick the correct school from the suggestions.',
+        'warn',
+      );
+      return;
+    }
+    input.value = branch.branchName;
+    const customer = $(`#${prefix}CustomerName`);
+    if (customer && !customer.value.trim()) customer.value = branch.branchName;
+    const project = $(`#${prefix}ProjectName`);
+    if (project && !project.value.trim()) project.value = branch.branchName;
+    [input, customer, project].forEach((el) => el?.classList.add('master-filled'));
+    setBranchHint(prefix, 'Matched in the B2B Branch / School list. Details loaded.', 'ok');
+  }
+
+  function attachBranchLookup(prefix) {
+    const type = $(`#${prefix}CustomerType`);
+    const input = $(`#${prefix}B2bBranchSchool`);
+    const list = $(`#${prefix}BranchList`);
+    if (!type || !input || !list) return;
+    type.addEventListener('change', () => applyQuotationCustomerType(prefix));
+    let timer = null;
+    let seq = 0;
+    input.addEventListener('input', () => {
+      input.classList.remove('master-filled');
+      setBranchHint(prefix, '', '');
+      clearTimeout(timer);
+      const term = input.value.trim();
+      if (term.length < 2) {
+        list.innerHTML = '';
+        return;
+      }
+      timer = setTimeout(async () => {
+        const mine = ++seq;
+        try {
+          const result = await apiRequest('/api/b2b-branches?query=' + encodeURIComponent(term));
+          if (mine !== seq) return;
+          list.innerHTML = (result.branches || [])
+            .map(
+              (item) =>
+                `<option value="${escapeHtml(item.branchName)}" label="${escapeHtml(item.branchName)} (${escapeHtml(item.custCode)})"></option>`,
+            )
+            .join('');
+        } catch {
+          list.innerHTML = '';
+        }
+      }, 250);
+    });
+    input.addEventListener('change', () => matchBranch(prefix));
+  }
+
+  // The quotation status is chosen in a small popup each time the quotation is saved.
+  const quotationStatusLabels = {
+    Pending: 'Pending - approval / LPO awaited',
+    Approved: 'Approved - approval / LPO received',
+    Rejected: 'Rejected - customer declined',
+  };
+  function askQuotationStatus(current) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'q-status-dialog';
+      dialog.innerHTML = `<form method="dialog">
+        <h4>Quotation status</h4>
+        <div class="field"><label for="qStatusSelect">Status</label>
+          <select id="qStatusSelect">${Object.entries(quotationStatusLabels)
+            .map(
+              ([value, label]) =>
+                `<option value="${value}"${value === (current || 'Pending') ? ' selected' : ''}>${label}</option>`,
+            )
+            .join('')}</select></div>
+        <p class="form-note">Only an Approved quotation can be made into a service job card.</p>
+        <div class="form-footer">
+          <button class="button button-outline" value="cancel" type="submit">Cancel</button>
+          <button class="button button-primary" value="ok" type="submit" id="qStatusOk">Save quotation</button>
+        </div></form>`;
+      document.body.appendChild(dialog);
+      dialog.addEventListener('close', () => {
+        const chosen = dialog.returnValue === 'ok' ? dialog.querySelector('select').value : null;
+        dialog.remove();
+        resolve(chosen);
+      });
+      dialog.showModal();
+      dialog.querySelector('select').focus();
+    });
+  }
+
+  // Customer type is required; a B2B record also needs its branch / school.
+  function quotationFormProblem(prefix) {
+    const type = $(`#${prefix}CustomerType`);
+    if (!type.value) {
+      type.focus();
+      return 'Select a customer type.';
+    }
+    const branch = $(`#${prefix}B2bBranchSchool`);
+    if (type.value !== 'B2C' && !branch.value.trim()) {
+      branch.focus();
+      return 'Look up the B2B Branch / School for a B2B customer.';
+    }
+    return '';
+  }
+
   function attachProjectNameLookup(prefix) {
     const input = $(`#${prefix}ProjectName`);
     const list = $(`#${prefix}ProjectList`);
@@ -2612,7 +2746,7 @@
         ${field('Brand', 'brand')}
         ${field('Serial no. (S/N)', 'serialNo')}
         <div class="field"><label>Warranty</label><select data-ufield="warranty"><option value="">—</option><option${unit.warranty === 'Yes' ? ' selected' : ''}>Yes</option><option${unit.warranty === 'No' ? ' selected' : ''}>No</option></select></div>
-        ${field('Location / address (villa, apartment, building)', 'location')}
+        ${field(`Location ${tipHtml('Address: villa, apartment or building, for example "Villa 12, Mirdif Hills" or "Flat 1106, Majarrah Tower".')}`, 'location')}
       </div>
       <div class="field-grid">
         <div class="field"><label>Complaint for this unit</label><textarea rows="2" data-ufield="complaint" maxlength="2000">${escapeHtml(unit.complaint)}</textarea></div>
@@ -2827,6 +2961,7 @@
 
   function initQuotationForm(prefix) {
     attachProjectNameLookup(prefix);
+    attachBranchLookup(prefix);
     quotationState[prefix] = { units: [], charges: [], vat: true };
     wireQuotationEditor(prefix);
     renderQuotationEditor(prefix);
@@ -2834,6 +2969,10 @@
 
   function fillQuotationForm(prefix, q) {
     $(`#${prefix}Date`).value = (q.quotationDate || '').slice(0, 10);
+    $(`#${prefix}CustomerType`).value = q.customerType || '';
+    $(`#${prefix}B2bBranchSchool`).value = q.b2bBranchSchool || '';
+    setBranchHint(prefix, '', '');
+    applyQuotationCustomerType(prefix);
     $(`#${prefix}CustomerName`).value = q.customerName || '';
     $(`#${prefix}ContactNumber`).value = q.contactNumber || '';
     $(`#${prefix}ProjectName`).value = q.projectName || '';
@@ -2896,6 +3035,11 @@
     const state = quotationState[prefix];
     return {
       quotationDate: $(`#${prefix}Date`).value || undefined,
+      customerType: $(`#${prefix}CustomerType`).value || undefined,
+      b2bBranchSchool:
+        $(`#${prefix}CustomerType`).value === 'B2C'
+          ? undefined
+          : $(`#${prefix}B2bBranchSchool`).value.trim() || undefined,
       customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
       contactNumber: $(`#${prefix}ContactNumber`).value.trim() || undefined,
       projectName: $(`#${prefix}ProjectName`).value.trim() || undefined,
@@ -2942,6 +3086,8 @@
     return `
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Inspection date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}CustomerType">Customer type <span class="required">*</span></label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
+        <div class="field"><label for="${prefix}B2bBranchSchool">Look up B2B Branch / School ${tipHtml('For a B2B customer, type the school or branch name (or customer code) and pick it from the list. This loads the correct customer name and project.')}</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300" list="${prefix}BranchList" autocomplete="off"><datalist id="${prefix}BranchList"></datalist><small id="${prefix}BranchHint" class="field-hint" hidden></small></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
         <div class="field"><label for="${prefix}ContactNumber">Contact number</label><input type="text" id="${prefix}ContactNumber" maxlength="50"></div>
         <div class="field"><label for="${prefix}ProjectName">Project name ${tipHtml('Start typing to pick a school or branch from the B2B Branch / School master; only the name is filled in. You can also type any other project name.')}</label><input type="text" id="${prefix}ProjectName" maxlength="200" list="${prefix}ProjectList" autocomplete="off"><datalist id="${prefix}ProjectList"></datalist></div>
@@ -2990,6 +3136,7 @@
 
   function initInspectionForm(prefix) {
     attachProjectNameLookup(prefix);
+    attachBranchLookup(prefix);
     lineItemsState[`${prefix}Products`] = [];
     lineItemsState[`${prefix}FaultyParts`] = [];
     $(`#${prefix}AddProductButton`).addEventListener('click', () => {
@@ -3016,6 +3163,10 @@
 
   function fillInspectionForm(prefix, i) {
     $(`#${prefix}Date`).value = (i.inspectionDate || '').slice(0, 10);
+    $(`#${prefix}CustomerType`).value = i.customerType || '';
+    $(`#${prefix}B2bBranchSchool`).value = i.b2bBranchSchool || '';
+    setBranchHint(prefix, '', '');
+    applyQuotationCustomerType(prefix);
     $(`#${prefix}CustomerName`).value = i.customerName || '';
     $(`#${prefix}ContactNumber`).value = i.contactNumber || '';
     $(`#${prefix}ProjectName`).value = i.projectName || '';
@@ -3062,6 +3213,11 @@
   function collectInspectionForm(prefix) {
     return {
       inspectionDate: $(`#${prefix}Date`).value || undefined,
+      customerType: $(`#${prefix}CustomerType`).value || undefined,
+      b2bBranchSchool:
+        $(`#${prefix}CustomerType`).value === 'B2C'
+          ? undefined
+          : $(`#${prefix}B2bBranchSchool`).value.trim() || undefined,
       customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
       contactNumber: $(`#${prefix}ContactNumber`).value.trim() || undefined,
       projectName: $(`#${prefix}ProjectName`).value.trim() || undefined,
@@ -3788,6 +3944,9 @@ ${bodyHtml}
       <h2>Customer details</h2>
       ${printFieldGrid([
         ['Quotation date', quotation.quotationDate],
+        ['Customer type', quotation.customerType],
+        ['B2B branch / school', quotation.b2bBranchSchool],
+        ['Status', quotation.quotationStatus],
         ['Customer name', quotation.customerName],
         ['Contact number', quotation.contactNumber],
         ['Project name', quotation.projectName],
@@ -3828,6 +3987,8 @@ ${bodyHtml}
       <h2>Customer details</h2>
       ${printFieldGrid([
         ['Inspection date', inspection.inspectionDate],
+        ['Customer type', inspection.customerType],
+        ['B2B branch / school', inspection.b2bBranchSchool],
         ['Customer name', inspection.customerName],
         ['Contact number', inspection.contactNumber],
         ['Project name', inspection.projectName],
@@ -4075,7 +4236,7 @@ ${bodyHtml}
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4091,7 +4252,7 @@ ${bodyHtml}
     const search = $('#quotationSearch').value.trim();
     if (search) params.set('search', search);
     $('#quotationsBody').innerHTML =
-      '<tr><td colspan="5" class="empty-state">Loading quotations…</td></tr>';
+      '<tr><td colspan="8" class="empty-state">Loading quotations…</td></tr>';
     try {
       const result = await apiRequest('/api/quotations?' + params);
       renderQuotations(result.quotations || []);
@@ -4138,6 +4299,7 @@ ${bodyHtml}
       $('#quotationJobCardStatus').textContent = '';
       renderQuotationApprovalLine(result.quotation);
       $('#createJobCardFromQuotationButton').hidden = true;
+      const approved = result.quotation.quotationStatus === 'Approved';
       if (hasPermission('service_job_card.read')) {
         try {
           const jobCardResult = await apiRequest(
@@ -4153,7 +4315,13 @@ ${bodyHtml}
             });
           } else {
             $('#createJobCardFromQuotationButton').hidden =
-              !hasPermission('service_job_card.write');
+              !approved || !hasPermission('service_job_card.write');
+            if (!approved) {
+              $('#quotationJobCardStatus').textContent =
+                'Status is ' +
+                (result.quotation.quotationStatus || 'Pending') +
+                '. Save the quotation as Approved (approval / LPO received) to create a service job card.';
+            }
           }
         } catch (jobCardError) {
           if (jobCardError.status !== 403) throw jobCardError;
@@ -4177,11 +4345,18 @@ ${bodyHtml}
 
   async function submitQuotationCreate() {
     const button = $('#submitQuotationCreateButton');
+    const problem = quotationFormProblem('qtc');
+    if (problem) {
+      setMessage('#workspaceMessage', problem);
+      return;
+    }
+    const quotationStatus = await askQuotationStatus('Pending');
+    if (!quotationStatus) return;
     setBusy(button, true, 'Saving…');
     try {
       const result = await apiRequest('/api/quotations', {
         method: 'POST',
-        body: JSON.stringify(collectQuotationForm('qtc')),
+        body: JSON.stringify({ ...collectQuotationForm('qtc'), quotationStatus }),
       });
       $('#quotationCreatePanel').hidden = true;
       await loadQuotations();
@@ -4206,11 +4381,18 @@ ${bodyHtml}
   async function saveQuotation() {
     if (!currentQuotationId) return;
     const button = $('#saveQuotationButton');
+    const problem = quotationFormProblem('qte');
+    if (problem) {
+      setMessage('#workspaceMessage', problem);
+      return;
+    }
+    const quotationStatus = await askQuotationStatus(currentQuotation?.quotationStatus);
+    if (!quotationStatus) return;
     setBusy(button, true, 'Saving…');
     try {
       await apiRequest('/api/quotations/' + encodeURIComponent(currentQuotationId), {
         method: 'PATCH',
-        body: JSON.stringify(collectQuotationForm('qte')),
+        body: JSON.stringify({ ...collectQuotationForm('qte'), quotationStatus }),
       });
       await loadQuotationDetail(currentQuotationId);
       await loadQuotations();
@@ -4308,6 +4490,11 @@ ${bodyHtml}
 
   async function submitInspectionCreate() {
     const button = $('#submitInspectionCreateButton');
+    const problem = quotationFormProblem('iqc');
+    if (problem) {
+      setMessage('#workspaceMessage', problem);
+      return;
+    }
     setBusy(button, true, 'Saving…');
     try {
       const result = await apiRequest('/api/inspections', {
@@ -4337,6 +4524,11 @@ ${bodyHtml}
   async function saveInspection() {
     if (!currentInspectionId) return;
     const button = $('#saveInspectionButton');
+    const problem = quotationFormProblem('iqe');
+    if (problem) {
+      setMessage('#workspaceMessage', problem);
+      return;
+    }
     setBusy(button, true, 'Saving…');
     try {
       await apiRequest('/api/inspections/' + encodeURIComponent(currentInspectionId), {

@@ -20,6 +20,8 @@ export type InspectionRecord = {
   recommendedAction: string | null;
   refQuotationNo: string | null;
   warrantyStatus: string | null;
+  customerType: string | null;
+  b2bBranchSchool: string | null;
   estRepairCost: string | null;
   inspectedBy: string | null;
   inspectedDate: string | null;
@@ -51,6 +53,8 @@ export type InspectionContent = {
   recommendedAction: string | null;
   refQuotationNo: string | null;
   warrantyStatus: string | null;
+  customerType: string | null;
+  b2bBranchSchool: string | null;
   estRepairCost: number | null;
   inspectedBy: string | null;
   inspectedDate: string | null;
@@ -80,6 +84,8 @@ const columns = `
   recommended_action AS "recommendedAction",
   ref_quotation_no AS "refQuotationNo",
   warranty_status AS "warrantyStatus",
+  customer_type AS "customerType",
+  b2b_branch_school AS "b2bBranchSchool",
   est_repair_cost AS "estRepairCost",
   inspected_by AS "inspectedBy",
   inspected_date::text AS "inspectedDate",
@@ -106,14 +112,16 @@ export async function insertInspection(
        visual_findings, technical_diagnosis, products, faulty_parts, recommended_action,
        ref_quotation_no, warranty_status, est_repair_cost,
        inspected_by, inspected_date, reviewed_by, reviewed_date,
-       customer_signature, signature_date, legacy_reference, created_by, updated_by
+       customer_signature, signature_date, legacy_reference, created_by, updated_by,
+       customer_type, b2b_branch_school
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18,
        $19, $20, $21, $22,
-       $23, $24, $25, $26, $26
+       $23, $24, $25, $26, $26,
+       $27, $28
      )
      RETURNING id`,
     [
@@ -143,6 +151,8 @@ export async function insertInspection(
       c.signatureDate,
       c.legacyReference,
       input.createdBy,
+      c.customerType,
+      c.b2bBranchSchool,
     ],
   );
   const inspection = await findInspectionById(client, result.rows[0].id);
@@ -164,7 +174,8 @@ export async function updateInspection(
          products = $13, faulty_parts = $14, recommended_action = $15, ref_quotation_no = $16,
          warranty_status = $17, est_repair_cost = $18, inspected_by = $19, inspected_date = $20,
          reviewed_by = $21, reviewed_date = $22, customer_signature = $23, signature_date = $24,
-         legacy_reference = $25, updated_by = $26, updated_at = now()
+         legacy_reference = $25, updated_by = $26, updated_at = now(),
+         customer_type = $27, b2b_branch_school = $28
      WHERE id = $1
      RETURNING id`,
     [
@@ -194,6 +205,8 @@ export async function updateInspection(
       content.signatureDate,
       content.legacyReference,
       profileId,
+      content.customerType,
+      content.b2bBranchSchool,
     ],
   );
   if (!result.rows[0]) return null;

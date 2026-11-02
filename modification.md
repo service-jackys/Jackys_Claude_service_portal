@@ -3975,3 +3975,37 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull and hard-refresh.
+
+## Modification #182 — Quotations: units, linked charges, 5% VAT per line and in total, one print block per unit
+
+**Date:** 2026-11-02
+
+**Why.** B2B quotations (schools with many villas and apartments) need each unit's own location and complaint, labour chosen per row, and VAT like the old portal. The new portal showed QO-014 as 490.00 while the old portal and the sheet had 514.50.
+
+**What changed.**
+- Each quotation has **Units** (item code, description, brand, serial no., warranty, **Location**, complaint, diagnosis) and **charge lines** (Part, Labour, Service, Other) linked to a unit or to the whole quotation. Labour can be one row or on every unit.
+- 5% VAT is shown on every line and in the total; the total is always worked out on the server.
+- Print gives one block per unit.
+- `npm run db:enrich-quotations` upgrades already migrated quotations from the sheet (dry run first; quotations edited in the portal are skipped; audit event keeps the old values).
+
+**Files.** apps/web/src/app.js, index.html, packages/contracts/src/index.ts, packages/db/src/quotations.ts, legacy-import/*, enrich-quotations.ts, migration 067.
+
+**Needs you:** pull, `npm.cmd install`, `npm.cmd run db:migrate`, restart, hard-refresh.
+
+## Modification #183 — Quotations and inspections: Customer type and B2B Branch / School; quotation status
+
+**Date:** 2026-11-02
+
+**Why.** B2B work needs the correct customer captured at the start, and only approved quotations should become service job cards.
+
+**What changed.**
+- **Quotations and inspections** get **Customer type** (required) and **Look up B2B Branch / School**. B2C has no branch; for B2B picking a branch fills customer name and project.
+- **Quotation status** (Pending, Approved, Rejected) is chosen in a popup when Save quotation is clicked. Inspections have no status.
+- Only an **Approved** quotation can be made into a service job card (button and server check); the job card carries the customer type and branch.
+- Quotation list now shows Type, Total (AED), Status and Customer approval.
+- Unit "Location" field renamed from "Location / address", with the address examples in a tooltip.
+- Existing quotations that already have a job card become Approved; the rest start as Pending.
+
+**Files.** apps/web/src/app.js, index.html, packages/contracts/src/index.ts, packages/db/src/quotations.ts, inspections.ts, apps/api/src/quotations, inspections, job-cards, migration 068.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart, hard-refresh.
