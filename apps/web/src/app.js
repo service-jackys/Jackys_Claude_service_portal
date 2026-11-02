@@ -2665,7 +2665,8 @@
   // Customer type is required; a B2B record also needs its branch / school.
   function quotationFormProblem(prefix) {
     const erp = $(`#${prefix}ErpStatus`);
-    if (!erp.value) {
+    // Inspections share this check but have no ERP status; only quotations require it.
+    if (erp && !erp.value) {
       erp.focus();
       return 'Select the ERP / ORION status (Pending invoice or Invoiced).';
     }
