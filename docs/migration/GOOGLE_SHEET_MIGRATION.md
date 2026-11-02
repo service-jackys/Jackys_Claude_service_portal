@@ -85,3 +85,21 @@ Before go-live, run step 4 again and repeat step 5. After go-live there is no au
 ## Job status and Final status (from modifications #125 and #127)
 
 The sheet's Job Final Status column is split into two portal fields. Customer approval pending, WIP, Spare pending, BER, Rejected, Cancelled and Repair Completed become the job status. The final status is Delivered only. A delivery date on a Repair Completed, BER, Rejected or Cancelled job sets the final status to Delivered and keeps the job status (a BER job stays BER). A sheet value of Delivered becomes job status Repair Completed with final status Delivered. A Rejected or Cancelled job with no delivery date stays open (not delivered) until the unit is handed back in the portal. Run the importer from the portal version that includes migration 051.
+
+## Top-up import: bringing over only what is new (after go-live)
+
+Use this when the portal is already live with imported data and the old sheet kept receiving new records. Never run the clear-test-data step again: it would erase work done in the portal.
+
+How it protects the portal: the importer skips every record already in the import memory (`legacy_references`) and never updates it, so jobs edited in the portal stay as they are. After the import, the money and count check compares only the records created by this run (not the older ones, which may have been edited since).
+
+Steps (cmd, from the project folder, `DATABASE_URL` pointing at the live database):
+
+1. Freeze the old sheet (everyone Viewer) and download it as .xlsx.
+2. Back up the database: `docker compose exec postgres sh -c "pg_dump -U jackys <database name>" > backup_before_topup.sql`
+3. Dry run: `npm run import:sheets -- --file "<path>.xlsx"`. Compare the plan with the list of records not yet in the portal (sheet references minus `legacy_references`).
+4. Import: `npm run import:sheets -- --file "<path>.xlsx" --apply --confirm <database name> --as <admin email>`. The output shows how many records were created and how many were already imported.
+5. Check a few of the new records in the portal.
+
+Do not use the plain `--verify` after a top-up. It compares the whole sheet with the portal and will flag jobs edited since the first import.
+
+Limit: a sheet appointment number that the portal has already issued to a different appointment stops the import with a clear error (nothing is saved). This happens only if the portal created appointments after the first import and the sheet kept numbering past the same number.
