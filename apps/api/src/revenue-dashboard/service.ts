@@ -9,6 +9,7 @@ import {
   revenueMatrixQuerySchema,
   revenueViewExportQuerySchema,
 } from '../../../../packages/contracts/src/index.js';
+import { quotationsLpoPending } from '../../../../packages/db/src/quotations.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
   budgetLinesForBatch,
@@ -172,6 +173,17 @@ export function createRevenueDashboardService(pool: Pool) {
       const batch = await findActiveBatch(client, 'revenue');
       if (!batch) return { batch: null, summary: null };
       return { batch, summary: await revenueSummary(client, batch.id, filters as RevenueFilters) };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Quotations awaiting LPO / invoice in the selected year and month (by quotation date).
+  async function lpoPending(query: Record<string, unknown>) {
+    const filters = revenueFilterQuerySchema.parse(query);
+    const client = await pool.connect();
+    try {
+      return await quotationsLpoPending(client, { year: filters.year, month: filters.month });
     } finally {
       client.release();
     }
@@ -524,6 +536,7 @@ export function createRevenueDashboardService(pool: Pool) {
     downloadBatch,
     batches,
     summary,
+    lpoPending,
     lines,
     budget,
     group,
