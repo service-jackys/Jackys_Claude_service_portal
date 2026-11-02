@@ -18,6 +18,7 @@ export type QuotationRecord = {
   customerType: string | null;
   b2bBranchSchool: string | null;
   quotationStatus: string;
+  erpStatus: string;
   // Units on the quotation, and how many of them already have a service job card.
   unitCount: number;
   jobCardCount: number;
@@ -61,6 +62,7 @@ export type QuotationContent = {
   customerType: string | null;
   b2bBranchSchool: string | null;
   quotationStatus: string;
+  erpStatus: string;
   products: QuotationUnit[];
   parts: QuotationCharge[];
   labourAmount: number;
@@ -94,6 +96,7 @@ const columns = `
   customer_type AS "customerType",
   b2b_branch_school AS "b2bBranchSchool",
   quotation_status AS "quotationStatus",
+  erp_status AS "erpStatus",
   jsonb_array_length(products)::int AS "unitCount",
   (CASE
      WHEN EXISTS (SELECT 1 FROM service_job_cards sjc
@@ -141,13 +144,13 @@ export async function insertQuotation(
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
        legacy_reference, warranty_status, created_by, updated_by, vat_rate, subtotal_amount, vat_amount,
-       customer_type, b2b_branch_school, quotation_status
+       customer_type, b2b_branch_school, quotation_status, erp_status
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $23, $24, $24, $25, $26, $27, $28, $29, $30
+       $22, $23, $24, $24, $25, $26, $27, $28, $29, $30, $31
      )
      RETURNING id`,
     [
@@ -181,6 +184,7 @@ export async function insertQuotation(
       c.customerType,
       c.b2bBranchSchool,
       c.quotationStatus,
+      c.erpStatus,
     ],
   );
   const quotation = await findQuotationById(client, result.rows[0].id);
@@ -203,7 +207,7 @@ export async function updateQuotation(
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
          legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now(),
          vat_rate = $25, subtotal_amount = $26, vat_amount = $27,
-         customer_type = $28, b2b_branch_school = $29, quotation_status = $30
+         customer_type = $28, b2b_branch_school = $29, quotation_status = $30, erp_status = $31
      WHERE id = $1
      RETURNING id`,
     [
@@ -237,6 +241,7 @@ export async function updateQuotation(
       content.customerType,
       content.b2bBranchSchool,
       content.quotationStatus,
+      content.erpStatus,
     ],
   );
   if (!result.rows[0]) return null;
@@ -266,6 +271,7 @@ export async function listQuotations(
     // picker to exclude quotations already converted.
     unused?: boolean;
     quotationStatus?: string;
+    erpStatus?: string;
     customerType?: string;
     page: number;
     pageSize: number;
@@ -284,6 +290,7 @@ export async function listQuotations(
     );
   }
   if (query.quotationStatus) filters.push(`quotation_status = ${add(query.quotationStatus)}`);
+  if (query.erpStatus) filters.push(`erp_status = ${add(query.erpStatus)}`);
   if (query.customerType) filters.push(`customer_type = ${add(query.customerType)}`);
   if (query.search) {
     const parameter = add(`%${query.search}%`);
@@ -307,9 +314,10 @@ export async function listQuotations(
   return { items: result.rows, total: Number(count.rows[0].total) };
 }
 
-// LPO pending: quotations still Pending or Approved that have no service job card yet, by quotation
-// date. Value is the subtotal excluding VAT, so it can sit beside revenue. It is shown to management
-// as visibility only and is never added to revenue.
+// LPO pending: Pending or Approved quotations whose ERP / ORION status is 'Pending invoice', by
+// quotation date. Whether a job card exists does not matter: the ERP status decides. An Invoiced
+// quotation already sits inside that month's revenue, so it is never counted here. The value is the
+// subtotal excluding VAT. It is shown to management as visibility only and is never added to revenue.
 export async function quotationsLpoPending(
   client: PoolClient,
   filter: { year?: string; month?: string },
@@ -317,7 +325,7 @@ export async function quotationsLpoPending(
   const values: unknown[] = [];
   const where = [
     `quotation_status IN ('Pending', 'Approved')`,
-    `NOT EXISTS (SELECT 1 FROM service_job_cards sjc WHERE sjc.quotation_id = quotations.id)`,
+    `erp_status = 'Pending invoice'`,
   ];
   if (filter.year) {
     values.push(Number(filter.year));

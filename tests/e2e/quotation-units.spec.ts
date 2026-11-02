@@ -28,6 +28,7 @@ const legacyQuotation = {
   customerType: 'B2B',
   b2bBranchSchool: 'GEMS Wellington',
   quotationStatus: 'Pending',
+  erpStatus: 'Pending invoice',
   updatedAt: '2026-10-14T08:00:00.000Z',
 };
 
@@ -113,6 +114,7 @@ test.describe('quotation units, charges and VAT', () => {
     const calls: { create?: Json } = {};
     await mockPortal(page, calls);
     await page.getByRole('tab', { name: 'New quotation' }).click();
+    await page.locator('#qtcErpStatus').selectOption('Pending invoice');
     await page.locator('#qtcCustomerType').selectOption('B2B');
     await page.locator('#qtcB2bBranchSchool').fill('GEMS');
     await expect(page.locator('#qtcBranchList option')).toHaveCount(1);
@@ -216,6 +218,16 @@ test.describe('quotation customer type, status and job card', () => {
   test('customer type is required before the status popup appears', async ({ page }) => {
     await mockPortal(page, {});
     await page.getByRole('tab', { name: 'New quotation' }).click();
+    await page
+      .locator('#quotationCreatePanel')
+      .getByRole('button', { name: 'Save quotation' })
+      .click();
+    // ERP / ORION status is asked first, and is red until chosen.
+    await expect(page.locator('#workspaceMessage')).toContainText('ERP / ORION status');
+    await expect(page.locator('#qtcErpStatus')).toHaveClass(/erp-unset/);
+    await expect(page.locator('.q-status-dialog')).toHaveCount(0);
+    await page.locator('#qtcErpStatus').selectOption('Invoiced');
+    await expect(page.locator('#qtcErpStatus')).toHaveClass(/erp-invoiced/);
     await page
       .locator('#quotationCreatePanel')
       .getByRole('button', { name: 'Save quotation' })
@@ -407,5 +419,7 @@ test.describe('quotation list date', () => {
     // Project name equals the customer, so it is not repeated under the customer.
     await expect(row.locator('td').nth(2)).not.toContainText('GEMS Wellington\nGEMS Wellington');
     await expect(page.getByRole('columnheader', { name: 'Project / site' })).toHaveCount(0);
+    await expect(page.getByRole('columnheader', { name: 'ERP / ORION' })).toBeVisible();
+    await expect(row.locator('.erp-chip-pending')).toHaveText('Pending invoice');
   });
 });

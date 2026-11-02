@@ -2698,6 +2698,11 @@ export function createRouteCatalog(
             schema: { type: 'string', enum: ['Pending', 'Approved', 'Rejected'] },
           },
           {
+            name: 'erpStatus',
+            in: 'query',
+            schema: { type: 'string', enum: ['Pending invoice', 'Invoiced'] },
+          },
+          {
             name: 'customerType',
             in: 'query',
             schema: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
