@@ -1786,6 +1786,35 @@
         color: var(--muted);
         margin-top: 0.3rem;
       }
+      .rd-lpo {
+        margin: 0.7rem -0.35rem -0.35rem 0;
+        padding: 0.5rem 0.65rem;
+        border-radius: 8px;
+        background: #fff4dc;
+        border: 1px solid #f0c87a;
+        color: #6b4600;
+      }
+      .rd-lpo-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 0.5rem;
+        font-size: 0.66rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .rd-lpo-head strong {
+        font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+        font-size: 0.95rem;
+        letter-spacing: 0;
+        text-transform: none;
+      }
+      .rd-lpo-sub {
+        font-size: 0.64rem;
+        margin-top: 0.15rem;
+        opacity: 0.85;
+      }
       .rd-subtabs {
         display: flex;
         gap: 0.5rem;
@@ -13317,9 +13346,9 @@
                     <thead>
                       <tr>
                         <th>Reference</th>
+                        <th>Quotation date</th>
                         <th>Customer</th>
                         <th>Type</th>
-                        <th>Project / site</th>
                         <th class="num">Units</th>
                         <th>Total (AED)</th>
                         <th>Status</th>

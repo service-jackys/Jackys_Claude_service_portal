@@ -393,3 +393,19 @@ test('a school quote shows its units and job cards, and each unit gets its own j
   await expect(panel).toBeVisible();
   await expect(panel).toContainText('unit 2 of 3');
 });
+
+test.describe('quotation list date', () => {
+  test('the Created quotations table shows the quotation date and no repeated project line', async ({
+    page,
+  }) => {
+    await mockPortal(page, {});
+    const row = page.locator('#quotationsBody tr').first();
+    await expect(
+      page.locator('#quotationsBody').locator('xpath=ancestor::table//th').nth(1),
+    ).toHaveText('Quotation date');
+    await expect(row.locator('td').nth(1)).toHaveText('14 Oct 2026');
+    // Project name equals the customer, so it is not repeated under the customer.
+    await expect(row.locator('td').nth(2)).not.toContainText('GEMS Wellington\nGEMS Wellington');
+    await expect(page.getByRole('columnheader', { name: 'Project / site' })).toHaveCount(0);
+  });
+});

@@ -4074,3 +4074,20 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js.
 
 **Needs you:** pull, hard-refresh. No database change.
+
+## Modification #188 — Quotation date in the list; LPO pending on the Reports Total revenue card
+
+**Date:** 2026-11-02
+
+**Why.** Management could not see when a quotation was raised in the Created quotations list, and quotations that are approved but not yet turned into work (so not yet invoiced) were invisible next to revenue.
+
+**What changed.**
+- Created quotations now has a **Quotation date** column. The separate Project / site column is gone: the project or site shows as a small line under the customer, and only when it differs from the customer or branch name.
+- Service Revenue Dashboard > Reports: the **Total revenue** card has a coloured **LPO pending** section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose status is Pending or Approved and that have **no service job card yet**, for the selected Year and Month, by quotation date. It shows the count (approved / pending). It is not added to revenue; the revenue figure is unchanged.
+- New API route `GET /api/revenue-dashboard/lpo-pending` (year, month; needs revenue dashboard read).
+
+**Notes.** The Week filter does not apply to LPO pending (quotations have a date, not a master-sheet week). Rejected quotations and any quotation with one or more job cards are left out.
+
+**Files.** packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts, tests/e2e/quotation-units.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No database change.

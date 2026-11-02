@@ -15,6 +15,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 188,
+    "title": "Quotation date in the list; LPO pending on the Reports Total revenue card",
+    "area": "Revenue",
+    "date": "2026-11-02",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management could not see when a quotation was raised in the Created quotations list, and quotations that are approved but not yet turned into work (so not yet invoiced) were invisible next to revenue.",
+    "changes": [
+      "Created quotations now has a Quotation date column. The separate Project / site column is gone: the project or site shows as a small line under the customer, and only when it differs from the customer or branch name.",
+      "Service Revenue Dashboard > Reports: the Total revenue card has a coloured LPO pending section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose status is Pending or Approved and that have no service job card…",
+      "New API route GET /api/revenue-dashboard/lpo-pending (year, month; needs revenue dashboard read)."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No database change.",
+    "migrations": [],
+    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html…"
+  },
+  {
+    "id": 187,
+    "title": "Quotation print: one units table, one charges table, compact",
+    "area": "Invoices & billing",
+    "date": "2026-11-02",
+    "approxDate": false,
+    "status": null,
+    "summary": "A quotation with several units printed one section per unit (details grid, complaint, diagnosis, charges each), so a 3-unit quote ran to 3 pages, and the customer details repeated the same name three times.",
+    "changes": [
+      "Customer details show only filled fields. For B2B, Customer name and Project name are left out when they just repeat the B2B branch / school.",
+      "Units / equipment is one table (item code, description, brand, serial no., warranty), one row per unit. Each unit's location, complaint and diagnosis sit on a small note line under its row.",
+      "Charges are one table for the whole quotation with a Unit column (U1, U2, All). The per-unit \"No charges.\" lines are gone.",
+      "Empty complaint / diagnosis boxes and empty approval fields no longer take space. A 3-unit B2B quote now prints on one page."
+    ],
+    "needsYou": "pull, hard-refresh. No database change.",
+    "migrations": [],
+    "files": "apps/web/src/app.js."
+  },
+  {
     "id": 186,
     "title": "Quotation edit page: cleaner Remove buttons and Service job cards box",
     "area": "Job cards",

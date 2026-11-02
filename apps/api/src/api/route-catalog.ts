@@ -851,6 +851,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        lpoPending: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         lines: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -3240,6 +3244,18 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.summary,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/lpo-pending',
+        operationId: 'getRevenueDashboardLpoPending',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Quotations still Pending or Approved with no job card, by quotation date (visibility only, not revenue)',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.lpoPending,
       },
       {
         method: 'get' as const,

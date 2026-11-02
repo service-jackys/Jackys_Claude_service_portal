@@ -4381,12 +4381,52 @@ ${bodyHtml}
       );
   }
 
+  // 2026-09-29 -> 29 Sep 2026, with no time and no time-zone shift.
+  function formatDateOnly(value) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(value || ''));
+    if (!m) return value ? String(value) : '—';
+    const months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
+    ];
+    return `${Number(m[3])} ${months[Number(m[2]) - 1]} ${m[1]}`;
+  }
+
+  // Project / site only when it adds something: skipped when it repeats the customer or branch.
+  function quotationListExtra(q) {
+    const same = (a, b) =>
+      String(a || '')
+        .trim()
+        .toLowerCase() ===
+      String(b || '')
+        .trim()
+        .toLowerCase();
+    const project =
+      q.projectName &&
+      !same(q.projectName, q.customerName) &&
+      !same(q.projectName, q.b2bBranchSchool)
+        ? q.projectName
+        : '';
+    const line = [project, q.siteLocation].filter(Boolean).join(' · ');
+    return line ? `<br><small>${escapeHtml(line)}</small>` : '';
+  }
+
   function renderQuotations(quotations) {
     const body = $('#quotationsBody');
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td>${escapeHtml(q.projectName || '—')}<br>${escapeHtml(q.siteLocation || '')}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4402,7 +4442,7 @@ ${bodyHtml}
     const search = $('#quotationSearch').value.trim();
     if (search) params.set('search', search);
     $('#quotationsBody').innerHTML =
-      '<tr><td colspan="8" class="empty-state">Loading quotations…</td></tr>';
+      '<tr><td colspan="10" class="empty-state">Loading quotations…</td></tr>';
     try {
       const result = await apiRequest('/api/quotations?' + params);
       renderQuotations(result.quotations || []);
@@ -20505,7 +20545,9 @@ ${bodyHtml}
             escapeHtml(k[1]) +
             '</div><div class="sub">' +
             escapeHtml(k[2] || '') +
-            '</div></div>',
+            '</div>' +
+            (k[3] || '') +
+            '</div>',
         )
         .join('') +
       '</div>'
@@ -22365,6 +22407,30 @@ ${bodyHtml}
       const monthlyAvg = periodRows.length
         ? periodRows.reduce((s, r) => s + r.revenue, 0) / periodRows.length
         : 0;
+      // Visibility only: quotations still Pending / Approved with no job card, by quotation date.
+      // Not revenue, never added to the revenue figures.
+      let lpoHtml = '';
+      try {
+        const lpo = await rdApi('lpo-pending', { year: F.year, month: F.month });
+        const parts = [
+          ...(lpo.byStatus.Approved.count ? [`${lpo.byStatus.Approved.count} approved`] : []),
+          ...(lpo.byStatus.Pending.count ? [`${lpo.byStatus.Pending.count} pending`] : []),
+        ];
+        lpoHtml =
+          '<div class="rd-lpo" title="Quotations that are Pending or Approved and have no job card yet, by quotation date (excl. VAT). Shown for visibility; it is not counted in revenue.">' +
+          '<div class="rd-lpo-head"><span>LPO pending</span><strong>AED ' +
+          rdMoney(lpo.total) +
+          '</strong></div><div class="rd-lpo-sub">' +
+          (lpo.count
+            ? lpo.count +
+              ' quotation' +
+              (lpo.count === 1 ? '' : 's') +
+              (parts.length ? ' (' + parts.join(', ') + ')' : '')
+            : 'No quotations waiting') +
+          ' &middot; not invoiced yet, not in revenue</div></div>';
+      } catch {
+        lpoHtml = '';
+      }
       const VIEWS = [
         ['drill', 'Drill-down'],
         ['monthly', 'Monthly report'],
@@ -22379,7 +22445,7 @@ ${bodyHtml}
         rdKpis([
           ['Filtered jobs', rdMoney(t.jobs), periodLabel()],
           ['Total quantity', rdMoney(t.qty), 'Units across filtered rows'],
-          ['Total revenue', 'AED ' + rdMoney(t.revenue), 'Revenue across filtered rows'],
+          ['Total revenue', 'AED ' + rdMoney(t.revenue), 'Revenue across filtered rows', lpoHtml],
           ['Monthly average', 'AED ' + rdMoney(monthlyAvg), 'Per month with data in the period'],
         ]) +
         '<div class="rc-section"><div class="rd-report-actions">' +

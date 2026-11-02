@@ -306,3 +306,41 @@ export async function listQuotations(
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
 }
+
+// LPO pending: quotations still Pending or Approved that have no service job card yet, by quotation
+// date. Value is the subtotal excluding VAT, so it can sit beside revenue. It is shown to management
+// as visibility only and is never added to revenue.
+export async function quotationsLpoPending(
+  client: PoolClient,
+  filter: { year?: string; month?: string },
+) {
+  const values: unknown[] = [];
+  const where = [
+    `quotation_status IN ('Pending', 'Approved')`,
+    `NOT EXISTS (SELECT 1 FROM service_job_cards sjc WHERE sjc.quotation_id = quotations.id)`,
+  ];
+  if (filter.year) {
+    values.push(Number(filter.year));
+    where.push(`EXTRACT(YEAR FROM quotation_date) = $${values.length}`);
+  }
+  if (filter.month) {
+    values.push(Number(filter.month));
+    where.push(`EXTRACT(MONTH FROM quotation_date) = $${values.length}`);
+  }
+  const result = await client.query(
+    `SELECT quotation_status AS "status", count(*)::int AS "count",
+            COALESCE(sum(subtotal_amount), 0)::float8 AS "total"
+     FROM quotations WHERE ${where.join(' AND ')} GROUP BY quotation_status`,
+    values,
+  );
+  const byStatus: Record<string, { count: number; total: number }> = {
+    Pending: { count: 0, total: 0 },
+    Approved: { count: 0, total: 0 },
+  };
+  for (const row of result.rows) byStatus[row.status] = { count: row.count, total: row.total };
+  return {
+    count: byStatus.Pending.count + byStatus.Approved.count,
+    total: Math.round((byStatus.Pending.total + byStatus.Approved.total) * 100) / 100,
+    byStatus,
+  };
+}
