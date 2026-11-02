@@ -3309,6 +3309,10 @@
   th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 11px; text-align: left; }
   th { background: #f0f2f5; }
   td.num, th.num { text-align: right; }
+  table.compact th, table.compact td { padding: 3px 5px; font-size: 10.5px; }
+  table.compact tr { page-break-inside: avoid; }
+  table.compact tr.note td { font-size: 9.5px; color: #555; background: #fafafa; border-top: none; }
+  .grid { margin-bottom: 4px; }
   .totals { width: 260px; margin-left: auto; border-collapse: collapse; }
   .totals td { border: none; padding: 2px 6px; font-size: 12px; }
   .totals td.num { text-align: right; }
@@ -3923,55 +3927,74 @@ ${bodyHtml}
     const rate = Number(quotation.vatRate ?? quotationVatRate) || 0;
     const units = quotation.products || [];
     const charges = quotation.parts || [];
-    const chargeTable = (rows) => {
-      if (!rows.length) return '<p style="color:#888;">No charges.</p>';
-      const body = rows
-        .map((c) => {
-          const amount = (c.qty || 0) * (c.unitPrice || 0);
-          return `<tr><td>${escapeHtml(c.type || 'Part')}</td><td>${escapeHtml([c.partNo, c.description].filter(Boolean).join(' - '))}</td><td class="num">${escapeHtml(String(c.qty ?? 0))}</td><td class="num">${money(c.unitPrice || 0)}</td><td class="num">${money(amount)}</td><td class="num">${money(amount * rate)}</td><td class="num">${money(amount * (1 + rate))}</td></tr>`;
-        })
-        .join('');
-      const sub = rows.reduce((sum, c) => sum + (c.qty || 0) * (c.unitPrice || 0), 0);
-      return `<table><thead><tr><th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (AED)</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">Subtotal</td><td class="num">${money(sub)}</td><td class="num">${money(sub * rate)}</td><td class="num">${money(sub * (1 + rate))}</td></tr></tfoot></table>`;
-    };
-    const unitBlocks = units
-      .map((u, i) => {
-        const own = charges.filter((c) => (c.unitKey || '') === (u.unitKey || `u${i + 1}`));
-        return `<h2>Unit ${i + 1}: ${escapeHtml([u.description, u.partNo && `(${u.partNo})`].filter(Boolean).join(' '))}</h2>
-          ${printFieldGrid([
-            ['Location / address', u.location],
-            ['Brand', u.brand],
-            ['Serial no.', u.serialNo],
-            ['Warranty', u.warranty],
-          ])}
-          ${printTextBlock('Complaint', u.complaint)}
-          ${printTextBlock('Diagnosis', u.diagnosis)}
-          ${chargeTable(own)}`;
-      })
-      .join('');
-    const unitKeys = new Set(units.map((u, i) => u.unitKey || `u${i + 1}`));
-    const general = charges.filter((c) => !c.unitKey || !unitKeys.has(c.unitKey));
+    const unitKeyOf = (u, i) => u.unitKey || `u${i + 1}`;
+    const unitNo = new Map(units.map((u, i) => [unitKeyOf(u, i), i + 1]));
+    const general = charges.filter((c) => !c.unitKey || !unitNo.has(c.unitKey));
+    const same = (a, b) =>
+      String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    const isB2B = quotation.customerType === 'B2B';
+    const branch = quotation.b2bBranchSchool;
+    // Customer details: skip empty fields, and skip name / project when they just repeat the branch.
+    const detailPairs = [
+      ['Quotation date', quotation.quotationDate],
+      ['Customer type', quotation.customerType],
+      ['B2B branch / school', isB2B ? branch : ''],
+      ['Status', quotation.quotationStatus],
+      ['Customer name', isB2B && same(quotation.customerName, branch) ? '' : quotation.customerName],
+      ['Contact number', quotation.contactNumber],
+      [
+        'Project name',
+        isB2B && (same(quotation.projectName, branch) || same(quotation.projectName, quotation.customerName))
+          ? ''
+          : quotation.projectName,
+      ],
+      ['Site / location', quotation.siteLocation],
+      ['Date of collection', quotation.dateOfCollection],
+      ['Technician', quotation.technicianName],
+      ['Warranty status', quotation.warrantyStatus],
+    ].filter(([, v]) => v);
+    const perUnitNotes = (u) =>
+      [
+        u.location && `<b>Location:</b> ${escapeHtml(u.location)}`,
+        u.complaint && `<b>Complaint:</b> ${escapeHtml(u.complaint)}`,
+        u.diagnosis && `<b>Diagnosis:</b> ${escapeHtml(u.diagnosis)}`,
+      ]
+        .filter(Boolean)
+        .join(' &nbsp;\u00b7&nbsp; ');
+    const unitsTable = units.length
+      ? `<h2>Units / equipment</h2><table class="compact"><thead><tr><th class="num">#</th><th>Item code</th><th>Description</th><th>Brand</th><th>Serial no. (S/N)</th><th>Warranty</th></tr></thead><tbody>${units
+          .map((u, i) => {
+            const notes = perUnitNotes(u);
+            return `<tr><td class="num">${i + 1}</td><td>${escapeHtml(u.partNo || '\u2014')}</td><td>${escapeHtml(u.description || '\u2014')}</td><td>${escapeHtml(u.brand || '\u2014')}</td><td>${escapeHtml(u.serialNo || '\u2014')}</td><td>${escapeHtml(u.warranty || '\u2014')}</td></tr>${
+              notes ? `<tr class="note"><td></td><td colspan="5">${notes}</td></tr>` : ''
+            }`;
+          })
+          .join('')}</tbody></table>`
+      : '';
+    // One charges table for the whole quotation; a Unit column ties each line to its unit.
+    const chargeRows = [...charges].sort((x, y) => {
+      const nx = unitNo.get(x.unitKey) || 9999;
+      const ny = unitNo.get(y.unitKey) || 9999;
+      return nx - ny;
+    });
+    const chargesTable = chargeRows.length
+      ? `<h2>Charges</h2><table class="compact"><thead><tr>${units.length > 1 ? '<th>Unit</th>' : ''}<th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (AED)</th></tr></thead><tbody>${chargeRows
+          .map((c) => {
+            const amount = (c.qty || 0) * (c.unitPrice || 0);
+            const unitCell = units.length > 1 ? `<td>${unitNo.get(c.unitKey) ? `U${unitNo.get(c.unitKey)}` : 'All'}</td>` : '';
+            return `<tr>${unitCell}<td>${escapeHtml(c.type || 'Part')}</td><td>${escapeHtml([c.partNo, c.description].filter(Boolean).join(' - '))}</td><td class="num">${escapeHtml(String(c.qty ?? 0))}</td><td class="num">${money(c.unitPrice || 0)}</td><td class="num">${money(amount)}</td><td class="num">${money(amount * rate)}</td><td class="num">${money(amount * (1 + rate))}</td></tr>`;
+          })
+          .join('')}</tbody></table>`
+      : '';
     const labour = Number(quotation.labourAmount || 0);
     const body = `
       ${printDocHead("Jacky's Distribution LLC", 'Quotation', quotation.quotationReference, quotation.legacyReference)}
       <h2>Customer details</h2>
-      ${printFieldGrid([
-        ['Quotation date', quotation.quotationDate],
-        ['Customer type', quotation.customerType],
-        ['B2B branch / school', quotation.b2bBranchSchool],
-        ['Status', quotation.quotationStatus],
-        ['Customer name', quotation.customerName],
-        ['Contact number', quotation.contactNumber],
-        ['Project name', quotation.projectName],
-        ['Site / location', quotation.siteLocation],
-        ['Date of collection', quotation.dateOfCollection],
-        ['Technician', quotation.technicianName],
-        ['Warranty status', quotation.warrantyStatus],
-      ])}
-      ${printTextBlock('Customer complaint', quotation.customerComplaint)}
-      ${printTextBlock('Technical diagnosis', quotation.technicalDiagnosis)}
-      ${unitBlocks}
-      ${general.length ? `<h2>${units.length ? 'Other charges' : 'Charges'}</h2>${chargeTable(general)}` : ''}
+      ${printFieldGrid(detailPairs)}
+      ${quotation.customerComplaint ? printTextBlock('Customer complaint', quotation.customerComplaint) : ''}
+      ${quotation.technicalDiagnosis ? printTextBlock('Technical diagnosis', quotation.technicalDiagnosis) : ''}
+      ${unitsTable}
+      ${chargesTable}
       <table class="totals">
         ${labour ? `<tr><td>Labour (excl. VAT)</td><td class="num">${money(labour)}</td></tr>` : ''}
         <tr><td>Subtotal (excl. VAT)</td><td class="num">${money(quotation.subtotalAmount ?? 0)}</td></tr>

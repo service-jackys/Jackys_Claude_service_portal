@@ -4058,3 +4058,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, index.html, apps/api/src/job-cards/service.ts, tests/e2e/quotation-units.spec.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No database change.
+
+## Modification #187 — Quotation print: one units table, one charges table, compact
+
+**Date:** 2026-11-02
+
+**Why.** A quotation with several units printed one section per unit (details grid, complaint, diagnosis, charges each), so a 3-unit quote ran to 3 pages, and the customer details repeated the same name three times.
+
+**What changed.**
+- Customer details show only filled fields. For B2B, Customer name and Project name are left out when they just repeat the B2B branch / school.
+- Units / equipment is one table (item code, description, brand, serial no., warranty), one row per unit. Each unit's location, complaint and diagnosis sit on a small note line under its row.
+- Charges are one table for the whole quotation with a Unit column (U1, U2, All). The per-unit "No charges." lines are gone.
+- Empty complaint / diagnosis boxes and empty approval fields no longer take space. A 3-unit B2B quote now prints on one page.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull, hard-refresh. No database change.
