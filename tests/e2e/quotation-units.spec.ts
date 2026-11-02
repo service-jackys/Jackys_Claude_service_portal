@@ -341,8 +341,22 @@ test('a school quote shows its units and job cards, and each unit gets its own j
                 label: 'Room 1 - Split AC',
                 jobCard: { id: '71', jobCardReference: 'JC-1' },
               },
-              { unitKey: 'u2', label: 'Room 2 - Split AC', jobCard: null },
-              { unitKey: 'u3', label: 'Room 3 - Split AC', jobCard: null },
+              {
+                unitKey: 'u2',
+                label: 'Room 2 - Split AC',
+                partNo: 'AC200',
+                brand: 'LG',
+                location: 'Room 2',
+                jobCard: null,
+              },
+              {
+                unitKey: 'u3',
+                label: 'Room 3 - Split AC',
+                partNo: 'AC300',
+                brand: 'LG',
+                location: 'Room 3',
+                jobCard: null,
+              },
             ],
           });
           return true;
@@ -365,7 +379,9 @@ test('a school quote shows its units and job cards, and each unit gets its own j
   await expect(row.locator('td.num').first()).toHaveText('3');
   // Opening a quotation brings the edit page into view with its job-card progress.
   await row.getByRole('button', { name: 'QO-2026-00900' }).click();
-  await expect(page.locator('#quotationJobUnits')).toContainText('1 of 3 units');
+  await expect(page.locator('#quotationJobUnits')).toContainText('1 of 3 created');
+  await expect(page.locator('#quotationJobUnits')).toContainText('AC200');
+  await expect(page.locator('#quotationJobUnits')).not.toContainText('Split AC');
   await expect(page.locator('#quotationDetailMeta')).toContainText('3 units');
   await expect(page.locator('#quotationDetailHeading')).toBeFocused();
   // Creating a job card for unit 2 opens the Service job cards page, not the quotation page.

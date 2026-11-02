@@ -4043,3 +4043,18 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** migration 069, packages/db job-cards and quotations, apps/api job-cards service/routes/route-catalog, warranty-approvals service, apps/web app.js and index.html, tests.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.
+
+## Modification #186 — Quotation edit page: cleaner Remove buttons and Service job cards box
+
+**Date:** 2026-11-02
+
+**Why.** The Remove unit button looked like an unstyled browser button, and the Service job cards list repeated the long item description for every unit.
+
+**What changed.**
+- Remove unit and the charge Remove buttons are now outlined red buttons with a hover state and keyboard focus ring.
+- Service job cards box: a header with the title and a "1 of 3 created" chip and progress bar; each unit is a row with a number badge (a tick once done), the **item code** and a **brand** chip, the location below, and either a **Create job card** button or a green job card link.
+- Each unit in the job-card list now comes with its item code, brand and location from the server.
+
+**Files.** apps/web/src/app.js, index.html, apps/api/src/job-cards/service.ts, tests/e2e/quotation-units.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No database change.
