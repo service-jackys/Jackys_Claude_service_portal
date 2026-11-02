@@ -2745,6 +2745,7 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         parameters: [
           { name: 'quotationId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'unit', in: 'query', required: false, schema: { type: 'string' } },
         ],
         responses: [200, 401, 403, 404, 409, 500],
         handlers: serviceJobCardHandlers.prefillFromQuotation,
@@ -2759,6 +2760,7 @@ export function createRouteCatalog(
         requestBody: 'serviceJobCardCreate' as const,
         parameters: [
           { name: 'quotationId', in: 'path', required: true, schema: { type: 'string' } },
+          { name: 'unit', in: 'query', required: false, schema: { type: 'string' } },
         ],
         responses: [201, 400, 401, 403, 404, 409, 500],
         handlers: serviceJobCardHandlers.createFromQuotation,
@@ -2768,7 +2770,8 @@ export function createRouteCatalog(
         path: '/api/quotations/{quotationId}/job-card',
         operationId: 'getQuotationJobCard',
         tags: ['Service Job Cards'],
-        summary: 'Get the service job card created from a quotation, if any',
+        summary:
+          'Get the service job cards created from a quotation, and which units still need one',
         security: 'bearerAuth' as const,
         parameters: [
           { name: 'quotationId', in: 'path', required: true, schema: { type: 'string' } },

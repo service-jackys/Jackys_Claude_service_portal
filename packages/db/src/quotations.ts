@@ -18,6 +18,9 @@ export type QuotationRecord = {
   customerType: string | null;
   b2bBranchSchool: string | null;
   quotationStatus: string;
+  // Units on the quotation, and how many of them already have a service job card.
+  unitCount: number;
+  jobCardCount: number;
   products: QuotationUnit[];
   parts: QuotationCharge[];
   labourAmount: string;
@@ -91,6 +94,13 @@ const columns = `
   customer_type AS "customerType",
   b2b_branch_school AS "b2bBranchSchool",
   quotation_status AS "quotationStatus",
+  jsonb_array_length(products)::int AS "unitCount",
+  (CASE
+     WHEN EXISTS (SELECT 1 FROM service_job_cards sjc
+                  WHERE sjc.quotation_id = quotations.id AND sjc.quotation_unit_key = '')
+       THEN GREATEST(jsonb_array_length(products), 1)
+     ELSE (SELECT count(*) FROM service_job_cards sjc WHERE sjc.quotation_id = quotations.id)
+   END)::int AS "jobCardCount",
   (SELECT wa.id FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
     ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalId",
   (SELECT wa.approval_reference FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
@@ -270,7 +280,7 @@ export async function listQuotations(
   if (query.appointmentId) filters.push(`appointment_id = ${add(query.appointmentId)}`);
   if (query.unused) {
     filters.push(
-      `NOT EXISTS (SELECT 1 FROM service_job_cards WHERE service_job_cards.quotation_id = quotations.id)`,
+      `(CASE WHEN EXISTS (SELECT 1 FROM service_job_cards sjc WHERE sjc.quotation_id = quotations.id AND sjc.quotation_unit_key = '') THEN GREATEST(jsonb_array_length(products), 1) ELSE (SELECT count(*) FROM service_job_cards sjc WHERE sjc.quotation_id = quotations.id) END) < GREATEST(jsonb_array_length(products), 1)`,
     );
   }
   if (query.quotationStatus) filters.push(`quotation_status = ${add(query.quotationStatus)}`);

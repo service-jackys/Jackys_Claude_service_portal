@@ -18,6 +18,8 @@ export type ServiceJobCardRecord = {
   appointmentReference: string | null;
   quotationId: string | null;
   quotationReference: string | null;
+  // '' = the job card covers the whole quotation; otherwise the unit it was made for.
+  quotationUnitKey: string;
   // The complaint that led to this job card's appointment, if any -- an
   // appointment can be created without a complaint, so both can be null.
   // Carried through for the workflow link (see modification.md #5).
@@ -181,6 +183,7 @@ const columns = `
   service_job_cards.appointment_id AS "appointmentId",
   appointments.appointment_reference AS "appointmentReference",
   service_job_cards.quotation_id AS "quotationId",
+  service_job_cards.quotation_unit_key AS "quotationUnitKey",
   quotations.quotation_reference AS "quotationReference",
   appointments.complaint_id AS "complaintId",
   complaints.complaint_reference AS "complaintReference",
@@ -277,6 +280,8 @@ export async function insertServiceJobCard(
     // Exactly one of these is set -- see migrations/014_job_card_quotation_source.sql.
     appointmentId: string | null;
     quotationId: string | null;
+    // Unit of the quotation this job card is for; '' (default) = the whole quotation.
+    quotationUnitKey?: string;
     sourceType: string;
     createdBy: string;
     content: ServiceJobCardContent;
@@ -296,7 +301,7 @@ export async function insertServiceJobCard(
        item_code, main_group, group_name, sub_group, item_in_master, serial_no, purchase_date,
        accessories_received, condition_notes, intake_at,
        customer_type, customer_email, region, b2b_branch_school, sales_order_number,
-       final_status, final_status_reason, final_status_at
+       final_status, final_status_reason, final_status_at, quotation_unit_key
      ) VALUES (
        $1, $2, $3, $4, $4,
        $5, $6, $7, $8, $9,
@@ -308,7 +313,7 @@ export async function insertServiceJobCard(
        $34, $35, $36, $37, $38, $39, $40,
        $41, $42, $43,
        $44, $45, $46, $47, $48,
-       $49, $50, CASE WHEN $49::text IS NULL THEN NULL ELSE now() END
+       $49, $50, CASE WHEN $49::text IS NULL THEN NULL ELSE now() END, $51
      )
      RETURNING id`,
     [
@@ -362,6 +367,7 @@ export async function insertServiceJobCard(
       c.salesOrderNumber,
       c.finalStatus,
       c.finalStatusReason,
+      input.quotationUnitKey ?? '',
     ],
   );
   const jobCard = await findServiceJobCardById(client, result.rows[0].id);
@@ -501,10 +507,29 @@ export async function findServiceJobCardByQuotationId(
      FROM service_job_cards
      ${joins}
      WHERE service_job_cards.quotation_id = $1
+     ORDER BY service_job_cards.id
      ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
     [quotationId],
   );
   return result.rows[0] ?? null;
+}
+
+// Every job card made from a quotation: one per unit, or one for the whole quotation.
+export async function listServiceJobCardsByQuotationId(
+  client: PoolClient,
+  quotationId: string,
+  forUpdate = false,
+): Promise<ServiceJobCardRecord[]> {
+  const result = await client.query<ServiceJobCardRecord>(
+    `SELECT ${columns}
+     FROM service_job_cards
+     ${joins}
+     WHERE service_job_cards.quotation_id = $1
+     ORDER BY service_job_cards.id
+     ${forUpdate ? 'FOR UPDATE OF service_job_cards' : ''}`,
+    [quotationId],
+  );
+  return result.rows;
 }
 
 export async function listServiceJobCards(

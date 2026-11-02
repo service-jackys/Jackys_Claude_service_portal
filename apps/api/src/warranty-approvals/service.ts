@@ -17,7 +17,7 @@ import {
 } from '../../../../packages/db/src/warranty-approvals.js';
 import {
   findServiceJobCardById,
-  findServiceJobCardByQuotationId,
+  listServiceJobCardsByQuotationId,
   insertServiceJobCardHistory,
   setServiceJobCardJobStatus,
 } from '../../../../packages/db/src/job-cards.js';
@@ -46,22 +46,25 @@ export async function releaseJobAfterApproval(
   changedBy: string | null,
   requestId: string,
 ): Promise<void> {
-  const job = approval.jobCardId
-    ? await findServiceJobCardById(client, approval.jobCardId, true)
+  // A quotation can have one job card per unit; the customer's approval releases them all.
+  const jobs = approval.jobCardId
+    ? [await findServiceJobCardById(client, approval.jobCardId, true)]
     : approval.quotationId
-      ? await findServiceJobCardByQuotationId(client, approval.quotationId, true)
-      : null;
-  if (!job || job.jobFinalStatus !== 'Customer approval pending') return;
-  await setServiceJobCardJobStatus(client, job.id, 'WIP');
-  await insertServiceJobCardHistory(
-    client,
-    job.id,
-    'Customer approval pending',
-    'WIP',
-    changedBy,
-    `Customer approved (${method}) - ${approval.approvalReference}`,
-    requestId,
-  );
+      ? await listServiceJobCardsByQuotationId(client, approval.quotationId, true)
+      : [];
+  for (const job of jobs) {
+    if (!job || job.jobFinalStatus !== 'Customer approval pending') continue;
+    await setServiceJobCardJobStatus(client, job.id, 'WIP');
+    await insertServiceJobCardHistory(
+      client,
+      job.id,
+      'Customer approval pending',
+      'WIP',
+      changedBy,
+      `Customer approved (${method}) - ${approval.approvalReference}`,
+      requestId,
+    );
+  }
 }
 
 /** Staff move a job out of "Customer approval pending" by hand: the way the

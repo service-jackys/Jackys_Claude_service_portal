@@ -4024,3 +4024,22 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, tests/e2e/quotation-units.spec.ts.
 
 **Needs you:** pull, hard-refresh. No database change.
+
+## Modification #185 — Quotations: one service job card per unit, Units and Job cards columns, edit page, job card opens on its own page
+
+**Date:** 2026-11-02
+
+**Why.** A school quotation has many units. Making one job card for the whole quote hid which units were done, and the job-card form opened under the quotation instead of on the job-card page.
+
+**What changed.**
+- A quotation with two or more units gets one service job card per unit, until every unit has one. A quotation with one unit or none still gets a single job card. Job cards made before this change count as covering the whole quotation.
+- Created quotations list: new **Units** column and **Job cards** column ("1 of 3 created", amber while partial, green when all are created).
+- Opening a quotation: the page scrolls to the edit page and focuses its heading. The header shows status, type, branch, units and total as chips. A "Service job cards" box shows progress ("1 of 3 units"), a bar, and for each unit either its job card link or a **Create job card** button.
+- **Create job card** now opens the Service job cards page with the form filled for that unit (complaint, item, brand, serial, location). Cancel goes back to the quotation.
+- A job card made from a multi-unit quote with no unit named is refused ("choose the unit"); a unit that already has a job card cannot get a second.
+- The customer's approval now releases every waiting job card of the quotation, not just one.
+- Edit page restyled: separate cards, unit cards with an accent edge, sticky save bar, visible focus rings, reduced-motion support.
+
+**Files.** migration 069, packages/db job-cards and quotations, apps/api job-cards service/routes/route-catalog, warranty-approvals service, apps/web app.js and index.html, tests.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.

@@ -673,12 +673,189 @@
         background: #fde6e6;
         color: var(--red);
       }
+      /* Quotation edit page: one calm surface per block (header chips, job-card
+         progress, unit cards, totals), spacing on a 4/8px scale, visible focus. */
+      #quotationDetail {
+        scroll-margin-top: calc(var(--nav-height) + 12px);
+      }
+      .q-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin: 0.4rem 0 0.2rem;
+      }
+      .q-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.18rem 0.65rem;
+        border-radius: 999px;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.78rem;
+        font-weight: 600;
+        line-height: 1.5;
+      }
+      .q-chip.status-pending {
+        background: #fdf3dc;
+        border-color: #f0dba5;
+        color: var(--warning);
+      }
+      .q-chip.status-approved {
+        background: #e0f4ea;
+        border-color: #b7e0c9;
+        color: var(--success);
+      }
+      .q-chip.status-rejected {
+        background: #fde6e6;
+        border-color: #f1bcbc;
+        color: var(--red);
+      }
+      .q-chip.q-chip-info {
+        background: var(--blue-soft);
+        border-color: #c4dcef;
+        color: var(--blue);
+      }
+      .jobs-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.12rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        white-space: nowrap;
+        background: var(--surface-soft);
+        color: var(--muted);
+        border: 1px solid var(--line);
+      }
+      .jobs-chip.jobs-partial {
+        background: #fdf3dc;
+        border-color: #f0dba5;
+        color: var(--warning);
+      }
+      .jobs-chip.jobs-done {
+        background: #e0f4ea;
+        border-color: #b7e0c9;
+        color: var(--success);
+      }
+      .q-jobs {
+        margin: 1rem 0 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        box-shadow: 0 1px 2px rgb(16 43 78 / 6%);
+        overflow: hidden;
+      }
+      .q-jobs[hidden] {
+        display: none;
+      }
+      .q-jobs-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem 1rem;
+        padding: 0.85rem 1rem;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+      }
+      .q-jobs-head strong {
+        color: var(--navy);
+      }
+      .q-progress {
+        flex: 1 1 180px;
+        max-width: 280px;
+        height: 8px;
+        border-radius: 999px;
+        background: #e3eaf1;
+        overflow: hidden;
+      }
+      .q-progress > span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--success);
+        transition: width 0.25s ease;
+      }
+      .q-job-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      .q-job-list li {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        padding: 0.65rem 1rem;
+        border-top: 1px solid var(--line);
+      }
+      .q-job-list li:first-child {
+        border-top: 0;
+      }
+      .q-job-unit {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        min-width: 0;
+        font-weight: 600;
+      }
+      .q-job-dot {
+        flex: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #c9d4df;
+      }
+      .q-job-dot.done {
+        background: var(--success);
+      }
+      .q-job-context {
+        font-weight: 600;
+        color: var(--navy);
+      }
+      .q-edit-form {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--surface);
+        padding: 1.1rem 1.2rem 1.2rem;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 6%);
+      }
+      .q-edit-form h5 {
+        margin: 1.4rem 0 0.4rem;
+        padding-bottom: 0.35rem;
+        border-bottom: 2px solid var(--blue-soft);
+        color: var(--navy);
+        font-size: 0.95rem;
+      }
+      .q-edit-form .form-footer {
+        position: sticky;
+        bottom: 0;
+        margin: 1.4rem -1.2rem -1.2rem;
+        padding: 0.8rem 1.2rem;
+        background: linear-gradient(to bottom, rgb(255 255 255 / 0%), var(--surface) 35%);
+        border-top: 1px solid var(--line);
+        border-radius: 0 0 14px 14px;
+      }
+      .q-job-list .table-link:focus-visible,
+      .q-jobs .button:focus-visible,
+      .q-unit input:focus-visible,
+      .q-unit select:focus-visible,
+      .q-unit textarea:focus-visible {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
+      }
       .q-unit {
         border: 1px solid var(--line);
+        border-left: 4px solid var(--blue);
         border-radius: 12px;
         background: var(--surface-soft);
         padding: 0.9rem 1rem 1rem;
         margin: 0 0 1rem;
+        box-shadow: 0 1px 2px rgb(16 43 78 / 5%);
       }
       .q-unit > header {
         display: flex;
@@ -686,6 +863,20 @@
         align-items: center;
         margin-bottom: 0.6rem;
         color: var(--navy);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .q-progress > span {
+          transition: none;
+        }
+      }
+      @media (max-width: 640px) {
+        .q-edit-form {
+          padding: 0.9rem 0.8rem 1rem;
+        }
+        .q-edit-form .form-footer {
+          margin: 1.2rem -0.8rem -1rem;
+          padding: 0.7rem 0.8rem;
+        }
       }
       .q-unit-foot {
         display: flex;
@@ -13013,8 +13204,10 @@
                         <th>Customer</th>
                         <th>Type</th>
                         <th>Project / site</th>
+                        <th class="num">Units</th>
                         <th>Total (AED)</th>
                         <th>Status</th>
+                        <th>Job cards</th>
                         <th>Customer approval</th>
                         <th>Updated</th>
                       </tr>
@@ -13055,7 +13248,8 @@
                 <div class="detail-panel" id="quotationDetail" hidden>
                   <div class="dashboard-header">
                     <div>
-                      <h3 id="quotationDetailHeading">Quotation details</h3>
+                      <h3 id="quotationDetailHeading" tabindex="-1">Quotation details</h3>
+                      <div class="q-meta" id="quotationDetailMeta"></div>
                       <p id="quotationJobCardStatus"></p>
                       <p id="quotationApprovalStatus"></p>
                     </div>
@@ -13072,7 +13266,13 @@
                       </button>
                     </div>
                   </div>
-                  <form id="quotationEditForm" novalidate>
+                  <section
+                    class="q-jobs"
+                    id="quotationJobUnits"
+                    aria-live="polite"
+                    hidden
+                  ></section>
+                  <form id="quotationEditForm" class="q-edit-form" novalidate>
                     <div id="quotationEditFields"></div>
                     <div class="form-footer">
                       <span></span>
@@ -13103,6 +13303,7 @@
                     hidden
                   >
                     <h4 id="quotationJobCardCreateHeading">Create service job card</h4>
+                    <p class="q-job-context" id="quotationJobCardCreateContext"></p>
                     <p>
                       Details pulled from this quotation. A quotation doesn't capture site contact,
                       customer number, salesman, or sales channel, so those are left blank below --
