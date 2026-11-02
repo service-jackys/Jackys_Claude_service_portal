@@ -323,10 +323,7 @@ export async function quotationsLpoPending(
   filter: { year?: string; month?: string },
 ) {
   const values: unknown[] = [];
-  const where = [
-    `quotation_status IN ('Pending', 'Approved')`,
-    `erp_status = 'Pending invoice'`,
-  ];
+  const where = [`quotation_status IN ('Pending', 'Approved')`, `erp_status = 'Pending invoice'`];
   if (filter.year) {
     values.push(Number(filter.year));
     where.push(`EXTRACT(YEAR FROM quotation_date) = $${values.length}`);
@@ -351,4 +348,18 @@ export async function quotationsLpoPending(
     total: Math.round((byStatus.Pending.total + byStatus.Approved.total) * 100) / 100,
     byStatus,
   };
+}
+
+// LPO pending for every month (by quotation date), for the Budget vs Actual chart. Same rule as
+// quotationsLpoPending: Pending / Approved quotations whose ERP / ORION status is Pending invoice.
+export async function quotationsLpoPendingByMonth(client: PoolClient) {
+  const result = await client.query(
+    `SELECT to_char(quotation_date, 'YYYY-MM') AS "period", count(*)::int AS "count",
+            COALESCE(sum(subtotal_amount), 0)::float8 AS "total"
+     FROM quotations
+     WHERE quotation_status IN ('Pending', 'Approved') AND erp_status = 'Pending invoice'
+       AND quotation_date IS NOT NULL
+     GROUP BY 1 ORDER BY 1`,
+  );
+  return result.rows as { period: string; count: number; total: number }[];
 }

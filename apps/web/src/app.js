@@ -23855,6 +23855,16 @@ ${bodyHtml}
     const lines = [...lineMap.values()];
     const budgetRevenue = lines.find((l) => l.section === 'revenue')?.values || {};
     const budgetVolume = lines.find((l) => l.section === 'volume')?.values || {};
+    // LPO pending per month (quotations not yet invoiced): information only, never part of Actual.
+    const lpoByPeriod = {};
+    try {
+      const lpoData = await apiRequest('/api/revenue-dashboard/lpo-pending-by-month');
+      (lpoData.months || []).forEach((m) => {
+        lpoByPeriod[m.period] = { total: Number(m.total), count: Number(m.count) };
+      });
+    } catch {
+      // The chart still works without it.
+    }
     const actualMap = {};
     data.actual.forEach((row) => {
       actualMap[row.period] = { revenue: Number(row.revenue), qty: Number(row.qty) };
@@ -24006,12 +24016,27 @@ ${bodyHtml}
             data: periods.map((p) => budgetRevenue[p] || 0),
             backgroundColor: '#4E7FF2',
             borderRadius: 4,
+            stack: 'budget',
           },
           {
             label: 'Actual',
             data: periods.map((p) => (actualMap[p] ? actualMap[p].revenue : 0)),
             backgroundColor: '#EB6834',
             borderRadius: 4,
+            stack: 'actual',
+          },
+          // Stacked on top of Actual, light and dashed: visibility only, not revenue.
+          {
+            label: 'LPO pending (not invoiced yet, information only)',
+            data: periods.map((p) =>
+              lpoByPeriod[p] && lpoByPeriod[p].total ? lpoByPeriod[p].total : null,
+            ),
+            backgroundColor: 'rgba(245, 176, 65, 0.35)',
+            borderColor: '#d98e04',
+            borderWidth: 1.5,
+            borderDash: [5, 3],
+            borderRadius: 4,
+            stack: 'actual',
           },
         ],
       },
@@ -24024,12 +24049,31 @@ ${bodyHtml}
           legend: { position: 'bottom', labels: { boxWidth: 10 } },
           rdValueLabels: { mode: 'each', prefix: '' },
           tooltip: {
-            callbacks: { label: (c) => ' ' + c.dataset.label + ': AED ' + rdMoney(c.raw) },
+            callbacks: {
+              label: (c) => {
+                if (c.datasetIndex === 2) {
+                  const lpo = lpoByPeriod[periods[c.dataIndex]];
+                  return (
+                    ' LPO pending: AED ' +
+                    rdMoney(c.raw) +
+                    (lpo
+                      ? ' (' + lpo.count + ' quotation' + (lpo.count === 1 ? '' : 's') + ')'
+                      : '')
+                  );
+                }
+                return ' ' + c.dataset.label + ': AED ' + rdMoney(c.raw);
+              },
+              afterBody: (items) =>
+                items.some((i) => i.datasetIndex === 2)
+                  ? ['Not invoiced yet. Not included in Actual.']
+                  : [],
+            },
           },
         },
         scales: {
-          x: { grid: { display: false } },
+          x: { grid: { display: false }, stacked: true },
           y: {
+            stacked: true,
             beginAtZero: true,
             grace: '10%',
             title: { display: true, text: 'Value (AED)' },
@@ -24038,6 +24082,121 @@ ${bodyHtml}
         },
       },
     });
+  }
+
+  // ---- Click-to-sort for every data table in the portal -------------------------------------
+  // Click a column heading to sort the rows on screen (again to reverse). A table is sortable
+  // when every body row has one cell per heading and holds no inputs, so list and report tables
+  // sort while forms, editors and expandable-row tables are left alone. Dates (2026-09-29,
+  // 29 Sep 2026, 29/09/2026), numbers (1,234.50, AED 12, 5%) and text each sort the right way.
+  const SORT_MONTHS = {
+    jan: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7,
+    sep: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11,
+  };
+  function sortValue(cell) {
+    const raw = (cell.dataset.sort ?? cell.textContent ?? '').replace(/\s+/g, ' ').trim();
+    if (!raw || /^(—|-|–|n\/a|not set)$/i.test(raw)) return { type: 'empty', raw };
+    let m = /^(\d{4})-(\d{2})-(\d{2})(?:[T ,]+(\d{1,2}):(\d{2}))?/.exec(raw);
+    if (m)
+      return {
+        type: 'date',
+        n: Date.UTC(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0)),
+        raw,
+      };
+    m = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/.exec(raw);
+    if (m)
+      return {
+        type: 'date',
+        n: Date.UTC(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)),
+        raw,
+      };
+    m = /^(\d{1,2}) ([A-Za-z]{3})[a-z]* (\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?: ?([AaPp])[Mm])?)?/.exec(
+      raw,
+    );
+    if (m && SORT_MONTHS[m[2].toLowerCase()] !== undefined) {
+      let hour = +(m[4] || 0);
+      if (m[6] && /p/i.test(m[6]) && hour < 12) hour += 12;
+      if (m[6] && /a/i.test(m[6]) && hour === 12) hour = 0;
+      return {
+        type: 'date',
+        n: Date.UTC(+m[3], SORT_MONTHS[m[2].toLowerCase()], +m[1], hour, +(m[5] || 0)),
+        raw,
+      };
+    }
+    const num = /^[^\d-]{0,5}(-?[\d,]*\.?\d+)\s*(?:%|k|AED)?$/i.exec(
+      raw.replace(/\(([\d,.]+)\)/, '-$1'),
+    );
+    if (num) return { type: 'number', n: Number(num[1].replace(/,/g, '')), raw };
+    return { type: 'text', raw };
+  }
+  function sortableRows(table) {
+    const body = table.tBodies[0];
+    const head = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+    if (!body || !head || table.dataset.noSort !== undefined) return null;
+    const rows = [...body.rows];
+    if (rows.length < 2) return null;
+    const cols = head.cells.length;
+    if (
+      rows.some((row) => row.cells.length !== cols || row.querySelector('input, select, textarea'))
+    )
+      return null;
+    return { body, head, rows };
+  }
+  function markSortableTables() {
+    document.querySelectorAll('table').forEach((table) => {
+      const info = sortableRows(table);
+      table.classList.toggle('is-sortable', Boolean(info));
+      if (!info) return;
+      [...info.head.cells].forEach((th) => {
+        const usable = th.textContent.trim() && !th.querySelector('input, button, select');
+        th.classList.toggle('sort-th', Boolean(usable));
+        if (usable && !th.hasAttribute('aria-sort')) th.setAttribute('aria-sort', 'none');
+      });
+    });
+  }
+  function sortTableBy(th) {
+    const table = th.closest('table');
+    const info = table && sortableRows(table);
+    if (!info || !th.classList.contains('sort-th')) return;
+    const index = th.cellIndex;
+    const dir = th.getAttribute('aria-sort') === 'ascending' ? -1 : 1;
+    const keyed = info.rows.map((row, order) => ({ row, order, v: sortValue(row.cells[index]) }));
+    const filled = keyed.filter((k) => k.v.type !== 'empty');
+    const types = new Set(filled.map((k) => k.v.type));
+    const mode = types.size === 1 ? [...types][0] : 'text';
+    const compare = (a, b) =>
+      mode === 'text'
+        ? a.v.raw.localeCompare(b.v.raw, undefined, { numeric: true, sensitivity: 'base' })
+        : a.v.n - b.v.n;
+    filled.sort((a, b) => dir * compare(a, b) || a.order - b.order);
+    const empties = keyed.filter((k) => k.v.type === 'empty');
+    [...filled, ...empties].forEach((k) => info.body.appendChild(k.row));
+    [...info.head.cells].forEach((cell) => {
+      if (cell.classList.contains('sort-th')) cell.setAttribute('aria-sort', 'none');
+    });
+    th.setAttribute('aria-sort', dir === 1 ? 'ascending' : 'descending');
+  }
+  document.addEventListener('click', (event) => {
+    const th = event.target instanceof Element ? event.target.closest('th.sort-th') : null;
+    if (th) sortTableBy(th);
+  });
+  {
+    let timer = null;
+    new MutationObserver(() => {
+      clearTimeout(timer);
+      timer = setTimeout(markSortableTables, 150);
+    }).observe(document.body, { childList: true, subtree: true });
+    markSortableTables();
   }
 
   $('#vasCalcNav')?.addEventListener('click', () => setWorkspaceMode('vas-calc'));

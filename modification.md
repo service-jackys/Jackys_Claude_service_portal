@@ -4171,3 +4171,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/070_quotation_erp_status.sql, packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Then set the ERP / ORION status on each existing quotation.
+
+## Modification #189 — Click-to-sort on every table; LPO pending shown on Budget vs Actual
+
+**Date:** 2026-11-02
+
+**Why.** Lists could not be re-ordered (for example Created quotations by date), and Budget vs Actual gave no hint that a month had quotations still waiting to be invoiced.
+
+**What changed.**
+- Every data table in the portal can be sorted by clicking a column heading (click again to reverse; an arrow shows the direction). Dates (2026-09-29, 29 Sep 2026, 29/09/2026, with or without time), numbers (1,234.50, AED 12, 5%) and text each sort correctly; references like QO-2026-00002 sort naturally; empty cells go last. Tables with input fields or expandable detail rows are left alone.
+- Sorting re-orders the rows shown on screen. Lists that load in pages sort the current page only.
+- Budget vs Actual chart: each month that has LPO pending shows a light amber dashed segment stacked on top of that month's Actual bar, with the value; the tooltip says how many quotations and "Not invoiced yet. Not included in Actual." It is information only: the Actual bar, the variance and the tables are unchanged.
+- New API route `GET /api/revenue-dashboard/lpo-pending-by-month` (same rule as LPO pending on Reports: Pending / Approved quotations with ERP / ORION status Pending invoice, by quotation date).
+
+**Files.** apps/web/src/app.js, index.html, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, packages/db/src/quotations.ts, tests/e2e/sort-and-lpo-chart.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No database change.
