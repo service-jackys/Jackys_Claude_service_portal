@@ -39,6 +39,7 @@ test(
       const quotationA = await quotations.create(
         {
           customerName: `Flow A ${suffix}`,
+          erpStatus: 'Pending invoice',
           warrantyStatus: 'Out Warranty',
           quotationStatus: 'Approved',
         },
@@ -79,7 +80,11 @@ test(
 
       // Quotation B: staff record a phone approval on the request.
       const quotationB = await quotations.create(
-        { customerName: `Flow B ${suffix}`, quotationStatus: 'Approved' },
+        {
+          customerName: `Flow B ${suffix}`,
+          erpStatus: 'Pending invoice',
+          quotationStatus: 'Approved',
+        },
         profileId,
         `flow-b-${suffix}`,
       );
@@ -101,7 +106,11 @@ test(
 
       // Quotation C: moving to WIP by hand needs the approval method.
       const quotationC = await quotations.create(
-        { customerName: `Flow C ${suffix}`, quotationStatus: 'Approved' },
+        {
+          customerName: `Flow C ${suffix}`,
+          erpStatus: 'Pending invoice',
+          quotationStatus: 'Approved',
+        },
         profileId,
         `flow-c-${suffix}`,
       );

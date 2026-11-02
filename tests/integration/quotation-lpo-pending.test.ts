@@ -10,7 +10,7 @@ import { quotationsLpoPending } from '../../packages/db/src/quotations.js';
 const databaseUrl = process.env.DATABASE_URL;
 
 test(
-  'LPO pending counts Pending and Approved quotations with no job card, by quotation date',
+  'LPO pending counts Pending and Approved quotations whose ERP/ORION status is Pending invoice, by quotation date',
   { skip: !databaseUrl, concurrency: false },
   async (context) => {
     try {
@@ -44,12 +44,13 @@ test(
         )
       ).rows[0].id;
       // Year 2031 keeps these rows apart from any real data.
-      const make = async (date: string, status: string, price: number) => {
+      const make = async (date: string, status: string, erpStatus: string, price: number) => {
         const created = await quotations.create(
           {
             customerName: `LPO ${suffix}`,
             quotationDate: date,
             quotationStatus: status,
+            erpStatus,
             products: [
               {
                 unitKey: 'u1',
@@ -81,22 +82,30 @@ test(
         ids.push(created.id);
         return created;
       };
-      await make('2031-03-05', 'Pending', 100);
-      const approved = await make('2031-03-20', 'Approved', 200);
-      await make('2031-03-25', 'Rejected', 400);
-      await make('2031-04-02', 'Approved', 800);
-      const withJob = await make('2031-03-28', 'Approved', 1600);
-      await jobs.createFromQuotation(withJob.id, {}, profileId, `lpo-job-${suffix}`);
+      // The ERP / ORION status is mandatory.
+      await assert.rejects(
+        () =>
+          quotations.create({ customerName: 'No ERP' }, profileId as string, `lpo-no-${suffix}`),
+        { name: 'ZodError' },
+      );
+      await make('2031-03-05', 'Pending', 'Pending invoice', 100);
+      await make('2031-03-20', 'Approved', 'Pending invoice', 200);
+      await make('2031-03-25', 'Rejected', 'Pending invoice', 400);
+      await make('2031-04-02', 'Approved', 'Pending invoice', 800);
+      // Already invoiced: sits inside that month's revenue, so it is not LPO pending.
+      await make('2031-03-27', 'Approved', 'Invoiced', 3200);
+      // Has a job card but is not invoiced yet: still LPO pending.
+      const withJob = await make('2031-03-28', 'Approved', 'Pending invoice', 1600);
+      await jobs.createFromQuotation(withJob.id, {}, profileId as string, `lpo-job-${suffix}`);
 
       const march = await lpo({ year: '2031', month: '3' });
-      // Pending 100 + Approved 200; Rejected, a job-carded quote and April are left out; VAT is excluded.
+      // Pending 100 + Approved 200 + Approved with a job card 1600. Rejected, Invoiced and April are left out; VAT is excluded.
       assert.deepEqual(
         [march.count, march.total, march.byStatus.Pending.total, march.byStatus.Approved.total],
-        [2, 300, 100, 200],
+        [3, 1900, 100, 1800],
       );
       const year = await lpo({ year: '2031' });
-      assert.deepEqual([year.count, year.total], [3, 1100]);
-      assert.equal(approved.quotationStatus, 'Approved');
+      assert.deepEqual([year.count, year.total], [4, 2700]);
     } finally {
       if (ids.length) {
         await pool.query('DELETE FROM service_job_cards WHERE quotation_id = ANY($1)', [ids]);

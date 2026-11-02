@@ -118,6 +118,7 @@ test.describe('quotations workspace', () => {
     await page.getByRole('tab', { name: 'New quotation' }).click();
     await expect(page.locator('#quotationCreatePanel')).toBeVisible();
     await page.locator('#qtcCustomerName').fill('Quotation Customer');
+    await page.locator('#qtcErpStatus').selectOption('Pending invoice');
     await page
       .locator('#quotationCreatePanel')
       .getByRole('button', { name: 'Save quotation' })

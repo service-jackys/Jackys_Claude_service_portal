@@ -661,6 +661,41 @@
       .q-status-dialog::backdrop {
         background: rgba(8, 26, 48, 0.45);
       }
+      .erp-status-select.erp-unset {
+        border: 2px solid #d92d20;
+        background: #fff1f0;
+        color: #b42318;
+      }
+      .erp-status-select.erp-pending {
+        border: 2px solid #d92d20;
+        background: #fff1f0;
+        color: #b42318;
+        font-weight: 600;
+      }
+      .erp-status-select.erp-invoiced {
+        border: 2px solid #12805c;
+        background: #e8f7ef;
+        color: #0b5d43;
+        font-weight: 600;
+      }
+      .erp-chip {
+        display: inline-block;
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .erp-chip-pending {
+        background: #fde4e1;
+        color: #b42318;
+        border: 1px solid #f4a79f;
+      }
+      .erp-chip-invoiced {
+        background: #d9f3e5;
+        color: #0b5d43;
+        border: 1px solid #8fd3b0;
+      }
       .status-pending {
         background: #fdf3dc;
         color: #8a5a00;
@@ -13352,6 +13387,7 @@
                         <th class="num">Units</th>
                         <th>Total (AED)</th>
                         <th>Status</th>
+                        <th>ERP / ORION</th>
                         <th>Job cards</th>
                         <th>Customer approval</th>
                         <th>Updated</th>

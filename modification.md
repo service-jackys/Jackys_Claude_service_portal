@@ -2075,12 +2075,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 - As management: confirm you can view both pages but see no upload box.
 - Data points worth a look in the source workbooks (shown as-is, not changed): about 58% of revenue has sales channel "REVIEW" (the remarks did not say HAA or INS), and the budget P&L's monthly OPEX (58,471) excludes Staff Travel and Staff Insurance while its own YTD column (723,734) includes them.
 
-
 ## Modification #50 — Service Revenue Dashboard: Reports tab, value labels, full drill-down
 
 **Date:** 2026-10-05 · **Scope:** Management / Finance / Accounts · no new migration (uses 024) · `npm install`
 
 **What changed**
+
 - Service Revenue Dashboard now has Overview / Explorer / Reports tabs sharing one filter bar (Year, Month, Week, Job type, Sales channel, Cost status).
 - Charts use the same Chart.js visuals as the legacy dashboard (self-hosted at `apps/web/src/vendor/chart.umd.js`, so the production CSP is unaffected). Monthly revenue trend shows the value (AED) on every stack; doughnut shows %; horizontal bars show AED at the bar end. Budget vs Actual has a labelled grouped chart.
 - Reports: Drill-down (any dimension → any dimension → individual jobs with remarks), Monthly report (MoM %), Weekly report, Accounts Review (units pivot), Billing & cost, Customers (Pareto / concentration), Channel & sales, Exceptions (billing/channel/cost review, zero revenue, not approved, unmatched order, no customer, with AED at stake), Management summary (copyable text), Export to .xlsx (11 sheets).
@@ -2088,12 +2088,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** `npm install`, restart, `git push`. Open Service Revenue Dashboard → Reports and click through a drill-down to individual jobs.
 
-
 ## Modification #51 — Report export: full CSIDI-sheet columns on Jobs + "Revenue Logic" sheet
 
 **Date:** 2026-10-05 · **Scope:** Management / Finance / Accounts · **migration 025** · re-upload the Service Dashboard workbook
 
 **What changed**
+
 - The Jobs sheet of the exported report now carries every column of the workbook's CSIDI sheet (Tranc, customer code, location, raw units, invoice status, derived type, calc qty, appliance category and its source, customer grouping, sites, trips, crew, discount tier/rate, base/net unit rate, transport, billing qty, proposed revenue, pricing status, review note and the eight "Before fix" columns), for CSIDI / CSIDO / CSIII jobs. Header colours separate the groups: navy = base job, teal = CSIDI sheet, brown = how the revenue is built, plum = what missing ERP data could change.
 - New calculation columns per job: revenue basis, labour before discount, volume discount, AED 35 floor, labour after discount, transport, rebuilt revenue, workbook-minus-rebuilt (reconciles to 0.00 for all 849 CSIDI-sheet jobs in 2026), revenue per unit, change vs the 3 Oct fix.
 - New "what if" columns: all units refrigerator/washer, all cooker, trips in Sharjah, not same customer/site, 3-person crew, CSIDO billed per unit; plus the assumptions behind each figure and Remarks flags (no activity wording, "only installation" wording, other products, models seen).
@@ -2102,12 +2102,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** `npm run db:migrate` (025), restart, then **re-upload the .xlsm** on Service Revenue Dashboard (older uploads have no CSIDI columns; the Logic sheet shows built-in rates for them). Export a report and check the Jobs and Revenue Logic sheets.
 
-
 ## Modification #52 — Reports page: download service records as Excel
 
 **Date:** 2026-10-05 · **Scope:** Sales / Management / Admin · migration 026 · no new package
 
 **What changed**
+
 - New **Reports** page under Records (the legacy portal's "Download service reports" tab): pick a record type, a date range (this month, last month, year to date, custom, all) and optional search text, preview the rows, then download a formatted Excel workbook.
 - Record types: Quotations, Inspection Reports, AMC Contracts, Thomson Sales, VAS Sales, Rate Card Sales, Service Job Cards and Scheduler (appointments). Each type only appears if the user's role can already read that record type.
 - Every download is written to the audit log (report, range, search, rows) so it shows on the Activity log.
@@ -2115,12 +2115,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** `npm run db:migrate` (026), restart, open Reports, pull a report and open the downloaded file.
 
-
 ## Modification #53 — Activity log screen: who did what, with filters
 
 **Date:** 2026-10-05 · **Scope:** Admin / Management · no new migration (uses 026) · restart
 
 **What changed**
+
 - New **Activity log** page under Admin (the legacy "Activity Log" tab): every audit event with the time (Dubai), the user, a readable action name and the details, filtered by date range (today, last 7 / 30 days, custom, all time), user, area and free-text search, 50 per page.
 - The audit trail now also records sign-ins, sign-outs, failed sign-ins (with the email tried), team-login created / changed, and report downloads, so the log answers "who signed in and who changed what".
 - New API: GET /api/audit-events and GET /api/audit-events/filters (audit.read, granted to management by migration 026; admin already had it).
@@ -2132,6 +2132,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Date:** 2026-10-05 · **Scope:** everyone signed in · no new migration (uses 026) · restart
 
 **What changed**
+
 - The **Rate Card Calculator** (quote building, "Rate Card Issued" list, sale certificate) is removed from the Quote Calculators group. The rate card is a price list, not a calculator.
 - New **Rate Card** page under Records: Warranty Repairs, Non-Warranty Repairs (Customer Paying) and Inspections & Site Visits show their activity rates.
 - **Delivery & Installations** and **Installations** show base rates per appliance (standard and batch), the quantity-discount tiers, transport per trip by region and the minimum unit rate, taken from D+I Admin Entry. An info tooltip and a note say these two depend on the D+I Admin Entry factors, so they are base rates rather than final quotes.
@@ -2146,6 +2147,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Date:** 2026-10-05 · **Scope:** Admin (matrix, reset); every signed-in user (change password) · migration 027 · restart
 
 **What changed**
+
 - New **Roles & permissions** page under Admin: a grid of every permission against the User, Sales and Management roles. Tick or untick, then Save. The Administrator column is fixed (it always has everything). Each save is written to the Activity log (added / removed permissions) and applies the next time that person opens a screen.
 - **Change password** in the account menu: current password, new password (12+ characters), repeat. Other devices signed in with the old password are signed out.
 - **Forced change on first login:** a login an admin creates, or whose password an admin resets, must choose its own password before anything else works (the API refuses every other call until then; the dialog cannot be dismissed, only signed out of).
@@ -2160,6 +2162,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Date:** 2026-10-05 · **Scope:** anyone who can view scheduling (scheduler.read); promote / cancel need scheduler.write · no migration · restart
 
 **What changed**
+
 - New **Awaiting drafts** page under Service desk, with a count badge in the menu: every draft schedule still waiting, oldest first, each showing its jobs (complaint, customer, region, technician, date and time, complaint status).
 - **Promote** turns the draft's jobs into appointments; **Cancel draft** (asks you to click twice) discards it. A job whose complaint is no longer Ready for Scheduling is flagged and the server refuses to promote it, with the reason shown.
 - New API: GET /api/schedules/awaiting (scheduler.read). Promote and cancel use the existing endpoints, which are already logged in the Activity log.
@@ -2171,6 +2174,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Date:** 2026-10-06 · **Scope:** anyone with appointments.read (list, print); reports.read (export) · no migration · restart
 
 **What changed**
+
 - New **Daily schedule** page (Service desk): pick a day or range (Today / Tomorrow buttons), group by **Technician** or **Branch**, optionally include cancelled. Jobs without a technician are highlighted and counted.
 - **Print list:** one page per day and technician (or branch) with customer, address, item, fault, warranty and a "Done" box. **Print appointment sheets:** one A4 sheet per appointment (details, fault, blank Work done / Parts used, technician and customer signatures), in the same order. Each row also has a single **Sheet** button.
 - **Reports:** new **Pick a month** range for the monthly export. The Scheduler report gains Complaint No, Complaint Logged, **TAT (days)** and **Days Open**; Service Job Cards gain Finalised At and **TAT (days)**.
@@ -2185,6 +2189,7 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 **Date:** 2026-10-06 · **Scope:** upload and status need stock.write (admin only, can be granted in Roles & permissions); item search needs stock.read (all roles) · migration 028 · restart
 
 **What changed**
+
 - New **Stock master** page (Admin): pick the channel (JDI, JMS or TGE), choose the ERP "Current Stock Valuation" .xlsx, upload. Title rows above the header and the "Summary:" footer are ignored; the header row is found by looking for ItemCode.
 - Two tables: `stock_positions` keeps the exact ERP columns, one row per location per item, and is replaced for that channel on every upload. `stock_items` is the unique list by ItemCode (ItemDesc, Grade, MainGroup, Group, SubGroup, Brand, TYPE) used for search.
 - Newest upload wins when channels disagree about an item; the upload report lists every changed item, marks the ones last written by another channel, and shows file warnings. Items missing from a newer file are kept and counted as "not in the latest file".
@@ -2194,12 +2199,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** `npm run db:migrate` (028), restart, hard-refresh. Upload the three ERP files, then type a code on New request.
 
-
 ## Modification #59 — Walk-in service job card and shared item picker
 
 **Date:** 2026-10-06 · **Scope:** walk-in needs service_job_card.write; item search needs stock.read · migration 029 · restart
 
 **What changed**
+
 - New **Walk-in job card** page (Service desk): a short intake form for a customer who comes straight to the service centre, with no complaint, appointment or quotation. Required: customer name, contact, item (model, description or item code) and the complaint. Optional: serial number, purchase date, accessories received, condition notes, warranty details.
 - Walk-in cards get their own number series, `WJC-YYYY-NNNNN`, and a printable intake receipt. The receipt terms are generic and need your wording review.
 - A duplicate check on the contact number (last 9 digits) warns about open complaints, appointments and walk-in cards for the same customer.
@@ -2212,24 +2217,24 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** `npm run db:migrate` (028, 029), restart, hard-refresh. Open Walk-in job card from the Service desk menu.
 
-
 ## Modification #60 — Completed appointments awaiting a job card
 
 **Date:** 2026-10-06 · **Scope:** service_job_card.read for the list, service_job_card.write for Create · no migration · restart
 
 **What changed**
+
 - A completed appointment with no service job card used to show up nowhere: the complaint was closed, the appointment was completed, and the job card did not exist yet. These are now listed under **Service job cards → status filter → Awaiting job card**, oldest completion first, with the appointment, complaint reference, customer, item, technician and a **Create job card** button that opens the pre-filled job card form for that appointment.
 - The **Dashboard** job card tiles have a new **Awaiting job card** tile with the count. Clicking it opens the same list.
 - New API: GET /api/job-cards/awaiting (search, page, pageSize); the dashboard summary gains jobCards.awaitingCreation.
 
 **Needs you:** restart and hard-refresh. No migration.
 
-
 ## Modification #61 — Revenue dashboard email draft, activity logging, complaint warranty classification
 
 **Date:** 2026-10-06 · **Scope:** revenue_dashboard.read for the draft and the logging; complaints.write for the classification · no migration · restart
 
 **What changed**
+
 - **Email draft** button on Revenue dashboard → Reports, next to Management summary. It opens your own mail app with the management summary for the period on screen filled in as the body and the period in the subject. Nothing is sent. Mail apps cap long mailto links, so a long summary is shortened in the draft and the full text is copied to the clipboard to paste below.
 - **Activity logging for the revenue dashboard.** The Activity log now records: Revenue dashboard viewed (per tab and per Reports view, at most once per 10 minutes each), Revenue report downloaded (with the filters used), Revenue summary email drafted, Revenue summary copied.
 - **Warranty classification on complaints** (In Warranty / Out Warranty). The field and its link to appointments already existed in the database but nothing in the portal could set it. The complaint's Notes panel now has a Warranty classification select; it can be saved with or without notes, shows in the complaint details, and is carried into the appointment's job warranty when one is booked.
@@ -2238,12 +2243,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart and hard-refresh. No migration.
 
-
 ## Modification #62 — Formatted (HTML) management email
 
 **Date:** 2026-10-06 · **Scope:** revenue_dashboard.read · no migration · restart
 
 **What changed**
+
 - New **Formatted email** button on Revenue dashboard → Reports, next to Email draft. It builds a styled management email for the period on screen and shows a preview: navy header, headline movement versus the prior month, three KPI tiles (revenue, jobs, units), then plain tables under a coloured heading band for each: revenue by job type, by sales channel and by salesman, the last 6 months with the change against the month before, and items for finance review; then the sign-off and the basis note. No charts or bars.
 - Mail links cannot carry formatting, so there are three ways to use it: **Copy formatted email** (paste into a new Outlook or Gmail message and the layout stays), **Download as email draft (.eml)** (opens in Outlook as an editable draft with the layout; add recipients and send), or **Download .html**.
 - Built from tables and inline styles only so it renders the same in Outlook, Gmail and phones. A plain-text version is included inside the .eml for clients that need it.
@@ -2251,30 +2256,31 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart and hard-refresh. No migration. Open the .eml in the Outlook you normally use and tell me if anything renders differently from the preview.
 
-
 ## Modification #63 — Filters apply as you type or pick
 
 **Date:** 2026-10-06 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - The six list pages that had an **Apply filters** button now filter live: Complaints, Appointments, Service job cards, Quotations, Inspections and Warranty approvals. Drop-downs and dates apply the moment you change them; the search box applies 300 ms after you stop typing, or at once on Enter. The Apply filters buttons are removed. (Reports, Activity log, the revenue dashboard and the other newer pages already worked this way.)
 - This also fixes "All statuses shows only Completed" on Service job cards: choosing All statuses changed the drop-down but the list stayed on the previous Completed result until Apply was clicked. It now reloads immediately.
 - The two end-to-end tests that clicked Apply filters no longer do.
 
 **Needs you:** hard-refresh. No restart or migration needed.
 
-
 ## Modification #64 — Budget versions, stream mapping and variance on closed months (Priority 5: #14, #16, #17, #18; #15 partly)
 
 **Date:** 2026-10-06 · **Scope:** revenue_dashboard.read / write · **migration 030** · restart
 
 **What changed**
+
 - New **Budget Variance** page (Admin menu) with three tabs. **Variance**: budget vs actual revenue by stream and fiscal month (Jul-Jun), with quantity budget/actual, totals on closed months only (the running month is shown faded). **Budget versions**: original / revised / forecast per fiscal year; draft is editable, approved is locked (create a revised copy to change numbers), one active version per fiscal year, archive. **Stream mapping & settings**: which workbook job type or portal record feeds which stream, the stream list, fiscal start month, VAT rate, closed-months rule. All of it is data, so new job types, streams or a new budget version need no code change.
 - Seeded from the finance meeting: streams Warranty Repairs (CSIJW), Non-Warranty (CSIJO), Del + Install (CSIDI), Delivery only (CSIDO, its own stream, per trip), Installation (CSIII), Inspections / Visits, Projects / Thomson (CSOSC, rate card, Thomson), Standard PMC / AMC, VAS; the original FY 2026-27 budget per stream; VAT 5%; PMC budget restated ex-VAT; revenue variance only.
 - Actuals now come from the master workbook upload plus portal records that carry a price: VAS sales (plan fee), rate card sales, Thomson sales. Job types with no mapping are listed so nothing is silently dropped.
 - Budget defects (#18): the stream budget no longer depends on the workbook's P&L sheet (defects 3, 4, 5 and the YTD-vs-full-year comparison in 2 are avoided because variance compares closed-month budget with closed-month actual). Hard-coded overrides and monthly phasing are now an editable phasing row per version. The workbook's OPEX excluding staff travel and insurance (defect 1) is outside revenue variance and is declared, not fixed.
 
 **Not done yet (needs a decision or data)**
+
 - Job cards carry no billed amount in the portal (CSIJW/CSIJO/CSIDI come from the Excel/ERP), so those streams still need the workbook upload until ERP data arrives.
 - AMC contracts: the saved contract keeps the appliance schedule value and three plan prices but not which plan was sold, so AMC revenue cannot be counted yet. This is the pending #11 (quote-to-contract link and plan selector).
 - Current-rate vs proposed-rate side by side (needs the Revenue_Rates table from Service_Dashboard_Master_ACC_NEW_CSIII.xlsm).
@@ -2282,35 +2288,35 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm run db:migrate` (030), restart, hard-refresh.
 
-
 ## Modification #65 — Sidebar grouped: Finance and Pricing Masters
 
 **Date:** 2026-10-06 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - The sidebar had grown too long. Eight entries are now two: **Finance** (Service Revenue Dashboard, Budget vs Actual, Budget Variance) and **Pricing Masters** (VAS Pricing Master, Rate Card Admin, D+I Admin Entry, AMC Admin Rates, Thomson Pricing Admin).
 - Each page shows a tab strip at the top to switch between its group's pages; the sidebar entry stays highlighted while you are in the group, and reopens the last tab you used. The pages, permissions and data are unchanged (Finance needs revenue_dashboard.read, Pricing Masters needs pricing_config.read).
 
 **Needs you:** hard-refresh. No restart or migration.
-
 
 ## Modification #66 — Walk-in job card matches the complaint / appointment fields; clearer error messages; fix for saving stream mapping
 
 **Date:** 2026-10-06 · **Scope:** service_job_card.write, revenue_dashboard.write · **migration 031** · restart
 
 **What changed**
+
 - **Walk-in job card** now captures everything the New request form and appointment scheduling capture: customer type (B2C / B2B, required), email, region, B2B branch / school with the same master-list lookup (it also fills the sales order no. and salesman), site contact person and number, sales order no., salesman, sales channel and an optional technician. For B2B the contact number becomes optional when a branch / school is given, as in New request. These fields are also on the service job card edit form, the job card print and the walk-in intake receipt. Appointment-sourced cards show the appointment's own values for the new fields.
 - **Bug fix:** saving Stream mapping & settings failed with "An unexpected error occurred" because the audit entry used a non-numeric target id. Fixed.
 - **Errors:** an unexpected server error now shows its real reason in the message (first 300 characters), and an invalid request lists which fields are wrong, instead of the generic text.
 
 **Needs you:** run `npm run db:migrate` (031) and restart.
 
-
 ## Modification #67 — Dashboard redesign and live Kanban board
 
 **Date:** 2026-10-06 · **Scope:** dashboard.read · **migration 032** · restart · hard-refresh
 
 **What changed**
+
 - **Overview tab** restyled in the CRM style: a row of headline numbers (open cases, appointments today, awaiting job card, late cases, average TAT with on-time %), then two sections, **Service desk** (complaints, appointments, service job cards, warranty approvals) and **Sales & contracts** (quotations & inspections, VAS, AMC, Rate Card, Thomson). Each group is a card with compact tiles and bars. Every tile still opens its filtered list; the headline numbers are clickable too. Dark theme, keyboard focus and reduced-motion are supported. The status bars now actually fill (they were rendering empty before).
 - **Kanban board tab** (live, refreshes every minute and on the Refresh button): columns Scheduled, In progress on site, Awaiting job card, Job card open, Job card in progress, Completed (last 14 days). Cards are appointments and job cards (walk-in, scheduler, quotation) with reference, customer, item, B2C/B2B and warranty chips, technician or visit date, and a TAT badge. Filters: search, technician, customer type, turnaround. Clicking a card opens that appointment or job card.
 - **TAT** = Dubai calendar days from complaint logged (else walk-in intake / job card date) to now, or to completion. On track up to 3 days, at risk after that, late from 5 days. The thresholds are settings (revenue_settings keys tat_target_days, tat_late_days, seeded by migration 032); there is no screen to edit them yet.
@@ -2320,12 +2326,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm run db:migrate` (032), restart, hard-refresh. Please confirm the 3 / 5 day thresholds, and whether TAT should start at booking instead of complaint logged.
 
-
 ## Modification #68 — Appointments calendar redesign with status colours
 
 **Date:** 2026-10-06 · **Scope:** appointments.read · web only · no migration · hard-refresh
 
 **What changed**
+
 - The calendar is compact: a month shows only the weeks it needs (5 rows instead of always 6), cells are shorter, and each appointment is a one-line chip with the customer name and the last digits of the reference. A day with more than 3 appointments shows "+N more", which opens that week.
 - **Status colours** on the calendar chips and as a left accent on the list rows: Scheduled blue, In Progress amber, Completed green, Cancelled red (name struck through). A legend above the calendar shows the count of each status in view.
 - Cleaner toolbar: previous / next arrows, Today, the month title, and a Month / Week toggle. Today is a filled circle on its date; days from neighbouring months are dimmed. Week view shows the reference and status on each chip.
@@ -2335,12 +2341,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** hard-refresh only.
 
-
 ## Modification #69 — Guided complaint workflow (no more skipping scheduling)
 
 **Date:** 2026-10-07 · **Scope:** complaints.write · API + web · no migration · restart + hard-refresh
 
 **What changed**
+
 - **Scheduled and Closed can no longer be set by hand.** The API rejects them (409). A complaint becomes Scheduled only when an appointment with a technician is booked, and Closed only when that appointment is completed.
 - Pending Information can now go straight to Ready for Scheduling.
 - The Update status list starts on "Select the next status…", with the forward step listed first, so one click no longer ping-pongs between Under Review and Pending Information. Each option has a hint.
@@ -2349,12 +2355,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart the server, hard-refresh.
 
-
 ## Modification #70 — One job status (with Delivered) and full-detail record views
 
 **Date:** 2026-10-07 · **Scope:** service_job_card.write · API + web · migration 033 · restart + hard-refresh
 
 **What changed**
+
 - **One status per job card.** "Job final status" is now the only status, shown as "Job status". The separate "Update job-card status" form is gone. The internal Open / In Progress / Completed / Cancelled value (used by the dashboard and TAT) now follows it automatically.
 - New statuses: **Delivered** (item handed to the customer) and **Cancelled**. Full list: WIP, Spare pending, BER, Rejected, Repair Completed, Delivered, Cancelled.
 - A job can be marked Delivered only from Repair Completed, BER or Rejected. If no delivery date is set, today's date is filled in.
@@ -2364,45 +2370,45 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm run db:migrate` (033), restart the server, hard-refresh.
 
-
 ## Modification #71 — Compact entry forms and job-card list
 
 **Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - **New request, Walk-in job card, Daily schedule and the job-card editor** now use smaller labels, inputs and buttons, tighter spacing, and card sections with a small blue-tab heading, so each page fits far more on screen.
 - **Service job cards list** uses the same small table text and compact status pills as the Complaint inbox.
 - **Fixed:** the New request form stayed on screen under Walk-in job card, Daily schedule and the admin pages after you had opened New request. It is now hidden when you move to another page.
 
 **Needs you:** hard-refresh only.
 
-
 ## Modification #72 — Compact Quotations and Inspections
 
 **Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - Quotations and Inspections (lists and the new / edit forms) use the same compact look as the other entry pages: smaller labels, inputs, buttons and table text, tighter spacing, and card sections.
 
 **Needs you:** hard-refresh only.
-
 
 ## Modification #73 — Tabs on Quotations and Inspections
 
 **Date:** 2026-10-07 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - Quotations and Inspections now have two tabs on the same page: **Created quotations / inspections** (the searchable list, and the details of the one you open) and **New quotation / inspection** (the entry form). They no longer show stacked together.
 - Saving or cancelling a new record returns to the Created tab. The New tab is hidden for users who cannot create records.
 
 **Needs you:** hard-refresh only.
-
 
 ## Modification #74 — Warranty, billing, invoices and out-of-warranty tracking
 
 **Date:** 2026-10-08 · **Scope:** API + web + migration 034
 
 **What changed**
+
 - **Warranty status at New request** (In / Out), changeable by staff.
 - **Final warranty status on the job card.** If it differs from the registered status, billing follows the final status. A reason is required for the change.
 - **Job type is derived:** CSIJW (in warranty, billed to the sales channel; Raneesh Jose + GEMS branch bills to JDI via an admin rule) and CSIJO (out of warranty; choose Customer or Sales channel).
@@ -2414,12 +2420,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm run db:migrate` (applies 034), restart the server, hard-refresh.
 
-
 ## Modification #75 — Billing page for the accounts department
 
 **Date:** 2026-10-08 · **Scope:** API + web · no migration · restart + hard-refresh
 
 **What changed**
+
 - **New Management → Billing page**, laid out like an accounts system: a filter bar (period, job type, payment by, bill to, stage, search), a totals strip (jobs, service charge, parts, adjustment, billed, invoiced in ERP, not yet invoiced) and three tabs.
 - **Billing ledger:** one line per billed job with job type, registered vs final warranty, bill-to party, customer / branch, sales order and salesman, item code, brand, model and serial, main / group / sub group, service, parts, adjustment, billed amount, ERP invoice no. and date, payment mode and reference, stage and job status. Page total and grand total rows. Accounts can record the ERP invoice number and payment on a line (Record).
 - **Bill-to statement:** one line per channel (or customer when the customer pays) with warranty and non-warranty amounts, billed, invoiced, not yet invoiced and paid, for the ERP billing run. "Jobs" opens that party's ledger.
@@ -2429,12 +2435,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart the server, hard-refresh. Billing shows for anyone who can read service job cards.
 
-
 ## Modification #76 — AMC quote to sold contract with plan sold (#11), and job-card billing as a revenue source
 
 **Date:** 2026-10-08 · **Scope:** API + web + **migration 035** · restart + hard-refresh
 
 **What changed**
+
 - **AMC Issued tab** now shows a status for every saved AMC record: **Quote** (default), **Sold** or **Lost**. Pick the plan the customer took, choose the sold date and press **Sold**: the plan's price (ex-VAT and incl. VAT) is copied onto the record and fixed. **Lost** (with an optional reason) and **Reopen** take it back out. New endpoint `PATCH /api/amc-contracts/{id}/status`; the list accepts `?status=`. Every change is in the Activity log.
 - **AMC revenue now counts.** Only Sold contracts count, at the sold plan's ex-VAT price, in the contract's start month (commencement date), under the Standard PMC / AMC stream on Budget vs Actual / Budget Variance.
 - **Job cards as a revenue source.** New settings checkbox on Budget Variance → Stream mapping & settings: "Count CSIJW / CSIJO from portal job-card billing". Off by default. When on, warranty (CSIJW) and non-warranty (CSIJO) revenue comes from job-card billed amounts (ex-VAT) on the invoice date, for jobs that are invoiced or delivered, and the workbook rows for those two job types are ignored so nothing is counted twice. The two job-card sources map to the Warranty and Non-Warranty streams like any other source.
@@ -2443,12 +2449,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm run db:migrate` (035), restart, hard-refresh.
 
-
 ## Modification #77 — Google Sheet migration tooling and test-data cleaner (prepared, parked)
 
 **Date:** 2026-10-08 · **Scope:** tooling only (no screens, no migration, nothing runs at start-up)
 
 **What changed**
+
 - `npm run import:sheets` reads an exported "Jackys Distribution" .xlsx and loads technicians, appointments, job cards, quotations, inspections and Thomson proposals. Default is a **dry run** that writes nothing and saves an issues report (`exports/import-report`). `--apply` needs `--confirm <database name>` and `--as <admin email>`, writes in one transaction, compares counts and money totals with the sheet and rolls back on any mismatch. `--verify` repeats the comparison later. Re-running skips what is already imported (legacy_references).
 - Sheet problems are fixed in the importer and listed in the report: shifted JSON column, mixed date formats, phone numbers (leading 0, two numbers in a cell), text money, warranty wording, technician and brand spellings, junk invoice numbers, missing close times, job cards with a blank date (JC-017 to JC-020) are skipped, and a second job card on the same appointment is imported as an unlinked walk-in and flagged (or left out with `--duplicates skip`). After skipping, 119 job cards import, 5 of them flagged duplicates.
 - Not migrated: complaints, B2B customers, users, role access, activity log, AMC, VAS, the pricing admin tabs. Drive links of job-card photos are added to the job card's condition notes.
@@ -2458,12 +2464,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** nothing now. Run it only when end-to-end testing is done: dry run, review the issues CSV, clear test data, import, verify. Duplicates decision made: keep the 5 remaining duplicate-appointment cards as flagged walk-ins.
 
-
 ## Modification #78 — MDA bills the rate card charge; payment fields only for customer-paid jobs; channel by default in the ledger
 
 **Date:** 2026-10-08 · **Scope:** API + web · no migration · restart + hard-refresh
 
 **What changed**
+
 - **MDA service charge.** When a job card's main group (product category) is MDA, the service charge is always the Rate Card's "MDA – Standard" amount, in warranty and out of warranty, whatever the billing rule, channel or payer, and it replaces any typed charge. It is read from the live rate card on every save, so a rate change applies to the next save. On the form the service charge fills in and locks as soon as the item is picked or the main group is MDA. Spare parts are added on top. Other groups keep the typed charge.
 - **Payment fields.** Payment mode, payment reference and payment confirmed are greyed out unless the customer pays (Payment by = Customer, or Automatic on a B2C out-of-warranty job). Same on the Billing and Invoices record panels.
 - **Ledger.** Anyone who is not the paying customer is billed through the channel, so jobs with no payer recorded now show as billed to the channel (stage Not invoiced / Invoiced to channel) instead of "Payer not chosen". The Payer = Sales channel filter includes them. A job with a service charge or spare parts is in the ledger automatically (billed amount = service charge + parts, or the amount chargeable).
@@ -2471,12 +2477,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart and hard-refresh. No migration. Existing MDA job cards pick up the rate card charge the next time they are saved.
 
-
 ## Modification #79 — Clickable calendar days; WhatsApp and email messages from an appointment
 
 **Date:** 2026-10-09 · **Scope:** API + web + migration 036 · run `npm run db:migrate`, restart, hard-refresh
 
 **What changed**
+
 - **Calendar day select.** Each calendar date is now a button. Click a date (or the empty space in its box) and the appointment list below shows only that day; the date is highlighted and a bar shows "Friday 9 October 2026: 2 appointments" with a **Show all dates** button. Clicking the selected date again also clears it. The selection is simply From = To in the date filters, so the filters, list and calendar always agree. The month grid keeps showing every appointment.
 - **Message action.** Appointments that are Scheduled or In Progress get a **Message** button in the list (people with edit access only). It opens the appointment with a new **Send message** panel: customer "appointment booked", customer "appointment rescheduled", and technician "new job assigned". Each has a **WhatsApp** and an **Email** button, plus a text preview.
 - **How it sends.** WhatsApp opens `wa.me` with the number and text filled in (UAE numbers are normalised to +971; the first number is used if a cell has two). Email opens a mailto draft. Staff press Send in their own WhatsApp or mail app, so the message goes from whichever number or mailbox is signed in there (use the service centre's). The portal cannot confirm delivery.
@@ -2490,12 +2496,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm.cmd run db:migrate` (036), restart, hard-refresh.
 
-
 ## Modification #80 — New request books an appointment directly, with a Complaint source
 
 **Date:** 2026-10-09 · **Scope:** API + web + migration 037 · run `npm.cmd run db:migrate`, restart, hard-refresh
 
 **What changed**
+
 - **New request no longer creates a complaint.** The staff New request screen (for requests that arrive by email, WhatsApp, phone or through a salesman) now books an appointment straight away. There is no CMP- reference and it does not go through the Complaint inbox. The reference is the appointment number (APT-YYYY-NNNNN), and the job then follows the usual path: appointment, job card, billing.
 - **Complaint source** (required): Email, WhatsApp, Phone or Salesman. Choosing Salesman shows a **Salesman** dropdown from the salesmen master list, and it is required. The source is stored on the appointment (`complaint_source`) and shown in the appointment details.
 - **Appointment date** (required) and **Technician** (optional) are now on the form. The technician's daily cap still applies.
@@ -2507,12 +2513,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** run `npm.cmd run db:migrate` (037), restart, hard-refresh. The CMP-261009-001 test request you created stays in the Complaint inbox as it was.
 
-
 ## Modification #81 — Help text is a tooltip everywhere, not a line on the page
 
 **Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - Every static help or explanation line in the portal is now an (i) tooltip: hover or tab to the icon to read it. Field help sits beside the field label (for example Warranty status, Technician, Job status, Final warranty status, Payment by, Payment confirmed, Service charge on MDA jobs). Section help sits beside the section heading (the pricing admin tables, the calculators' Issued tabs, Transport, Additional Services, Upload ERP stock file, Refresh data). Page-level explanations are an "About this page" (i) at the top right of the page.
 - This covers the New request form, Salesmen and channels, the pricing admin pages, the VAS / AMC / Thomson calculators, Rate card, Reports, Activity log, Daily schedule, Awaiting drafts, Roles and permissions, Revenue and Budget dashboards, Technicians, Team logins, Invoices, Billing rules, stock upload, the password dialogs, and the message panel on appointments.
 - Left as normal text on purpose: loading messages, errors, empty states ("No ... yet"), permission messages, save confirmations, validation and live warnings, and counts. Those report what is happening now rather than explain a field.
@@ -2521,12 +2527,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** hard-refresh only.
 
-
 ## Modification #82 — Service job card: locked Period from, warranty days pill, full-width card, sections after creation
 
 **Date:** 2026-10-09 · **Scope:** web and API · no migration · restart and hard-refresh
 
 **What changed**
+
 - **Period from** is now set automatically to the time the job card is created and cannot be edited (the field is read-only and the server ignores any value sent for it). An (i) tooltip explains this. It applies to job cards from an appointment, from a quotation and walk-in job cards. Older cards with no value stay blank.
 - **Purchase date** now shows a pill beside its label with the warranty days remaining (one year from the purchase date), for example "300 warranty days left", or "Warranty expired" in red. It updates as the date is typed.
 - **Job card details** card on an open job card now uses the full width like the cards above it (it was shrinking to its content, about 408 px wide).
@@ -2535,12 +2541,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart the API and hard-refresh.
 
-
 ## Modification #83 — Job card page split into two tabs; sign-in lands on the dashboard
 
 **Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - **Service job card page now has two tabs.** "Job card" is the read-only view (the summary details, attachments and job-card history). "Edit job" is the editing form (guidance box and Job card details). The two no longer sit one under the other on the same page.
 - A job opens on **Edit job** unless its status is **Delivered**, in which case it opens on **Job card** (read-only). Delivered jobs can still be edited by an admin through the Edit job tab. Users without edit access see only the Job card tab.
 - **Sign-in always lands on the Dashboard** for anyone who has dashboard access (and at least one other workspace); it no longer opens the Complaint inbox. Users without dashboard access land as before.
@@ -2548,35 +2554,35 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** hard-refresh.
 
-
 ## Modification #84 — Segmented tabs across the portal
 
 **Date:** 2026-10-09 · **Scope:** web only (styling) · no migration · hard-refresh
 
 **What changed**
+
 - Every tab bar in the portal now uses the same segmented look: the tabs sit in a light grey track and the active tab is a raised white chip with bold navy text. This covers the job card Job card / Edit job tabs, quotation and invoice tabs, billing tabs, dashboard Overview / Kanban tabs, Reports sub-tabs, the calculators' tabs, the vertical action tabs and the sign-in / first-time setup tabs. Dark theme has its own track and chip colours.
 - Keyboard focus on a tab is a slim blue ring around the chip. The earlier amber focus box was replaced with a blue ring portal-wide.
 - The active item in the left menu has a solid accent bar and a light highlight. The current workflow step and the selected calendar day use a plain solid marker. No glows anywhere.
 
 **Needs you:** hard-refresh.
 
-
 ## Modification #85 — Edit job form split into section cards
 
 **Date:** 2026-10-09 · **Scope:** web only · no migration · hard-refresh
 
 **What changed**
+
 - The **Edit job** tab is no longer one long form. It is split into titled section cards, the same way the read-only Job card tab is: **Customer**, **Product**, **Job details** (job card date, technician, salesman, sales channel, sales order no., legacy reference), **Service** (complaint, service rendered, period), **Parts and charges**, **Status and delivery**, and **Warranty and billing**.
 - Fields only moved between cards; nothing was added or removed, and saving works as before. When a job card is first created, the last three cards stay hidden until the card exists (as in #82).
 
 **Needs you:** hard-refresh.
-
 
 ## Modification #86 — Printing: customer copy, technician batch print, appointment print, logo
 
 **Date:** 2026-10-09 · **Scope:** web and API (daily list fields) · no migration · restart and hard-refresh
 
 **What changed**
+
 - **Service job card print now asks which copy.** Print opens a small chooser: **Customer copy** (for the customer, B2C or B2B: no amounts at all. The parts list shows part number, description and quantity only; no prices, totals, service charge, amount chargeable, invoice number, job type, payer, salesman, sales channel or sales order number) and **Internal copy** (the full job card with prices, charges and billing, for the sales team and accounts).
 - **Daily schedule batch printing.** New **Technician** filter (All technicians, one technician, or Unassigned). Every appointment has a tick box, and each technician/branch group has a tick-all box. **Print list** and **Print appointment sheets** print only the ticked appointments; when nothing is ticked they print everything currently shown. The button labels show the scope, for example "Print list (3 selected)". So for a day with several visits you can filter to one technician, tick two jobs and print, then filter to the next technician and do the same.
 - **Print one appointment.** The appointment details page has a **Print** button. The "Sheet" button on the daily schedule still prints a single sheet too.
@@ -2586,12 +2592,12 @@ Until ERP gives us an API or table access, both are fed from your master workboo
 
 **Needs you:** restart the API and hard-refresh.
 
-
 ## Modification #87 — Scheduled-only daily list, technician check before printing, print from Appointments, reschedule notice only when rescheduled
 
 **Date:** 2026-10-09 · **Scope:** web and API · no migration · restart and hard-refresh
 
 **What changed**
+
 - **Daily schedule shows only Scheduled appointments.** Completed, In Progress and Cancelled ones are no longer listed, and the "Include cancelled" option is gone.
 - **Technician must be assigned before printing.** If any appointment about to be printed (list, sheets, a single Sheet, or the Print button on the appointment details page) has no technician, a pop-up "Technician not assigned" lists those appointments. Clicking one opens it so a technician can be assigned; the print is not done until every printed appointment has a technician.
 - **Print from the Appointments page.** The Appointments page now has a **Technician** filter (it also filters the list and the calendar) and **Print list** / **Print sheets** buttons. They print the scheduled appointments between the From and To dates (today when empty) for the chosen technician (all technicians when none), using the same list and sheets as the Daily schedule, and the same technician check.
@@ -2699,12 +2705,14 @@ Creating a warranty approval request failed with "new row for relation reference
 **Out-of-warranty approval request.** The Job card box now lists only jobs in Customer approval pending (no longer WIP). Picking a quotation works as before.
 
 **Approval result shows everywhere.**
+
 - Quotations: new Approval column in the list; the quotation detail shows the status, how it was given and a link to the approval request.
 - Service job card: a new Customer approval section, plus links in the header to the approval request and the quotation. The approval request links back to its job card and quotation.
 
 **Job cards made from a quotation** start in Customer approval pending (they start in WIP only if the quotation's approval request is already Approved). When the customer approves, through the link or recorded by staff, the job moves to WIP by itself and the history notes it. A declined request leaves the job where it is.
 
 **Manual approvals.**
+
 - On a pending approval request there is now "Record the customer's decision": Approved or Declined, how it was given (Phone, Email, WhatsApp, In person, Other), who gave it and notes. Customer-link decisions are recorded as "Customer link".
 - Moving a job from Customer approval pending to WIP by hand opens a pop-up asking how the customer approved (required), a note, and an optional attachment. The attachment is saved to the job card first, then the job moves to WIP. The way it was approved is stored as an approved request, so the job and quotation show it. The API refuses the move without a method.
 
@@ -2712,11 +2720,10 @@ Tests: tests/integration/customer-approval-flow.test.ts, tests/integration/warra
 
 **Needs you:** run `npm.cmd run db:migrate` (038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs keep their status; only new quotation jobs start in Customer approval pending.
 
-
-
 ## Modification #101 — Tax invoices: Invoice [Warranty and billing], printable invoice, collapsible sidebar
 
 **Invoice [Warranty and billing]** (Service desk, the old Invoices screen) is now the one place for invoice and payment entry.
+
 - Any job with an amount other than internal billing needs a tax invoice before it can be delivered. The portal numbers its own invoices (SINV-YYYY-NNNNN); the ERP number can still be typed as an optional "ERP reference".
 - Open a job with the Invoice button: set the optional **Customer TRN** (B2B or B2C, 15 digits), invoice date, ERP reference and remarks, then **Issue invoice**. After issue, record the payment mode, payment reference and "Payment received and confirmed" (jobs paid by the customer).
 - Job amounts are VAT-inclusive at 5%; the invoice backs the VAT out (25.00 = 23.81 + 1.19). Lines are the service charge, each part, and a discount/adjustment line when the chargeable amount differs. The invoice is frozen when issued; a warning shows if the job amount changes afterwards.
@@ -2738,12 +2745,12 @@ Tests: tests/unit/tax-invoice.test.ts, tests/integration/tax-invoice.test.ts, te
 
 **Needs you:** run `npm.cmd run db:migrate` (042, plus 038 to 041 if not yet run), restart the API, hard-refresh. Existing jobs already confirmed as paid stay deliverable; unpaid ones need an invoice issued.
 
-
 ## Modification #102 — Service Revenue Dashboard reads the new invoice-level master workbook
 
 The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level rules"): data from 1 Jul 2026, built from the ERP net-sale report, one row per invoice and category. The portal now understands it. Older workbooks (365-day, one CSIDI row per invoice) still upload and reconcile exactly as before.
 
 **Rules the portal now follows (read from the workbook, version 3):**
+
 - CSIDI = Qty × Net rate, plus one transport charge per invoice on its first CSIDI line, only when the invoice's total CSIDI quantity is above 1 and the invoice has no CSIDO line. Transport is AED 60 (Dubai) or AED 90 (Sharjah; city containing SHJ or SHARJAH).
 - CSIII = Qty × Net rate from the Install Pricing master, no transport.
 - CSIDO = one flat charge per invoice (Calculation!C9, now AED 100) on the first CSIDO line; later CSIDO lines of the invoice show 0.
@@ -2754,6 +2761,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Result on the real workbook:** 811 revenue lines, AED 103,687.40; all 607 priced lines matched to their ERP rows; 152 lines differ, each with a cause (see below).
 
 **Changes**
+
 - Parser: groups pricing rows by invoice and job type, matches lines in sheet order (checked on quantity and revenue), reads the new ERP columns (city, category, brand, models, items, channel, job type/status, reference), detects the new workbook by its Pricing Logic Guide sheet and the "ERP City / Region" column, ignores the Total row of the Calculation sheet.
 - Pricing engine: new invoice-level rebuild with a "Why workbook differs" cause (CSIDO flat charge, CSIDI transport, Rate or quantity).
 - Exceptions: "Order not Approved" and "No matching CSOSC order" skip ERP-priced lines (they have no CSOSC order); the zero-revenue description explains the extra CSIDO lines.
@@ -2761,6 +2769,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - Files: apps/api/src/revenue-dashboard/{parser,pricing-logic,logic-sheet,export,service}.ts, packages/db/src/revenue-dashboard.ts, tests/unit/revenue-workbook.test.ts (7 tests).
 
 **Found in the Excel itself (your decision, not portal bugs)**
+
 1. 148 delivery-only invoices dated 1 Jul to 10 Oct (locked history) are still at AED 60 (145) or AED 80 (3) instead of the flat AED 100. Restating them adds AED 5,860.
 2. Invoices 16101305, 16101328, 16101385 and 16101408 have more than 1 CSIDI unit, no CSIDO and no transport. The rule gives AED 60 once each (AED 240 in total).
 3. Data starts 1 Jul 2026, so Budget vs Actual has no January to June actuals.
@@ -2770,12 +2779,12 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 
 **Needs you:** pull the branch, run `npm.cmd install`, restart the API, hard-refresh, and upload the new .xlsm on Service Revenue Dashboard. No migration.
 
-
 ## Modification #103 — Service Revenue Dashboard: "Download this view" under Reports > Drill-down
 
 **Why.** On Reports > Drill-down, once you drill (for example to Exception: Order not Approved), the only download was "Export report (.xlsx)" at the top, which is the full multi-sheet report for the whole selection. Finance and accounts needed a separate, professionally formatted file of just what is on screen.
 
 **What changed.**
+
 - Reports > Drill-down > **Where you are** has a new **Download this view (.xlsx)** button with an (i) tooltip. It downloads only the current filters and drill steps, the breakdown you chose (or the job list) and every job behind it. The top "Export report (.xlsx)" button is unchanged.
 - The workbook has up to three sheets:
   - **Summary**: your drill path, revenue, jobs, quantity, average per job, share of all uploaded revenue, the filters in words, what the exception means, source workbook and prepared time (Dubai time), the basis note, and a mix by job type with totals.
@@ -2791,12 +2800,12 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
 
-
 ## Modification #104 — Exceptions: "Order not Approved" removed, "No matching CSOSC order" kept
 
 **Why.** Both checks were the same lines. The workbook looks up each job's CSOSC order in the CSOSC export inside the workbook; when the order is not found, the LPO becomes "UNMATCHED CSOSC" and the status stays blank, and the portal read the blank status as "not Approved". On the 15 Oct 2026 workbook all 63 flagged jobs (AED 11,438) appeared under both.
 
 **What changed.**
+
 - Reports > Exceptions (and the Exception filter on Drill-down) now has **No matching CSOSC order** only. The "Order not Approved" check, its filter value (`notApproved`) and its API enum entry are removed.
 - The meaning text of the remaining check now says what actually happens: the job's CSOSC order number is not in the workbook's CSOSC export, usually an older order before the first order in the export (53 of the 63), or a Direct job with no CSOSC order (10 of the 63).
 - In "Download this view", the "Why it is flagged" column now reads, for example, "CSOSC order 16102474 is not in the workbook's CSOSC export (likely an older order)" or "No CSOSC order on this job (Direct)".
@@ -2814,11 +2823,12 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Management asked why some jobs show AED 0 (extra delivery-only lines under one flat per-invoice charge) and wanted the revenue rules explained in plain language, like the Excel guide.
 
 **What changed.**
+
 - New tab **Logic applied** after Reports. It shows: a four-step "from ERP line to revenue" flow; one rule card per job type (CSIJW, CSIJO, CSIDI, CSIII, CSIDO) with live job, quantity, revenue and share figures; a "Why some jobs show AED 0" section with live counts, a by-month chart, a worked example taken from the data and a button that opens the zero-revenue jobs; the rate cards, discount tiers, transport and flat charge read from the uploaded workbook; and how the workbook compares with the rules (matched lines, differing lines, causes in plain words).
 - New API `GET /api/revenue-dashboard/logic` (permission revenue_dashboard.read). The filter bar is hidden on this tab because it always describes the whole upload.
 - The "Zero-revenue jobs" exception is unchanged. Hiding the explained lines from it is still possible if wanted.
 
-- **Management emails.** The *Email draft* / *Management summary* text and the *Formatted email* now explain the items for finance review: the Zero-revenue jobs line says how many of the zero-revenue jobs are extra delivery-only lines covered by the one flat per-invoice charge (live from the Logic applied data), the No matching CSOSC order line says what it means, and a short "How revenue is calculated" paragraph is added. Nothing else in the emails changed; they still use the filters in force.
+- **Management emails.** The _Email draft_ / _Management summary_ text and the _Formatted email_ now explain the items for finance review: the Zero-revenue jobs line says how many of the zero-revenue jobs are extra delivery-only lines covered by the one flat per-invoice charge (live from the Logic applied data), the No matching CSOSC order line says what it means, and a short "How revenue is calculated" paragraph is added. Nothing else in the emails changed; they still use the filters in force.
 
 **Files.** apps/api/src/revenue-dashboard/logic-summary.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/revenue-logic-summary.test.ts.
 
@@ -2829,6 +2839,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The single Jobs sheet had up to about 90 columns, mostly blank for repairs, which made it hard for accounts to review.
 
 **What changed (Reports > Export report (.xlsx)).**
+
 - **Jobs** now holds repairs only (CSIJW, CSIJO), about 21 columns: job details, status, appliance and model read from the remarks, Qty, Unit price, Original job value, "Rule applied" in words, Revenue, Remarks.
 - **Delivery & Install** (new) holds CSIDI, CSIDO and CSIII in colour-banded blocks: Job, ERP item details (parent category, subcategory, brand, model(s), item and billing codes), Before, After (category, pricing type, qty, base rate, discount, net rate, labour, transport), Final revenue, Check against the rules, Why / explanation (including invoice CSIDI qty, whether the invoice has a CSIDO line, first line of its type).
 - **Source detail** (new): the raw CSIDI-sheet columns (TRN, ref doc, location, derived type and so on), found by invoice number.
@@ -2847,6 +2858,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Every employee sends management a weekly ROI (Results, Objectives, Issues / Innovation). It was built from a SharePoint WeeklyTasks tracker with Power Automate. The Management Summary now lives in the portal, so the ROI is built here too, from a proper task manager.
 
 **What changed.**
+
 - New tab **Tasks** under Records (permission `tasks.use`, granted to admin; give it to other roles in Roles & permissions). Each user sees and manages only their own tasks; an administrator can see and edit everyone's.
 - Task fields: title, type (task / issue / innovation / request), status, priority, start date, end date, % complete, remarks (shown in the ROI) and private notes (never emailed). Setting 100% completes a task; lowering % on a completed task reopens it; progress on a not-started task starts it.
 - Three views: **List** (grouped by status, inline complete / priority / %, quick add), **Board** (drag between status columns) and **Timeline** (Gantt-style, Days / Weeks zoom, today line). Search and type / status / priority filters; KPI strip (open, done this week, due this week, overdue, issues).
@@ -2865,6 +2877,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Completed tasks kept appearing in later weekly ROIs, and the grouped list used heavy bold fonts.
 
 **What changed.**
+
 - **Archive.** The Completed group has an **Archive all** button (click twice to confirm) and each completed row has an archive icon. Archived tasks leave the list, Board, Timeline and KPIs and are never included in any weekly ROI. The **Archive** button in the toolbar opens the archive (with the completion date) and **Restore** brings a task back to Completed. Reopening a task (status or % below 100) also takes it out of the archive.
 - New API `POST /api/roi/tasks/archive` (body `{ids}`), and `archived: true/false` on the task PATCH. Table `roi_tasks` gets `archived_at` (migration 044).
 - **Styling.** Status groups have a coloured accent and tinted header, lighter font weights (600 headings, 500 task titles), consistent column widths across groups, and a hover-only archive icon on rows.
@@ -2872,6 +2885,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/044_roi_task_archive.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/ (service.ts, routes.ts), apps/api/src/api/route-catalog.ts, apps/web/src/roi-core.js, tasks.js, index.html, tests/integration/roi-tasks.test.ts.
 
 **Needs you:** pull, run `npm run db:migrate` (migration 044), restart the API and hard-refresh.
+
 - **Email look (ROI).** The formatted email and .eml now use smaller type, light-tinted section headers with a thin accent edge (Result green, Objective blue, Issues amber, Management Summary blue), and light dotted table lines instead of heavy solid bands and borders.
 - **Left-aligned email.** Outlook classic centred the whole ROI email because it sat in a centred wrapper cell. The wrapper is gone: the email is a fixed-width (720 px) left-aligned table and every cell carries an explicit left alignment, so the formatted copy and the .eml open left-aligned.
 - **ROI Result = every completed task that is not archived.** Previously only tasks completed inside the chosen week appeared, so imported or older completed tasks left Result empty. Now each completed, un-archived task stays in the Result of every ROI (for the week it was finished and after) until you archive it. Send the ROI, then use **Archive all** on the Completed group so the next week starts clean. Tasks finished after the chosen week's end are not in that week's ROI. The "Completed on" date is now just a record.
@@ -2883,7 +2897,8 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 
 **Why.** All Finance pages and every Service Revenue Dashboard tab shared one permission (`revenue_dashboard.read`), so access could not be limited tab by tab.
 
-**What changed.** `revenue_dashboard.read` stays the master "may open Finance" switch. New permissions (migration 045, listed under *Revenue dashboard* in Roles & permissions) choose what a role sees inside it:
+**What changed.** `revenue_dashboard.read` stays the master "may open Finance" switch. New permissions (migration 045, listed under _Revenue dashboard_ in Roles & permissions) choose what a role sees inside it:
+
 - `tab_overview`, `tab_explorer`, `tab_reports`, `tab_logic` — the four Service Revenue Dashboard tabs; tabs a role lacks are not shown and the first allowed tab opens by default.
 - `budget_actual` — Budget vs Actual page. `budget_variance` — Budget Variance page. Sidebar/Finance tabs hide pages a role lacks; the Finance entry hides when none are allowed.
 - `export` — Excel downloads (Export report, Download this view).
@@ -2900,6 +2915,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The worked example on Finance → Service Revenue Dashboard → Logic applied was one fixed invoice, and the rate tables came from the uploaded workbook. D+I standard rates became VAT-inclusive on 15 Oct 2026 (workbook "Pricing Logic Guide" session log).
 
 **What changed.**
+
 - **Dynamic worked example.** Filter by Year, Month, Week, Job type (CSIDI, CSIII, CSIDO, CSIJW, CSIJO) and a customer/invoice search, pick an invoice from the list and see every line with how it was priced. A pasted-number box loads one or several invoices (comma or space separated) and reports numbers not found. A note appears under a line when the current rules would give a different amount than the workbook. New APIs `GET /api/revenue-dashboard/logic/invoices` and `/logic/example` (permission `revenue_dashboard.tab_logic`).
 - **Rate tables from the pricing master.** Volume discount, CSIDI rate card, CSIII rate card and transport now read Pricing Masters → D+I Admin Entry, not the workbook. The Job-type rates table shows only CSIJW, CSIDO, CSIJO and RWR / BER (CSIDI and CSIII are covered by the volume-discount tables). CSIJO is 125. All carry an "incl. VAT" note and tooltip.
 - **VAT-inclusive D+I rates.** D+I standard (1-unit) rates default to 100 / 100 / 120 (were 95.20 / 95.20 / 123.80); batch and minimum rates unchanged. Migration 046 updates a saved D+I Admin Entry only if it still holds the old three standard rates.
@@ -2918,6 +2934,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The refreshed workbook (Service_Dashboard_Master_ACC_NEW_CSIII, Pricing Logic Guide session log) prices a CSIDI line's tier and batch rate on the invoice's **total** CSIDI units, and adds the once-per-invoice transport on the first CSIDI line of invoices that are CSIDI-only and have more than one unit. The portal still tiered each category line on its own quantity, so invoices such as 16101385 showed a gap (e.g. "Rules give AED 160; the workbook shows AED 100").
 
 **What changed.**
+
 - **Pricing rule.** CSIDI tier discount and batch rate use the invoice's total CSIDI quantity across categories (a qty-1 line on a 5-unit invoice gets the batch rate). Transport (60 Dubai / 90 Sharjah) is charged once, on the first CSIDI line, when the invoice has more than one CSIDI unit and no CSIDO line. CSIII is still priced per line.
 - **Worked example notes.** Each invoice now has a short list of plain-language notes: which rate and tier apply and why (based on the invoice total), where the transport sits or why there is none, CSIII per line, and the CSIDO flat charge once per invoice.
 - **Difference notes** under a line now say the likely cause (older CSIDO flat charge, missing transport on the workbook row, or a locked row at an older rate).
@@ -2936,6 +2953,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Tasks (ROI) lived only on the Tasks page. The Dashboard kanban board showed service cases but not the user's own open work, and there was no sense of how long a task had been waiting.
 
 **What changed.**
+
 - **My tasks lane** under the service board (Dashboard > Kanban board): two columns, **In progress** and **Not started**, for the signed-in user's open tasks (needs the Tasks permission). Longest-pending first.
 - **TAT pill** on every card: "Nd pending" counted in Dubai calendar days from the task's start date (green up to 7 days, amber 8-14, red over 14), "Starts in Nd" for a future start, "No start date" when none is set. Header chips show open count, average pending, tasks over 14 days and on-hold count.
 - **Update from the board.** Each card has a progress slider, a status selector and drag-and-drop between the two columns. Changes use the same rules as the Tasks page (100% completes the task and moves it to the ROI Result, first progress starts a task).
@@ -2950,6 +2968,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 ## Modification #113 — Completing a task: auto end date, Remarks pop-up, side-panel position
 
 **What changed.**
+
 - **End date on completion.** When a task reaches 100% or is set to Completed (list, board, Dashboard kanban lane, or the editor), its end date is set to the day it was completed (Dubai) and never before the start date. An end date sent with the change, or already chosen in the editor, is kept. In the editor the End date field fills in as soon as Completed is chosen or the slider reaches 100%.
 - **Remarks / next action pop-up.** Finishing a task from the list, board, kanban lane or a slider opens "Task completed" with the Remarks / next action box (the text shown in the ROI) pre-filled, so the line can be worded while it is fresh. Save remarks updates the task; Skip / Esc keeps what is there. The editor's own Save does not show it, because it already has the Remarks field.
 - **Side panel position.** The Edit / New task panel was positioned against the tall card instead of the screen, so Delete / Cancel / Save sat far down the page. The card entrance animation kept a transform after it finished (`both`); it now uses `backwards`, so the panel is fixed to the window again and its buttons sit at the bottom of the visible panel.
@@ -2963,6 +2982,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Invoices and Billing opened with the job card permission, and the three quote calculators with the Pricing Masters permission, so a role could not be given one without the other. The flat job-type rates (CSIJW, CSIJO, CSIDO, RWR / BER) were taken from the uploaded workbook and CSIJO 125 was fixed in code.
 
 **What changed.**
+
 - **New permissions** (Roles & permissions): `invoices.read` (open Invoices, see invoices, the Open invoice link on a job card and the dashboard out-of-warranty tiles), `invoices.write` (issue an invoice, confirm payment, the Record button on Billing), `billing.read` (the Billing page, its ledger and Excel download) and `quote_calculators.use` (VAS, AMC and Thomson calculators). They appear as Invoices, Billing and Quote calculators in the matrix.
 - **Nobody loses access.** Migration 048 gives each new permission to every role that holds the old one (`service_job_card.read` gives invoices.read and billing.read, `service_job_card.write` gives invoices.write, `pricing_config.read` gives quote_calculators.use). Narrow them afterwards in Roles & permissions.
 - **Calculators read only their own data.** `quote_calculators.use` can read the VAS, AMC and Thomson rate data and nothing else; D+I costs, the rate card and every save, reset and restore still need Pricing Masters access. Pricing Masters access on its own no longer shows the calculators.
@@ -2978,6 +2998,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The master workbook of 19 Oct 2026 changed how CSIDO is priced. A CSIDO line on an invoice that also has a CSIDI line is now charged the regional transport rate (Dubai 60 / Sharjah 90, once per invoice) instead of the flat 100, because the visit is shared with the delivery + installation. A CSIDO-only invoice keeps the flat 100. The same workbook also reclassified invoice 16101451 (no longer excluded: CSIDI 76 + 57, CSIDO 60), fixed the JDI channel, set CSIII transport to 0 and restored 148 older CSIDO-only invoices to 100. The portal's check still expected 100 on every CSIDO invoice, so the 44 mixed invoices showed as "CSIDO flat charge" differences (AED 1,730).
 
 **What changed.**
+
 - The importer reads the rule from the Pricing Logic Guide ("CSIDO Revenue - Mixed") and records whether each invoice has a CSIDI line. Workbooks without that text keep the flat charge for every CSIDO invoice, so older uploads are unchanged.
 - Logic applied, worked example, the Logic workbook export and the difference causes describe the mixed-invoice charge.
 - Result on the 19 Oct workbook: 0 differences across all lines (CSIDI 56,902, CSIDO 18,370, CSIII 8,995, CSIJW 15,580, CSIJO 10,594); invoice 16101451 now has a worked example (AED 193).
@@ -2993,6 +3014,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The old Google Apps Script portal has a Changelog tab for administrators. The new portal had no equivalent, so there was no single place to see what changed, when, and what had to be done on release.
 
 **What changed.**
+
 - New **Changelog** item in the sidebar (Administration group), visible only to roles holding the administrator permission (`admin.users`, the same gate as Roles & permissions). It lists every modification newest first, grouped by month, with a search box, area filter chips, expand/collapse all, and for each entry the summary, what changed, the release steps, database migrations and files.
 - New API: GET /api/changelog (administrator only), returning every entry. The data lives in apps/api/src/changelog/changelog-data.ts, generated from this file by `node scripts/build-changelog.mjs`. Re-run it after adding a modification; a unit test fails if the two drift apart.
 - Entries without a written date show the nearest earlier date with an approximate mark; entries from #100 onward use their commit date.
@@ -3008,6 +3030,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Every sidebar group a user had opened stayed open, so the menu grew long and the user had to scroll to find the page they wanted.
 
 **What changed.**
+
 - The sidebar groups (Service desk, Records, Administration, Management, Quote calculators) now work as an accordion: opening a group, or moving to a page in another group, closes the others. Clicking an open group's header closes it.
 - The open group is remembered per browser. On first use the Service desk group is open.
 
@@ -3022,6 +3045,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** On Service Revenue Dashboard, Logic applied, Worked example, pasting an invoice number and pressing Load showed that invoice's calculation, but the Invoice box above still showed the first invoice of the list, so the page looked as if it had loaded a different invoice.
 
 **What changed.**
+
 - After Load, the Invoice box selects the pasted invoice when it is in the list, or adds it at the top marked "pasted" when it is not. For several pasted numbers it shows "Pasted: ..." with the numbers.
 - Changing a filter rebuilds the list and removes the pasted entry, as before.
 
@@ -3036,6 +3060,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The workbook now holds corrected, paired quantities and, from 18 Oct, rows that come live from Net Sale Current. The export still called the quantity "raw units" and did not say which rows were live.
 
 **What changed.**
+
 - Source detail: "Qty (raw units)" is now "Qty (paired units)" (a delivery line and its installation line count as one unit).
 - Delivery & Install: a new "Data source" column (Explain group) shows "Live feed" or "Locked history" for each row, read from the workbook's Source.Name.
 - Revenue Logic sheet: the CSIDI row now has a "Quantity basis" note and says that rows after 17 Oct come from the live feed.
@@ -3052,6 +3077,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The master workbook changed on 21 October: a CSIJW job is always quantity 1, a BER / RWR job is also recognised from the remarks (not repairable / beyond repair) whatever the job status, and the sales channel of repair jobs follows a fixed order. The portal text still described the old rules.
 
 **What changed.**
+
 - Logic applied (Rules by job type) and the Revenue Logic sheet: CSIJW is one job per invoice (quantity always 1); BER / RWR from the status or from the remarks.
 - Revenue Logic sheet: a new note on the channel order for CSIJW / CSIJO (GEMS / WESTMINSTER / WINCHESTER, then HAA / JDI or INS / JERC in the remarks, then a Venus model).
 - Worked example: a repair job billed flat because its remarks say not repairable now shows "Flat 60 per job (BER / RWR)".
@@ -3068,6 +3094,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** "Break down by → Order status" and the "By order status" table showed a large amount (AED 14,992 for October) under a blank CSOSC status. That column is an ERP field with no financial meaning, and it confused management. The drill table also moved on to Customer at its third step.
 
 **What changed.**
+
 - Reports: "Order status" is no longer in the Break down by list, and the "By order status" table on the Billing tab is removed (cost status stays).
 - Reports drill: the automatic next step after Job type is now Salesperson instead of Customer. Customer is still in Break down by, and choosing it shows the customer view as before.
 - No revenue figure changes. The job list still shows the order-status column for reference.
@@ -3083,6 +3110,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Management wanted to see which salespeople bring the most revenue, next to the Top 10 customers.
 
 **What changed.**
+
 - Service Revenue Dashboard, Overview: a new "Top 10 salespeople" chart (revenue in AED, highest first) under the sales channel and Top 10 customers charts. It follows the same year, month and week filters. The Top 10 customers chart is unchanged.
 
 **Files.** apps/web/src/app.js.
@@ -3096,6 +3124,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Invoice 16100997 (CSIJO, qty 7) showed "7 x AED 119 per job" next to AED 2,241.75. That is an original job whose revenue is the actual ERP job value, so the text was wrong and 7 x 119 does not match the revenue.
 
 **What changed.**
+
 - Logic applied (worked example) and Export report (.xlsx): a CSIJO line that carries an Original Job Value and whose revenue is not qty x rate now reads "Actual ERP job value AED x (original job; not rate x quantity)". The Explain column in the export says the same.
 - No revenue figure changes.
 
@@ -3110,6 +3139,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The Google Sheet import was rehearsed on a staging copy and passed every parity check. The steps for the real database needed to be written down in one place for cutover day.
 
 **What changed.**
+
 - README: a new section "Moving the Google Sheet data into the real database (cutover day)" with the cmd steps (freeze, download, backup, dry run, clear, import, verify, check, go live) and how to restore from the backup. The status line is updated.
 - docs/migration/GOOGLE_SHEET_MIGRATION.md: updated to the current rules (phone placeholder, no attachment links, overrides file, no longer parked).
 - No code changes.
@@ -3125,6 +3155,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Rejected, Delivered and Cancelled are how a job ends, not where it is. Mixing them with WIP, BER and Repair Completed meant a BER job vanished as "Delivered" and management could not report on BER or Rejected jobs.
 
 **What changed.**
+
 - Job status now tracks the stage only: Customer approval pending, WIP, Spare pending, BER, Repair Completed.
 - New Final status: Delivered, Rejected or Cancelled. It stays blank while the job is open. Delivered needs the job status to be Repair Completed or BER, and a BER job stays BER after it is delivered.
 - Closing a BER job, or any Rejected job, that still has spare parts or charges above the AED 60 handling charge asks for a reason (parts written off, returned to stock, diagnosis charge only, customer declined the quote, no charge, other). Removing parts from a BER or Rejected job is written to the audit log.
@@ -3145,6 +3176,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** With job status and final status now separate, management needed one report that shows every job by where it is and how it ended (BER, Rejected, awaiting final status, delivered, cancelled).
 
 **What changed.**
+
 - Reports page: new report "Job Status Wise". One row per job card, sorted by job status then final status. Columns: Job Status, Final Status, Status Group (Open, Awaiting final status, Delivered, Rejected, Cancelled), reason, customer, brand, model, technician, spare part lines, parts cost, service charge, grand total, invoice, delivery date and days since last update.
 - The search box also matches status words, so typing BER or Rejected narrows the report. The downloaded workbook has filter arrows on every column.
 
@@ -3159,6 +3191,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Every job ends with the unit going back to the customer, including BER, Rejected and Cancelled ones. The charge for those endings also differed by customer type, and a B2C customer who refused a quote could not collect the unit because the system wanted an invoice.
 
 **What changed.**
+
 - Job status now has seven values: Customer approval pending, WIP, Spare pending, BER, Rejected, Cancelled, Repair Completed. Final status has one: Delivered. It can be chosen when the job status is Repair Completed, BER, Rejected or Cancelled.
 - Choosing a final status on a BER, Rejected or Cancelled job opens a pop-up asking for the reason (parts written off, returned to stock, diagnosis charge only, customer declined the quote, no charge, duplicate job card, entered by mistake, customer cancelled the job, other).
 - B2C: BER and Rejected jobs are not charged. The MDA service charge is replaced by 0 and the job can be delivered without an invoice.
@@ -3180,6 +3213,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Delivering a business job needs a sales channel, but the Salesman and Sales channel were often blank and the CCE had to find them by hand. The masters already know them.
 
 **What changed.**
+
 - Choosing a Salesman on the job card fills the Sales channel from the salesman master.
 - Choosing or correcting the B2B Branch / School (type-ahead from the master) loads the Salesman, Sales channel, Customer number and Sales order. A name that is not in the list shows a hint asking the CCE to pick the correct school.
 - After the "Choose the sales channel" pop-up (or the matching save error), the page scrolls to the empty required fields (B2B Branch / School, Salesman, Sales channel) and shades them. The shading clears when the field is touched.
@@ -3315,6 +3349,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The office team needs to talk inside the portal about specific jobs, appointments, complaints and tasks, and to each other, with the conversation kept next to the record. WhatsApp stays for the future; this is internal.
 
 **What changed.** A new **Chat** item in the menu (with an unread badge) opens a two-pane screen: conversations on the left (search, filters All / Unread / Mentions / To reply / Records), the thread on the right. On a phone it is one pane at a time with a Back button.
+
 - **Direct messages** between two people, private to them (administrators cannot read other people's DMs).
 - **Channels** (group chats) for named teams, created by people with the new `chat.create_channel` permission (admin by default); the creator or a moderator adds people; anyone can leave or mute.
 - **Record threads:** a **Discuss** button on the job card, appointment and complaint detail screens and in the Tasks edit panel opens a slide-over thread for that record. Anyone who can open the record can read and write; the thread is hidden again if someone loses access.
@@ -3335,6 +3370,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Phase 1 let people send messages but not correct a typo, take one back, acknowledge quickly, keep important ones handy or find an old one.
 
 **What changed.**
+
 - **Edit** your own message (shows "edited"; the old text is kept in the Activity log).
 - **Delete** your own message, or any message if you hold `chat.moderate` (admin). It is a soft delete: the thread shows "This message was deleted", the text is hidden from everyone, and the original is kept in the Activity log.
 - **Reactions** (thumbs up, tick, eyes, heart, laugh, thanks); click a reaction to add or remove yours; hover shows who.
@@ -3353,6 +3389,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Technicians and the office need to share site photos, warranty approvals and PDFs inside the conversation about the job, not through a separate app.
 
 **What changed.**
+
 - A paperclip and a camera button in the message box. On a phone the camera button opens the camera directly; on a computer you can also paste a screenshot or drag files onto the thread.
 - JPEG, PNG, WebP, HEIC and PDF up to 20 MB, up to 10 per message; big phone photos are shrunk in the browser first to save mobile data. A message can be just a photo.
 - Photos show as thumbnails in the thread (click to open full size); PDFs show as a file chip.
@@ -3370,6 +3407,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Polling every few seconds felt slow for a conversation, and people could not tell whether a colleague was around or had seen their message.
 
 **What changed.**
+
 - **Instant delivery.** The portal keeps a live connection (Server-Sent Events) once you sign in. New messages, edits, deletes, reactions and pins appear immediately in open threads, and the menu badge and conversation list update without waiting. If the live connection drops it reconnects by itself and the screens fall back to polling meanwhile.
 - **Online status.** A green dot on a person's avatar (list, thread header, messages) when they have the portal open; "Online" shows under their name in a direct chat.
 - **Typing indicator.** "Reneesh is typing…" appears for the others in the conversation.
@@ -3389,6 +3427,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** People are not always on the Chat page, or even in the portal. A new message needs to reach them wherever they are.
 
 **What changed.**
+
 - **Pop-up on any page.** When a message arrives and you are not looking at that conversation, a small card appears in the bottom-right corner (sender, where, first lines). Click it to open the conversation. Mentions stay longer and are highlighted. Muted conversations stay quiet unless you are mentioned.
 - **Floating chat bubble** (bottom-right, every page except Chat) with the unread count. It opens a compact chat panel: recent conversations, reply without leaving what you are doing, **Open full Chat** and **Pop out** buttons.
 - **Pop-out window.** Opens Chat in its own small browser window (already signed in), no menus, to keep beside other work. Also available from the Chat page header.
@@ -3397,6 +3436,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 - **Email when mentioned.** Only if you have not read the message after a few minutes (default 5), and only if email is switched on for the server. Each person can turn it off in Notifications.
 
 **One-time server setup (optional features).** Everything above except background push and email works as soon as you pull and refresh.
+
 - Background push: run `npm run vapid`, put the two lines into `.env` as `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` (and optionally `VAPID_SUBJECT=mailto:you@company.com`), restart the API. Browser push requires the portal to be served over HTTPS (localhost is fine for testing).
 - Email: `EMAIL_ENABLED=true`, `EMAIL_FROM` (a verified sender) and `EMAIL_PROVIDER_API_KEY` for **Resend** (resend.com; the only provider built in), plus `PORTAL_PUBLIC_URL` so the email links to the portal. Mail is only sent for mentions still unread after `CHAT_EMAIL_DELAY_MINUTES`. Timers live in the API process, so a restart inside that window drops a pending email.
 
@@ -3463,6 +3503,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/index.html.
 
 **Needs you:** pull and hard-refresh.
+
 ## Modification #150 — Billing: warranty jobs are internal billing; frozen Job card column fixed
 
 **Date:** 2026-10-26
@@ -3470,6 +3511,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Jobs finished as In Warranty are billed internally to JDI or JER-C/INS. They usually carry no amount, and when spares or charges are added there is still no ERP invoice: accounts take the report and make internal adjustments. They were showing as "Not invoiced" with a Record button, which made the "Not yet invoiced" figure look wrong.
 
 **What changed.**
+
 - Warranty jobs (job type CSIJW) now have their own stage, **Internal billing**, with a grey label and an "Internal" note in place of the Record button. They still appear in the ledger, the bill-to statement and the Excel download so accounts can adjust from the report.
 - They no longer count in **Invoiced in ERP** or **Not yet invoiced**. A new total, **Internal (warranty)**, shows what they add up to. The statement heading reads "Warranty CSIJW (internal)". "Internal billing" is also a Stage filter.
 - Out-of-warranty jobs are unchanged: B2C pays and needs an invoice and confirmed payment; B2B is billed to the channel at the current rate plus any spares added by hand, and the ERP number can be recorded when it exists.
@@ -3486,6 +3528,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Out-of-warranty jobs where the sales channel pays (B2B, billed to JDI or JER-C/INS) showed **Not invoiced** in amber with a **Record** button, as if an ERP invoice were missing. For these jobs the amount is the current rate plus any spares added, and an ERP number may not exist.
 
 **What changed.**
+
 - A job paid by the sales channel with no ERP number now shows the grey stage **Billed to channel** and a small "Channel" note instead of the Record button. If an ERP number is recorded later (for example on the job card), it moves to **Invoiced to channel** and Record is available again.
 - **Not yet invoiced** now counts only jobs the customer pays. A new total, **Billed to channel, no ERP no.**, shows the channel amounts. "Billed to channel" is a Stage filter.
 - Customer-paid jobs are unchanged (Not invoiced, then awaiting payment, then Paid).
@@ -3515,6 +3558,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A direct customer (B2C) job under warranty is billed internally to a sales channel (Internal billing, see #152), but a B2C job has no school or branch to supply a salesman, so these jobs had no channel and showed "Not set" as the bill-to party.
 
 **What changed.**
+
 - When the customer type is B2C and the final warranty status is In Warranty (or, if no final status is set, the registered warranty is In Warranty), **Salesman is required** on the service job card (create and edit) and on the walk-in form. The field gets a star, and a pop-up tells the user as soon as the customer type or warranty makes it required and again if they try to save without one. Saving is blocked until a salesman is chosen. The API enforces the same rule.
 - Choosing the salesman fills the **Sales channel** from the salesman master (also done by the API for B2C jobs), and billing uses it: payer Sales channel, bill to that channel, shown as **Internal billing**.
 - If the chosen salesman is not linked to a sales channel in the Salesmen master (and no channel was picked by hand), a pop-up says to **contact the admin** to link the salesman to a channel, the Sales channel box is shaded, and saving is blocked until it is fixed or a channel is picked.
@@ -3533,6 +3577,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The portal can only create repair jobs. To capture Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work later, the portal needs the lookups the master Excel keeps in hidden sheets. This is phase 1 of the plan saved in the project (claude/dandi-activity-capture-plan-2026-10-27). No delivery job screen yet.
 
 **What changed.**
+
 - **Category mapping** (Salesmen & channels page, new section): item group → Installable yes/no → pricing category (Freestanding Refrigerator / Washing Machine / Cooker). Seeded from the workbook (FRIDGE, FREEZER, WASHING MACHINE, COOKER). An item group that is not installable can only be delivered (CSIDO). The page also lists stock-master groups that are not mapped yet, with their item counts, so the admin can link them. Admin edits it; every change is logged. New permissions category_mappings.read (admin, management, sales) and category_mappings.write (admin); the admin can grant them to other roles on the roles page.
 - **Channel reporting name** (same page): the workbook's name for each sales channel (JDI → HAA, JER-C/INS → INS), set by the admin. It labels revenue lines for the comparison and never changes a price.
 - **Billing rules can depend on the brand** (Billing → Billing rules): "brand is" or "brand is not". When several rules match, the most specific one (the most conditions) wins; between equally specific rules the oldest wins. Before this, the oldest matching rule always won. Example: salesman Raneesh Jose, brand is VENUS → JDI; salesman Raneesh Jose, brand is not VENUS → JER-C/INS. Repair job cards use the job card brand with the same rules. On the Add a rule form the **Salesman** and **Brand** are picked from the Salesmen master and the Stock master brand list instead of being typed, so a misspelled name can no longer create a rule that never matches.
@@ -3548,6 +3593,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Billing rules decide which sales channel is billed, so they belong with the billing ledger, not with the job invoices.
 
 **What changed.**
+
 - **Management → Billing** has a fourth tab, **Billing rules**, after Cost allocation. The period filters and totals above the ledger are hidden on that tab because they do not apply to it.
 - The Invoices page no longer has a Billing rules tab; it shows the job invoices directly.
 - Same rules, same permissions: anyone who can open Billing can read the rules; only the super admin (sales channels write) sees the Add a rule form and the Turn on / Turn off buttons. Salesman and Brand are picked from the masters (see #154).
@@ -3563,11 +3609,13 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Before the Delivery & Installation entry screen is built, the arithmetic has to match the master Excel to the fils. This is phase 2 of the plan in the project (claude/dandi-activity-capture-plan-2026-10-27). Nothing is visible in the screens yet.
 
 **What changed.**
+
 - A single pricing function prices one delivery note whose lines are each chosen as CSIDI, CSIDO or CSIII, with the rules of the Net Sale Current sheet: batch or standard rate and discount tier from the note's total quantity of that type (all categories together), net rate never below the minimum, one transport charge per note on CSIDI only when the note has more than 1 unit and no CSIDO line, no transport on CSIII, and one CSIDO charge per note (flat 100 alone, the regional 60 / 90 when the note also has CSIDI). Rates, tiers, transport and the flat CSIDO charge are read from Pricing Masters → D+I Admin Entry.
 - Item rules: an item whose group is not installable can only be CSIDO; an unlinked group cannot be priced as installed; CSIDO on an installable item gives a warning.
 - A service prices a note from item codes (stock master group → category mapping → pricing category). There is no screen or API route for it yet; the entry screen (phase 3) will use it for the live price.
 
 **Checked against the workbook (19 Oct 2026).**
+
 - Net Sale Current sample, 48 lines / 37 invoices: every line matches, except one CSIDI coded 3PL non-electronics item that the workbook prices at 60 (Default rate) and the portal only allows as delivery only (100). Portal total 4,890 instead of 4,850.
 - 629 lines of the CSIDI sheet / 434 invoices: all 312 CSIDI and 277 CSIDO lines match. 31 of the 40 CSIII lines differ by AED −703.25 in total: on notes with several installation-only lines, the stored history priced each line on its own quantity, while the live Net Sale Current formula (used here) prices on the note's total. Needs your decision (see below).
 
@@ -3582,6 +3630,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Delivery + Installation (CSIDI), Delivery only (CSIDO) and Installation only (CSIII) work was only in the master Excel. Phase 3 of the plan lets the team enter each job on the portal, with the price calculated as they type. The portal calculates but does not feed the revenue dashboard yet (phase 4), so the one-month parallel run against the Excel can start.
 
 **What changed.**
+
 - **New page: Service desk → Delivery & Installation**, with two tabs. **New job** is the entry form; **Jobs** lists and filters every job and opens one.
 - One job = one ERP delivery note. The form has: service date, region (Dubai / Sharjah, from the pricing master), ERP delivery note (Ref Inv, required), ERP Inv No (required only when the admin switch is on), CSOSC order no. (optional), B2B customer, salesman and notes.
 - The B2B customer is picked from the B2B customer list. Picking it fills the salesman from the customer record; the salesman is a dropdown from the salesmen master, and the sales channel shows under it, read only. A salesman with no channel gives a "contact the admin" pop-up and the job cannot be completed.
@@ -3604,6 +3653,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The Category Mapping page said all 44 unlinked stock groups had to be linked before they could be used on a delivery job. That is not needed: an item that is not installable is only ever Delivery only.
 
 **What changed.**
+
 - A stock group that is not linked is treated as delivery only (CSIDO) with no warning, and a new line for it starts as CSIDO.
 - It still cannot be priced as Delivery + Installation or Installation only; the price panel says to link the group. Link only the groups that can be installed (for example air conditioners).
 - The help text on Salesmen & channels → Delivery & installation categories says so.
@@ -3611,6 +3661,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-pricing-engine.test.ts.
 
 **Needs you:** pull and hard-refresh. No migration, no API restart needed for the screen text; restart the API for the price change.
+
 ## Modification #159 — Delivery & Installation: revenue feed, comparison with the master Excel, salesman spellings (phase 4)
 
 **Date:** 2026-10-27
@@ -3618,6 +3669,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Phase 4 of the plan. During the one-month parallel run the portal calculates Delivery & Installation revenue next to the master Excel; this shows where the two agree, lets accounts switch the portal in when they do, and fixes the "RENEESH JOSE / Raneesh Jose" spelling problem.
 
 **What changed.**
+
 - **Compare with Excel** (new tab on Delivery & Installation, for admin and management): pick a month; the CSIDI / CSIDO / CSIII lines of the active master-workbook upload are matched to Completed portal jobs by the delivery note or the ERP Inv No. Shows the month totals per activity (Excel, portal, difference) and lists what needs attention: delivery notes only in Excel, only in the portal, or with a different revenue or quantity. A "Matches" list is one tick away. Notes also point out a different salesman or sales channel (after spellings and channel reporting names are applied) and a job dated in another month. Delivery-only quantity is not compared (the workbook counts per line, the portal per note).
 - **Revenue feed (off by default):** Management → Budget Variance → settings has a new switch, "Count CSIDI / CSIDO / CSIII from Completed Delivery & Installation jobs". When on, Completed jobs are counted on their service date at the figures frozen at completion, mapped to the same streams as the workbook job types, and those three job types in the workbook upload are ignored so nothing is counted twice. Cancelled or reopened jobs leave the figure.
 - **Salesman spellings** (Salesmen & channels): add another spelling of a salesman (for example RENEESH JOSE for Raneesh Jose). The B2B customer picker on Delivery & Installation then shows the master name and its channel, and the comparison treats both spellings as the same person.
@@ -3634,6 +3686,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** To check the stock master and the revenue / budget masters against the ERP and the Excel files, you need to be able to get the data back out of the portal as Excel.
 
 **What changed.**
+
 - **Stock master** (Stock master page): a "Download JDI / JMS / TGE Excel" button on each channel that has an upload, and "Download item list (all channels)" — one row per item code (ItemCode, ItemDesc, Grade, MainGroup, Group, SubGroup, Brand, TYPE, last channel, and whether each channel still sends it).
 - **Revenue and Budget masters** (Service Revenue and Budget Variance source line): a "Download Excel" button next to the source file name for admins who may upload.
 - **From now on** the portal keeps the original file of the newest stock upload per channel and the active revenue / budget workbook, and downloads give you that file exactly as uploaded. Older uploads of the same channel / kind keep their rows but not the file, so storage stays small.
@@ -3652,6 +3705,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The stock master was built from three ERP stock-valuation files (JDI, JMS, TGE), so it only held items that had stock. The ERP Item Listing holds every item as soon as it is created, so it replaces them: one file, one table.
 
 **What changed.**
+
 - **One upload.** Stock master → "Upload ERP Item Listing" takes the one file (columns read: Item Code, Item Desc, Maingrp Name, Grp Name, SUBGRPNAME, BRANDNAME). The channel picker and the three channel cards are gone. An item that appears on several rows (one per barcode) is stored once; item codes that differ only in upper / lower case are one item. Each upload adds new items and updates the ones that changed (the report lists them). Items no longer in the file are kept and counted as "not in the latest file". The older ERP stock-valuation column names are still accepted. A full listing (about 120,000 rows) takes about 10 seconds.
 - **One table in the database.** `stock_items` is now `stock_master` (item code, description, main group, group, sub group, brand, when last seen). The `stock_positions` (location, stock, WAC, value …) and `stock_item_channels` tables are dropped, and the grade, type and channel columns are gone. `stock_uploads` stays as the upload log (what, when, who, the change report and the original file). The earlier per-channel upload rows stay as history only.
 - **Everywhere the stock master is used now reads the same table**, unchanged in behaviour: item and brand pickers on New request, Schedule, Warranty approvals, VAS sale, Quotation and Inspection; the job card prefill; Billing rules brand list; Delivery & Installation item search and pricing; Category Mapping (group list and item check). Appliances (MDA, SDA) are still offered first and vouchers / 3PL stay hidden.
@@ -3668,6 +3722,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** To trust the comparison, a user has to be able to take one invoice or delivery note and check it line by line by hand, the way the Logic tab of the Service Revenue Dashboard lets them check the master workbook.
 
 **What changed.**
+
 - **New section "Worked example — pick any invoice"** at the top of Delivery & Installation → Compare with Excel. Pick any invoice / delivery note of the month from the list (every one is offered, matching or not), type one, or click an Inv/Del No in the comparison table.
 - **Excel — master workbook:** each CSIDI / CSIDO / CSIII line of that invoice with quantity, revenue and how the workbook priced it, the same reading as the Service Revenue Dashboard Logic tab (flags a line where the rules rebuild a different figure).
 - **Portal:** each portal job carrying that delivery note or ERP Inv No, line by line: pricing category, base rate (batch or standard), discount tier and %, net rate, labour, transport, the delivery-only charge, revenue and a plain-words note. Completed jobs show the figures saved when they were completed; a Draft is priced live ("if completed now") and is not counted; a Cancelled job is shown but not counted. The units on the note that decide the batch rate and discount tier are shown.
@@ -3685,6 +3740,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The B2B customer list behind every "Look up B2B customer / Branch / School" box lived only in the database and could be changed only by a developer running an import. Admins need to see it, download it and upload new customers the way they do the stock master. The Compare with Excel table also carried a Notes column that the worked example now explains better.
 
 **What changed.**
+
 - **Admin → Masters** (replaces the Stock master menu item) with two tabs: **Stock master** (unchanged) and **Customers**.
 - **Customers master.** Download the current customer master as Excel (Cust Code, Customer, Salesman, Sales Channel, Last Sales Order No, Last Invoice Date), edit it, and upload it back; or download the last uploaded file as uploaded. Each upload adds new customers and updates the ones that changed (matched by Cust Code); a blank salesman keeps the stored one; customers not in the file are kept and counted. Only Cust Code and Customer are required; any other column in the file is ignored (so an ERP customer or invoice report works), and where a customer has several rows the first is used. The upload report lists changed customers and warns about salesmen that are not in Salesmen & channels. A lookup box on the tab finds a customer by name or code. New permission `b2b_master.write` (admin); no changes to the customer table itself.
 - **The sales channel comes from the salesman only** (Salesmen & channels). The channel stored on a customer was only a tag from the original import, so it is no longer used: not in the customer file, not on the Walk-in / Schedule / job card lookups, not as a fallback when a salesman has no channel. Last sales order no and last invoice date are also not part of the file; values already stored are left as they are.
@@ -3702,6 +3758,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A completed Delivery & Installation job showed its internal billing on the job but not on the Billing page, so accounts had no single internal-billing report for the month. Once every October job is verified against the master workbook, Billing can be relied on for the whole picture.
 
 **What changed.**
+
 - **Billing ledger** now also lists every line of a **Completed** Delivery & Installation job, one row per line. Stage is **Internal billing** (no Record button, same as warranty jobs billed to a channel); **Bill to** is the line's sales channel; **Amount** is the revenue saved when the job was completed; **Type** is CSIDI, CSIDO or CSIII. Draft and Cancelled jobs are left out; a job you reopen drops out until it is completed again.
 - The same rows feed the Billing totals, Bill-to statement, Cost allocation and the Excel export (new Source column). The "jobs" counts in these views count lines.
 - Clicking a D&I reference in the ledger opens that job in Delivery & Installation.
@@ -3718,6 +3775,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** (1) In Compare with Excel → Worked example, a note that exists only in the portal showed dashes for Excel, which looked like missing data. (2) A Delivery & Installation job with two activity types (for example DIJ-2026-00002: CSIDI and CSIDO) appeared in Billing under one type when filtered, which confused accounts. (3) Clicking a link inside a page (Billing → a job) moved the user to another page with no way back except the sidebar.
 
 **What changed.**
+
 - **Compare with Excel:** the Excel side shows 0.00 (not a dash) beside the Portal figure and the Difference, in the worked example and the comparison table.
 - **Billing ledger:** each Delivery & Installation line says "job also has CSIDO · job total 117.00" under its type, and filtering Type to CSIDI / CSIDO / CSIII shows a note that only those lines are listed and a job with other types appears again under them. Rows stay one per line because Cost allocation needs brand and group per line.
 - **Back to <page> bar (whole portal):** when a link inside a page opens another page, the new page shows a bar at the top, "← Back to Billing", with the trail as a breadcrumb (each earlier page is clickable). Going back returns to the page you left; Billing keeps its filters, tab and page. Clicking the sidebar always starts fresh. Works for every in-page link (job card → complaint, appointment → job card, Compare → job, and so on) because it hooks the shared page switch. Keyboard and screen-reader friendly (breadcrumb landmark, visible focus ring); on a phone only the Back button shows.
@@ -3733,6 +3791,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The "Back to" bar showed the sidebar arrow in the page names ("Back to Billing →") and looked plain; and in Billing the Warranty column was blank for Delivery & Installation lines, where warranty does not apply.
 
 **What changed.**
+
 - **Back bar:** page names no longer carry the sidebar arrow. New look: a clean card with a blue edge, a soft "‹ Back to Billing" button, and a chevron breadcrumb with the current page highlighted. Opening a job from far down a long table now scrolls to the top, where the bar is.
 - **Billing ledger and Excel export:** for jobs other than CSIJW / CSIJO (CSIDI, CSIDO, CSIII), Registered and Final Warranty show the activity type, the same as the Type column.
 
@@ -3747,6 +3806,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Accounts use the master workbook's Ref DocNo (the CSOSC order an invoice came from, or "Direct"). The Service Revenue Dashboard → Reports → Export report (.xlsx) carried it only on the Source detail sheet.
 
 **What changed.**
+
 - **Delivery & Install** and **Jobs** sheets gain a **Ref doc no** column, next to CSOSC order. The Source detail sheet keeps its own.
 - **Jobs (CSIJW / CSIJO):** the portal now reads Ref DocNo from the workbook's CSIJW and CSIJO sheets (matched by Inv/Del No) when the master is uploaded, and stores it on the line (new columns ref_doc_no, ref_doc_dt; migration 063). Delivery & Installation lines already had it in their pricing detail, so they need no re-upload.
 - Checked on the 6 Oct workbook: all 556 repair lines and all 1,165 Delivery & Installation lines carry a Ref doc no.
@@ -3762,6 +3822,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** When a reviewer picks an invoice in Service Revenue Dashboard → Logic applied → Worked example, the master workbook's Ref DocNo (the CSOSC order it came from, or "Direct") was not shown, though accounts use it.
 
 **What changed.**
+
 - The worked example header shows the invoice's **Ref doc no** as a coloured pill beside the invoice number: indigo for a CSOSC order, teal for "Direct", pink for anything else. Nothing is shown when the workbook has none.
 - The same pill appears above the "Excel — master workbook" lines in Delivery & Installation → Compare with Excel → Worked example.
 - Delivery & Installation lines (CSIDI / CSIDO / CSIII) show it straight away; repair jobs (CSIJW / CSIJO) show it after the master is re-uploaded (see #167).
@@ -3777,6 +3838,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Requested: hide the Rules by job type cards from Service Revenue Dashboard → Logic applied for now.
 
 **What changed.**
+
 - The Rules by job type section (one card per job type) is no longer rendered. The steps, zero-revenue explanation, Worked example, rates and reconciliation sections are untouched.
 - The Revenue Logic sheet in the Excel export still has its rules section.
 
@@ -3791,6 +3853,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Editing a task (remarks, progress, dates) showed only Delete, Discuss and Cancel; there was no way to save.
 
 **What changed.**
+
 - Root cause: `body.is-authenticated footer` (navy fill, sidebar-width left padding) matched the edit panel's own `<footer>`, shifting its buttons right past the screen edge. The panel footer now resets those rules.
 - Footer layout: Delete / Discuss left, Cancel / Save changes right; wraps instead of overflowing. The edit button is labelled Save changes (Add for new items).
 
@@ -3805,6 +3868,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Accounts wanted the workbook's Ref DocNo against every transaction when drilling down in Reports, as already shown on the worked examples (#168).
 
 **What changed.**
+
 - The job table (Reports drill-down and Explorer) has a Ref doc no column with a coloured pill in place of Cost status. Cost status moves to the row's detail line and stays a filter.
 - Download this view (.xlsx) gets a Ref doc no column.
 
@@ -3819,6 +3883,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The Ref doc no column from #171 was blank for Delivery & Installation lines (their ref is held in the pricing data) and replaced Cost status; the chosen layout is the pill beside the invoice number, as in Logic applied.
 
 **What changed.**
+
 - Job tables (Reports drill-down, Explorer): the Ref doc no pill sits under the invoice number; Cost status column restored; the Ref doc no column removed.
 - The lines query returns the repair-sheet Ref doc no, or the pricing one when that is empty, so CSIDI / CSIDO / CSIII show it.
 
@@ -3845,6 +3910,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A job completed in another tab did not show in Compare with Excel until the page was reloaded; clicking a row of a long table left the worked example out of sight.
 
 **What changed.**
+
 - Compare with Excel has a Refresh button (next to the month): re-reads the comparison and the worked-example invoice from the database; shows when it was last updated.
 - Clicking an Inv/Del No in the table scrolls to the Worked example.
 
@@ -3861,6 +3927,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The master workbook has a Cust Code on every transaction; the worked examples showed only the Ref doc no.
 
 **What changed.**
+
 - Amber "Cust code" pill next to the Ref doc no pill in Compare with Excel > Worked example and Logic applied > Worked example.
 - D&I lines take it from the CSIDI/CSIDO/CSIII sheet; repair jobs (CSIJW/CSIJO) take it from the workbook repair sheets, stored in new `revenue_lines.cust_code` (migration 064).
 
@@ -3877,6 +3944,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Roles & permissions only had the four built-in roles. An administrator could not add a role such as Service Coordinator.
 
 **What changed.**
+
 - Roles & permissions has a **New role** button: enter a name and optionally copy the permissions of an existing role (saved permissions), then tick or untick permissions like any other role.
 - Roles you create show **Rename** and **Delete** in their column header, with the number of users who hold them. Delete is refused while any user still has the role; the four built-in roles cannot be renamed or deleted, and Administrator stays fixed.
 - Users page: the Role drop-down (new login and per-row) lists every role, including custom ones; a login can only be given a role that exists.
@@ -3897,6 +3965,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** With custom roles the matrix grew a column per role: names wrapped onto several lines and the Rename/Delete buttons sat misaligned under the headers.
 
 **What changed.**
+
 - One toolbar with a **Role to edit** drop-down (built-in and custom roles), a Built-in/Custom tag with the user count, **Rename** and **Delete** (custom roles only) and **+ New role**.
 - The matrix shows Administrator and Management as read-only **Reference** columns next to the one role being edited, so you can compare while you tick. Choosing Management edits Management itself.
 - Headers no longer wrap; the permission column and module headings stay in view when the table scrolls sideways on a small screen.
@@ -3916,6 +3985,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** After the role-picker layout the buttons, drop-down, tags and table rows looked oversized.
 
 **What changed.**
+
 - Buttons, drop-down and tags are about a quarter smaller (34 px high, Rename/Delete 28 px), with a small upper-case label over the drop-down.
 - Table rows, headers, check boxes and module headings are tighter, so many more permissions fit on screen; the toolbar and Save/Discard bar take less height.
 
@@ -3932,6 +4002,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The Quote Calculator tab was confusing (tab named like the page, five cards in no clear order, client details at the bottom, cost and margin beside the customer price) and a single unit was priced like a whole project (project fee, survey visit, two transport trips).
 
 **What changed.**
+
 - Tabs renamed **New quote** and **Issued quotes**. The page is five numbered steps: 1 Client & site, 2 Items, 3 Services & transport, 4 Review, 5 Save & print. A sticky **Quote total** on the right updates as you go.
 - Step 2 shows the rate and a hint for the next volume tier ("Add 47 more units to reach the 50+ tier at 74.00 AED per unit"). Labels are plain language ("Customer pays this % of transport", with a tooltip).
 - Step 3 lets you untick a service to leave it out of a quote; editing the rates and technician hours for one quote moved under "Adjust rates...". With every service ticked the numbers are exactly the same as before.
@@ -3967,6 +4038,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The total only moved after pressing Add to quote, so choosing a region, appliance or quantity gave no feedback.
 
 **What changed.**
+
 - The **Quote total** now updates as you change region, appliance, quantity, site visits or training sessions, including the item being chosen (a "Preview" badge shows it is not added yet). Adding it removes the badge; nothing is counted twice.
 - One-line **Transport** under the total, with the region and amount (or "Not charged to the customer" when the share is 0%).
 - If an item sits un-added for 10 seconds, a small notification appears bottom right: "Not added to your quote yet" with the item, region and price, an **Add to quote** button and **Dismiss**. It shows once per selection and closes itself after 15 seconds.
@@ -3983,6 +4055,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** B2B quotations (schools with many villas and apartments) need each unit's own location and complaint, labour chosen per row, and VAT like the old portal. The new portal showed QO-014 as 490.00 while the old portal and the sheet had 514.50.
 
 **What changed.**
+
 - Each quotation has **Units** (item code, description, brand, serial no., warranty, **Location**, complaint, diagnosis) and **charge lines** (Part, Labour, Service, Other) linked to a unit or to the whole quotation. Labour can be one row or on every unit.
 - 5% VAT is shown on every line and in the total; the total is always worked out on the server.
 - Print gives one block per unit.
@@ -3999,6 +4072,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** B2B work needs the correct customer captured at the start, and only approved quotations should become service job cards.
 
 **What changed.**
+
 - **Quotations and inspections** get **Customer type** (required) and **Look up B2B Branch / School**. B2C has no branch; for B2B picking a branch fills customer name and project.
 - **Quotation status** (Pending, Approved, Rejected) is chosen in a popup when Save quotation is clicked. Inspections have no status.
 - Only an **Approved** quotation can be made into a service job card (button and server check); the job card carries the customer type and branch.
@@ -4017,6 +4091,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A B2B quote (a school or building) has several units, each with its own complaint, so the single quote-level boxes were confusing. A B2C quote has one unit and still needs them.
 
 **What changed.**
+
 - Choosing Customer type B2B hides the quote-level "Customer complaint" and "Technical diagnosis" boxes; B2C shows them.
 - Nothing is deleted: text already saved on a quote stays and still prints. Each unit keeps its own complaint.
 - Inspections are unchanged.
@@ -4032,6 +4107,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A school quotation has many units. Making one job card for the whole quote hid which units were done, and the job-card form opened under the quotation instead of on the job-card page.
 
 **What changed.**
+
 - A quotation with two or more units gets one service job card per unit, until every unit has one. A quotation with one unit or none still gets a single job card. Job cards made before this change count as covering the whole quotation.
 - Created quotations list: new **Units** column and **Job cards** column ("1 of 3 created", amber while partial, green when all are created).
 - Opening a quotation: the page scrolls to the edit page and focuses its heading. The header shows status, type, branch, units and total as chips. A "Service job cards" box shows progress ("1 of 3 units"), a bar, and for each unit either its job card link or a **Create job card** button.
@@ -4051,6 +4127,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** The Remove unit button looked like an unstyled browser button, and the Service job cards list repeated the long item description for every unit.
 
 **What changed.**
+
 - Remove unit and the charge Remove buttons are now outlined red buttons with a hover state and keyboard focus ring.
 - Service job cards box: a header with the title and a "1 of 3 created" chip and progress bar; each unit is a row with a number badge (a tick once done), the **item code** and a **brand** chip, the location below, and either a **Create job card** button or a green job card link.
 - Each unit in the job-card list now comes with its item code, brand and location from the server.
@@ -4066,6 +4143,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** A quotation with several units printed one section per unit (details grid, complaint, diagnosis, charges each), so a 3-unit quote ran to 3 pages, and the customer details repeated the same name three times.
 
 **What changed.**
+
 - Customer details show only filled fields. For B2B, Customer name and Project name are left out when they just repeat the B2B branch / school.
 - Units / equipment is one table (item code, description, brand, serial no., warranty), one row per unit. Each unit's location, complaint and diagnosis sit on a small note line under its row.
 - Charges are one table for the whole quotation with a Unit column (U1, U2, All). The per-unit "No charges." lines are gone.
@@ -4075,19 +4153,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 
 **Needs you:** pull, hard-refresh. No database change.
 
-## Modification #188 — Quotation date in the list; LPO pending on the Reports Total revenue card
+## Modification #188 — Quotation date and ERP / ORION status in the list; LPO pending on the Reports Total revenue card
 
 **Date:** 2026-11-02
 
-**Why.** Management could not see when a quotation was raised in the Created quotations list, and quotations that are approved but not yet turned into work (so not yet invoiced) were invisible next to revenue.
+**Why.** Management could not see when a quotation was raised, nor which quotations are already invoiced in the ERP (ORION) and which are still waiting. Quotations that are not invoiced yet were invisible next to revenue.
 
 **What changed.**
-- Created quotations now has a **Quotation date** column. The separate Project / site column is gone: the project or site shows as a small line under the customer, and only when it differs from the customer or branch name.
-- Service Revenue Dashboard > Reports: the **Total revenue** card has a coloured **LPO pending** section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose status is Pending or Approved and that have **no service job card yet**, for the selected Year and Month, by quotation date. It shows the count (approved / pending). It is not added to revenue; the revenue figure is unchanged.
-- New API route `GET /api/revenue-dashboard/lpo-pending` (year, month; needs revenue dashboard read).
 
-**Notes.** The Week filter does not apply to LPO pending (quotations have a date, not a master-sheet week). Rejected quotations and any quotation with one or more job cards are left out.
+- Created quotations has a **Quotation date** column and an **ERP / ORION** column (green chip = Invoiced, red = Pending invoice or not set). The Project / site column is gone: the project or site shows as a small line under the customer, only when it differs from the customer or branch name.
+- The quotation form has a mandatory **ERP / ORION status** dropdown (Pending invoice / Invoiced), red until Invoiced is chosen. It must be set before the Quotation status pop-up appears. The API also refuses to save a quotation without it. Existing quotations start blank and are set by hand.
+- Service Revenue Dashboard > Reports: the **Total revenue** card has a coloured **LPO pending** section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose Quotation status is Pending or Approved and whose **ERP / ORION status is Pending invoice**, for the selected Year and Month, by quotation date. Whether a job card exists does not matter. **Invoiced** quotations are left out because they already sit inside that month's revenue. It is not added to revenue; the revenue figure is unchanged.
+- New API route `GET /api/revenue-dashboard/lpo-pending` (year, month; needs revenue dashboard read). Quotation list also filters by `erpStatus`.
 
-**Files.** packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts, tests/e2e/quotation-units.spec.ts.
+**Notes.** The Week filter does not apply to LPO pending. Rejected quotations and quotations with a blank ERP status are left out until set.
 
-**Needs you:** pull, restart the API, hard-refresh. No database change.
+**Files.** packages/db/migrations/070_quotation_erp_status.sql, packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html, tests.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Then set the ERP / ORION status on each existing quotation.

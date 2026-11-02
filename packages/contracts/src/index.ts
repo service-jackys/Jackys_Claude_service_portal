@@ -619,6 +619,10 @@ export function computeQuotationTotals<
 export const quotationStatuses = ['Pending', 'Approved', 'Rejected'] as const;
 export type QuotationStatus = (typeof quotationStatuses)[number];
 
+// ERP / ORION status: whether the work has been invoiced in the ERP yet.
+export const quotationErpStatuses = ['Pending invoice', 'Invoiced'] as const;
+export type QuotationErpStatus = (typeof quotationErpStatuses)[number];
+
 export const quotationWriteSchema = z
   .object({
     appointmentId: z.string().regex(/^\d+$/).optional(),
@@ -628,6 +632,7 @@ export const quotationWriteSchema = z
     customerType: customerTypeSchema.optional(),
     b2bBranchSchool: optionalText(300),
     quotationStatus: z.enum(quotationStatuses).optional(),
+    erpStatus: z.enum(quotationErpStatuses).optional(),
     projectName: optionalText(200),
     siteLocation: optionalText(500),
     dateOfCollection: dateSchema.optional(),
@@ -659,6 +664,7 @@ export const quotationListQuerySchema = z
     // used by the "create job card from Quotation" picker (modification.md #18).
     unused: z.enum(['true', 'false']).optional(),
     quotationStatus: z.enum(quotationStatuses).optional(),
+    erpStatus: z.enum(quotationErpStatuses).optional(),
     customerType: customerTypeSchema.optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),

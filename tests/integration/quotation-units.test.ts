@@ -68,6 +68,7 @@ test(
       const created = await quotations.create(
         {
           customerName: `Units ${suffix}`,
+          erpStatus: 'Pending invoice',
           products: [unit('u1', 'Villa 12', 'Drum noise'), unit('u2', 'Apartment 3', 'No spin')],
           parts: [
             charge('u1', 'Part', 2, 100),

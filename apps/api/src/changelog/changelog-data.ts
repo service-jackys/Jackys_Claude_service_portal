@@ -16,20 +16,23 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 188,
-    "title": "Quotation date in the list; LPO pending on the Reports Total revenue card",
+    "title": "Quotation date and ERP / ORION status in the list; LPO pending on the Reports Total revenue card",
     "area": "Revenue",
     "date": "2026-11-02",
     "approxDate": false,
     "status": null,
-    "summary": "Management could not see when a quotation was raised in the Created quotations list, and quotations that are approved but not yet turned into work (so not yet invoiced) were invisible next to revenue.",
+    "summary": "Management could not see when a quotation was raised, nor which quotations are already invoiced in the ERP (ORION) and which are still waiting. Quotations that are not invoiced yet were invisible next to revenue.",
     "changes": [
-      "Created quotations now has a Quotation date column. The separate Project / site column is gone: the project or site shows as a small line under the customer, and only when it differs from the customer or branch name.",
-      "Service Revenue Dashboard > Reports: the Total revenue card has a coloured LPO pending section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose status is Pending or Approved and that have no service job card…",
-      "New API route GET /api/revenue-dashboard/lpo-pending (year, month; needs revenue dashboard read)."
+      "Created quotations has a Quotation date column and an ERP / ORION column (green chip = Invoiced, red = Pending invoice or not set). The Project / site column is gone: the project or site shows as a small line under the customer, only when…",
+      "The quotation form has a mandatory ERP / ORION status dropdown (Pending invoice / Invoiced), red until Invoiced is chosen. It must be set before the Quotation status pop-up appears. The API also refuses to save a quotation without it.…",
+      "Service Revenue Dashboard > Reports: the Total revenue card has a coloured LPO pending section. It adds up the quotation value (subtotal, excluding VAT) of quotations whose Quotation status is Pending or Approved and whose ERP / ORION…",
+      "New API route GET /api/revenue-dashboard/lpo-pending (year, month; needs revenue dashboard read). Quotation list also filters by erpStatus."
     ],
-    "needsYou": "pull, restart the API, hard-refresh. No database change.",
-    "migrations": [],
-    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, index.html…"
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. Then set the ERP / ORION status on each existing quotation.",
+    "migrations": [
+      "070_quotation_erp_status.sql"
+    ],
+    "files": "packages/db/migrations/070_quotation_erp_status.sql, packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts…"
   },
   {
     "id": 187,
@@ -1410,7 +1413,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "status": null,
     "summary": "All Finance pages and every Service Revenue Dashboard tab shared one permission (revenue_dashboard.read), so access could not be limited tab by tab.",
     "changes": [
-      "What changed: revenue_dashboard.read stays the master \"may open Finance\" switch. New permissions (migration 045, listed under Revenue dashboard in Roles & permissions) choose what a role sees inside it:"
+      "What changed: revenue_dashboard.read stays the master \"may open Finance\" switch. New permissions (migration 045, listed under _Revenue dashboard_ in Roles & permissions) choose what a role sees inside it:"
     ],
     "needsYou": "pull, npm run db:migrate (045), restart API, hard-refresh, then tick the tabs per role in Roles & permissions.",
     "migrations": [
@@ -1431,7 +1434,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "New API POST /api/roi/tasks/archive (body {ids}), and archived: true/false on the task PATCH. Table roi_tasks gets archived_at (migration 044).",
       "Styling. Status groups have a coloured accent and tinted header, lighter font weights (600 headings, 500 task titles), consistent column widths across groups, and a hover-only archive icon on rows."
     ],
-    "needsYou": "pull, run npm run db:migrate (migration 044), restart the API and hard-refresh. - Email look (ROI). The formatted email and .eml now use smaller type, light-tinted section headers with a thin accent edge (Result green, Objective blue, Issues amber…",
+    "needsYou": "pull, run npm run db:migrate (migration 044), restart the API and hard-refresh.",
     "migrations": [
       "044_roi_task_archive.sql"
     ],
@@ -1488,7 +1491,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "New tab Logic applied after Reports. It shows: a four-step \"from ERP line to revenue\" flow; one rule card per job type (CSIJW, CSIJO, CSIDI, CSIII, CSIDO) with live job, quantity, revenue and share figures; a \"Why some jobs show AED 0\"…",
       "New API GET /api/revenue-dashboard/logic (permission revenue_dashboard.read). The filter bar is hidden on this tab because it always describes the whole upload.",
       "The \"Zero-revenue jobs\" exception is unchanged. Hiding the explained lines from it is still possible if wanted.",
-      "Management emails. The Email draft / Management summary text and the Formatted email now explain the items for finance review: the Zero-revenue jobs line says how many of the zero-revenue jobs are extra delivery-only lines covered by the…"
+      "Management emails. The _Email draft_ / _Management summary_ text and the _Formatted email_ now explain the items for finance review: the Zero-revenue jobs line says how many of the zero-revenue jobs are extra delivery-only lines covered…"
     ],
     "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
@@ -1556,7 +1559,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "date": "2026-10-09",
     "approxDate": true,
     "status": null,
-    "summary": "Invoice [Warranty and billing] (Service desk, the old Invoices screen) is now the one place for invoice and payment entry. - Any job with an amount other than internal billing needs a tax invoice before it can be delivered. The portal numbers its own invoices (SINV-YYYY-NNNNN); the ERP number can still be typed as an…",
+    "summary": "Invoice [Warranty and billing] (Service desk, the old Invoices screen) is now the one place for invoice and payment entry.",
     "changes": [
       "Invoice [Warranty and billing]: (Service desk, the old Invoices screen) is now the one place for invoice and payment entry.",
       "Service job card: The invoice number, invoice date and payment fields are removed from the job card form. A read-only \"Invoice and payment\" status with an Open invoice button replaces them; the job card detail shows the tax invoice…",
