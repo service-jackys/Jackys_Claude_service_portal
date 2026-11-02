@@ -1,5 +1,5 @@
 import type { PoolClient } from 'pg';
-import type { JobCardPart } from '../../contracts/src/index.js';
+import type { QuotationCharge, QuotationUnit } from '../../contracts/src/index.js';
 
 export type QuotationRecord = {
   id: string;
@@ -15,9 +15,12 @@ export type QuotationRecord = {
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
   warrantyStatus: string | null;
-  products: JobCardPart[];
-  parts: JobCardPart[];
+  products: QuotationUnit[];
+  parts: QuotationCharge[];
   labourAmount: string;
+  vatRate: string;
+  subtotalAmount: string;
+  vatAmount: string;
   grandTotal: string;
   preparedBy: string | null;
   preparedDate: string | null;
@@ -49,9 +52,12 @@ export type QuotationContent = {
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
   warrantyStatus: string | null;
-  products: JobCardPart[];
-  parts: JobCardPart[];
+  products: QuotationUnit[];
+  parts: QuotationCharge[];
   labourAmount: number;
+  vatRate: number;
+  subtotalAmount: number;
+  vatAmount: number;
   grandTotal: number;
   preparedBy: string | null;
   preparedDate: string | null;
@@ -87,6 +93,9 @@ const columns = `
   products,
   parts,
   labour_amount AS "labourAmount",
+  vat_rate AS "vatRate",
+  subtotal_amount AS "subtotalAmount",
+  vat_amount AS "vatAmount",
   grand_total AS "grandTotal",
   prepared_by AS "preparedBy",
   prepared_date::text AS "preparedDate",
@@ -112,13 +121,13 @@ export async function insertQuotation(
        project_name, site_location, date_of_collection, technician_name, customer_complaint,
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
-       legacy_reference, warranty_status, created_by, updated_by
+       legacy_reference, warranty_status, created_by, updated_by, vat_rate, subtotal_amount, vat_amount
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $23, $24, $24
+       $22, $23, $24, $24, $25, $26, $27
      )
      RETURNING id`,
     [
@@ -146,6 +155,9 @@ export async function insertQuotation(
       c.legacyReference,
       c.warrantyStatus,
       input.createdBy,
+      c.vatRate,
+      c.subtotalAmount,
+      c.vatAmount,
     ],
   );
   const quotation = await findQuotationById(client, result.rows[0].id);
@@ -166,7 +178,8 @@ export async function updateQuotation(
          customer_complaint = $10, technical_diagnosis = $11, products = $12, parts = $13,
          labour_amount = $14, grand_total = $15, prepared_by = $16, prepared_date = $17,
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
-         legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now()
+         legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now(),
+         vat_rate = $25, subtotal_amount = $26, vat_amount = $27
      WHERE id = $1
      RETURNING id`,
     [
@@ -194,6 +207,9 @@ export async function updateQuotation(
       content.legacyReference,
       content.warrantyStatus,
       profileId,
+      content.vatRate,
+      content.subtotalAmount,
+      content.vatAmount,
     ],
   );
   if (!result.rows[0]) return null;

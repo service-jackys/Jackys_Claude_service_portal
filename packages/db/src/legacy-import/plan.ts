@@ -8,8 +8,13 @@ import {
   isBlank,
   mapWarranty,
   normalisePhone,
+  linkChargesToUnits,
   partRow,
   productRow,
+  quotationChargeRow,
+  quotationUnitRow,
+  type QuotationChargeRow,
+  type QuotationUnitRow,
   technicianKey,
   text,
   toDate,
@@ -122,9 +127,12 @@ export type QuotationPlan = {
   technicianName: string | null;
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
-  products: ReturnType<typeof productRow>[];
-  parts: ReturnType<typeof partRow>[];
+  products: QuotationUnitRow[];
+  parts: QuotationChargeRow[];
   labourAmount: number;
+  vatRate: number;
+  subtotalAmount: number;
+  vatAmount: number;
   grandTotal: number;
   preparedBy: string | null;
   preparedDate: string | null;
@@ -736,22 +744,43 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
     const date = toDate(r.get('Date') ?? j.qDate) ?? dubaiDate(createdAt);
     const phone = normalisePhone(r.get('Contact No') ?? j.qContact);
     notes('Quotations', r.row, ref, phone.notes);
-    const parts = (Array.isArray(j.parts) ? j.parts : [])
-      .map((p: any) => partRow(p))
-      .filter((p: any) => p.description || p.partNo);
-    const products = (Array.isArray(j.products) ? j.products : [])
-      .map((p: any) => productRow(p))
-      .filter((p: any) => p.description || p.partNo);
-    const labour = toMoney(r.get('Labour (AED)') ?? j.labour) ?? 0;
-    const grand = toMoney(r.get('Grand Total') ?? j.grandTotal) ?? 0;
-    const calc = parts.reduce((s: number, p: any) => s + p.qty * p.unitPrice, 0) + labour;
-    if (Math.abs(calc - grand) > 0.05)
+    const parts: QuotationChargeRow[] = (Array.isArray(j.parts) ? j.parts : [])
+      .map((p: any) => quotationChargeRow(p))
+      .filter((p: QuotationChargeRow) => p.description || p.partNo);
+    const products: QuotationUnitRow[] = (Array.isArray(j.products) ? j.products : [])
+      .filter((p: any) => p && (p.description || p.desc || p.itemCode || p.model))
+      .map((p: any, i: number) => quotationUnitRow(p, i));
+    const linked = linkChargesToUnits(products, parts);
+    if (linked.byOrder)
       issue(
         'Quotations',
         r.row,
         ref,
         'info',
-        `Sheet grand total ${grand} differs from parts + labour ${calc.toFixed(2)} (VAT or discount?). Sheet total is kept.`,
+        `${linked.byOrder} charge line(s) were matched to units by their order and model code.`,
+      );
+    if (linked.unlinked && products.length > 1)
+      issue(
+        'Quotations',
+        r.row,
+        ref,
+        'info',
+        `${linked.unlinked} charge line(s) could not be matched to a unit and stay on the whole quotation.`,
+      );
+    const labour = toMoney(r.get('Labour (AED)') ?? j.labour) ?? 0;
+    const grand = toMoney(r.get('Grand Total') ?? j.grandTotal) ?? 0;
+    const subtotal = parts.reduce((s: number, p) => s + p.qty * p.unitPrice, 0) + labour;
+    // The old portal added 5% VAT to every line, so its "Grand Total" is the VAT-inclusive amount.
+    const withVat = subtotal > 0 && Math.abs(subtotal * 1.05 - grand) <= 0.05;
+    const vatRate = withVat ? 0.05 : 0;
+    const vatAmount = withVat ? Math.round((grand - subtotal) * 100) / 100 : 0;
+    if (!withVat && Math.abs(subtotal - grand) > 0.05)
+      issue(
+        'Quotations',
+        r.row,
+        ref,
+        'info',
+        `Sheet grand total ${grand} differs from lines + labour ${subtotal.toFixed(2)} even with 5% VAT (discount?). Sheet total is kept.`,
       );
     plan.quotations.push({
       legacyRef: ref,
@@ -774,6 +803,9 @@ export async function buildPlan(file: string, options: PlanOptions = {}): Promis
       products,
       parts,
       labourAmount: labour,
+      vatRate,
+      subtotalAmount: Math.round(subtotal * 100) / 100,
+      vatAmount,
       grandTotal: grand,
       preparedBy: text(r.get('Prepared By') ?? j.qPreparedBy, 120),
       preparedDate: toDate(r.get('Prepared Date') ?? j.qPreparedDate),

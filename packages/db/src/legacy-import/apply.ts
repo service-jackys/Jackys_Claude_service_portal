@@ -185,8 +185,9 @@ export async function applyPlan(
          quotation_reference, quotation_date, customer_name, contact_number, project_name, site_location,
          date_of_collection, technician_name, customer_complaint, technical_diagnosis, products, parts,
          labour_amount, grand_total, prepared_by, prepared_date, approved_by, approved_date,
-         customer_signature, signature_date, legacy_reference, created_at, updated_at, created_by, updated_by
-       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$22,$23,$23)
+         customer_signature, signature_date, legacy_reference, created_at, updated_at, created_by, updated_by,
+         vat_rate, subtotal_amount, vat_amount
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$22,$23,$23,$24,$25,$26)
        RETURNING id::text`,
       [
         reference,
@@ -212,6 +213,9 @@ export async function applyPlan(
         q.legacyRef,
         q.createdAt,
         options.profileId,
+        q.vatRate,
+        q.subtotalAmount,
+        q.vatAmount,
       ],
     );
     quoIds.set(q.legacyRef, ins.rows[0].id);

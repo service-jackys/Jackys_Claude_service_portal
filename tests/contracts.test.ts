@@ -11,6 +11,8 @@ import {
   serviceJobCardStatusSchema,
   serviceJobCardStatusTransitions,
   serviceJobCardStatusUpdateSchema,
+  computeQuotationTotals,
+  quotationWriteSchema,
 } from '../packages/contracts/src/index.js';
 
 test('appointment schedule contract accepts only a valid date', () => {
@@ -110,4 +112,63 @@ test('a delivered BER, Rejected or Cancelled job needs a reason', () => {
   assert.equal(finalStatusNeedsReason({ ...base, jobStatus: 'Cancelled' }), true);
   assert.equal(finalStatusNeedsReason({ ...base, finalStatus: null }), false);
   assert.equal(finalStatusNeedsReason({ ...base, jobStatus: 'Repair Completed' }), false);
+});
+
+test('quotation totals add 5% VAT on every line and on the legacy labour amount', () => {
+  // Old portal QO-014 pattern: lines + labour, then 5% VAT.
+  const totals = computeQuotationTotals({
+    parts: [
+      { unitKey: 'u1', type: 'Part', partNo: '', description: 'Part', qty: 2, unitPrice: 100 },
+      { unitKey: 'u1', type: 'Labour', partNo: '', description: 'Labour', qty: 1, unitPrice: 90 },
+    ],
+    products: [],
+    labourAmount: 0,
+    vatRate: 0.05,
+  });
+  assert.equal(totals.subtotal, 290);
+  assert.equal(totals.vat, 14.5);
+  assert.equal(totals.grandTotal, 304.5);
+});
+
+test('quotation totals ignore VAT when the rate is zero and still count legacy labour', () => {
+  const totals = computeQuotationTotals({
+    parts: [
+      { unitKey: '', type: 'Service', partNo: '', description: 'Visit', qty: 3, unitPrice: 33.33 },
+    ],
+    products: [],
+    labourAmount: 10,
+    vatRate: 0,
+  });
+  assert.equal(totals.subtotal, 109.99);
+  assert.equal(totals.vat, 0);
+  assert.equal(totals.grandTotal, 109.99);
+});
+
+test('quotation totals round VAT once on the subtotal, not per line', () => {
+  const totals = computeQuotationTotals({
+    parts: [
+      { unitKey: 'u1', type: 'Part', partNo: '', description: 'A', qty: 1, unitPrice: 0.1 },
+      { unitKey: 'u2', type: 'Part', partNo: '', description: 'B', qty: 1, unitPrice: 0.1 },
+    ],
+    products: [],
+    labourAmount: 0,
+    vatRate: 0.05,
+  });
+  assert.equal(totals.subtotal, 0.2);
+  assert.equal(totals.vat, 0.01);
+  assert.equal(totals.grandTotal, 0.21);
+});
+
+test('quotation contract rejects unknown charge types and VAT above 25%', () => {
+  assert.equal(
+    quotationWriteSchema.safeParse({
+      parts: [{ unitKey: '', type: 'Gift', partNo: '', description: 'x', qty: 1, unitPrice: 1 }],
+    }).success,
+    false,
+  );
+  assert.equal(quotationWriteSchema.safeParse({ vatRate: 0.3 }).success, false);
+  assert.equal(
+    quotationWriteSchema.safeParse({ vatRate: 0.05, parts: [], products: [] }).success,
+    true,
+  );
 });

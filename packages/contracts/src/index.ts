@@ -566,6 +566,56 @@ export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchem
 // workflow status in the live system -- Prepared/Approved and
 // Inspected/Reviewed by/date are plain fields the CCE fills in, so these
 // schemas carry no status field and no transition rules.
+// A quotation is made of units (one appliance each, with its own location and complaint) and
+// charges (parts, labour, service, other). A charge belongs to a unit through unitKey, or to the
+// whole quotation when unitKey is empty. Both are stored in the existing products / parts JSON.
+export const quotationChargeTypes = ['Part', 'Labour', 'Service', 'Other'] as const;
+export const quotationUnitSchema = z
+  .object({
+    unitKey: z.string().trim().max(40).optional().default(''),
+    partNo: z.string().trim().max(120).optional().default(''),
+    description: z.string().trim().max(300).optional().default(''),
+    brand: z.string().trim().max(120).optional().default(''),
+    serialNo: z.string().trim().max(80).optional().default(''),
+    warranty: z.string().trim().max(20).optional().default(''),
+    location: z.string().trim().max(500).optional().default(''),
+    complaint: z.string().trim().max(2000).optional().default(''),
+    diagnosis: z.string().trim().max(2000).optional().default(''),
+    qty: z.number().min(0).max(100000).optional().default(1),
+    unitPrice: z.number().min(0).max(10000000).optional().default(0),
+  })
+  .strict();
+export type QuotationUnit = z.infer<typeof quotationUnitSchema>;
+export const quotationChargeSchema = z
+  .object({
+    unitKey: z.string().trim().max(40).optional().default(''),
+    type: z.enum(quotationChargeTypes).optional().default('Part'),
+    partNo: z.string().trim().max(120).optional().default(''),
+    description: z.string().trim().max(300).optional().default(''),
+    qty: z.number().min(0).max(100000).optional().default(0),
+    unitPrice: z.number().min(0).max(10000000).optional().default(0),
+  })
+  .strict();
+export type QuotationCharge = z.infer<typeof quotationChargeSchema>;
+
+export const quotationVatRate = 0.05;
+const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
+/** One function for the screen's maths and the API's: subtotal excludes VAT, grand total is what
+ *  the customer pays. The old portal added 5% VAT to every line and to labour; so does this. */
+export function computeQuotationTotals<
+  P extends { qty?: number; unitPrice?: number },
+  C extends { qty?: number; unitPrice?: number },
+>(input: { products?: P[]; parts?: C[]; labourAmount?: number; vatRate?: number }) {
+  const rate = input.vatRate ?? quotationVatRate;
+  const lines = [...(input.products ?? []), ...(input.parts ?? [])].reduce(
+    (sum, line) => sum + (line.qty || 0) * (line.unitPrice || 0),
+    0,
+  );
+  const subtotal = round2(lines + (input.labourAmount || 0));
+  const vat = round2(subtotal * rate);
+  return { subtotal, vat, grandTotal: round2(subtotal + vat), vatRate: rate };
+}
+
 export const quotationWriteSchema = z
   .object({
     appointmentId: z.string().regex(/^\d+$/).optional(),
@@ -579,9 +629,11 @@ export const quotationWriteSchema = z
     customerComplaint: optionalText(10000),
     technicalDiagnosis: optionalText(10000),
     warrantyStatus: z.enum(warrantyStatuses).optional(),
-    products: z.array(jobCardPartSchema).max(50).optional(),
-    parts: z.array(jobCardPartSchema).max(50).optional(),
+    products: z.array(quotationUnitSchema).max(50).optional(),
+    parts: z.array(quotationChargeSchema).max(100).optional(),
     labourAmount: z.number().min(0).max(10000000).optional(),
+    // 0.05 = VAT at 5%; 0 = no VAT. New quotations default to 5%.
+    vatRate: z.number().min(0).max(0.25).optional(),
     preparedBy: optionalText(120),
     preparedDate: dateSchema.optional(),
     approvedBy: optionalText(120),

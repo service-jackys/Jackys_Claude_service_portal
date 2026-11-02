@@ -2485,26 +2485,18 @@
       </div>
       <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
       <div class="field"><label for="${prefix}TechnicalDiagnosis">Technical diagnosis</label><textarea id="${prefix}TechnicalDiagnosis" maxlength="10000"></textarea></div>
-      <h5>Products</h5>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
-          <tbody id="${prefix}ProductsBody"></tbody>
-        </table>
-      </div>
-      <button class="button button-outline" type="button" id="${prefix}AddProductButton">Add product</button>
-      <h5>Parts</h5>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
-          <tbody id="${prefix}PartsBody"></tbody>
-        </table>
-      </div>
-      <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
+      <h5>Units</h5>
+      <p class="form-note">Add one unit for each appliance. For a school or a building, enter the villa or apartment and that unit's own complaint, then add its charges under it.</p>
+      <div id="${prefix}Units"></div>
+      <button class="button button-outline" type="button" id="${prefix}AddUnitButton">Add unit</button>
+      <h5>Charges for the whole quotation</h5>
+      <div id="${prefix}GeneralCharges"></div>
+      <button class="button button-outline" type="button" id="${prefix}AddGeneralChargeButton">Add charge</button>
       <div class="field-grid">
-        <div class="field"><label for="${prefix}LabourAmount">Labour (AED)</label><input type="number" step="0.01" min="0" id="${prefix}LabourAmount"></div>
-        <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
+        <div class="field" id="${prefix}LabourField" style="display:none;"><label for="${prefix}LabourAmount">Labour from the old format (AED, excl. VAT) ${tipHtml('Old quotations kept one labour amount for the whole quote. New quotations enter labour as a charge line instead.')}</label><input type="number" step="0.01" min="0" id="${prefix}LabourAmount"></div>
+        <div class="field"><label class="q-check"><input type="checkbox" id="${prefix}ApplyVat" checked> Add VAT (5%)</label></div>
       </div>
+      <div class="q-totals" id="${prefix}Totals"></div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}PreparedBy">Prepared by</label><input type="text" id="${prefix}PreparedBy" maxlength="120"></div>
         <div class="field"><label for="${prefix}PreparedDate">Prepared date</label><input type="date" id="${prefix}PreparedDate"></div>
@@ -2552,36 +2544,292 @@
     });
   }
 
-  function initQuotationForm(prefix) {
-    attachProjectNameLookup(prefix);
-    lineItemsState[`${prefix}Products`] = [];
-    lineItemsState[`${prefix}Parts`] = [];
-    const recalc = () => {
-      const products = lineItemsState[`${prefix}Products`];
-      const parts = lineItemsState[`${prefix}Parts`];
-      const lineTotal = [...products, ...parts].reduce(
-        (sum, item) => sum + (item.qty || 0) * (item.unitPrice || 0),
-        0,
-      );
-      const labour = parseNumber($(`#${prefix}LabourAmount`).value);
-      $(`#${prefix}GrandTotal`).value = money(lineTotal + labour);
+  // ---- Quotation editor: units, charges linked to units, VAT per line and in total ----
+  const quotationState = {};
+  const quotationVatRate = 0.05;
+  const chargeTypes = ['Part', 'Labour', 'Service', 'Other'];
+
+  function quotationBlankUnit(state) {
+    const used = new Set(state.units.map((u) => u.unitKey));
+    let n = 1;
+    while (used.has(`u${n}`)) n += 1;
+    return {
+      unitKey: `u${n}`,
+      partNo: '',
+      description: '',
+      brand: '',
+      serialNo: '',
+      warranty: '',
+      location: '',
+      complaint: '',
+      diagnosis: '',
     };
-    $(`#${prefix}AddProductButton`).addEventListener('click', () => {
-      lineItemsState[`${prefix}Products`].push({
+  }
+
+  function quotationTotals(state, labour) {
+    const rate = state.vat ? quotationVatRate : 0;
+    const lines = state.charges.reduce((sum, c) => sum + (c.qty || 0) * (c.unitPrice || 0), 0);
+    const subtotal = Math.round((lines + labour) * 100) / 100;
+    const vat = Math.round(subtotal * rate * 100) / 100;
+    return { rate, subtotal, vat, total: Math.round((subtotal + vat) * 100) / 100 };
+  }
+
+  function chargeRowHtml(c, idx, rate) {
+    const amount = (c.qty || 0) * (c.unitPrice || 0);
+    return `<tr data-charge="${idx}">
+      <td><select data-cfield="type" aria-label="Charge type">${chargeTypes.map((t) => `<option${t === c.type ? ' selected' : ''}>${t}</option>`).join('')}</select></td>
+      <td><input type="text" data-cfield="partNo" value="${escapeHtml(c.partNo)}" maxlength="120" aria-label="Part no." style="width:110px;"></td>
+      <td><input type="text" data-cfield="description" value="${escapeHtml(c.description)}" maxlength="300" aria-label="Description"></td>
+      <td><input type="number" min="0" data-cfield="qty" value="${c.qty}" aria-label="Quantity" style="width:70px;"></td>
+      <td><input type="number" min="0" step="0.01" data-cfield="unitPrice" value="${c.unitPrice}" aria-label="Unit price (AED)" style="width:95px;"></td>
+      <td class="num" data-cell="vat">${money(amount * rate)}</td>
+      <td class="num" data-cell="total">${money(amount * (1 + rate))}</td>
+      <td><button type="button" class="button-link" data-remove-charge="${idx}">Remove</button></td>
+    </tr>`;
+  }
+
+  function chargeTableHtml(state, unitKey, rate) {
+    const rows = state.charges
+      .map((c, idx) => ({ c, idx }))
+      .filter(({ c }) => (c.unitKey || '') === unitKey)
+      .map(({ c, idx }) => chargeRowHtml(c, idx, rate))
+      .join('');
+    return `<div class="table-wrap"><table class="q-charges"><thead><tr><th>Type</th><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>VAT ${rate ? `${rate * 100}%` : '(none)'}</th><th>Total (AED)</th><th></th></tr></thead><tbody>${
+      rows || '<tr><td colspan="8" class="q-empty">No charges yet.</td></tr>'
+    }</tbody></table></div>`;
+  }
+
+  function unitCardHtml(state, unit, number, rate) {
+    const lines = state.charges.filter((c) => (c.unitKey || '') === unit.unitKey);
+    const sub = lines.reduce((sum, c) => sum + (c.qty || 0) * (c.unitPrice || 0), 0);
+    const field = (label, name, extra = '') =>
+      `<div class="field"><label>${label}</label><input type="text" data-ufield="${name}" value="${escapeHtml(unit[name])}" maxlength="300" ${extra}></div>`;
+    return `<section class="q-unit" data-unit="${escapeHtml(unit.unitKey)}">
+      <header><strong>Unit ${number}</strong><button type="button" class="button-link" data-remove-unit="${escapeHtml(unit.unitKey)}">Remove unit</button></header>
+      <div class="field-grid">
+        ${field('Item code', 'partNo', 'autocomplete="off" list="qUnitCodes"')}
+        ${field('Description', 'description', 'autocomplete="off" list="qUnitNames"')}
+        ${field('Brand', 'brand')}
+        ${field('Serial no. (S/N)', 'serialNo')}
+        <div class="field"><label>Warranty</label><select data-ufield="warranty"><option value="">—</option><option${unit.warranty === 'Yes' ? ' selected' : ''}>Yes</option><option${unit.warranty === 'No' ? ' selected' : ''}>No</option></select></div>
+        ${field('Location / address (villa, apartment, building)', 'location')}
+      </div>
+      <div class="field-grid">
+        <div class="field"><label>Complaint for this unit</label><textarea rows="2" data-ufield="complaint" maxlength="2000">${escapeHtml(unit.complaint)}</textarea></div>
+        <div class="field"><label>Diagnosis for this unit (optional)</label><textarea rows="2" data-ufield="diagnosis" maxlength="2000">${escapeHtml(unit.diagnosis)}</textarea></div>
+      </div>
+      <div class="q-unit-charges" data-charges-for="${escapeHtml(unit.unitKey)}">${chargeTableHtml(state, unit.unitKey, rate)}</div>
+      <div class="q-unit-foot"><button type="button" class="button button-outline" data-add-charge="${escapeHtml(unit.unitKey)}">Add charge</button><span data-unit-sub>Unit subtotal (excl. VAT): <strong>${money(sub)}</strong>${rate ? ` · incl. VAT: <strong>${money(sub * (1 + rate))}</strong>` : ''}</span></div>
+    </section>`;
+  }
+
+  function renderQuotationEditor(prefix) {
+    const state = quotationState[prefix];
+    const rate = state.vat ? quotationVatRate : 0;
+    const host = $(`#${prefix}Units`);
+    host.innerHTML = state.units.length
+      ? state.units.map((unit, i) => unitCardHtml(state, unit, i + 1, rate)).join('')
+      : '<p class="form-note q-empty">No units yet. Use Add unit.</p>';
+    $(`#${prefix}GeneralCharges`).innerHTML = chargeTableHtml(state, '', rate);
+    quotationDatalist('qUnitCodes');
+    quotationDatalist('qUnitNames');
+    refreshQuotationTotals(prefix);
+  }
+
+  function refreshQuotationTotals(prefix) {
+    const state = quotationState[prefix];
+    const labour = parseNumber($(`#${prefix}LabourAmount`).value);
+    const t = quotationTotals(state, labour);
+    $(`#${prefix}Totals`).innerHTML = `
+      ${labour ? `<div><span>Labour from the old format (excl. VAT)</span><strong>${money(labour)}</strong></div>` : ''}
+      <div><span>Subtotal (excl. VAT)</span><strong>${money(t.subtotal)}</strong></div>
+      <div><span>VAT @ ${t.rate * 100}%</span><strong>${money(t.vat)}</strong></div>
+      <div class="q-grand"><span>Total payable (incl. VAT)</span><strong>AED ${money(t.total)}</strong></div>`;
+    $(`#${prefix}LabourField`).style.display = labour ? '' : 'none';
+    // Row amounts and unit subtotals follow the typing without rebuilding the inputs.
+    [$(`#${prefix}Units`), $(`#${prefix}GeneralCharges`)].forEach((host) =>
+      host.querySelectorAll('[data-charge]').forEach((row) => {
+        const c = state.charges[Number(row.dataset.charge)];
+        if (!c) return;
+        const amount = (c.qty || 0) * (c.unitPrice || 0);
+        row.querySelector('[data-cell="vat"]').textContent = money(amount * t.rate);
+        row.querySelector('[data-cell="total"]').textContent = money(amount * (1 + t.rate));
+      }),
+    );
+    $(`#${prefix}Units`)
+      .querySelectorAll('.q-unit')
+      .forEach((card) => {
+        const key = card.dataset.unit;
+        const sub = state.charges
+          .filter((c) => (c.unitKey || '') === key)
+          .reduce((sum, c) => sum + (c.qty || 0) * (c.unitPrice || 0), 0);
+        card.querySelector('[data-unit-sub]').innerHTML =
+          `Unit subtotal (excl. VAT): <strong>${money(sub)}</strong>${t.rate ? ` · incl. VAT: <strong>${money(sub * (1 + t.rate))}</strong>` : ''}`;
+      });
+  }
+
+  function wireQuotationEditor(prefix) {
+    const root = $(`#${prefix}Units`).parentElement;
+    const state = () => quotationState[prefix];
+    root.addEventListener('input', (event) => {
+      const target = event.target;
+      const unitCard = target.closest('.q-unit');
+      if (target.dataset.ufield && unitCard) {
+        const unit = state().units.find((u) => u.unitKey === unitCard.dataset.unit);
+        unit[target.dataset.ufield] = target.value;
+        if (target.dataset.ufield === 'partNo' || target.dataset.ufield === 'description')
+          quotationItemLookup(prefix, unit, unitCard, target);
+        return;
+      }
+      const row = target.closest('[data-charge]');
+      if (row && target.dataset.cfield) {
+        const charge = state().charges[Number(row.dataset.charge)];
+        const f = target.dataset.cfield;
+        charge[f] = f === 'qty' || f === 'unitPrice' ? parseNumber(target.value) : target.value;
+        refreshQuotationTotals(prefix);
+      }
+    });
+    root.addEventListener('change', (event) => {
+      const target = event.target;
+      const unitCard = target.closest('.q-unit');
+      if (target.dataset.ufield && unitCard) {
+        const unit = state().units.find((u) => u.unitKey === unitCard.dataset.unit);
+        unit[target.dataset.ufield] = target.value;
+        if (target.dataset.ufield === 'partNo' || target.dataset.ufield === 'description')
+          quotationItemLookup(prefix, unit, unitCard, target, true);
+      }
+      const row = target.closest('[data-charge]');
+      if (row && target.dataset.cfield === 'type') {
+        state().charges[Number(row.dataset.charge)].type = target.value;
+      }
+    });
+    root.addEventListener('click', (event) => {
+      const t = event.target;
+      if (t.dataset.removeUnit) {
+        state().units = state().units.filter((u) => u.unitKey !== t.dataset.removeUnit);
+        state().charges = state().charges.filter((c) => c.unitKey !== t.dataset.removeUnit);
+        renderQuotationEditor(prefix);
+      } else if (t.dataset.removeCharge !== undefined) {
+        state().charges.splice(Number(t.dataset.removeCharge), 1);
+        renderQuotationEditor(prefix);
+      } else if (t.dataset.addCharge !== undefined) {
+        state().charges.push({
+          unitKey: t.dataset.addCharge,
+          type: 'Service',
+          partNo: '',
+          description: '',
+          qty: 1,
+          unitPrice: 0,
+        });
+        renderQuotationEditor(prefix);
+      }
+    });
+    $(`#${prefix}AddUnitButton`).addEventListener('click', () => {
+      const st = state();
+      const unit = quotationBlankUnit(st);
+      st.units.push(unit);
+      st.charges.push({
+        unitKey: unit.unitKey,
+        type: 'Service',
         partNo: '',
         description: '',
         qty: 1,
         unitPrice: 0,
       });
-      renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
+      renderQuotationEditor(prefix);
     });
-    $(`#${prefix}AddPartButton`).addEventListener('click', () => {
-      lineItemsState[`${prefix}Parts`].push({ partNo: '', description: '', qty: 1, unitPrice: 0 });
-      renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+    $(`#${prefix}AddGeneralChargeButton`).addEventListener('click', () => {
+      state().charges.push({
+        unitKey: '',
+        type: 'Labour',
+        partNo: '',
+        description: 'Labour',
+        qty: 1,
+        unitPrice: 0,
+      });
+      renderQuotationEditor(prefix);
     });
-    $(`#${prefix}LabourAmount`).addEventListener('input', recalc);
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
-    renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+    $(`#${prefix}ApplyVat`).addEventListener('change', (event) => {
+      state().vat = event.target.checked;
+      renderQuotationEditor(prefix);
+    });
+    $(`#${prefix}LabourAmount`).addEventListener('input', () => refreshQuotationTotals(prefix));
+  }
+
+  // Item code / description: suggest items from the stock master. Picking one fills
+  // item code, description and brand (green = loaded from the master); anything else
+  // typed stays a manual entry.
+  let quotationLookupTimer = null;
+  let quotationLookupSeq = 0;
+  const quotationKnownItems = new Map();
+  function quotationDatalist(id) {
+    let list = document.getElementById(id);
+    if (!list) {
+      list = document.createElement('datalist');
+      list.id = id;
+      document.body.appendChild(list);
+    }
+    return list;
+  }
+
+  function quotationItemLookup(prefix, unit, card, input, committed = false) {
+    const key = input.value.trim().toLowerCase();
+    let known = null;
+    for (const item of quotationKnownItems.values()) {
+      if (item.itemCode.toLowerCase() === key || (item.itemDesc || '').toLowerCase() === key) {
+        known = item;
+        break;
+      }
+    }
+    if (known) {
+      unit.partNo = known.itemCode;
+      unit.description = known.itemDesc || unit.description;
+      unit.brand = known.brand || unit.brand;
+      ['partNo', 'description', 'brand'].forEach((f) => {
+        const el = card.querySelector(`[data-ufield="${f}"]`);
+        el.value = unit[f];
+        if (f !== 'brand') el.classList.add('master-filled');
+      });
+      return;
+    }
+    input.classList.remove('master-filled');
+    const term = input.value.trim();
+    if (committed || term.length < 2) return;
+    clearTimeout(quotationLookupTimer);
+    quotationLookupTimer = setTimeout(async () => {
+      const mine = ++quotationLookupSeq;
+      const codes = quotationDatalist('qUnitCodes');
+      const names = quotationDatalist('qUnitNames');
+      try {
+        const data = await apiRequest(
+          '/api/stock/items?' + new URLSearchParams({ q: term, limit: '12' }),
+        );
+        if (mine !== quotationLookupSeq) return;
+        (data.items || []).forEach((item) => quotationKnownItems.set(item.itemCode, item));
+        codes.innerHTML = (data.items || [])
+          .map(
+            (item) =>
+              `<option value="${escapeHtml(item.itemCode)}" label="${escapeHtml(item.itemDesc)}"></option>`,
+          )
+          .join('');
+        names.innerHTML = (data.items || [])
+          .map(
+            (item) =>
+              `<option value="${escapeHtml(item.itemDesc)}" label="${escapeHtml(item.itemCode)}"></option>`,
+          )
+          .join('');
+      } catch {
+        codes.innerHTML = '';
+        names.innerHTML = '';
+      }
+    }, 250);
+  }
+
+  function initQuotationForm(prefix) {
+    attachProjectNameLookup(prefix);
+    quotationState[prefix] = { units: [], charges: [], vat: true };
+    wireQuotationEditor(prefix);
+    renderQuotationEditor(prefix);
   }
 
   function fillQuotationForm(prefix, q) {
@@ -2603,33 +2851,49 @@
     $(`#${prefix}CustomerSignature`).value = q.customerSignature || '';
     $(`#${prefix}SignatureDate`).value = (q.signatureDate || '').slice(0, 10);
     $(`#${prefix}LegacyReference`).value = q.legacyReference || '';
-    const recalc = () => {
-      const products = lineItemsState[`${prefix}Products`];
-      const parts = lineItemsState[`${prefix}Parts`];
-      const lineTotal = [...products, ...parts].reduce(
-        (sum, item) => sum + (item.qty || 0) * (item.unitPrice || 0),
-        0,
-      );
-      const labour = parseNumber($(`#${prefix}LabourAmount`).value);
-      $(`#${prefix}GrandTotal`).value = money(lineTotal + labour);
-    };
-    lineItemsState[`${prefix}Products`] = (q.products || []).map((item) => ({
-      partNo: item.partNo || '',
-      description: item.description || '',
-      qty: item.qty || 0,
-      unitPrice: item.unitPrice || 0,
-    }));
-    lineItemsState[`${prefix}Parts`] = (q.parts || []).map((item) => ({
-      partNo: item.partNo || '',
-      description: item.description || '',
-      qty: item.qty || 0,
-      unitPrice: item.unitPrice || 0,
-    }));
-    renderLineItemsTable(`${prefix}Products`, `${prefix}ProductsBody`, recalc, true);
-    renderLineItemsTable(`${prefix}Parts`, `${prefix}PartsBody`, recalc);
+    const state = { units: [], charges: [], vat: Number(q.vatRate ?? quotationVatRate) > 0 };
+    $(`#${prefix}ApplyVat`).checked = state.vat;
+    (q.products || []).forEach((item, i) => {
+      const unit = {
+        unitKey: item.unitKey || `u${i + 1}`,
+        partNo: item.partNo || '',
+        description: item.description || '',
+        brand: item.brand || '',
+        serialNo: item.serialNo || '',
+        warranty: item.warranty || '',
+        location: item.location || '',
+        complaint: item.complaint || '',
+        diagnosis: item.diagnosis || '',
+      };
+      state.units.push(unit);
+      // A price typed on a unit in the old format becomes a visible charge line on that unit.
+      if ((item.unitPrice || 0) > 0) {
+        state.charges.push({
+          unitKey: unit.unitKey,
+          type: 'Part',
+          partNo: '',
+          description: item.description || 'Unit',
+          qty: item.qty || 1,
+          unitPrice: item.unitPrice,
+        });
+      }
+    });
+    (q.parts || []).forEach((item) => {
+      state.charges.push({
+        unitKey: item.unitKey || '',
+        type: chargeTypes.includes(item.type) ? item.type : 'Part',
+        partNo: item.partNo || '',
+        description: item.description || '',
+        qty: item.qty || 0,
+        unitPrice: item.unitPrice || 0,
+      });
+    });
+    quotationState[prefix] = state;
+    renderQuotationEditor(prefix);
   }
 
   function collectQuotationForm(prefix) {
+    const state = quotationState[prefix];
     return {
       quotationDate: $(`#${prefix}Date`).value || undefined,
       customerName: $(`#${prefix}CustomerName`).value.trim() || undefined,
@@ -2641,19 +2905,29 @@
       customerComplaint: $(`#${prefix}CustomerComplaint`).value.trim() || undefined,
       technicalDiagnosis: $(`#${prefix}TechnicalDiagnosis`).value.trim() || undefined,
       warrantyStatus: $(`#${prefix}WarrantyStatus`).value || undefined,
-      products: lineItemsState[`${prefix}Products`].map((item) => ({
-        partNo: item.partNo,
-        description: item.description,
-        qty: parseNumber(item.qty),
-        unitPrice: parseNumber(item.unitPrice),
+      products: state.units.map((u) => ({
+        unitKey: u.unitKey,
+        partNo: u.partNo,
+        description: u.description,
+        brand: u.brand,
+        serialNo: u.serialNo,
+        warranty: u.warranty,
+        location: u.location,
+        complaint: u.complaint,
+        diagnosis: u.diagnosis,
+        qty: 1,
+        unitPrice: 0,
       })),
-      parts: lineItemsState[`${prefix}Parts`].map((item) => ({
-        partNo: item.partNo,
-        description: item.description,
-        qty: parseNumber(item.qty),
-        unitPrice: parseNumber(item.unitPrice),
+      parts: state.charges.map((c) => ({
+        unitKey: c.unitKey || '',
+        type: c.type,
+        partNo: c.partNo,
+        description: c.description,
+        qty: parseNumber(c.qty),
+        unitPrice: parseNumber(c.unitPrice),
       })),
       labourAmount: parseNumber($(`#${prefix}LabourAmount`).value),
+      vatRate: state.vat ? quotationVatRate : 0,
       preparedBy: $(`#${prefix}PreparedBy`).value.trim() || undefined,
       preparedDate: $(`#${prefix}PreparedDate`).value || undefined,
       approvedBy: $(`#${prefix}ApprovedBy`).value.trim() || undefined,
@@ -3477,6 +3751,38 @@ ${bodyHtml}
 
   function printQuotation(quotation) {
     if (!quotation) return;
+    const rate = Number(quotation.vatRate ?? quotationVatRate) || 0;
+    const units = quotation.products || [];
+    const charges = quotation.parts || [];
+    const chargeTable = (rows) => {
+      if (!rows.length) return '<p style="color:#888;">No charges.</p>';
+      const body = rows
+        .map((c) => {
+          const amount = (c.qty || 0) * (c.unitPrice || 0);
+          return `<tr><td>${escapeHtml(c.type || 'Part')}</td><td>${escapeHtml([c.partNo, c.description].filter(Boolean).join(' - '))}</td><td class="num">${escapeHtml(String(c.qty ?? 0))}</td><td class="num">${money(c.unitPrice || 0)}</td><td class="num">${money(amount)}</td><td class="num">${money(amount * rate)}</td><td class="num">${money(amount * (1 + rate))}</td></tr>`;
+        })
+        .join('');
+      const sub = rows.reduce((sum, c) => sum + (c.qty || 0) * (c.unitPrice || 0), 0);
+      return `<table><thead><tr><th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (AED)</th></tr></thead><tbody>${body}</tbody><tfoot><tr><td colspan="4">Subtotal</td><td class="num">${money(sub)}</td><td class="num">${money(sub * rate)}</td><td class="num">${money(sub * (1 + rate))}</td></tr></tfoot></table>`;
+    };
+    const unitBlocks = units
+      .map((u, i) => {
+        const own = charges.filter((c) => (c.unitKey || '') === (u.unitKey || `u${i + 1}`));
+        return `<h2>Unit ${i + 1}: ${escapeHtml([u.description, u.partNo && `(${u.partNo})`].filter(Boolean).join(' '))}</h2>
+          ${printFieldGrid([
+            ['Location / address', u.location],
+            ['Brand', u.brand],
+            ['Serial no.', u.serialNo],
+            ['Warranty', u.warranty],
+          ])}
+          ${printTextBlock('Complaint', u.complaint)}
+          ${printTextBlock('Diagnosis', u.diagnosis)}
+          ${chargeTable(own)}`;
+      })
+      .join('');
+    const unitKeys = new Set(units.map((u, i) => u.unitKey || `u${i + 1}`));
+    const general = charges.filter((c) => !c.unitKey || !unitKeys.has(c.unitKey));
+    const labour = Number(quotation.labourAmount || 0);
     const body = `
       ${printDocHead("Jacky's Distribution LLC", 'Quotation', quotation.quotationReference, quotation.legacyReference)}
       <h2>Customer details</h2>
@@ -3492,13 +3798,13 @@ ${bodyHtml}
       ])}
       ${printTextBlock('Customer complaint', quotation.customerComplaint)}
       ${printTextBlock('Technical diagnosis', quotation.technicalDiagnosis)}
-      <h2>Products</h2>
-      ${printLineItemsTable(quotation.products)}
-      <h2>Spare parts</h2>
-      ${printLineItemsTable(quotation.parts)}
+      ${unitBlocks}
+      ${general.length ? `<h2>${units.length ? 'Other charges' : 'Charges'}</h2>${chargeTable(general)}` : ''}
       <table class="totals">
-        <tr><td>Labour (AED)</td><td class="num">${money(quotation.labourAmount || 0)}</td></tr>
-        <tr class="grand"><td>Grand total (AED)</td><td class="num">${money(quotation.grandTotal || 0)}</td></tr>
+        ${labour ? `<tr><td>Labour (excl. VAT)</td><td class="num">${money(labour)}</td></tr>` : ''}
+        <tr><td>Subtotal (excl. VAT)</td><td class="num">${money(quotation.subtotalAmount ?? 0)}</td></tr>
+        <tr><td>VAT @ ${rate * 100}%</td><td class="num">${money(quotation.vatAmount ?? 0)}</td></tr>
+        <tr class="grand"><td>TOTAL PAYABLE (incl. VAT) AED</td><td class="num">${money(quotation.grandTotal || 0)}</td></tr>
       </table>
       <h2>Approval</h2>
       ${printFieldGrid([
