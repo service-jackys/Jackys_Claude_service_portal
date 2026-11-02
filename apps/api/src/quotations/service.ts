@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import {
   quotationWriteSchema,
   quotationListQuerySchema,
+  computeQuotationTotals,
   type QuotationWriteInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
@@ -25,18 +26,6 @@ export class QuotationServiceError extends Error {
   }
 }
 
-/** Matches the live system's recalcQuotation(): grand total is always the
- *  sum of products + parts + labour, never accepted from the client. */
-function computeGrandTotal(input: QuotationWriteInput): number {
-  const products = input.products ?? [];
-  const parts = input.parts ?? [];
-  const lines = [...products, ...parts].reduce(
-    (sum, line) => sum + (line.qty || 0) * (line.unitPrice || 0),
-    0,
-  );
-  return lines + (input.labourAmount || 0);
-}
-
 function toContent(input: QuotationWriteInput, existing?: QuotationContent): QuotationContent {
   const base: QuotationContent = existing ?? {
     appointmentId: null,
@@ -53,6 +42,9 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     products: [],
     parts: [],
     labourAmount: 0,
+    vatRate: 0.05,
+    subtotalAmount: 0,
+    vatAmount: 0,
     grandTotal: 0,
     preparedBy: null,
     preparedDate: null,
@@ -77,6 +69,9 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     products: input.products ?? base.products,
     parts: input.parts ?? base.parts,
     labourAmount: input.labourAmount ?? base.labourAmount,
+    vatRate: input.vatRate ?? base.vatRate,
+    subtotalAmount: 0,
+    vatAmount: 0,
     grandTotal: 0,
     preparedBy: input.preparedBy ?? base.preparedBy,
     preparedDate: input.preparedDate ?? base.preparedDate,
@@ -86,11 +81,11 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     signatureDate: input.signatureDate ?? base.signatureDate,
     legacyReference: input.legacyReference ?? base.legacyReference,
   };
-  merged.grandTotal = computeGrandTotal({
-    products: merged.products,
-    parts: merged.parts,
-    labourAmount: merged.labourAmount,
-  } as QuotationWriteInput);
+  // The total is always worked out here from the lines, never taken from the client.
+  const totals = computeQuotationTotals(merged);
+  merged.subtotalAmount = totals.subtotal;
+  merged.vatAmount = totals.vat;
+  merged.grandTotal = totals.grandTotal;
   return merged;
 }
 
@@ -142,6 +137,9 @@ export function createQuotationService(pool: Pool) {
         products: current.products,
         parts: current.parts,
         labourAmount: Number(current.labourAmount),
+        vatRate: Number(current.vatRate),
+        subtotalAmount: Number(current.subtotalAmount),
+        vatAmount: Number(current.vatAmount),
         grandTotal: Number(current.grandTotal),
         preparedBy: current.preparedBy,
         preparedDate: current.preparedDate,

@@ -956,20 +956,18 @@ test.describe('quotation and inspection forms', () => {
     await page.getByRole('tab', { name: 'New quotation' }).click();
     await page.locator('#qtcProjectName').fill('GEMS');
     await expect(page.locator('#qtcProjectList option')).toHaveCount(2);
-    await page.locator('#qtcAddProductButton').click();
-    await expect(page.locator('#qtcProductsBody tr')).toHaveCount(1);
-    await expect(page.locator('#qtcProductsBody tr').first()).toBeVisible();
-    await page.locator('#qtcProductsBody [data-field="partNo"]').fill('VG352');
-    await expect(page.locator('#qtcProductsBodyCodes option')).toHaveCount(1);
-    await page.locator('#qtcProductsBody [data-field="partNo"]').fill('VG352CSDX');
-    await expect(page.locator('#qtcProductsBody [data-field="description"]')).toHaveValue(
+    await page.locator('#qtcAddUnitButton').click();
+    await expect(page.locator('#qtcUnits .q-unit')).toHaveCount(1);
+    const unit = page.locator('#qtcUnits .q-unit').first();
+    await unit.locator('[data-ufield="partNo"]').fill('VG352');
+    await expect(page.locator('#qUnitCodes option')).toHaveCount(1);
+    await unit.locator('[data-ufield="partNo"]').fill('VG352CSDX');
+    await expect(unit.locator('[data-ufield="description"]')).toHaveValue(
       'VENUS GAS COOKER 3 BURNER',
     );
-    await expect(page.locator('#qtcProductsBody [data-field="partNo"]')).toHaveClass(
-      /master-filled/,
-    );
-    await page.locator('#qtcAddPartButton').click();
-    await expect(page.locator('#qtcPartsBody tr').first()).toBeVisible();
+    await expect(unit.locator('[data-ufield="partNo"]')).toHaveClass(/master-filled/);
+    await page.locator('#qtcAddGeneralChargeButton').click();
+    await expect(page.locator('#qtcGeneralCharges [data-charge]').first()).toBeVisible();
 
     await page.getByRole('button', { name: 'Inspections', exact: true }).click();
     await page.getByRole('tab', { name: /New inspection/ }).click();

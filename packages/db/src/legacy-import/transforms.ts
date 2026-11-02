@@ -226,3 +226,125 @@ export function partRow(p: Record<string, unknown>): {
     unitPrice: Math.max(0, toNumber(p.unitPrice ?? p.price) ?? 0),
   };
 }
+
+export type QuotationUnitRow = {
+  unitKey: string;
+  partNo: string;
+  description: string;
+  brand: string;
+  serialNo: string;
+  warranty: string;
+  location: string;
+  complaint: string;
+  diagnosis: string;
+  qty: number;
+  unitPrice: number;
+};
+export type QuotationChargeRow = {
+  unitKey: string;
+  type: 'Part' | 'Labour' | 'Service' | 'Other';
+  partNo: string;
+  description: string;
+  qty: number;
+  unitPrice: number;
+};
+
+/** One appliance of an old quotation. The old "Sub Group" box held the complaint and the villa /
+ *  address typed together, so it is kept word for word as the complaint; location is left for
+ *  the user to split. Brand, serial and warranty are kept as typed. */
+export function quotationUnitRow(p: Record<string, unknown>, index: number): QuotationUnitRow {
+  return {
+    unitKey: `u${index + 1}`,
+    partNo: text(p.itemCode ?? p.model ?? p.partNo, 120) ?? '',
+    description: text(p.description ?? p.desc, 300) ?? '',
+    brand: text(p.brand, 120) ?? '',
+    serialNo: text(p.serial, 80) ?? '',
+    warranty: text(p.warranty, 20) ?? '',
+    location: '',
+    complaint: text(p.subGroup, 2000) ?? '',
+    diagnosis: '',
+    qty: 1,
+    unitPrice: 0,
+  };
+}
+
+export function quotationChargeRow(p: Record<string, unknown>): QuotationChargeRow {
+  return {
+    unitKey: '',
+    type: 'Part',
+    partNo: text(p.partNo ?? p.part_no, 120) ?? '',
+    description: text(p.description ?? p.desc, 300) ?? '',
+    qty: Math.max(0, toNumber(p.qty) ?? 0),
+    unitPrice: Math.max(0, toNumber(p.unitPrice ?? p.price) ?? 0),
+  };
+}
+
+const normalise = (v: string) =>
+  v
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, ' ')
+    .trim();
+function longestCommon(a: string, b: string): number {
+  let best = 0;
+  const row = new Array<number>(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i++) {
+    let prev = 0;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = row[j];
+      row[j] = a[i - 1] === b[j - 1] ? prev + 1 : 0;
+      if (row[j] > best) best = row[j];
+      prev = tmp;
+    }
+  }
+  return best;
+}
+
+/** Links each charge line to its unit.
+ *  1. By text: the line repeats the unit's complaint / address / name (12+ characters in common,
+ *     no tie).
+ *  2. By order: the old portal listed units and charges row for row. When the lines still free
+ *     and the units still without a line are the same number, they are paired in order, but only
+ *     if every pair is confirmed by the unit's model code appearing in the line (or there is
+ *     just one of each).
+ *  A line that is still unclear stays on the whole quotation. */
+export function linkChargesToUnits(
+  units: QuotationUnitRow[],
+  charges: QuotationChargeRow[],
+): { unlinked: number; byOrder: number } {
+  for (const charge of charges) {
+    const c = normalise(charge.description);
+    let best = 0;
+    let bestUnit: string | null = null;
+    let tie = false;
+    for (const unit of units) {
+      const score = longestCommon(
+        c,
+        normalise(unit.complaint || unit.location || unit.description),
+      );
+      if (score > best) {
+        best = score;
+        bestUnit = unit.unitKey;
+        tie = false;
+      } else if (score === best && score > 0) tie = true;
+    }
+    if (bestUnit && best >= 12 && !tie) charge.unitKey = bestUnit;
+  }
+  let byOrder = 0;
+  const freeCharges = charges.filter((c) => !c.unitKey);
+  const freeUnits = units.filter((u) => !charges.some((c) => c.unitKey === u.unitKey));
+  if (freeCharges.length > 0 && freeCharges.length === freeUnits.length) {
+    const confirmed =
+      freeUnits.length === 1 ||
+      freeCharges.every((c, i) => {
+        const code = normalise(freeUnits[i].partNo);
+        return code.length >= 3 && normalise(c.description).includes(code);
+      });
+    if (confirmed) {
+      freeCharges.forEach((c, i) => {
+        c.unitKey = freeUnits[i].unitKey;
+      });
+      byOrder = freeCharges.length;
+    }
+  }
+  return { unlinked: charges.filter((c) => !c.unitKey).length, byOrder };
+}
