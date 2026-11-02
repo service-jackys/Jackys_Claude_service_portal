@@ -25,6 +25,9 @@ const legacyQuotation = {
   subtotalAmount: 300,
   vatAmount: 15,
   grandTotal: 315,
+  customerType: 'B2B',
+  b2bBranchSchool: 'GEMS Wellington',
+  quotationStatus: 'Pending',
   updatedAt: '2026-10-14T08:00:00.000Z',
 };
 
@@ -41,7 +44,13 @@ async function mockPortal(page: import('@playwright/test').Page, calls: { create
           name: 'Sales',
           email: 'sales@jackys.com',
           role: 'staff',
-          permissions: ['service_job_card.read', 'quotation.read', 'quotation.write'],
+          permissions: [
+            'service_job_card.read',
+            'quotation.read',
+            'quotation.write',
+            'inspection.read',
+            'inspection.write',
+          ],
         },
       });
     }
@@ -57,6 +66,10 @@ async function mockPortal(page: import('@playwright/test').Page, calls: { create
     }
     if (url.pathname === '/api/quotations/814') return json({ quotation: legacyQuotation });
     if (url.pathname === '/api/quotations/815') return json({ quotation: legacyQuotation });
+    if (url.pathname === '/api/b2b-branches') {
+      return json({ branches: [{ branchName: 'GEMS Wellington', custCode: 'C100' }] });
+    }
+    if (url.pathname === '/api/quotations/814/job-card') return json({ jobCard: null });
     if (url.pathname === '/api/stock/items') {
       return json({
         items: [{ itemCode: 'VG352CSDX', itemDesc: 'VENUS GAS COOKER 3 BURNER', brand: 'VENUS' }],
@@ -83,7 +96,13 @@ test.describe('quotation units, charges and VAT', () => {
     const calls: { create?: Json } = {};
     await mockPortal(page, calls);
     await page.getByRole('tab', { name: 'New quotation' }).click();
-    await page.locator('#qtcCustomerName').fill('GEMS Wellington');
+    await page.locator('#qtcCustomerType').selectOption('B2B');
+    await page.locator('#qtcB2bBranchSchool').fill('GEMS');
+    await expect(page.locator('#qtcBranchList option')).toHaveCount(1);
+    await page.locator('#qtcB2bBranchSchool').fill('GEMS Wellington');
+    await page.locator('#qtcB2bBranchSchool').dispatchEvent('change');
+    await expect(page.locator('#qtcCustomerName')).toHaveValue('GEMS Wellington');
+    await expect(page.locator('#qtcProjectName')).toHaveValue('GEMS Wellington');
 
     // Unit 1: stock lookup fills description and brand, then two charges with labour on its own row.
     await page.locator('#qtcAddUnitButton').click();
@@ -123,6 +142,10 @@ test.describe('quotation units, charges and VAT', () => {
       .locator('#quotationCreatePanel')
       .getByRole('button', { name: 'Save quotation' })
       .click();
+    // The status popup appears on save; Approved is what allows a job card later.
+    await expect(page.locator('.q-status-dialog')).toBeVisible();
+    await page.locator('#qStatusSelect').selectOption('Approved');
+    await page.locator('#qStatusOk').click();
     await expect.poll(() => calls.create).toBeTruthy();
     const body = calls.create as {
       vatRate: number;
@@ -130,6 +153,11 @@ test.describe('quotation units, charges and VAT', () => {
       parts: Array<{ unitKey: string; type: string; unitPrice: number }>;
     };
     expect(body.vatRate).toBe(0.05);
+    expect(body).toMatchObject({
+      customerType: 'B2B',
+      b2bBranchSchool: 'GEMS Wellington',
+      quotationStatus: 'Approved',
+    });
     expect(body.products.map((u) => [u.unitKey, u.location, u.complaint])).toEqual([
       ['u1', 'Villa 12', 'Burner 2 does not light'],
       ['u2', 'Apartment 3', 'No cooling'],
@@ -165,4 +193,68 @@ test.describe('quotation units, charges and VAT', () => {
     await expect(page.locator('#qteLabourAmount')).toHaveValue('100');
     await expect(page.locator('#qteTotals .q-grand')).toContainText('315.00');
   });
+});
+
+test.describe('quotation customer type, status and job card', () => {
+  test('customer type is required before the status popup appears', async ({ page }) => {
+    await mockPortal(page, {});
+    await page.getByRole('tab', { name: 'New quotation' }).click();
+    await page
+      .locator('#quotationCreatePanel')
+      .getByRole('button', { name: 'Save quotation' })
+      .click();
+    await expect(page.locator('#workspaceMessage')).toContainText('Select a customer type');
+    await expect(page.locator('.q-status-dialog')).toHaveCount(0);
+    // A B2C quotation has no branch to look up.
+    await page.locator('#qtcCustomerType').selectOption('B2C');
+    await expect(page.locator('#qtcB2bBranchSchool')).toBeDisabled();
+  });
+
+  test('the list shows type, total and status, and a Pending quote cannot start a job card', async ({
+    page,
+  }) => {
+    await mockPortal(page, {});
+    const row = page.locator('#quotationsBody tr').first();
+    await expect(row).toContainText('B2B');
+    await expect(row).toContainText('315.00');
+    await expect(row).toContainText('Pending');
+    await page.getByRole('button', { name: 'QO-2026-00014' }).click();
+    await expect(page.locator('#createJobCardFromQuotationButton')).toBeHidden();
+    await expect(page.locator('#quotationJobCardStatus')).toContainText('Approved');
+  });
+});
+
+test('inspection form has customer type and B2B lookup, without a status popup', async ({
+  page,
+}) => {
+  let created: Json | undefined;
+  await mockPortal(page, {});
+  await page.route('**/api/inspections', async (route) => {
+    if (route.request().method() === 'POST') {
+      created = route.request().postDataJSON() as Json;
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+      return;
+    }
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({ inspections: [] }),
+    });
+  });
+  await page.getByRole('button', { name: 'Inspections', exact: true }).click();
+  await page.getByRole('tab', { name: /New inspection/ }).click();
+  await expect(page.locator('#iqcCustomerType')).toBeVisible();
+  await expect(page.locator('#iqcB2bBranchSchool')).toBeVisible();
+  await page
+    .locator('#inspectionCreatePanel')
+    .getByRole('button', { name: /Save inspection/ })
+    .click();
+  await expect(page.locator('#workspaceMessage')).toContainText('Select a customer type');
+  await page.locator('#iqcCustomerType').selectOption('B2C');
+  await page
+    .locator('#inspectionCreatePanel')
+    .getByRole('button', { name: /Save inspection/ })
+    .click();
+  await expect.poll(() => created).toBeTruthy();
+  expect(created).toMatchObject({ customerType: 'B2C' });
+  await expect(page.locator('.q-status-dialog')).toHaveCount(0);
 });

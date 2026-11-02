@@ -15,6 +15,9 @@ export type QuotationRecord = {
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
   warrantyStatus: string | null;
+  customerType: string | null;
+  b2bBranchSchool: string | null;
+  quotationStatus: string;
   products: QuotationUnit[];
   parts: QuotationCharge[];
   labourAmount: string;
@@ -52,6 +55,9 @@ export type QuotationContent = {
   customerComplaint: string | null;
   technicalDiagnosis: string | null;
   warrantyStatus: string | null;
+  customerType: string | null;
+  b2bBranchSchool: string | null;
+  quotationStatus: string;
   products: QuotationUnit[];
   parts: QuotationCharge[];
   labourAmount: number;
@@ -82,6 +88,9 @@ const columns = `
   customer_complaint AS "customerComplaint",
   technical_diagnosis AS "technicalDiagnosis",
   warranty_status AS "warrantyStatus",
+  customer_type AS "customerType",
+  b2b_branch_school AS "b2bBranchSchool",
+  quotation_status AS "quotationStatus",
   (SELECT wa.id FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
     ORDER BY wa.created_at DESC, wa.id DESC LIMIT 1) AS "approvalId",
   (SELECT wa.approval_reference FROM warranty_approvals wa WHERE wa.quotation_id = quotations.id
@@ -121,13 +130,14 @@ export async function insertQuotation(
        project_name, site_location, date_of_collection, technician_name, customer_complaint,
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
-       legacy_reference, warranty_status, created_by, updated_by, vat_rate, subtotal_amount, vat_amount
+       legacy_reference, warranty_status, created_by, updated_by, vat_rate, subtotal_amount, vat_amount,
+       customer_type, b2b_branch_school, quotation_status
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $23, $24, $24, $25, $26, $27
+       $22, $23, $24, $24, $25, $26, $27, $28, $29, $30
      )
      RETURNING id`,
     [
@@ -158,6 +168,9 @@ export async function insertQuotation(
       c.vatRate,
       c.subtotalAmount,
       c.vatAmount,
+      c.customerType,
+      c.b2bBranchSchool,
+      c.quotationStatus,
     ],
   );
   const quotation = await findQuotationById(client, result.rows[0].id);
@@ -179,7 +192,8 @@ export async function updateQuotation(
          labour_amount = $14, grand_total = $15, prepared_by = $16, prepared_date = $17,
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
          legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now(),
-         vat_rate = $25, subtotal_amount = $26, vat_amount = $27
+         vat_rate = $25, subtotal_amount = $26, vat_amount = $27,
+         customer_type = $28, b2b_branch_school = $29, quotation_status = $30
      WHERE id = $1
      RETURNING id`,
     [
@@ -210,6 +224,9 @@ export async function updateQuotation(
       content.vatRate,
       content.subtotalAmount,
       content.vatAmount,
+      content.customerType,
+      content.b2bBranchSchool,
+      content.quotationStatus,
     ],
   );
   if (!result.rows[0]) return null;
@@ -238,6 +255,8 @@ export async function listQuotations(
     // modification.md #18. Used by the "create job card from Quotation"
     // picker to exclude quotations already converted.
     unused?: boolean;
+    quotationStatus?: string;
+    customerType?: string;
     page: number;
     pageSize: number;
   },
@@ -254,10 +273,12 @@ export async function listQuotations(
       `NOT EXISTS (SELECT 1 FROM service_job_cards WHERE service_job_cards.quotation_id = quotations.id)`,
     );
   }
+  if (query.quotationStatus) filters.push(`quotation_status = ${add(query.quotationStatus)}`);
+  if (query.customerType) filters.push(`customer_type = ${add(query.customerType)}`);
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(
-      `(quotation_reference ILIKE ${parameter} OR customer_name ILIKE ${parameter} OR contact_number ILIKE ${parameter} OR project_name ILIKE ${parameter})`,
+      `(quotation_reference ILIKE ${parameter} OR customer_name ILIKE ${parameter} OR contact_number ILIKE ${parameter} OR project_name ILIKE ${parameter} OR b2b_branch_school ILIKE ${parameter})`,
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';

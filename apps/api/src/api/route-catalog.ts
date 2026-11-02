@@ -2688,6 +2688,16 @@ export function createRouteCatalog(
             schema: { type: 'string', enum: ['true', 'false'] },
             description: 'true excludes quotations that already have a service job card.',
           },
+          {
+            name: 'quotationStatus',
+            in: 'query',
+            schema: { type: 'string', enum: ['Pending', 'Approved', 'Rejected'] },
+          },
+          {
+            name: 'customerType',
+            in: 'query',
+            schema: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
+          },
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: quotationHandlers.list,
