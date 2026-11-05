@@ -19,7 +19,9 @@ const master = {
   ],
 };
 
-test('a saved appliance can be renamed and the save carries renamedFrom', async ({ page }) => {
+test('Appliance Master is a tab in Admin > Masters; a saved appliance can be renamed', async ({
+  page,
+}) => {
   const saves: unknown[] = [];
   await page.route('**/api/**', async (route) => {
     const request = route.request();
@@ -52,13 +54,14 @@ test('a saved appliance can be renamed and the save carries renamedFrom', async 
   await page.locator('#loginPassword').fill('local-password-1234');
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
-  await page.evaluate(() => (document.querySelector('#pricingMastersNav') as HTMLElement).click());
-  await page.evaluate(() => (document.querySelector('#applianceMasterNav') as HTMLElement).click());
+  // Admin > Masters > Appliances (the tab after Customers).
+  await page.evaluate(() => (document.querySelector('#mastersNav') as HTMLElement).click());
+  await page.getByRole('tab', { name: 'Appliances' }).click();
 
-  const name = page.locator('#applianceMasterWorkspace [data-pc-col="name"]').first();
+  const name = page.locator('#mastersWorkspace [data-pc-col="name"]').first();
   await expect(name).toBeEnabled();
   await name.fill('Built-in Oven');
-  await page.locator('#applianceMasterWorkspace [data-pc-save]').click();
+  await page.locator('#mastersWorkspace [data-pc-save]').click();
   await expect.poll(() => saves.length).toBe(1);
   const sent = saves[0] as { appliances: { name: string; renamedFrom?: string }[] };
   expect(sent.appliances[0]).toMatchObject({ name: 'Built-in Oven', renamedFrom: 'Built-in Ovn' });
