@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 195,
+    "title": "AMC Quote Calculator: Refresh rates without clearing the appliances",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "The calculator reads the Admin AMC rates and the Appliance Master only when the page is opened. With the calculator open in one browser tab and the Admin rates being changed and saved in another, the calculator kept the old rates, and the only way to pick up the new ones was to reload the page and enter the…",
+    "changes": [
+      "A Refresh rates button at the top of the Quote Calculator reloads the Admin AMC rates and the Appliance Master and re-prices the appliances already entered. Quantities, client details and the appliance list stay as they are. Lines that…",
+      "A note beside the button says when the rates were loaded, and whether they were updated or were already up to date.",
+      "When the user switches back to the calculator's browser tab, the rates are also checked quietly (at most every 5 seconds) and updated if they changed.",
+      "The \"+ Add appliance\" list is refreshed too, so a newly added or switched-off appliance shows up.",
+      "Display only; pricing formulas are unchanged and nothing is saved."
+    ],
+    "needsYou": "pull and hard-refresh. No API restart or database change.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/amc-calculator-master.spec.ts."
+  },
+  {
     "id": 193,
     "title": "AMC Quote Calculator plan table: column headers no longer overlap",
     "area": "Pricing & rates",

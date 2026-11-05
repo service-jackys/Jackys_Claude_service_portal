@@ -13384,6 +13384,7 @@ ${bodyHtml}
     return visits;
   }
 
+  let amcCalcVisibilityHandler = null;
   function renderAmcCalc(container, data, master) {
     // Catalog of appliance types from the shared Appliance Master (AMC-ticked,
     // active) -- used only to populate the "+ Add appliance" dropdown
@@ -13393,10 +13394,17 @@ ${bodyHtml}
     // pre-filled from the master catalog any more, matching the Excel
     // workflow where the user builds the schedule one appliance at a time,
     // each starting at qty 0 / unit value 0.
-    const catalog = (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
+    let catalog = (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
     const refValueOf = (name) => Number(catalog.find((a) => a.name === name)?.amcRefValue) || 0;
     const appliances = [];
     let overrideValues = false; // advanced: show and edit the reference value per line
+    function catalogOptionsHtml() {
+      return catalog
+        .map(
+          (a) => '<option value="' + escapeHtml(a.name) + '">' + escapeHtml(a.name) + '</option>',
+        )
+        .join('');
+    }
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
@@ -13410,24 +13418,15 @@ ${bodyHtml}
       '</div>' +
       '<div class="vc-tab-panels">' +
       '<section data-ac-panel="quote">' +
+      '<p class="form-note"><button type="button" class="button button-outline" data-ac-refresh title="Reload the latest Admin rates and Appliance Master values without clearing what you have entered">Refresh rates</button> ' +
+      '<span data-ac-rates-note></span></p>' +
       '<div class="detail-action-card pc-span-full">' +
       '<h4>Appliances for this contract</h4>' +
       (catalog.length
         ? '<div class="field-grid">' +
           calcField(
             'Appliance type',
-            '<select data-ac-add-select>' +
-              catalog
-                .map(
-                  (a) =>
-                    '<option value="' +
-                    escapeHtml(a.name) +
-                    '">' +
-                    escapeHtml(a.name) +
-                    '</option>',
-                )
-                .join('') +
-              '</select>',
+            '<select data-ac-add-select>' + catalogOptionsHtml() + '</select>',
           ) +
           '</div>' +
           '<p><button type="button" class="button button-outline" data-ac-add>+ Add appliance</button> ' +
@@ -13706,6 +13705,71 @@ ${bodyHtml}
     });
     renderAppliancesTable();
     recompute();
+
+    // Reloads the Admin AMC rates and the Appliance Master and re-prices the
+    // appliances already entered, without clearing anything (modification.md
+    // #195). Used by the Refresh rates button and, quietly, when the browser tab
+    // is shown again -- e.g. after rates were saved in another tab.
+    const ratesNote = container.querySelector('[data-ac-rates-note]');
+    let ratesLoadedAt = new Date();
+    let refreshing = false;
+    const clock = (d) => d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    const showRatesNote = (text) => {
+      if (ratesNote) ratesNote.textContent = text;
+    };
+    showRatesNote('Rates loaded at ' + clock(ratesLoadedAt) + '.');
+    async function refreshRates(quiet) {
+      if (refreshing || !container.isConnected) return;
+      refreshing = true;
+      const button = container.querySelector('[data-ac-refresh]');
+      if (button && !quiet) button.disabled = true;
+      try {
+        const fresh = await calcFetchDomains(['amc_pricing', 'appliance_master']);
+        const changed =
+          JSON.stringify(fresh.amc_pricing) !== JSON.stringify(data) ||
+          JSON.stringify(fresh.appliance_master) !== JSON.stringify(master);
+        ratesLoadedAt = new Date();
+        if (!changed) {
+          showRatesNote('Rates are up to date (checked ' + clock(ratesLoadedAt) + ').');
+          return;
+        }
+        data = fresh.amc_pricing;
+        master = fresh.appliance_master;
+        catalog = (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
+        const select = container.querySelector('[data-ac-add-select]');
+        if (select) {
+          const keep = select.value;
+          select.innerHTML = catalogOptionsHtml();
+          if (catalog.some((a) => a.name === keep)) select.value = keep;
+        }
+        appliances.forEach((line) => {
+          if (!line.ref) return; // a value typed by hand stays as typed
+          const fresher = refValueOf(line.name);
+          if (fresher > 0) line.price = fresher;
+        });
+        renderAppliancesTable();
+        recompute();
+        showRatesNote(
+          'Rates updated at ' + clock(ratesLoadedAt) + ' — prices below use the latest values.',
+        );
+      } catch (error) {
+        showRatesNote('Could not refresh rates: ' + (error.message || 'unknown error'));
+      } finally {
+        refreshing = false;
+        if (button) button.disabled = false;
+      }
+    }
+    container
+      .querySelector('[data-ac-refresh]')
+      ?.addEventListener('click', () => refreshRates(false));
+    if (amcCalcVisibilityHandler)
+      document.removeEventListener('visibilitychange', amcCalcVisibilityHandler);
+    amcCalcVisibilityHandler = () => {
+      if (document.visibilityState === 'visible' && Date.now() - ratesLoadedAt.getTime() > 5000)
+        refreshRates(true);
+    };
+    document.addEventListener('visibilitychange', amcCalcVisibilityHandler);
+
     const saleControl = renderAmcContractSection(
       saleHost,
       appliances,
