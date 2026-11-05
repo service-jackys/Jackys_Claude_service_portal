@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import {
   vasPriceBandsDefault,
   vasPricingParamsDefault,
-} from '../../packages/db/src/pricing-config-defaults';
+} from '../../packages/db/src/pricing-config-defaults.js';
 
 const thomson = {
   techCount: 2,
