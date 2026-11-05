@@ -42,6 +42,8 @@ export type AmcContractRecord = {
   plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
+  revision: number;
+  revisionNote: string | null;
   status: 'Quote' | 'Sold' | 'Lost';
   soldPlanKey: string | null;
   soldPlanLabel: string | null;
@@ -84,6 +86,8 @@ const columns = `
   plans,
   commencement_date::text AS "commencementDate",
   contract_ref AS "contractRef",
+  revision,
+  revision_note AS "revisionNote",
   status,
   sold_plan_key AS "soldPlanKey",
   sold_plan_label AS "soldPlanLabel",
@@ -242,4 +246,110 @@ export async function changeAmcContractStatus(
     );
   }
   return findAmcContractById(client, id);
+}
+
+export type AmcContractRevision = {
+  id: string;
+  revision: number;
+  revisionNote: string | null;
+  savedAt: Date;
+  savedBy: string | null;
+  savedByName: string | null;
+  supersededAt: Date;
+  supersededByName: string | null;
+  snapshot: AmcContractContent & { status: string };
+};
+
+// Replaces the live content of an AMC record with a new version and moves the
+// version it replaces into amc_contract_revisions. Returns null when the record
+// does not exist and 'sold' when it is Sold (a Sold record's value feeds revenue,
+// so it must be reopened to Quote first).
+export async function reviseAmcContract(
+  client: PoolClient,
+  id: string,
+  input: { content: AmcContractContent; revisionNote: string | null; profileId: string },
+): Promise<{ before: AmcContractRecord; after: AmcContractRecord } | 'sold' | null> {
+  const lock = await client.query(`SELECT id FROM amc_contracts WHERE id = $1 FOR UPDATE`, [id]);
+  if (!lock.rows.length) return null;
+  const before = await findAmcContractById(client, id);
+  if (!before) return null;
+  if (before.status === 'Sold') return 'sold';
+  const snapshot = {
+    contractDate: before.contractDate,
+    contractPeriod: before.contractPeriod,
+    clientName: before.clientName,
+    attentionTo: before.attentionTo,
+    siteLocation: before.siteLocation,
+    appliances: before.appliances,
+    totalCount: Number(before.totalCount),
+    totalValue: Number(before.totalValue),
+    plans: before.plans,
+    commencementDate: before.commencementDate,
+    contractRef: before.contractRef,
+    status: before.status,
+  };
+  await client.query(
+    `INSERT INTO amc_contract_revisions (
+       amc_contract_id, revision, snapshot, revision_note,
+       saved_at, saved_by, superseded_by
+     ) VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)`,
+    [
+      id,
+      before.revision,
+      JSON.stringify(snapshot),
+      before.revisionNote,
+      before.updatedAt,
+      before.updatedBy,
+      input.profileId,
+    ],
+  );
+  const c = input.content;
+  await client.query(
+    `UPDATE amc_contracts
+     SET contract_period = $2, client_name = $3, attention_to = $4, site_location = $5,
+         appliances = $6::jsonb, total_count = $7, total_value = $8, plans = $9::jsonb,
+         commencement_date = $10, contract_ref = $11,
+         revision = revision + 1, revision_note = $12,
+         updated_at = now(), updated_by = $13
+     WHERE id = $1`,
+    [
+      id,
+      c.contractPeriod,
+      c.clientName,
+      c.attentionTo,
+      c.siteLocation,
+      JSON.stringify(c.appliances),
+      c.totalCount,
+      c.totalValue,
+      JSON.stringify(c.plans),
+      c.commencementDate,
+      c.contractRef,
+      input.revisionNote,
+      input.profileId,
+    ],
+  );
+  const after = await findAmcContractById(client, id);
+  if (!after) throw new Error('The revised AMC contract could not be loaded.');
+  return { before, after };
+}
+
+export async function listAmcContractRevisions(
+  client: PoolClient,
+  id: string,
+): Promise<AmcContractRevision[]> {
+  const result = await client.query<AmcContractRevision>(
+    `SELECT r.id, r.revision, r.revision_note AS "revisionNote",
+            r.saved_at AS "savedAt", r.saved_by AS "savedBy",
+            sp.display_name AS "savedByName",
+            r.superseded_at AS "supersededAt",
+            up.display_name AS "supersededByName",
+            r.snapshot
+     FROM amc_contract_revisions r
+     LEFT JOIN profiles sp ON sp.id = r.saved_by
+     LEFT JOIN profiles up ON up.id = r.superseded_by
+     WHERE r.amc_contract_id = $1
+     ORDER BY r.revision DESC`,
+    [id],
+  );
+  return result.rows;
 }

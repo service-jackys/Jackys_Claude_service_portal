@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
+  amcContractReviseSchema,
   amcContractWriteSchema,
   amcContractListQuerySchema,
   amcContractStatusSchema,
@@ -10,7 +11,9 @@ import {
   changeAmcContractStatus,
   findAmcContractById,
   insertAmcContract,
+  listAmcContractRevisions,
   listAmcContracts,
+  reviseAmcContract,
   type AmcContractContent,
 } from '../../../../packages/db/src/amc-contracts.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
@@ -19,7 +22,7 @@ import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class AmcContractServiceError extends Error {
   constructor(
-    public readonly code: 'not-found' | 'no-plan',
+    public readonly code: 'not-found' | 'no-plan' | 'sold-locked',
     message: string,
   ) {
     super(message);
@@ -158,7 +161,64 @@ export function createAmcContractService(pool: Pool) {
     });
   }
 
-  return { create, list, detail, setStatus };
+  async function revise(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = amcContractReviseSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const existing = await findAmcContractById(client, id);
+      const content = toContent(data);
+      // The contract date is fixed when the quote is first issued.
+      content.contractDate = existing?.contractDate ?? content.contractDate;
+      const result = await reviseAmcContract(client, id, {
+        content,
+        revisionNote: data.revisionNote ?? null,
+        profileId,
+      });
+      if (result === null)
+        throw new AmcContractServiceError('not-found', 'The AMC contract was not found.');
+      if (result === 'sold')
+        throw new AmcContractServiceError(
+          'sold-locked',
+          'A Sold AMC record cannot be edited. Reopen it to Quote first.',
+        );
+      const priceOf = (plans: { planKey: string; priceInclVat: number }[]) =>
+        Object.fromEntries(plans.map((plan) => [plan.planKey, plan.priceInclVat]));
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'amc_contract.revised',
+        targetType: 'amc_contract',
+        targetId: result.after.id,
+        metadata: {
+          amcContractReference: result.after.amcContractReference,
+          fromRevision: result.before.revision,
+          toRevision: result.after.revision,
+          revisionNote: data.revisionNote ?? null,
+          priceInclVatBefore: priceOf(result.before.plans),
+          priceInclVatAfter: priceOf(result.after.plans),
+        },
+        requestId,
+      });
+      return result.after;
+    });
+  }
+
+  async function revisions(id: string) {
+    const client = await pool.connect();
+    try {
+      const current = await findAmcContractById(client, id);
+      if (!current)
+        throw new AmcContractServiceError('not-found', 'The AMC contract was not found.');
+      return listAmcContractRevisions(client, id);
+    } finally {
+      client.release();
+    }
+  }
+
+  return { create, list, detail, setStatus, revise, revisions };
 }
 
 export type AmcContractService = ReturnType<typeof createAmcContractService>;

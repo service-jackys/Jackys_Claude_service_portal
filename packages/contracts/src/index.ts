@@ -816,6 +816,13 @@ export const amcContractWriteSchema = z
   })
   .strict();
 export type AmcContractWriteInput = z.infer<typeof amcContractWriteSchema>;
+
+// Admin re-save of an issued AMC quote: same content as a new quote plus an
+// optional reason (e.g. "management price reduction") kept with the revision.
+export const amcContractReviseSchema = amcContractWriteSchema.extend({
+  revisionNote: optionalText(300),
+});
+export type AmcContractReviseInput = z.infer<typeof amcContractReviseSchema>;
 export type AmcContractPlanComputation = z.infer<typeof amcContractPlanComputationSchema>;
 
 export const amcContractStatuses = ['Quote', 'Sold', 'Lost'] as const;

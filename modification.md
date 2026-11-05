@@ -4239,3 +4239,25 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html}, tests/e2e/appliance-master-rename.spec.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No database change.
+
+## Modification #194 — Admin can reopen, re-price and re-save an issued AMC quote, with full history
+
+**Date:** 2026-11-05
+
+**Why.** When management asks for a lower price, the admin changes the AMC rates in the Admin section. The quotes already issued kept their old numbers. Admin needed to pull an issued quote back, have it show the new prices, save it again, and still be able to see what was saved before.
+
+**What changed.**
+
+- New permission **amc_contract.revise**, given to the Admin role only (other roles can be given it from Roles).
+- **AMC Issued** tab: admin sees **Edit** (Quote and Lost records) and **History** (all records) beside each quote. Sold records have no Edit; reopen them to Quote first so the sold value used by revenue is never changed silently.
+- **Edit** opens the quote in the Quote Calculator with the client and site details and the appliances filled in. Lines that use the internal reference value are re-priced from the current Appliance Master, and the three plan prices are recalculated from the current Admin rates. A banner shows the previous prices for comparison and a "Reason for this change" field is offered.
+- **Save revision** keeps the same AMC reference (revision counter Rev 2, Rev 3…). The version being replaced is stored, with who saved it and when, in a new history table. The list shows a "Rev n" tag on edited quotes.
+- **History** lists every earlier version with date, saved-by, reason, appliance count and the three plan prices, and each version can be printed (the certificate is marked "Rev n — superseded").
+- Every revision writes an audit event with the plan prices before and after.
+- API: `PUT /api/amc-contracts/{id}` (revise; 409 when Sold) and `GET /api/amc-contracts/{id}/revisions`, both needing amc_contract.revise.
+
+**Database.** Migration 072 (new table amc_contract_revisions, columns revision and revision_note on amc_contracts, the permission and its Admin grant).
+
+**Files.** packages/db/migrations/072_amc_contract_revisions.sql, packages/db/src/amc-contracts.ts, packages/contracts/src/index.ts, apps/api/src/amc-contracts/*, apps/api/src/api/{route-catalog,openapi}.ts, apps/web/src/app.js, tests/integration/amc-revise.test.ts, tests/e2e/amc-revise.spec.ts.
+
+**Needs you:** merge, `git pull`, `npm.cmd run db:migrate`, restart the API, hard-refresh. Log out and in once so the new permission reaches your session.
