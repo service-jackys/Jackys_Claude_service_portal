@@ -807,7 +807,6 @@
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
-    $('#applianceMasterNav').hidden = !canReadPricingConfig;
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
@@ -834,7 +833,11 @@
     $('#activityLogNav').hidden = !hasPermission('audit.read');
     $('#rolesNav').hidden = !hasPermission('admin.users');
     $('#changelogNav').hidden = !hasPermission('admin.users');
-    $('#mastersNav').hidden = !(hasPermission('stock.write') || hasPermission('b2b_master.write'));
+    $('#mastersNav').hidden = !(
+      hasPermission('stock.write') ||
+      hasPermission('b2b_master.write') ||
+      hasPermission('pricing_config.read')
+    );
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = !hasPermission('appointments.read');
@@ -11147,13 +11150,6 @@ ${bodyHtml}
       description: 'Admin entry for the AMC rate configuration.',
       domains: ['amc_pricing'],
     },
-    'appliance-master': {
-      navId: 'applianceMasterNav',
-      workspaceId: 'applianceMasterWorkspace',
-      heading: 'Appliance Master',
-      description: 'One appliance list shared by the AMC and Thomson calculators.',
-      domains: ['appliance_master'],
-    },
     'thomson-admin': {
       navId: 'thomsonAdminNav',
       workspaceId: 'thomsonAdminWorkspace',
@@ -11403,7 +11399,6 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
-  $('#applianceMasterNav')?.addEventListener('click', () => setWorkspaceMode('appliance-master'));
 
   // ---------------------------------------------------------------------
   // Quote calculators (Modification #32) -- stand-alone pricing tools that
@@ -12538,6 +12533,7 @@ ${bodyHtml}
     const tabs = [];
     if (hasPermission('stock.write')) tabs.push(['stock', 'Stock master']);
     if (hasPermission('b2b_master.write')) tabs.push(['customers', 'Customers']);
+    if (hasPermission('pricing_config.read')) tabs.push(['appliances', 'Appliances']);
     if (!tabs.some(([key]) => key === mastersTab)) mastersTab = tabs[0][0];
     root.innerHTML =
       '<div class="ws-tabs" role="tablist" aria-label="Masters">' +
@@ -12564,7 +12560,24 @@ ${bodyHtml}
       }),
     );
     if (mastersTab === 'customers') await renderCustomerMasterPage(body);
+    else if (mastersTab === 'appliances') await renderApplianceMasterTab(body);
     else await renderStockMasterPage(body);
+  }
+
+  // Appliance Master tab (Admin > Masters): the shared AMC + Thomson appliance
+  // list. Its editing card is a pricing-config card kept as a template in
+  // index.html and cloned fresh each time the tab opens.
+  async function renderApplianceMasterTab(root) {
+    const template = document.getElementById('applianceMasterTemplate');
+    if (!template) {
+      root.innerHTML = '<p class="form-note pg-error">The Appliance Master is not available.</p>';
+      return;
+    }
+    root.innerHTML = '';
+    root.appendChild(template.content.cloneNode(true));
+    pricingCardsWired.delete('appliance_master');
+    pcWireCard('appliance_master');
+    await pcLoadCard('appliance_master');
   }
 
   function b2bReport(upload) {
@@ -15421,8 +15434,8 @@ ${bodyHtml}
       workspaceId: 'mastersWorkspace',
       heading: 'Masters',
       description:
-        'Upload and check the master lists the forms read: stock items and B2B customers.',
-      permission: ['stock.write', 'b2b_master.write'],
+        'Upload and check the master lists the forms read: stock items, B2B customers and appliances.',
+      permission: ['stock.write', 'b2b_master.write', 'pricing_config.read'],
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderMastersPage(root),
@@ -24341,7 +24354,6 @@ ${bodyHtml}
         ['dandi-admin', 'D+I Admin Entry'],
         ['amc-admin', 'AMC Admin Rates'],
         ['thomson-admin', 'Thomson Pricing Admin'],
-        ['appliance-master', 'Appliance Master'],
       ],
     },
   };

@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 192,
+    "title": "Appliance Master moved to Admin > Masters",
+    "area": "Permissions",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Appliance Master is a master list like Stock master and Customers, so it belongs under Admin > Masters rather than Pricing Masters.",
+    "changes": [
+      "Admin > Masters now has a third tab, Appliances, after Stock master and Customers. It is the same Appliance Master (AMC and Thomson ticks, AMC reference value, Active, rename of saved names).",
+      "The Appliance Master tab is removed from Pricing Masters.",
+      "The Masters page and its sidebar entry now also show for anyone with the pricing configuration permission, so the Appliances tab appears for those users (they see only the tabs they are allowed to use)."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No database change.",
+    "migrations": [],
+    "files": "apps/web/src/{app.js,index.html}, tests/e2e/appliance-master-rename.spec.ts."
+  },
+  {
     "id": 191,
     "title": "Rename an appliance in the Appliance Master",
     "area": "Stock & masters",

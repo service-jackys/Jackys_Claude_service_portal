@@ -4223,3 +4223,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/contracts/src/index.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/integration/appliance-master.test.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No database change.
+
+## Modification #192 — Appliance Master moved to Admin > Masters
+
+**Date:** 2026-11-05
+
+**Why.** The Appliance Master is a master list like Stock master and Customers, so it belongs under Admin > Masters rather than Pricing Masters.
+
+**What changed.**
+
+- Admin > Masters now has a third tab, **Appliances**, after Stock master and Customers. It is the same Appliance Master (AMC and Thomson ticks, AMC reference value, Active, rename of saved names).
+- The Appliance Master tab is removed from Pricing Masters.
+- The Masters page and its sidebar entry now also show for anyone with the pricing configuration permission, so the Appliances tab appears for those users (they see only the tabs they are allowed to use).
+
+**Files.** apps/web/src/{app.js,index.html}, tests/e2e/appliance-master-rename.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No database change.
