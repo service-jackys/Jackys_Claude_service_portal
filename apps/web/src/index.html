@@ -12273,6 +12273,18 @@
                     <button
                       class="dashboard-link nav-child"
                       type="button"
+                      id="applianceMasterNav"
+                      hidden
+                      aria-label="Appliance Master"
+                      title="Appliance Master"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-briefcase"></use></svg>
+                      <span class="nav-label">Appliance Master</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
                       id="revenueDashNav"
                       hidden
                       aria-label="Service Revenue Dashboard"
@@ -14692,6 +14704,70 @@
                       ><span class="tooltip-bubble" role="tooltip"
                         >Region round-trip costs, per-appliance Base rates (the 50+/150+/300+/500+
                         tiers are always derived from Base) and add-on pricing.</span
+                      ></span
+                    >
+                  </h4>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to Excel default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="applianceMasterWorkspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >The one appliance list used by the AMC and Thomson calculators. Values load from the Excel workbook by
+                      default; save your own values here, or revert to the Excel default at any
+                      time. Every change is logged and can be restored later.</span
+                    ></span
+                  >
+                </div>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="appliance_master"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>
+                    Appliance Master<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >One list of appliances for the AMC and Thomson calculators. Tick where
+                        each is offered, and enter the AMC reference value (an internal
+                        replacement price, never asked from the customer). New Thomson appliances
+                        arrive in Thomson Pricing Admin switched off with zero rates.</span
                       ></span
                     >
                   </h4>

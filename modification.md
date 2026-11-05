@@ -4179,6 +4179,7 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Why.** Lists could not be re-ordered (for example Created quotations by date), and Budget vs Actual gave no hint that a month had quotations still waiting to be invoiced.
 
 **What changed.**
+
 - Every data table in the portal can be sorted by clicking a column heading (click again to reverse; an arrow shows the direction). Dates (2026-09-29, 29 Sep 2026, 29/09/2026, with or without time), numbers (1,234.50, AED 12, 5%) and text each sort correctly; references like QO-2026-00002 sort naturally; empty cells go last. Tables with input fields or expandable detail rows are left alone.
 - Sorting re-orders the rows shown on screen. Lists that load in pages sort the current page only.
 - Budget vs Actual chart: each month that has LPO pending shows a light amber dashed segment stacked on top of that month's Actual bar, with the value; the tooltip says how many quotations and "Not invoiced yet. Not included in Actual." It is information only: the Actual bar, the variance and the tables are unchanged.
@@ -4187,3 +4188,22 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, index.html, apps/api/src/revenue-dashboard/{service,routes}.ts, apps/api/src/api/route-catalog.ts, packages/db/src/quotations.ts, tests/e2e/sort-and-lpo-chart.spec.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No database change.
+
+## Modification #190 — Shared Appliance Master; AMC quotes need no unit value
+
+**Date:** 2026-11-05
+
+**Why.** Thomson Pricing Admin listed 12 appliances but the AMC Quote Calculator only 8, because each kept its own list. And the AMC calculator asked for a unit value per appliance, which customers never give: they give only the appliance and the quantity.
+
+**What changed.**
+
+- New **Appliance Master** tab (Pricing Masters). One list of appliances used by both AMC and Thomson. Each row has AMC and Thomson tick boxes, an **AMC reference value** (an internal replacement price) and Active. A saved name is locked, because both calculators find the appliance by name: retire it with Active instead.
+- First open: built from what is already saved. All 12 appliances, with the 8 AMC reference values taken from the existing AMC unit prices. The four AMC never listed (Built-in Refrigerator, Combination Oven + Hob, Built-in Cooker Gas/Ceramic, Built-in Microwave Oven) start at 0: enter their values.
+- **AMC Quote Calculator:** the appliance drop-down lists every active, AMC-ticked master appliance. The user enters only appliance and quantity; the reference value is used behind the scenes, so the plan prices work exactly as before. An appliance with no reference value shows a "Set value" tag. An "Override reference values (advanced)" tick shows and edits the value for one-off contracts.
+- Printed AMC certificate leaves out unit price and equipment value when the value came from the master. Contracts saved with customer-given values still print them.
+- **Thomson:** calculations unchanged. A new Thomson appliance added in the master appears in Thomson Pricing Admin **switched off with zero rates**, so nothing is quoted at 0 AED until you set its rates and tick it Active. Retiring an appliance in the master switches it off in Thomson.
+- AMC Admin no longer has its own Appliance Catalog (a note points to the master). The old saved list is kept but unused.
+
+**Files.** packages/db/migrations/071_appliance_master.sql, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/src/amc-contracts.ts, apps/api/src/pricing-config/{service,routes}.ts, apps/web/src/{app.js,index.html}, tests/integration/appliance-master.test.ts, tests/e2e/amc-calculator-master.spec.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Open Appliance Master, enter the AMC reference value for the four new appliances, Save. Then set rates for any new Thomson appliance.

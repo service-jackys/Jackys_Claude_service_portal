@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 190,
+    "title": "Shared Appliance Master; AMC quotes need no unit value",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "Thomson Pricing Admin listed 12 appliances but the AMC Quote Calculator only 8, because each kept its own list. And the AMC calculator asked for a unit value per appliance, which customers never give: they give only the appliance and the quantity.",
+    "changes": [
+      "New Appliance Master tab (Pricing Masters). One list of appliances used by both AMC and Thomson. Each row has AMC and Thomson tick boxes, an AMC reference value (an internal replacement price) and Active. A saved name is locked, because…",
+      "First open: built from what is already saved. All 12 appliances, with the 8 AMC reference values taken from the existing AMC unit prices. The four AMC never listed (Built-in Refrigerator, Combination Oven + Hob, Built-in Cooker…",
+      "AMC Quote Calculator: the appliance drop-down lists every active, AMC-ticked master appliance. The user enters only appliance and quantity; the reference value is used behind the scenes, so the plan prices work exactly as before. An…",
+      "Printed AMC certificate leaves out unit price and equipment value when the value came from the master. Contracts saved with customer-given values still print them.",
+      "Thomson: calculations unchanged. A new Thomson appliance added in the master appears in Thomson Pricing Admin switched off with zero rates, so nothing is quoted at 0 AED until you set its rates and tick it Active. Retiring an appliance in…",
+      "AMC Admin no longer has its own Appliance Catalog (a note points to the master). The old saved list is kept but unused."
+    ],
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. Open Appliance Master, enter the AMC reference value for the four new appliances, Save. Then set rates for any new Thomson appliance.",
+    "migrations": [
+      "071_appliance_master.sql"
+    ],
+    "files": "packages/db/migrations/071_appliance_master.sql, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/src/amc-contracts.ts…"
+  },
+  {
     "id": 189,
     "title": "Click-to-sort on every table; LPO pending shown on Budget vs Actual",
     "area": "Revenue",

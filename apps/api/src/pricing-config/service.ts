@@ -1,8 +1,10 @@
 import { randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import {
   dandiFlatRateDefaults,
   pricingConfigSchemaFor,
+  thomsonPricingSchema,
+  type ApplianceMasterInput,
   type PricingConfigDomain,
 } from '../../../../packages/contracts/src/index.js';
 import {
@@ -11,7 +13,10 @@ import {
   listPricingConfigHistory,
   upsertPricingConfig,
 } from '../../../../packages/db/src/pricing-configs.js';
-import { pricingConfigDefaults } from '../../../../packages/db/src/pricing-config-defaults.js';
+import {
+  buildApplianceMaster,
+  pricingConfigDefaults,
+} from '../../../../packages/db/src/pricing-config-defaults.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
@@ -48,11 +53,78 @@ function withDandiFlatRates(domain: PricingConfigDomain, payload: unknown): unkn
   return record.flatRates ? payload : { ...record, flatRates: { ...dandiFlatRateDefaults } };
 }
 
+// Keeps the Thomson appliance list in step with the shared Appliance Master:
+// a master appliance ticked for Thomson that Thomson does not list yet is
+// added with ZERO rates and switched off (so nothing can be quoted at 0 AED
+// until the admin sets its rates and ticks it Active in Thomson Pricing
+// Admin); an appliance the master retires or un-ticks is switched off in
+// Thomson. Existing rates, tiers and times are never touched.
+async function syncThomsonWithMaster(
+  client: PoolClient,
+  master: ApplianceMasterInput,
+  profileId: string,
+  requestId: string,
+) {
+  const row = await getPricingConfig(client, 'thomson_pricing');
+  const current = thomsonPricingSchema.parse(row?.payload ?? pricingConfigDefaults.thomson_pricing);
+  let changed = false;
+  const appliances = current.appliances.map((a) => ({ ...a }));
+  for (const item of master.appliances) {
+    const key = item.name.trim().toLowerCase();
+    const wanted = item.thomsonEnabled && item.active;
+    const existing = appliances.find((a) => a.name.trim().toLowerCase() === key);
+    if (!existing && item.thomsonEnabled) {
+      appliances.push({
+        name: item.name,
+        rates: { Base: 0, '50+': 0, '150+': 0, '300+': 0, '500+': 0 },
+        avgMin: 30,
+        active: false,
+      });
+      changed = true;
+    } else if (existing && !wanted && existing.active !== false) {
+      existing.active = false;
+      changed = true;
+    }
+  }
+  if (!changed) return;
+  const payload = { ...current, appliances };
+  const saved = await upsertPricingConfig(client, 'thomson_pricing', payload, true, profileId);
+  await insertAuditEvent(client, {
+    actorProfileId: profileId,
+    action: 'pricing_config.saved',
+    targetType: 'pricing_config',
+    targetId: saved.id,
+    metadata: { domain: 'thomson_pricing', payload, syncedFrom: 'appliance_master' },
+    requestId,
+  });
+}
+
 export function createPricingConfigService(pool: Pool) {
   async function get(domain: PricingConfigDomain): Promise<PricingConfigView> {
     const client = await pool.connect();
     try {
       const row = await getPricingConfig(client, domain);
+      if (!row && domain === 'appliance_master') {
+        // First read of the shared Appliance Master: build it from whatever
+        // the AMC and Thomson configurations hold right now (saved override or
+        // Excel default), so no appliance or AMC price is lost.
+        const amc = await getPricingConfig(client, 'amc_pricing');
+        const thomson = await getPricingConfig(client, 'thomson_pricing');
+        return {
+          domain,
+          payload: buildApplianceMaster(
+            (amc?.payload ?? pricingConfigDefaults.amc_pricing) as Parameters<
+              typeof buildApplianceMaster
+            >[0],
+            (thomson?.payload ?? pricingConfigDefaults.thomson_pricing) as Parameters<
+              typeof buildApplianceMaster
+            >[1],
+          ),
+          isOverride: false,
+          updatedBy: null,
+          updatedAt: null,
+        };
+      }
       if (row) {
         return {
           domain,
@@ -95,6 +167,9 @@ export function createPricingConfigService(pool: Pool) {
         metadata: { domain, payload },
         requestId,
       });
+      if (domain === 'appliance_master') {
+        await syncThomsonWithMaster(client, payload as ApplianceMasterInput, profileId, requestId);
+      }
       return {
         domain,
         payload: row.payload,
