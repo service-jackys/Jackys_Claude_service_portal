@@ -13472,7 +13472,7 @@ ${bodyHtml}
         panel.hidden = panel.dataset.acPanel !== target;
       });
       if (target === 'issued') {
-        loadAmcIssuedList(issuedHost);
+        loadAmcIssuedList(issuedHost, beginEdit);
       }
     });
 
@@ -13706,7 +13706,7 @@ ${bodyHtml}
     });
     renderAppliancesTable();
     recompute();
-    renderAmcContractSection(
+    const saleControl = renderAmcContractSection(
       saleHost,
       appliances,
       () => lastRows,
@@ -13714,22 +13714,62 @@ ${bodyHtml}
       () => {
         // Keep the AMC Issued list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-ac-panel="issued"]');
-        if (issuedPanel && !issuedPanel.hidden) loadAmcIssuedList(issuedHost);
+        if (issuedPanel && !issuedPanel.hidden) loadAmcIssuedList(issuedHost, beginEdit);
       },
     );
+
+    // Admin: reopen an issued AMC quote in the calculator (modification.md
+    // #194). Lines that used the internal reference value are re-priced from
+    // the CURRENT Appliance Master, and the plan prices are recomputed from the
+    // CURRENT Admin rates (the calculator page reads them fresh each time it is
+    // opened), so a price change made in Admin shows up here; saving stores it
+    // as a new revision of the same AMC reference.
+    async function beginEdit(id) {
+      if (!saleControl || !hasPermission('amc_contract.revise')) return;
+      try {
+        const detail = await apiRequest('/api/amc-contracts/' + id);
+        const contract = detail.amcContract;
+        appliances.length = 0;
+        let manualValues = false;
+        (contract.appliances || []).forEach((line) => {
+          const fresh = line.ref ? refValueOf(line.name) : 0;
+          if (!line.ref) manualValues = true;
+          appliances.push({
+            name: line.name,
+            qty: Number(line.qty) || 0,
+            price: line.ref && fresh > 0 ? fresh : Number(line.price) || 0,
+            ref: !!line.ref,
+          });
+        });
+        overrideValues = manualValues;
+        const overrideBox = container.querySelector('[data-ac-override]');
+        if (overrideBox) overrideBox.checked = manualValues;
+        renderAppliancesTable();
+        recompute();
+        container.querySelector('[data-ac-tab="quote"]')?.click();
+        saleControl.startEdit(contract);
+        saleHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        setMessage(
+          '#workspaceMessage',
+          'Could not open this AMC quote for editing: ' + (error.message || 'unknown error'),
+        );
+      }
+    }
   }
 
   // Lists every saved amc_contracts record (modification.md #38/#39) so a
   // previously issued AMC contract can be found again and a chosen plan's
   // certificate reprinted. Each saved record carries all 3 computed plans
   // -- the plan to print is picked per row, per print, from a dropdown.
-  async function loadAmcIssuedList(host) {
+  async function loadAmcIssuedList(host, onEdit) {
     if (!hasPermission('amc_contract.read')) {
       host.innerHTML =
         '<p class="form-note">You don\'t have permission to view issued AMC contracts.</p>';
       return;
     }
     const canChangeStatus = hasPermission('amc_contract.write');
+    const canRevise = hasPermission('amc_contract.revise');
     host.innerHTML = '<p class="form-note">Loading issued AMC contracts&hellip;</p>';
     try {
       const response = await apiRequest('/api/amc-contracts?pageSize=100');
@@ -13753,6 +13793,11 @@ ${bodyHtml}
               '<tr>' +
               '<td>' +
               escapeHtml(c.amcContractReference) +
+              (c.revision > 1
+                ? ' <span class="status-chip" title="This quote has been edited and saved again. Earlier versions are kept under History.">Rev ' +
+                  escapeHtml(String(c.revision)) +
+                  '</span>'
+                : '') +
               '</td><td>' +
               escapeHtml(formatDate(c.createdAt)) +
               '</td><td>' +
@@ -13798,6 +13843,16 @@ ${bodyHtml}
               '<button type="button" class="button button-outline" data-ac-reprint="' +
               escapeHtml(c.id) +
               '">Print</button>' +
+              (canRevise
+                ? (c.status === 'Sold'
+                    ? ''
+                    : ' <button type="button" class="button button-outline" data-ac-edit="' +
+                      escapeHtml(c.id) +
+                      '" title="Reopen in the calculator with the current Admin prices">Edit</button>') +
+                  ' <button type="button" class="button button-outline" data-ac-history="' +
+                  escapeHtml(c.id) +
+                  '">History</button>'
+                : '') +
               (canChangeStatus
                 ? c.status === 'Quote' || !c.status
                   ? ' <input type="date" data-ac-sold-date="' +
@@ -13817,7 +13872,107 @@ ${bodyHtml}
             );
           })
           .join('') +
-        '</tbody></table></div>';
+        '</tbody></table></div><div data-ac-history-panel></div>';
+      host.querySelectorAll('[data-ac-edit]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (onEdit) onEdit(button.getAttribute('data-ac-edit'));
+        });
+      });
+      host.querySelectorAll('[data-ac-history]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-ac-history');
+          const contract = contracts.find((c) => String(c.id) === String(id));
+          const panel = host.querySelector('[data-ac-history-panel]');
+          if (!contract || !panel) return;
+          panel.innerHTML = '<p class="form-note">Loading history&hellip;</p>';
+          try {
+            const response = await apiRequest('/api/amc-contracts/' + id + '/revisions');
+            const versions = [
+              {
+                revision: contract.revision,
+                current: true,
+                note: contract.revisionNote,
+                savedAt: contract.updatedAt,
+                savedBy: null,
+                content: contract,
+              },
+            ].concat(
+              (response.revisions || []).map((r) => ({
+                revision: r.revision,
+                current: false,
+                note: r.revisionNote,
+                savedAt: r.savedAt,
+                savedBy: r.savedByName,
+                content: Object.assign({}, contract, r.snapshot, {
+                  amcContractReference:
+                    contract.amcContractReference + ' (Rev ' + r.revision + ' — superseded)',
+                }),
+              })),
+            );
+            const priceCells = (plans) =>
+              (plans || [])
+                .map((p) => escapeHtml(p.planLabel) + ': ' + money(p.priceInclVat))
+                .join('<br>');
+            panel.innerHTML =
+              '<h4>History of ' +
+              escapeHtml(contract.amcContractReference) +
+              ' <button type="button" class="button button-outline" data-ac-history-close>Close</button></h4>' +
+              '<p class="form-note">Prices are AED incl. VAT. Every saved version is kept; the current one is on top.</p>' +
+              '<div class="table-wrap"><table><thead><tr><th>Revision</th><th>Saved</th><th>Saved by</th><th>Reason</th><th>Appliances</th><th>Plan prices</th><th></th></tr></thead><tbody>' +
+              versions
+                .map(
+                  (v, i) =>
+                    '<tr><td>Rev ' +
+                    escapeHtml(String(v.revision)) +
+                    (v.current ? ' <span class="status-chip">Current</span>' : '') +
+                    '</td><td>' +
+                    escapeHtml(formatDate(v.savedAt)) +
+                    '</td><td>' +
+                    escapeHtml(v.savedBy || '—') +
+                    '</td><td>' +
+                    escapeHtml(v.note || '—') +
+                    '</td><td>' +
+                    escapeHtml(String(v.content.totalCount)) +
+                    '</td><td>' +
+                    priceCells(v.content.plans) +
+                    '</td><td><select data-ac-hist-plan="' +
+                    i +
+                    '">' +
+                    (v.content.plans || [])
+                      .map(
+                        (p) =>
+                          '<option value="' +
+                          escapeHtml(p.planKey) +
+                          '">' +
+                          escapeHtml(p.planLabel) +
+                          '</option>',
+                      )
+                      .join('') +
+                    '</select> <button type="button" class="button button-outline" data-ac-hist-print="' +
+                    i +
+                    '">Print</button></td></tr>',
+                )
+                .join('') +
+              '</tbody></table></div>';
+            panel.querySelector('[data-ac-history-close]').addEventListener('click', () => {
+              panel.innerHTML = '';
+            });
+            panel.querySelectorAll('[data-ac-hist-print]').forEach((printButton) => {
+              printButton.addEventListener('click', () => {
+                const i = Number(printButton.getAttribute('data-ac-hist-print'));
+                const select = panel.querySelector('[data-ac-hist-plan="' + i + '"]');
+                printAmcContractCertificate(versions[i].content, select ? select.value : undefined);
+              });
+            });
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          } catch (error) {
+            panel.innerHTML =
+              '<p class="form-note">Could not load the history: ' +
+              escapeHtml(error.message || 'unknown error') +
+              '</p>';
+          }
+        });
+      });
       host.querySelectorAll('[data-ac-plan-select]').forEach((select) => {
         select.addEventListener('change', () => {
           const id = select.getAttribute('data-ac-plan-select');
@@ -13848,7 +14003,7 @@ ${bodyHtml}
               method: 'PATCH',
               body: JSON.stringify(payload),
             });
-            await loadAmcIssuedList(host);
+            await loadAmcIssuedList(host, onEdit);
           } catch (error) {
             setMessage('#workspaceMessage', error.message || 'Could not change the status.');
             button.disabled = false;
@@ -13911,7 +14066,16 @@ ${bodyHtml}
         'Optional — auto-generated if left blank',
       ) +
       '</div>' +
-      '<p><button type="button" class="button button-primary" data-as-save>Save AMC contract</button></p>' +
+      '<div data-as-edit-banner hidden></div>' +
+      '<div class="field-grid" data-as-note-row hidden>' +
+      calcField(
+        'Reason for this change',
+        '<input type="text" maxlength="300" data-as-note />',
+        'Optional — kept in the revision history, e.g. "Management price reduction"',
+      ) +
+      '</div>' +
+      '<p><button type="button" class="button button-primary" data-as-save>Save AMC contract</button> ' +
+      '<button type="button" class="button button-outline" data-as-cancel-edit hidden>Cancel edit</button></p>' +
       '<div data-as-message></div>' +
       '<div class="field-grid">' +
       calcField(
@@ -13926,6 +14090,56 @@ ${bodyHtml}
     const printButton = saleHost.querySelector('[data-as-print]');
     const messageHost = saleHost.querySelector('[data-as-message]');
     let savedContract = null;
+    let editing = null; // the issued AMC record being revised, when an admin reopened one
+    const editBanner = saleHost.querySelector('[data-as-edit-banner]');
+    const noteRow = saleHost.querySelector('[data-as-note-row]');
+    const cancelEditButton = saleHost.querySelector('[data-as-cancel-edit]');
+
+    function setEditing(contract) {
+      editing = contract;
+      saveButton.textContent = contract
+        ? 'Save revision (Rev ' + (contract.revision + 1) + ')'
+        : 'Save AMC contract';
+      cancelEditButton.hidden = !contract;
+      noteRow.hidden = !contract;
+      editBanner.hidden = !contract;
+      editBanner.innerHTML = contract
+        ? '<div class="form-note"><strong>Editing ' +
+          escapeHtml(contract.amcContractReference) +
+          ' (Rev ' +
+          escapeHtml(String(contract.revision)) +
+          ')</strong> — prices below use the current Admin rates. Saving keeps this reference and stores the old version in History.<br>Previous prices incl. VAT: ' +
+          (contract.plans || [])
+            .map((p) => escapeHtml(p.planLabel) + ' ' + money(p.priceInclVat))
+            .join(' &middot; ') +
+          '</div>'
+        : '';
+      if (!contract) saleHost.querySelector('[data-as-note]').value = '';
+    }
+
+    function startEdit(contract) {
+      const set = (selector, value) => {
+        saleHost.querySelector(selector).value = value || '';
+      };
+      set('[data-as-period]', contract.contractPeriod || '1 Year');
+      set('[data-as-client]', contract.clientName);
+      set('[data-as-attention]', contract.attentionTo);
+      set('[data-as-location]', contract.siteLocation);
+      set('[data-as-commencement]', contract.commencementDate);
+      set('[data-as-contract-ref]', contract.contractRef);
+      messageHost.innerHTML = '';
+      printPlanSelect.innerHTML = '<option value="">Save first to choose a plan</option>';
+      printPlanSelect.disabled = true;
+      printButton.disabled = true;
+      setEditing(contract);
+    }
+
+    cancelEditButton.addEventListener('click', () => {
+      setEditing(null);
+      clearContractFormInputs();
+      clearAppliances();
+      messageHost.innerHTML = '<p class="form-note">Edit cancelled. Nothing was changed.</p>';
+    });
 
     function clearContractFormInputs() {
       saleHost.querySelectorAll('.field-grid input[type="text"]').forEach((el) => {
@@ -13997,15 +14211,31 @@ ${bodyHtml}
         contractRef: field('[data-as-contract-ref]') || undefined,
       };
       try {
-        const response = await apiRequest('/api/amc-contracts', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        const wasEditing = editing;
+        const response = wasEditing
+          ? await apiRequest('/api/amc-contracts/' + wasEditing.id, {
+              method: 'PUT',
+              body: JSON.stringify(
+                Object.assign({}, payload, {
+                  revisionNote: field('[data-as-note]') || undefined,
+                }),
+              ),
+            })
+          : await apiRequest('/api/amc-contracts', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
         savedContract = response.amcContract;
-        messageHost.innerHTML =
-          '<p class="form-note">Saved as <strong>' +
-          escapeHtml(savedContract.amcContractReference) +
-          '</strong> and added to the "AMC Issued" tab. Pick a plan below to print, or reprint it any time from AMC Issued. The appliances have been reset for the next contract.</p>';
+        if (wasEditing) setEditing(null);
+        messageHost.innerHTML = wasEditing
+          ? '<p class="form-note">Saved <strong>' +
+            escapeHtml(savedContract.amcContractReference) +
+            '</strong> as Rev ' +
+            escapeHtml(String(savedContract.revision)) +
+            '. The previous version is kept under History in AMC Issued. Pick a plan below to print.</p>'
+          : '<p class="form-note">Saved as <strong>' +
+            escapeHtml(savedContract.amcContractReference) +
+            '</strong> and added to the "AMC Issued" tab. Pick a plan below to print, or reprint it any time from AMC Issued. The appliances have been reset for the next contract.</p>';
         printPlanSelect.innerHTML = savedContract.plans
           .map(
             (p) =>
@@ -14035,6 +14265,8 @@ ${bodyHtml}
       if (!savedContract) return;
       printAmcContractCertificate(savedContract, printPlanSelect.value);
     });
+
+    return { startEdit };
   }
 
   // --- Thomson --------------------------------------------------------------

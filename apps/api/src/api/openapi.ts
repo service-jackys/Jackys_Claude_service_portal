@@ -1338,6 +1338,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                   name: { type: 'string', minLength: 1, maxLength: 200 },
                   qty: { type: 'number', minimum: 0, maximum: 100000 },
                   price: { type: 'number', minimum: 0, maximum: 10000000 },
+                  ref: { type: 'boolean' },
                 },
               },
             },
@@ -1386,6 +1387,8 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             },
             commencementDate: { type: 'string', format: 'date' },
             contractRef: { type: 'string', minLength: 1, maxLength: 120 },
+            // Only accepted when revising an issued quote (PUT).
+            revisionNote: { type: 'string', minLength: 1, maxLength: 300 },
           },
         },
         RateCardSaleRequest: {

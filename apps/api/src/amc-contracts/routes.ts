@@ -5,6 +5,10 @@ import { AmcContractServiceError, type AmcContractService } from './service.js';
 
 function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): void {
   if (!(error instanceof AmcContractServiceError)) throw error;
+  if (error.code === 'sold-locked') {
+    problem(response, 409, 'amc-sold-locked', 'Conflict', error.message);
+    return;
+  }
   if (error.code === 'no-plan') {
     problem(response, 400, 'amc-plan-not-found', 'Bad Request', error.message);
     return;
@@ -82,6 +86,42 @@ export function createAmcContractHandlers(
               request.header('x-request-id') ?? undefined,
             ),
           });
+        } catch (error) {
+          if (error instanceof AmcContractServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    revise: [
+      requirePermission('amc_contract.revise'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            amcContract: await service.revise(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof AmcContractServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    revisions: [
+      requirePermission('amc_contract.revise'),
+      async (request, response, next) => {
+        try {
+          response.json({ revisions: await service.revisions(String(request.params.id)) });
         } catch (error) {
           if (error instanceof AmcContractServiceError) {
             serviceError(error, response);
