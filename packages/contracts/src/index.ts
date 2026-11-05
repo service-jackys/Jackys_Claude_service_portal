@@ -1350,6 +1350,7 @@ export const pricingConfigDomainSchema = z.enum([
   'rate_card',
   'dandi_pricing',
   'amc_pricing',
+  'amc_pricing_v2',
   'thomson_pricing',
   'appliance_master',
 ]);
@@ -1580,6 +1581,76 @@ export const amcPricingSchema = z
   .strict();
 export type AmcPricingInput = z.infer<typeof amcPricingSchema>;
 
+// --- AMC pricing v2 (modification.md #197) -------------------------------------
+// A per-appliance annual rate model that sits next to the original AMC
+// pricing: cost-plus unit rates, an appliance-age risk factor, a volume
+// discount ladder, and a per-plan cap on the price as a % of equipment value.
+const amcV2AgeBandSchema = z
+  .object({ label: z.string().trim().min(1).max(30), riskFactor: z.number().min(0).max(10) })
+  .strict();
+const amcV2LadderStepSchema = z
+  .object({ minQty: z.number().int().min(1), discountPct: percentSchema })
+  .strict();
+const amcV2PlannedPlanSchema = z
+  .object({
+    plannedVisits: nonNegSchema,
+    partsReservePct: percentSchema,
+    capPct: percentSchema,
+  })
+  .strict();
+const amcV2OverrideSchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    // null/absent = use the calculated rate for that plan
+    basic: z.number().min(0).nullable().optional(),
+    standard: z.number().min(0).nullable().optional(),
+    premium: z.number().min(0).nullable().optional(),
+  })
+  .strict();
+export const amcPricingV2Schema = z
+  .object({
+    labour: z
+      .object({
+        salary: nonNegSchema,
+        technicians: nonNegSchema,
+        workingDays: positiveSchema,
+        hoursPerDay: positiveSchema,
+        visitHours: nonNegSchema,
+        handledPerVisit: positiveSchema,
+        transportPerVisit: nonNegSchema,
+      })
+      .strict(),
+    breakdown: z.object({ callsPerUnitPerYear: nonNegSchema, costPerCall: nonNegSchema }).strict(),
+    callOut: z
+      .object({
+        labourCharge: nonNegSchema,
+        basicDiscountPct: percentSchema,
+        handlingCharge: nonNegSchema,
+      })
+      .strict(),
+    overhead: percentSchema,
+    profitMarkup: percentSchema,
+    plans: z
+      .object({
+        basic: z
+          .object({
+            retainerPerUnit: nonNegSchema,
+            adminCostPerUnit: nonNegSchema,
+            capPct: percentSchema,
+          })
+          .strict(),
+        standard: amcV2PlannedPlanSchema,
+        premium: amcV2PlannedPlanSchema,
+      })
+      .strict(),
+    ageBands: z.array(amcV2AgeBandSchema).min(1).max(12),
+    volumeLadder: z.array(amcV2LadderStepSchema).min(1).max(12),
+    corridor: z.object({ minPerUnit: nonNegSchema, maxPerUnit: nonNegSchema }).strict(),
+    rateOverrides: z.array(amcV2OverrideSchema).max(200),
+  })
+  .strict();
+export type AmcPricingV2Input = z.infer<typeof amcPricingV2Schema>;
+
 // --- Thomson ----------------------------------------------------------------
 export const thomsonRegionSchema = z
   .object({
@@ -1719,6 +1790,7 @@ const pricingConfigPayloadSchemas: Record<PricingConfigDomain, z.ZodTypeAny> = {
   rate_card: rateCardSchema,
   dandi_pricing: dandiPricingSchema,
   amc_pricing: amcPricingSchema,
+  amc_pricing_v2: amcPricingV2Schema,
   thomson_pricing: thomsonPricingSchema,
 };
 

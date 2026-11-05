@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 197,
+    "title": "New AMC pricing: AMC Admin Rates (New) and AMC Quote Calculator (New) (side by side with the originals)",
+    "area": "Permissions",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "The original AMC calculator prices a quote as the higher of cost-plus and a percentage of equipment value. The percentage won on every plan, so Basic RM was priced about 8 times its cost, visits were tied to the price percentage, there was no volume discount and no appliance age. A new, per-appliance model was…",
+    "changes": [
+      "AMC Admin Rates (New) (Quote Calculators > Admin): every setting is editable with a tooltip — visit and labour cost, breakdown calls, call-out terms (normal labour AED 125, Basic RM discount 30 %, AED 80 handling charge when not…",
+      "AMC Quote Calculator (New): pick appliances (from Appliance Master) and quantities, pick the age band. Each plan shows planned visits, price before discount, volume discount, cap, price excl./incl. VAT, price per appliance and % of value.…",
+      "Saving, issuing and printing v2 quotes come in the next change; this one does not save quotes.",
+      "Database: migration 073 adds the amc_pricing_v2 configuration domain and a pricing_model column on amc_contracts (default v1, for the next change)."
+    ],
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh.",
+    "migrations": [
+      "073_amc_pricing_v2.sql"
+    ],
+    "files": "packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/migrations/073_amc_pricing_v2.sql, apps/api/src/pricing-config/routes.ts, apps/web/src/amc-v2-core.js…"
+  },
+  {
     "id": 196,
     "title": "Refresh rates on the VAS and Thomson calculators, the Rate Card page and the rate-card charges",
     "area": "Pricing & rates",
