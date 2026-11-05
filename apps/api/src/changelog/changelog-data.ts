@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 196,
+    "title": "Refresh rates on the VAS and Thomson calculators, the Rate Card page and the rate-card charges",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "Admin pricing can change at any time. Each page read its rates once, when it was opened, so a page left open in another browser tab kept showing the old rates. After #195 fixed this for the AMC calculator, the rest of the portal was checked for the same problem.",
+    "changes": [
+      "What was checked and what changed"
+    ],
+    "needsYou": "pull and hard-refresh. No API restart or database change.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/calc-refresh-rates.spec.ts."
+  },
+  {
     "id": 195,
     "title": "AMC Quote Calculator: Refresh rates without clearing the appliances",
     "area": "Pricing & rates",

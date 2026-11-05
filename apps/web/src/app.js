@@ -1476,8 +1476,12 @@
 
   // The rate card's "MDA – Standard" service charge, read once and reused.
   let mdaRatePromise = null;
+  let mdaRateLoadedAt = 0;
   function loadMdaRate() {
+    // Re-read after a minute so a rate card change reaches open sessions.
+    if (mdaRatePromise && Date.now() - mdaRateLoadedAt > 60000) mdaRatePromise = null;
     if (!mdaRatePromise) {
+      mdaRateLoadedAt = Date.now();
       mdaRatePromise = apiRequest('/api/rate-card')
         .then((data) => {
           for (const section of data.sections || []) {
@@ -2117,8 +2121,11 @@
   // The rate card's OOW inspection charge (AED 60), billed to the sales channel when a
   // business job ends as BER or Rejected. Falls back to 60 when the line is missing.
   let oowRatePromise = null;
+  let oowRateLoadedAt = 0;
   function loadOowRate() {
+    if (oowRatePromise && Date.now() - oowRateLoadedAt > 60000) oowRatePromise = null;
     if (!oowRatePromise) {
+      oowRateLoadedAt = Date.now();
       oowRatePromise = apiRequest('/api/rate-card')
         .then((data) => {
           for (const section of data.sections || []) {
@@ -11425,6 +11432,64 @@ ${bodyHtml}
     return result;
   }
 
+  // Refresh rates for a calculator that is already open (modification.md #196).
+  // Adds a "Refresh rates" button and a "rates loaded at" note at the top of the
+  // quote panel and quietly re-checks when the browser tab is shown again, so an
+  // Admin pricing change saved in another tab reaches the calculator without
+  // clearing what the user has already entered. `apply(fresh)` updates the
+  // calculator's own state and may return a short extra note.
+  const calcRefreshHandlers = new Map();
+  function attachCalcRefresh(container, options) {
+    const panel = container.querySelector(options.panelSelector);
+    if (!panel) return;
+    panel.insertAdjacentHTML(
+      'afterbegin',
+      '<p class="form-note"><button type="button" class="button button-outline" data-calc-refresh title="Reload the latest Admin rates without clearing what you have entered">Refresh rates</button> <span data-calc-rates-note></span></p>',
+    );
+    const note = panel.querySelector('[data-calc-rates-note]');
+    const button = panel.querySelector('[data-calc-refresh]');
+    const clock = (d) => d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+    let loadedAt = new Date();
+    let lastJson = JSON.stringify(options.initial);
+    let busy = false;
+    note.textContent = 'Rates loaded at ' + clock(loadedAt) + '.';
+    async function refresh(quiet) {
+      if (busy || !container.isConnected) return;
+      busy = true;
+      if (!quiet) button.disabled = true;
+      try {
+        const fresh = await calcFetchDomains(options.domains);
+        loadedAt = new Date();
+        const freshJson = JSON.stringify(fresh);
+        if (freshJson === lastJson) {
+          note.textContent = 'Rates are up to date (checked ' + clock(loadedAt) + ').';
+          return;
+        }
+        const extra = options.apply(fresh);
+        lastJson = freshJson;
+        note.textContent =
+          'Rates updated at ' +
+          clock(loadedAt) +
+          ' — prices below use the latest values.' +
+          (extra ? ' ' + extra : '');
+      } catch (error) {
+        note.textContent = 'Could not refresh rates: ' + (error.message || 'unknown error');
+      } finally {
+        busy = false;
+        button.disabled = false;
+      }
+    }
+    button.addEventListener('click', () => refresh(false));
+    const previous = calcRefreshHandlers.get(options.key);
+    if (previous) document.removeEventListener('visibilitychange', previous);
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && Date.now() - loadedAt.getTime() > 5000)
+        refresh(true);
+    };
+    calcRefreshHandlers.set(options.key, onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+  }
+
   function calcField(labelText, inputHtml, hint) {
     const titleAttr = hint ? ' title="' + escapeHtml(hint) + '"' : '';
     return '<label' + titleAttr + '>' + escapeHtml(labelText) + '<br />' + inputHtml + '</label>';
@@ -11737,6 +11802,19 @@ ${bodyHtml}
     orderValueInput.addEventListener('input', recompute);
     planSelect.addEventListener('change', recompute);
     recompute();
+    attachCalcRefresh(container, {
+      key: 'vas-calc',
+      panelSelector: '[data-vc-panel="quote"]',
+      domains: ['vas_price_bands', 'vas_pricing_params'],
+      initial: data,
+      apply(fresh) {
+        // Update in place: the sale section and issued list hold these same objects.
+        bands.splice(0, bands.length, ...fresh.vas_price_bands);
+        Object.keys(params).forEach((key) => delete params[key]);
+        Object.assign(params, fresh.vas_pricing_params);
+        recompute();
+      },
+    });
     renderVasSaleSection(
       saleHost,
       VAS_CALC_PLANS,
@@ -13333,15 +13411,32 @@ ${bodyHtml}
     });
   }
 
-  async function renderRateCardPage(root) {
-    root.innerHTML = '<p class="form-note">Loading rates&hellip;</p>';
+  let rateCardVisibilityHandler = null;
+  async function renderRateCardPage(root, quiet) {
+    if (!quiet) root.innerHTML = '<p class="form-note">Loading rates&hellip;</p>';
     let data;
     try {
       data = await apiRequest('/api/rate-card');
     } catch (error) {
+      if (quiet) return; // keep showing the rates already on screen
       root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
       return;
     }
+    const loadedAt = new Date();
+    if (rateCardVisibilityHandler)
+      document.removeEventListener('visibilitychange', rateCardVisibilityHandler);
+    rateCardVisibilityHandler = () => {
+      // The rate card is read-only, so quietly reload it when the tab is shown
+      // again -- a change saved in Rate Card Admin shows up without a page reload.
+      if (
+        document.visibilityState === 'visible' &&
+        root.isConnected &&
+        !root.closest('[hidden]') &&
+        Date.now() - loadedAt.getTime() > 5000
+      )
+        renderRateCardPage(root, true);
+    };
+    document.addEventListener('visibilitychange', rateCardVisibilityHandler);
     const byKey = Object.fromEntries(data.sections.map((section) => [section.key, section]));
     const simple = ['warranty_repairs', 'non_warranty_repairs', 'inspections']
       .filter((key) => byKey[key])
@@ -13353,7 +13448,9 @@ ${bodyHtml}
     root.innerHTML =
       '<div class="rcv-banner"><strong>Service rate card</strong><span>' +
       updated +
-      ' &middot; All prices in AED, including VAT.</span></div>' +
+      ' &middot; All prices in AED, including VAT. Loaded at ' +
+      escapeHtml(loadedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })) +
+      '.</span> <button type="button" class="button button-outline" data-rc-refresh>Refresh rates</button></div>' +
       '<div class="rcv-grid-top">' +
       simple +
       '</div>' +
@@ -13364,6 +13461,9 @@ ${bodyHtml}
         'Delivery &amp; Installations and Installations are priced from the factors in D+I Admin Entry, so the figures above are starting points rather than final quotes.',
       ) +
       '</div>';
+    root
+      .querySelector('[data-rc-refresh]')
+      ?.addEventListener('click', () => renderRateCardPage(root, true));
   }
 
   // --- AMC ------------------------------------------------------------------
@@ -14403,6 +14503,7 @@ ${bodyHtml}
   }
 
   function renderThomsonCalc(container, data) {
+    // `data` is replaced when rates are refreshed (attachCalcRefresh below).
     const regions = data.regions.filter((r) => r.active !== false);
     const appliances = data.appliances.filter((a) => a.active !== false);
     // Single-unit settings from Thomson Pricing Admin (modification #179).
@@ -14442,7 +14543,7 @@ ${bodyHtml}
       }, {});
     }
     let addons = cloneAddonDefaults();
-    const teamCapacity = data.techCount * data.hoursDay;
+    let teamCapacity = data.techCount * data.hoursDay;
     const lineItems = [];
     // 'project' (several units / sites, tiered rates, project services) or
     // 'single' (one item or a small job: base rate, call-out, minimum charge).
@@ -15240,6 +15341,72 @@ ${bodyHtml}
     renderAddonsEditTable();
     applyMode();
     renderAll();
+    attachCalcRefresh(container, {
+      key: 'thomson-calc',
+      panelSelector: '[data-th-panel="quote"]',
+      domains: ['thomson_pricing'],
+      initial: { thomson_pricing: data },
+      apply(fresh) {
+        const next = fresh.thomson_pricing;
+        const previous = data;
+        // Lines point at appliances by position, so remember them by name.
+        const lineNames = lineItems.map((li) => appliances[li.applianceIdx]?.name);
+        const keepRegion = regionSelect.value;
+        const keepAppliance = appliances[Number(applianceSelect.value)]?.name;
+        data = next;
+        regions.splice(0, regions.length, ...next.regions.filter((r) => r.active !== false));
+        appliances.splice(
+          0,
+          appliances.length,
+          ...next.appliances.filter((a) => a.active !== false),
+        );
+        smallJob.callOutFee = Number(next.smallJob?.callOutFee) || 0;
+        smallJob.minimumCharge = Number(next.smallJob?.minimumCharge) || 0;
+        teamCapacity = next.techCount * next.hoursDay;
+        // Additional services: an amount the user amended for this quote stays;
+        // one still equal to the old admin default follows the new default.
+        THOMSON_ADDON_NAMES.forEach((name) => {
+          const before = previous.addons[name] || {};
+          const after = next.addons[name] || {};
+          const current = addons[name];
+          if (Number(current.rate) === (Number(before.rate) || 0))
+            current.rate = Number(after.rate) || 0;
+          if (Number(current.hours) === (Number(before.hours) || 0))
+            current.hours = Number(after.hours) || 0;
+          current.note = after.note || '';
+        });
+        let dropped = 0;
+        for (let i = lineItems.length - 1; i >= 0; i -= 1) {
+          const idx = appliances.findIndex((a) => a.name === lineNames[i]);
+          if (idx < 0) {
+            lineItems.splice(i, 1);
+            dropped += 1;
+          } else {
+            lineItems[i].applianceIdx = idx;
+          }
+        }
+        regionSelect.innerHTML = regions
+          .map(
+            (r) => '<option value="' + escapeHtml(r.name) + '">' + escapeHtml(r.name) + '</option>',
+          )
+          .join('');
+        if (regions.some((r) => r.name === keepRegion)) regionSelect.value = keepRegion;
+        applianceSelect.innerHTML = appliances
+          .map((a, i) => '<option value="' + i + '">' + escapeHtml(a.name) + '</option>')
+          .join('');
+        const keepIdx = appliances.findIndex((a) => a.name === keepAppliance);
+        if (keepIdx >= 0) applianceSelect.value = String(keepIdx);
+        renderAddonsTable();
+        renderAddonsEditTable();
+        renderSingleExtras();
+        renderAll();
+        return dropped
+          ? dropped +
+              (dropped === 1 ? ' line was' : ' lines were') +
+              ' removed because the appliance is no longer active in Thomson Pricing Admin.'
+          : '';
+      },
+    });
     renderThomsonSaleSection(
       saleHost,
       () => lastComputed,
