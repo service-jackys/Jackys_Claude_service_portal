@@ -4239,3 +4239,15 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html}, tests/e2e/appliance-master-rename.spec.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No database change.
+
+## Modification #193 — AMC Quote Calculator plan table: column headers no longer overlap
+
+**Date:** 2026-11-05
+
+**Why.** In the AMC Quote Calculator's Plan Pricing table, long column labels (Transport cost, Parts reserve, Price excl./incl. VAT) ran into each other because the table used fixed equal-width columns.
+
+**What changed.** The table now sizes columns automatically, wraps header labels onto two lines, right-aligns the numeric columns and uses even spacing. It scrolls sideways only on narrow screens. Display only; no pricing logic changed.
+
+**Files.** apps/web/src/{app.js,index.html}.
+
+**Needs you:** pull and hard-refresh. No API restart or database change.

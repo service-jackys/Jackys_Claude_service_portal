@@ -13645,7 +13645,7 @@ ${bodyHtml}
         '</strong> &middot; Total equipment value: <strong>' +
         money(totalValue) +
         ' AED</strong></p>' +
-        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
+        '<div class="table-wrap"><table class="amc-plan-table"><thead><tr>' +
         '<th>Plan</th><th>Annual visits</th><th>Labor cost</th><th>Transport cost</th><th>Parts reserve</th><th>Direct cost</th><th>Overhead</th><th>Price (excl. VAT)</th><th>Price (incl. 5% VAT)</th>' +
         '</tr></thead><tbody>' +
         rows
