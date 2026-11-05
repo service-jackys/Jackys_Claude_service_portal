@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 191,
+    "title": "Rename an appliance in the Appliance Master",
+    "area": "Stock & masters",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "Saved appliance names were locked in the Appliance Master, so a typo or a better display name could not be fixed.",
+    "changes": [
+      "The Appliance name on a saved row can now be edited. On Save, the matching Thomson Pricing Admin row is renamed too and keeps its rates, tiers and installation time. If Thomson already has a row under the new name, that row is left alone.",
+      "A saved appliance still cannot be deleted: untick Active to retire it.",
+      "Past AMC contracts, Thomson quotes and saved appliance lines keep the name they were issued with. Two appliances cannot share a name."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No database change.",
+    "migrations": [],
+    "files": "packages/contracts/src/index.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/integration/appliance-master.test.ts."
+  },
+  {
     "id": 190,
     "title": "Shared Appliance Master; AMC quotes need no unit value",
     "area": "Pricing & rates",

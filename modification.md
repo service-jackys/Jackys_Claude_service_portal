@@ -4207,3 +4207,19 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** packages/db/migrations/071_appliance_master.sql, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/src/amc-contracts.ts, apps/api/src/pricing-config/{service,routes}.ts, apps/web/src/{app.js,index.html}, tests/integration/appliance-master.test.ts, tests/e2e/amc-calculator-master.spec.ts.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Open Appliance Master, enter the AMC reference value for the four new appliances, Save. Then set rates for any new Thomson appliance.
+
+## Modification #191 — Rename an appliance in the Appliance Master
+
+**Date:** 2026-11-05
+
+**Why.** Saved appliance names were locked in the Appliance Master, so a typo or a better display name could not be fixed.
+
+**What changed.**
+
+- The Appliance name on a saved row can now be edited. On Save, the matching Thomson Pricing Admin row is renamed too and keeps its rates, tiers and installation time. If Thomson already has a row under the new name, that row is left alone.
+- A saved appliance still cannot be deleted: untick Active to retire it.
+- Past AMC contracts, Thomson quotes and saved appliance lines keep the name they were issued with. Two appliances cannot share a name.
+
+**Files.** packages/contracts/src/index.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/integration/appliance-master.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No database change.

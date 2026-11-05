@@ -115,8 +115,31 @@ test(
         assert.equal(hob.active, true);
         assert.equal(thomson.appliances.length, 13);
 
+        // Rename a saved appliance: the Thomson row keeps its rates under the new
+        // name, and renamedFrom is not stored in the master.
+        const renamed = structuredClone(edited);
+        const hobRow = renamed.appliances.find((a) => a.name === 'Built-in Hob (30 cm)')!;
+        hobRow.name = 'Built-in Hob 30cm';
+        hobRow.renamedFrom = 'Built-in Hob (30 cm)';
+        const savedMaster = await service.save('appliance_master', renamed, profileId);
+        const storedItems = (savedMaster.payload as { appliances: Record<string, unknown>[] })
+          .appliances;
+        assert.ok(storedItems.every((item) => !('renamedFrom' in item)));
+        const afterRename = thomsonPricingSchema.parse(
+          (await service.get('thomson_pricing')).payload,
+        );
+        assert.equal(afterRename.appliances.length, 13);
+        assert.equal(
+          afterRename.appliances.find((a) => a.name === 'Built-in Hob (30 cm)'),
+          undefined,
+        );
+        assert.equal(
+          afterRename.appliances.find((a) => a.name === 'Built-in Hob 30cm')!.rates.Base,
+          78,
+        );
+
         // Saving the same master again changes nothing in Thomson.
-        await service.save('appliance_master', edited, profileId);
+        await service.save('appliance_master', savedMaster.payload, profileId);
         const again = thomsonPricingSchema.parse((await service.get('thomson_pricing')).payload);
         assert.equal(again.appliances.length, 13);
       } finally {

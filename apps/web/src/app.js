@@ -10628,9 +10628,11 @@ ${bodyHtml}
       container.innerHTML = '';
       const host = document.createElement('div');
       container.appendChild(host);
-      // Names already saved are locked: both calculators match on the name, so
-      // retire an appliance with Active instead of renaming or deleting it.
+      // A saved appliance can be renamed (the server renames its Thomson row
+      // too) but not deleted: retire it with Active. Remember each saved row's
+      // original name so a rename can be sent as renamedFrom.
       const lockedCount = data.appliances.length;
+      const originalNames = new Map(data.appliances.map((row) => [row, row.name]));
       const rerender = () => {
         pcRenderTable(
           host,
@@ -10641,7 +10643,8 @@ ${bodyHtml}
               label: 'Appliance',
               type: 'text',
               width: '34%',
-              tooltip: 'Fixed once saved, because AMC and Thomson find the appliance by this name.',
+              tooltip:
+                'You can rename a saved appliance: its Thomson rates move with it. Past contracts and quotes keep the name they were issued with.',
             },
             {
               key: 'amcEnabled',
@@ -10678,6 +10681,12 @@ ${bodyHtml}
             minRows: 1,
             markDirty: ctx.markDirty,
             rerender,
+            onCellChange: (row, key) => {
+              if (key !== 'name' || !originalNames.has(row)) return;
+              const original = originalNames.get(row);
+              if (row.name.trim() && row.name.trim() !== original) row.renamedFrom = original;
+              else delete row.renamedFrom;
+            },
             onAdd: () => ({
               name: '',
               amcEnabled: true,
@@ -10688,9 +10697,6 @@ ${bodyHtml}
             addLabel: 'Add appliance',
           },
         );
-        host.querySelectorAll('[data-pc-col="name"]').forEach((input) => {
-          if (Number(input.dataset.pcRow) < lockedCount) input.disabled = true;
-        });
         host.querySelectorAll('[data-pc-remove-row]').forEach((button) => {
           if (Number(button.dataset.pcRemoveRow) < lockedCount) button.hidden = true;
         });
