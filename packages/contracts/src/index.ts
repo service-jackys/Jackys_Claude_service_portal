@@ -1676,6 +1676,9 @@ export const applianceMasterItemSchema = z
     thomsonEnabled: z.boolean(),
     amcRefValue: nonNegSchema,
     active: z.boolean(),
+    // Sent only when a saved appliance is renamed: the name it had before.
+    // The server renames the matching Thomson row and does not store this.
+    renamedFrom: z.string().trim().min(1).max(120).optional(),
   })
   .strict();
 

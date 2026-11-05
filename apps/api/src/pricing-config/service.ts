@@ -62,6 +62,7 @@ function withDandiFlatRates(domain: PricingConfigDomain, payload: unknown): unkn
 async function syncThomsonWithMaster(
   client: PoolClient,
   master: ApplianceMasterInput,
+  renames: { from: string; to: string }[],
   profileId: string,
   requestId: string,
 ) {
@@ -69,6 +70,17 @@ async function syncThomsonWithMaster(
   const current = thomsonPricingSchema.parse(row?.payload ?? pricingConfigDefaults.thomson_pricing);
   let changed = false;
   const appliances = current.appliances.map((a) => ({ ...a }));
+  // A renamed appliance keeps its Thomson rates, tiers and time: only the name
+  // changes (skipped if Thomson already has a row under the new name).
+  for (const rename of renames) {
+    const fromKey = rename.from.trim().toLowerCase();
+    const toKey = rename.to.trim().toLowerCase();
+    const target = appliances.find((a) => a.name.trim().toLowerCase() === fromKey);
+    if (target && !appliances.some((a) => a.name.trim().toLowerCase() === toKey)) {
+      target.name = rename.to;
+      changed = true;
+    }
+  }
   for (const item of master.appliances) {
     const key = item.name.trim().toLowerCase();
     const wanted = item.thomsonEnabled && item.active;
@@ -156,7 +168,21 @@ export function createPricingConfigService(pool: Pool) {
     profileId: string,
     requestId: string = randomUUID(),
   ): Promise<PricingConfigView> {
-    const payload = pricingConfigSchemaFor(domain).parse(input);
+    let payload = pricingConfigSchemaFor(domain).parse(input);
+    // Appliance Master: renamedFrom marks a renamed row. It is applied to the
+    // Thomson list below and never stored in the master itself.
+    const renames: { from: string; to: string }[] = [];
+    if (domain === 'appliance_master') {
+      const master = payload as ApplianceMasterInput;
+      payload = {
+        appliances: master.appliances.map(({ renamedFrom, ...item }) => {
+          if (renamedFrom && renamedFrom.toLowerCase() !== item.name.toLowerCase()) {
+            renames.push({ from: renamedFrom, to: item.name });
+          }
+          return item;
+        }),
+      };
+    }
     return withTransaction(pool, async (client) => {
       const row = await upsertPricingConfig(client, domain, payload, true, profileId);
       await insertAuditEvent(client, {
@@ -164,11 +190,17 @@ export function createPricingConfigService(pool: Pool) {
         action: 'pricing_config.saved',
         targetType: 'pricing_config',
         targetId: row.id,
-        metadata: { domain, payload },
+        metadata: renames.length ? { domain, payload, renames } : { domain, payload },
         requestId,
       });
       if (domain === 'appliance_master') {
-        await syncThomsonWithMaster(client, payload as ApplianceMasterInput, profileId, requestId);
+        await syncThomsonWithMaster(
+          client,
+          payload as ApplianceMasterInput,
+          renames,
+          profileId,
+          requestId,
+        );
       }
       return {
         domain,
