@@ -11215,6 +11215,7 @@ ${bodyHtml}
         'Rate overrides per appliance (optional)',
         'Normally the rate is calculated. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
       );
+      overrideHost.parentElement.classList.add('pc-span-full');
       const rerenderOverrides = () =>
         pcRenderTable(
           overrideHost,
@@ -11222,26 +11223,29 @@ ${bodyHtml}
           [
             {
               key: 'name',
-              label: 'Appliance (exactly as in Appliance Master)',
+              label: 'Appliance',
               type: 'text',
-              width: '40%',
-              tooltip: 'Must match the appliance name in Appliance Master.',
+              width: '34%',
+              tooltip: 'Type the appliance name exactly as it is in Appliance Master.',
             },
             {
               key: 'basic',
-              label: 'Basic RM rate',
+              label: 'Basic RM',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Basic RM rate per appliance. 0 = use the calculated rate.',
             },
             {
               key: 'standard',
-              label: 'Standard rate',
+              label: 'Standard',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Standard PMC rate per appliance. 0 = use the calculated rate.',
             },
             {
               key: 'premium',
-              label: 'Premium rate',
+              label: 'Premium',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Premium PMC rate per appliance. 0 = use the calculated rate.',
             },
