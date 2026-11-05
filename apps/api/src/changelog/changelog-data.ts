@@ -25,6 +25,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "changes": [
       "AMC Admin Rates (New) (Quote Calculators > Admin): every setting is editable with a tooltip — visit and labour cost, breakdown calls, call-out terms (normal labour AED 125, Basic RM discount 30 %, AED 80 handling charge when not…",
       "AMC Quote Calculator (New): pick appliances (from Appliance Master) and quantities, pick the age band. Each plan shows planned visits, price before discount, volume discount, cap, price excl./incl. VAT, price per appliance and % of value.…",
+      "The \"Rate overrides per appliance\" table spans the full width with short column headings (Appliance, Basic RM, Standard, Premium), so the headings no longer overlap.",
       "Saving, issuing and printing v2 quotes come in the next change; this one does not save quotes.",
       "Database: migration 073 adds the amc_pricing_v2 configuration domain and a pricing_model column on amc_contracts (default v1, for the next change)."
     ],
