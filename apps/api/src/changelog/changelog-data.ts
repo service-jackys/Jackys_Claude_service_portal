@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 193,
+    "title": "AMC Quote Calculator plan table: column headers no longer overlap",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "In the AMC Quote Calculator's Plan Pricing table, long column labels (Transport cost, Parts reserve, Price excl./incl. VAT) ran into each other because the table used fixed equal-width columns.",
+    "changes": [
+      "What changed: The table now sizes columns automatically, wraps header labels onto two lines, right-aligns the numeric columns and uses even spacing. It scrolls sideways only on narrow screens. Display only; no pricing logic changed."
+    ],
+    "needsYou": "pull and hard-refresh. No API restart or database change.",
+    "migrations": [],
+    "files": "apps/web/src/{app.js,index.html}."
+  },
+  {
     "id": 194,
     "title": "Admin can reopen, re-price and re-save an issued AMC quote, with full history",
     "area": "Permissions",
