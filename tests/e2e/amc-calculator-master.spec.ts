@@ -50,7 +50,7 @@ const master = {
   ],
 };
 
-async function openCalculator(page: Page) {
+async function openCalculator(page: Page, rates: { current: typeof amc } = { current: amc }) {
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
     const json = (body: unknown) =>
@@ -67,7 +67,7 @@ async function openCalculator(page: Page) {
         },
       });
     }
-    if (url.pathname === '/api/pricing-config/amc_pricing') return json({ payload: amc });
+    if (url.pathname === '/api/pricing-config/amc_pricing') return json({ payload: rates.current });
     if (url.pathname === '/api/pricing-config/appliance_master') return json({ payload: master });
     return json({});
   });
@@ -109,5 +109,25 @@ test.describe('AMC Quote Calculator with the shared Appliance Master', () => {
     await page.locator('[data-ac-qty="0"]').fill('4');
     await page.locator('[data-ac-price="0"]').fill('1000');
     await expect(page.locator('[data-ac-output]')).toContainText('4000.00');
+  });
+
+  test('Refresh rates reloads Admin rates without clearing the appliances', async ({ page }) => {
+    const rates = { current: amc };
+    await openCalculator(page, rates);
+    await page.locator('[data-ac-add]').click();
+    await page.locator('[data-ac-qty="0"]').fill('10');
+    await expect(page.locator('[data-ac-output]')).toContainText('Basic RM');
+    const before = await page.locator('[data-ac-output]').innerText();
+
+    // Another tab saves new Admin rates (transport per visit 100 -> 500).
+    rates.current = { ...amc, transportPerVisit: 500 };
+    await page.locator('[data-ac-refresh]').click();
+    await expect(page.locator('[data-ac-rates-note]')).toContainText('Rates updated');
+    await expect(page.locator('[data-ac-qty="0"]')).toHaveValue('10');
+    const after = await page.locator('[data-ac-output]').innerText();
+    expect(after).not.toBe(before);
+
+    await page.locator('[data-ac-refresh]').click();
+    await expect(page.locator('[data-ac-rates-note]')).toContainText('up to date');
   });
 });

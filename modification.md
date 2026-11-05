@@ -4273,3 +4273,21 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/{app.js,index.html}.
 
 **Needs you:** pull and hard-refresh. No API restart or database change.
+
+## Modification #195 — AMC Quote Calculator: Refresh rates without clearing the appliances
+
+**Date:** 2026-11-05
+
+**Why.** The calculator reads the Admin AMC rates and the Appliance Master only when the page is opened. With the calculator open in one browser tab and the Admin rates being changed and saved in another, the calculator kept the old rates, and the only way to pick up the new ones was to reload the page and enter the appliances again.
+
+**What changed.**
+
+- A **Refresh rates** button at the top of the Quote Calculator reloads the Admin AMC rates and the Appliance Master and re-prices the appliances already entered. Quantities, client details and the appliance list stay as they are. Lines that use the internal reference value take the latest reference value; a value typed by hand through the advanced override stays as typed.
+- A note beside the button says when the rates were loaded, and whether they were updated or were already up to date.
+- When the user switches back to the calculator's browser tab, the rates are also checked quietly (at most every 5 seconds) and updated if they changed.
+- The "+ Add appliance" list is refreshed too, so a newly added or switched-off appliance shows up.
+- Display only; pricing formulas are unchanged and nothing is saved.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-calculator-master.spec.ts.
+
+**Needs you:** pull and hard-refresh. No API restart or database change.
