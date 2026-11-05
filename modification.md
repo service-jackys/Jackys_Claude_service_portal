@@ -4291,3 +4291,23 @@ The master Excel was rebuilt on 15 Oct 2026 (Pricing Logic Guide, "invoice-level
 **Files.** apps/web/src/app.js, tests/e2e/amc-calculator-master.spec.ts.
 
 **Needs you:** pull and hard-refresh. No API restart or database change.
+
+## Modification #196 — Refresh rates on the VAS and Thomson calculators, the Rate Card page and the rate-card charges
+
+**Date:** 2026-11-05
+
+**Why.** Admin pricing can change at any time. Each page read its rates once, when it was opened, so a page left open in another browser tab kept showing the old rates. After #195 fixed this for the AMC calculator, the rest of the portal was checked for the same problem.
+
+**What was checked and what changed.**
+
+- **VAS Quote Calculator** and **Thomson Quote Calculator**: each now has the same **Refresh rates** button and "rates loaded at" note as AMC, plus a quiet check when the browser tab is shown again. The VAS price and plan stay as entered. On Thomson the lines and client details stay and are re-priced; the Region/Appliance lists are refreshed; a line whose appliance was switched off in Admin is removed with a note; an Additional Services amount the user changed for this quote stays, while one still equal to the old admin default follows the new default.
+- **Rate Card page** (read-only): shows when it was loaded, has a **Refresh rates** button, and reloads quietly when the tab is shown again.
+- **MDA service charge and OOW inspection charge** used on job cards: these were read once for the whole session; they are now re-read after a minute.
+- **Delivery + Installation jobs**: already priced by the server on every change, so nothing needed.
+- Admin pages show saved values and are unchanged.
+
+Display only; no pricing formulas, API or database changes.
+
+**Files.** apps/web/src/app.js, tests/e2e/calc-refresh-rates.spec.ts.
+
+**Needs you:** pull and hard-refresh. No API restart or database change.
