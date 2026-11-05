@@ -1,5 +1,6 @@
 import type {
   AmcPricingInput,
+  AmcPricingV2Input,
   DandiPricingInput,
   RateCardInput,
   ThomsonPricingInput,
@@ -379,6 +380,44 @@ export function buildApplianceMaster(
   return { appliances: [...items.values()] };
 }
 
+// AMC pricing v2 starting values (modification.md #197): every figure is an
+// editable assumption in the AMC Admin Rates (New) page, not a fixed rule.
+export const amcPricingV2Default: AmcPricingV2Input = {
+  labour: {
+    salary: 4000,
+    technicians: 2,
+    workingDays: 26,
+    hoursPerDay: 8,
+    visitHours: 4,
+    handledPerVisit: 8,
+    transportPerVisit: 100,
+  },
+  breakdown: { callsPerUnitPerYear: 0.1, costPerCall: 150 },
+  callOut: { labourCharge: 125, basicDiscountPct: 0.3, handlingCharge: 80 },
+  overhead: 0.1,
+  profitMarkup: 0.3,
+  plans: {
+    basic: { retainerPerUnit: 15, adminCostPerUnit: 6, capPct: 0.04 },
+    standard: { plannedVisits: 1, partsReservePct: 0, capPct: 0.08 },
+    premium: { plannedVisits: 2, partsReservePct: 0.045, capPct: 0.2 },
+  },
+  ageBands: [
+    { label: 'Year 4', riskFactor: 1 },
+    { label: 'Year 5', riskFactor: 1.15 },
+    { label: 'Year 6', riskFactor: 1.3 },
+    { label: 'Year 7+', riskFactor: 1.5 },
+  ],
+  volumeLadder: [
+    { minQty: 1, discountPct: 0 },
+    { minQty: 26, discountPct: 0.05 },
+    { minQty: 101, discountPct: 0.1 },
+    { minQty: 301, discountPct: 0.15 },
+    { minQty: 1001, discountPct: 0.2 },
+  ],
+  corridor: { minPerUnit: 20, maxPerUnit: 250 },
+  rateOverrides: [],
+};
+
 export const applianceMasterDefault: ApplianceMasterInput = buildApplianceMaster(
   amcPricingDefault,
   thomsonPricingDefault,
@@ -390,6 +429,7 @@ export const pricingConfigDefaults = {
   rate_card: rateCardDefault,
   dandi_pricing: dandiPricingDefault,
   amc_pricing: amcPricingDefault,
+  amc_pricing_v2: amcPricingV2Default,
   thomson_pricing: thomsonPricingDefault,
   appliance_master: applianceMasterDefault,
 } as const;

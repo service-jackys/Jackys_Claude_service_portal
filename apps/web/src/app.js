@@ -806,12 +806,14 @@
     $('#rateCardAdminNav').hidden = !canReadPricingConfig;
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminNav').hidden = !canReadPricingConfig;
+    $('#amcAdminV2Nav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
     $('#vasCalcNav').hidden = !canUseCalculators;
     $('#amcCalcNav').hidden = !canUseCalculators;
+    $('#amcCalcV2Nav').hidden = !canUseCalculators;
     $('#thomsonCalcNav').hidden = !canUseCalculators;
     const canReadRevenue = hasPermission('revenue_dashboard.read');
     $('#revenueDashNav').hidden = !revenueTabs().length;
@@ -10893,6 +10895,446 @@ ${bodyHtml}
         );
       rerenderTiers();
     },
+    amc_pricing_v2(container, data, ctx) {
+      container.innerHTML = '';
+      // Live preview of the calculated unit rates (read-only) -- refreshed on every edit.
+      const previewState = { age: 0, master: null };
+      let refreshPreview = () => {};
+      const dirty = () => {
+        ctx.markDirty();
+        refreshPreview();
+      };
+      const grid = document.createElement('div');
+      grid.className = 'pc-split-grid';
+      container.appendChild(grid);
+      const card = (title, tip) => {
+        const host = document.createElement('div');
+        host.className = 'detail-action-card';
+        host.innerHTML = '<h4>' + title + (tip ? ' ' + tipHtml(tip) : '') + '</h4>';
+        grid.appendChild(host);
+        const body = document.createElement('div');
+        host.appendChild(body);
+        return body;
+      };
+
+      pcRenderScalarFields(
+        card(
+          'Visit &amp; labour cost',
+          'What one technician-team visit costs. A planned visit is shared by the appliances handled in it.',
+        ),
+        [
+          {
+            path: 'labour.salary',
+            label: 'Technician monthly salary',
+            type: 'number',
+            tooltip: 'Monthly cost of one technician, in AED.',
+          },
+          {
+            path: 'labour.technicians',
+            label: 'Technicians per visit',
+            type: 'number',
+            step: '1',
+            tooltip: 'Number of technicians in the team that goes on a visit.',
+          },
+          {
+            path: 'labour.workingDays',
+            label: 'Working days per month',
+            type: 'number',
+            step: '1',
+            tooltip: 'Used to turn the monthly salary into a daily cost.',
+          },
+          {
+            path: 'labour.hoursPerDay',
+            label: 'Working hours per day',
+            type: 'number',
+            step: '0.5',
+            tooltip: 'Used to turn the daily cost into an hourly cost.',
+          },
+          {
+            path: 'labour.visitHours',
+            label: 'Average visit duration (hours)',
+            type: 'number',
+            step: '0.5',
+            tooltip: 'Team time spent on one planned visit, however many appliances it covers.',
+          },
+          {
+            path: 'labour.handledPerVisit',
+            label: 'Appliances handled per visit',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'How many appliances one planned visit covers. The visit cost is shared between them.',
+          },
+          {
+            path: 'labour.transportPerVisit',
+            label: 'Transport cost per visit',
+            type: 'number',
+            tooltip: 'Transport cost of one planned visit, in AED.',
+          },
+        ],
+        data,
+        dirty,
+      );
+
+      pcRenderScalarFields(
+        card(
+          'Breakdowns &amp; call-out terms',
+          'Expected breakdown work is a cost we carry on Standard and Premium. The call-out terms are what Basic RM customers pay per call.',
+        ),
+        [
+          {
+            path: 'breakdown.callsPerUnitPerYear',
+            label: 'Breakdown calls per appliance per year',
+            type: 'number',
+            step: '0.01',
+            tooltip:
+              'Expected number of breakdown calls per appliance in a year (0.10 = one call for every 10 appliances). Raised for older appliances by the age factor.',
+          },
+          {
+            path: 'breakdown.costPerCall',
+            label: 'Cost per breakdown call',
+            type: 'number',
+            tooltip: 'Our own cost of attending one breakdown call, in AED.',
+          },
+          {
+            path: 'callOut.labourCharge',
+            label: 'Normal labour charge per call-out',
+            type: 'number',
+            tooltip:
+              'What we normally charge a customer for one repair call (labour only; spare parts extra).',
+          },
+          {
+            path: 'callOut.basicDiscountPct',
+            label: 'Basic RM call-out discount',
+            type: 'percent',
+            tooltip:
+              'Discount off the normal labour charge for customers on the Basic RM plan. Shown on the quote.',
+          },
+          {
+            path: 'callOut.handlingCharge',
+            label: 'Handling charge when not repairable',
+            type: 'number',
+            tooltip:
+              'Charged for the inspection when the appliance cannot be repaired. Shown on the quote.',
+          },
+        ],
+        data,
+        dirty,
+      );
+
+      pcRenderScalarFields(
+        card('Margins', 'Added on top of the cost of each plan to reach its calculated price.'),
+        [
+          {
+            path: 'overhead',
+            label: 'Overhead / contingency',
+            type: 'percent',
+            tooltip:
+              'Covers supervision, admin and scheduling. Added to the cost to get the break-even cost.',
+          },
+          {
+            path: 'profitMarkup',
+            label: 'Profit markup',
+            type: 'percent',
+            tooltip:
+              'Profit added on top of the break-even cost to get the target (cost-plus) price.',
+          },
+        ],
+        data,
+        dirty,
+      );
+
+      pcRenderScalarFields(
+        card(
+          'Plans',
+          'What each plan includes and the highest share of equipment value it may be priced at.',
+        ),
+        [
+          {
+            path: 'plans.basic.retainerPerUnit',
+            label: 'Basic RM: yearly retainer per appliance',
+            type: 'number',
+            tooltip:
+              'Basic RM is reactive only. The customer pays this small yearly amount per appliance, then the discounted call-out rate whenever we attend.',
+          },
+          {
+            path: 'plans.basic.adminCostPerUnit',
+            label: 'Basic RM: our admin cost per appliance',
+            type: 'number',
+            tooltip:
+              'Our own yearly cost of holding a Basic RM contract per appliance. Used only for the margin warning.',
+          },
+          {
+            path: 'plans.basic.capPct',
+            label: 'Basic RM: cap (% of equipment value)',
+            type: 'percent',
+            tooltip:
+              'The Basic RM price is never more than this share of the total equipment value. 0 switches the cap off.',
+          },
+          {
+            path: 'plans.standard.plannedVisits',
+            label: 'Standard: planned visits per appliance per year',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'Planned maintenance visits every covered appliance gets each year on Standard.',
+          },
+          {
+            path: 'plans.standard.partsReservePct',
+            label: 'Standard: parts reserve (% of appliance value)',
+            type: 'percent',
+            tooltip:
+              'Share of the appliance value set aside for spare parts. Standard does not cover parts, so this is normally 0.',
+          },
+          {
+            path: 'plans.standard.capPct',
+            label: 'Standard: cap (% of equipment value)',
+            type: 'percent',
+            tooltip:
+              'The Standard price is never more than this share of the total equipment value. 0 switches the cap off.',
+          },
+          {
+            path: 'plans.premium.plannedVisits',
+            label: 'Premium: planned visits per appliance per year',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'Planned maintenance visits every covered appliance gets each year on Premium.',
+          },
+          {
+            path: 'plans.premium.partsReservePct',
+            label: 'Premium: parts reserve (% of appliance value)',
+            type: 'percent',
+            tooltip:
+              'Share of the appliance value set aside for the parts Premium covers (all mechanical parts except the compressor).',
+          },
+          {
+            path: 'plans.premium.capPct',
+            label: 'Premium: cap (% of equipment value)',
+            type: 'percent',
+            tooltip:
+              'The Premium price is never more than this share of the total equipment value. If the cap is below cost the quote shows a red warning. 0 switches the cap off.',
+          },
+        ],
+        data,
+        dirty,
+      );
+
+      pcRenderScalarFields(
+        card(
+          'Usual price range',
+          'Only a warning: the calculator flags a price per appliance outside this range. It never blocks a quote.',
+        ),
+        [
+          {
+            path: 'corridor.minPerUnit',
+            label: 'Lowest usual price per appliance per year',
+            type: 'number',
+            tooltip: 'Prices per appliance below this show an amber warning.',
+          },
+          {
+            path: 'corridor.maxPerUnit',
+            label: 'Highest usual price per appliance per year',
+            type: 'number',
+            tooltip:
+              'Prices per appliance above this show an amber warning. 0 switches the warning off.',
+          },
+        ],
+        data,
+        dirty,
+      );
+
+      const ageHost = card(
+        'Appliance age bands',
+        'The age of the appliances on a quote. Older appliances break down more and need more parts, so their breakdown cost and parts reserve are multiplied by the risk factor.',
+      );
+      const rerenderAge = () =>
+        pcRenderTable(
+          ageHost,
+          data.ageBands,
+          [
+            {
+              key: 'label',
+              label: 'Age band',
+              type: 'text',
+              tooltip: 'Name shown in the calculator, for example Year 4 or Year 7+.',
+            },
+            {
+              key: 'riskFactor',
+              label: 'Risk factor',
+              type: 'number',
+              step: '0.05',
+              tooltip:
+                '1 = no extra risk. 1.3 means 30% more breakdown cost and parts reserve than a Year 4 appliance.',
+            },
+          ],
+          {
+            minRows: 1,
+            markDirty: dirty,
+            rerender: rerenderAge,
+            onAdd: () => ({ label: 'New band', riskFactor: 1 }),
+            addLabel: 'Add age band',
+          },
+        );
+      rerenderAge();
+
+      const ladderHost = card(
+        'Volume discount ladder',
+        'Discount on the whole quote, chosen by the total number of appliances on it. The highest step reached applies.',
+      );
+      const rerenderLadder = () =>
+        pcRenderTable(
+          ladderHost,
+          data.volumeLadder,
+          [
+            {
+              key: 'minQty',
+              label: 'From (appliances)',
+              type: 'number',
+              step: '1',
+              tooltip: 'This discount applies once the quote has at least this many appliances.',
+            },
+            {
+              key: 'discountPct',
+              label: 'Discount (%)',
+              type: 'percent',
+              tooltip: 'Taken off the whole quote price. Use 0 for the first step (no discount).',
+            },
+          ],
+          {
+            minRows: 1,
+            markDirty: dirty,
+            rerender: rerenderLadder,
+            onAdd: () => ({ minQty: 1, discountPct: 0 }),
+            addLabel: 'Add step',
+          },
+        );
+      rerenderLadder();
+
+      const overrideHost = card(
+        'Rate overrides per appliance (optional)',
+        'Normally the rate is calculated. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
+      );
+      const rerenderOverrides = () =>
+        pcRenderTable(
+          overrideHost,
+          data.rateOverrides,
+          [
+            {
+              key: 'name',
+              label: 'Appliance (exactly as in Appliance Master)',
+              type: 'text',
+              width: '40%',
+              tooltip: 'Must match the appliance name in Appliance Master.',
+            },
+            {
+              key: 'basic',
+              label: 'Basic RM rate',
+              type: 'number',
+              tooltip: 'Fixed yearly Basic RM rate per appliance. 0 = use the calculated rate.',
+            },
+            {
+              key: 'standard',
+              label: 'Standard rate',
+              type: 'number',
+              tooltip: 'Fixed yearly Standard PMC rate per appliance. 0 = use the calculated rate.',
+            },
+            {
+              key: 'premium',
+              label: 'Premium rate',
+              type: 'number',
+              tooltip: 'Fixed yearly Premium PMC rate per appliance. 0 = use the calculated rate.',
+            },
+          ],
+          {
+            minRows: 0,
+            markDirty: dirty,
+            rerender: rerenderOverrides,
+            onAdd: () => ({ name: '', basic: 0, standard: 0, premium: 0 }),
+            addLabel: 'Add override',
+          },
+        );
+      rerenderOverrides();
+
+      // Read-only: the yearly rate per appliance these settings give.
+      const previewHost = document.createElement('div');
+      previewHost.className = 'detail-action-card pc-span-full';
+      previewHost.innerHTML =
+        '<h4>Calculated yearly rate per appliance (read-only) ' +
+        tipHtml(
+          'What one appliance costs the customer per year on each plan with the settings above, before the volume discount and the cap. Uses each appliance’s reference value from Appliance Master. Updates as you type.',
+        ) +
+        '</h4><div class="field-grid"><div class="field"><label>Appliance age</label><select data-pv-age></select></div></div><div data-pv-table></div>';
+      grid.appendChild(previewHost);
+      const ageSelect = previewHost.querySelector('[data-pv-age]');
+      const previewTable = previewHost.querySelector('[data-pv-table]');
+      refreshPreview = () => {
+        const core = window.JdAmcV2;
+        if (!core || !previewState.master) return;
+        ageSelect.innerHTML = data.ageBands
+          .map(
+            (band, i) =>
+              '<option value="' +
+              i +
+              '"' +
+              (i === previewState.age ? ' selected' : '') +
+              '>' +
+              escapeHtml(band.label) +
+              '</option>',
+          )
+          .join('');
+        const items = (previewState.master.appliances || []).filter(
+          (a) => a.active && a.amcEnabled,
+        );
+        if (!items.length) {
+          previewTable.innerHTML =
+            '<p class="form-note">No AMC appliances are set up in Appliance Master yet.</p>';
+          return;
+        }
+        previewTable.innerHTML =
+          '<div class="table-wrap"><table><thead><tr><th>Appliance</th><th>Reference value (AED)</th><th>Basic RM</th><th>Standard PMC</th><th>Premium PMC</th></tr></thead><tbody>' +
+          items
+            .map((a) => {
+              const quote = core.computeQuote(
+                data,
+                [{ name: a.name, qty: 1, refValue: a.amcRefValue }],
+                previewState.age,
+              );
+              return (
+                '<tr><td>' +
+                escapeHtml(a.name) +
+                '</td><td>' +
+                money(a.amcRefValue) +
+                '</td>' +
+                quote.plans
+                  .map(
+                    (p) =>
+                      '<td>' +
+                      money(p.lines[0].unitRate) +
+                      (p.lines[0].overridden ? ' <small>(fixed)</small>' : '') +
+                      '</td>',
+                  )
+                  .join('') +
+                '</tr>'
+              );
+            })
+            .join('') +
+          '</tbody></table></div>';
+      };
+      ageSelect.addEventListener('change', () => {
+        previewState.age = Number(ageSelect.value) || 0;
+        refreshPreview();
+      });
+      apiRequest('/api/pricing-config/appliance_master', { method: 'GET' })
+        .then((response) => {
+          previewState.master = response.payload;
+          refreshPreview();
+        })
+        .catch(() => {
+          previewTable.innerHTML =
+            '<p class="form-note">Could not load Appliance Master for the preview.</p>';
+        });
+    },
     thomson_pricing(container, data, ctx) {
       container.innerHTML = '';
       const grid = document.createElement('div');
@@ -11157,6 +11599,14 @@ ${bodyHtml}
       description: 'Admin entry for the AMC rate configuration.',
       domains: ['amc_pricing'],
     },
+    'amc-admin-v2': {
+      navId: 'amcAdminV2Nav',
+      workspaceId: 'amcAdminV2Workspace',
+      heading: 'AMC Admin Rates (New)',
+      description:
+        'Admin entry for the new per-appliance AMC pricing. The original AMC Admin Rate Section is unchanged.',
+      domains: ['amc_pricing_v2'],
+    },
     'thomson-admin': {
       navId: 'thomsonAdminNav',
       workspaceId: 'thomsonAdminWorkspace',
@@ -11405,6 +11855,7 @@ ${bodyHtml}
   $('#rateCardAdminNav')?.addEventListener('click', () => setWorkspaceMode('rate-card-admin'));
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
+  $('#amcAdminV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-admin-v2'));
   $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
 
   // ---------------------------------------------------------------------
@@ -13485,6 +13936,282 @@ ${bodyHtml}
   }
 
   let amcCalcVisibilityHandler = null;
+  // AMC Quote Calculator (New) -- per-appliance pricing from AMC Admin Rates (New).
+  // Pure maths lives in amc-v2-core.js (JdAmcV2); this only builds the page.
+  // The original AMC Quote Calculator is untouched; the compare table below
+  // re-prices the same appliances with the old formulas.
+  function renderAmcCalcV2(container, dataByDomain) {
+    const core = window.JdAmcV2;
+    let cfg = dataByDomain.amc_pricing_v2;
+    let oldCfg = dataByDomain.amc_pricing;
+    let master = dataByDomain.appliance_master;
+    if (!core) {
+      container.innerHTML =
+        '<p class="form-note">The pricing engine failed to load. Hard-refresh the page.</p>';
+      return;
+    }
+    const activeCatalog = () => (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
+    const refValueOf = (name) =>
+      Number(activeCatalog().find((a) => a.name === name)?.amcRefValue) || 0;
+    const lines = []; // { name, qty }
+    let ageIndex = 0;
+    const optionsHtml = () =>
+      activeCatalog()
+        .map(
+          (a) => '<option value="' + escapeHtml(a.name) + '">' + escapeHtml(a.name) + '</option>',
+        )
+        .join('');
+    const ageOptionsHtml = () =>
+      cfg.ageBands
+        .map(
+          (b, i) =>
+            '<option value="' +
+            i +
+            '"' +
+            (i === ageIndex ? ' selected' : '') +
+            '>' +
+            escapeHtml(b.label) +
+            '</option>',
+        )
+        .join('');
+
+    container.innerHTML =
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Add each appliance type with its quantity and pick the age of the appliances. Every plan is priced per appliance from AMC Admin Rates (New): a volume discount is applied by the total number of appliances, and the price never goes above the plan’s cap on the equipment value. Red means the price is below cost, amber means below the target margin or outside the usual range. The original AMC Quote Calculator is unchanged; the table at the bottom compares both.',
+      ) +
+      '</div>' +
+      '<section data-v2-panel>' +
+      '<div class="detail-action-card pc-span-full"><h4>Appliances for this contract</h4>' +
+      '<div class="field-grid">' +
+      calcField(
+        'Appliance type',
+        '<select data-v2-select>' + optionsHtml() + '</select>',
+        'Appliances come from Appliance Master (AMC ticked). The reference value is used internally; the customer is never asked for it.',
+      ) +
+      calcField(
+        'Appliance age',
+        '<select data-v2-age>' + ageOptionsHtml() + '</select>',
+        'Older appliances break down more and need more parts, so the price rises with the age band set in AMC Admin Rates (New).',
+      ) +
+      '</div>' +
+      '<p><button type="button" class="button button-outline" data-v2-add>+ Add appliance</button> <button type="button" class="button button-outline" data-v2-clear>Clear</button></p>' +
+      '<div data-v2-lines></div></div>' +
+      '<div class="detail-action-card pc-span-full"><h4>Plan pricing ' +
+      tipHtml(
+        'Price per plan for the whole contract per year, after the volume discount and the cap.',
+      ) +
+      '</h4><div data-v2-output></div></div>' +
+      '<div class="detail-action-card pc-span-full"><h4>Compare with the original AMC calculator ' +
+      tipHtml(
+        'The same appliances priced with the original AMC Quote Calculator formulas, to check the new prices against.',
+      ) +
+      '</h4><div data-v2-compare></div></div>' +
+      '</section>';
+
+    const linesHost = container.querySelector('[data-v2-lines]');
+    const output = container.querySelector('[data-v2-output]');
+    const compare = container.querySelector('[data-v2-compare]');
+    const select = container.querySelector('[data-v2-select]');
+    const ageSelect = container.querySelector('[data-v2-age]');
+
+    function renderLines() {
+      if (!lines.length) {
+        linesHost.innerHTML =
+          '<p class="form-note">No appliances added yet. Pick an appliance type and click "+ Add appliance".</p>';
+        return;
+      }
+      linesHost.innerHTML =
+        '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr><th style="width: 60%" title="Appliance type from Appliance Master.">Appliance</th><th style="width: 20%" title="Number of appliances of this type on the contract.">Qty</th><th style="width: 20%"></th></tr></thead><tbody>' +
+        lines
+          .map(
+            (l, i) =>
+              '<tr><td>' +
+              escapeHtml(l.name) +
+              (refValueOf(l.name) > 0
+                ? ''
+                : ' <span class="status-chip" title="No AMC reference value is set for this appliance in Appliance Master, so parts and the cap are understated.">Set value</span>') +
+              '</td><td><input type="number" min="0" step="1" value="' +
+              l.qty +
+              '" data-v2-qty="' +
+              i +
+              '" /></td><td><button type="button" class="button button-outline" data-v2-remove="' +
+              i +
+              '">Remove</button></td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>';
+      linesHost.querySelectorAll('[data-v2-qty]').forEach((input) =>
+        input.addEventListener('input', () => {
+          lines[Number(input.dataset.v2Qty)].qty = parseNumber(input.value);
+          recompute();
+        }),
+      );
+      linesHost.querySelectorAll('[data-v2-remove]').forEach((button) =>
+        button.addEventListener('click', () => {
+          lines.splice(Number(button.dataset.v2Remove), 1);
+          renderLines();
+          recompute();
+        }),
+      );
+    }
+
+    function flagsHtml(plan) {
+      return plan.flags
+        .map(
+          (f) =>
+            '<div class="' +
+            (f.level === 'red' ? 'form-note is-error' : 'form-note is-warn') +
+            '" style="' +
+            (f.level === 'red' ? 'color:#b42318;font-weight:600' : 'color:#b54708') +
+            '">' +
+            (f.level === 'red' ? '&#9888; ' : '&#9888; ') +
+            escapeHtml(f.text) +
+            (f.shortfall ? ' (shortfall ' + money(f.shortfall) + ' AED)' : '') +
+            '</div>',
+        )
+        .join('');
+    }
+
+    function recompute() {
+      const input = lines.map((l) => ({ name: l.name, qty: l.qty, refValue: refValueOf(l.name) }));
+      const quote = core.computeQuote(cfg, input, ageIndex);
+      if (!lines.length || quote.totalQty <= 0) {
+        output.innerHTML = lines.length
+          ? '<p class="form-note">Enter a quantity for at least one appliance above to see plan pricing.</p>'
+          : '<p class="form-note">Add at least one appliance above to see plan pricing.</p>';
+        compare.innerHTML = '';
+        return;
+      }
+      const co = quote.callOut;
+      output.innerHTML =
+        '<p class="form-note">Total appliances: <strong>' +
+        quote.totalQty +
+        '</strong> &middot; Total equipment value: <strong>' +
+        money(quote.totalValue) +
+        ' AED</strong> &middot; Age: <strong>' +
+        escapeHtml(quote.ageLabel) +
+        '</strong> &middot; Volume discount: <strong>' +
+        (quote.discountPct * 100).toFixed(1).replace(/\.0$/, '') +
+        '%</strong></p>' +
+        '<div class="table-wrap"><table class="amc-plan-table"><thead><tr>' +
+        '<th title="Plan name.">Plan</th>' +
+        '<th title="Planned maintenance visits for the whole contract per year. Basic RM has none.">Planned visits</th>' +
+        '<th title="Sum of quantity x yearly rate per appliance, before the volume discount.">Price before discount</th>' +
+        '<th title="Volume discount taken off by total appliances.">Discount</th>' +
+        '<th title="Highest price allowed for this plan: its cap % x total equipment value.">Cap</th>' +
+        '<th title="Price per year, excluding VAT, after discount and cap.">Price (excl. VAT)</th>' +
+        '<th title="Price per year including 5% VAT.">Price (incl. 5% VAT)</th>' +
+        '<th title="Price per appliance per year, excluding VAT.">Per appliance</th>' +
+        '<th title="Price as a share of the total equipment value.">% of value</th>' +
+        '</tr></thead><tbody>' +
+        quote.plans
+          .map(
+            (p) =>
+              '<tr><td>' +
+              escapeHtml(p.planLabel) +
+              '</td><td>' +
+              p.plannedVisitsTotal +
+              '</td><td>' +
+              money(p.listTotal) +
+              '</td><td>' +
+              (p.discountPct ? '-' + money(p.listTotal - p.discountedTotal) : '&ndash;') +
+              '</td><td>' +
+              (p.capTotal === null
+                ? '&ndash;'
+                : money(p.capTotal) + (p.capApplied ? ' <strong>(applied)</strong>' : '')) +
+              '</td><td><strong>' +
+              money(p.priceExclVat) +
+              '</strong></td><td><strong>' +
+              money(p.priceInclVat) +
+              '</strong></td><td>' +
+              money(p.perUnit) +
+              '</td><td>' +
+              (p.pctOfValue * 100).toFixed(1) +
+              '%</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div>' +
+        quote.plans
+          .map((p) =>
+            p.flags.length
+              ? '<div><strong>' + escapeHtml(p.planLabel) + ':</strong>' + flagsHtml(p) + '</div>'
+              : '',
+          )
+          .join('') +
+        '<p class="form-note"><strong>Call-out terms (shown to the customer):</strong> Basic RM call-out labour AED ' +
+        money(co.basicRate) +
+        ' (normal AED ' +
+        money(co.labourCharge) +
+        '); AED ' +
+        money(co.handlingCharge) +
+        ' handling charge if the appliance cannot be repaired; spare parts extra on Basic RM and Standard PMC.</p>';
+
+      const old = core.computeOld(oldCfg, quote.totalQty, quote.totalValue);
+      compare.innerHTML = old.length
+        ? '<div class="table-wrap"><table><thead><tr><th>Plan</th><th title="Price from the original calculator, excluding VAT.">Original (excl. VAT)</th><th title="Price from this new calculator, excluding VAT.">New (excl. VAT)</th><th title="New minus original.">Difference</th><th title="Difference as a share of the original price.">Change</th></tr></thead><tbody>' +
+          old
+            .map((o, i) => {
+              const n = quote.plans[i].priceExclVat;
+              const d = n - o.priceExclVat;
+              return (
+                '<tr><td>' +
+                escapeHtml(o.label) +
+                '</td><td>' +
+                money(o.priceExclVat) +
+                '</td><td>' +
+                money(n) +
+                '</td><td>' +
+                (d < 0 ? '-' : '+') +
+                money(Math.abs(d)) +
+                '</td><td>' +
+                (o.priceExclVat ? ((d / o.priceExclVat) * 100).toFixed(1) + '%' : '&ndash;') +
+                '</td></tr>'
+              );
+            })
+            .join('') +
+          '</tbody></table></div>'
+        : '';
+    }
+
+    container.querySelector('[data-v2-add]').addEventListener('click', () => {
+      if (!select.value) return;
+      lines.push({ name: select.value, qty: 0 });
+      renderLines();
+      recompute();
+    });
+    container.querySelector('[data-v2-clear]').addEventListener('click', () => {
+      lines.length = 0;
+      renderLines();
+      recompute();
+    });
+    ageSelect.addEventListener('change', () => {
+      ageIndex = Number(ageSelect.value) || 0;
+      recompute();
+    });
+    renderLines();
+    recompute();
+
+    attachCalcRefresh(container, {
+      key: 'amc-calc-v2',
+      panelSelector: '[data-v2-panel]',
+      domains: ['amc_pricing_v2', 'appliance_master', 'amc_pricing'],
+      initial: dataByDomain,
+      apply(fresh) {
+        cfg = fresh.amc_pricing_v2;
+        oldCfg = fresh.amc_pricing;
+        master = fresh.appliance_master;
+        if (ageIndex >= cfg.ageBands.length) ageIndex = 0;
+        const keep = select.value;
+        select.innerHTML = optionsHtml();
+        if (activeCatalog().some((a) => a.name === keep)) select.value = keep;
+        ageSelect.innerHTML = ageOptionsHtml();
+        renderLines();
+        recompute();
+      },
+    });
+  }
+
   function renderAmcCalc(container, data, master) {
     // Catalog of appliance types from the shared Appliance Master (AMC-ticked,
     // active) -- used only to populate the "+ Add appliance" dropdown
@@ -15824,6 +16551,16 @@ ${bodyHtml}
       domains: ['amc_pricing', 'appliance_master'],
       render: (root, dataByDomain) =>
         renderAmcCalc(root, dataByDomain.amc_pricing, dataByDomain.appliance_master),
+    },
+    'amc-calc-v2': {
+      navId: 'amcCalcV2Nav',
+      workspaceId: 'amcCalcV2Workspace',
+      heading: 'AMC Quote Calculator (New)',
+      permission: 'quote_calculators.use',
+      description:
+        'New per-appliance AMC calculator reading AMC Admin Rates (New). The original AMC Quote Calculator is unchanged.',
+      domains: ['amc_pricing_v2', 'appliance_master', 'amc_pricing'],
+      render: (root, dataByDomain) => renderAmcCalcV2(root, dataByDomain),
     },
     'thomson-calc': {
       navId: 'thomsonCalcNav',
@@ -24816,6 +25553,7 @@ ${bodyHtml}
         ['rate-card-admin', 'Rate Card Admin'],
         ['dandi-admin', 'D+I Admin Entry'],
         ['amc-admin', 'AMC Admin Rates'],
+        ['amc-admin-v2', 'AMC Admin Rates (New)'],
         ['thomson-admin', 'Thomson Pricing Admin'],
       ],
     },
@@ -24915,6 +25653,7 @@ ${bodyHtml}
   $('#billingNav')?.addEventListener('click', () => setWorkspaceMode('billing'));
   $('#awaitingDraftsNav')?.addEventListener('click', () => setWorkspaceMode('awaiting-drafts'));
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
+  $('#amcCalcV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-calc-v2'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
 
   initJobCardForms();

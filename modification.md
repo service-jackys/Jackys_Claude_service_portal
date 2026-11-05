@@ -4311,3 +4311,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/calc-refresh-rates.spec.ts.
 
 **Needs you:** pull and hard-refresh. No API restart or database change.
+
+## Modification #197 — New AMC pricing: AMC Admin Rates (New) and AMC Quote Calculator (New) (side by side with the originals)
+
+**Date:** 2026-11-05
+
+**Why.** The original AMC calculator prices a quote as the higher of cost-plus and a percentage of equipment value. The percentage won on every plan, so Basic RM was priced about 8 times its cost, visits were tied to the price percentage, there was no volume discount and no appliance age. A new, per-appliance model was agreed. The original Admin page and Calculator are **untouched** so the two can be compared; they are dropped only when the user says so.
+
+**What changed.**
+
+- **AMC Admin Rates (New)** (Quote Calculators > Admin): every setting is editable with a tooltip — visit and labour cost, breakdown calls, call-out terms (normal labour AED 125, Basic RM discount 30 %, AED 80 handling charge when not repairable), overhead and profit, per-plan settings (Basic retainer AED 15 per appliance; Standard 1 planned visit; Premium 2 planned visits and a parts reserve), a separate cap % of equipment value for each plan (4 / 8 / 20 %), appliance age bands (Year 4 to 7+ risk factors), the volume ladder (1-25 none, 26-100 5 %, 101-300 10 %, 301-1000 15 %, 1000+ 20 %), the usual price range, and optional fixed rates per appliance (0 = use the calculated rate). A read-only table shows the calculated yearly rate per appliance for each plan, updating as you type. Save, Revert to default, History and Restore work like the other Admin pages.
+- **AMC Quote Calculator (New)**: pick appliances (from Appliance Master) and quantities, pick the age band. Each plan shows planned visits, price before discount, volume discount, cap, price excl./incl. VAT, price per appliance and % of value. The cap wins; when it prices a plan below cost a red **Below minimum margin** warning shows the shortfall in AED; amber warnings show below the target margin or outside the usual range. Call-out terms are shown. A **Compare** table prices the same appliances with the original formulas. **Refresh rates** works as on the other calculators.
+- Saving, issuing and printing v2 quotes come in the next change; this one does not save quotes.
+- Database: migration 073 adds the `amc_pricing_v2` configuration domain and a `pricing_model` column on `amc_contracts` (default `v1`, for the next change).
+
+**Files.** packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/migrations/073_amc_pricing_v2.sql, apps/api/src/pricing-config/routes.ts, apps/web/src/amc-v2-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/amc-v2-core.test.ts, tests/integration/amc-pricing-v2.test.ts, tests/e2e/amc-calculator-v2.spec.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.

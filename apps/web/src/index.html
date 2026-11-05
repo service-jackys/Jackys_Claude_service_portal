@@ -12283,6 +12283,20 @@
                     <button
                       class="dashboard-link nav-child"
                       type="button"
+                      id="amcAdminV2Nav"
+                      hidden
+                      aria-label="AMC Admin Rates (New)"
+                      title="AMC Admin Rates (New)"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-briefcase"></use>
+                      </svg>
+                      <span class="nav-label">AMC Admin Rates (New)</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
                       id="thomsonAdminNav"
                       hidden
                       aria-label="Thomson Pricing Admin"
@@ -12426,6 +12440,20 @@
                         <use href="#icon-calculator"></use>
                       </svg>
                       <span class="nav-label">AMC Quote Calculator</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="amcCalcV2Nav"
+                      hidden
+                      aria-label="AMC Quote Calculator (New)"
+                      title="AMC Quote Calculator (New)"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">AMC Quote Calculator (New)</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
                     </button>
                     <button
@@ -14689,6 +14717,72 @@
               </div>
             </div>
 
+            <div class="card" id="amcAdminV2Workspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >NEW AMC pricing, built next to the original AMC Admin Rate Section so the two
+                      can be compared. Prices are per appliance per year from the visit cost,
+                      breakdown allowance, appliance age, volume discount and a cap as a share of
+                      equipment value. Hover the i icons for what each field does. Save your values,
+                      or revert to the starting defaults at any time. Every change is logged and can
+                      be restored from History.</span
+                    ></span
+                  >
+                </div>
+
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-pc-domain="amc_pricing_v2"
+                  style="margin-bottom: 16px"
+                >
+                  <h4>
+                    AMC Rate Configuration (New)<span class="tooltip" tabindex="0"
+                      ><span class="tooltip-icon" aria-hidden="true">i</span
+                      ><span class="tooltip-bubble" role="tooltip"
+                        >Visit and breakdown costs, call-out terms, plan settings, appliance age
+                        bands, volume discount ladder, caps and optional per-appliance rates used by
+                        AMC Quote Calculator (New).</span
+                      ></span
+                    >
+                  </h4>
+                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                  <div data-pc-fields></div>
+                  <div class="form-footer">
+                    <button class="button button-primary" type="button" data-pc-save>Save</button>
+                    <button class="button button-outline" type="button" data-pc-reset>
+                      Revert to default
+                    </button>
+                    <button class="button button-outline" type="button" data-pc-toggle-history>
+                      History
+                    </button>
+                  </div>
+                  <div data-pc-history hidden style="margin-top: 12px">
+                    <div class="table-wrap">
+                      <table>
+                        <caption class="visually-hidden">
+                          Change history
+                        </caption>
+                        <thead>
+                          <tr>
+                            <th>When</th>
+                            <th>Action</th>
+                            <th>By</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody data-pc-history-body></tbody>
+                      </table>
+                    </div>
+                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                  </div>
+                </section>
+              </div>
+            </div>
+
             <div class="card" id="thomsonAdminWorkspace" hidden>
               <div class="card-body">
                 <div class="card-help">
@@ -14876,6 +14970,30 @@
                   >
                 </div>
                 <section class="detail-action-card pricing-config-card" data-calc-root="amc-calc">
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
+                </section>
+              </div>
+            </div>
+
+            <div class="card" id="amcCalcV2Workspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >NEW AMC quote calculator: per-appliance annual prices from AMC Admin Rates
+                      (New). Add appliances and quantities, pick the appliance age, and read Basic
+                      RM / Standard PMC / Premium PMC with price per appliance, volume discount,
+                      value cap and margin warnings, next to the old calculator for
+                      comparison.</span
+                    ></span
+                  >
+                </div>
+                <section
+                  class="detail-action-card pricing-config-card"
+                  data-calc-root="amc-calc-v2"
+                >
                   <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
                 </section>
               </div>
@@ -15683,6 +15801,7 @@
       </div>
     </footer>
     <script src="/portal/roi-core.js" defer></script>
+    <script src="/portal/amc-v2-core.js" defer></script>
     <script src="/portal/tasks.js" defer></script>
     <script src="/portal/chat.js" defer></script>
     <script src="/portal/app.js" defer></script>
