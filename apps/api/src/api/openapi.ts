@@ -1382,11 +1382,37 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                   overhead: { type: 'number', minimum: 0, maximum: 10000000 },
                   priceExclVat: { type: 'number', minimum: 0, maximum: 10000000 },
                   priceInclVat: { type: 'number', minimum: 0, maximum: 10000000 },
+                  // Only for quotes from the new AMC calculator (pricingModel v2).
+                  unitLines: {
+                    type: 'array',
+                    maxItems: 200,
+                    items: {
+                      type: 'object',
+                      additionalProperties: false,
+                      required: ['name', 'qty', 'unitRate'],
+                      properties: {
+                        name: { type: 'string', minLength: 1, maxLength: 200 },
+                        qty: { type: 'number', minimum: 0, maximum: 100000 },
+                        unitRate: { type: 'number', minimum: 0, maximum: 10000000 },
+                      },
+                    },
+                  },
+                  listTotal: { type: 'number', minimum: 0, maximum: 100000000 },
+                  discountPct: { type: 'number', minimum: 0, maximum: 1 },
+                  discountAmount: { type: 'number', minimum: 0, maximum: 100000000 },
+                  capApplied: { type: 'boolean' },
+                  capTotal: { type: 'number', minimum: 0, maximum: 100000000 },
+                  perUnit: { type: 'number', minimum: 0, maximum: 10000000 },
+                  belowCostShortfall: { type: 'number', minimum: 0, maximum: 100000000 },
+                  callOutText: { type: 'string', minLength: 1, maxLength: 600 },
+                  ageBand: { type: 'string', minLength: 1, maxLength: 50 },
                 },
               },
             },
             commencementDate: { type: 'string', format: 'date' },
             contractRef: { type: 'string', minLength: 1, maxLength: 120 },
+            // 'v1' (default) = original AMC calculator, 'v2' = AMC Quote Calculator (New).
+            pricingModel: { type: 'string', enum: ['v1', 'v2'] },
             // Only accepted when revising an issued quote (PUT).
             revisionNote: { type: 'string', minLength: 1, maxLength: 300 },
           },

@@ -151,7 +151,11 @@ export interface ChangelogEntry {
   files: string | null;
 }
 
-export const CHANGELOG: ChangelogEntry[] = ${JSON.stringify(entries.reverse(), null, 2)};
+export const CHANGELOG: ChangelogEntry[] = ${JSON.stringify(
+  entries.sort((a, b) => b.id - a.id),
+  null,
+  2,
+)};
 `;
 fs.writeFileSync(path.join(root, 'apps/api/src/changelog/changelog-data.ts'), out);
 console.log(

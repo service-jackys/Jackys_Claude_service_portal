@@ -797,8 +797,34 @@ const amcContractPlanComputationSchema = z
     overhead: z.number().min(0).max(10000000),
     priceExclVat: z.number().min(0).max(10000000),
     priceInclVat: z.number().min(0).max(10000000),
+    // Only for quotes made with the new AMC calculator (pricingModel 'v2'):
+    // the rate per appliance, the volume discount and the call-out terms
+    // that apply to this plan, kept so a reprint shows exactly what was quoted.
+    unitLines: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(200),
+            qty: z.number().min(0).max(100000),
+            unitRate: z.number().min(0).max(10000000),
+          })
+          .strict(),
+      )
+      .max(200)
+      .optional(),
+    listTotal: z.number().min(0).max(100000000).optional(),
+    discountPct: z.number().min(0).max(1).optional(),
+    discountAmount: z.number().min(0).max(100000000).optional(),
+    capApplied: z.boolean().optional(),
+    capTotal: z.number().min(0).max(100000000).optional(),
+    perUnit: z.number().min(0).max(10000000).optional(),
+    belowCostShortfall: z.number().min(0).max(100000000).optional(),
+    callOutText: optionalText(600),
+    ageBand: optionalText(50),
   })
   .strict();
+
+export const amcContractPricingModels = ['v1', 'v2'] as const;
 
 export const amcContractWriteSchema = z
   .object({
@@ -813,6 +839,9 @@ export const amcContractWriteSchema = z
     plans: z.array(amcContractPlanComputationSchema).min(1).max(3),
     commencementDate: dateSchema.optional(),
     contractRef: optionalText(120),
+    // 'v1' = original AMC calculator (default), 'v2' = AMC Quote Calculator (New).
+    // Set when a quote is created; revising a quote keeps the model it was issued with.
+    pricingModel: z.enum(amcContractPricingModels).optional(),
   })
   .strict();
 export type AmcContractWriteInput = z.infer<typeof amcContractWriteSchema>;
@@ -847,6 +876,7 @@ export const amcContractListQuerySchema = z
   .object({
     search: z.string().trim().min(1).max(200).optional(),
     status: z.enum(amcContractStatuses).optional(),
+    pricingModel: z.enum(amcContractPricingModels).optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })

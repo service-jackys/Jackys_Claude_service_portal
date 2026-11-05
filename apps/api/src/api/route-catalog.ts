@@ -2889,6 +2889,11 @@ export function createRouteCatalog(
             in: 'query',
             schema: { type: 'string', enum: ['Quote', 'Sold', 'Lost'] },
           },
+          {
+            name: 'pricingModel',
+            in: 'query',
+            schema: { type: 'string', enum: ['v1', 'v2'] },
+          },
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: amcContractHandlers.list,

@@ -398,7 +398,7 @@ export const amcPricingV2Default: AmcPricingV2Input = {
   profitMarkup: 0.3,
   plans: {
     basic: { retainerPerUnit: 15, adminCostPerUnit: 6, capPct: 0.04 },
-    standard: { plannedVisits: 1, partsReservePct: 0, capPct: 0.08 },
+    standard: { plannedVisits: 1, partsReservePct: 0.025, capPct: 0.08 },
     premium: { plannedVisits: 2, partsReservePct: 0.045, capPct: 0.2 },
   },
   ageBands: [

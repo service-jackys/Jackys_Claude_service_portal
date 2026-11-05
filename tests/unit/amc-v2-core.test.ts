@@ -15,6 +15,7 @@ const core = mod.exports as {
   costPerVisit(cfg: unknown): number;
   visitCostPerAppliance(cfg: unknown): number;
   discountFor(cfg: unknown, qty: number): number;
+  callOutTerms(cfg: unknown): Record<'basic' | 'standard' | 'premium', string>;
   computeQuote(cfg: unknown, lines: unknown[], age: number): any;
   computeOld(old: unknown, qty: number, value: number): any[];
 };
@@ -44,10 +45,12 @@ test('volume ladder picks the highest step reached', () => {
 test('Standard and Premium unit rates are cost-plus; Basic is the retainer', () => {
   const q = core.computeQuote(cfg, [{ name: 'Oven', qty: 10, refValue: 1000 }], 0);
   const [basic, standard, premium] = q.plans;
-  // Standard: (31.73 + 0.10 x 150) x 1.1 x 1.3 = 66.83 per unit; 10 units, no discount, cap 8% of 10,000 = 800
-  assert.equal(round(standard.lines[0].unitRate), 66.83);
-  assert.equal(round(standard.priceExclVat), 668.25);
-  assert.equal(standard.capApplied, false);
+  // Standard: (31.73 + 0.10 x 150 + 2.5% x 1,000 minor parts) x 1.1 x 1.3 = 102.58 per unit
+  // for 10 units = 1,025.75, above the 8% cap of 10,000 = 800, so the cap applies.
+  assert.equal(round(standard.lines[0].unitRate), 102.58);
+  assert.equal(round(standard.listTotal), 1025.75);
+  assert.equal(standard.capApplied, true);
+  assert.equal(round(standard.priceExclVat), 800);
   // Premium: (63.46 + 15 + 45) x 1.43 = 176.55 per unit; cap 20% of 10,000 = 2000 not reached
   assert.equal(round(premium.lines[0].unitRate), 176.55);
   assert.equal(round(premium.priceInclVat), round(premium.priceExclVat * 1.05));
@@ -61,7 +64,7 @@ test('Standard and Premium unit rates are cost-plus; Basic is the retainer', () 
 test('age band scales breakdown cost and the parts reserve', () => {
   const young = core.computeQuote(cfg, [{ name: 'Oven', qty: 1, refValue: 1000 }], 0);
   const old = core.computeQuote(cfg, [{ name: 'Oven', qty: 1, refValue: 1000 }], 3);
-  assert.ok(old.plans[1].priceExclVat > young.plans[1].priceExclVat);
+  assert.ok(old.plans[1].lines[0].unitRate > young.plans[1].lines[0].unitRate);
   assert.equal(old.ageLabel, 'Year 7+');
   assert.equal(old.ageFactor, 1.5);
 });
@@ -118,4 +121,14 @@ test('old-model helper reproduces the original calculator (1,595 appliances at 8
     plans.map((p: any) => Math.round(p.priceExclVat)),
     [104208, 130260, 156312],
   );
+});
+
+test('call-out wording follows the admin settings and Standard covers minor parts', () => {
+  const terms = core.callOutTerms(cfg);
+  assert.match(terms.basic, /AED 87\.50 per call \(normal rate AED 125\.00\)/);
+  assert.match(terms.basic, /All spare parts are extra/);
+  assert.match(terms.standard, /minor parts \(filters, belts, seals\) are included/);
+  assert.match(terms.standard, /Major spare parts are extra/);
+  assert.match(terms.premium, /except the compressor/);
+  for (const text of Object.values(terms)) assert.match(text, /AED 80\.00 handling charge/);
 });

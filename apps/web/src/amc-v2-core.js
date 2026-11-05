@@ -104,6 +104,8 @@
         var override = overrideFor(cfg, l.name, plan.key);
         var rate =
           override !== null ? override : plan.key === 'basic' ? num(p.retainerPerUnit) : target;
+        var partsEach =
+          plan.key === 'basic' ? 0 : num(p.partsReservePct) * num(l.refValue) * ageFactor;
         return {
           name: l.name,
           qty: num(l.qty),
@@ -111,12 +113,20 @@
           unitRate: rate,
           overridden: override !== null,
           lineTotal: rate * num(l.qty),
+          directTotal: direct * num(l.qty),
+          partsTotal: partsEach * num(l.qty),
           breakEvenTotal: breakEven * num(l.qty),
           targetTotal: target * num(l.qty),
         };
       });
       var listTotal = rows.reduce(function (s, r) {
         return s + r.lineTotal;
+      }, 0);
+      var directTotal = rows.reduce(function (s, r) {
+        return s + r.directTotal;
+      }, 0);
+      var partsTotal = rows.reduce(function (s, r) {
+        return s + r.partsTotal;
       }, 0);
       var breakEvenTotal = rows.reduce(function (s, r) {
         return s + r.breakEvenTotal;
@@ -186,6 +196,8 @@
         pctOfValue: totalValue > 0 ? price / totalValue : 0,
         breakEvenTotal: breakEvenTotal,
         targetTotal: targetTotal,
+        directTotal: directTotal,
+        partsTotal: partsTotal,
         plannedVisitsTotal: plan.key === 'basic' ? 0 : num(p.plannedVisits) * totalQty,
         flags: flags,
       };
@@ -203,6 +215,34 @@
         basicRate: num(cfg.callOut.labourCharge) * (1 - num(cfg.callOut.basicDiscountPct)),
         handlingCharge: num(cfg.callOut.handlingCharge),
       },
+    };
+  }
+
+  function money2(value) {
+    return (Math.round(num(value) * 100) / 100).toFixed(2);
+  }
+
+  // Call-out wording per plan, shown under the plan table and printed on the
+  // certificate. Built from the admin call-out settings so it always matches them.
+  function callOutTerms(cfg) {
+    var co = cfg.callOut;
+    var normal = num(co.labourCharge);
+    var basic = normal * (1 - num(co.basicDiscountPct));
+    var handling =
+      'AED ' + money2(co.handlingCharge) + ' handling charge if the appliance cannot be repaired.';
+    return {
+      basic:
+        'Call-out labour AED ' +
+        money2(basic) +
+        ' per call (normal rate AED ' +
+        money2(normal) +
+        '). All spare parts are extra. ' +
+        handling,
+      standard:
+        'Repair labour and minor parts (filters, belts, seals) are included. Major spare parts are extra. ' +
+        handling,
+      premium:
+        'Repair labour and all mechanical parts except the compressor are included. ' + handling,
     };
   }
 
@@ -250,6 +290,7 @@
     costPerVisit: costPerVisit,
     visitCostPerAppliance: visitCostPerAppliance,
     discountFor: discountFor,
+    callOutTerms: callOutTerms,
     computeQuote: computeQuote,
     computeOld: computeOld,
   };

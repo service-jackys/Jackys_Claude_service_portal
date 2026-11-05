@@ -4329,3 +4329,23 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, packages/db/migrations/073_amc_pricing_v2.sql, apps/api/src/pricing-config/routes.ts, apps/web/src/amc-v2-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/amc-v2-core.test.ts, tests/integration/amc-pricing-v2.test.ts, tests/e2e/amc-calculator-v2.spec.ts.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.
+
+## Modification #198 — AMC Quote Calculator (New): save, issue, AMC Issued (New) and print
+
+**Date:** 2026-11-05
+
+**Why.** #197 added the new AMC pricing screens but they could not save a quote. This completes the new calculator so a quote can be issued, found again, marked Sold or Lost and printed. The original calculator and its AMC Issued list are unchanged.
+
+**What changed.**
+
+- **Save / issue:** AMC Quote Calculator (New) has an "Issue an AMC Contract — Customer Certificate" section like the original (client, attention to, site, commencement date, contract ref.). It saves all 3 plans with the rate per appliance, the volume discount, the call-out wording and the appliance age. Same reference numbers (AC-YYYY-NNNNN).
+- **AMC Issued (New):** a second tab on the new calculator listing only new-calculator quotes, with the same Print, Sold / Lost / Reopen and, for admins, Edit and History (with a reason for each change) as the original. Editing reopens the quote with the current Admin rates and the same appliance age. The original calculator's AMC Issued tab now lists only original quotes. Sold quotes from either calculator count as AMC revenue as before.
+- **Print:** the certificate for a new-calculator quote adds a "Contract pricing (per year)" table (rate per appliance, quantity, total, volume discount) and "Call-out and repair terms" for the chosen plan. Cost, margin and the cap are never printed.
+- **Standard PMC covers minor parts:** the Standard parts reserve default is now 2.5 % of appliance value (it was 0), matching the Standard scope (filters, belts, seals). The call-out wording says major spare parts are extra on Standard, parts extra on Basic RM and all mechanical parts except the compressor are included on Premium. Existing saved Admin values are not changed; set "Standard: parts reserve" in AMC Admin Rates (New) to 2.5 to match.
+- The rate overrides table headings no longer overlap (full-width card, shorter headings).
+- Database/API: `pricing_model` ('v1' original, 'v2' new) is stored on each AMC contract and filterable on the list; revising a quote keeps its model. Planned visits are stored per appliance per year (1 or 2) rather than the contract total.
+- The amber "below target margin" warning is unchanged and still shows whenever a volume discount reduces the price below the target margin.
+
+**Files.** packages/contracts/src/index.ts, packages/db/src/amc-contracts.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/amc-contracts/service.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/amc-v2-core.js, apps/web/src/app.js, tests/unit/amc-v2-core.test.ts, tests/integration/amc-v2-contracts.test.ts, tests/e2e/amc-v2-issue.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No new database migration (073 from the last change already added the column). Then in AMC Admin Rates (New) set "Standard: parts reserve" to 2.5 and Save.
