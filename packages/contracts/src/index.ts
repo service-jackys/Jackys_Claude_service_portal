@@ -765,6 +765,9 @@ const amcApplianceLineSchema = z
     name: z.string().trim().min(1).max(200),
     qty: z.number().min(0).max(100000),
     price: z.number().min(0).max(10000000),
+    // true when price is the internal Appliance Master reference value (the
+    // customer gave no unit value), so printed certificates leave it out.
+    ref: z.boolean().optional(),
   })
   .strict();
 
@@ -1341,6 +1344,7 @@ export const pricingConfigDomainSchema = z.enum([
   'dandi_pricing',
   'amc_pricing',
   'thomson_pricing',
+  'appliance_master',
 ]);
 export type PricingConfigDomain = z.infer<typeof pricingConfigDomainSchema>;
 
@@ -1561,7 +1565,10 @@ export const amcPricingSchema = z
     standardVisits: nonNegSchema,
     premiumVisits: nonNegSchema,
     basicVisitTiers: z.array(amcVisitTierSchema).min(1),
-    appliances: z.array(amcApplianceSchema).min(1),
+    // Superseded by the shared Appliance Master (appliance_master domain).
+    // Kept optional so configurations saved before the master existed still
+    // validate; the AMC calculator no longer reads it.
+    appliances: z.array(amcApplianceSchema).optional(),
   })
   .strict();
 export type AmcPricingInput = z.infer<typeof amcPricingSchema>;
@@ -1656,7 +1663,47 @@ export function deriveThomsonTierRates(
   };
 }
 
+// Shared Appliance Master: ONE list of appliance names used by both the AMC
+// and Thomson calculators. A name is the stable key (both configs match on
+// it), so it is fixed once created -- retire an appliance by clearing Active.
+// amcRefValue is an internal reference value (replacement price) that sizes
+// the AMC value-percentage floor and parts reserve, so the AMC quote needs
+// only appliance + quantity from the customer.
+export const applianceMasterItemSchema = z
+  .object({
+    name: z.string().trim().min(1).max(120),
+    amcEnabled: z.boolean(),
+    thomsonEnabled: z.boolean(),
+    amcRefValue: nonNegSchema,
+    active: z.boolean(),
+  })
+  .strict();
+
+export const applianceMasterSchema = z
+  .object({
+    appliances: z
+      .array(applianceMasterItemSchema)
+      .min(1)
+      .superRefine((items, ctx) => {
+        const seen = new Set<string>();
+        items.forEach((item, index) => {
+          const key = item.name.trim().toLowerCase();
+          if (seen.has(key)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [index, 'name'],
+              message: 'Appliance "' + item.name + '" is listed twice.',
+            });
+          }
+          seen.add(key);
+        });
+      }),
+  })
+  .strict();
+export type ApplianceMasterInput = z.infer<typeof applianceMasterSchema>;
+
 const pricingConfigPayloadSchemas: Record<PricingConfigDomain, z.ZodTypeAny> = {
+  appliance_master: applianceMasterSchema,
   vas_price_bands: vasPriceBandsSchema,
   vas_pricing_params: vasPricingParamsSchema,
   rate_card: rateCardSchema,

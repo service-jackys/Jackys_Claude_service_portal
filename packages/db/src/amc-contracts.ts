@@ -1,6 +1,7 @@
 import type { PoolClient } from 'pg';
 
 export type AmcApplianceLine = {
+  ref?: boolean;
   name: string;
   qty: number;
   price: number;

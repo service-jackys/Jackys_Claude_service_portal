@@ -3,6 +3,7 @@ import type {
   DandiPricingInput,
   RateCardInput,
   ThomsonPricingInput,
+  ApplianceMasterInput,
   VasPriceBandsInput,
   VasPricingParamsInput,
 } from '../../contracts/src/index.js';
@@ -338,6 +339,51 @@ export const thomsonPricingDefault: ThomsonPricingInput = {
   },
 };
 
+// Shared Appliance Master. Built from the AMC and Thomson lists: the union of
+// names, each ticked for the calculator(s) that already list it. amcRefValue
+// carries the AMC "Unit price" (the replacement price that sizes the plan
+// percentage); appliances AMC never listed start at 0 until the admin enters a
+// value. Used for the default AND to seed the master from already-saved configs
+// (the pricing-config service passes in the saved payloads).
+export function buildApplianceMaster(
+  amc: Pick<AmcPricingInput, 'appliances'>,
+  thomson: Pick<ThomsonPricingInput, 'appliances'>,
+): ApplianceMasterInput {
+  const items = new Map<string, ApplianceMasterInput['appliances'][number]>();
+  for (const a of thomson.appliances) {
+    items.set(a.name.trim().toLowerCase(), {
+      name: a.name,
+      amcEnabled: false,
+      thomsonEnabled: true,
+      amcRefValue: 0,
+      active: a.active !== false,
+    });
+  }
+  for (const a of amc.appliances ?? []) {
+    const key = a.name.trim().toLowerCase();
+    const existing = items.get(key);
+    if (existing) {
+      existing.amcEnabled = true;
+      existing.amcRefValue = a.price;
+      existing.active = existing.active || a.active;
+    } else {
+      items.set(key, {
+        name: a.name,
+        amcEnabled: true,
+        thomsonEnabled: false,
+        amcRefValue: a.price,
+        active: a.active,
+      });
+    }
+  }
+  return { appliances: [...items.values()] };
+}
+
+export const applianceMasterDefault: ApplianceMasterInput = buildApplianceMaster(
+  amcPricingDefault,
+  thomsonPricingDefault,
+);
+
 export const pricingConfigDefaults = {
   vas_price_bands: vasPriceBandsDefault,
   vas_pricing_params: vasPricingParamsDefault,
@@ -345,4 +391,5 @@ export const pricingConfigDefaults = {
   dandi_pricing: dandiPricingDefault,
   amc_pricing: amcPricingDefault,
   thomson_pricing: thomsonPricingDefault,
+  appliance_master: applianceMasterDefault,
 } as const;

@@ -807,6 +807,7 @@
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
+    $('#applianceMasterNav').hidden = !canReadPricingConfig;
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
@@ -3553,6 +3554,17 @@ ${bodyHtml}
   ];
 
   function printAmcApplianceTable(appliances) {
+    // Lines priced from the internal Appliance Master reference value show
+    // only appliance and quantity -- the customer never gave a unit value.
+    if ((appliances || []).length && appliances.every((a) => a.ref)) {
+      const refRows = appliances
+        .map(
+          (a) =>
+            `<tr><td>${escapeHtml(a.name)}</td><td class="num">${escapeHtml(String(a.qty))}</td></tr>`,
+        )
+        .join('');
+      return `<table><thead><tr><th>Appliance type</th><th class="num">Qty</th></tr></thead><tbody>${refRows}</tbody></table>`;
+    }
     const rows = (appliances || [])
       .map(
         (a) =>
@@ -3623,7 +3635,9 @@ ${bodyHtml}
         ['VAT @ 5%', money(vat) + ' AED'],
         ['Incl. VAT', money(plan.priceInclVat) + ' AED'],
         ['Total appliances', String(contract.totalCount)],
-        ['Total equipment value', money(contract.totalValue) + ' AED'],
+        ...((contract.appliances || []).length && contract.appliances.every((a) => a.ref)
+          ? []
+          : [['Total equipment value', money(contract.totalValue) + ' AED']]),
       ])}
       <div class="cert-feebox">
         <div class="fee">${money(plan.priceInclVat)} AED</div>
@@ -10610,6 +10624,79 @@ ${bodyHtml}
         rerenderDiscounts();
       });
     },
+    appliance_master(container, data, ctx) {
+      container.innerHTML = '';
+      const host = document.createElement('div');
+      container.appendChild(host);
+      // Names already saved are locked: both calculators match on the name, so
+      // retire an appliance with Active instead of renaming or deleting it.
+      const lockedCount = data.appliances.length;
+      const rerender = () => {
+        pcRenderTable(
+          host,
+          data.appliances,
+          [
+            {
+              key: 'name',
+              label: 'Appliance',
+              type: 'text',
+              width: '34%',
+              tooltip: 'Fixed once saved, because AMC and Thomson find the appliance by this name.',
+            },
+            {
+              key: 'amcEnabled',
+              label: 'AMC',
+              type: 'checkbox',
+              width: '9%',
+              tooltip: 'Offer this appliance in the AMC Quote Calculator.',
+            },
+            {
+              key: 'thomsonEnabled',
+              label: 'Thomson',
+              type: 'checkbox',
+              width: '11%',
+              tooltip:
+                'Offer this appliance in Thomson. A new one appears in Thomson Pricing Admin switched off with zero rates until you set them.',
+            },
+            {
+              key: 'amcRefValue',
+              label: 'AMC reference value (AED)',
+              type: 'number',
+              width: '26%',
+              tooltip:
+                'Internal replacement price used to size AMC plans. Customers are never asked for a unit value.',
+            },
+            {
+              key: 'active',
+              label: 'Active',
+              type: 'checkbox',
+              width: '10%',
+              tooltip: 'Untick to retire the appliance from both calculators.',
+            },
+          ],
+          {
+            minRows: 1,
+            markDirty: ctx.markDirty,
+            rerender,
+            onAdd: () => ({
+              name: '',
+              amcEnabled: true,
+              thomsonEnabled: true,
+              amcRefValue: 0,
+              active: true,
+            }),
+            addLabel: 'Add appliance',
+          },
+        );
+        host.querySelectorAll('[data-pc-col="name"]').forEach((input) => {
+          if (Number(input.dataset.pcRow) < lockedCount) input.disabled = true;
+        });
+        host.querySelectorAll('[data-pc-remove-row]').forEach((button) => {
+          if (Number(button.dataset.pcRemoveRow) < lockedCount) button.hidden = true;
+        });
+      };
+      rerender();
+    },
     amc_pricing(container, data, ctx) {
       container.innerHTML = '';
       const grid = document.createElement('div');
@@ -10733,55 +10820,13 @@ ${bodyHtml}
         ctx.markDirty,
       );
 
-      // Appliance Catalog goes first and spans the full row (like D+I's
-      // "Common Master Inputs") so the Appliance name column has enough
-      // room to actually read, instead of being squeezed into a
-      // half-width column (modification.md #30). The tiers card follows,
-      // taking whatever half-width slot is left.
-      const appliancesHost = document.createElement('div');
-      appliancesHost.className = 'detail-action-card pc-span-full';
-      appliancesHost.innerHTML = '<h4>Appliance Catalog</h4>';
-      grid.appendChild(appliancesHost);
-      const appliancesTable = document.createElement('div');
-      appliancesHost.appendChild(appliancesTable);
-      const rerenderAppliances = () =>
-        pcRenderTable(
-          appliancesTable,
-          data.appliances,
-          [
-            { key: 'name', label: 'Appliance', type: 'text', width: '42%' },
-            {
-              key: 'qty',
-              label: 'Qty under contract',
-              type: 'number',
-              step: '1',
-              width: '18%',
-              tooltip: 'Number of this appliance currently under contract.',
-            },
-            {
-              key: 'price',
-              label: 'Unit price',
-              type: 'number',
-              width: '18%',
-              tooltip: 'Reference/replacement price used to size the plan percentage.',
-            },
-            {
-              key: 'active',
-              label: 'Active',
-              type: 'checkbox',
-              width: '12%',
-              tooltip: 'Whether this appliance is included in current AMC pricing.',
-            },
-          ],
-          {
-            minRows: 1,
-            markDirty: ctx.markDirty,
-            rerender: rerenderAppliances,
-            onAdd: () => ({ name: 'New appliance', qty: 0, price: 0, active: true }),
-            addLabel: 'Add appliance',
-          },
-        );
-      rerenderAppliances();
+      // Appliances now live in the shared Appliance Master (Pricing masters >
+      // Appliance Master), used by both AMC and Thomson.
+      const appliancesNote = document.createElement('div');
+      appliancesNote.className = 'detail-action-card pc-span-full';
+      appliancesNote.innerHTML =
+        '<h4>Appliances</h4><p class="form-note">The appliance list and each appliance’s AMC reference value are managed in <strong>Appliance Master</strong> (Pricing masters). AMC quotes need only the appliance and quantity from the customer.</p>';
+      grid.appendChild(appliancesNote);
 
       const tiersHost = document.createElement('div');
       tiersHost.className = 'detail-action-card';
@@ -11096,6 +11141,13 @@ ${bodyHtml}
       description: 'Admin entry for the AMC rate configuration.',
       domains: ['amc_pricing'],
     },
+    'appliance-master': {
+      navId: 'applianceMasterNav',
+      workspaceId: 'applianceMasterWorkspace',
+      heading: 'Appliance Master',
+      description: 'One appliance list shared by the AMC and Thomson calculators.',
+      domains: ['appliance_master'],
+    },
     'thomson-admin': {
       navId: 'thomsonAdminNav',
       workspaceId: 'thomsonAdminWorkspace',
@@ -11345,6 +11397,7 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
+  $('#applianceMasterNav')?.addEventListener('click', () => setWorkspaceMode('appliance-master'));
 
   // ---------------------------------------------------------------------
   // Quote calculators (Modification #32) -- stand-alone pricing tools that
@@ -13312,20 +13365,24 @@ ${bodyHtml}
     return visits;
   }
 
-  function renderAmcCalc(container, data) {
-    // Catalog of appliance types from AMC Admin Rate Section -- used only
-    // to populate the "+ Add appliance" dropdown (modification.md #39).
+  function renderAmcCalc(container, data, master) {
+    // Catalog of appliance types from the shared Appliance Master (AMC-ticked,
+    // active) -- used only to populate the "+ Add appliance" dropdown
+    // (modification.md #39). Each carries an internal reference value so the
+    // customer never has to give a unit value.
     // The working appliance list below always starts EMPTY: nothing is
     // pre-filled from the master catalog any more, matching the Excel
     // workflow where the user builds the schedule one appliance at a time,
     // each starting at qty 0 / unit value 0.
-    const catalog = data.appliances.filter((a) => a.active !== false);
+    const catalog = (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
+    const refValueOf = (name) => Number(catalog.find((a) => a.name === name)?.amcRefValue) || 0;
     const appliances = [];
+    let overrideValues = false; // advanced: show and edit the reference value per line
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
       tipHtml(
-        'Add each appliance type covered by this contract one at a time (nothing is pre-filled from the admin catalog), enter its quantity and unit value, then read the Basic RM / Standard PMC / Premium PMC contract prices below. Saving stores all 3 plans together; you pick which one to print afterwards. Switch to "AMC Issued" to find and reprint any previously saved contract.',
+        'Add each appliance type covered by this contract one at a time (nothing is pre-filled), enter its quantity, then read the Basic RM / Standard PMC / Premium PMC contract prices below. No unit value is needed: the internal reference value from Appliance Master is used. Saving stores all 3 plans together; you pick which one to print afterwards. Switch to "AMC Issued" to find and reprint any previously saved contract.',
       ) +
       '</div>' +
       '<div class="vc-tab-nav" role="tablist" aria-label="AMC Quote Calculator sections">' +
@@ -13355,8 +13412,9 @@ ${bodyHtml}
           ) +
           '</div>' +
           '<p><button type="button" class="button button-outline" data-ac-add>+ Add appliance</button> ' +
-          '<button type="button" class="button button-outline" data-ac-clear>Clear</button></p>'
-        : '<p class="form-note">No appliance types are configured in AMC Admin Rate Section yet.</p>' +
+          '<button type="button" class="button button-outline" data-ac-clear>Clear</button> ' +
+          '<label class="form-note"><input type="checkbox" data-ac-override /> Override reference values (advanced)</label></p>'
+        : '<p class="form-note">No AMC appliances are set up in Appliance Master yet.</p>' +
           '<p><button type="button" class="button button-outline" data-ac-clear>Clear</button></p>') +
       '<div data-ac-appliances></div>' +
       '</div>' +
@@ -13418,28 +13476,42 @@ ${bodyHtml}
           '<p class="form-note">No appliances added yet. Pick an appliance type above and click "+ Add appliance".</p>';
         return;
       }
+      const showValues = overrideValues;
       appliancesHost.innerHTML =
         '<div class="table-wrap"><table style="table-layout: fixed"><thead><tr>' +
-        '<th style="width: 35%">Appliance</th><th style="width: 15%">Qty</th><th style="width: 20%">Unit value (AED)</th><th style="width: 20%">Total value (AED)</th><th style="width: 10%"></th>' +
+        '<th style="width: ' +
+        (showValues ? '35' : '60') +
+        '%">Appliance</th><th style="width: 15%">Qty</th>' +
+        (showValues
+          ? '<th style="width: 20%">Reference value (AED)</th><th style="width: 20%">Total value (AED)</th>'
+          : '') +
+        '<th style="width: 10%"></th>' +
         '</tr></thead><tbody>' +
         appliances
           .map(
             (a, i) =>
               '<tr><td>' +
               escapeHtml(a.name) +
+              (a.price > 0
+                ? ''
+                : ' <span class="status-chip" title="No AMC reference value is set for this appliance in Appliance Master, so its value-based pricing is 0.">Set value</span>') +
               '</td><td><input type="number" min="0" step="1" value="' +
               a.qty +
               '" data-ac-qty="' +
               i +
-              '" /></td><td><input type="number" min="0" step="0.01" value="' +
-              a.price +
-              '" data-ac-price="' +
-              i +
-              '" /></td><td data-ac-total="' +
-              i +
-              '">' +
-              money(a.qty * a.price) +
-              '</td><td><button type="button" class="button button-outline" data-ac-remove="' +
+              '" /></td>' +
+              (showValues
+                ? '<td><input type="number" min="0" step="0.01" value="' +
+                  a.price +
+                  '" data-ac-price="' +
+                  i +
+                  '" /></td><td data-ac-total="' +
+                  i +
+                  '">' +
+                  money(a.qty * a.price) +
+                  '</td>'
+                : '') +
+              '<td><button type="button" class="button button-outline" data-ac-remove="' +
               i +
               '">Remove</button></td></tr>',
           )
@@ -13467,6 +13539,7 @@ ${bodyHtml}
         input.addEventListener('input', () => {
           const index = Number(input.getAttribute('data-ac-price'));
           appliances[index].price = parseNumber(input.value);
+          appliances[index].ref = false; // value typed by hand: show it on the certificate
           updateRowTotal(index);
           recompute();
         });
@@ -13597,12 +13670,21 @@ ${bodyHtml}
     if (addButton) {
       addButton.addEventListener('click', () => {
         if (!addSelect || !addSelect.value) return;
-        appliances.push({ name: addSelect.value, qty: 0, price: 0 });
+        appliances.push({
+          name: addSelect.value,
+          qty: 0,
+          price: refValueOf(addSelect.value),
+          ref: true,
+        });
         renderAppliancesTable();
         recompute();
       });
     }
     clearButton.addEventListener('click', clearAppliances);
+    container.querySelector('[data-ac-override]')?.addEventListener('change', (event) => {
+      overrideValues = event.target.checked;
+      renderAppliancesTable();
+    });
     renderAppliancesTable();
     recompute();
     renderAmcContractSection(
@@ -13883,7 +13965,12 @@ ${bodyHtml}
         clientName: field('[data-as-client]') || undefined,
         attentionTo: field('[data-as-attention]') || undefined,
         siteLocation: field('[data-as-location]') || undefined,
-        appliances: appliances.map((a) => ({ name: a.name, qty: a.qty, price: a.price })),
+        appliances: appliances.map((a) => ({
+          name: a.name,
+          qty: a.qty,
+          price: a.price,
+          ref: !!a.ref,
+        })),
         totalCount,
         totalValue,
         plans,
@@ -15252,8 +15339,9 @@ ${bodyHtml}
       heading: 'AMC Quote Calculator',
       permission: 'quote_calculators.use',
       description: 'Stand-alone quote calculator, reading AMC Admin Rate Section’s admin data.',
-      domains: ['amc_pricing'],
-      render: (root, dataByDomain) => renderAmcCalc(root, dataByDomain.amc_pricing),
+      domains: ['amc_pricing', 'appliance_master'],
+      render: (root, dataByDomain) =>
+        renderAmcCalc(root, dataByDomain.amc_pricing, dataByDomain.appliance_master),
     },
     'thomson-calc': {
       navId: 'thomsonCalcNav',
@@ -24247,6 +24335,7 @@ ${bodyHtml}
         ['dandi-admin', 'D+I Admin Entry'],
         ['amc-admin', 'AMC Admin Rates'],
         ['thomson-admin', 'Thomson Pricing Admin'],
+        ['appliance-master', 'Appliance Master'],
       ],
     },
   };

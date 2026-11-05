@@ -22,6 +22,7 @@ export const QUOTE_CALCULATOR_DOMAINS: readonly PricingConfigDomain[] = [
   'vas_pricing_params',
   'amc_pricing',
   'thomson_pricing',
+  'appliance_master',
 ];
 
 export function createPricingConfigHandlers(
