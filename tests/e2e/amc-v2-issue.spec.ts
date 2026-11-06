@@ -141,10 +141,11 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     // Nothing internal reaches the customer.
     await expect(quoteBody).not.toContainText('break-even');
     await expect(quoteBody).not.toContainText('cap');
-    // Standard quotes show one clean rate: no discount or adjustment rows, and AED text is gone.
-    await expect(quoteBody).not.toContainText('Price before discount');
-    await expect(quoteBody).not.toContainText('Volume discount');
-    await expect(quoteBody).not.toContainText('Contract price adjustment');
+    // Price before discount is shown again; per-unit rates are not itemised (explained by a * note).
+    await expect(quoteBody).toContainText('Price before discount');
+    await expect(quoteBody).toContainText('Appliance schedule*');
+    await expect(quoteBody).toContainText('depends on the appliance type, its age');
+    await expect(quoteBody.locator('table').first().locator('th')).toHaveCount(2);
     await expect(quoteBody).not.toContainText('AED');
     await expect(quoteBody).toContainText(/\u20C3 \d{1,3}(,\d{3})*\.\d{2}/);
 

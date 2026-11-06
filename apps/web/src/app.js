@@ -3738,19 +3738,12 @@ ${bodyHtml}
     const name = (p) => p.planLabel || fb(p).label;
     const head = plans.map((p) => `<th class="num">${escapeHtml(name(p))}</th>`).join('');
     const first = plans.find((p) => (p.unitLines || []).length);
-    // Customer-facing rate = the rate after any volume discount / price adjustment, so no
-    // discount rows are needed (standard AMC quotes show one clean rate per appliance).
-    const netFactor = (p) =>
-      Number(p.listTotal) > 0 ? Number(p.priceExclVat) / Number(p.listTotal) : 1;
+    // Appliance schedule shows type and quantity only; per-unit rates are not itemised (they
+    // depend on appliance type, age and plan, see the * note under the table).
     const rateRows = (first ? first.unitLines : [])
       .map(
-        (line, i) =>
-          `<tr><td>${escapeHtml(line.name)}</td><td class="num">${escapeHtml(String(line.qty))}</td>${plans
-            .map((p) => {
-              const u = (p.unitLines || [])[i];
-              return `<td class="num">${u ? '\u20C3 ' + money(Number(u.unitRate) * netFactor(p)) : '\u2014'}</td>`;
-            })
-            .join('')}</tr>`,
+        (line) =>
+          `<tr><td>${escapeHtml(line.name)}</td><td class="num">${escapeHtml(String(line.qty))}</td></tr>`,
       )
       .join('');
     const sumRow = (label, fn, strong) =>
@@ -3760,7 +3753,27 @@ ${bodyHtml}
             `<td class="num">${strong ? '<strong>' : ''}${fn(p)}${strong ? '</strong>' : ''}</td>`,
         )
         .join('')}</tr>`;
+    const adj = (p) =>
+      Number(p.priceExclVat) - (Number(p.listTotal ?? 0) - Number(p.discountAmount ?? 0));
+    const anyDiscount = plans.some((p) => Number(p.discountAmount ?? 0) > 0);
+    const anyAdjust = plans.some((p) => Math.abs(adj(p)) > 0.005);
+    const pctText = (p) => String(Math.round(Number(p.discountPct ?? 0) * 1000) / 10);
     const summaryRows = [
+      sumRow('Price before discount', (p) => '\u20C3 ' + money(p.listTotal ?? 0)),
+      anyDiscount
+        ? sumRow('Volume discount', (p) =>
+            Number(p.discountAmount ?? 0) > 0
+              ? `${pctText(p)}% = -\u20C3 ${money(p.discountAmount)}`
+              : '\u2014',
+          )
+        : '',
+      anyAdjust
+        ? sumRow('Contract price adjustment', (p) =>
+            Math.abs(adj(p)) > 0.005
+              ? (adj(p) < 0 ? '-' : '+') + '\u20C3 ' + money(Math.abs(adj(p)))
+              : '\u2014',
+          )
+        : '',
       sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
       sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
       sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
@@ -3793,11 +3806,12 @@ ${bodyHtml}
         ['Total appliances', String(contract.totalCount)],
         ['Appliance age', first && first.ageBand ? first.ageBand : ''],
       ])}
-      <h2>Appliance schedule and yearly rate per appliance</h2>
-      <table><thead><tr><th>Appliance type</th><th class="num">Qty</th>${head}</tr></thead><tbody>${rateRows}</tbody></table>
+      <h2>Appliance schedule*</h2>
+      <table><thead><tr><th>Appliance type</th><th class="num">Qty</th></tr></thead><tbody>${rateRows}</tbody></table>
+      <p style="font-size:11px;color:#555;">* The annual charge is calculated for each appliance individually and depends on the appliance type, its age${first && first.ageBand ? ` (${escapeHtml(first.ageBand)})` : ''} and the service plan selected. The plan totals below apply to the complete schedule above; a unit-wise breakdown is available on request.</p>
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
-      <p style="font-size:11px;color:#555;">Rates are per appliance per year, excluding 5% VAT. Prices are in \u20C3 (UAE Dirham).</p>
+      <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
       ${planDetails}
       <h2>Payment terms</h2>
       <p style="font-size:12px;">100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after the quotation is approved and payment is received.</p>
