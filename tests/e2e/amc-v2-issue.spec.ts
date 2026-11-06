@@ -94,6 +94,8 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await page.locator('[data-v2-add]').click();
     await page.locator('[data-v2-qty="0"]').fill('10');
     await expect(page.locator('[data-v2-output]')).toContainText('Standard PMC');
+    // Management option: print the included Standard call-outs rounded up to the next 10.
+    await page.locator('[data-v2-round10]').check();
     await page.locator('[data-as-client]').fill('Acme Hotel');
     await page.locator('[data-as-save]').click();
     await expect(page.locator('[data-as-message]')).toContainText('AC-2026-00009');
@@ -115,7 +117,8 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     expect(body.plans.map((p) => p.annualVisits)).toEqual([0, 1, 2]);
     expect(body.plans[0]!.unitLines[0]!.unitRate).toBe(15);
     expect(body.plans[0]!.callOutText).toContain('\u20C3 87.50 per call');
-    expect(body.plans[1]!.callOutText).toContain('Major spare parts are extra');
+    expect(body.plans[1]!.callOutText).toContain('Major spare parts will be charged additionally');
+    expect(body.plans[1]!.callOutText).toContain('up to 10 call-outs in total');
     expect(body.plans[2]!.ageBand).toBe('Year 4');
 
     // The new list only asks for new-calculator quotes.
@@ -151,8 +154,25 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody).toContainText('Quotation validity');
     await expect(quoteBody.locator('.scope-list li').first()).toBeVisible();
     await expect(
-      quoteBody.locator('.scope-list li', { hasText: /^Replacement parts$/ }),
+      quoteBody.locator('.scope-list li', { hasText: /^Parts Replacement$/ }),
     ).toHaveCount(1);
+    // Management wording and layout: header, plans at a glance, boxed terms, three fixed pages.
+    await expect(quoteBody.locator('.quote-head')).toContainText("Jacky's Service Center");
+    await expect(quoteBody.locator('.quote-head')).toContainText('AMC Quotation');
+    await expect(quoteBody.locator('.quote-head')).toContainText('Contract Ref:');
+    await expect(quoteBody.locator('.quote-head')).not.toContainText('Printed');
+    await expect(quoteBody).toContainText('Plans at a glance');
+    await expect(quoteBody).toContainText('Price per appliance per year (excl. VAT)');
+    await expect(quoteBody).toContainText('Equivalent per month (incl. VAT)');
+    await expect(quoteBody).toContainText('General Consumables');
+    await expect(quoteBody).toContainText('must be logged in through');
+    await expect(quoteBody).toContainText('weekends, public holidays');
+    await expect(quoteBody).toContainText('Wherever required');
+    await expect(quoteBody).toContainText('kindly sign and return this quotation');
+    await expect(quoteBody).toContainText('handling charge will be applicable');
+    await expect(quoteBody).not.toContainText("repair's");
+    await expect(quoteBody.locator('.pg-break')).toHaveCount(2);
+    await expect(quoteBody.locator('.block.plain')).toHaveCount(3);
     await expect(quoteBody).not.toContainText('100% payment in advance');
     await expect(quoteBody).toContainText('General Terms and Conditions');
     await expect(quoteBody).toContainText('Limitation of Liability');

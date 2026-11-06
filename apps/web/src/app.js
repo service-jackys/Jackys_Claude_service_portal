@@ -3381,16 +3381,44 @@
   .doc-head .printed-at { font-size: 10px; color: #888; margin-top: 6px; }
   h2 { font-size: 12.5px; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; color: #17324d; }
   .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
+  .quote-head { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: end; column-gap: 12px; }
+  .quote-tail .sign-row { margin-top: 20px; }
+  .quote-head .logo-big { grid-column: 1 / -1; height: 64px; margin: 0 0 2px; justify-self: start; }
+  .quote-head .qh-service { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; padding-left: 0; font-size: 13px; font-weight: 700; color: #17324d; white-space: nowrap; }
+  .quote-head .logo-small { height: 20px; width: auto; display: block; margin: 0; }
+  .quote-head .qh-title { grid-row: 2; grid-column: 2; font-size: 18px; font-weight: 900; color: #17324d; text-align: center; letter-spacing: .3px; line-height: 1.1; -webkit-text-stroke: 0.5px #17324d; }
+  .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
+  .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
+  .block.plain { white-space: normal; }
+  .pg1 h2, .pg3 h2 { font-size: 13px; margin: 18px 0 7px; padding-bottom: 4px; }
+  .pg1 .grid { gap: 6px 24px; margin-bottom: 6px; }
+  .pg1 table th, .pg1 table td { padding: 5px 10px; font-size: 12px; }
+  .pg1 p { font-size: 11px !important; line-height: 1.45; margin: 8px 0; }
+  .pg3 .tc-list { font-size: 12px !important; padding: 8px 12px 8px 28px !important; line-height: 1.4; }
+  .pg3 .tc-list li { margin-bottom: 4px !important; }
+  .pg3 .block { font-size: 12px; padding: 8px 12px; line-height: 1.45; }
+  .pg3 .sign-row { margin-top: 36px !important; }
+  .plan-block { margin-bottom: 22px; }
+  .plan-block .block { font-size: 12px; }
+  .plan-block .incl-excl { margin-bottom: 16px; }
+  .plan-block .block-label { margin-bottom: 4px; }
+  .glance th, .glance td { text-align: left; }
+  .pg1 table.glance th:first-child { width: 24%; }
+  .pg1 table.glance th, .pg1 table.glance td { font-size: 11.5px; }
+  .pg-break { page-break-before: always; break-before: page; }
+  .block.plain { text-align: justify; text-justify: inter-word; }
+  .plan-block { page-break-inside: avoid; break-inside: avoid; }
+  .tc-list li { text-align: justify; text-justify: inter-word; hyphens: auto; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
   .incl-excl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0 8px; }
-  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 4px 8px; border: 1px solid #c9d2db; font-size: 10.5px; }
+  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 4px 8px; border: 1px solid #c9d2db; font-size: 11.5px; }
   .incl-excl .incl-h { background: #e6f4ea; color: #1b5e20; }
   .incl-excl .excl-h { background: #fdecea; color: #b42318; }
   .incl-excl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .incl-excl tr { page-break-inside: avoid; }
   .scope-list { list-style: none; margin: 0; padding: 0; }
-  .scope-list li { position: relative; padding: 0 0 0 13px; line-height: 1.3; font-size: 10.5px; }
+  .scope-list li { position: relative; padding: 0 0 0 13px; line-height: 1.3; font-size: 11.5px; }
   .scope-list li::before { content: ''; position: absolute; left: 1px; top: 5px; width: 5px; height: 5px; border-radius: 50%; }
   .scope-list li.scope-note { color: #555; font-style: italic; }
   .incl-list li::before { background: #2e7d32; }
@@ -3492,6 +3520,17 @@ ${bodyHtml}
         <strong>${escapeHtml(reference || '\u2014')}</strong>
         <div class="printed-at">Printed ${escapeHtml(formatDate(new Date().toISOString()))}</div>
       </div>
+    </div>`;
+  }
+
+  // Header of the new-calculator AMC quotation: larger logo with "Jacky's Service Center" under
+  // it, the title centred, and the contract reference on the title line (no printed date).
+  function printAmcQuoteHead(reference) {
+    return `<div class="doc-head quote-head">
+      <img class="logo logo-big" src="${JDI_LOGO_DATA_URI}" alt="Jacky's Distribution LLC" />
+      <div class="qh-service"><span>Jacky's Service Center</span></div>
+      <div class="qh-title">AMC Quotation</div>
+      <div class="qh-ref">Contract Ref: <strong>${escapeHtml(reference || '\u2014')}</strong></div>
     </div>`;
   }
 
@@ -3620,6 +3659,19 @@ ${bodyHtml}
     'Governing Terms: This quotation and any resulting AMC shall be governed by the mutually accepted commercial terms stated herein and the applicable laws of the United Arab Emirates.',
   ];
 
+  // Management wording of the General Terms for quotes and certificates made with the new AMC
+  // calculator (the original calculator keeps the list above unchanged).
+  const AMC_V2_GENERAL_TERMS_AND_CONDITIONS = AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) =>
+    term
+      .replace('must be logged through the', 'must be logged in through the')
+      .replace(
+        'subject to site access, working hours, and service team availability.',
+        'subject to site access, working hours, weekends, public holidays and service team availability.',
+      )
+      .replace('labor-only AMC unless covered', 'labor-only AMC, unless covered')
+      .replace('Where required, a quotation', 'Wherever required, a quotation'),
+  );
+
   // Payment terms for quotes and certificates made with the new AMC calculator (the original
   // calculator keeps its own 100% advance wording).
   const AMC_V2_PAYMENT_TERMS =
@@ -3656,8 +3708,47 @@ ${bodyHtml}
     return items;
   }
 
+  // Management wording for the new-calculator quote and certificate. Applied when printing so
+  // quotes saved earlier print with the same wording.
+  const AMC_V2_SCOPE_WORDING = [
+    [
+      /^Tightening and calibration where applicable$/i,
+      'Tightening and calibration wherever applicable',
+    ],
+    [/^Labor for the listed RM services$/i, 'Labor cost for the listed RM services'],
+    [/^Replacement parts$/i, 'Parts Replacement'],
+    [/^Compressor or sealed-system work$/i, 'Compressor or sealed-system Jobs'],
+    [/^Refrigerant\/gas( recharge or leak repair)?$/i, 'Refrigerant/gas recharge or leak repairs'],
+    [/^Cosmetic damage$/i, 'Cosmetic damage Correction'],
+    [/^Consumables$/i, 'General Consumables'],
+    [/\bpower events\b/i, null],
+  ];
+  function amcV2ScopeWording(item) {
+    let out = item;
+    AMC_V2_SCOPE_WORDING.forEach(([re, to]) => {
+      if (to) out = out.replace(re, to);
+    });
+    return out.replace(/\bpower events\b/, 'Erratic power fluctuations');
+  }
+  function amcV2CallOutWording(text) {
+    return String(text || '')
+      .replace('All spare parts are extra.', 'All spare parts will be extra.')
+      .replace(
+        'Call-outs beyond this are charged at',
+        'Call-outs beyond this will be chargeable at',
+      )
+      .replace(
+        'Major spare parts are extra and are quoted for approval before work starts.',
+        'Major spare parts will be charged additionally, in accordance with the quote approved prior to the commencement of work.',
+      )
+      .replace(
+        'handling charge if the appliance cannot be repaired.',
+        'handling charge will be applicable if the appliance is not repairable.',
+      );
+  }
+
   function printScopeList(text, cls) {
-    const items = amcScopeItems(text);
+    const items = amcScopeItems(text).map(amcV2ScopeWording);
     if (items.length < 2) return escapeHtml(text || '\u2014');
     return `<ul class="scope-list ${cls}">${items
       .map(
@@ -3728,7 +3819,7 @@ ${bodyHtml}
       ${plan.ageBand ? `<p style="font-size:12px;"><strong>Appliance age:</strong> ${escapeHtml(plan.ageBand)}</p>` : ''}
       <table><thead><tr><th>Appliance type</th><th class="num">Qty</th><th class="num">Rate per appliance</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table>
       ${printFieldGrid(summary)}
-      ${plan.callOutText ? `<h2>Call-out and repair terms</h2><p style="font-size:12px;">${escapeHtml(plan.callOutText)}</p>` : ''}
+      ${plan.callOutText ? `<h2>Call-out and repair terms</h2><p style="font-size:12px;">${escapeHtml(amcV2CallOutWording(plan.callOutText))}</p>` : ''}
     `;
   }
 
@@ -3829,6 +3920,51 @@ ${bodyHtml}
   // all plans side by side with the rate per appliance, volume discount and call-out terms, and
   // an acceptance box. The signed contract certificate is a separate document, printed only
   // after the quote is marked Sold. Nothing internal (cost, margin, cap) is shown.
+  // ---- Page 1 extras for the quotation: Plans at a glance and per-appliance prices ------------
+  // Pulls the figures out of the call-out wording saved with each plan, so the summary table can
+  // never disagree with the Call-out and repair terms printed on page 2.
+  function amcPlanGlance(p) {
+    const text = String(p.callOutText || '');
+    const num = (re) => {
+      const m = text.match(re);
+      return m ? m[1] : '';
+    };
+    const normal = num(/normal (?:labour )?rate (?:of )?\u20C3 ([\d.,]+)/);
+    const basicRate = num(/Call-out labour \u20C3 ([\d.,]+) per call/);
+    const pool = num(/up to (\d+) call-outs/);
+    const handling = num(/\u20C3 ([\d.,]+) handling charge/);
+    const key = p.planKey || '';
+    let callOut = '\u2014';
+    let parts = '\u2014';
+    if (key === 'basic-rm') {
+      callOut = basicRate ? `\u20C3 ${basicRate} per call` : '\u2014';
+      parts = 'Charged extra';
+    } else if (key === 'standard-pmc') {
+      callOut = pool ? `${pool} included, then \u20C3 ${normal} per call` : 'Included (fair use)';
+      parts = 'Minor parts included; major parts extra';
+    } else {
+      callOut = 'Included';
+      parts = 'Mechanical parts included, except compressor';
+    }
+    return { callOut, parts, handling: handling ? `\u20C3 ${handling}` : '\u2014' };
+  }
+
+  function amcPlansAtAGlance(plans, fb, name) {
+    const row = (label, fn) =>
+      `<tr><td>${escapeHtml(label)}</td>${plans.map((p) => `<td>${escapeHtml(fn(p))}</td>`).join('')}</tr>`;
+    return `<h2>Plans at a glance</h2>
+      <table class="glance"><thead><tr><th></th>${plans.map((p) => `<th>${escapeHtml(name(p))}</th>`).join('')}</tr></thead><tbody>
+      ${row('Planned visits', (p) =>
+        p.planKey === 'basic-rm'
+          ? 'None (reactive only)'
+          : `${p.annualVisits} per appliance per year`,
+      )}
+      ${row('Call-out labour', (p) => amcPlanGlance(p).callOut)}
+      ${row('Spare parts', (p) => amcPlanGlance(p).parts)}
+      ${row('If not repairable', (p) => amcPlanGlance(p).handling + ' handling charge')}
+      </tbody></table>`;
+  }
+
   function buildAmcQuotationBody(contract) {
     const money = moneyGrouped;
     const plans = contract.plans || [];
@@ -3881,19 +4017,31 @@ ${bodyHtml}
           )
         : '',
       sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
+      Number(contract.totalCount) > 0
+        ? sumRow(
+            'Price per appliance per year (excl. VAT)',
+            (p) => '\u20C3 ' + money(Number(p.priceExclVat) / Number(contract.totalCount)),
+          )
+        : '',
       sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
       sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
+      sumRow(
+        'Equivalent per month (incl. VAT)',
+        (p) => '\u20C3 ' + money(Number(p.priceInclVat) / 12),
+      ),
     ].join('');
     const planDetails = plans
       .map(
         (p) => `
+      <div class="plan-block">
       <h2>${escapeHtml(name(p))}</h2>
       ${printFieldGrid([
         ['Visits', p.visitsText || `${p.annualVisits} visits/year`],
         ['Coverage / basis', p.coverage || fb(p).coverage],
       ])}
       ${printInclExclTable(p.included || fb(p).included, p.notIncluded || fb(p).notIncluded)}
-      ${p.callOutText ? printTextBlock('Call-out and repair terms', p.callOutText) : ''}`,
+      ${p.callOutText ? printTextBlock('Call-out and repair terms', amcV2CallOutWording(p.callOutText)) : ''}
+      </div>`,
       )
       .join('');
     const ref =
@@ -3908,7 +4056,8 @@ ${bodyHtml}
       validUntil = end.toLocaleDateString(undefined, { dateStyle: 'medium' });
     }
     return `
-      ${printDocHeadWithLogo('AMC Quotation', ref)}
+      ${printAmcQuoteHead(ref)}
+      <div class="pg1">
       <h2>Quotation details</h2>
       ${printFieldGrid([
         ['Quotation date', contract.contractDate || formatDate(contract.createdAt)],
@@ -3926,24 +4075,27 @@ ${bodyHtml}
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
-      ${planDetails}
-      <h2>General Terms and Conditions</h2>
-      <ul style="font-size:11.5px;margin:0 0 0 18px;padding:0;">
-        ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:3px;">${escapeHtml(term)}</li>`).join('')}
+      ${amcPlansAtAGlance(plans, fb, name)}
+      </div>
+      <div class="pg-break">${planDetails}</div>
+      <div class="pg-break pg3">
+      <h2 style="margin-top:0">General Terms and Conditions</h2>
+      <ul class="tc-list" style="font-size:11px;margin:0;padding:6px 8px 6px 24px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
+        ${AMC_V2_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:2px;">${escapeHtml(term)}</li>`).join('')}
       </ul>
       <h2>Payment terms</h2>
-      <p style="font-size:12px;">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</p>
+      <div class="block plain">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</div>
       <h2>Quotation validity</h2>
-      <p style="font-size:12px;">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</p>
-      <div style="page-break-inside:avoid;break-inside:avoid;">
+      <div class="block plain">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</div>
+      <div class="quote-tail" style="page-break-inside:avoid;break-inside:avoid;">
       <h2>Client acceptance</h2>
-      <p style="font-size:11.5px;">To accept, tick the plan chosen, sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
-      <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>
+      <div class="block plain">To accept, tick the plan chosen, kindly sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.<div style="font-size:13px;margin-top:6px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</div></div>
       <div class="sign-row">
         <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
       </div>
       <p style="font-size:9px;color:#777;font-style:italic;margin:8px 0 0;">This quotation is issued by Jacky's Distribution LLC Service Department. It is not a contract until approved by the client and accepted by Jacky's Distribution LLC.</p>
+      </div>
       </div>
     `;
   }
@@ -14704,6 +14856,7 @@ ${bodyHtml}
     const lines = []; // { name, qty, price (reference value), ref: true }
     let lastQuote = null; // the quote on screen, read by the Issue section when saving
     let ageIndex = 0;
+    let roundCallOuts = false; // management option: round the included call-outs up to the next 10
     const optionsHtml = () =>
       activeCatalog()
         .map(
@@ -14747,6 +14900,11 @@ ${bodyHtml}
         'Appliance age',
         '<select data-v2-age>' + ageOptionsHtml() + '</select>',
         'Older appliances break down more and need more parts, so the price rises with the age band set in AMC Admin Rates (New).',
+      ) +
+      calcField(
+        'Round included call-outs',
+        '<label><input type="checkbox" data-v2-round10 /> Round up to the next 10</label>',
+        'Standard PMC includes a number of call-outs for the whole contract (appliances x expected breakdown calls). Tick this to print that number rounded up to the next 10 (for example 194 becomes 200) on this quote only. The plan prices do not change.',
       ) +
       '</div>' +
       '<p><button type="button" class="button button-outline" data-v2-add>+ Add appliance</button> <button type="button" class="button button-outline" data-v2-clear>Clear</button></p>' +
@@ -14850,7 +15008,7 @@ ${bodyHtml}
         compare.innerHTML = '';
         return;
       }
-      const terms = core.callOutTerms(cfg, quote.totalQty);
+      const terms = core.callOutTerms(cfg, quote.totalQty, { roundPoolTo10: roundCallOuts });
       output.innerHTML =
         '<p class="form-note">Total appliances: <strong>' +
         quote.totalQty +
@@ -14962,6 +15120,10 @@ ${bodyHtml}
       ageIndex = Number(ageSelect.value) || 0;
       recompute();
     });
+    container.querySelector('[data-v2-round10]').addEventListener('change', (event) => {
+      roundCallOuts = event.target.checked;
+      recompute();
+    });
     renderLines();
     recompute();
 
@@ -14991,7 +15153,7 @@ ${bodyHtml}
     const PLAN_KEYS = { basic: 'basic-rm', standard: 'standard-pmc', premium: 'premium-pmc' };
     function buildPlans() {
       const quote = lastQuote;
-      const terms = core.callOutTerms(cfg, quote.totalQty);
+      const terms = core.callOutTerms(cfg, quote.totalQty, { roundPoolTo10: roundCallOuts });
       return quote.plans.map((p) => {
         const fallback = AMC_CONTRACT_PLAN_FALLBACKS[PLAN_KEYS[p.planKey]];
         const planned = p.planKey === 'basic' ? 0 : Number(cfg.plans[p.planKey].plannedVisits) || 0;

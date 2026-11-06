@@ -287,7 +287,7 @@
 
   // Call-out wording per plan, shown under the plan table and printed on the
   // certificate. Built from the admin call-out settings so it always matches them.
-  function callOutTerms(cfg, totalQty) {
+  function callOutTerms(cfg, totalQty, opts) {
     var co = cfg.callOut;
     var normal = num(co.labourCharge);
     var basic = normal * (1 - num(co.basicDiscountPct));
@@ -297,17 +297,19 @@
     // Standard fair use: repair labour is included for the call-outs the price allows for, i.e.
     // appliances x expected breakdown calls per appliance per year, shared across the whole contract.
     var pool = qty > 0 ? Math.ceil(qty * num(cfg.breakdown.callsPerUnitPerYear) - 1e-9) : 0;
+    // Optional per-quote goodwill rounding: print the included call-outs up to the next 10.
+    if (pool > 0 && opts && opts.roundPoolTo10) pool = Math.ceil(pool / 10) * 10;
     var handling =
       '\u20C3 ' +
       money2(co.handlingCharge) +
-      ' handling charge if the appliance cannot be repaired.';
+      ' handling charge will be applicable if the appliance is not repairable.';
     return {
       basic:
         'Call-out labour \u20C3 ' +
         money2(basic) +
         ' per call (normal rate \u20C3 ' +
         money2(normal) +
-        '). All spare parts are extra. ' +
+        '). All spare parts will be extra. ' +
         handling,
       standard:
         'Repair labour and minor parts (filters, belts, seals) are included for ' +
@@ -318,11 +320,11 @@
             qty +
             ' appliances'
           : 'the number of call-outs allowed for in the contract price') +
-        '. Call-outs beyond this are charged at ' +
+        '. Call-outs beyond this will be chargeable at ' +
         (extraPct > 0
           ? '\u20C3 ' + money2(extra) + ' per call (normal rate \u20C3 ' + money2(normal) + ')'
           : 'the normal labour rate of \u20C3 ' + money2(normal) + ' per call') +
-        '. Major spare parts are extra and are quoted for approval before work starts. ' +
+        '. Major spare parts will be charged additionally, in accordance with the quote approved prior to the commencement of work. ' +
         handling,
       premium:
         'Repair labour and all mechanical parts except the compressor are included. ' + handling,
