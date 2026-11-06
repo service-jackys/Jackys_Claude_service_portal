@@ -3387,6 +3387,14 @@
   .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 7px 9px; border: 1px solid #c9d2db; font-size: 11.5px; }
   .incl-excl .incl-h { background: #e6f4ea; color: #1b5e20; }
   .incl-excl .excl-h { background: #fdecea; color: #b42318; }
+  .incl-excl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .incl-excl tr { page-break-inside: avoid; }
+  .scope-list { list-style: none; margin: 0; padding: 0; }
+  .scope-list li { position: relative; padding: 2px 0 2px 16px; line-height: 1.35; }
+  .scope-list li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; }
+  .scope-list li.scope-note { color: #555; font-style: italic; }
+  .incl-list li::before { background: #2e7d32; }
+  .excl-list li::before { background: #c62828; }
   .cert-feebox { background: #17324d; color: #fff; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
   .cert-feebox .fee { font-size: 22px; font-weight: 800; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 24px; margin-bottom: 8px; }
@@ -3617,9 +3625,51 @@ ${bodyHtml}
   const AMC_V2_PAYMENT_TERMS =
     '75% of the contract value is payable in advance, on acceptance and before service commencement. The remaining 25% is payable within 30 days of the commencement date. Services commence only after receipt of the signed acceptance, the confirmed purchase order where applicable, and the 75% advance payment.';
 
-  // "Included" and "Not included" shown side by side so a customer can compare at a glance.
+  // Turns a plan's comma-separated scope text into bullet items. Lists that run on after a
+  // "such as" / "caused by" / "subject to" phrase stay together as one bullet so no fragment such
+  // as "fire" or "belts" ends up on its own line.
+  function amcScopeItems(text) {
+    const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+    const items = [];
+    String(text || '')
+      .split(/\.\s+(?=[A-Z])/)
+      .forEach((sentence) => {
+        const tokens = sentence
+          .replace(/\.\s*$/, '')
+          .split(/,\s+/)
+          .map((t) => t.replace(/^and\s+/, '').trim())
+          .filter(Boolean);
+        for (let i = 0; i < tokens.length; i += 1) {
+          let item = tokens[i];
+          if (/^subject to /i.test(item) || /caused by /i.test(item)) {
+            item = tokens.slice(i).join(', ');
+            i = tokens.length;
+          } else if (/ such as /i.test(item)) {
+            while (i + 1 < tokens.length && !/^subject to /i.test(tokens[i + 1])) {
+              i += 1;
+              item += ', ' + tokens[i];
+            }
+          }
+          items.push(cap(item));
+        }
+      });
+    return items;
+  }
+
+  function printScopeList(text, cls) {
+    const items = amcScopeItems(text);
+    if (items.length < 2) return escapeHtml(text || '\u2014');
+    return `<ul class="scope-list ${cls}">${items
+      .map(
+        (i) => `<li${/^subject to /i.test(i) ? ' class="scope-note"' : ''}>${escapeHtml(i)}</li>`,
+      )
+      .join('')}</ul>`;
+  }
+
+  // "Included" and "Not included" shown side by side, as bullet lists, so a customer can compare
+  // at a glance.
   function printInclExclTable(included, notIncluded) {
-    return `<table class="incl-excl"><thead><tr><th class="incl-h">&#10004; Included</th><th class="excl-h">&#10008; Not included / separately quoted</th></tr></thead><tbody><tr><td>${escapeHtml(included || '\u2014')}</td><td>${escapeHtml(notIncluded || '\u2014')}</td></tr></tbody></table>`;
+    return `<table class="incl-excl"><thead><tr><th class="incl-h">&#10004; Included</th><th class="excl-h">&#10008; Not included / separately quoted</th></tr></thead><tbody><tr><td>${printScopeList(included, 'incl-list')}</td><td>${printScopeList(notIncluded, 'excl-list')}</td></tr></tbody></table>`;
   }
 
   function printAmcApplianceTable(appliances) {
