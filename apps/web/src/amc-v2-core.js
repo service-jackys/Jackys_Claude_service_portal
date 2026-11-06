@@ -291,6 +291,9 @@
     var co = cfg.callOut;
     var normal = num(co.labourCharge);
     var basic = normal * (1 - num(co.basicDiscountPct));
+    var includedCalls = co.standardIncludedCalls == null ? 2 : num(co.standardIncludedCalls);
+    var extra =
+      normal * (1 - (co.standardExtraDiscountPct == null ? 0.1 : num(co.standardExtraDiscountPct)));
     var handling =
       '\u20C3 ' +
       money2(co.handlingCharge) +
@@ -304,7 +307,15 @@
         '). All spare parts are extra. ' +
         handling,
       standard:
-        'Repair labour and minor parts (filters, belts, seals) are included. Major spare parts are extra. ' +
+        'Repair labour and minor parts (filters, belts, seals) are included for up to ' +
+        includedCalls +
+        ' call-out' +
+        (includedCalls === 1 ? '' : 's') +
+        ' per appliance per year. Additional call-outs are charged at \u20C3 ' +
+        money2(extra) +
+        ' per call (normal rate \u20C3 ' +
+        money2(normal) +
+        '). Major spare parts are extra and are quoted for approval before work starts. ' +
         handling,
       premium:
         'Repair labour and all mechanical parts except the compressor are included. ' + handling,

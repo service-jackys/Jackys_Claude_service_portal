@@ -11623,6 +11623,20 @@ ${bodyHtml}
               'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = \u20C3 108 per call. Printed on the Basic quote. It does not change the plan prices.',
           },
           {
+            path: 'callOut.standardIncludedCalls',
+            label: 'Standard: call-outs included per appliance per year',
+            type: 'number',
+            tooltip:
+              'Fair-use limit. Standard includes repair labour for this many call-outs per appliance each year. Printed on the Standard quote and certificate. It does not change the plan prices.',
+          },
+          {
+            path: 'callOut.standardExtraDiscountPct',
+            label: 'Standard: discount on call-outs beyond the limit',
+            type: 'percent',
+            tooltip:
+              'Call-outs above the included number are charged at the normal labour charge less this discount. Example: 120 less 10% = \u20C3 108 per call. Printed on the Standard quote. It does not change the plan prices.',
+          },
+          {
             path: 'callOut.handlingCharge',
             label: 'Handling charge when not repairable',
             type: 'number',

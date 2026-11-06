@@ -393,7 +393,13 @@ export const amcPricingV2Default: AmcPricingV2Input = {
     transportPerVisit: 100,
   },
   breakdown: { callsPerUnitPerYear: 0.1, costPerCall: 150 },
-  callOut: { labourCharge: 125, basicDiscountPct: 0.3, handlingCharge: 80 },
+  callOut: {
+    labourCharge: 125,
+    basicDiscountPct: 0.3,
+    handlingCharge: 80,
+    standardIncludedCalls: 2,
+    standardExtraDiscountPct: 0.1,
+  },
   overhead: 0.1,
   profitMarkup: 0.3,
   plans: {

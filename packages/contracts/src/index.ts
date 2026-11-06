@@ -1656,6 +1656,11 @@ export const amcPricingV2Schema = z
         labourCharge: nonNegSchema,
         basicDiscountPct: percentSchema,
         handlingCharge: nonNegSchema,
+        // Standard fair use: call-outs per appliance per year with repair labour included, and the
+        // discount on the normal labour charge for call-outs beyond that. Optional so configs saved
+        // before these existed stay valid (the engine falls back to 2 and 10%).
+        standardIncludedCalls: nonNegSchema.optional(),
+        standardExtraDiscountPct: percentSchema.optional(),
       })
       .strict(),
     overhead: percentSchema,
