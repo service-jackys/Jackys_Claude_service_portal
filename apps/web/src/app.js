@@ -3390,9 +3390,9 @@
   .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
   .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
   .block.plain { white-space: normal; }
-  .pg1 h2, .pg3 h2 { font-size: 13px; margin: 22px 0 8px; padding-bottom: 4px; }
-  .pg1 .grid { gap: 8px 24px; margin-bottom: 8px; }
-  .pg1 table th, .pg1 table td { padding: 7px 10px; font-size: 12px; }
+  .pg1 h2, .pg3 h2 { font-size: 13px; margin: 18px 0 7px; padding-bottom: 4px; }
+  .pg1 .grid { gap: 6px 24px; margin-bottom: 6px; }
+  .pg1 table th, .pg1 table td { padding: 5px 10px; font-size: 12px; }
   .pg1 p { font-size: 11px !important; line-height: 1.45; margin: 8px 0; }
   .pg3 .tc-list { font-size: 12px !important; padding: 8px 12px 8px 28px !important; line-height: 1.4; }
   .pg3 .tc-list li { margin-bottom: 4px !important; }
@@ -3402,6 +3402,9 @@
   .plan-block .block { font-size: 12px; }
   .plan-block .incl-excl { margin-bottom: 16px; }
   .plan-block .block-label { margin-bottom: 4px; }
+  .glance th, .glance td { text-align: left; }
+  .pg1 table.glance th:first-child { width: 24%; }
+  .pg1 table.glance th, .pg1 table.glance td { font-size: 11.5px; }
   .pg-break { page-break-before: always; break-before: page; }
   .block.plain { text-align: justify; text-justify: inter-word; }
   .plan-block { page-break-inside: avoid; break-inside: avoid; }
@@ -3917,7 +3920,54 @@ ${bodyHtml}
   // all plans side by side with the rate per appliance, volume discount and call-out terms, and
   // an acceptance box. The signed contract certificate is a separate document, printed only
   // after the quote is marked Sold. Nothing internal (cost, margin, cap) is shown.
+  // ---- Page 1 extras for the quotation (sample variants under review) --------------------------
+  // Pulls the figures out of the call-out wording saved with each plan, so the summary table can
+  // never disagree with the Call-out and repair terms printed on page 2.
+  function amcPlanGlance(p) {
+    const text = String(p.callOutText || '');
+    const num = (re) => {
+      const m = text.match(re);
+      return m ? m[1] : '';
+    };
+    const normal = num(/normal (?:labour )?rate (?:of )?\u20C3 ([\d.,]+)/);
+    const basicRate = num(/Call-out labour \u20C3 ([\d.,]+) per call/);
+    const pool = num(/up to (\d+) call-outs/);
+    const handling = num(/\u20C3 ([\d.,]+) handling charge/);
+    const key = p.planKey || '';
+    let callOut = '\u2014';
+    let parts = '\u2014';
+    if (key === 'basic-rm') {
+      callOut = basicRate ? `\u20C3 ${basicRate} per call` : '\u2014';
+      parts = 'Charged extra';
+    } else if (key === 'standard-pmc') {
+      callOut = pool ? `${pool} included, then \u20C3 ${normal} per call` : 'Included (fair use)';
+      parts = 'Minor parts included; major parts extra';
+    } else {
+      callOut = 'Included';
+      parts = 'Mechanical parts included, except compressor';
+    }
+    return { callOut, parts, handling: handling ? `\u20C3 ${handling}` : '\u2014' };
+  }
+
+  function amcPlansAtAGlance(plans, fb, name) {
+    const row = (label, fn) =>
+      `<tr><td>${escapeHtml(label)}</td>${plans.map((p) => `<td>${escapeHtml(fn(p))}</td>`).join('')}</tr>`;
+    return `<h2>Plans at a glance</h2>
+      <table class="glance"><thead><tr><th></th>${plans.map((p) => `<th>${escapeHtml(name(p))}</th>`).join('')}</tr></thead><tbody>
+      ${row('Planned visits', (p) =>
+        p.planKey === 'basic-rm'
+          ? 'None (reactive only)'
+          : `${p.annualVisits} per appliance per year`,
+      )}
+      ${row('Call-out labour', (p) => amcPlanGlance(p).callOut)}
+      ${row('Spare parts', (p) => amcPlanGlance(p).parts)}
+      ${row('If not repairable', (p) => amcPlanGlance(p).handling + ' handling charge')}
+      </tbody></table>`;
+  }
+
   function buildAmcQuotationBody(contract) {
+    // Sample switch used while management reviews the page-1 additions.
+    const variant = (typeof globalThis !== 'undefined' && globalThis.__AMC_QUOTE_VARIANT) || {};
     const money = moneyGrouped;
     const plans = contract.plans || [];
     const fb = (p) =>
@@ -3969,8 +4019,20 @@ ${bodyHtml}
           )
         : '',
       sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
+      variant.perAppliance && Number(contract.totalCount) > 0
+        ? sumRow(
+            'Price per appliance per year (excl. VAT)',
+            (p) => '\u20C3 ' + money(Number(p.priceExclVat) / Number(contract.totalCount)),
+          )
+        : '',
       sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
       sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
+      variant.perAppliance
+        ? sumRow(
+            'Equivalent per month (incl. VAT)',
+            (p) => '\u20C3 ' + money(Number(p.priceInclVat) / 12),
+          )
+        : '',
     ].join('');
     const planDetails = plans
       .map(
@@ -4010,6 +4072,17 @@ ${bodyHtml}
         ['Contract period', contract.contractPeriod],
         ['Total appliances', String(contract.totalCount)],
         ['Appliance age', first && first.ageBand ? first.ageBand : ''],
+        ...(variant.preparedBy
+          ? [
+              [
+                'Prepared by',
+                contract.createdByName
+                  ? `${contract.createdByName}, Service Department`
+                  : 'Service Department',
+              ],
+              ['Service contact', variant.contact || ''],
+            ]
+          : []),
       ])}
       <h2>Appliance schedule*</h2>
       <table><thead><tr><th>Appliance type</th><th class="num">Qty</th></tr></thead><tbody>${rateRows}</tbody></table>
@@ -4017,6 +4090,7 @@ ${bodyHtml}
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
+      ${variant.glance ? amcPlansAtAGlance(plans, fb, name) : ''}
       </div>
       <div class="pg-break">${planDetails}</div>
       <div class="pg-break pg3">
