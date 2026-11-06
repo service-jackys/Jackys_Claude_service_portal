@@ -4544,3 +4544,18 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #211 — AMC quotation: closing block never spills to a third page alone
+
+**Date:** 2026-11-06
+
+**Why.** On some quotations only the final disclaimer line ("This quotation is issued by Jacky's Distribution LLC ...") landed alone on page 3.
+
+**What changed (printed AMC quotation, new calculator).**
+
+- Client acceptance, the plan tick boxes, the signature boxes and the disclaimer are now one block that is never split across pages; if it does not fit, the whole block moves together instead of leaving one line behind.
+- Slightly tighter spacing in General Terms and the disclaimer (9 pt) so typical quotations stay on two pages.
+
+**Files.** apps/web/src/app.js. No API or database change.
+
+**Needs you:** pull, hard-refresh, reprint the quote.
