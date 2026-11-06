@@ -4559,3 +4559,22 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js. No API or database change.
 
 **Needs you:** pull, hard-refresh, reprint the quote.
+
+## Modification #212 — AMC quotation (new calculator): management layout and wording changes
+
+**Date:** 2026-11-06
+
+**Why.** Management reviewed the printed quotation and asked for a fixed three-page layout, a new header and wording changes. The layout was approved on sample PDFs before it was built.
+
+**What changed (printed quotation, new AMC calculator).**
+
+- **Header:** larger logo, "Jacky's Service Center" under it, "AMC Quotation" centred (smaller, bolder) and "Contract Ref: ..." on the same line. The printed date and time are removed.
+- **Three fixed pages:** page 1 = quotation details, appliance schedule, Yearly price by plan and a new Plans at a glance table; page 2 = Basic RM and Standard PMC in full (each plan section is never split); page 3 = General Terms, Payment terms, Quotation validity, Client acceptance and signatures.
+- **Yearly price table** gains "Price per appliance per year (excl. VAT)" and "Equivalent per month (incl. VAT)". **Plans at a glance** shows planned visits, call-out labour, spare parts and the handling charge, read from the call-out text saved with each plan so it always matches page 2.
+- **Wording** (also applied when reprinting quotes saved earlier): Parts Replacement, Compressor or sealed-system Jobs, Refrigerant/gas recharge or leak repairs, Cosmetic damage Correction, General Consumables, Erratic power fluctuations, Tightening and calibration wherever applicable, Labor cost for the listed RM services. Call-out terms: "will be extra", "handling charge will be applicable if the appliance is not repairable", "Call-outs beyond this will be chargeable at ...", "Major spare parts will be charged additionally, in accordance with the quote approved prior to the commencement of work". General Terms: "logged in through", "weekends, public holidays", "labor-only AMC, unless covered", "Wherever required". Client acceptance: "kindly sign and return".
+- **Boxes and alignment:** Payment terms, Quotation validity, Client acceptance and General Terms are in boxes like the call-out box, with right-justified text; body text is one size on all pages; a little space between the Included / Not included table and the call-out box.
+- **New option in the calculator:** "Round included call-outs - Round up to the next 10" (per quote). Prints the Standard included call-outs rounded up (192 becomes 200) on that quote only; the price does not change.
+
+**Files.** apps/web/src/app.js, apps/web/src/amc-v2-core.js, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-v2-issue.spec.ts. No API or database change. The original calculator's printouts are unchanged.
+
+**Needs you:** pull, hard-refresh, reprint a quote. Tick "Round up to the next 10" only on quotes where management wants it. A quote with all three plans puts Premium PMC on its own page and the terms start on page 4.

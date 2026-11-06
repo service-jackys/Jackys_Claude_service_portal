@@ -128,11 +128,16 @@ test('old-model helper reproduces the original calculator (1,595 appliances at 8
 test('call-out wording follows the admin settings and Standard covers minor parts', () => {
   const terms = core.callOutTerms(cfg);
   assert.match(terms.basic, /\u20C3 87\.50 per call \(normal rate \u20C3 125\.00\)/);
-  assert.match(terms.basic, /All spare parts are extra/);
+  assert.match(terms.basic, /All spare parts will be extra/);
   assert.match(terms.standard, /minor parts \(filters, belts, seals\) are included/);
-  assert.match(terms.standard, /Major spare parts are extra/);
+  assert.match(terms.standard, /Major spare parts will be charged additionally/);
   assert.match(terms.premium, /except the compressor/);
-  for (const text of Object.values(terms)) assert.match(text, /\u20C3 80\.00 handling charge/);
+  for (const text of Object.values(terms)) {
+    assert.match(
+      text,
+      /\u20C3 80\.00 handling charge will be applicable if the appliance is not repairable/,
+    );
+  }
 });
 
 test('Standard call-out pool is appliances x expected calls, shared across the contract', () => {
@@ -141,13 +146,25 @@ test('Standard call-out pool is appliances x expected calls, shared across the c
   // 1,595 x 0.12 = 191.4, rounded up to 192; extras at the normal rate when no discount is set.
   const std = core.callOutTerms(withCalls, 1595).standard;
   assert.match(std, /up to 192 call-outs in total per contract year across all 1595 appliances/);
-  assert.match(std, /beyond this are charged at the normal labour rate of \u20C3 125\.00 per call/);
-  assert.match(std, /quoted for approval before work starts/);
+  assert.match(
+    std,
+    /beyond this will be chargeable at the normal labour rate of \u20C3 125\.00 per call/,
+  );
+  assert.match(std, /in accordance with the quote approved prior to the commencement of work/);
+  // Optional per-quote rounding prints the included call-outs up to the next 10 (192 -> 200).
+  assert.match(
+    core.callOutTerms(withCalls, 1595, { roundPoolTo10: true }).standard,
+    /up to 200 call-outs in total/,
+  );
+  assert.match(
+    core.callOutTerms(withCalls, 1600, { roundPoolTo10: true }).standard,
+    /up to 200 call-outs in total/,
+  );
   // A discount on extra call-outs is shown as a rate against the normal rate.
   const disc = { ...withCalls, callOut: { ...c.callOut, standardExtraDiscountPct: 0.1 } };
   assert.match(
     core.callOutTerms(disc, 1595).standard,
-    /charged at \u20C3 112\.50 per call \(normal rate \u20C3 125\.00\)/,
+    /chargeable at \u20C3 112\.50 per call \(normal rate \u20C3 125\.00\)/,
   );
   // Without a quantity the wording stays generic.
   assert.match(core.callOutTerms(withCalls).standard, /allowed for in the contract price/);
