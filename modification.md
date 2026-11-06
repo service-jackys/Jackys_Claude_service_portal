@@ -4349,3 +4349,19 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/contracts/src/index.ts, packages/db/src/amc-contracts.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/amc-contracts/service.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/amc-v2-core.js, apps/web/src/app.js, tests/unit/amc-v2-core.test.ts, tests/integration/amc-v2-contracts.test.ts, tests/e2e/amc-v2-issue.spec.ts.
 
 **Needs you:** pull, restart the API, hard-refresh. No new database migration (073 from the last change already added the column). Then in AMC Admin Rates (New) set "Standard: parts reserve" to 2.5 and Save.
+
+## Modification #199 — AMC Admin Rates (New): every Appliance Master appliance listed, reference values typed and saved there
+
+**Date:** 2026-11-06
+
+**Why.** The read-only "calculated yearly rate per appliance" table on AMC Admin Rates (New) only showed AMC-enabled appliances and the reference values could only be changed in Admin > Masters. The person setting prices wanted one list of all appliances to enter the reference value and see the rates calculate.
+
+**What changed.**
+
+- The table is now "Appliance reference values & calculated yearly rate per appliance". It lists **every active appliance** from Appliance Master (names still come from there; none is stored on this page). Each row has an **AMC** tick, an editable **Reference value (AED)**, and the calculated Basic RM, Standard PMC and Premium PMC yearly rates, which recalculate as you type (before the volume discount and the cap). Appliances not ticked for AMC show a dash.
+- A **Save reference values** button writes the ticks and values back to Appliance Master (separate from this page's Save, which saves the pricing settings). The AMC calculators pick them up on the next Refresh rates.
+- Fixed per-appliance rates are still entered in "Rate overrides per appliance (optional)"; 0 keeps the calculated rate.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
