@@ -4520,7 +4520,7 @@ Display only; no pricing formulas, API or database changes.
 
 **What changed (new AMC calculator documents only; the original calculator is untouched).**
 
-- **Included / Not included:** under each plan on the quotation these now sit side by side in a two-column box with a green "Included" and a red "Not included / separately quoted" heading.
+- **Included / Not included:** under each plan on the quotation these now sit side by side in a two-column box with a green "Included" and a red "Not included / separately quoted" heading. Each item is its own bullet (green dot for included, red dot for not included); phrases that belong together, such as "damage caused by misuse, power events, water, fire...", stay on one bullet, and "subject to..." conditions are shown in italics.
 - **Payment terms (quotation and certificate):** 75% payable in advance on acceptance and before service commencement; the remaining 25% within 30 days of the commencement date. The 30-day timing is an assumption to confirm. The original calculator keeps its 100% advance wording.
 - **General Terms and Conditions:** the same list the original certificate uses is now also printed on the quotation (the new-calculator certificate already had it).
 - **Print certificate:** in AMC Issued (New) the button was hidden until a quote was Sold. It is now always visible: greyed out with "Available after Sold" until the customer approves (choose the approved plan, then click Sold), then active.
