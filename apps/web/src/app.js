@@ -11623,18 +11623,11 @@ ${bodyHtml}
               'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = \u20C3 108 per call. Printed on the Basic quote. It does not change the plan prices.',
           },
           {
-            path: 'callOut.standardIncludedCalls',
-            label: 'Standard: call-outs included per appliance per year',
-            type: 'number',
-            tooltip:
-              'Fair-use limit. Standard includes repair labour for this many call-outs per appliance each year. Printed on the Standard quote and certificate. It does not change the plan prices.',
-          },
-          {
             path: 'callOut.standardExtraDiscountPct',
-            label: 'Standard: discount on call-outs beyond the limit',
+            label: 'Standard: discount on call-outs beyond the included number',
             type: 'percent',
             tooltip:
-              'Call-outs above the included number are charged at the normal labour charge less this discount. Example: 120 less 10% = \u20C3 108 per call. Printed on the Standard quote. It does not change the plan prices.',
+              'Standard includes repair labour for as many call-outs per contract year as the price allows for: appliances × the breakdown calls per appliance above (e.g. 1,595 × 0.12 = 192). Call-outs beyond that are charged at the normal labour charge less this discount; leave at 0 to charge the full normal rate. Printed on the Standard quote. It does not change the plan prices.',
           },
           {
             path: 'callOut.handlingCharge',
@@ -14766,7 +14759,7 @@ ${bodyHtml}
         compare.innerHTML = '';
         return;
       }
-      const terms = core.callOutTerms(cfg);
+      const terms = core.callOutTerms(cfg, quote.totalQty);
       output.innerHTML =
         '<p class="form-note">Total appliances: <strong>' +
         quote.totalQty +
@@ -14907,7 +14900,7 @@ ${bodyHtml}
     const PLAN_KEYS = { basic: 'basic-rm', standard: 'standard-pmc', premium: 'premium-pmc' };
     function buildPlans() {
       const quote = lastQuote;
-      const terms = core.callOutTerms(cfg);
+      const terms = core.callOutTerms(cfg, quote.totalQty);
       return quote.plans.map((p) => {
         const fallback = AMC_CONTRACT_PLAN_FALLBACKS[PLAN_KEYS[p.planKey]];
         const planned = p.planKey === 'basic' ? 0 : Number(cfg.plans[p.planKey].plannedVisits) || 0;
