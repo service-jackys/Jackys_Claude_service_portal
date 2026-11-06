@@ -3384,14 +3384,14 @@
   ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
   .incl-excl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0 8px; }
-  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 7px 9px; border: 1px solid #c9d2db; font-size: 11.5px; }
+  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 4px 8px; border: 1px solid #c9d2db; font-size: 10.5px; }
   .incl-excl .incl-h { background: #e6f4ea; color: #1b5e20; }
   .incl-excl .excl-h { background: #fdecea; color: #b42318; }
   .incl-excl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .incl-excl tr { page-break-inside: avoid; }
   .scope-list { list-style: none; margin: 0; padding: 0; }
-  .scope-list li { position: relative; padding: 2px 0 2px 16px; line-height: 1.35; }
-  .scope-list li::before { content: ''; position: absolute; left: 2px; top: 9px; width: 6px; height: 6px; border-radius: 50%; }
+  .scope-list li { position: relative; padding: 0 0 0 13px; line-height: 1.3; font-size: 10.5px; }
+  .scope-list li::before { content: ''; position: absolute; left: 1px; top: 5px; width: 5px; height: 5px; border-radius: 50%; }
   .scope-list li.scope-note { color: #555; font-style: italic; }
   .incl-list li::before { background: #2e7d32; }
   .excl-list li::before { background: #c62828; }
@@ -3899,11 +3899,20 @@ ${bodyHtml}
     const ref =
       (contract.amcContractReference || '') +
       (Number(contract.revision) > 1 ? ` (Rev ${contract.revision})` : '');
+    // Quotation validity: one month from the quotation date (the date this revision was saved).
+    const issued = new Date(contract.createdAt);
+    let validUntil = '';
+    if (!Number.isNaN(issued.valueOf())) {
+      const end = new Date(issued);
+      end.setMonth(end.getMonth() + 1);
+      validUntil = end.toLocaleDateString(undefined, { dateStyle: 'medium' });
+    }
     return `
       ${printDocHeadWithLogo('AMC Quotation', ref)}
       <h2>Quotation details</h2>
       ${printFieldGrid([
         ['Quotation date', contract.contractDate || formatDate(contract.createdAt)],
+        ['Quotation validity', validUntil ? `1 month, valid until ${validUntil}` : '1 month'],
         ['Client', contract.clientName],
         ['Attention to', contract.attentionTo],
         ['Site / location', contract.siteLocation],
@@ -3924,6 +3933,8 @@ ${bodyHtml}
       </ul>
       <h2>Payment terms</h2>
       <p style="font-size:12px;">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</p>
+      <h2>Quotation validity</h2>
+      <p style="font-size:12px;">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</p>
       <h2>Client acceptance</h2>
       <p style="font-size:11.5px;">To accept, tick the plan chosen, sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
       <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>

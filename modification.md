@@ -4529,3 +4529,18 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh. Confirm the 25% timing (30 days from commencement).
+
+## Modification #210 — AMC quotation: compact bullet lists and 1-month validity
+
+**Date:** 2026-11-06
+
+**Why.** The Included / Not included bullet lists took too much space, and the quotation had no validity period.
+
+**What changed (printed AMC quotation, new calculator).**
+
+- The Included / Not included lists are smaller (10.5 pt text, tighter spacing, smaller dots), so each plan's scope takes roughly half the height.
+- **Quotation validity: 1 month.** Shown in the Quotation details ("1 month, valid until <date>", counted from the date that revision was saved) and as a short Quotation validity section before Client acceptance.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
