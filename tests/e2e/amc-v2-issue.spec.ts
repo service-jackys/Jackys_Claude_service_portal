@@ -141,6 +141,15 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
       /call-outs in total per contract year across all \d+ appliances/,
     );
     await expect(quoteBody).toContainText('Client acceptance');
+    // Included / not included side by side, 75% + 25% payment, and the general terms are on the quote.
+    await expect(quoteBody.locator('.incl-excl').first()).toContainText(
+      'Not included / separately quoted',
+    );
+    await expect(quoteBody).toContainText('75% of the contract value is payable in advance');
+    await expect(quoteBody).toContainText('remaining 25%');
+    await expect(quoteBody).not.toContainText('100% payment in advance');
+    await expect(quoteBody).toContainText('General Terms and Conditions');
+    await expect(quoteBody).toContainText('Limitation of Liability');
     await expect(quoteBody).not.toContainText('Approved service plan');
     // Nothing internal reaches the customer.
     await expect(quoteBody).not.toContainText('break-even');
@@ -167,6 +176,9 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
 
     // No certificate while the quote is still a Quote.
     await expect(page.locator('[data-ac-reprint]')).toHaveCount(0);
+    // ...but the button is visible and disabled, with a hint, so it can be found.
+    await expect(page.locator('[data-ac-reprint-locked]')).toBeDisabled();
+    await expect(page.locator('[data-ac-cert-hint]')).toContainText('Available after Sold');
 
     // Marking it Sold (customer approved) unlocks the certificate for the approved plan.
     await page.locator('[data-ac-plan-select="9"]').selectOption('standard-pmc');
@@ -178,6 +190,10 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(cert.locator('body')).toContainText('Annual Maintenance Contract');
     await expect(cert.locator('body')).toContainText('Approved service plan');
     await expect(cert.locator('body')).toContainText('Contract pricing (per year)');
+    await expect(cert.locator('body')).toContainText('General Terms and Conditions');
+    await expect(cert.locator('body')).toContainText(
+      '75% of the contract value is payable in advance',
+    );
     await expect(cert.locator('body')).toContainText('Appliance age: Year 4');
   });
 

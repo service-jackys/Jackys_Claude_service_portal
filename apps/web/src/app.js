@@ -3383,6 +3383,10 @@
   .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
+  .incl-excl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0 8px; }
+  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 7px 9px; border: 1px solid #c9d2db; font-size: 11.5px; }
+  .incl-excl .incl-h { background: #e6f4ea; color: #1b5e20; }
+  .incl-excl .excl-h { background: #fdecea; color: #b42318; }
   .cert-feebox { background: #17324d; color: #fff; padding: 10px 14px; border-radius: 6px; margin: 10px 0; }
   .cert-feebox .fee { font-size: 22px; font-weight: 800; }
   .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3px 24px; margin-bottom: 8px; }
@@ -3608,6 +3612,16 @@ ${bodyHtml}
     'Governing Terms: This quotation and any resulting AMC shall be governed by the mutually accepted commercial terms stated herein and the applicable laws of the United Arab Emirates.',
   ];
 
+  // Payment terms for quotes and certificates made with the new AMC calculator (the original
+  // calculator keeps its own 100% advance wording).
+  const AMC_V2_PAYMENT_TERMS =
+    '75% of the contract value is payable in advance, on acceptance and before service commencement. The remaining 25% is payable within 30 days of the commencement date. Services commence only after receipt of the signed acceptance, the confirmed purchase order where applicable, and the 75% advance payment.';
+
+  // "Included" and "Not included" shown side by side so a customer can compare at a glance.
+  function printInclExclTable(included, notIncluded) {
+    return `<table class="incl-excl"><thead><tr><th class="incl-h">&#10004; Included</th><th class="excl-h">&#10008; Not included / separately quoted</th></tr></thead><tbody><tr><td>${escapeHtml(included || '\u2014')}</td><td>${escapeHtml(notIncluded || '\u2014')}</td></tr></tbody></table>`;
+  }
+
   function printAmcApplianceTable(appliances) {
     // Lines priced from the internal Appliance Master reference value show
     // only appliance and quantity -- the customer never gave a unit value.
@@ -3652,7 +3666,7 @@ ${bodyHtml}
       ...(Math.abs(adjustment) > 0.005
         ? [
             [
-              'Contract price adjustment',
+              adjustment < 0 ? 'Special contract discount' : 'Contract price adjustment',
               (adjustment < 0 ? '-' : '+') + '\u20C3 ' + money(Math.abs(adjustment)),
             ],
           ]
@@ -3720,7 +3734,11 @@ ${bodyHtml}
         ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:4px;">${escapeHtml(term)}</li>`).join('')}
       </ul>
       <h2>Payment terms and validity</h2>
-      <p style="font-size:12px;"><strong>Payment Terms:</strong> 100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after receipt of the signed acceptance, confirmed purchase order where applicable, and full advance payment.</p>
+      <p style="font-size:12px;"><strong>Payment Terms:</strong> ${
+        contract.pricingModel === 'v2' || (plan.unitLines || []).length
+          ? escapeHtml(AMC_V2_PAYMENT_TERMS)
+          : '100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after receipt of the signed acceptance, confirmed purchase order where applicable, and full advance payment.'
+      }</p>
       <p style="font-size:12px;">Prices are in \u20C3 and include 5% VAT where shown. This AMC is valid for one year from commencement unless renewed or amended in writing by both parties.</p>
       <h2>Customer confirmation</h2>
       ${printFieldGrid([
@@ -3824,8 +3842,7 @@ ${bodyHtml}
         ['Visits', p.visitsText || `${p.annualVisits} visits/year`],
         ['Coverage / basis', p.coverage || fb(p).coverage],
       ])}
-      ${printTextBlock('Included', p.included || fb(p).included)}
-      ${printTextBlock('Not included / separately quoted', p.notIncluded || fb(p).notIncluded)}
+      ${printInclExclTable(p.included || fb(p).included, p.notIncluded || fb(p).notIncluded)}
       ${p.callOutText ? printTextBlock('Call-out and repair terms', p.callOutText) : ''}`,
       )
       .join('');
@@ -3851,8 +3868,12 @@ ${bodyHtml}
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
       ${planDetails}
+      <h2>General Terms and Conditions</h2>
+      <ul style="font-size:11.5px;margin:0 0 0 18px;padding:0;">
+        ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:4px;">${escapeHtml(term)}</li>`).join('')}
+      </ul>
       <h2>Payment terms</h2>
-      <p style="font-size:12px;">100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after the quotation is approved and payment is received.</p>
+      <p style="font-size:12px;">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</p>
       <h2>Client acceptance</h2>
       <p style="font-size:11.5px;">To accept, tick the plan chosen, sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
       <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>
@@ -15546,7 +15567,9 @@ ${bodyHtml}
                     ? '<button type="button" class="button button-primary button-sm" data-ac-reprint="' +
                       escapeHtml(c.id) +
                       '" title="The signed contract for the approved plan">Print certificate</button>'
-                    : '') +
+                    : '<button type="button" class="button button-outline button-sm" disabled data-ac-reprint-locked="' +
+                      escapeHtml(c.id) +
+                      '" title="The certificate is issued once the customer approves: choose the approved plan and click Sold">Print certificate</button><span class="ac-label" data-ac-cert-hint>Available after Sold</span>') +
                   '</div></div>'
                 : '<div class="ac-group"><div class="ac-row"><button type="button" class="button button-outline button-sm" data-ac-reprint="' +
                   escapeHtml(c.id) +
