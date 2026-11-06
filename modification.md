@@ -4414,9 +4414,23 @@ Display only; no pricing formulas, API or database changes.
 - The "Plan to print" dropdown after saving is no longer shown for new-calculator quotes (the quotation shows every plan). The plan dropdown in the list is still used to choose the approved plan when marking Sold.
 - Admin History (earlier versions) prints the quotation of that version for new-calculator quotes.
 - **Choose which plans appear:** tick boxes (all ticked to start with) next to Print quotation, in the list and right after Save. For example, tick only Basic RM and Standard and the quotation shows just those two (rates, prices, inclusions, call-out terms and the acceptance box). At least one plan must stay ticked.
-- **AMC Issued list restyled** (both AMC lists): each quote is a two-line entry, details on top (bold reference with the date underneath, client, appliances, status chip, plan, price right-aligned) and a toolbar underneath with the actions grouped as Quotation (plan pills, Print quotation, Print certificate), Manage (Edit, History) and Outcome (sold date, Sold, Lost). Smaller buttons, pill-style plan toggles that fill when ticked, keyboard focus outline, dark-mode colours.
 - No validity period was added to the quotation (none was specified).
 
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
+
+## Modification #203 — AMC Issued lists: professional layout with grouped actions
+
+**Date:** 2026-11-06
+
+**Why.** The AMC Issued list had a long, cramped actions column (plan tick boxes, Print, Edit, History, date, Sold, Lost all stacked in one cell) and a clipped plan dropdown.
+
+**What changed (both AMC Issued lists; display only).**
+
+- Each quote is a two-line entry. Top line: bold reference with its date underneath, client, appliances, status chip, plan, price right-aligned. Second line: a toolbar with the actions grouped as **Quotation** (plan pills, Print quotation, Print certificate), **Manage** (Edit, History) and **Outcome** (sold date, Sold, Lost).
+- Smaller buttons, pill-style plan toggles that fill when ticked, wider plan dropdown, keyboard focus outline, dark-mode colours.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html. No API or database change.
 
 **Needs you:** pull, hard-refresh.

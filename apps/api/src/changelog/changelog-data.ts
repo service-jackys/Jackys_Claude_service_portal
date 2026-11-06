@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 203,
+    "title": "AMC Issued lists: professional layout with grouped actions",
+    "area": "Pricing & rates",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "The AMC Issued list had a long, cramped actions column (plan tick boxes, Print, Edit, History, date, Sold, Lost all stacked in one cell) and a clipped plan dropdown.",
+    "changes": [
+      "What changed (both AMC Issued lists; display only)"
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html. No API or database change."
+  },
+  {
     "id": 202,
     "title": "AMC Quote Calculator (New): print a Quotation first, Certificate only after Sold",
     "area": "Pricing & rates",
