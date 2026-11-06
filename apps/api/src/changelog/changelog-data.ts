@@ -15,6 +15,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 205,
+    title: 'AMC quotation: discount rows back, no per-unit rates',
+    area: 'Pricing & rates',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary:
+      'Management wants the customer to see the discount given, and does not want per-appliance rates itemised on the quotation.',
+    changes: ['What changed (printed AMC quotation only)'],
+    needsYou: 'pull, hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.',
+  },
+  {
     id: 204,
     title: 'New UAE Dirham symbol across the portal; cleaner AMC quotation',
     area: 'Pricing & rates',

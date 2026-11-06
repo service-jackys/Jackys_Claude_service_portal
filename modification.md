@@ -4450,3 +4450,18 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, apps/web/src/index.html, apps/web/src/amc-v2-core.js, apps/web/src/approve.js and affected tests. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #205 — AMC quotation: discount rows back, no per-unit rates
+
+**Date:** 2026-11-06
+
+**Why.** Management wants the customer to see the discount given, and does not want per-appliance rates itemised on the quotation.
+
+**What changed (printed AMC quotation only).**
+
+- **Yearly price by plan** shows **Price before discount**, **Volume discount** (% and amount) and **Contract price adjustment** again, followed by excl. VAT, VAT and incl. VAT.
+- The Basic RM / Standard PMC / Premium PMC rate columns are removed from the appliance schedule, which now lists appliance type and quantity only. A professional "*" note under it says the annual charge is calculated per appliance and depends on appliance type, age and the selected plan, with a unit-wise breakdown available on request.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
