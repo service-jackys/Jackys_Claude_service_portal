@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 201,
+    "title": "AMC Admin Rates (New): live planned-visit cost, plain-language tooltips and a temporary \"How it works\" tab",
+    "area": "Permissions",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management could not follow how the Standard and Premium rates are built (where the 31.73 per planned visit comes from, what the caps and reserves do). The page needed to show the working and every tooltip needed plain wording.",
+    "changes": [
+      "Visit & labour cost now ends with a green box, \"Planned visit cost per appliance\". It shows the whole visit (labour + transport), the number of appliances it is shared by, and the result for Standard and Premium. It recalculates on every…",
+      "Every tooltip on AMC Admin Rates (New) was rewritten in plain words with a worked example, including card headings, table column headings, the About text, and which settings only change the printed quote wording (labour charge, Basic…",
+      "New temporary tab How it works (temporary) next to Rates: step 1 cost of a planned visit, step 2 cost and price of one appliance (Standard and Premium, with Basic explained), step 3 a whole quote (volume discount, cap, break-even…",
+      "Engine helpers visitBreakdown and exampleRate added to amc-v2-core.js (display only; prices are unchanged)."
+    ],
+    "needsYou": "pull, hard-refresh (no restart or migration).",
+    "migrations": [],
+    "files": "apps/web/src/amc-v2-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-calculator-v2.spec.ts. No API or database change."
+  },
+  {
     "id": 200,
     "title": "AMC Admin Rates (New): reference values kept in the AMC pricing master, not Appliance Master",
     "area": "Permissions",

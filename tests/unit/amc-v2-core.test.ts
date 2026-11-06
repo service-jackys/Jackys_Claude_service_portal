@@ -14,6 +14,8 @@ new Function('module', source)(mod);
 const core = mod.exports as {
   costPerVisit(cfg: unknown): number;
   visitCostPerAppliance(cfg: unknown): number;
+  visitBreakdown(cfg: any): Record<string, number>;
+  exampleRate(cfg: unknown, refValue: number, age: number): any;
   discountFor(cfg: unknown, qty: number): number;
   callOutTerms(cfg: unknown): Record<'basic' | 'standard' | 'premium', string>;
   computeQuote(cfg: unknown, lines: unknown[], age: number): any;
@@ -131,4 +133,37 @@ test('call-out wording follows the admin settings and Standard covers minor part
   assert.match(terms.standard, /Major spare parts are extra/);
   assert.match(terms.premium, /except the compressor/);
   for (const text of Object.values(terms)) assert.match(text, /AED 80\.00 handling charge/);
+});
+
+test('planned-visit breakdown shows every step and follows the labour inputs', () => {
+  const v = core.visitBreakdown(cfg);
+  assert.equal(round(v.technicianPerHour), 19.23);
+  assert.equal(round(v.teamPerHour), 38.46);
+  assert.equal(round(v.labourPerVisit), 153.85);
+  assert.equal(round(v.wholeVisit), 253.85);
+  assert.equal(round(v.perAppliance), 31.73);
+  assert.equal(round(v.standard), 31.73); // 1 visit
+  assert.equal(round(v.premium), 63.46); // 2 visits
+  const fewer = core.visitBreakdown({ ...cfg, labour: { ...cfg.labour, handledPerVisit: 4 } });
+  assert.equal(round(fewer.perAppliance), 63.46);
+  // zero working days must not produce Infinity/NaN on screen
+  const broken = core.visitBreakdown({ ...cfg, labour: { ...cfg.labour, workingDays: 0 } });
+  assert.ok(Number.isFinite(broken.perAppliance));
+});
+
+test('worked example for one appliance matches the calculator line by line', () => {
+  const ex = core.exampleRate(cfg, 600, 0);
+  // Standard: 31.73 visit + 15.00 breakdown + 15.00 parts (2.5% of 600) = 61.73
+  assert.equal(round(ex.standard.direct), 61.73);
+  assert.equal(round(ex.standard.parts), 15);
+  assert.equal(round(ex.standard.breakEven), 67.9);
+  assert.equal(round(ex.standard.price), 88.28);
+  // Premium: 63.46 + 15.00 + 27.00 (4.5% of 600) = 105.46
+  assert.equal(round(ex.premium.direct), 105.46);
+  assert.equal(round(ex.premium.price), 150.81);
+  const q = core.computeQuote(cfg, [{ name: 'X', qty: 1, refValue: 600 }], 0);
+  assert.equal(round(q.plans[1].lines[0].unitRate), round(ex.standard.price));
+  assert.equal(round(q.plans[2].lines[0].unitRate), round(ex.premium.price));
+  // the price is break-even plus profit
+  assert.equal(round(ex.standard.breakEven + ex.standard.profitAmount), round(ex.standard.price));
 });

@@ -10066,6 +10066,335 @@ ${bodyHtml}
   }
 
   // ---- Domain card render functions -- one per pricing_config domain ----
+  // ---- AMC Admin Rates (New): plain-language helpers (modification.md #201) ----
+  function amcV2Fmt(value) {
+    return (Number(value) || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
+  // Builds the temporary "How it works" tab once and returns a refresh function that redraws the
+  // numbers from the admin values currently on screen. The example inputs keep their focus.
+  function amcV2BuildHelp(host, data) {
+    const state = { refValue: 1000, qty: 100, age: 0 };
+    host.innerHTML =
+      '<div class="detail-action-card"><h4>How the AMC prices are worked out</h4>' +
+      '<p class="form-note">A plain-language walkthrough using the values currently on this page. ' +
+      'Change a value on the Rates tab and the numbers here follow. This tab is temporary and can be removed once the team is comfortable with the logic.</p>' +
+      '<div class="field-grid">' +
+      '<div class="field"><label>Example appliance value (AED) ' +
+      tipHtml(
+        'Pretend one appliance is worth this much, to see the arithmetic. Does not change any setting.',
+      ) +
+      '</label><input type="number" min="0" step="50" data-help-value value="' +
+      state.refValue +
+      '"></div>' +
+      '<div class="field"><label>Example appliance age ' +
+      tipHtml(
+        'The age band used in the example. Older bands raise the breakdown allowance and parts reserve.',
+      ) +
+      '</label><select data-help-age></select></div>' +
+      '<div class="field"><label>Example number of appliances on the quote ' +
+      tipHtml(
+        'Used in step 3 to show the volume discount and the cap for a whole quote of identical appliances.',
+      ) +
+      '</label><input type="number" min="1" step="1" data-help-qty value="' +
+      state.qty +
+      '"></div></div></div>' +
+      '<div data-help-out></div>';
+    const out = host.querySelector('[data-help-out]');
+    const ageSelect = host.querySelector('[data-help-age]');
+    const render = () => {
+      const core = window.JdAmcV2;
+      if (!core) return;
+      ageSelect.innerHTML = data.ageBands
+        .map(
+          (band, i) =>
+            '<option value="' +
+            i +
+            '"' +
+            (i === state.age ? ' selected' : '') +
+            '>' +
+            escapeHtml(band.label) +
+            '</option>',
+        )
+        .join('');
+      out.innerHTML = amcV2HelpHtml(core, data, state);
+    };
+    host.querySelector('[data-help-value]').addEventListener('input', (event) => {
+      state.refValue = Math.max(0, Number(event.target.value) || 0);
+      render();
+    });
+    host.querySelector('[data-help-qty]').addEventListener('input', (event) => {
+      state.qty = Math.max(1, Math.floor(Number(event.target.value) || 1));
+      render();
+    });
+    ageSelect.addEventListener('change', () => {
+      state.age = Number(ageSelect.value) || 0;
+      render();
+    });
+    render();
+    return render;
+  }
+
+  function amcV2HelpHtml(core, data, state) {
+    const fmt = amcV2Fmt;
+    const pct = (x) => (Math.round((Number(x) || 0) * 1000) / 10).toString() + '%';
+    const v = core.visitBreakdown(data);
+    const ex = core.exampleRate(data, state.refValue, state.age);
+    const quote = core.computeQuote(
+      data,
+      [{ name: 'Example', qty: state.qty, refValue: state.refValue }],
+      state.age,
+    );
+    const L = data.labour;
+    const co = data.callOut;
+    const basicRate = (Number(co.labourCharge) || 0) * (1 - (Number(co.basicDiscountPct) || 0));
+    const row = (cells) => '<tr>' + cells.map((c) => '<td>' + c + '</td>').join('') + '</tr>';
+    const head = (cells) =>
+      '<thead><tr>' + cells.map((c) => '<th>' + c + '</th>').join('') + '</tr></thead>';
+    const table = (headCells, rows) =>
+      '<div class="table-wrap"><table>' +
+      head(headCells) +
+      '<tbody>' +
+      rows.join('') +
+      '</tbody></table></div>';
+
+    const step1 =
+      '<div class="detail-action-card"><h4>Step 1: what one planned visit costs, per appliance</h4>' +
+      '<p>A planned visit is a scheduled service visit by our team. We work out what the whole visit costs and share it between the appliances serviced on it.</p>' +
+      table(
+        ['What', 'How it is worked out', 'AED'],
+        [
+          row([
+            'One technician, per hour',
+            fmt(L.salary) + ' salary ÷ ' + L.workingDays + ' days ÷ ' + L.hoursPerDay + ' hours',
+            fmt(v.technicianPerHour),
+          ]),
+          row([
+            'Team, per hour',
+            fmt(v.technicianPerHour) + ' × ' + L.technicians + ' technicians',
+            fmt(v.teamPerHour),
+          ]),
+          row([
+            'Labour for one visit',
+            fmt(v.teamPerHour) + ' × ' + L.visitHours + ' hours',
+            fmt(v.labourPerVisit),
+          ]),
+          row([
+            'Whole visit',
+            fmt(v.labourPerVisit) + ' labour + ' + fmt(v.transportPerVisit) + ' transport',
+            fmt(v.wholeVisit),
+          ]),
+          '<tr class="pc-live-row"><td><strong>Per appliance, per planned visit</strong></td><td>' +
+            fmt(v.wholeVisit) +
+            ' ÷ ' +
+            v.handledPerVisit +
+            ' appliances per visit</td><td><strong>' +
+            fmt(v.perAppliance) +
+            '</strong></td></tr>',
+        ],
+      ) +
+      '<p class="form-note">If the team services fewer appliances per visit than assumed, the real cost per appliance is higher than this.</p></div>';
+
+    const planCols = (key) => ex[key];
+    const s = planCols('standard');
+    const p = planCols('premium');
+    const step2 =
+      '<div class="detail-action-card"><h4>Step 2: what one appliance costs us per year, and the price that follows</h4>' +
+      '<p>Example: one appliance worth AED ' +
+      fmt(state.refValue) +
+      ', age ' +
+      escapeHtml(ex.ageLabel) +
+      ' (risk factor ' +
+      ex.ageFactor +
+      ').</p>' +
+      table(
+        ['Item', 'How it is worked out', 'Standard PMC', 'Premium PMC'],
+        [
+          row([
+            'Planned visits',
+            'number of visits × AED ' + fmt(v.perAppliance) + ' (step 1)',
+            s.visits + ' × ' + fmt(v.perAppliance) + ' = ' + fmt(s.visitCost),
+            p.visits + ' × ' + fmt(v.perAppliance) + ' = ' + fmt(p.visitCost),
+          ]),
+          row([
+            'Breakdown allowance',
+            data.breakdown.callsPerUnitPerYear +
+              ' calls × AED ' +
+              fmt(data.breakdown.costPerCall) +
+              ' × age factor',
+            fmt(s.breakdown),
+            fmt(p.breakdown),
+          ]),
+          row([
+            'Parts reserve',
+            'parts % × appliance value × age factor (Standard ' +
+              pct(data.plans.standard.partsReservePct) +
+              ', Premium ' +
+              pct(data.plans.premium.partsReservePct) +
+              ')',
+            fmt(s.parts),
+            fmt(p.parts),
+          ]),
+          row([
+            '<strong>Our cost</strong>',
+            'the three items added',
+            '<strong>' + fmt(s.direct) + '</strong>',
+            '<strong>' + fmt(p.direct) + '</strong>',
+          ]),
+          row([
+            'Plus overhead',
+            pct(data.overhead) + ' of our cost',
+            fmt(s.overheadAmount),
+            fmt(p.overheadAmount),
+          ]),
+          row([
+            '<strong>Break-even</strong>',
+            'the lowest price at which we do not lose money',
+            '<strong>' + fmt(s.breakEven) + '</strong>',
+            '<strong>' + fmt(p.breakEven) + '</strong>',
+          ]),
+          row([
+            'Plus profit',
+            pct(data.profitMarkup) + ' of break-even',
+            fmt(s.profitAmount),
+            fmt(p.profitAmount),
+          ]),
+          '<tr class="pc-live-row"><td><strong>Calculated price per appliance per year</strong></td><td>break-even + profit</td><td><strong>' +
+            fmt(s.price) +
+            '</strong></td><td><strong>' +
+            fmt(p.price) +
+            '</strong></td></tr>',
+        ],
+      ) +
+      '<p><strong>Basic RM</strong> works differently: there are no planned visits. The customer pays a fixed yearly retainer of AED ' +
+      fmt(data.plans.basic.retainerPerUnit) +
+      ' per appliance, then pays for each repair call at AED ' +
+      fmt(basicRate) +
+      ' (normal AED ' +
+      fmt(co.labourCharge) +
+      ' less ' +
+      pct(co.basicDiscountPct) +
+      '), plus parts. Our own yearly admin cost is AED ' +
+      fmt(data.plans.basic.adminCostPerUnit) +
+      ' per appliance.</p>' +
+      '<p class="form-note">Standard and Premium customers also pay AED ' +
+      fmt(co.handlingCharge) +
+      ' if we attend and the appliance cannot be repaired.</p></div>';
+
+    const planRows = quote.plans.map((pl) =>
+      row([
+        '<strong>' + escapeHtml(pl.planLabel) + '</strong>',
+        fmt(pl.listTotal),
+        pct(pl.discountPct) + ' = -' + fmt(pl.listTotal - pl.discountedTotal),
+        fmt(pl.discountedTotal),
+        pl.capTotal === null ? 'no cap' : pct(pl.capPct) + ' = ' + fmt(pl.capTotal),
+        '<strong>' +
+          fmt(pl.priceExclVat) +
+          '</strong>' +
+          (pl.capApplied ? ' <small>(cap applies)</small>' : ''),
+      ]),
+    );
+    const verdicts = quote.plans
+      .map((pl) => {
+        const verdict = pl.flags.length
+          ? pl.flags
+              .map(
+                (f) =>
+                  '<span class="' +
+                  (f.level === 'red' ? 'pc-flag-red' : 'pc-flag-amber') +
+                  '">' +
+                  escapeHtml(f.text) +
+                  (f.shortfall ? ' (shortfall ' + fmt(f.shortfall) + ')' : '') +
+                  '</span>',
+              )
+              .join('; ')
+          : '<span class="pc-flag-ok">Covers our cost and the target margin</span>';
+        return (
+          '<li><strong>' +
+          escapeHtml(pl.planLabel) +
+          ':</strong> our break-even is AED ' +
+          fmt(pl.breakEvenTotal) +
+          ', the customer pays AED ' +
+          fmt(pl.priceExclVat) +
+          ' &rarr; ' +
+          verdict +
+          '</li>'
+        );
+      })
+      .join('');
+    const step3 =
+      '<div class="detail-action-card"><h4>Step 3: a whole quote, with the volume discount and the cap</h4>' +
+      '<p>Example: ' +
+      state.qty +
+      ' identical appliances, each worth AED ' +
+      fmt(state.refValue) +
+      ' (total equipment value AED ' +
+      fmt(quote.totalValue) +
+      '), age ' +
+      escapeHtml(quote.ageLabel) +
+      '.</p>' +
+      '<ol>' +
+      '<li><strong>Add up the prices:</strong> price per appliance × number of appliances.</li>' +
+      '<li><strong>Volume discount:</strong> the ladder gives ' +
+      pct(quote.discountPct) +
+      ' for ' +
+      state.qty +
+      ' appliances. It is taken off the whole quote and comes out of our profit.</li>' +
+      '<li><strong>Cap:</strong> the customer never pays more than the plan’s cap % of the total equipment value. The lower of the discounted price and the cap is charged.</li>' +
+      '<li><strong>Compare with our cost:</strong> if the amount charged is below break-even the quote shows red; below the target margin it shows amber.</li></ol>' +
+      table(
+        [
+          'Plan',
+          'Price before discount',
+          'Volume discount',
+          'After discount',
+          'Cap',
+          'Customer pays (excl. VAT)',
+        ],
+        planRows,
+      ) +
+      '<ul>' +
+      verdicts +
+      '</ul>' +
+      '<p class="form-note">VAT of 5% is added on top of the amount charged.</p></div>';
+
+    const step4 =
+      '<div class="detail-action-card"><h4>Which setting to change</h4>' +
+      table(
+        ['If you want to…', 'Change this (Rates tab)'],
+        [
+          row([
+            'Clear a red or amber warning on a plan',
+            'Raise that plan’s cap in <em>Plans</em>, or lower the volume discount, or lower the costs below.',
+          ]),
+          row([
+            'Make Standard and Premium prices higher or lower overall',
+            '<em>Margins</em> (overhead, profit), planned visits in <em>Plans</em>, or the breakdown calls and cost per call.',
+          ]),
+          row([
+            'Make a planned visit cheaper per appliance',
+            'Raise <em>Appliances handled per visit</em>, or lower the team size, visit hours or transport in <em>Visit &amp; labour cost</em>.',
+          ]),
+          row([
+            'Allow more for spare parts',
+            '<em>Parts reserve</em> in Plans. It does not move when you change the breakdown calls, so review both together.',
+          ]),
+          row(['Charge more for older appliances', '<em>Risk factor</em> in Appliance age bands.']),
+          row([
+            'Change what a customer pays per call-out or for an unrepairable appliance',
+            '<em>Breakdowns &amp; call-out terms</em>. These are printed on the quote and do not change the plan prices.',
+          ]),
+          row(['Change the discount for bigger quotes', '<em>Volume discount ladder</em>.']),
+        ],
+      ) +
+      '</div>';
+
+    return step1 + step2 + step3 + step4;
+  }
+
   const PRICING_DOMAIN_RENDERERS = {
     vas_price_bands(container, data, ctx) {
       const rerender = () =>
@@ -10938,9 +11267,13 @@ ${bodyHtml}
       // Live preview of the calculated unit rates (read-only) -- refreshed on every edit.
       const previewState = { age: 0, master: null };
       let refreshPreview = () => {};
+      let refreshVisitLine = () => {};
+      let refreshHelp = () => {};
       const dirty = () => {
         ctx.markDirty();
         refreshPreview();
+        refreshVisitLine();
+        refreshHelp();
       };
       const grid = document.createElement('div');
       grid.className = 'pc-split-grid';
@@ -10955,45 +11288,51 @@ ${bodyHtml}
         return body;
       };
 
+      const visitBody = card(
+        'Visit &amp; labour cost',
+        'How much it costs us to send a team on one planned (scheduled) service visit, and how that cost is shared between the appliances serviced on that visit. The green box under the fields shows the result and updates as you type.',
+      );
       pcRenderScalarFields(
-        card(
-          'Visit &amp; labour cost',
-          'What one technician-team visit costs. A planned visit is shared by the appliances handled in it.',
-        ),
+        visitBody,
         [
           {
             path: 'labour.salary',
             label: 'Technician monthly salary',
             type: 'number',
-            tooltip: 'Monthly cost of one technician, in AED.',
+            tooltip:
+              'What one technician costs us per month, in AED. It is turned into an hourly cost: monthly salary ÷ working days ÷ hours per day.',
           },
           {
             path: 'labour.technicians',
             label: 'Technicians per visit',
             type: 'number',
             step: '1',
-            tooltip: 'Number of technicians in the team that goes on a visit.',
+            tooltip:
+              'How many technicians go together on one planned visit. Two technicians cost twice as much per hour as one.',
           },
           {
             path: 'labour.workingDays',
             label: 'Working days per month',
             type: 'number',
             step: '1',
-            tooltip: 'Used to turn the monthly salary into a daily cost.',
+            tooltip:
+              'Working days in a month. The monthly salary is divided by this to get a daily cost.',
           },
           {
             path: 'labour.hoursPerDay',
             label: 'Working hours per day',
             type: 'number',
             step: '0.5',
-            tooltip: 'Used to turn the daily cost into an hourly cost.',
+            tooltip:
+              'Working hours in a day. The daily cost is divided by this to get an hourly cost.',
           },
           {
             path: 'labour.visitHours',
             label: 'Average visit duration (hours)',
             type: 'number',
             step: '0.5',
-            tooltip: 'Team time spent on one planned visit, however many appliances it covers.',
+            tooltip:
+              'Total hours the team spends on one planned visit, however many appliances are serviced in it. For example 4 hours.',
           },
           {
             path: 'labour.handledPerVisit',
@@ -11001,23 +11340,64 @@ ${bodyHtml}
             type: 'number',
             step: '1',
             tooltip:
-              'How many appliances one planned visit covers. The visit cost is shared between them.',
+              'Average number of appliances serviced in one planned visit. The whole visit cost is divided by this number, so more appliances per visit means a cheaper visit per appliance. If your team usually services fewer, enter the lower number.',
           },
           {
             path: 'labour.transportPerVisit',
             label: 'Transport cost per visit',
             type: 'number',
-            tooltip: 'Transport cost of one planned visit, in AED.',
+            tooltip:
+              'Fuel and vehicle cost of one planned visit, in AED, for the whole team (not per appliance).',
           },
         ],
         data,
         dirty,
       );
 
+      // Green result line: cost of one planned visit per appliance. Recalculated on every edit
+      // from the values currently on screen (saved or not).
+      const visitLine = document.createElement('div');
+      visitLine.className = 'pc-live-result';
+      visitLine.setAttribute('aria-live', 'polite');
+      visitBody.appendChild(visitLine);
+      refreshVisitLine = () => {
+        const core = window.JdAmcV2;
+        if (!core) return;
+        const v = core.visitBreakdown(data);
+        const fmt = amcV2Fmt;
+        visitLine.innerHTML =
+          '<div class="pc-live-title">Planned visit cost per appliance ' +
+          tipHtml(
+            'Calculated from the fields above: (technician cost per hour × technicians × visit hours + transport) ÷ appliances handled per visit. Updates as you change any value. Standard uses the number of planned visits set in Plans; Premium likewise.',
+          ) +
+          '</div><div class="pc-live-value">AED ' +
+          fmt(v.perAppliance) +
+          ' <small>per appliance per planned visit</small></div>' +
+          '<div class="pc-live-sum">Whole visit: AED ' +
+          fmt(v.labourPerVisit) +
+          ' labour + AED ' +
+          fmt(v.transportPerVisit) +
+          ' transport = AED ' +
+          fmt(v.wholeVisit) +
+          ', shared by ' +
+          escapeHtml(String(v.handledPerVisit)) +
+          ' appliances.</div>' +
+          '<div class="pc-live-sum">Standard: ' +
+          escapeHtml(String(v.standardVisits)) +
+          ' visit(s) = AED ' +
+          fmt(v.standard) +
+          ' &nbsp;|&nbsp; Premium: ' +
+          escapeHtml(String(v.premiumVisits)) +
+          ' visit(s) = AED ' +
+          fmt(v.premium) +
+          ' per appliance per year.</div>';
+      };
+      refreshVisitLine();
+
       pcRenderScalarFields(
         card(
           'Breakdowns &amp; call-out terms',
-          'Expected breakdown work is a cost we carry on Standard and Premium. The call-out terms are what Basic RM customers pay per call.',
+          'A breakdown is when a customer calls because the appliance has stopped working. On Standard and Premium we absorb the repair labour, so an allowance for it is added to our cost. The call-out terms below are what customers pay when a repair is not covered; they are printed on the quote and do not change the plan prices.',
         ),
         [
           {
@@ -11026,34 +11406,35 @@ ${bodyHtml}
             type: 'number',
             step: '0.01',
             tooltip:
-              'Expected number of breakdown calls per appliance in a year (0.10 = one call for every 10 appliances). Raised for older appliances by the age factor.',
+              'How many repair calls we expect each appliance to need in a year. 0.1 means 1 call for every 10 appliances; 0.2 means 1 call for every 5. Older appliances use more (see Appliance age bands). Best set from your real repair history.',
           },
           {
             path: 'breakdown.costPerCall',
             label: 'Cost per breakdown call',
             type: 'number',
-            tooltip: 'Our own cost of attending one breakdown call, in AED.',
+            tooltip:
+              'What one repair visit really costs us (technician time and transport), in AED. Breakdown allowance per appliance = calls per year × this cost. Used for Standard and Premium only.',
           },
           {
             path: 'callOut.labourCharge',
             label: 'Normal labour charge per call-out',
             type: 'number',
             tooltip:
-              'What we normally charge a customer for one repair call (labour only; spare parts extra).',
+              'What we charge a customer for one repair call that their plan does not cover (labour only, spare parts extra). Printed on the quote and certificate. It does not change the plan prices.',
           },
           {
             path: 'callOut.basicDiscountPct',
             label: 'Basic RM call-out discount',
             type: 'percent',
             tooltip:
-              'Discount off the normal labour charge for customers on the Basic RM plan. Shown on the quote.',
+              'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = AED 108 per call. Printed on the Basic quote. It does not change the plan prices.',
           },
           {
             path: 'callOut.handlingCharge',
             label: 'Handling charge when not repairable',
             type: 'number',
             tooltip:
-              'Charged for the inspection when the appliance cannot be repaired. Shown on the quote.',
+              'Fee the customer pays if we attend and the appliance cannot be repaired. Printed on the quote. It does not change the plan prices.',
           },
         ],
         data,
@@ -11061,21 +11442,24 @@ ${bodyHtml}
       );
 
       pcRenderScalarFields(
-        card('Margins', 'Added on top of the cost of each plan to reach its calculated price.'),
+        card(
+          'Margins',
+          'Two percentages added on top of our cost, one after the other, to reach the price: first overhead, then profit.',
+        ),
         [
           {
             path: 'overhead',
             label: 'Overhead / contingency',
             type: 'percent',
             tooltip:
-              'Covers supervision, admin and scheduling. Added to the cost to get the break-even cost.',
+              'Covers supervision, admin and the unexpected. Cost + overhead = break-even, the lowest price at which we do not lose money. Example: 10% on a cost of 100 gives 110.',
           },
           {
             path: 'profitMarkup',
             label: 'Profit markup',
             type: 'percent',
             tooltip:
-              'Profit added on top of the break-even cost to get the target (cost-plus) price.',
+              'Profit added on top of the break-even cost to get the calculated price. Example: 30% on a break-even of 110 gives 143.',
           },
         ],
         data,
@@ -11085,7 +11469,7 @@ ${bodyHtml}
       pcRenderScalarFields(
         card(
           'Plans',
-          'What each plan includes and the highest share of equipment value it may be priced at.',
+          'What each plan includes and the most it may cost. Visits and the parts reserve raise our cost, so they raise the price. The cap only limits what the customer finally pays.',
         ),
         [
           {
@@ -11093,21 +11477,21 @@ ${bodyHtml}
             label: 'Basic RM: yearly retainer per appliance',
             type: 'number',
             tooltip:
-              'Basic RM is reactive only. The customer pays this small yearly amount per appliance, then the discounted call-out rate whenever we attend.',
+              'Basic RM has no planned visits. The customer pays this fixed yearly amount per appliance, then pays for each repair call at the discounted call-out rate, plus parts. This amount is the Basic RM price.',
           },
           {
             path: 'plans.basic.adminCostPerUnit',
             label: 'Basic RM: our admin cost per appliance',
             type: 'number',
             tooltip:
-              'Our own yearly cost of holding a Basic RM contract per appliance. Used only for the margin warning.',
+              'Our own yearly cost of looking after one Basic RM appliance (contract, records, reminders). It does not change the price. It is only used to check whether the retainer earns a profit.',
           },
           {
             path: 'plans.basic.capPct',
             label: 'Basic RM: cap (% of equipment value)',
             type: 'percent',
             tooltip:
-              'The Basic RM price is never more than this share of the total equipment value. 0 switches the cap off.',
+              'The most a Basic RM contract can cost, as a share of the total equipment value on the quote. If the calculated price is higher, this cap is charged instead. 0 switches the cap off.',
           },
           {
             path: 'plans.standard.plannedVisits',
@@ -11115,21 +11499,21 @@ ${bodyHtml}
             type: 'number',
             step: '1',
             tooltip:
-              'Planned maintenance visits every covered appliance gets each year on Standard.',
+              'Planned service visits each appliance gets per year on Standard. Each visit adds the planned-visit cost (green box in Visit & labour cost) to our cost.',
           },
           {
             path: 'plans.standard.partsReservePct',
             label: 'Standard: parts reserve (% of appliance value)',
             type: 'percent',
             tooltip:
-              'Share of the appliance value set aside for the minor parts Standard covers (filters, belts, seals). Major parts are not covered.',
+              'Money we set aside for the minor parts Standard covers (filters, belts, seals), as a share of the appliance value. Example: 2.5% of a 1,400 appliance = 35 added to our cost. Major parts are not covered. This does not change when you change the breakdown calls, so review the two together.',
           },
           {
             path: 'plans.standard.capPct',
             label: 'Standard: cap (% of equipment value)',
             type: 'percent',
             tooltip:
-              'The Standard price is never more than this share of the total equipment value. 0 switches the cap off.',
+              'The most a Standard contract can cost, as a share of the total equipment value on the quote. If the calculated price is higher, the cap is charged instead, even when that is less than our cost (the quote then shows a red warning). 0 switches the cap off.',
           },
           {
             path: 'plans.premium.plannedVisits',
@@ -11137,21 +11521,21 @@ ${bodyHtml}
             type: 'number',
             step: '1',
             tooltip:
-              'Planned maintenance visits every covered appliance gets each year on Premium.',
+              'Planned service visits each appliance gets per year on Premium. Each visit adds the planned-visit cost (green box in Visit & labour cost) to our cost.',
           },
           {
             path: 'plans.premium.partsReservePct',
             label: 'Premium: parts reserve (% of appliance value)',
             type: 'percent',
             tooltip:
-              'Share of the appliance value set aside for the parts Premium covers (all mechanical parts except the compressor).',
+              'Money we set aside for the parts Premium covers (all mechanical parts except the compressor), as a share of the appliance value. Example: 4.5% of a 1,400 appliance = 63 added to our cost. This does not change when you change the breakdown calls, so review the two together.',
           },
           {
             path: 'plans.premium.capPct',
             label: 'Premium: cap (% of equipment value)',
             type: 'percent',
             tooltip:
-              'The Premium price is never more than this share of the total equipment value. If the cap is below cost the quote shows a red warning. 0 switches the cap off.',
+              'The most a Premium contract can cost, as a share of the total equipment value on the quote. If the calculated price is higher, the cap is charged instead. If the cap is below our cost the quote shows a red warning. 0 switches the cap off.',
           },
         ],
         data,
@@ -11161,21 +11545,22 @@ ${bodyHtml}
       pcRenderScalarFields(
         card(
           'Usual price range',
-          'Only a warning: the calculator flags a price per appliance outside this range. It never blocks a quote.',
+          'A safety check only. The calculator shows an amber warning when the price per appliance on a quote falls outside this range. It never blocks a quote.',
         ),
         [
           {
             path: 'corridor.minPerUnit',
             label: 'Lowest usual price per appliance per year',
             type: 'number',
-            tooltip: 'Prices per appliance below this show an amber warning.',
+            tooltip:
+              'If the price per appliance on a quote is below this amount, an amber warning is shown.',
           },
           {
             path: 'corridor.maxPerUnit',
             label: 'Highest usual price per appliance per year',
             type: 'number',
             tooltip:
-              'Prices per appliance above this show an amber warning. 0 switches the warning off.',
+              'If the price per appliance on a quote is above this amount, an amber warning is shown. 0 switches this warning off.',
           },
         ],
         data,
@@ -11184,7 +11569,7 @@ ${bodyHtml}
 
       const ageHost = card(
         'Appliance age bands',
-        'The age of the appliances on a quote. Older appliances break down more and need more parts, so their breakdown cost and parts reserve are multiplied by the risk factor.',
+        'Older appliances break down more and need more parts. The risk factor multiplies the breakdown allowance and the parts reserve for that age. The age is picked in the calculator. Visits are not affected.',
       );
       const rerenderAge = () =>
         pcRenderTable(
@@ -11203,7 +11588,7 @@ ${bodyHtml}
               type: 'number',
               step: '0.05',
               tooltip:
-                '1 = no extra risk. 1.3 means 30% more breakdown cost and parts reserve than a Year 4 appliance.',
+                '1 = same as the base age (Year 4). 1.3 means 30% more breakdown allowance and parts reserve.',
             },
           ],
           {
@@ -11218,7 +11603,7 @@ ${bodyHtml}
 
       const ladderHost = card(
         'Volume discount ladder',
-        'Discount on the whole quote, chosen by the total number of appliances on it. The highest step reached applies.',
+        'Discount on the whole quote, chosen by the total number of appliances on it. The highest step reached applies to every appliance, not only the extra ones. The discount comes out of our profit.',
       );
       const rerenderLadder = () =>
         pcRenderTable(
@@ -11230,13 +11615,15 @@ ${bodyHtml}
               label: 'From (appliances)',
               type: 'number',
               step: '1',
-              tooltip: 'This discount applies once the quote has at least this many appliances.',
+              tooltip:
+                'The discount applies once the quote has at least this many appliances in total.',
             },
             {
               key: 'discountPct',
               label: 'Discount (%)',
               type: 'percent',
-              tooltip: 'Taken off the whole quote price. Use 0 for the first step (no discount).',
+              tooltip:
+                'Percentage taken off the whole quote price. Use 0 for the first step (no discount). Bigger discounts reduce our profit margin.',
             },
           ],
           {
@@ -11264,10 +11651,12 @@ ${bodyHtml}
       previewHost.innerHTML =
         '<h4>Appliance reference values &amp; calculated yearly rate per appliance ' +
         tipHtml(
-          'Every active appliance from Appliance Master (add or rename appliances there). Type the reference value (replacement price) for each appliance; the rates beside it recalculate as you type. The values are saved with this page, so use this page’s Save, Revert, History and Restore. An appliance you have not valued here starts from its Appliance Master value. Rates are before the volume discount and the cap.',
+          'Every active appliance from Appliance Master (add or rename appliances there). Type the reference value (what a new one would cost) for each appliance; the yearly rate beside it recalculates as you type. The value is used only inside our calculation (parts reserve and cap); the customer is never asked for it. Values are saved with this page. Rates shown are before the volume discount and the cap.',
         ) +
         '</h4><div class="field-grid"><div class="field"><label>Appliance age ' +
-        tipHtml('Age band used for the calculated rates in this table only.') +
+        tipHtml(
+          'Age band used for the rates in this table only. It does not change any saved value or quote.',
+        ) +
         '</label><select data-pv-age></select></div></div><div data-pv-table></div>';
       grid.appendChild(previewHost);
       const ageSelect = previewHost.querySelector('[data-pv-age]');
@@ -11314,11 +11703,11 @@ ${bodyHtml}
         previewTable.innerHTML =
           '<div class="table-wrap"><table><thead><tr>' +
           '<th title="Appliance name from Appliance Master. Add or rename appliances in Admin > Masters > Appliance Master.">Appliance</th>' +
-          '<th title="Whether the appliance is offered on AMC quotes. Set in Appliance Master. Appliances that are not AMC show a dash.">AMC</th>' +
-          '<th title="Replacement price of the appliance in AED. Sets the parts reserve and the cap. Saved with this page; the customer is never asked for it.">Reference value (AED)</th>' +
-          '<th title="Yearly Basic RM rate per appliance (retainer). Before volume discount and cap.">Basic RM</th>' +
-          '<th title="Yearly Standard PMC rate per appliance. Before volume discount and cap.">Standard PMC</th>' +
-          '<th title="Yearly Premium PMC rate per appliance. Before volume discount and cap.">Premium PMC</th>' +
+          '<th title="Whether the appliance can be sold on an AMC. Set in Appliance Master. Appliances that are not AMC show a dash instead of rates.">AMC</th>' +
+          '<th title="What a new appliance would cost, in AED. A higher value gives a bigger parts reserve (Standard, Premium) and a bigger cap. Saved with this page; the customer is never asked for it.">Reference value (AED)</th>' +
+          '<th title="Yearly Basic RM price per appliance: the fixed retainer. Before volume discount and cap.">Basic RM</th>' +
+          '<th title="Yearly Standard PMC price per appliance: (planned visit + breakdown allowance + parts reserve) plus overhead plus profit. Before volume discount and cap.">Standard PMC</th>' +
+          '<th title="Yearly Premium PMC price per appliance: (planned visits + breakdown allowance + parts reserve) plus overhead plus profit. Before volume discount and cap.">Premium PMC</th>' +
           '</tr></thead><tbody>' +
           items
             .map((a, i) =>
@@ -11365,6 +11754,10 @@ ${bodyHtml}
         .catch(() => {
           previewTable.innerHTML = '<p class="form-note">Could not load Appliance Master.</p>';
         });
+
+      // Temporary "How it works" tab (plain-language walkthrough with the live values).
+      const helpHost = document.getElementById('amcV2HelpHost');
+      if (helpHost) refreshHelp = amcV2BuildHelp(helpHost, data);
     },
     thomson_pricing(container, data, ctx) {
       container.innerHTML = '';
@@ -11887,6 +12280,21 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#amcAdminV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-admin-v2'));
+  // AMC Admin Rates (New): Rates / How it works (temporary) tabs.
+  $('#amcAdminV2Tabs')?.addEventListener('click', (event) => {
+    const button = event.target.closest('.action-tab');
+    if (!button) return;
+    const target = button.dataset.amcv2Tab;
+    $('#amcAdminV2Tabs')
+      .querySelectorAll('.action-tab')
+      .forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+    $('#amcAdminV2RatesPanel').hidden = target !== 'rates';
+    $('#amcAdminV2HelpPanel').hidden = target !== 'help';
+  });
   $('#thomsonAdminNav')?.addEventListener('click', () => setWorkspaceMode('thomson-admin'));
 
   // ---------------------------------------------------------------------

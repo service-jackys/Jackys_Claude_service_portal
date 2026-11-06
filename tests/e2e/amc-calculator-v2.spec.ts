@@ -124,6 +124,42 @@ test.describe('AMC Admin Rates (New)', () => {
     await expect(card).toContainText('calculated yearly rate per appliance');
   });
 
+  test('shows the planned visit cost in green, updates it live, and explains the logic in a How it works tab', async ({
+    page,
+  }) => {
+    await signIn(page, amcPricingV2Default);
+    await page.locator('#amcAdminV2Nav').dispatchEvent('click');
+    const live = page.locator('.pc-live-result');
+    await expect(live).toContainText('AED 31.73');
+    await expect(live).toContainText('AED 253.85');
+    await expect(live).toContainText('Premium: 2 visit(s) = AED 63.46');
+    // Fewer appliances per visit makes the planned visit dearer per appliance.
+    await page.locator('[data-pc-path="labour.handledPerVisit"]').fill('4');
+    await expect(live).toContainText('AED 63.46');
+    await expect(live).toContainText('Premium: 2 visit(s) = AED 126.92');
+
+    // How it works (temporary) tab.
+    await page.locator('[data-amcv2-tab="help"]').click();
+    await expect(page.locator('#amcAdminV2RatesPanel')).toBeHidden();
+    const help = page.locator('#amcV2HelpHost');
+    await expect(help).toContainText('Step 1: what one planned visit costs');
+    await expect(help).toContainText('253.85 ÷ 4 appliances per visit'); // follows the unsaved edit
+    await expect(help).toContainText('Step 3: a whole quote');
+    await help.locator('[data-help-value]').fill('1000');
+    await help.locator('[data-help-qty]').fill('500');
+    await expect(help).toContainText('500 identical appliances');
+    await expect(help).toContainText('Which setting to change');
+    // Every explanatory input carries a tooltip.
+    const fields = help.locator('.field');
+    for (let i = 0; i < (await fields.count()); i++) {
+      await expect(fields.nth(i).locator('.tooltip-bubble')).toHaveCount(1);
+    }
+    // Back to the rates tab keeps the edited value.
+    await page.locator('[data-amcv2-tab="rates"]').click();
+    await expect(page.locator('#amcAdminV2RatesPanel')).toBeVisible();
+    await expect(page.locator('[data-pc-path="labour.handledPerVisit"]')).toHaveValue('4');
+  });
+
   test('reference values are typed in the list of all appliances and saved with the AMC pricing master', async ({
     page,
   }) => {

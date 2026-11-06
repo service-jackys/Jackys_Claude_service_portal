@@ -4383,3 +4383,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts, tests/integration/amc-pricing-v2.test.ts. No database migration.
 
 **Needs you:** pull, restart the API, hard-refresh. Enter the reference values again on AMC Admin Rates (New) if you want them different from Appliance Master, then Save.
+
+## Modification #201 — AMC Admin Rates (New): live planned-visit cost, plain-language tooltips and a temporary "How it works" tab
+
+**Date:** 2026-11-06
+
+**Why.** Management could not follow how the Standard and Premium rates are built (where the 31.73 per planned visit comes from, what the caps and reserves do). The page needed to show the working and every tooltip needed plain wording.
+
+**What changed.**
+
+- **Visit & labour cost** now ends with a green box, "Planned visit cost per appliance". It shows the whole visit (labour + transport), the number of appliances it is shared by, and the result for Standard and Premium. It recalculates on every edit, saved or not.
+- **Every tooltip** on AMC Admin Rates (New) was rewritten in plain words with a worked example, including card headings, table column headings, the About text, and which settings only change the printed quote wording (labour charge, Basic discount, handling charge) and which change the price.
+- New temporary tab **How it works (temporary)** next to **Rates**: step 1 cost of a planned visit, step 2 cost and price of one appliance (Standard and Premium, with Basic explained), step 3 a whole quote (volume discount, cap, break-even, red/amber result), and a "which setting to change" table. It uses the values currently on screen; the example appliance value, age and quantity can be changed in the tab. The tab can be removed later without touching anything else.
+- Engine helpers `visitBreakdown` and `exampleRate` added to `amc-v2-core.js` (display only; prices are unchanged).
+
+**Files.** apps/web/src/amc-v2-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-calculator-v2.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh (no restart or migration).
