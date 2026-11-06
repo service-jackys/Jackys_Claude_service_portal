@@ -3382,12 +3382,14 @@
   h2 { font-size: 12.5px; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; color: #17324d; }
   .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
   .quote-head { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: end; column-gap: 12px; }
+  .quote-tail .sign-row { margin-top: 20px; }
   .quote-head .logo-big { grid-column: 1 / -1; height: 64px; margin: 0 0 2px; justify-self: start; }
   .quote-head .qh-service { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; padding-left: 0; font-size: 13px; font-weight: 700; color: #17324d; white-space: nowrap; }
   .quote-head .logo-small { height: 20px; width: auto; display: block; margin: 0; }
   .quote-head .qh-title { grid-row: 2; grid-column: 2; font-size: 18px; font-weight: 900; color: #17324d; text-align: center; letter-spacing: .3px; line-height: 1.1; -webkit-text-stroke: 0.5px #17324d; }
   .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
   .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
+  .block.plain { white-space: normal; }
   .plan-block { page-break-inside: avoid; break-inside: avoid; }
   .tc-list li { text-align: justify; text-justify: inter-word; hyphens: auto; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
@@ -4002,17 +4004,16 @@ ${bodyHtml}
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
       ${planDetails}
       <h2>General Terms and Conditions</h2>
-      <ul class="tc-list" style="font-size:11.5px;margin:0 0 0 18px;padding:0;">
-        ${AMC_V2_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:3px;">${escapeHtml(term)}</li>`).join('')}
+      <ul class="tc-list" style="font-size:11px;margin:0;padding:6px 8px 6px 24px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
+        ${AMC_V2_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:2px;">${escapeHtml(term)}</li>`).join('')}
       </ul>
       <h2>Payment terms</h2>
-      <p style="font-size:12px;">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</p>
+      <div class="block plain">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</div>
       <h2>Quotation validity</h2>
-      <p style="font-size:12px;">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</p>
-      <div style="page-break-inside:avoid;break-inside:avoid;">
+      <div class="block plain">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</div>
+      <div class="quote-tail" style="page-break-inside:avoid;break-inside:avoid;">
       <h2>Client acceptance</h2>
-      <p style="font-size:11.5px;">To accept, tick the plan chosen, kindly sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
-      <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>
+      <div class="block plain">To accept, tick the plan chosen, kindly sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.<div style="font-size:13px;margin-top:6px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</div></div>
       <div class="sign-row">
         <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
