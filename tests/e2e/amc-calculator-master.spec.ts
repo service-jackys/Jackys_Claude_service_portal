@@ -105,7 +105,7 @@ test.describe('AMC Quote Calculator with the shared Appliance Master', () => {
     await expect(page.getByText('Set value')).toBeVisible();
 
     await page.locator('[data-ac-override]').check();
-    await expect(page.getByText('Reference value (AED)')).toBeVisible();
+    await expect(page.getByText('Reference value (\u20C3)')).toBeVisible();
     await page.locator('[data-ac-qty="0"]').fill('4');
     await page.locator('[data-ac-price="0"]').fill('1000');
     await expect(page.locator('[data-ac-output]')).toContainText('4000.00');

@@ -1336,6 +1336,14 @@
     return (Number(value) || 0).toFixed(2);
   }
 
+  // Display amount with thousand separators, e.g. 1,234,567.89 (for printed documents).
+  function moneyGrouped(value) {
+    return (Number(value) || 0).toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    });
+  }
+
   function toDateTimeLocal(value) {
     if (!value) return '';
     const date = new Date(value);
@@ -1422,16 +1430,16 @@
         <div class="jc-sec-body">
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (\u20C3)</th><th>Total</th><th></th></tr></thead>
           <tbody id="${prefix}PartsBody"></tbody>
         </table>
       </div>
       <button class="button button-outline" type="button" id="${prefix}AddPartButton">Add part</button>
       <div class="field-grid">
-        <div class="field"><label for="${prefix}TotalCost">Total cost (AED)</label><input type="text" id="${prefix}TotalCost" readonly></div>
-        <div class="field"><label for="${prefix}ServiceCharge">Service charge (AED) ${tipHtml(`Major appliances (MDA) are charged the rate card &ldquo;MDA &ndash; Standard&rdquo; amount, in or out of warranty.`, `id="${prefix}ServiceChargeNote" hidden`)}</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"></div>
-        <div class="field"><label for="${prefix}GrandTotal">Grand total (AED)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
-        <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (AED)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
+        <div class="field"><label for="${prefix}TotalCost">Total cost (\u20C3)</label><input type="text" id="${prefix}TotalCost" readonly></div>
+        <div class="field"><label for="${prefix}ServiceCharge">Service charge (\u20C3) ${tipHtml(`Major appliances (MDA) are charged the rate card &ldquo;MDA &ndash; Standard&rdquo; amount, in or out of warranty.`, `id="${prefix}ServiceChargeNote" hidden`)}</label><input type="number" step="0.01" min="0" id="${prefix}ServiceCharge"></div>
+        <div class="field"><label for="${prefix}GrandTotal">Grand total (\u20C3)</label><input type="text" id="${prefix}GrandTotal" readonly></div>
+        <div class="field"><label for="${prefix}AmountChargeable">Amount chargeable (\u20C3)</label><input type="number" step="0.01" min="0" id="${prefix}AmountChargeable"></div>
       </div>
         </div>
       </section>
@@ -2120,7 +2128,7 @@
     refreshMdaServiceCharge(prefix);
   }
 
-  // The rate card's OOW inspection charge (AED 60), billed to the sales channel when a
+  // The rate card's OOW inspection charge (\u20C3 60), billed to the sales channel when a
   // business job ends as BER or Rejected. Falls back to 60 when the line is missing.
   let oowRatePromise = null;
   let oowRateLoadedAt = 0;
@@ -2308,7 +2316,7 @@
     if (salesChannelMissing(prefix)) {
       await notifyDialog(
         'Choose the sales channel',
-        'This job is billed to the sales channel (AED 60). Choose the Sales channel, or the Bill to channel under Warranty and billing, before delivering it.',
+        'This job is billed to the sales channel (\u20C3 60). Choose the Sales channel, or the Bill to channel under Warranty and billing, before delivering it.',
       );
       final.value = '';
       refreshFinalStatusReason(prefix);
@@ -2516,7 +2524,7 @@
       <div id="${prefix}GeneralCharges"></div>
       <button class="button button-outline" type="button" id="${prefix}AddGeneralChargeButton">Add charge</button>
       <div class="field-grid">
-        <div class="field" id="${prefix}LabourField" style="display:none;"><label for="${prefix}LabourAmount">Labour from the old format (AED, excl. VAT) ${tipHtml('Old quotations kept one labour amount for the whole quote. New quotations enter labour as a charge line instead.')}</label><input type="number" step="0.01" min="0" id="${prefix}LabourAmount"></div>
+        <div class="field" id="${prefix}LabourField" style="display:none;"><label for="${prefix}LabourAmount">Labour from the old format (\u20C3, excl. VAT) ${tipHtml('Old quotations kept one labour amount for the whole quote. New quotations enter labour as a charge line instead.')}</label><input type="number" step="0.01" min="0" id="${prefix}LabourAmount"></div>
         <div class="field"><label class="q-check"><input type="checkbox" id="${prefix}ApplyVat" checked> Add VAT (5%)</label></div>
       </div>
       <div class="q-totals" id="${prefix}Totals"></div>
@@ -2764,7 +2772,7 @@
       <td><input type="text" data-cfield="partNo" value="${escapeHtml(c.partNo)}" maxlength="120" aria-label="Part no." style="width:110px;"></td>
       <td><input type="text" data-cfield="description" value="${escapeHtml(c.description)}" maxlength="300" aria-label="Description"></td>
       <td><input type="number" min="0" data-cfield="qty" value="${c.qty}" aria-label="Quantity" style="width:70px;"></td>
-      <td><input type="number" min="0" step="0.01" data-cfield="unitPrice" value="${c.unitPrice}" aria-label="Unit price (AED)" style="width:95px;"></td>
+      <td><input type="number" min="0" step="0.01" data-cfield="unitPrice" value="${c.unitPrice}" aria-label="Unit price (\u20C3)" style="width:95px;"></td>
       <td class="num" data-cell="vat">${money(amount * rate)}</td>
       <td class="num" data-cell="total">${money(amount * (1 + rate))}</td>
       <td><button type="button" class="q-remove q-remove-sm" data-remove-charge="${idx}">Remove</button></td>
@@ -2777,7 +2785,7 @@
       .filter(({ c }) => (c.unitKey || '') === unitKey)
       .map(({ c, idx }) => chargeRowHtml(c, idx, rate))
       .join('');
-    return `<div class="table-wrap"><table class="q-charges"><thead><tr><th>Type</th><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>VAT ${rate ? `${rate * 100}%` : '(none)'}</th><th>Total (AED)</th><th></th></tr></thead><tbody>${
+    return `<div class="table-wrap"><table class="q-charges"><thead><tr><th>Type</th><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (\u20C3)</th><th>VAT ${rate ? `${rate * 100}%` : '(none)'}</th><th>Total (\u20C3)</th><th></th></tr></thead><tbody>${
       rows || '<tr><td colspan="8" class="q-empty">No charges yet.</td></tr>'
     }</tbody></table></div>`;
   }
@@ -2827,7 +2835,7 @@
       ${labour ? `<div><span>Labour from the old format (excl. VAT)</span><strong>${money(labour)}</strong></div>` : ''}
       <div><span>Subtotal (excl. VAT)</span><strong>${money(t.subtotal)}</strong></div>
       <div><span>VAT @ ${t.rate * 100}%</span><strong>${money(t.vat)}</strong></div>
-      <div class="q-grand"><span>Total payable (incl. VAT)</span><strong>AED ${money(t.total)}</strong></div>`;
+      <div class="q-grand"><span>Total payable (incl. VAT)</span><strong>\u20C3 ${money(t.total)}</strong></div>`;
     $(`#${prefix}LabourField`).style.display = labour ? '' : 'none';
     // Row amounts and unit subtotals follow the typing without rebuilding the inputs.
     [$(`#${prefix}Units`), $(`#${prefix}GeneralCharges`)].forEach((host) =>
@@ -3158,7 +3166,7 @@
       <h5>Products</h5>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (\u20C3)</th><th>Total</th><th></th></tr></thead>
           <tbody id="${prefix}ProductsBody"></tbody>
         </table>
       </div>
@@ -3166,14 +3174,14 @@
       <h5>Faulty parts</h5>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (AED)</th><th>Total</th><th></th></tr></thead>
+          <thead><tr><th>Part no.</th><th>Description</th><th>Qty</th><th>Unit price (\u20C3)</th><th>Total</th><th></th></tr></thead>
           <tbody id="${prefix}FaultyPartsBody"></tbody>
         </table>
       </div>
       <button class="button button-outline" type="button" id="${prefix}AddFaultyPartButton">Add faulty part</button>
       <div class="field-grid">
         <div class="field"><label for="${prefix}RefQuotationNo">Ref. quotation no.</label><input type="text" id="${prefix}RefQuotationNo" maxlength="120"></div>
-        <div class="field"><label for="${prefix}EstRepairCost">Est. repair cost (AED)</label><input type="number" step="0.01" min="0" id="${prefix}EstRepairCost"></div>
+        <div class="field"><label for="${prefix}EstRepairCost">Est. repair cost (\u20C3)</label><input type="number" step="0.01" min="0" id="${prefix}EstRepairCost"></div>
       </div>
       <div class="field-grid">
         <div class="field"><label for="${prefix}InspectedBy">Inspected by</label><input type="text" id="${prefix}InspectedBy" maxlength="120"></div>
@@ -3319,6 +3327,9 @@
   // document also shows its optional legacy reference (see
   // packages/db/migrations/008_print_legacy_reference.sql) alongside this
   // project's own auto-generated reference.
+  // New UAE Dirham sign (U+20C3). Most fonts lack it, so a tiny embedded font covers it.
+  const DIRHAM_FONT_FACE =
+    "@font-face{font-family:'Dirham';src:url(data:font/woff2;base64,d09GMgABAAAAAAQAAAsAAAAACCgAAAOzAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHFQGYACCcAqEUINdATYCJAMICwYABCAFhDoHMBvsBhEVnBHJfiTYthbWh07qSpGTnFR9CR7wN+0lBNbBxMiZWHeuWjlX+1Pr/53aQfJBMjHPE+tYfpfcHO02qFCFKlShBsDENfnr/AV+YSMYQlVj0Zp2o9EGOLG2bmvw0gTzgUxBPEekg/UvgwBs8lIaWb5i9fpEdW/TvyfJUaBYQBwuunfp1AaPKEfVhAs8CKy2TWUZMRsT5AN5GJjuP148J5+QIDENEFW7Y4X2HE97ijQwxocW09R4SvvxEuj6EjABA8i5MqWoX6+viRH6c2Jgl+kV6ZlYhYC0p0Ihl77uHx4IEBbgR9BISvo5MWzmqYZKABRdegF43GtaUDO0k2KY33U3NFiwBOyAXqt1wAd+v7uggDSTv5BDQx0IcFNlej6Sye80YPT8pLezJjjTsqw7lyRJMMu+Eus8aqjJcSyP49kWdIK7GAq2VGHamjWu6w9qsVAH9NbCumGSZam1M81dk8kVY/TS4oG1hacGgrJ3GwY2al1cr71bOLO9L3tqmzOFztxJ9G9xl6RK5vfZEeJuEuFM6zB6NAk9xdJgZGR9f8rFSZP6EhK2V/etTvD5Mq4+nTH1J9lGo2lBq944CrLNTsyYrE77pqNb1/tAwbgYGRWepPO1TOu93sztuzCvb2DgwHBTD0sYUCesrOjUKWla23u14MkTrfGPufH53cO5Q3752/1etzbtumPDM8okIi6bRwrv6NzpssyPqx/nWJaqlcWtNq46EUpEFSzgLRTVIDZ5rf3p18TWzh2rSmWd0aNeh1vtxvfd/bipbjs2ti7TTw3PX7fo/2aJKlOmhD+t81sxIR/zhKxbt9M8o6GSNvmiY03TPi/HzX8yr1nc8E/5Jjzzpo1tZE6d+/H5+uz/+A94gRAbXKxGGuO/8Hi0vL2yU6vokt88jvEe4M3fHOE+u50RPI9AL+B7WlEjQsinRuoMkV4jR6SEF/4hXgnYxAUhGGM427dQ4Dw3YxhOzDVCYRwNKCQVYCJZAQspgNnkoHRrh3gEYolQ4Qg0LwqTRDEXM9C8AYV8ABP5Ahbyw2wa/r/tkFms2ovIkSkSsmlH2FmjmEtUrj2RmISz0JR1ySUGYklEmUyA75AurM2ZAo3OQO9sJlo78NFJMuaS5+y7qqLiTsrRmdkkIkemICGbdoSdNZVLrM+AQU/kWZJwFmgoqdsBA9+2JUaZTJXxHUgX1jJoprVodAbox6S15Grid4Av90oyMvoS3sPrOyo2G22rLxlHUSwAGTYSKViDgXXIstkMAA==) format('woff2');unicode-range:U+20C3;}";
   function printDocumentShell(title, bodyHtml) {
     return `<!doctype html>
 <html>
@@ -3326,9 +3337,10 @@
 <meta charset="utf-8">
 <title>${escapeHtml(title)}</title>
 <style>
+  ${DIRHAM_FONT_FACE}
   @page { size: A4; margin: 16mm 14mm; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 12px; margin: 0; padding: 12px; }
+  body { font-family: Dirham, Arial, Helvetica, sans-serif; color: #1a1a1a; font-size: 12px; margin: 0; padding: 12px; }
   .doc-head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #17324d; padding-bottom: 10px; margin-bottom: 14px; }
   .doc-head .company { font-size: 17px; font-weight: 700; color: #17324d; }
   .doc-head .title { font-size: 13px; color: #444; margin-top: 2px; }
@@ -3402,7 +3414,7 @@ ${bodyHtml}
           `<tr><td>${escapeHtml(item.partNo || '')}</td><td>${escapeHtml(item.description || '')}</td><td class="num">${escapeHtml(String(item.qty ?? 0))}</td><td class="num">${money(item.unitPrice || 0)}</td><td class="num">${money((item.qty || 0) * (item.unitPrice || 0))}</td></tr>`,
       )
       .join('');
-    return `<table><thead><tr><th>Part no.</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price (AED)</th><th class="num">Total (AED)</th></tr></thead><tbody>${
+    return `<table><thead><tr><th>Part no.</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price (\u20C3)</th><th class="num">Total (\u20C3)</th></tr></thead><tbody>${
       rows || '<tr><td colspan="5" style="text-align:center;color:#888;">No line items</td></tr>'
     }</tbody></table>`;
   }
@@ -3458,8 +3470,8 @@ ${bodyHtml}
         ['Item code', sale.itemCode],
         ['Item description', sale.itemDescription],
         ['VAS plan', sale.vasProduct],
-        ['Selling price (AED)', money(sale.sellingPrice)],
-        ['Plan fee (AED)', money(sale.planFee)],
+        ['Selling price (\u20C3)', money(sale.sellingPrice)],
+        ['Plan fee (\u20C3)', money(sale.planFee)],
         ['Contract ref.', sale.contractRef || sale.vasSaleReference],
       ])}
       <h2>The plan &amp; cover</h2>
@@ -3472,7 +3484,7 @@ ${bodyHtml}
       <h2>Basis of claim settlement</h2>
       <table><thead><tr><th>Depreciation</th><th>Year 1</th><th>Year 2</th><th>Year 3</th></tr></thead>
       <tbody><tr><td>% of purchase price deducted</td><td>${Math.round(dep[0] * 100)}%</td><td>${Math.round(dep[1] * 100)}%</td><td>${Math.round(dep[2] * 100)}%</td></tr></tbody></table>
-      <p style="font-size:12px;"><strong>Deductible:</strong> ${money(sale.deductible || 0)} AED per claim. <strong>Service fee:</strong> ${escapeHtml(String(sale.serviceFeeText || '\u2014'))}.</p>
+      <p style="font-size:12px;"><strong>Deductible:</strong> \u20C3 ${money(sale.deductible || 0)} per claim. <strong>Service fee:</strong> ${escapeHtml(String(sale.serviceFeeText || '\u2014'))}.</p>
       <h2>Claims process</h2>
       <ol>
         <li>Check the manufacturer's instructions and confirm controls are properly set.</li>
@@ -3489,7 +3501,7 @@ ${bodyHtml}
       <table><thead><tr><th>Month 1</th><th>Month 2</th><th>Month 3</th><th>Month 4</th><th>Month 5</th><th>Month 6</th><th>Month 7</th><th>Month 8</th></tr></thead>
       <tbody><tr><td>100%</td><td>70%</td><td>60%</td><td>50%</td><td>40%</td><td>30%</td><td>10%</td><td>5%</td></tr></tbody></table>
       <div class="cert-feebox">
-        <div class="fee">${money(sale.planFee)} AED</div>
+        <div class="fee">\u20C3 ${money(sale.planFee)}</div>
         <div>${escapeHtml(sale.vasProduct)} plan fee${sale.bandLabel ? ' \u2014 band ' + escapeHtml(sale.bandLabel) : ''}</div>
       </div>
       <h2>Signatures</h2>
@@ -3580,7 +3592,7 @@ ${bodyHtml}
     const rows = (appliances || [])
       .map(
         (a) =>
-          `<tr><td>${escapeHtml(a.name)}</td><td class="num">${escapeHtml(String(a.qty))}</td><td class="num">${money(a.price)} AED</td><td class="num">${money(a.qty * a.price)} AED</td></tr>`,
+          `<tr><td>${escapeHtml(a.name)}</td><td class="num">${escapeHtml(String(a.qty))}</td><td class="num">\u20C3 ${money(a.price)}</td><td class="num">\u20C3 ${money(a.qty * a.price)}</td></tr>`,
       )
       .join('');
     return `<table><thead><tr><th>Appliance type</th><th class="num">Qty</th><th class="num">Unit selling price</th><th class="num">Total equipment value</th></tr></thead><tbody>${
@@ -3596,7 +3608,7 @@ ${bodyHtml}
     const rows = plan.unitLines
       .map(
         (l) =>
-          `<tr><td>${escapeHtml(l.name)}</td><td class="num">${escapeHtml(String(l.qty))}</td><td class="num">${money(l.unitRate)} AED</td><td class="num">${money(l.qty * l.unitRate)} AED</td></tr>`,
+          `<tr><td>${escapeHtml(l.name)}</td><td class="num">${escapeHtml(String(l.qty))}</td><td class="num">\u20C3 ${money(l.unitRate)}</td><td class="num">\u20C3 ${money(l.qty * l.unitRate)}</td></tr>`,
       )
       .join('');
     const list = Number(plan.listTotal ?? 0);
@@ -3604,17 +3616,17 @@ ${bodyHtml}
     const adjustment = Number(plan.priceExclVat) - (list - discount);
     const pct = Math.round(Number(plan.discountPct ?? 0) * 1000) / 10;
     const summary = [
-      ['Price before discount', money(list) + ' AED'],
-      ...(discount > 0 ? [[`Volume discount (${pct}%)`, '-' + money(discount) + ' AED']] : []),
+      ['Price before discount', '\u20C3 ' + money(list)],
+      ...(discount > 0 ? [[`Volume discount (${pct}%)`, '-' + '\u20C3 ' + money(discount)]] : []),
       ...(Math.abs(adjustment) > 0.005
         ? [
             [
               'Contract price adjustment',
-              (adjustment < 0 ? '-' : '+') + money(Math.abs(adjustment)) + ' AED',
+              (adjustment < 0 ? '-' : '+') + '\u20C3 ' + money(Math.abs(adjustment)),
             ],
           ]
         : []),
-      ['Contract value excl. VAT', money(plan.priceExclVat) + ' AED'],
+      ['Contract value excl. VAT', '\u20C3 ' + money(plan.priceExclVat)],
     ];
     return `
       <h2>Contract pricing (per year)</h2>
@@ -3631,6 +3643,7 @@ ${bodyHtml}
   // this always takes the specific `plan` entry to print, not the whole
   // contract).
   function buildAmcContractCertificateBody(contract, plan) {
+    const money = moneyGrouped;
     const fallback =
       AMC_CONTRACT_PLAN_FALLBACKS[plan.planKey] || AMC_CONTRACT_PLAN_FALLBACKS['premium-pmc'];
     const planLabel = plan.planLabel || fallback.label;
@@ -3653,7 +3666,7 @@ ${bodyHtml}
         ['Visits', plan.visitsText || `${plan.annualVisits} visits/year`],
         ['Coverage / basis', plan.coverage || fallback.coverage],
         ['Plan coverage', plan.coverageDetail || fallback.coverageDetail],
-        ['Contract value incl. VAT', money(plan.priceInclVat) + ' AED'],
+        ['Contract value incl. VAT', '\u20C3 ' + money(plan.priceInclVat)],
       ])}
       <h2>Service Scope &mdash; Inclusions &amp; Exclusions</h2>
       <p style="font-size:12px;"><strong>Plan:</strong> ${escapeHtml(planLabel)}</p>
@@ -3677,20 +3690,20 @@ ${bodyHtml}
       </ul>
       <h2>Payment terms and validity</h2>
       <p style="font-size:12px;"><strong>Payment Terms:</strong> 100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after receipt of the signed acceptance, confirmed purchase order where applicable, and full advance payment.</p>
-      <p style="font-size:12px;">Prices are in AED and include 5% VAT where shown. This AMC is valid for one year from commencement unless renewed or amended in writing by both parties.</p>
+      <p style="font-size:12px;">Prices are in \u20C3 and include 5% VAT where shown. This AMC is valid for one year from commencement unless renewed or amended in writing by both parties.</p>
       <h2>Customer confirmation</h2>
       ${printFieldGrid([
         ['Approved plan', planLabel],
-        ['Excl. VAT', money(plan.priceExclVat) + ' AED'],
-        ['VAT @ 5%', money(vat) + ' AED'],
-        ['Incl. VAT', money(plan.priceInclVat) + ' AED'],
+        ['Excl. VAT', '\u20C3 ' + money(plan.priceExclVat)],
+        ['VAT @ 5%', '\u20C3 ' + money(vat)],
+        ['Incl. VAT', '\u20C3 ' + money(plan.priceInclVat)],
         ['Total appliances', String(contract.totalCount)],
         ...((contract.appliances || []).length && contract.appliances.every((a) => a.ref)
           ? []
-          : [['Total equipment value', money(contract.totalValue) + ' AED']]),
+          : [['Total equipment value', '\u20C3 ' + money(contract.totalValue)]]),
       ])}
       <div class="cert-feebox">
-        <div class="fee">${money(plan.priceInclVat)} AED</div>
+        <div class="fee">\u20C3 ${money(plan.priceInclVat)}</div>
         <div>${escapeHtml(planLabel)} &mdash; contract value incl. VAT</div>
       </div>
       <h2>Signatures</h2>
@@ -3718,23 +3731,24 @@ ${bodyHtml}
   // an acceptance box. The signed contract certificate is a separate document, printed only
   // after the quote is marked Sold. Nothing internal (cost, margin, cap) is shown.
   function buildAmcQuotationBody(contract) {
+    const money = moneyGrouped;
     const plans = contract.plans || [];
     const fb = (p) =>
       AMC_CONTRACT_PLAN_FALLBACKS[p.planKey] || AMC_CONTRACT_PLAN_FALLBACKS['premium-pmc'];
     const name = (p) => p.planLabel || fb(p).label;
-    const adj = (p) =>
-      Number(p.priceExclVat) - (Number(p.listTotal ?? 0) - Number(p.discountAmount ?? 0));
-    const anyDiscount = plans.some((p) => Number(p.discountAmount ?? 0) > 0);
-    const anyAdjust = plans.some((p) => Math.abs(adj(p)) > 0.005);
     const head = plans.map((p) => `<th class="num">${escapeHtml(name(p))}</th>`).join('');
     const first = plans.find((p) => (p.unitLines || []).length);
+    // Customer-facing rate = the rate after any volume discount / price adjustment, so no
+    // discount rows are needed (standard AMC quotes show one clean rate per appliance).
+    const netFactor = (p) =>
+      Number(p.listTotal) > 0 ? Number(p.priceExclVat) / Number(p.listTotal) : 1;
     const rateRows = (first ? first.unitLines : [])
       .map(
         (line, i) =>
           `<tr><td>${escapeHtml(line.name)}</td><td class="num">${escapeHtml(String(line.qty))}</td>${plans
             .map((p) => {
               const u = (p.unitLines || [])[i];
-              return `<td class="num">${u ? money(u.unitRate) + ' AED' : '\u2014'}</td>`;
+              return `<td class="num">${u ? '\u20C3 ' + money(Number(u.unitRate) * netFactor(p)) : '\u2014'}</td>`;
             })
             .join('')}</tr>`,
       )
@@ -3746,26 +3760,10 @@ ${bodyHtml}
             `<td class="num">${strong ? '<strong>' : ''}${fn(p)}${strong ? '</strong>' : ''}</td>`,
         )
         .join('')}</tr>`;
-    const pctText = (p) => String(Math.round(Number(p.discountPct ?? 0) * 1000) / 10);
     const summaryRows = [
-      sumRow('Price before discount', (p) => money(p.listTotal ?? 0) + ' AED'),
-      anyDiscount
-        ? sumRow('Volume discount', (p) =>
-            Number(p.discountAmount ?? 0) > 0
-              ? `${pctText(p)}% = -${money(p.discountAmount)} AED`
-              : '\u2014',
-          )
-        : '',
-      anyAdjust
-        ? sumRow('Contract price adjustment', (p) =>
-            Math.abs(adj(p)) > 0.005
-              ? (adj(p) < 0 ? '-' : '+') + money(Math.abs(adj(p))) + ' AED'
-              : '\u2014',
-          )
-        : '',
-      sumRow('Contract value excl. VAT', (p) => money(p.priceExclVat) + ' AED'),
-      sumRow('VAT @ 5%', (p) => money(Number(p.priceInclVat) - Number(p.priceExclVat)) + ' AED'),
-      sumRow('Contract value incl. VAT (per year)', (p) => money(p.priceInclVat) + ' AED', true),
+      sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
+      sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
+      sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
     ].join('');
     const planDetails = plans
       .map(
@@ -3799,7 +3797,7 @@ ${bodyHtml}
       <table><thead><tr><th>Appliance type</th><th class="num">Qty</th>${head}</tr></thead><tbody>${rateRows}</tbody></table>
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
-      <p style="font-size:11px;color:#555;">Rates are per appliance per year, before the volume discount and any price adjustment shown in the next table. Prices are in AED.</p>
+      <p style="font-size:11px;color:#555;">Rates are per appliance per year, excluding 5% VAT. Prices are in \u20C3 (UAE Dirham).</p>
       ${planDetails}
       <h2>Payment terms</h2>
       <p style="font-size:12px;">100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after the quotation is approved and payment is received.</p>
@@ -3880,7 +3878,7 @@ ${bodyHtml}
     // receipt of a comparable company). Static text: nothing here comes from user input.
     const termsRows = [
       [
-        '<strong>Out of Warranty Service Charges:</strong> For Out of Warranty Service, we shall provide Estimate Quote applicable for the repair of Unit for your approval. 30% (+or-) variation is allowed in the estimate, and we shall conclude the repair without further approval from you. Actual charges shall be charged at the time of collection of the Unit. <strong>If you do not wish to proceed with the repair after you receive the Estimate Quote for Repair, a handling charge of AED 60 (inclusive of VAT) will be applicable and upon payment, the Unit shall be returned to you.</strong>',
+        '<strong>Out of Warranty Service Charges:</strong> For Out of Warranty Service, we shall provide Estimate Quote applicable for the repair of Unit for your approval. 30% (+or-) variation is allowed in the estimate, and we shall conclude the repair without further approval from you. Actual charges shall be charged at the time of collection of the Unit. <strong>If you do not wish to proceed with the repair after you receive the Estimate Quote for Repair, a handling charge of \u20C3 60 (inclusive of VAT) will be applicable and upon payment, the Unit shall be returned to you.</strong>',
         '<strong>رسوم الصيانة خارج الضمان:</strong> بالنسبة لرسوم الصيانة خارج الضمان، سنوافيك بعرض أسعار تقديري للإصلاحات اللازمة للوحدة للحصول على موافقتك، مع إمكانية اختلاف السعر النهائي بنسبة 30% (أكثر أو أقل من) من المبلغ التقديري، وسنجري بعد ذلك الإصلاح دون طلب موافقة أخرى منك. وستُحتسب الرسوم الفعلية عند استلام الوحدة. <strong>حال عدم رغبتك في مباشرة الإصلاح بعد استلام عرض الأسعار التقديري للإصلاحات، ستُطبَّق رسوم مناولة قدرها 60 درهمًا شاملة ضريبة القيمة المضافة، وتُرد الوحدة إليك بعد سدادها.</strong>',
       ],
       [
@@ -3892,7 +3890,7 @@ ${bodyHtml}
         '<strong>تسجيل الملحقات في إيصال الصيانة:</strong> لا نتسلم أي ملحقات مع الوحدة ما لم تكن لازمة لفحص الوحدة، ويتعين عليك تسجيل جميع الملحقات المسلمة إلينا في إيصال الصيانة، وإلا لن نتمكن من الوفاء بمطالبتك بالملحقات لاحقًا.',
       ],
       [
-        '<strong>Collection of Unit:</strong> Please ensure to collect the Unit immediately upon receipt of notification of completion of repair/return of Unit. A storage charge @ AED 2/- per day shall be charged after one month of notification. We shall store your Units for a maximum period of 3 months from the date of notification of completion of repair / return of Unit. If you fail to collect the Unit within this period, we shall dispose of such Units without further notification and without any liability for compensation payable to you.',
+        '<strong>Collection of Unit:</strong> Please ensure to collect the Unit immediately upon receipt of notification of completion of repair/return of Unit. A storage charge @ \u20C3 2/- per day shall be charged after one month of notification. We shall store your Units for a maximum period of 3 months from the date of notification of completion of repair / return of Unit. If you fail to collect the Unit within this period, we shall dispose of such Units without further notification and without any liability for compensation payable to you.',
         '<strong>استلام الوحدة:</strong> يُرجى التأكد من استلام الوحدة فور استلام إخطار بالانتهاء من الإصلاح/ إعادة الوحدة، وستحتسب رسوم تخزين قدرها 2 درهم لكل يوم بعد مضي شهر واحد من تاريخ الإخطار. سنحتفظ بوحداتك لمدة 3 أشهر بحد أقصى من تاريخ الإخطار بانتهاء الإصلاح/ إعادة الوحدة، وإذا لم تتسلم الوحدة خلال هذه المدة، سنتخلص من تلك الوحدات دون إخطار آخر ودون تحمل مسؤولية تعويضك.',
       ],
       [
@@ -3934,9 +3932,10 @@ ${bodyHtml}
     const html = `<!doctype html>
 <html><head><meta charset="utf-8"><title>${escapeHtml(invoice.invoiceNo || 'Tax Invoice')}</title>
 <style>
+  ${DIRHAM_FONT_FACE}
   @page { size: A4; margin: 12mm 12mm; }
   * { box-sizing: border-box; }
-  body { font-family: Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; padding: 0; }
+  body { font-family: Dirham, Arial, Helvetica, sans-serif; color: #111; font-size: 11px; margin: 0; padding: 0; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 8px; border-bottom: 2px solid #17324d; }
   .head img { height: 54px; width: auto; display: block; }
   .co { text-align: right; font-size: 10.5px; line-height: 1.45; color: #333; }
@@ -4012,7 +4011,7 @@ ${bodyHtml}
 <div class="bank"><table>
   <tr><td class="k">A/C Payee in favour of :</td><td>Jacky\`s Electronics LLC</td><td><strong>** Payment for this invoice is due on ${dmy(invoice.dueDate)}</strong></td></tr>
   <tr><td class="k">Bank :</td><td>Habib Bank AG Zurich, Dubai, UAE</td><td>Swift: HBZUAEADXXX</td></tr>
-  <tr><td class="k">IBAN Details (AED) :</td><td colspan="2">AE18 0290 1203 1110 5178 162</td></tr>
+  <tr><td class="k">IBAN Details (\u20C3) :</td><td colspan="2">AE18 0290 1203 1110 5178 162</td></tr>
 </table></div>
 <table class="terms"><thead><tr><th colspan="2" class="te">TERMS AND CONDITIONS</th><th colspan="2" class="ta" dir="rtl">الشروط والأحكام:</th></tr></thead><tbody>${termsRows}</tbody></table>
 <div class="foot">Printed ${escapeHtml(new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' }))}</div>
@@ -4125,10 +4124,10 @@ ${bodyHtml}
         customerCopy
           ? ''
           : `<table class="totals">
-        <tr><td>Total cost (AED)</td><td class="num">${money(jobCard.totalCost || 0)}</td></tr>
-        <tr><td>Service charge (AED)</td><td class="num">${money(jobCard.serviceCharge || 0)}</td></tr>
-        <tr class="grand"><td>Grand total (AED)</td><td class="num">${money(jobCard.grandTotal || 0)}</td></tr>
-        ${jobCard.amountChargeable != null ? `<tr><td>Amount chargeable (AED)</td><td class="num">${money(jobCard.amountChargeable)}</td></tr>` : ''}
+        <tr><td>Total cost (\u20C3)</td><td class="num">${money(jobCard.totalCost || 0)}</td></tr>
+        <tr><td>Service charge (\u20C3)</td><td class="num">${money(jobCard.serviceCharge || 0)}</td></tr>
+        <tr class="grand"><td>Grand total (\u20C3)</td><td class="num">${money(jobCard.grandTotal || 0)}</td></tr>
+        ${jobCard.amountChargeable != null ? `<tr><td>Amount chargeable (\u20C3)</td><td class="num">${money(jobCard.amountChargeable)}</td></tr>` : ''}
       </table>`
       }
       <h2>${customerCopy ? 'Delivery' : 'Invoice / delivery'}</h2>
@@ -4222,7 +4221,7 @@ ${bodyHtml}
       return nx - ny;
     });
     const chargesTable = chargeRows.length
-      ? `<h2>Charges</h2><table class="compact"><thead><tr>${units.length > 1 ? '<th>Unit</th>' : ''}<th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (AED)</th></tr></thead><tbody>${chargeRows
+      ? `<h2>Charges</h2><table class="compact"><thead><tr>${units.length > 1 ? '<th>Unit</th>' : ''}<th>Type</th><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th class="num">VAT ${rate * 100}%</th><th class="num">Total (\u20C3)</th></tr></thead><tbody>${chargeRows
           .map((c) => {
             const amount = (c.qty || 0) * (c.unitPrice || 0);
             const unitCell =
@@ -4246,7 +4245,7 @@ ${bodyHtml}
         ${labour ? `<tr><td>Labour (excl. VAT)</td><td class="num">${money(labour)}</td></tr>` : ''}
         <tr><td>Subtotal (excl. VAT)</td><td class="num">${money(quotation.subtotalAmount ?? 0)}</td></tr>
         <tr><td>VAT @ ${rate * 100}%</td><td class="num">${money(quotation.vatAmount ?? 0)}</td></tr>
-        <tr class="grand"><td>TOTAL PAYABLE (incl. VAT) AED</td><td class="num">${money(quotation.grandTotal || 0)}</td></tr>
+        <tr class="grand"><td>TOTAL PAYABLE (incl. VAT) \u20C3</td><td class="num">${money(quotation.grandTotal || 0)}</td></tr>
       </table>
       <h2>Approval</h2>
       ${printFieldGrid([
@@ -4291,7 +4290,7 @@ ${bodyHtml}
       ${printFieldGrid([
         ['Ref. quotation no.', inspection.refQuotationNo],
         [
-          'Est. repair cost (AED)',
+          'Est. repair cost (\u20C3)',
           inspection.estRepairCost != null ? money(inspection.estRepairCost) : null,
         ],
       ])}
@@ -4539,7 +4538,7 @@ ${bodyHtml}
     chips.push(
       `<span class="q-chip q-chip-info">${units || 'No'} unit${units === 1 ? '' : 's'}</span>`,
     );
-    chips.push(`<span class="q-chip">AED ${money(Number(q.grandTotal) || 0)}</span>`);
+    chips.push(`<span class="q-chip">\u20C3 ${money(Number(q.grandTotal) || 0)}</span>`);
     $('#quotationDetailMeta').innerHTML = chips.join('');
   }
 
@@ -6225,7 +6224,7 @@ ${bodyHtml}
         ['Item description', approval.itemDescription],
         ['Warranty status', approval.warrantyStatus],
         [
-          'Estimated cost (AED)',
+          'Estimated cost (\u20C3)',
           approval.estimatedCost != null ? money(approval.estimatedCost) : null,
         ],
         ['Notes', approval.notes],
@@ -6611,7 +6610,7 @@ ${bodyHtml}
       const amount = stages.reduce((sum, row) => sum + row.amount, 0);
       $('#dashOutOfWarrantyTiles').innerHTML = dashboardTilesHtml(
         byStage,
-        [['Pending delivery (AED ' + amount.toLocaleString('en-AE') + ')', total]],
+        [['Pending delivery (\u20C3 ' + amount.toLocaleString('en-AE') + ')', total]],
         (stage) => stage,
       );
       group.hidden = false;
@@ -7135,12 +7134,12 @@ ${bodyHtml}
       },
       BER: {
         title: 'Beyond economical repair',
-        text: 'B2C: no charge, and the job can be delivered back after the reason is chosen. If spare parts were fitted, send the job for manager approval first. B2B out of warranty: AED 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
+        text: 'B2C: no charge, and the job can be delivered back after the reason is chosen. If spare parts were fitted, send the job for manager approval first. B2B out of warranty: \u20C3 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
         warn: true,
       },
       Rejected: {
         title: 'Job rejected',
-        text: 'The customer declined. B2C: no charge, and spare parts need manager approval. B2B out of warranty: AED 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
+        text: 'The customer declined. B2C: no charge, and spare parts need manager approval. B2B out of warranty: \u20C3 60 is billed to the sales channel. Hand the unit back, then set Final status to Delivered.',
         warn: true,
       },
       Cancelled: {
@@ -7174,7 +7173,7 @@ ${bodyHtml}
     }
     const text = escapeHtml(value);
     if (kind === 'pill') return `<span class="status ${statusClass(value)}">${text}</span>`;
-    if (kind === 'money') return `<span class="ds-money">AED ${text}</span>`;
+    if (kind === 'money') return `<span class="ds-money">\u20C3 ${text}</span>`;
     if (kind === 'phone') {
       return `<a href="tel:${escapeHtml(String(value).replace(/[^\d+]/g, ''))}">${text}</a>`;
     }
@@ -10225,7 +10224,7 @@ ${bodyHtml}
       '<p class="form-note">A plain-language walkthrough using the values currently on this page. ' +
       'Change a value on the Rates tab and the numbers here follow. This tab is temporary and can be removed once the team is comfortable with the logic.</p>' +
       '<div class="field-grid">' +
-      '<div class="field"><label>Example appliance value (AED) ' +
+      '<div class="field"><label>Example appliance value (\u20C3) ' +
       tipHtml(
         'Pretend one appliance is worth this much, to see the arithmetic. Does not change any setting.',
       ) +
@@ -10307,7 +10306,7 @@ ${bodyHtml}
       '<div class="detail-action-card"><h4>Step 1: what one planned visit costs, per appliance</h4>' +
       '<p>A planned visit is a scheduled service visit by our team. We work out what the whole visit costs and share it between the appliances serviced on it.</p>' +
       table(
-        ['What', 'How it is worked out', 'AED'],
+        ['What', 'How it is worked out', '\u20C3'],
         [
           row([
             'One technician, per hour',
@@ -10345,7 +10344,7 @@ ${bodyHtml}
     const p = planCols('premium');
     const step2 =
       '<div class="detail-action-card"><h4>Step 2: what one appliance costs us per year, and the price that follows</h4>' +
-      '<p>Example: one appliance worth AED ' +
+      '<p>Example: one appliance worth \u20C3 ' +
       fmt(state.refValue) +
       ', age ' +
       escapeHtml(ex.ageLabel) +
@@ -10357,14 +10356,14 @@ ${bodyHtml}
         [
           row([
             'Planned visits',
-            'number of visits × AED ' + fmt(v.perAppliance) + ' (step 1)',
+            'number of visits × \u20C3 ' + fmt(v.perAppliance) + ' (step 1)',
             s.visits + ' × ' + fmt(v.perAppliance) + ' = ' + fmt(s.visitCost),
             p.visits + ' × ' + fmt(v.perAppliance) + ' = ' + fmt(p.visitCost),
           ]),
           row([
             'Breakdown allowance',
             data.breakdown.callsPerUnitPerYear +
-              ' calls × AED ' +
+              ' calls × \u20C3 ' +
               fmt(data.breakdown.costPerCall) +
               ' × age factor',
             fmt(s.breakdown),
@@ -10411,18 +10410,18 @@ ${bodyHtml}
             '</strong></td></tr>',
         ],
       ) +
-      '<p><strong>Basic RM</strong> works differently: there are no planned visits. The customer pays a fixed yearly retainer of AED ' +
+      '<p><strong>Basic RM</strong> works differently: there are no planned visits. The customer pays a fixed yearly retainer of \u20C3 ' +
       fmt(data.plans.basic.retainerPerUnit) +
-      ' per appliance, then pays for each repair call at AED ' +
+      ' per appliance, then pays for each repair call at \u20C3 ' +
       fmt(basicRate) +
-      ' (normal AED ' +
+      ' (normal \u20C3 ' +
       fmt(co.labourCharge) +
       ' less ' +
       pct(co.basicDiscountPct) +
-      '), plus parts. Our own yearly admin cost is AED ' +
+      '), plus parts. Our own yearly admin cost is \u20C3 ' +
       fmt(data.plans.basic.adminCostPerUnit) +
       ' per appliance.</p>' +
-      '<p class="form-note">Standard and Premium customers also pay AED ' +
+      '<p class="form-note">Standard and Premium customers also pay \u20C3 ' +
       fmt(co.handlingCharge) +
       ' if we attend and the appliance cannot be repaired.</p></div>';
 
@@ -10457,9 +10456,9 @@ ${bodyHtml}
         return (
           '<li><strong>' +
           escapeHtml(pl.planLabel) +
-          ':</strong> our break-even is AED ' +
+          ':</strong> our break-even is \u20C3 ' +
           fmt(pl.breakEvenTotal) +
-          ', the customer pays AED ' +
+          ', the customer pays \u20C3 ' +
           fmt(pl.priceExclVat) +
           ' &rarr; ' +
           verdict +
@@ -10471,9 +10470,9 @@ ${bodyHtml}
       '<div class="detail-action-card"><h4>Step 3: a whole quote, with the volume discount and the cap</h4>' +
       '<p>Example: ' +
       state.qty +
-      ' identical appliances, each worth AED ' +
+      ' identical appliances, each worth \u20C3 ' +
       fmt(state.refValue) +
-      ' (total equipment value AED ' +
+      ' (total equipment value \u20C3 ' +
       fmt(quote.totalValue) +
       '), age ' +
       escapeHtml(quote.ageLabel) +
@@ -10970,7 +10969,7 @@ ${bodyHtml}
       const flatHost = document.createElement('div');
       flatHost.className = 'detail-action-card pc-span-full';
       flatHost.innerHTML =
-        '<h4>Flat job-type rates (AED, incl. VAT)</h4>' +
+        '<h4>Flat job-type rates (\u20C3, incl. VAT)</h4>' +
         '<p class="form-note">Fixed charge per job for the revenue streams that are not priced per appliance. ' +
         'These replace the values from the uploaded workbook on Service Revenue Dashboard &gt; Logic applied.</p>';
       grid.appendChild(flatHost);
@@ -11184,7 +11183,7 @@ ${bodyHtml}
             },
             {
               key: 'amcRefValue',
-              label: 'AMC reference value (AED)',
+              label: 'AMC reference value (\u20C3)',
               type: 'number',
               width: '26%',
               tooltip:
@@ -11442,7 +11441,7 @@ ${bodyHtml}
             label: 'Technician monthly salary',
             type: 'number',
             tooltip:
-              'What one technician costs us per month, in AED. It is turned into an hourly cost: monthly salary ÷ working days ÷ hours per day.',
+              'What one technician costs us per month, in \u20C3. It is turned into an hourly cost: monthly salary ÷ working days ÷ hours per day.',
           },
           {
             path: 'labour.technicians',
@@ -11489,7 +11488,7 @@ ${bodyHtml}
             label: 'Transport cost per visit',
             type: 'number',
             tooltip:
-              'Fuel and vehicle cost of one planned visit, in AED, for the whole team (not per appliance).',
+              'Fuel and vehicle cost of one planned visit, in \u20C3, for the whole team (not per appliance).',
           },
         ],
         data,
@@ -11512,25 +11511,25 @@ ${bodyHtml}
           tipHtml(
             'Calculated from the fields above: (technician cost per hour × technicians × visit hours + transport) ÷ appliances handled per visit. Updates as you change any value. Standard uses the number of planned visits set in Plans; Premium likewise.',
           ) +
-          '</div><div class="pc-live-value">AED ' +
+          '</div><div class="pc-live-value">\u20C3 ' +
           fmt(v.perAppliance) +
           ' <small>per appliance per planned visit</small></div>' +
-          '<div class="pc-live-sum">Whole visit: AED ' +
+          '<div class="pc-live-sum">Whole visit: \u20C3 ' +
           fmt(v.labourPerVisit) +
-          ' labour + AED ' +
+          ' labour + \u20C3 ' +
           fmt(v.transportPerVisit) +
-          ' transport = AED ' +
+          ' transport = \u20C3 ' +
           fmt(v.wholeVisit) +
           ', shared by ' +
           escapeHtml(String(v.handledPerVisit)) +
           ' appliances.</div>' +
           '<div class="pc-live-sum">Standard: ' +
           escapeHtml(String(v.standardVisits)) +
-          ' visit(s) = AED ' +
+          ' visit(s) = \u20C3 ' +
           fmt(v.standard) +
           ' &nbsp;|&nbsp; Premium: ' +
           escapeHtml(String(v.premiumVisits)) +
-          ' visit(s) = AED ' +
+          ' visit(s) = \u20C3 ' +
           fmt(v.premium) +
           ' per appliance per year.</div>';
       };
@@ -11555,7 +11554,7 @@ ${bodyHtml}
             label: 'Cost per breakdown call',
             type: 'number',
             tooltip:
-              'What one repair visit really costs us (technician time and transport), in AED. Breakdown allowance per appliance = calls per year × this cost. Used for Standard and Premium only.',
+              'What one repair visit really costs us (technician time and transport), in \u20C3. Breakdown allowance per appliance = calls per year × this cost. Used for Standard and Premium only.',
           },
           {
             path: 'callOut.labourCharge',
@@ -11569,7 +11568,7 @@ ${bodyHtml}
             label: 'Basic RM call-out discount',
             type: 'percent',
             tooltip:
-              'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = AED 108 per call. Printed on the Basic quote. It does not change the plan prices.',
+              'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = \u20C3 108 per call. Printed on the Basic quote. It does not change the plan prices.',
           },
           {
             path: 'callOut.handlingCharge',
@@ -11846,7 +11845,7 @@ ${bodyHtml}
           '<div class="table-wrap"><table><thead><tr>' +
           '<th title="Appliance name from Appliance Master. Add or rename appliances in Admin > Masters > Appliance Master.">Appliance</th>' +
           '<th title="Whether the appliance can be sold on an AMC. Set in Appliance Master. Appliances that are not AMC show a dash instead of rates.">AMC</th>' +
-          '<th title="What a new appliance would cost, in AED. A higher value gives a bigger parts reserve (Standard, Premium) and a bigger cap. Saved with this page; the customer is never asked for it.">Reference value (AED)</th>' +
+          '<th title="What a new appliance would cost, in \u20C3. A higher value gives a bigger parts reserve (Standard, Premium) and a bigger cap. Saved with this page; the customer is never asked for it.">Reference value (\u20C3)</th>' +
           '<th title="Yearly Basic RM price per appliance: the fixed retainer. Before volume discount and cap.">Basic RM</th>' +
           '<th title="Yearly Standard PMC price per appliance: (planned visit + breakdown allowance + parts reserve) plus overhead plus profit. Before volume discount and cap.">Standard PMC</th>' +
           '<th title="Yearly Premium PMC price per appliance: (planned visits + breakdown allowance + parts reserve) plus overhead plus profit. Before volume discount and cap.">Premium PMC</th>' +
@@ -11943,13 +11942,13 @@ ${bodyHtml}
         [
           {
             path: 'smallJob.callOutFee',
-            label: 'Call-out charge (AED)',
+            label: 'Call-out charge (\u20C3)',
             type: 'number',
             tooltip: 'Flat charge added once to a single-unit quote to cover the visit.',
           },
           {
             path: 'smallJob.minimumCharge',
-            label: 'Minimum quote total (AED)',
+            label: 'Minimum quote total (\u20C3)',
             type: 'number',
             tooltip: 'If a single-unit quote comes to less than this, it is raised to this amount.',
           },
@@ -12155,7 +12154,7 @@ ${bodyHtml}
       workspaceId: 'dandiAdminWorkspace',
       heading: 'D+I Admin Entry',
       description:
-        'Admin entry for Delivery & Installation pricing. Standard, batch and minimum rates are entered in AED including VAT.',
+        'Admin entry for Delivery & Installation pricing. Standard, batch and minimum rates are entered in \u20C3 including VAT.',
       domains: ['dandi_pricing'],
     },
     'amc-admin': {
@@ -12578,14 +12577,18 @@ ${bodyHtml}
   function vasCalcServiceFeeText(plan, params, orderValue) {
     if (plan.key === 'di1') {
       return orderValue < params.claimFeeThreshold
-        ? money(params.claimFeeLow) +
-            ' AED per claim (items below ' +
+        ? '\u20C3 ' +
+            money(params.claimFeeLow) +
+            ' per claim (items below ' +
+            '\u20C3 ' +
             money(params.claimFeeThreshold) +
-            ' AED)'
-        : money(params.claimFeeHigh) +
-            ' AED per claim (items at/above ' +
+            ')'
+        : '\u20C3 ' +
+            money(params.claimFeeHigh) +
+            ' per claim (items at/above ' +
+            '\u20C3 ' +
             money(params.claimFeeThreshold) +
-            ' AED)';
+            ')';
     }
     return params[plan.serviceFeeKey];
   }
@@ -12690,7 +12693,7 @@ ${bodyHtml}
       '<section data-vc-panel="quote">' +
       '<div class="field-grid">' +
       calcField(
-        'Appliance selling price (AED)',
+        'Appliance selling price (\u20C3)',
         '<input type="number" min="0" step="0.01" placeholder="e.g. 1000" data-vc-order-value />',
       ) +
       calcField(
@@ -12768,8 +12771,9 @@ ${bodyHtml}
         '<div class="vas-quote-card">' +
         '<div class="vas-quote-head">' +
         '<div class="fee">' +
+        '\u20C3 ' +
         money(fee) +
-        ' AED</div>' +
+        '</div>' +
         '<div class="sub">' +
         escapeHtml(plan.label) +
         ' — band ' +
@@ -12778,11 +12782,13 @@ ${bodyHtml}
         '</div>' +
         '<div class="vas-quote-body">' +
         '<div class="vas-quote-row"><span class="k">Selling price</span><span class="v">' +
+        '\u20C3 ' +
         money(orderValue) +
-        ' AED</span></div>' +
+        '</span></div>' +
         '<div class="vas-quote-row"><span class="k">Deductible per claim</span><span class="v">' +
+        '\u20C3 ' +
         money(deductible) +
-        ' AED</span></div>' +
+        '</span></div>' +
         '<div class="vas-quote-row"><span class="k">Service fee per claim</span><span class="v">' +
         escapeHtml(String(serviceFee)) +
         '</span></div>' +
@@ -12806,8 +12812,9 @@ ${bodyHtml}
             '<tr><td>' +
             escapeHtml(p.label) +
             '</td><td><strong>' +
+            '\u20C3 ' +
             money(planFee) +
-            ' AED</strong></td><td>' +
+            '</strong></td><td>' +
             escapeHtml(String(planServiceFee)) +
             '</td><td>' +
             escapeHtml(params[p.claimsKey]) +
@@ -12897,10 +12904,12 @@ ${bodyHtml}
               '</td><td>' +
               escapeHtml(sale.vasProduct) +
               '</td><td>' +
+              '\u20C3 ' +
               money(sale.sellingPrice) +
-              ' AED</td><td>' +
+              '</td><td>' +
+              '\u20C3 ' +
               money(sale.planFee) +
-              ' AED</td><td>' +
+              '</td><td>' +
               '<button type="button" class="button button-outline" data-vc-reprint="' +
               escapeHtml(sale.id) +
               '">Print</button>' +
@@ -13100,7 +13109,7 @@ ${bodyHtml}
     return (
       '<section class="rcv-card"><h3>' +
       escapeHtml(RC_SECTION_TITLES[section.key] || section.label) +
-      '</h3><table class="rc-table"><thead><tr><th>Activity</th><th class="num">Rate (AED)</th></tr></thead><tbody>' +
+      '</h3><table class="rc-table"><thead><tr><th>Activity</th><th class="num">Rate (\u20C3)</th></tr></thead><tbody>' +
       rows +
       '</tbody></table></section>'
     );
@@ -13150,13 +13159,13 @@ ${bodyHtml}
       rcInfo(RC_DANDI_NOTE) +
       '</h3><div class="rcv-note">Depends on D+I Admin Entry factors &mdash; shown here as base rates only.</div>' +
       '<div class="rcv-grid">' +
-      '<div><h4>Base rate per unit (AED)</h4><table class="rc-table"><thead><tr><th>Appliance</th><th class="num">Standard</th><th class="num">Batch</th></tr></thead><tbody>' +
+      '<div><h4>Base rate per unit (\u20C3)</h4><table class="rc-table"><thead><tr><th>Appliance</th><th class="num">Standard</th><th class="num">Batch</th></tr></thead><tbody>' +
       rateRows +
       '</tbody></table></div>' +
       '<div><h4>Quantity discount</h4><table class="rc-table"><thead><tr><th>Units</th><th class="num">Discount</th></tr></thead><tbody>' +
       tierRows +
       '</tbody></table></div>' +
-      '<div><h4>Transport per trip (AED) ' +
+      '<div><h4>Transport per trip (\u20C3) ' +
       tipHtml(
         withTransport
           ? 'Transport is always added to Delivery &amp; Installation quotes.'
@@ -13168,8 +13177,9 @@ ${bodyHtml}
       '<div class="card-help"><span>Quote limits</span>' +
       tipHtml(
         'Minimum rate per unit: ' +
+          '\u20C3 ' +
           money(dandi.minUnitRate) +
-          ' AED &middot; up to ' +
+          ' &middot; up to ' +
           dandi.maxUnits +
           ' units per quote.',
       ) +
@@ -14480,7 +14490,7 @@ ${bodyHtml}
     root.innerHTML =
       '<div class="rcv-banner"><strong>Service rate card</strong><span>' +
       updated +
-      ' &middot; All prices in AED, including VAT. Loaded at ' +
+      ' &middot; All prices in \u20C3, including VAT. Loaded at ' +
       escapeHtml(loadedAt.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })) +
       '.</span> <button type="button" class="button button-outline" data-rc-refresh>Refresh rates</button></div>' +
       '<div class="rcv-grid-top">' +
@@ -14673,7 +14683,7 @@ ${bodyHtml}
             '">' +
             (f.level === 'red' ? '&#9888; ' : '&#9888; ') +
             escapeHtml(f.text) +
-            (f.shortfall ? ' (shortfall ' + money(f.shortfall) + ' AED)' : '') +
+            (f.shortfall ? ' (shortfall ' + '\u20C3 ' + money(f.shortfall) + ')' : '') +
             '</div>',
         )
         .join('');
@@ -14695,8 +14705,9 @@ ${bodyHtml}
         '<p class="form-note">Total appliances: <strong>' +
         quote.totalQty +
         '</strong> &middot; Total equipment value: <strong>' +
+        '\u20C3 ' +
         money(quote.totalValue) +
-        ' AED</strong> &middot; Age: <strong>' +
+        '</strong> &middot; Age: <strong>' +
         escapeHtml(quote.ageLabel) +
         '</strong> &middot; Volume discount: <strong>' +
         (quote.discountPct * 100).toFixed(1).replace(/\.0$/, '') +
@@ -15049,7 +15060,7 @@ ${bodyHtml}
         (showValues ? '35' : '60') +
         '%">Appliance</th><th style="width: 15%">Qty</th>' +
         (showValues
-          ? '<th style="width: 20%">Reference value (AED)</th><th style="width: 20%">Total value (AED)</th>'
+          ? '<th style="width: 20%">Reference value (\u20C3)</th><th style="width: 20%">Total value (\u20C3)</th>'
           : '') +
         '<th style="width: 10%"></th>' +
         '</tr></thead><tbody>' +
@@ -15139,7 +15150,7 @@ ${bodyHtml}
 
       // Dynamic, like VAS's empty-price state: no appliances (or none with
       // a quantity entered yet) means no plan pricing shown at all, rather
-      // than quietly pricing a 0 AED contract (modification.md #39).
+      // than quietly pricing a 0 \u20C3 contract (modification.md #39).
       if (!appliances.length || totalCount <= 0) {
         lastRows = null;
         output.innerHTML = appliances.length
@@ -15190,8 +15201,9 @@ ${bodyHtml}
         '<p class="form-note">Total appliances: <strong>' +
         totalCount +
         '</strong> &middot; Total equipment value: <strong>' +
+        '\u20C3 ' +
         money(totalValue) +
-        ' AED</strong></p>' +
+        '</strong></p>' +
         '<div class="table-wrap"><table class="amc-plan-table"><thead><tr>' +
         '<th>Plan</th><th>Annual visits</th><th>Labor cost</th><th>Transport cost</th><th>Parts reserve</th><th>Direct cost</th><th>Overhead</th><th>Price (excl. VAT)</th><th>Price (incl. 5% VAT)</th>' +
         '</tr></thead><tbody>' +
@@ -15453,8 +15465,9 @@ ${bodyHtml}
               '</select></td><td class="num ac-price" data-ac-price-cell="' +
               escapeHtml(c.id) +
               '">' +
+              '\u20C3 ' +
               money(defaultPlan ? defaultPlan.priceInclVat : 0) +
-              ' AED</td></tr><tr class="ac-actions-row"><td colspan="6"><div class="ac-actions">' +
+              '</td></tr><tr class="ac-actions-row"><td colspan="6"><div class="ac-actions">' +
               (pricingModel === 'v2'
                 ? '<div class="ac-group"><span class="ac-label">Quotation</span><span data-ac-quote-box="' +
                   escapeHtml(c.id) +
@@ -15548,7 +15561,7 @@ ${bodyHtml}
               '<h4>History of ' +
               escapeHtml(contract.amcContractReference) +
               ' <button type="button" class="button button-outline" data-ac-history-close>Close</button></h4>' +
-              '<p class="form-note">Prices are AED incl. VAT. Every saved version is kept; the current one is on top.</p>' +
+              '<p class="form-note">Prices are \u20C3 incl. VAT. Every saved version is kept; the current one is on top.</p>' +
               '<div class="table-wrap"><table><thead><tr><th>Revision</th><th>Saved</th><th>Saved by</th><th>Reason</th><th>Appliances</th><th>Plan prices</th><th></th></tr></thead><tbody>' +
               versions
                 .map(
@@ -15616,7 +15629,7 @@ ${bodyHtml}
           const plan =
             contract && contract.plans && contract.plans.find((p) => p.planKey === select.value);
           const cell = host.querySelector('[data-ac-price-cell="' + id + '"]');
-          if (cell && plan) cell.textContent = money(plan.priceInclVat) + ' AED';
+          if (cell && plan) cell.textContent = '\u20C3 ' + money(plan.priceInclVat);
         });
       });
       host.querySelectorAll('[data-ac-status]').forEach((button) => {
@@ -15924,8 +15937,9 @@ ${bodyHtml}
               '">' +
               escapeHtml(p.planLabel) +
               ' — ' +
+              '\u20C3 ' +
               money(p.priceInclVat) +
-              ' AED incl. VAT</option>',
+              ' incl. VAT</option>',
           )
           .join('');
         printPlanSelect.disabled = false;
@@ -15976,7 +15990,7 @@ ${bodyHtml}
     const rows = (lineItems || [])
       .map(
         (li) =>
-          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">${money(li.unitRate)} AED</td><td class="num">${money(li.applianceSubtotal)} AED</td><td class="num">${money(li.addonRevenue)} AED</td><td class="num">${money(li.transportCost)} AED</td><td class="num">${money(li.totalPrice)} AED</td></tr>`,
+          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">\u20C3 ${money(li.unitRate)}</td><td class="num">\u20C3 ${money(li.applianceSubtotal)}</td><td class="num">\u20C3 ${money(li.addonRevenue)}</td><td class="num">\u20C3 ${money(li.transportCost)}</td><td class="num">\u20C3 ${money(li.totalPrice)}</td></tr>`,
       )
       .join('');
     return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">Transport cost</th><th class="num">Total price</th></tr></thead><tbody>${
@@ -16008,7 +16022,7 @@ ${bodyHtml}
       <h2>${isThomsonSingleSale(sale) ? 'Quotation lines' : 'Project lines'}</h2>
       ${printThomsonLineItemsTable(sale.lineItems)}
       <div class="cert-feebox">
-        <div class="fee">${money(sale.totalPrice)} AED</div>
+        <div class="fee">\u20C3 ${money(sale.totalPrice)}</div>
         <div>${isThomsonSingleSale(sale) ? 'Total price' : 'Total project price'}</div>
       </div>
       <h2>Signatures</h2>
@@ -16017,7 +16031,7 @@ ${bodyHtml}
         <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
       </div>
-      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in AED. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in \u20C3. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>
     `;
   }
 
@@ -16190,7 +16204,7 @@ ${bodyHtml}
       '</div>' +
       '<aside class="tq-summary" aria-label="Quote summary">' +
       '<div class="card-row-header"><h4>Quote total</h4><span class="live-pill" data-tcc-live-pill>Live</span></div>' +
-      '<div class="tq-total" data-tq-total>0.00 <small>AED</small></div>' +
+      '<div class="tq-total" data-tq-total>0.00 <small>\u20C3</small></div>' +
       '<p class="tq-preview" data-tq-preview hidden></p>' +
       '<p class="tq-transport-line" data-tq-transport></p>' +
       '<dl class="tq-facts" data-tq-facts></dl>' +
@@ -16338,15 +16352,17 @@ ${bodyHtml}
           '<label class="tq-check"><input type="checkbox" data-tq-callout' +
             (includeCallOut ? ' checked' : '') +
             ' /> Add the call-out charge (' +
+            '\u20C3 ' +
             money(smallJob.callOutFee) +
-            ' AED, once per quote)</label>',
+            ', once per quote)</label>',
         );
       }
       bits.push(
         smallJob.minimumCharge > 0
           ? '<p class="form-note">Minimum quote total: <strong>' +
+              '\u20C3 ' +
               money(smallJob.minimumCharge) +
-              ' AED</strong>. If the quote comes to less, it is raised to this amount.</p>'
+              '</strong>. If the quote comes to less, it is raised to this amount.</p>'
           : '<p class="form-note">No minimum charge is set.</p>',
       );
       if (!smallJob.callOutFee && !smallJob.minimumCharge) {
@@ -16473,8 +16489,9 @@ ${bodyHtml}
         return qty >= 50
           ? 'This is a large quantity. Switch to <strong>Project</strong> to get the volume rates.'
           : 'Rate: <strong>' +
+              '\u20C3 ' +
               money(appliance.rates.Base) +
-              ' AED</strong> per unit (base rate; single-unit quotes have no volume tiers). Transport for the selected region is added.';
+              '</strong> per unit (base rate; single-unit quotes have no volume tiers). Transport for the selected region is added.';
       }
       const tier = thomsonCalcTier(qty);
       let html =
@@ -16482,8 +16499,9 @@ ${bodyHtml}
         qty +
         (qty === 1 ? ' unit' : ' units') +
         ' on this line: <strong>' +
+        '\u20C3 ' +
         money(thomsonCalcUnitRate(appliance, qty)) +
-        ' AED</strong> per unit (' +
+        '</strong> per unit (' +
         (tier === 'Base' ? 'base rate' : 'tier ' + tier) +
         ').';
       const next = [
@@ -16501,8 +16519,9 @@ ${bodyHtml}
           ' to reach the ' +
           next[1] +
           ' tier at ' +
+          '\u20C3 ' +
           money(appliance.rates[next[1]]) +
-          ' AED per unit.';
+          ' per unit.';
       }
       return html;
     }
@@ -16593,7 +16612,7 @@ ${bodyHtml}
           .join('') +
         '</tbody><tfoot><tr><td colspan="' +
         6 +
-        '"><strong>Total price (AED)</strong></td><td class="num"><strong>' +
+        '"><strong>Total price (\u20C3)</strong></td><td class="num"><strong>' +
         money(totalPrice) +
         '</strong></td></tr></tfoot></table></div>';
 
@@ -16677,7 +16696,7 @@ ${bodyHtml}
       const previewComputed = preview ? preview.computed : [];
       const totalPrice = previewComputed.reduce((sum, c) => sum + c.totalPrice, 0);
       const transport = previewComputed.reduce((sum, c) => sum + c.customerTransportCharge, 0);
-      const text = money(totalPrice) + ' <small>AED</small>';
+      const text = money(totalPrice) + ' <small>\u20C3</small>';
       if (totalHost.innerHTML !== text) {
         totalHost.innerHTML = text;
         totalHost.classList.remove('is-updating');
@@ -16693,8 +16712,9 @@ ${bodyHtml}
           '<span>Transport' +
           (draft ? ' &middot; ' + escapeHtml(draft.region) : '') +
           '</span><strong>' +
+          '\u20C3 ' +
           money(transport) +
-          ' AED</strong>';
+          '</strong>';
       } else {
         transportLineHost.innerHTML =
           '<span>Transport</span><strong class="tq-muted">Not charged to the customer</strong>';
@@ -16712,10 +16732,12 @@ ${bodyHtml}
         : '';
       const notes = [];
       if (preview && preview.callOut) {
-        notes.push('Includes a call-out charge of ' + money(preview.callOut) + ' AED.');
+        notes.push('Includes a call-out charge of ' + '\u20C3 ' + money(preview.callOut) + '.');
       }
       if (preview && preview.minTopUp) {
-        notes.push('Raised by ' + money(preview.minTopUp) + ' AED to meet the minimum charge.');
+        notes.push(
+          'Raised by ' + '\u20C3 ' + money(preview.minTopUp) + ' to meet the minimum charge.',
+        );
       }
       noteHost.textContent = notes.join(' ');
     }
@@ -16751,8 +16773,9 @@ ${bodyHtml}
         ' &middot; ' +
         escapeHtml(draft.region) +
         ' &middot; ' +
+        '\u20C3 ' +
         money(total) +
-        ' AED</span>' +
+        '</span>' +
         '<div class="tq-toast-actions">' +
         '<button type="button" class="button button-primary" data-tq-toast-add>Add to quote</button>' +
         '<button type="button" class="button button-outline" data-tq-toast-close>Dismiss</button>' +
@@ -16983,10 +17006,12 @@ ${bodyHtml}
               '</td><td>' +
               String((sale.lineItems || []).length) +
               '</td><td>' +
+              '\u20C3 ' +
               money(sale.totalPrice) +
-              ' AED</td><td>' +
+              '</td><td>' +
+              '\u20C3 ' +
               money(sale.margin) +
-              ' AED</td><td>' +
+              '</td><td>' +
               '<button type="button" class="button button-outline" data-tcc-reprint="' +
               escapeHtml(sale.id) +
               '">Print</button>' +
@@ -18185,7 +18210,7 @@ ${bodyHtml}
             ) +
             '</label><input id="diItemSearch" type="text" autocomplete="off" placeholder="Item code or description…" /></div>' +
             '<ul id="diItemResults" class="b2b-branch-results" hidden></ul>') +
-        '<div class="di-lines-wrap"><table class="di-lines"><thead><tr><th>#</th><th>Item</th><th>Group</th><th>Qty</th><th>Activity</th><th class="num">Net rate</th><th class="num">Revenue (AED)</th><th></th></tr></thead><tbody data-di-lines></tbody></table></div>' +
+        '<div class="di-lines-wrap"><table class="di-lines"><thead><tr><th>#</th><th>Item</th><th>Group</th><th>Qty</th><th>Activity</th><th class="num">Net rate</th><th class="num">Revenue (\u20C3)</th><th></th></tr></thead><tbody data-di-lines></tbody></table></div>' +
         '<span class="field-error" data-error-for="diItemSearch"></span>' +
         '</section>' +
         '<div class="di-price" data-di-price></div>' +
@@ -18346,7 +18371,7 @@ ${bodyHtml}
           fmt(t.CSIDO) +
           '</strong></span><span>Installation only <strong>' +
           fmt(t.CSIII) +
-          '</strong></span><span>Total (AED) <strong>' +
+          '</strong></span><span>Total (\u20C3) <strong>' +
           fmt(t.total) +
           '</strong></span></div>';
         const issues = [...source.issues, ...state.completionWarnings.map((w) => w)];
@@ -18765,7 +18790,7 @@ ${bodyHtml}
             state.completionWarnings = result.warnings || [];
             setMessage(
               '#workspaceMessage',
-              state.job.reference + ' completed: AED ' + fmt(state.job.totalRevenue) + '.',
+              state.job.reference + ' completed: \u20C3 ' + fmt(state.job.totalRevenue) + '.',
               true,
             );
             syncTabs();
@@ -18870,7 +18895,7 @@ ${bodyHtml}
             custCodePill(ex.excel.custCode) +
             '</p>'
           : '') +
-        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Type</th><th>Item</th><th class="num">Qty</th><th>How the workbook priced it</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Type</th><th>Item</th><th class="num">Qty</th><th>How the workbook priced it</th><th class="num">Revenue (\u20C3)</th></tr></thead><tbody>' +
         rows +
         '<tr><td></td><td><strong>Invoice total</strong></td><td></td><td></td><td class="num"><strong>' +
         fmt(ex.excel.total) +
@@ -18964,7 +18989,7 @@ ${bodyHtml}
       const totals = job.totals;
       return (
         head +
-        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>#</th><th>Item</th><th>Type</th><th class="num">Qty</th><th>Pricing category</th><th class="num">Base rate</th><th class="num">Discount</th><th class="num">Net rate</th><th class="num">Labour</th><th class="num">Transport</th><th class="num">Delivery only charge</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>#</th><th>Item</th><th>Type</th><th class="num">Qty</th><th>Pricing category</th><th class="num">Base rate</th><th class="num">Discount</th><th class="num">Net rate</th><th class="num">Labour</th><th class="num">Transport</th><th class="num">Delivery only charge</th><th class="num">Revenue (\u20C3)</th></tr></thead><tbody>' +
         rows +
         (totals
           ? '<tr><td></td><td><strong>Total</strong></td><td colspan="9">Delivery + Installation ' +
@@ -19065,7 +19090,7 @@ ${bodyHtml}
                 (r.date || '') +
                 ' · ' +
                 STATUS_SHORT[r.status] +
-                ' · AED ' +
+                ' · \u20C3 ' +
                 fmt(r.excel ? r.excel.total : r.portal ? r.portal.total : 0),
             ) +
             '</option>',
@@ -19224,7 +19249,7 @@ ${bodyHtml}
         const shown = data.rows.filter((r) => c.showMatched || r.status !== 'match');
         html +=
           '<p class="form-note">Click an Inv/Del No to see why it matches or differs in the worked example below.</p>' +
-          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Status</th><th>Inv/Del No</th><th>Customer</th><th>Date</th><th class="num">Excel (AED)</th><th class="num">Portal (AED)</th><th class="num">Difference</th><th>Portal job</th></tr></thead><tbody>' +
+          '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Status</th><th>Inv/Del No</th><th>Customer</th><th>Date</th><th class="num">Excel (\u20C3)</th><th class="num">Portal (\u20C3)</th><th class="num">Difference</th><th>Portal job</th></tr></thead><tbody>' +
           (shown.length
             ? shown
                 .map(
@@ -19358,7 +19383,7 @@ ${bodyHtml}
         escapeHtml(f.search) +
         '" /></div>' +
         '</div>' +
-        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Delivery note</th><th>Salesman</th><th>Channel</th><th>Status</th><th class="num">Lines</th><th class="num">Revenue (AED)</th><th></th></tr></thead><tbody>' +
+        '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Delivery note</th><th>Salesman</th><th>Channel</th><th>Status</th><th class="num">Lines</th><th class="num">Revenue (\u20C3)</th><th></th></tr></thead><tbody>' +
         (data.jobs.length
           ? data.jobs
               .map(
@@ -19655,7 +19680,7 @@ ${bodyHtml}
         cell('Service charge', money(t.serviceCharge)) +
         cell('Parts', money(t.partsCost)) +
         cell('Adjustment', money(t.adjustment)) +
-        cell('Billed (AED)', money(t.billedAmount), 'acc-kpi-main') +
+        cell('Billed (\u20C3)', money(t.billedAmount), 'acc-kpi-main') +
         cell('Internal billing', money(t.internalAmount || 0)) +
         cell('Invoiced in ERP', money(t.invoicedAmount)) +
         cell(
@@ -19674,7 +19699,7 @@ ${bodyHtml}
         plain(row.jobCardReference) +
         ' &middot; bill to ' +
         plain(row.billTo) +
-        ' &middot; AED ' +
+        ' &middot; \u20C3 ' +
         money(row.billedAmount) +
         '</h4><div class="field-grid">' +
         '<div class="field"><label>ERP invoice no.<input type="text" data-rec="invoiceNo" maxlength="120" value="' +
@@ -19803,7 +19828,7 @@ ${bodyHtml}
       return (
         recordPanel() +
         typeNote +
-        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (AED)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th><th></th>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th class="acc-sticky">Job card</th><th>Date</th><th>Type</th><th>Warranty</th><th>Bill to</th><th>Customer / branch</th><th>Sales order / salesman</th><th>Item code</th><th>Brand</th><th>Model / serial</th><th>Main / group / sub group</th><th class="num">Service</th><th class="num">Parts</th><th class="num">Adj.</th><th class="num">Billed (\u20C3)</th><th>ERP invoice</th><th>Payment</th><th>Stage</th><th>Job status</th><th></th>' +
         '</tr></thead><tbody>' +
         (body ||
           '<tr><td colspan="20" class="empty-state">No billed jobs match these filters.</td></tr>') +
@@ -19853,7 +19878,7 @@ ${bodyHtml}
           'One line per party that receives a bill: the sales channel (or the channel a billing rule redirects to), or the customer when the customer pays. Use these totals for the ERP billing run; open a party to see its jobs.',
         ) +
         '</div>' +
-        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (AED)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Bill to</th><th class="num">Jobs</th><th class="num">Warranty CSIJW</th><th class="num">Non-warranty CSIJO</th><th class="num">Billed (\u20C3)</th><th class="num">Invoiced in ERP</th><th class="num">Not yet invoiced</th><th class="num">Paid</th><th></th></tr></thead><tbody>' +
         (rows
           .map(
             (r) =>
@@ -19945,7 +19970,7 @@ ${bodyHtml}
           'Billed amount split by brand, main group and group (from the stock master on each job card) for ERP cost allocation. Jobs without an item code show as Unassigned.',
         ) +
         '</div>' +
-        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Brand</th><th>Main group</th><th>Group</th><th class="num">Jobs</th><th class="num">Service charge</th><th class="num">Parts</th><th class="num">Billed (AED)</th></tr></thead><tbody>' +
+        '<div class="table-wrap acc-wrap"><table class="acc-table"><thead><tr><th>Brand</th><th>Main group</th><th>Group</th><th class="num">Jobs</th><th class="num">Service charge</th><th class="num">Parts</th><th class="num">Billed (\u20C3)</th></tr></thead><tbody>' +
         (lines ||
           '<tr><td colspan="7" class="empty-state">Nothing to allocate for these filters.</td></tr>') +
         '</tbody><tfoot><tr class="acc-grand"><td colspan="3">Total</td><td class="num">' +
@@ -20231,7 +20256,7 @@ ${bodyHtml}
     };
     const canRecord = hasPermission('invoices.write');
     const aed = (value) =>
-      'AED ' +
+      '\u20C3 ' +
       (Number(value) || 0).toLocaleString('en-AE', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
@@ -22302,7 +22327,7 @@ ${bodyHtml}
       escapeHtml(formatDate(batch.uploadedAt)) +
       ' &middot; ' +
       rdMoney(batch.rowCount) +
-      ' rows &middot; AED ' +
+      ' rows &middot; \u20C3 ' +
       rdMoney(batch.totalAmount) +
       (hasPermission('revenue_dashboard.write') && batch.id
         ? ' &middot; <button class="button dl-pill" type="button" data-rd-dl="' +
@@ -22389,7 +22414,7 @@ ${bodyHtml}
 
   // Draws numbers on the chart: the stack total above stacked bars
   // (mode 'total') or the value above every bar (mode 'each'). Values read
-  // "AED 40,972"; dense charts switch to a compact "41.0k".
+  // "\u20C3 40,972"; dense charts switch to a compact "41.0k".
   const rdValueLabelPlugin = {
     id: 'rdValueLabels',
     afterDatasetsDraw(chart, _args, opts) {
@@ -22490,7 +22515,7 @@ ${bodyHtml}
     }
     Chart.defaults.color = rdCssVar('--muted', '#5e6d7e');
     Chart.defaults.borderColor = rdCssVar('--line', '#d9e2eb');
-    Chart.defaults.font.family = 'Inter, system-ui, sans-serif';
+    Chart.defaults.font.family = 'Dirham, Inter, system-ui, sans-serif';
     Chart.getChart(canvas)?.destroy();
     return new Chart(canvas, config);
   }
@@ -22510,7 +22535,7 @@ ${bodyHtml}
             item.color +
             '"></i>' +
             escapeHtml(item.label) +
-            (item.value !== undefined ? ' &mdash; AED ' + rdMoney(item.value) : '') +
+            (item.value !== undefined ? ' &mdash; \u20C3 ' + rdMoney(item.value) : '') +
             '</span>',
         )
         .join('') +
@@ -22546,7 +22571,7 @@ ${bodyHtml}
         plugins: {
           legend: { display: false },
           rdValueLabels: options.labels
-            ? { mode: 'total', prefix: metric === 'revenue' ? 'AED ' : '' }
+            ? { mode: 'total', prefix: metric === 'revenue' ? '\u20C3 ' : '' }
             : {},
           tooltip: {
             callbacks: {
@@ -22554,7 +22579,7 @@ ${bodyHtml}
                 ' ' +
                 c.dataset.label +
                 ': ' +
-                (metric === 'revenue' ? 'AED ' : '') +
+                (metric === 'revenue' ? '\u20C3 ' : '') +
                 rdMoney(c.raw) +
                 (metric === 'qty' ? ' units' : ''),
             },
@@ -22574,7 +22599,7 @@ ${bodyHtml}
             stacked: true,
             beginAtZero: true,
             grace: '8%',
-            title: { display: true, text: metric === 'revenue' ? 'Value (AED)' : 'Units' },
+            title: { display: true, text: metric === 'revenue' ? 'Value (\u20C3)' : 'Units' },
             ticks: { callback: (v) => rdMoney(v) },
           },
         },
@@ -22607,20 +22632,20 @@ ${bodyHtml}
           legend: { display: false },
           rdBarEndLabels: {
             enabled: true,
-            prefix: options.prefix ?? 'AED ',
+            prefix: options.prefix ?? '\u20C3 ',
             suffix: options.suffix || '',
           },
           tooltip: {
             callbacks: {
               label: (c) =>
-                ' ' + (options.prefix ?? 'AED ') + rdMoney(c.raw) + (options.suffix || ''),
+                ' ' + (options.prefix ?? '\u20C3 ') + rdMoney(c.raw) + (options.suffix || ''),
             },
           },
         },
         scales: {
           x: {
             beginAtZero: true,
-            title: { display: true, text: options.axisTitle || 'Value (AED)' },
+            title: { display: true, text: options.axisTitle || 'Value (\u20C3)' },
             ticks: { callback: (v) => rdMoney(v) },
           },
           y: {
@@ -22659,7 +22684,7 @@ ${bodyHtml}
         plugins: {
           legend: { position: 'bottom', labels: { boxWidth: 9, padding: 14, font: { size: 11 } } },
           rdDonutLabels: { enabled: true },
-          tooltip: { callbacks: { label: (c) => ' ' + c.label + ': AED ' + rdMoney(c.raw) } },
+          tooltip: { callbacks: { label: (c) => ' ' + c.label + ': \u20C3 ' + rdMoney(c.raw) } },
         },
       },
     };
@@ -22710,7 +22735,7 @@ ${bodyHtml}
     return (
       '<div class="table-wrap"><table class="rc-table"><thead><tr><th>' +
       escapeHtml(options.title || RD_DIM_NAMES[dimension] || 'Item') +
-      '</th><th class="num">Jobs</th><th class="num">Qty</th><th class="num">Revenue (AED)</th><th class="num">Share</th><th class="num">Avg / job</th>' +
+      '</th><th class="num">Jobs</th><th class="num">Qty</th><th class="num">Revenue (\u20C3)</th><th class="num">Share</th><th class="num">Avg / job</th>' +
       (options.drill ? '<th></th>' : '') +
       '</tr></thead><tbody>' +
       group.rows
@@ -22914,7 +22939,7 @@ ${bodyHtml}
             (r.refDocNo
               ? '<div><strong>Ref doc no</strong> ' + refDocPill(r.refDocNo) + '</div>'
               : '') +
-            '<div><strong>Original job value</strong> AED ' +
+            '<div><strong>Original job value</strong> \u20C3 ' +
             rdMoney2(r.originalJobValue) +
             '</div><div><strong>Workbook row</strong> ' +
             escapeHtml(r.sourceRow ?? '-') +
@@ -23091,12 +23116,12 @@ ${bodyHtml}
       const topType = types[0];
       body.innerHTML =
         rdKpis([
-          ['Total revenue', 'AED ' + rdMoney(t.revenue), periodLabel()],
+          ['Total revenue', '\u20C3 ' + rdMoney(t.revenue), periodLabel()],
           ['Jobs billed', rdMoney(t.jobs), 'Revenue lines in the workbook'],
           ['Units / qty', rdMoney(t.qty), 'Billing quantity'],
           [
             'Avg revenue / job',
-            'AED ' + rdMoney(t.jobs ? t.revenue / t.jobs : 0),
+            '\u20C3 ' + rdMoney(t.jobs ? t.revenue / t.jobs : 0),
             'Across all job types',
           ],
           [
@@ -23106,7 +23131,7 @@ ${bodyHtml}
           ],
         ]) +
         rdSection(
-          'Monthly revenue by job type (value in AED)',
+          'Monthly revenue by job type (value in \u20C3)',
           '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-monthly"></canvas></div>' +
             rdLegend(
               types.map((r, i) => ({
@@ -23125,7 +23150,7 @@ ${bodyHtml}
         ) +
         '</div>' +
         rdSection(
-          'Weekly revenue trend (AED per week, stacked by job type)',
+          'Weekly revenue trend (\u20C3 per week, stacked by job type)',
           '<div class="rd-chart-box"><canvas id="rdc-weekly"></canvas></div>',
         ) +
         '<div class="rd-two-col">' +
@@ -23144,7 +23169,7 @@ ${bodyHtml}
         ) +
         rdSection(
           'Job type breakdown',
-          '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Job type</th><th class="num">Rate (AED)</th><th class="num">Qty</th><th class="num">Jobs</th><th class="num">Revenue (AED)</th></tr></thead><tbody>' +
+          '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Job type</th><th class="num">Rate (\u20C3)</th><th class="num">Qty</th><th class="num">Jobs</th><th class="num">Revenue (\u20C3)</th></tr></thead><tbody>' +
             types
               .map(
                 (r, i) =>
@@ -23273,11 +23298,11 @@ ${bodyHtml}
           rdMoney(counts.reduce((a, b) => a + b, 0)) + ' total jobs',
         ) +
         rdKpis([
-          ['Revenue', 'AED ' + rdMoney(t.revenue), periodLabel()],
+          ['Revenue', '\u20C3 ' + rdMoney(t.revenue), periodLabel()],
           ['Jobs', rdMoney(t.jobs), 'Revenue lines'],
           [
             'Avg revenue / job',
-            'AED ' + rdMoney(t.jobs ? t.revenue / t.jobs : 0),
+            '\u20C3 ' + rdMoney(t.jobs ? t.revenue / t.jobs : 0),
             'Selected period',
           ],
         ]) +
@@ -23297,7 +23322,7 @@ ${bodyHtml}
                   escapeHtml(r.key.length > 40 ? r.key.slice(0, 40) + '…' : r.key) +
                   '<div class="rd-mix-track"><div class="rd-mix-fill" style="width:' +
                   ((r.revenue / maxCust) * 100).toFixed(1) +
-                  '%;background:#4E7FF2"></div></div></td><td class="num">AED ' +
+                  '%;background:#4E7FF2"></div></div></td><td class="num">\u20C3 ' +
                   rdMoney(r.revenue) +
                   '</td></tr>',
               )
@@ -23499,7 +23524,7 @@ ${bodyHtml}
           rdJobsTable(lines.lines || []) +
           rdPager(lines.pagination);
         content = rdSection(
-          'Jobs &mdash; revenue AED ' + rdMoney(lines.revenue),
+          'Jobs &mdash; revenue \u20C3 ' + rdMoney(lines.revenue),
           content,
           rdMoney(lines.pagination.total) + ' jobs',
         );
@@ -23513,7 +23538,7 @@ ${bodyHtml}
         content =
           rdSection(
             escapeHtml(RD_DIM_NAMES[drill.groupBy]) +
-              ' &mdash; AED ' +
+              ' &mdash; \u20C3 ' +
               rdMoney(data.totals.revenue),
             '<div class="rd-chart-pad"><div class="rd-chart-box' +
               (timeDim ? '' : ' tall') +
@@ -23548,15 +23573,15 @@ ${bodyHtml}
                   layout: { padding: { top: 24 } },
                   plugins: {
                     legend: { display: false },
-                    rdValueLabels: { mode: 'each', prefix: 'AED ' },
-                    tooltip: { callbacks: { label: (c) => ' AED ' + rdMoney(c.raw) } },
+                    rdValueLabels: { mode: 'each', prefix: '\u20C3 ' },
+                    tooltip: { callbacks: { label: (c) => ' \u20C3 ' + rdMoney(c.raw) } },
                   },
                   scales: {
                     x: { grid: { display: false } },
                     y: {
                       beginAtZero: true,
                       grace: '10%',
-                      title: { display: true, text: 'Value (AED)' },
+                      title: { display: true, text: 'Value (\u20C3)' },
                       ticks: { callback: (v) => rdMoney(v) },
                     },
                   },
@@ -23706,11 +23731,11 @@ ${bodyHtml}
       ).data;
       reportBody.innerHTML =
         rdSection(
-          'Monthly revenue by job type (value in AED)',
+          'Monthly revenue by job type (value in \u20C3)',
           '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-r-monthly"></canvas></div></div>',
         ) +
         rdSection(
-          'Monthly management report &mdash; revenue (AED) with change vs prior month',
+          'Monthly management report &mdash; revenue (\u20C3) with change vs prior month',
           rdMatrixTable(m, 'period', 'revenue', { title: 'Month', change: true, drill: true }) +
             '<div class="card-help rd-pad"><span>About this view</span>' +
             tipHtml('Click a month to drill into its job types, customers and jobs.') +
@@ -23734,11 +23759,11 @@ ${bodyHtml}
       ).data;
       reportBody.innerHTML =
         rdSection(
-          'Weekly revenue by job type (AED per week)',
+          'Weekly revenue by job type (\u20C3 per week)',
           '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-r-weekly"></canvas></div></div>',
         ) +
         rdSection(
-          'Weekly management report &mdash; revenue (AED) with change vs prior week',
+          'Weekly management report &mdash; revenue (\u20C3) with change vs prior week',
           rdMatrixTable(m, 'yearWeek', 'revenue', { title: 'Week', change: true, drill: true }),
         );
       bindJump(reportBody, 'yearWeek', 'jobType');
@@ -23865,7 +23890,7 @@ ${bodyHtml}
               pointRadius: 3,
             },
             {
-              label: 'Revenue (AED)',
+              label: 'Revenue (\u20C3)',
               data: top.map((r) => r.revenue),
               backgroundColor: '#4E7FF2',
               borderRadius: 4,
@@ -23885,7 +23910,7 @@ ${bodyHtml}
                 label: (c) =>
                   c.dataset.yAxisID === 'y1'
                     ? ' ' + c.raw.toFixed(1) + '% cumulative'
-                    : ' AED ' + rdMoney(c.raw),
+                    : ' \u20C3 ' + rdMoney(c.raw),
               },
             },
           },
@@ -23893,7 +23918,7 @@ ${bodyHtml}
             x: { grid: { display: false }, ticks: { maxRotation: 60, minRotation: 40 } },
             y: {
               beginAtZero: true,
-              title: { display: true, text: 'Value (AED)' },
+              title: { display: true, text: 'Value (\u20C3)' },
               ticks: { callback: (v) => rdMoney(v) },
             },
             y1: {
@@ -23967,7 +23992,7 @@ ${bodyHtml}
               'Jobs in the selected period that finance should review before the revenue is relied on. Click a check to see the individual jobs.',
             ) +
             '</div>' +
-            '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Check</th><th class="num">Jobs</th><th class="num">Revenue at stake (AED)</th><th class="num">% of revenue</th><th>What it means</th><th></th></tr></thead><tbody>' +
+            '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Check</th><th class="num">Jobs</th><th class="num">Revenue at stake (\u20C3)</th><th class="num">% of revenue</th><th>What it means</th><th></th></tr></thead><tbody>' +
             rows
               .map(
                 (r) =>
@@ -24030,7 +24055,7 @@ ${bodyHtml}
       let basis = '';
       if (d && d.logicVersion === 3) {
         const z = d.zeroRevenue;
-        const flat = 'AED ' + rdMoney(d.csidoFlat);
+        const flat = '\u20C3 ' + rdMoney(d.csidoFlat);
         notes.zeroRevenue =
           'Whole upload: ' +
           rdMoney(z.explainedLines) +
@@ -24038,14 +24063,14 @@ ${bodyHtml}
           rdMoney(z.lines) +
           ' zero-revenue jobs are extra delivery-only lines on invoices that already carry the one flat ' +
           flat +
-          ' delivery charge, so they show AED 0 by design and no revenue is lost.' +
+          ' delivery charge, so they show \u20C3 0 by design and no revenue is lost.' +
           (z.otherLines
-            ? ' ' + rdMoney(z.otherLines) + ' show AED 0 for another reason and need review.'
+            ? ' ' + rdMoney(z.otherLines) + ' show \u20C3 0 for another reason and need review.'
             : '');
         basis =
           'Delivery + installation and installation-only lines are priced as quantity x net rate (base rate less volume discount, never below the minimum rate). Transport is added once per multi-unit installation invoice. Each delivery-only invoice carries one flat ' +
           flat +
-          ' charge on its first line; its other lines show AED 0' +
+          ' charge on its first line; its other lines show \u20C3 0' +
           (d.csidoMixedRegional
             ? ' (on an invoice that also has a delivery + installation line, that charge is the regional transport rate instead)'
             : '') +
@@ -24076,13 +24101,13 @@ ${bodyHtml}
           formatDate(sum.batch.uploadedAt) +
           ')',
         '',
-        'Revenue: AED ' +
+        'Revenue: \u20C3 ' +
           rdMoney(t.revenue) +
           ' | Jobs: ' +
           rdMoney(t.jobs) +
           ' | Units: ' +
           rdMoney(t.qty) +
-          ' | Avg per job: AED ' +
+          ' | Avg per job: \u20C3 ' +
           rdMoney(t.jobs ? t.revenue / t.jobs : 0),
       ];
       if (last && prev && prev.revenue) {
@@ -24090,7 +24115,7 @@ ${bodyHtml}
         lines.push(
           'Latest month (' +
             rdLabel('period', last.key) +
-            '): AED ' +
+            '): \u20C3 ' +
             rdMoney(last.revenue) +
             ' (' +
             (change > 0 ? '+' : '') +
@@ -24105,7 +24130,7 @@ ${bodyHtml}
         lines.push(
           '  - ' +
             rdLabel('jobType', r.key) +
-            ': AED ' +
+            ': \u20C3 ' +
             rdMoney(r.revenue) +
             ' (' +
             rdPercent(r.revenue, t.revenue) +
@@ -24119,7 +24144,7 @@ ${bodyHtml}
         lines.push(
           '  - ' +
             r.key +
-            ': AED ' +
+            ': \u20C3 ' +
             rdMoney(r.revenue) +
             ' (' +
             rdPercent(r.revenue, t.revenue) +
@@ -24135,7 +24160,7 @@ ${bodyHtml}
               (i + 1) +
               '. ' +
               r.key +
-              ': AED ' +
+              ': \u20C3 ' +
               rdMoney(r.revenue) +
               ' (' +
               rdPercent(r.revenue, t.revenue) +
@@ -24147,7 +24172,7 @@ ${bodyHtml}
       if (open.length)
         open.forEach((e) => {
           lines.push(
-            '  - ' + e.label + ': ' + rdMoney(e.jobs) + ' jobs, AED ' + rdMoney(e.revenue),
+            '  - ' + e.label + ': ' + rdMoney(e.jobs) + ' jobs, \u20C3 ' + rdMoney(e.revenue),
           );
           if (logicNotes.notes[e.key]) lines.push('      ' + logicNotes.notes[e.key]);
         });
@@ -24194,7 +24219,7 @@ ${bodyHtml}
       const LINE = '#e4e7ec';
       const GREEN = '#15803d';
       const RED = '#b42318';
-      const font = "font-family:'Segoe UI',Calibri,Arial,Helvetica,sans-serif;";
+      const font = "font-family:Dirham,'Segoe UI',Calibri,Arial,Helvetica,sans-serif;";
       const e = escapeHtml;
       const total = d.t.revenue || 0;
       const last = d.periods[d.periods.length - 1];
@@ -24552,7 +24577,7 @@ ${bodyHtml}
         ];
         lpoHtml =
           '<div class="rd-lpo" title="Quotations that are Pending or Approved and have no job card yet, by quotation date (excl. VAT). Shown for visibility; it is not counted in revenue.">' +
-          '<div class="rd-lpo-head"><span>LPO pending</span><strong>AED ' +
+          '<div class="rd-lpo-head"><span>LPO pending</span><strong>\u20C3 ' +
           rdMoney(lpo.total) +
           '</strong></div><div class="rd-lpo-sub">' +
           (lpo.count
@@ -24579,8 +24604,13 @@ ${bodyHtml}
         rdKpis([
           ['Filtered jobs', rdMoney(t.jobs), periodLabel()],
           ['Total quantity', rdMoney(t.qty), 'Units across filtered rows'],
-          ['Total revenue', 'AED ' + rdMoney(t.revenue), 'Revenue across filtered rows', lpoHtml],
-          ['Monthly average', 'AED ' + rdMoney(monthlyAvg), 'Per month with data in the period'],
+          [
+            'Total revenue',
+            '\u20C3 ' + rdMoney(t.revenue),
+            'Revenue across filtered rows',
+            lpoHtml,
+          ],
+          ['Monthly average', '\u20C3 ' + rdMoney(monthlyAvg), 'Per month with data in the period'],
         ]) +
         '<div class="rc-section"><div class="rd-report-actions">' +
         '<div class="rd-view-pills">' +
@@ -24764,7 +24794,7 @@ ${bodyHtml}
         return;
       }
       const v3 = d.logicVersion === 3;
-      const aed = (n) => 'AED ' + rdMoney2(n).replace(/\.00$/, '');
+      const aed = (n) => '\u20C3 ' + rdMoney2(n).replace(/\.00$/, '');
       const e = escapeHtml;
       const M = d.master;
       const steps = [
@@ -24832,7 +24862,7 @@ ${bodyHtml}
         e((ex.customer || '') + (ex.date ? ' · ' + ex.date : '')) +
         '</span></div>' +
         table(
-          ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (AED)'],
+          ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (\u20C3)'],
           ex.lines
             .map((l) => ({
               cls: l.revenue === 0 ? 'rl-row-zero' : '',
@@ -24908,13 +24938,13 @@ ${bodyHtml}
         (v3
           ? 'A delivery-only invoice often has one line for each product delivered. The customer is charged <b>one delivery fee for the invoice</b>, not one per product. So the first delivery-only line carries the flat ' +
             aed(d.csidoFlat) +
-            ' and the other lines of that invoice show AED 0. They are not missed revenue.'
-          : 'Some lines show AED 0 because of how the workbook prices them (for example zero-cost RWR repairs).') +
+            ' and the other lines of that invoice show \u20C3 0. They are not missed revenue.'
+          : 'Some lines show \u20C3 0 because of how the workbook prices them (for example zero-cost RWR repairs).') +
         '<br><br><b>' +
         rdMoney(z.lines) +
         '</b> of the ' +
         rdMoney(d.totals.lines) +
-        ' jobs show AED 0. ' +
+        ' jobs show \u20C3 0. ' +
         (v3
           ? '<b>' +
             rdMoney(z.explainedLines) +
@@ -24924,11 +24954,11 @@ ${bodyHtml}
             (z.otherLines
               ? '<b>' +
                 rdMoney(z.otherLines) +
-                '</b> show AED 0 for another reason and need a look.'
-              : 'No job shows AED 0 for any other reason.')
+                '</b> show \u20C3 0 for another reason and need a look.'
+              : 'No job shows \u20C3 0 for any other reason.')
           : '');
       const zeroTitle =
-        'Why some jobs show AED 0 ' +
+        'Why some jobs show \u20C3 0 ' +
         tipHtml(zeroExplain, '', 'style="max-width:380px;width:380px"').replace(
           'class="tooltip"',
           'class="tooltip tooltip-below"',
@@ -24938,7 +24968,7 @@ ${bodyHtml}
         (v3 && z.otherLines
           ? '<p class="rl-zero-warn"><b>' +
             rdMoney(z.otherLines) +
-            '</b> jobs show AED 0 for a reason other than extra delivery lines.</p>'
+            '</b> jobs show \u20C3 0 for a reason other than extra delivery lines.</p>'
           : '') +
         '<button type="button" class="button button-outline" data-rl-zero-jobs>See the zero-revenue jobs</button></div>' +
         '<div class="rl-zero-bars"><div class="rl-bars-title">Zero-revenue jobs by month</div>' +
@@ -24962,13 +24992,13 @@ ${bodyHtml}
         rdSection(
           'Job-type rates',
           table(
-            ['Job type', 'Meaning', 'AED incl. VAT'],
+            ['Job type', 'Meaning', '\u20C3 incl. VAT'],
             M.jobRates.map((r) => ({
               cells: [e(r.label), e(r.description), rdMoney2(r.price)],
             })),
             [2],
           ),
-          'AED per job, incl. VAT ' +
+          '\u20C3 per job, incl. VAT ' +
             tipHtml(
               'All prices include VAT. Delivery + installation, installation-only and the flat charges are gross amounts (VAT output / input is handled by Accounts outside this calculation). Rates are read from Pricing Masters &rsaquo; D+I Admin Entry.',
             ),
@@ -25002,7 +25032,7 @@ ${bodyHtml}
             })),
             [1, 2, 3],
           ),
-          'AED per unit, incl. VAT',
+          '\u20C3 per unit, incl. VAT',
         ) +
         rdSection(
           'Installation-only rate card (CSIII)',
@@ -25018,14 +25048,14 @@ ${bodyHtml}
             })),
             [1, 2, 3],
           ),
-          'AED per unit, incl. VAT',
+          '\u20C3 per unit, incl. VAT',
         ) +
         '</div>' +
         (v3
           ? rdSection(
               'Once-per-invoice charges',
               table(
-                ['Charge', 'Applies to', 'AED incl. VAT'],
+                ['Charge', 'Applies to', '\u20C3 incl. VAT'],
                 M.transport
                   .map((t) => ({
                     cells: [
@@ -25073,7 +25103,7 @@ ${bodyHtml}
               '</p>' +
               (rec.causes.length
                 ? table(
-                    ['What differs', 'Lines', 'Workbook minus rules (AED)', 'In plain words'],
+                    ['What differs', 'Lines', 'Workbook minus rules (\u20C3)', 'In plain words'],
                     rec.causes.map((c) => ({
                       cells: [
                         e(c.cause),
@@ -25108,7 +25138,7 @@ ${bodyHtml}
           ['Jobs', rdMoney(d.totals.lines), 'Every revenue line'],
           ['Invoices', rdMoney(d.totals.invoices), 'Distinct invoice numbers'],
           [
-            'Jobs showing AED 0',
+            'Jobs showing \u20C3 0',
             rdMoney(z.lines),
             v3 ? rdMoney(z.explainedLines) + ' are covered by a flat charge' : 'See below',
           ],
@@ -25214,7 +25244,7 @@ ${bodyHtml}
                         (i.date || '') +
                         ' · ' +
                         i.jobTypes.join('/') +
-                        ' · AED ' +
+                        ' · \u20C3 ' +
                         rdMoney2(i.revenue),
                     ) +
                     '</option>',
@@ -25416,20 +25446,20 @@ ${bodyHtml}
         versionOptions +
         '</select></label></div>' +
         rdKpis([
-          ['Full-year budget (ex-VAT)', 'AED ' + rdMoney(tot.fy), data.version.name],
+          ['Full-year budget (ex-VAT)', '\u20C3 ' + rdMoney(tot.fy), data.version.name],
           [
             'Budget, closed months',
-            'AED ' + rdMoney(tot.budget),
+            '\u20C3 ' + rdMoney(tot.budget),
             closedCount + ' of 12 months closed',
           ],
           [
             'Actual, closed months',
-            'AED ' + rdMoney(tot.actual),
+            '\u20C3 ' + rdMoney(tot.actual),
             'Workbook upload + portal records',
           ],
           [
             'Variance',
-            'AED ' + rdMoney(tot.actual - tot.budget),
+            '\u20C3 ' + rdMoney(tot.actual - tot.budget),
             tot.actual < tot.budget ? 'Behind budget' : 'Ahead of budget',
           ],
           ['Achievement', rdPercent(tot.actual, tot.budget), 'Closed months only'],
@@ -25491,7 +25521,9 @@ ${bodyHtml}
       if (data.unmapped.length) {
         html +=
           '<p class="form-note rd-banner rd-banner-empty">Not in any stream (add a mapping): ' +
-          data.unmapped.map((u) => escapeHtml(u.source) + ' AED ' + rdMoney(u.revenue)).join(', ') +
+          data.unmapped
+            .map((u) => escapeHtml(u.source) + ' \u20C3 ' + rdMoney(u.revenue))
+            .join(', ') +
           '</p>';
       }
       if (!data.revenueBatch) {
@@ -25615,7 +25647,7 @@ ${bodyHtml}
       html +=
         '<p class="form-note rd-banner rd-banner-empty">Job types in the uploaded workbook with no mapping: ' +
         cfg.unmappedJobTypes
-          .map((u) => escapeHtml(u.jobType) + ' (AED ' + rdMoney(u.revenue) + ')')
+          .map((u) => escapeHtml(u.jobType) + ' (\u20C3 ' + rdMoney(u.revenue) + ')')
           .join(', ') +
         '</p>';
     }
@@ -25826,7 +25858,7 @@ ${bodyHtml}
       (v.status === 'draft'
         ? ''
         : '<p class="form-note">Approved and archived budgets are locked. To change numbers, create a revised version copied from this one.</p>') +
-      '<div class="table-wrap"><table id="bvStreamBudget"><thead><tr><th>Stream</th><th>Annual revenue (AED)</th><th>Annual volume</th><th>VAT-inclusive</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table id="bvStreamBudget"><thead><tr><th>Stream</th><th>Annual revenue (\u20C3)</th><th>Annual volume</th><th>VAT-inclusive</th></tr></thead><tbody>' +
       cfg.streams
         .filter((s) => s.isActive)
         .map((s) => {
@@ -25983,12 +26015,20 @@ ${bodyHtml}
     const varClass = (v) => (v < 0 ? ' rd-neg' : ' rd-pos');
 
     const tiles = rdKpis([
-      ['Budget revenue, full year', 'AED ' + rdMoney(fyBudget), 'From the Service Budget workbook'],
-      ['Budget to date', 'AED ' + rdMoney(ytdBudget), 'Months with actual revenue'],
-      ['Actual revenue to date', 'AED ' + rdMoney(ytdActual), 'From the uploaded revenue workbook'],
+      [
+        'Budget revenue, full year',
+        '\u20C3 ' + rdMoney(fyBudget),
+        'From the Service Budget workbook',
+      ],
+      ['Budget to date', '\u20C3 ' + rdMoney(ytdBudget), 'Months with actual revenue'],
+      [
+        'Actual revenue to date',
+        '\u20C3 ' + rdMoney(ytdActual),
+        'From the uploaded revenue workbook',
+      ],
       [
         'Variance to date',
-        'AED ' + rdMoney(ytdActual - ytdBudget),
+        '\u20C3 ' + rdMoney(ytdActual - ytdBudget),
         ytdActual - ytdBudget < 0 ? 'Behind budget' : 'Ahead of budget',
       ],
       ['Achievement', rdPercent(ytdActual, ytdBudget), 'Actual vs budget to date'],
@@ -26016,7 +26056,7 @@ ${bodyHtml}
       const pct = budget ? (v / budget) * 100 : null;
       return (
         '<td class="rd-bm-var"><div class="rd-var-stack">' +
-        pill(v, arrow + ' AED ' + rdMoney(Math.abs(v))) +
+        pill(v, arrow + ' \u20C3 ' + rdMoney(Math.abs(v))) +
         '<span class="rd-var-caption">' +
         caption +
         '</span></div></td>' +
@@ -26035,10 +26075,10 @@ ${bodyHtml}
           (reported ? '' : ' class="rd-bm-future"') +
           '><td class="rd-bm-period">' +
           monthName(p) +
-          '</td><td class="rd-bm-num">AED ' +
+          '</td><td class="rd-bm-num">\u20C3 ' +
           rdMoney(budget) +
           '</td><td class="rd-bm-num">' +
-          (reported ? 'AED ' + rdMoney(actual) : '&mdash;') +
+          (reported ? '\u20C3 ' + rdMoney(actual) : '&mdash;') +
           '</td>' +
           varianceCells(budget, actual, reported) +
           '<td class="rd-bm-num">' +
@@ -26053,9 +26093,9 @@ ${bodyHtml}
     const compare =
       '<div class="table-wrap"><table class="rd-bm-table"><thead><tr><th>Period</th><th>Budget revenue</th><th>Actual revenue</th><th>Variance</th><th>Variance %</th><th>Budget qty</th><th>Actual qty</th></tr></thead><tbody>' +
       monthRows +
-      '</tbody><tfoot><tr><td class="rd-bm-period">Total</td><td class="rd-bm-num">AED ' +
+      '</tbody><tfoot><tr><td class="rd-bm-period">Total</td><td class="rd-bm-num">\u20C3 ' +
       rdMoney(fyBudget) +
-      '<span class="rd-var-caption">Full year</span></td><td class="rd-bm-num">AED ' +
+      '<span class="rd-var-caption">Full year</span></td><td class="rd-bm-num">\u20C3 ' +
       rdMoney(ytdActual) +
       '<span class="rd-var-caption">To date</span></td>' +
       varianceCells(ytdBudget, ytdActual, actualPeriods.length > 0).replace(
@@ -26096,7 +26136,7 @@ ${bodyHtml}
     rest.innerHTML =
       tiles +
       rdSection(
-        'Monthly revenue: budget vs actual (value in AED)',
+        'Monthly revenue: budget vs actual (value in \u20C3)',
         '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-budget"></canvas></div></div>',
       ) +
       rdSection(
@@ -26159,14 +26199,14 @@ ${bodyHtml}
                 if (c.datasetIndex === 2) {
                   const lpo = lpoByPeriod[periods[c.dataIndex]];
                   return (
-                    ' LPO pending: AED ' +
+                    ' LPO pending: \u20C3 ' +
                     rdMoney(c.raw) +
                     (lpo
                       ? ' (' + lpo.count + ' quotation' + (lpo.count === 1 ? '' : 's') + ')'
                       : '')
                   );
                 }
-                return ' ' + c.dataset.label + ': AED ' + rdMoney(c.raw);
+                return ' ' + c.dataset.label + ': \u20C3 ' + rdMoney(c.raw);
               },
               afterBody: (items) =>
                 items.some((i) => i.datasetIndex === 2)
@@ -26181,7 +26221,7 @@ ${bodyHtml}
             stacked: true,
             beginAtZero: true,
             grace: '10%',
-            title: { display: true, text: 'Value (AED)' },
+            title: { display: true, text: 'Value (\u20C3)' },
             ticks: { callback: (v) => rdMoney(v) },
           },
         },
@@ -26193,7 +26233,7 @@ ${bodyHtml}
   // Click a column heading to sort the rows on screen (again to reverse). A table is sortable
   // when every body row has one cell per heading and holds no inputs, so list and report tables
   // sort while forms, editors and expandable-row tables are left alone. Dates (2026-09-29,
-  // 29 Sep 2026, 29/09/2026), numbers (1,234.50, AED 12, 5%) and text each sort the right way.
+  // 29 Sep 2026, 29/09/2026), numbers (1,234.50, \u20C3 12, 5%) and text each sort the right way.
   const SORT_MONTHS = {
     jan: 0,
     feb: 1,
@@ -26238,7 +26278,7 @@ ${bodyHtml}
         raw,
       };
     }
-    const num = /^[^\d-]{0,5}(-?[\d,]*\.?\d+)\s*(?:%|k|AED)?$/i.exec(
+    const num = /^[^\d-]{0,5}(-?[\d,]*\.?\d+)\s*(?:%|k|\u20C3)?$/i.exec(
       raw.replace(/\(([\d,.]+)\)/, '-$1'),
     );
     if (num) return { type: 'number', n: Number(num[1].replace(/,/g, '')), raw };

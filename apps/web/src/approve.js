@@ -80,7 +80,7 @@
       ['Item', approval.itemDescription],
       ['Warranty status', approval.warrantyStatus],
       [
-        'Estimated cost (AED)',
+        'Estimated cost (\u20C3)',
         approval.estimatedCost != null ? money(approval.estimatedCost) : null,
       ],
       ['Customer', approval.customerName],

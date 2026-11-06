@@ -130,13 +130,13 @@ test.describe('AMC Admin Rates (New)', () => {
     await signIn(page, amcPricingV2Default);
     await page.locator('#amcAdminV2Nav').dispatchEvent('click');
     const live = page.locator('.pc-live-result');
-    await expect(live).toContainText('AED 31.73');
-    await expect(live).toContainText('AED 253.85');
-    await expect(live).toContainText('Premium: 2 visit(s) = AED 63.46');
+    await expect(live).toContainText('\u20C3 31.73');
+    await expect(live).toContainText('\u20C3 253.85');
+    await expect(live).toContainText('Premium: 2 visit(s) = \u20C3 63.46');
     // Fewer appliances per visit makes the planned visit dearer per appliance.
     await page.locator('[data-pc-path="labour.handledPerVisit"]').fill('4');
-    await expect(live).toContainText('AED 63.46');
-    await expect(live).toContainText('Premium: 2 visit(s) = AED 126.92');
+    await expect(live).toContainText('\u20C3 63.46');
+    await expect(live).toContainText('Premium: 2 visit(s) = \u20C3 126.92');
 
     // How it works (temporary) tab.
     await page.locator('[data-amcv2-tab="help"]').click();

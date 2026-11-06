@@ -1153,7 +1153,7 @@ test.describe('service job-card attachments', () => {
     await popup.waitForLoadState('load').catch(() => {});
     await expect.poll(() => popup.content()).toContain('JBC-2026-00001');
     // The internal copy carries the amounts and the JDI logo.
-    await expect.poll(() => popup.content()).toContain('Grand total (AED)');
+    await expect.poll(() => popup.content()).toContain('Grand total (\u20C3)');
     await expect.poll(() => popup.content()).toContain('class="logo"');
   });
 });

@@ -127,12 +127,12 @@ test('old-model helper reproduces the original calculator (1,595 appliances at 8
 
 test('call-out wording follows the admin settings and Standard covers minor parts', () => {
   const terms = core.callOutTerms(cfg);
-  assert.match(terms.basic, /AED 87\.50 per call \(normal rate AED 125\.00\)/);
+  assert.match(terms.basic, /\u20C3 87\.50 per call \(normal rate \u20C3 125\.00\)/);
   assert.match(terms.basic, /All spare parts are extra/);
   assert.match(terms.standard, /minor parts \(filters, belts, seals\) are included/);
   assert.match(terms.standard, /Major spare parts are extra/);
   assert.match(terms.premium, /except the compressor/);
-  for (const text of Object.values(terms)) assert.match(text, /AED 80\.00 handling charge/);
+  for (const text of Object.values(terms)) assert.match(text, /\u20C3 80\.00 handling charge/);
 });
 
 test('planned-visit breakdown shows every step and follows the labour inputs', () => {

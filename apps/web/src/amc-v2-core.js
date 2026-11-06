@@ -292,12 +292,14 @@
     var normal = num(co.labourCharge);
     var basic = normal * (1 - num(co.basicDiscountPct));
     var handling =
-      'AED ' + money2(co.handlingCharge) + ' handling charge if the appliance cannot be repaired.';
+      '\u20C3 ' +
+      money2(co.handlingCharge) +
+      ' handling charge if the appliance cannot be repaired.';
     return {
       basic:
-        'Call-out labour AED ' +
+        'Call-out labour \u20C3 ' +
         money2(basic) +
-        ' per call (normal rate AED ' +
+        ' per call (normal rate \u20C3 ' +
         money2(normal) +
         '). All spare parts are extra. ' +
         handling,
