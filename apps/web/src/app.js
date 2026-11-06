@@ -3929,12 +3929,13 @@ ${bodyHtml}
       ${planDetails}
       <h2>General Terms and Conditions</h2>
       <ul style="font-size:11.5px;margin:0 0 0 18px;padding:0;">
-        ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:4px;">${escapeHtml(term)}</li>`).join('')}
+        ${AMC_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:3px;">${escapeHtml(term)}</li>`).join('')}
       </ul>
       <h2>Payment terms</h2>
       <p style="font-size:12px;">${escapeHtml(AMC_V2_PAYMENT_TERMS)}</p>
       <h2>Quotation validity</h2>
       <p style="font-size:12px;">This quotation is valid for one (1) month from the quotation date${validUntil ? ` (until ${escapeHtml(validUntil)})` : ''}. Prices and terms are subject to review after this period.</p>
+      <div style="page-break-inside:avoid;break-inside:avoid;">
       <h2>Client acceptance</h2>
       <p style="font-size:11.5px;">To accept, tick the plan chosen, sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
       <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>
@@ -3942,7 +3943,8 @@ ${bodyHtml}
         <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
       </div>
-      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This quotation is issued by Jacky's Distribution LLC Service Department. It is not a contract until approved by the client and accepted by Jacky's Distribution LLC.</p>
+      <p style="font-size:9px;color:#777;font-style:italic;margin:8px 0 0;">This quotation is issued by Jacky's Distribution LLC Service Department. It is not a contract until approved by the client and accepted by Jacky's Distribution LLC.</p>
+      </div>
     `;
   }
 
