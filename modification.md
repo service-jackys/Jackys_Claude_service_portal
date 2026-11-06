@@ -4578,3 +4578,15 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, apps/web/src/amc-v2-core.js, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-v2-issue.spec.ts. No API or database change. The original calculator's printouts are unchanged.
 
 **Needs you:** pull, hard-refresh, reprint a quote. Tick "Round up to the next 10" only on quotes where management wants it. A quote with all three plans puts Premium PMC on its own page and the terms start on page 4.
+
+## Modification #213 — AMC quotation: "Equivalent per month" row removed
+
+**Date:** 2026-11-06
+
+**Why.** Management did not want the monthly equivalent shown.
+
+**What changed.** The "Equivalent per month (incl. VAT)" row is removed from Yearly price by plan on the new-calculator quotation. The "Price per appliance per year (excl. VAT)" row stays.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh, reprint the quote.

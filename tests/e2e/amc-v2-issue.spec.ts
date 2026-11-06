@@ -163,7 +163,7 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody.locator('.quote-head')).not.toContainText('Printed');
     await expect(quoteBody).toContainText('Plans at a glance');
     await expect(quoteBody).toContainText('Price per appliance per year (excl. VAT)');
-    await expect(quoteBody).toContainText('Equivalent per month (incl. VAT)');
+    await expect(quoteBody).not.toContainText('Equivalent per month');
     await expect(quoteBody).toContainText('General Consumables');
     await expect(quoteBody).toContainText('must be logged in through');
     await expect(quoteBody).toContainText('weekends, public holidays');

@@ -4025,10 +4025,6 @@ ${bodyHtml}
         : '',
       sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
       sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
-      sumRow(
-        'Equivalent per month (incl. VAT)',
-        (p) => '\u20C3 ' + money(Number(p.priceInclVat) / 12),
-      ),
     ].join('');
     const planDetails = plans
       .map(
