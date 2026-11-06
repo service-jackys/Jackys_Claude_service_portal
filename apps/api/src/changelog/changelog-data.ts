@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 213,
+    "title": "AMC quotation: \"Equivalent per month\" row removed",
+    "area": "Pricing & rates",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management did not want the monthly equivalent shown.",
+    "changes": [
+      "What changed: The \"Equivalent per month (incl. VAT)\" row is removed from Yearly price by plan on the new-calculator quotation. The \"Price per appliance per year (excl. VAT)\" row stays."
+    ],
+    "needsYou": "pull, hard-refresh, reprint the quote.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change."
+  },
+  {
     "id": 212,
     "title": "AMC quotation (new calculator): management layout and wording changes",
     "area": "Pricing & rates",
