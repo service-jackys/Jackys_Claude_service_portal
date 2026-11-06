@@ -3784,8 +3784,9 @@ ${bodyHtml}
             `<td class="num">${strong ? '<strong>' : ''}${fn(p)}${strong ? '</strong>' : ''}</td>`,
         )
         .join('')}</tr>`;
-    const adj = (p) =>
-      Number(p.priceExclVat) - (Number(p.listTotal ?? 0) - Number(p.discountAmount ?? 0));
+    // Worked from the amounts as printed (2 decimals) so the printed rows always add up exactly.
+    const r2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const adj = (p) => r2(r2(p.priceExclVat) - (r2(p.listTotal ?? 0) - r2(p.discountAmount ?? 0)));
     const anyDiscount = plans.some((p) => Number(p.discountAmount ?? 0) > 0);
     const anyAdjust = plans.some((p) => Math.abs(adj(p)) > 0.005);
     const pctText = (p) => String(Math.round(Number(p.discountPct ?? 0) * 1000) / 10);
@@ -3798,11 +3799,17 @@ ${bodyHtml}
               : '\u2014',
           )
         : '',
+      // A reduction to the plan's maximum price is shown as a discount so the rows add up
+      // (price before discount - volume discount - special discount = contract value excl. VAT).
       anyAdjust
-        ? sumRow('Contract price adjustment', (p) =>
-            Math.abs(adj(p)) > 0.005
-              ? (adj(p) < 0 ? '-' : '+') + '\u20C3 ' + money(Math.abs(adj(p)))
-              : '\u2014',
+        ? sumRow(
+            plans.some((p) => adj(p) < -0.005)
+              ? 'Special contract discount'
+              : 'Contract price adjustment',
+            (p) =>
+              Math.abs(adj(p)) > 0.005
+                ? (adj(p) < 0 ? '-' : '+') + '\u20C3 ' + money(Math.abs(adj(p)))
+                : '\u2014',
           )
         : '',
       sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
