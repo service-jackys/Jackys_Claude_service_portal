@@ -416,6 +416,7 @@ export const amcPricingV2Default: AmcPricingV2Input = {
   ],
   corridor: { minPerUnit: 20, maxPerUnit: 250 },
   rateOverrides: [],
+  referenceValues: [],
 };
 
 export const applianceMasterDefault: ApplianceMasterInput = buildApplianceMaster(

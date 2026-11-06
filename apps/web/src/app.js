@@ -11249,81 +11249,36 @@ ${bodyHtml}
         );
       rerenderLadder();
 
-      const overrideHost = card(
-        'Rate overrides per appliance (optional)',
-        'Normally the rate is calculated from the reference value above. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
-      );
-      overrideHost.parentElement.classList.add('pc-span-full');
-      const rerenderOverrides = () =>
-        pcRenderTable(
-          overrideHost,
-          data.rateOverrides,
-          [
-            {
-              key: 'name',
-              label: 'Appliance',
-              type: 'text',
-              width: '34%',
-              tooltip: 'Type the appliance name exactly as it is in Appliance Master.',
-            },
-            {
-              key: 'basic',
-              label: 'Basic RM',
-              width: '20%',
-              type: 'number',
-              tooltip: 'Fixed yearly Basic RM rate per appliance. 0 = use the calculated rate.',
-            },
-            {
-              key: 'standard',
-              label: 'Standard',
-              width: '20%',
-              type: 'number',
-              tooltip: 'Fixed yearly Standard PMC rate per appliance. 0 = use the calculated rate.',
-            },
-            {
-              key: 'premium',
-              label: 'Premium',
-              width: '20%',
-              type: 'number',
-              tooltip: 'Fixed yearly Premium PMC rate per appliance. 0 = use the calculated rate.',
-            },
-          ],
-          {
-            minRows: 0,
-            markDirty: dirty,
-            rerender: rerenderOverrides,
-            onAdd: () => ({ name: '', basic: 0, standard: 0, premium: 0 }),
-            addLabel: 'Add override',
-          },
-        );
-      rerenderOverrides();
-
-      // Every Appliance Master appliance with its reference value (editable, saved back to
-      // Appliance Master) and the yearly rate per appliance these settings give.
+      // Appliance list comes from Appliance Master (names and the AMC flag); the reference
+      // value for each is kept in THIS pricing master (data.referenceValues). An appliance with
+      // no value saved here starts from its Appliance Master value.
+      if (!Array.isArray(data.referenceValues)) data.referenceValues = [];
+      const refEntry = (name) =>
+        data.referenceValues.find((r) => r.name.toLowerCase() === name.toLowerCase());
+      const refOf = (item) => {
+        const entry = refEntry(item.name);
+        return entry ? Number(entry.refValue) || 0 : Number(item.amcRefValue) || 0;
+      };
       const previewHost = document.createElement('div');
       previewHost.className = 'detail-action-card pc-span-full';
       previewHost.innerHTML =
         '<h4>Appliance reference values &amp; calculated yearly rate per appliance ' +
         tipHtml(
-          'Every appliance from Appliance Master. Type the reference value (replacement price) and tick AMC for appliances that get AMC quotes; the rates beside it recalculate as you type. Rates are before the volume discount and the cap. Press "Save reference values" to store the values in Appliance Master (separate from the Save button of this page). Fixed rates for an appliance go in the overrides table below.',
+          'Every active appliance from Appliance Master (add or rename appliances there). Type the reference value (replacement price) for each appliance; the rates beside it recalculate as you type. The values are saved with this page, so use this page’s Save, Revert, History and Restore. An appliance you have not valued here starts from its Appliance Master value. Rates are before the volume discount and the cap.',
         ) +
         '</h4><div class="field-grid"><div class="field"><label>Appliance age ' +
         tipHtml('Age band used for the calculated rates in this table only.') +
-        '</label><select data-pv-age></select></div></div><div data-pv-table></div>' +
-        '<p><button type="button" class="button" data-pv-save>Save reference values</button> <span class="form-note" data-pv-note></span></p>';
+        '</label><select data-pv-age></select></div></div><div data-pv-table></div>';
       grid.appendChild(previewHost);
       const ageSelect = previewHost.querySelector('[data-pv-age]');
       const previewTable = previewHost.querySelector('[data-pv-table]');
-      const saveButton = previewHost.querySelector('[data-pv-save]');
-      const saveNote = previewHost.querySelector('[data-pv-note]');
 
-      const rateCells = (row, index) => {
+      const rateCells = (item) => {
         const core = window.JdAmcV2;
-        const item = previewState.master.appliances[index];
         if (!core || !item.amcEnabled) return ['&ndash;', '&ndash;', '&ndash;'];
         const quote = core.computeQuote(
           data,
-          [{ name: item.name, qty: 1, refValue: item.amcRefValue }],
+          [{ name: item.name, qty: 1, refValue: refOf(item) }],
           previewState.age,
         );
         return quote.plans.map(
@@ -11334,8 +11289,8 @@ ${bodyHtml}
       const updateRates = () => {
         if (!previewState.master) return;
         previewTable.querySelectorAll('tr[data-pv-row]').forEach((row) => {
-          const index = Number(row.dataset.pvRow);
-          const cells = rateCells(row, index);
+          const item = previewState.master.appliances[Number(row.dataset.pvRow)];
+          const cells = rateCells(item);
           row.querySelectorAll('[data-pv-rate]').forEach((cell, n) => {
             cell.innerHTML = cells[n];
           });
@@ -11358,9 +11313,9 @@ ${bodyHtml}
         const items = previewState.master.appliances || [];
         previewTable.innerHTML =
           '<div class="table-wrap"><table><thead><tr>' +
-          '<th title="Appliance name from Appliance Master. Names are changed in Admin > Masters > Appliance Master.">Appliance</th>' +
-          '<th title="Tick if this appliance is offered on AMC quotes. Untick to keep it out of the AMC calculators.">AMC</th>' +
-          '<th title="Replacement price of the appliance in AED. Sets the parts reserve and the cap. The customer is never asked for it.">Reference value (AED)</th>' +
+          '<th title="Appliance name from Appliance Master. Add or rename appliances in Admin > Masters > Appliance Master.">Appliance</th>' +
+          '<th title="Whether the appliance is offered on AMC quotes. Set in Appliance Master. Appliances that are not AMC show a dash.">AMC</th>' +
+          '<th title="Replacement price of the appliance in AED. Sets the parts reserve and the cap. Saved with this page; the customer is never asked for it.">Reference value (AED)</th>' +
           '<th title="Yearly Basic RM rate per appliance (retainer). Before volume discount and cap.">Basic RM</th>' +
           '<th title="Yearly Standard PMC rate per appliance. Before volume discount and cap.">Standard PMC</th>' +
           '<th title="Yearly Premium PMC rate per appliance. Before volume discount and cap.">Premium PMC</th>' +
@@ -11372,16 +11327,12 @@ ${bodyHtml}
                   i +
                   '"><td>' +
                   escapeHtml(a.name) +
-                  '</td><td><input type="checkbox" data-pv-amc="' +
-                  i +
-                  '"' +
-                  (a.amcEnabled ? ' checked' : '') +
-                  ' aria-label="AMC enabled for ' +
-                  escapeHtml(a.name) +
-                  '" /></td><td><input type="number" min="0" step="1" data-pv-ref="' +
+                  '</td><td>' +
+                  (a.amcEnabled ? 'Yes' : 'No') +
+                  '</td><td><input type="number" min="0" step="1" data-pv-ref="' +
                   i +
                   '" value="' +
-                  Number(a.amcRefValue || 0) +
+                  refOf(a) +
                   '" aria-label="Reference value for ' +
                   escapeHtml(a.name) +
                   '" /></td><td data-pv-rate></td><td data-pv-rate></td><td data-pv-rate></td></tr>'
@@ -11391,18 +11342,12 @@ ${bodyHtml}
           '</tbody></table></div>';
         previewTable.querySelectorAll('[data-pv-ref]').forEach((input) =>
           input.addEventListener('input', () => {
-            previewState.master.appliances[Number(input.dataset.pvRef)].amcRefValue = Math.max(
-              0,
-              Number(input.value) || 0,
-            );
-            saveNote.textContent = 'Not saved yet.';
-            updateRates();
-          }),
-        );
-        previewTable.querySelectorAll('[data-pv-amc]').forEach((input) =>
-          input.addEventListener('change', () => {
-            previewState.master.appliances[Number(input.dataset.pvAmc)].amcEnabled = input.checked;
-            saveNote.textContent = 'Not saved yet.';
+            const item = previewState.master.appliances[Number(input.dataset.pvRef)];
+            const value = Math.max(0, Number(input.value) || 0);
+            const entry = refEntry(item.name);
+            if (entry) entry.refValue = value;
+            else data.referenceValues.push({ name: item.name, refValue: value });
+            ctx.markDirty();
             updateRates();
           }),
         );
@@ -11411,21 +11356,6 @@ ${bodyHtml}
       ageSelect.addEventListener('change', () => {
         previewState.age = Number(ageSelect.value) || 0;
         updateRates();
-      });
-      saveButton.addEventListener('click', async () => {
-        if (!previewState.master) return;
-        setBusy(saveButton, true, 'Saving…');
-        try {
-          await apiRequest('/api/pricing-config/appliance_master', {
-            method: 'PUT',
-            body: JSON.stringify(previewState.master),
-          });
-          saveNote.textContent = 'Saved to Appliance Master.';
-        } catch (error) {
-          saveNote.textContent = error?.message || 'Could not save to Appliance Master.';
-        } finally {
-          setBusy(saveButton, false);
-        }
       });
       apiRequest('/api/pricing-config/appliance_master', { method: 'GET' })
         .then((response) => {
@@ -14052,8 +13982,15 @@ ${bodyHtml}
       return;
     }
     const activeCatalog = () => (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
-    const refValueOf = (name) =>
-      Number(activeCatalog().find((a) => a.name === name)?.amcRefValue) || 0;
+    const refValueOf = (name) => {
+      // Reference values are kept in AMC Admin Rates (New); an appliance not valued there
+      // yet uses its Appliance Master value.
+      const own = (cfg.referenceValues || []).find(
+        (r) => r.name.toLowerCase() === String(name).toLowerCase(),
+      );
+      if (own) return Number(own.refValue) || 0;
+      return Number(activeCatalog().find((a) => a.name === name)?.amcRefValue) || 0;
+    };
     const lines = []; // { name, qty, price (reference value), ref: true }
     let lastQuote = null; // the quote on screen, read by the Issue section when saving
     let ageIndex = 0;

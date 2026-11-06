@@ -14,6 +14,9 @@ test('AMC pricing v2 default is valid and rejects bad values', () => {
   const bad = structuredClone(amcPricingV2Default);
   bad.plans.standard.capPct = 2;
   assert.throws(() => amcPricingV2Schema.parse(bad));
+  // An older saved payload without referenceValues still parses.
+  const { referenceValues: _omit, ...older } = amcPricingV2Default;
+  assert.deepEqual(amcPricingV2Schema.parse(older).referenceValues, []);
   const noBands = structuredClone(amcPricingV2Default);
   noBands.ageBands = [];
   assert.throws(() => amcPricingV2Schema.parse(noBands));
@@ -58,11 +61,29 @@ test(
       const amcAfter = await service.get('amc_pricing');
       assert.deepEqual(amcAfter.payload, amcBefore.payload);
 
+      // Reference values saved with the AMC pricing master follow an Appliance Master rename.
+      const withValues = structuredClone(edited);
+      withValues.referenceValues = [{ name: 'Built-in Oven (60/90 cm)', refValue: 1300 }];
+      await service.save('amc_pricing_v2', withValues, profileId);
+      const master = await service.get('appliance_master');
+      const items = (master.payload as { appliances: { name: string }[] }).appliances.map((a) =>
+        a.name === 'Built-in Oven (60/90 cm)'
+          ? { ...a, name: 'Built-in Oven XL', renamedFrom: 'Built-in Oven (60/90 cm)' }
+          : a,
+      );
+      await service.save('appliance_master', { appliances: items }, profileId);
+      const renamed = await service.get('amc_pricing_v2');
+      assert.deepEqual((renamed.payload as typeof withValues).referenceValues, [
+        { name: 'Built-in Oven XL', refValue: 1300 },
+      ]);
+
       await assert.rejects(() =>
         service.save('amc_pricing_v2', { ...edited, overhead: -1 }, profileId),
       );
     } finally {
-      await pool.query(`DELETE FROM pricing_configs WHERE domain = 'amc_pricing_v2'`);
+      await pool.query(
+        `DELETE FROM pricing_configs WHERE domain IN ('amc_pricing_v2', 'appliance_master', 'thomson_pricing')`,
+      );
       await pool.end();
     }
   },

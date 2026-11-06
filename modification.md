@@ -4365,3 +4365,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #200 — AMC Admin Rates (New): reference values kept in the AMC pricing master, not Appliance Master
+
+**Date:** 2026-11-06
+
+**Why.** Appliance Master is the master for appliances, not for rates. The reference values typed on AMC Admin Rates (New) should not be written into it.
+
+**What changed.**
+
+- The list of appliances on AMC Admin Rates (New) still comes from Appliance Master (new appliances appear automatically; the AMC Yes/No column shows its flag). The **reference value** typed beside each appliance is now saved **with the AMC pricing master** by this page's normal Save (so Revert to default, History and Restore cover it). The separate "Save reference values" button is gone and Appliance Master is no longer written from this page.
+- AMC Quote Calculator (New) reads the reference value from the AMC pricing master. An appliance not valued there yet starts from its Appliance Master value, so nothing appears empty.
+- Renaming an appliance in Appliance Master carries its saved reference value across (matched by name).
+- The "Rate overrides per appliance" table is removed from the page (it was a duplicate way of setting prices). The original AMC calculator keeps using the Appliance Master values until it is dropped.
+- Saved AMC pricing configurations without reference values still load (the list starts empty).
+
+**Files.** packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts, tests/integration/amc-pricing-v2.test.ts. No database migration.
+
+**Needs you:** pull, restart the API, hard-refresh. Enter the reference values again on AMC Admin Rates (New) if you want them different from Appliance Master, then Save.
