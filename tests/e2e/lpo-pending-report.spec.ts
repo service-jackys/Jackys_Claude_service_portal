@@ -67,9 +67,9 @@ test('the Total revenue card shows LPO pending beside, not inside, the revenue f
   await page.getByRole('button', { name: 'Service Revenue Dashboard' }).first().click();
   await page.getByRole('tab', { name: 'Reports' }).click();
   const card = page.locator('.rd-kpi-card', { hasText: 'Total revenue' });
-  await expect(card.locator('.val')).toHaveText('AED 27,340');
+  await expect(card.locator('.val')).toHaveText('\u20C3 27,340');
   await expect(card.locator('.rd-lpo')).toContainText('LPO pending');
-  await expect(card.locator('.rd-lpo')).toContainText('AED 12,346');
+  await expect(card.locator('.rd-lpo')).toContainText('\u20C3 12,346');
   await expect(card.locator('.rd-lpo')).toContainText('3 quotations (2 approved, 1 pending)');
   await expect(card.locator('.rd-lpo')).toContainText('not in revenue');
   expect(lpoQuery).toContain('year=2026');

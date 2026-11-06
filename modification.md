@@ -4434,3 +4434,19 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, apps/web/src/index.html. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #204 — New UAE Dirham symbol across the portal; cleaner AMC quotation
+
+**Date:** 2026-11-06
+
+**Why.** Management asked for the new UAE Dirham symbol instead of "AED" wherever a rate or amount is shown, and for the printed AMC quotation to look like a standard AMC quote (no discount rows, amounts with thousand separators).
+
+**What changed.**
+
+- Every on-screen label, amount, tooltip, chart and printed document now uses the new Dirham symbol (U+20C3) before the amount, e.g. "Unit price (₃)". The symbol is new and most fonts do not have it yet, so a tiny (1 KB) Dirham font is embedded in the portal and in every print window, and listed first in the font stacks (page, charts, print).
+- **AMC quotation:** removed "Price before discount", "Volume discount" and "Contract price adjustment". Each plan now shows one rate per appliance (after any discount) and the excl. VAT, VAT and incl. VAT totals. Amounts print with thousand separators (12,636.80). The same separators are used on the AMC contract certificate.
+- Intentionally still "AED" (text only, no font possible): the ROI management email, CSV/Excel export headers and the Currency Code field, the ROI plain-text summary, amount-in-words, and API-side outputs.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, apps/web/src/amc-v2-core.js, apps/web/src/approve.js and affected tests. No API or database change.
+
+**Needs you:** pull, hard-refresh.

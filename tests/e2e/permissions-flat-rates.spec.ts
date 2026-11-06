@@ -36,9 +36,7 @@ async function signIn(page: Page) {
 }
 
 test.describe('Invoices, Billing and Quote Calculators permissions', () => {
-  test('Invoices shows with invoices.read while Billing stays hidden', async ({
-    page,
-  }) => {
+  test('Invoices shows with invoices.read while Billing stays hidden', async ({ page }) => {
     await mockApi(page, ['service_job_card.read', 'invoices.read']);
     await signIn(page);
     await expect(page.locator('#invoicesNav')).toBeAttached();

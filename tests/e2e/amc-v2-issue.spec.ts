@@ -114,7 +114,7 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     // planned visits per appliance, not the contract total (which would exceed the 1,000 limit)
     expect(body.plans.map((p) => p.annualVisits)).toEqual([0, 1, 2]);
     expect(body.plans[0]!.unitLines[0]!.unitRate).toBe(15);
-    expect(body.plans[0]!.callOutText).toContain('AED 87.50 per call');
+    expect(body.plans[0]!.callOutText).toContain('\u20C3 87.50 per call');
     expect(body.plans[1]!.callOutText).toContain('Major spare parts are extra');
     expect(body.plans[2]!.ageBand).toBe('Year 4');
 
@@ -135,12 +135,18 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody).toContainText('Standard PMC');
     await expect(quoteBody).toContainText('Premium PMC');
     await expect(quoteBody).toContainText('Call-out and repair terms');
-    await expect(quoteBody).toContainText('AED 87.50 per call');
+    await expect(quoteBody).toContainText('\u20C3 87.50 per call');
     await expect(quoteBody).toContainText('Client acceptance');
     await expect(quoteBody).not.toContainText('Approved service plan');
     // Nothing internal reaches the customer.
     await expect(quoteBody).not.toContainText('break-even');
     await expect(quoteBody).not.toContainText('cap');
+    // Standard quotes show one clean rate: no discount or adjustment rows, and AED text is gone.
+    await expect(quoteBody).not.toContainText('Price before discount');
+    await expect(quoteBody).not.toContainText('Volume discount');
+    await expect(quoteBody).not.toContainText('Contract price adjustment');
+    await expect(quoteBody).not.toContainText('AED');
+    await expect(quoteBody).toContainText(/\u20C3 \d{1,3}(,\d{3})*\.\d{2}/);
 
     // A customer who wants only Basic RM and Standard: untick Premium and print again.
     await page.locator('[data-ac-quote-box="9"] input[value="premium-pmc"]').uncheck();
