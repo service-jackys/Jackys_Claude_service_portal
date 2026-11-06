@@ -3390,17 +3390,16 @@
   .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
   .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
   .block.plain { white-space: normal; }
-  .pg1 { font-size: 13px; }
-  .pg1 h2 { font-size: 14.5px; margin: 30px 0 12px; padding-bottom: 5px; }
-  .pg1 .grid { gap: 10px 24px; margin-bottom: 10px; }
-  .pg1 table th, .pg1 table td { padding: 9px 12px; font-size: 13px; }
-  .pg1 p { font-size: 12px !important; line-height: 1.5; margin: 10px 0; }
-  .pg3 h2 { font-size: 13.5px; margin: 20px 0 8px; }
+  .pg1 h2, .pg3 h2 { font-size: 13px; margin: 22px 0 8px; padding-bottom: 4px; }
+  .pg1 .grid { gap: 8px 24px; margin-bottom: 8px; }
+  .pg1 table th, .pg1 table td { padding: 7px 10px; font-size: 12px; }
+  .pg1 p { font-size: 11px !important; line-height: 1.45; margin: 8px 0; }
   .pg3 .tc-list { font-size: 12px !important; padding: 8px 12px 8px 28px !important; line-height: 1.4; }
   .pg3 .tc-list li { margin-bottom: 4px !important; }
-  .pg3 .block { font-size: 12.5px; padding: 8px 12px; line-height: 1.45; }
+  .pg3 .block { font-size: 12px; padding: 8px 12px; line-height: 1.45; }
   .pg3 .sign-row { margin-top: 36px !important; }
-  .plan-block { margin-bottom: 26px; }
+  .plan-block { margin-bottom: 22px; }
+  .plan-block .block { font-size: 12px; }
   .plan-block .incl-excl { margin-bottom: 16px; }
   .plan-block .block-label { margin-bottom: 4px; }
   .pg-break { page-break-before: always; break-before: page; }
@@ -3410,13 +3409,13 @@
   ol { margin: 4px 0 10px; padding-left: 20px; }
   li { margin-bottom: 4px; }
   .incl-excl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0 8px; }
-  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 4px 8px; border: 1px solid #c9d2db; font-size: 10.5px; }
+  .incl-excl th, .incl-excl td { width: 50%; vertical-align: top; text-align: left; padding: 4px 8px; border: 1px solid #c9d2db; font-size: 11.5px; }
   .incl-excl .incl-h { background: #e6f4ea; color: #1b5e20; }
   .incl-excl .excl-h { background: #fdecea; color: #b42318; }
   .incl-excl { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
   .incl-excl tr { page-break-inside: avoid; }
   .scope-list { list-style: none; margin: 0; padding: 0; }
-  .scope-list li { position: relative; padding: 0 0 0 13px; line-height: 1.3; font-size: 10.5px; }
+  .scope-list li { position: relative; padding: 0 0 0 13px; line-height: 1.3; font-size: 11.5px; }
   .scope-list li::before { content: ''; position: absolute; left: 1px; top: 5px; width: 5px; height: 5px; border-radius: 50%; }
   .scope-list li.scope-note { color: #555; font-style: italic; }
   .incl-list li::before { background: #2e7d32; }
