@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 208,
+    title: 'Standard PMC: shared call-out allowance printed on the quote',
+    area: 'Invoices & billing',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary:
+      'Standard includes repair labour, but the price only allows for the expected number of call-outs. Without a limit, a few heavy-use sites could use far more than was priced and the contract would lose money.',
+    changes: [
+      'Standard allowance: repair labour and minor parts are included for a shared pool of call-outs for the whole contract, equal to appliances x Breakdown calls per appliance per year, rounded up (for example 1,595 x 0.12 = 192). The number is…',
+      'New admin setting: "Standard: discount on call-outs beyond the included number" in AMC Admin Rates (New), default 0%.',
+      'Tooltips, the card note, the "How it works" tab and the calculator note explain the allowance. The plan prices do not change.',
+      'Quotes saved earlier keep the wording they were saved with.',
+    ],
+    needsYou:
+      'pull, restart the API, hard-refresh. Consider raising the normal labour charge so call-outs above the allowance earn money.',
+    migrations: [],
+    files:
+      'apps/web/src/amc-v2-core.js, apps/web/src/app.js, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-v2-issue.spec.ts. No…',
+  },
+  {
     id: 207,
     title: 'AMC quotation: "Special contract discount" so the price rows add up',
     area: 'Pricing & rates',
