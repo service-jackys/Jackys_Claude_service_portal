@@ -15,6 +15,19 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 202,
+    "title": "AMC Quote Calculator (New): print a Quotation first, Certificate only after Sold",
+    "area": "Pricing & rates",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "The only print option produced the signed \"Annual Maintenance Contract\" (approved plan, signatures) even while the quote was still a Quote. A customer should first receive a quotation and only get the contract certificate once the quote is approved.",
+    "changes": [],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change."
+  },
+  {
     "id": 201,
     "title": "AMC Admin Rates (New): live planned-visit cost, plain-language tooltips and a temporary \"How it works\" tab",
     "area": "Permissions",

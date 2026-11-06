@@ -53,6 +53,21 @@ async function open(page: Page, saved: { posts: Json[]; listUrls: string[]; list
       saved.list = [record];
       return json({ amcContract: record });
     }
+    if (url.pathname === '/api/amc-contracts/9/status' && method === 'PATCH') {
+      const body = route.request().postDataJSON() as Json;
+      const record = saved.list[0] as { plans: { planKey: string; planLabel: string }[] };
+      const plan = record.plans.find((p) => p.planKey === body.planKey);
+      saved.list = [
+        {
+          ...record,
+          status: body.status,
+          soldPlanKey: body.planKey,
+          soldPlanLabel: plan?.planLabel,
+          soldDate: body.soldDate,
+        },
+      ];
+      return json({ amcContract: saved.list[0] });
+    }
     if (url.pathname === '/api/amc-contracts/9' && method === 'GET')
       return json({ amcContract: saved.list[0] });
     if (url.pathname === '/api/amc-contracts' && method === 'GET') {
@@ -108,13 +123,80 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(page.locator('[data-v2-issued]')).toContainText('AC-2026-00009');
     expect(saved.listUrls.at(-1)).toContain('pricingModel=v2');
 
-    // Printing shows the rate per appliance, the volume terms and the call-out terms.
-    const popupPromise = page.waitForEvent('popup');
+    // A quote prints as a QUOTATION (all plans), not as the signed contract certificate.
+    const quotePopup = page.waitForEvent('popup');
+    await page.locator('[data-ac-quote]').click();
+    const quote = await quotePopup;
+    const quoteBody = quote.locator('body');
+    await expect(quoteBody).toContainText('AMC Quotation');
+    await expect(quoteBody).toContainText('AC-2026-00009');
+    await expect(quoteBody).toContainText('Yearly price by plan');
+    await expect(quoteBody).toContainText('Basic RM');
+    await expect(quoteBody).toContainText('Standard PMC');
+    await expect(quoteBody).toContainText('Premium PMC');
+    await expect(quoteBody).toContainText('Call-out and repair terms');
+    await expect(quoteBody).toContainText('AED 87.50 per call');
+    await expect(quoteBody).toContainText('Client acceptance');
+    await expect(quoteBody).not.toContainText('Approved service plan');
+    // Nothing internal reaches the customer.
+    await expect(quoteBody).not.toContainText('break-even');
+    await expect(quoteBody).not.toContainText('cap');
+
+    // A customer who wants only Basic RM and Standard: untick Premium and print again.
+    await page.locator('[data-ac-quote-box="9"] input[value="premium-pmc"]').uncheck();
+    const twoPopup = page.waitForEvent('popup');
+    await page.locator('[data-ac-quote]').click();
+    const two = await twoPopup;
+    await expect(two.locator('body')).toContainText('Basic RM');
+    await expect(two.locator('body')).toContainText('Standard PMC');
+    await expect(two.locator('body')).not.toContainText('Premium PMC');
+    await page.locator('[data-ac-quote-box="9"] input[value="premium-pmc"]').check();
+
+    // No certificate while the quote is still a Quote.
+    await expect(page.locator('[data-ac-reprint]')).toHaveCount(0);
+
+    // Marking it Sold (customer approved) unlocks the certificate for the approved plan.
+    await page.locator('[data-ac-plan-select="9"]').selectOption('standard-pmc');
+    await page.locator('[data-ac-status="Sold"]').click();
+    await expect(page.locator('[data-ac-reprint]')).toHaveCount(1);
+    const certPopup = page.waitForEvent('popup');
     await page.locator('[data-ac-reprint]').click();
+    const cert = await certPopup;
+    await expect(cert.locator('body')).toContainText('Annual Maintenance Contract');
+    await expect(cert.locator('body')).toContainText('Approved service plan');
+    await expect(cert.locator('body')).toContainText('Contract pricing (per year)');
+    await expect(cert.locator('body')).toContainText('Appliance age: Year 4');
+  });
+
+  test('right after saving, the calculator prints the quotation', async ({ page }) => {
+    const saved = { posts: [] as Json[], listUrls: [] as string[], list: [] as Json[] };
+    await open(page, saved);
+    await page.locator('[data-v2-add]').click();
+    await page.locator('[data-v2-qty="0"]').fill('10');
+    await page.locator('[data-as-client]').fill('Acme Hotel');
+    await expect(page.locator('[data-as-print]')).toHaveText('Print quotation');
+    await expect(page.locator('[data-as-print]')).toBeDisabled();
+    await page.locator('[data-as-save]').click();
+    await expect(page.locator('[data-as-message]')).toContainText('AC-2026-00009');
+    // All plans are ticked to start with; at least one must stay ticked.
+    await expect(page.locator('[data-as-quote-plans] input:checked')).toHaveCount(3);
+    for (const key of ['basic-rm', 'standard-pmc', 'premium-pmc']) {
+      await page.locator('[data-as-quote-plans] input[value="' + key + '"]').uncheck();
+    }
+    await page.locator('[data-as-print]').click();
+    await expect(page.locator('[data-as-message]')).toContainText('Tick at least one plan');
+    await page.locator('[data-as-quote-plans] input[value="basic-rm"]').check();
+    await page.locator('[data-as-quote-plans] input[value="premium-pmc"]').check();
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('[data-as-print]').click();
     const popup = await popupPromise;
-    await expect(popup.locator('body')).toContainText('Contract pricing (per year)');
-    await expect(popup.locator('body')).toContainText('Call-out and repair terms');
-    await expect(popup.locator('body')).toContainText('Appliance age: Year 4');
+    await expect(popup.locator('body')).toContainText('AMC Quotation');
+    await expect(popup.locator('body')).toContainText('Acme Hotel');
+    await expect(popup.locator('body')).toContainText('Basic RM');
+    await expect(popup.locator('body')).toContainText('Premium PMC');
+    // (Premium's own text mentions Standard PMC, so check Standard's column and plan section.)
+    await expect(popup.locator('body')).not.toContainText('Standard coverage with minor parts');
+    await expect(popup.locator('th', { hasText: 'Standard PMC' })).toHaveCount(0);
   });
 
   test('the original calculator lists only original quotes', async ({ page }) => {

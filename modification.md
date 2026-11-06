@@ -4400,3 +4400,22 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/amc-v2-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-calculator-v2.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh (no restart or migration).
+
+## Modification #202 — AMC Quote Calculator (New): print a Quotation first, Certificate only after Sold
+
+**Date:** 2026-11-06
+
+**Why.** The only print option produced the signed "Annual Maintenance Contract" (approved plan, signatures) even while the quote was still a Quote. A customer should first receive a quotation and only get the contract certificate once the quote is approved.
+
+**What changed (new-calculator quotes only; the original calculator and its Print are unchanged).**
+
+- **Print quotation** (AMC Issued (New) list for every quote, and right after Save in the calculator): one customer document with all 3 plans side by side: rate per appliance for each plan, price before discount, volume discount, any price adjustment, value excl. VAT, VAT and value incl. VAT, then each plan's inclusions, exclusions and call-out terms, payment terms and a client acceptance box (tick the plan, sign). Nothing internal (cost, margin, cap) is printed.
+- **Print certificate** appears in the list only once the quote is marked **Sold**, and prints the approved plan as before.
+- The "Plan to print" dropdown after saving is no longer shown for new-calculator quotes (the quotation shows every plan). The plan dropdown in the list is still used to choose the approved plan when marking Sold.
+- Admin History (earlier versions) prints the quotation of that version for new-calculator quotes.
+- **Choose which plans appear:** tick boxes (all ticked to start with) next to Print quotation, in the list and right after Save. For example, tick only Basic RM and Standard and the quotation shows just those two (rates, prices, inclusions, call-out terms and the acceptance box). At least one plan must stay ticked.
+- No validity period was added to the quotation (none was specified).
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
