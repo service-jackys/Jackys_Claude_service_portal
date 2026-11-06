@@ -55,9 +55,22 @@ function toContent(input: AmcContractWriteInput): AmcContractContent {
       overhead: plan.overhead,
       priceExclVat: plan.priceExclVat,
       priceInclVat: plan.priceInclVat,
+      ...(plan.unitLines ? { unitLines: plan.unitLines } : {}),
+      ...(plan.listTotal !== undefined ? { listTotal: plan.listTotal } : {}),
+      ...(plan.discountPct !== undefined ? { discountPct: plan.discountPct } : {}),
+      ...(plan.discountAmount !== undefined ? { discountAmount: plan.discountAmount } : {}),
+      ...(plan.capApplied !== undefined ? { capApplied: plan.capApplied } : {}),
+      ...(plan.capTotal !== undefined ? { capTotal: plan.capTotal } : {}),
+      ...(plan.perUnit !== undefined ? { perUnit: plan.perUnit } : {}),
+      ...(plan.belowCostShortfall !== undefined
+        ? { belowCostShortfall: plan.belowCostShortfall }
+        : {}),
+      ...(plan.callOutText ? { callOutText: plan.callOutText } : {}),
+      ...(plan.ageBand ? { ageBand: plan.ageBand } : {}),
     })),
     commencementDate: input.commencementDate ?? null,
     contractRef: input.contractRef ?? null,
+    pricingModel: input.pricingModel ?? 'v1',
   };
 }
 
@@ -94,6 +107,7 @@ export function createAmcContractService(pool: Pool) {
       return listAmcContracts(client, {
         search: data.search,
         status: data.status,
+        pricingModel: data.pricingModel,
         page: data.page,
         pageSize: data.pageSize,
       });

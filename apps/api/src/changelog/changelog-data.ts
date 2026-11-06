@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 198,
+    "title": "AMC Quote Calculator (New): save, issue, AMC Issued (New) and print",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "#197 added the new AMC pricing screens but they could not save a quote. This completes the new calculator so a quote can be issued, found again, marked Sold or Lost and printed. The original calculator and its AMC Issued list are unchanged.",
+    "changes": [
+      "Save / issue: AMC Quote Calculator (New) has an \"Issue an AMC Contract — Customer Certificate\" section like the original (client, attention to, site, commencement date, contract ref.). It saves all 3 plans with the rate per appliance, the…",
+      "AMC Issued (New): a second tab on the new calculator listing only new-calculator quotes, with the same Print, Sold / Lost / Reopen and, for admins, Edit and History (with a reason for each change) as the original. Editing reopens the…",
+      "Print: the certificate for a new-calculator quote adds a \"Contract pricing (per year)\" table (rate per appliance, quantity, total, volume discount) and \"Call-out and repair terms\" for the chosen plan. Cost, margin and the cap are never…",
+      "Standard PMC covers minor parts: the Standard parts reserve default is now 2.5 % of appliance value (it was 0), matching the Standard scope (filters, belts, seals). The call-out wording says major spare parts are extra on Standard, parts…",
+      "The rate overrides table headings no longer overlap (full-width card, shorter headings).",
+      "Database/API: pricing_model ('v1' original, 'v2' new) is stored on each AMC contract and filterable on the list; revising a quote keeps its model. Planned visits are stored per appliance per year (1 or 2) rather than the contract total.",
+      "The amber \"below target margin\" warning is unchanged and still shows whenever a volume discount reduces the price below the target margin."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No new database migration (073 from the last change already added the column). Then in AMC Admin Rates (New) set \"Standard: parts reserve\" to 2.5 and Save.",
+    "migrations": [],
+    "files": "packages/contracts/src/index.ts, packages/db/src/amc-contracts.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/amc-contracts/service.ts, apps/api/src/api/route-catalog.ts…"
+  },
+  {
     "id": 197,
     "title": "New AMC pricing: AMC Admin Rates (New) and AMC Quote Calculator (New) (side by side with the originals)",
     "area": "Permissions",
@@ -25,6 +46,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "changes": [
       "AMC Admin Rates (New) (Quote Calculators > Admin): every setting is editable with a tooltip — visit and labour cost, breakdown calls, call-out terms (normal labour AED 125, Basic RM discount 30 %, AED 80 handling charge when not…",
       "AMC Quote Calculator (New): pick appliances (from Appliance Master) and quantities, pick the age band. Each plan shows planned visits, price before discount, volume discount, cap, price excl./incl. VAT, price per appliance and % of value.…",
+      "The \"Rate overrides per appliance\" table spans the full width with short column headings (Appliance, Basic RM, Standard, Premium), so the headings no longer overlap.",
       "Saving, issuing and printing v2 quotes come in the next change; this one does not save quotes.",
       "Database: migration 073 adds the amc_pricing_v2 configuration domain and a pricing_model column on amc_contracts (default v1, for the next change)."
     ],
@@ -69,21 +91,6 @@ export const CHANGELOG: ChangelogEntry[] = [
     "files": "apps/web/src/app.js, tests/e2e/amc-calculator-master.spec.ts."
   },
   {
-    "id": 193,
-    "title": "AMC Quote Calculator plan table: column headers no longer overlap",
-    "area": "Pricing & rates",
-    "date": "2026-11-05",
-    "approxDate": false,
-    "status": null,
-    "summary": "In the AMC Quote Calculator's Plan Pricing table, long column labels (Transport cost, Parts reserve, Price excl./incl. VAT) ran into each other because the table used fixed equal-width columns.",
-    "changes": [
-      "What changed: The table now sizes columns automatically, wraps header labels onto two lines, right-aligns the numeric columns and uses even spacing. It scrolls sideways only on narrow screens. Display only; no pricing logic changed."
-    ],
-    "needsYou": "pull and hard-refresh. No API restart or database change.",
-    "migrations": [],
-    "files": "apps/web/src/{app.js,index.html}."
-  },
-  {
     "id": 194,
     "title": "Admin can reopen, re-price and re-save an issued AMC quote, with full history",
     "area": "Permissions",
@@ -105,6 +112,21 @@ export const CHANGELOG: ChangelogEntry[] = [
       "072_amc_contract_revisions.sql"
     ],
     "files": "packages/db/migrations/072_amc_contract_revisions.sql, packages/db/src/amc-contracts.ts, packages/contracts/src/index.ts, apps/api/src/amc-contracts/*, apps/api/src/api/{route-catalog,openapi}.ts…"
+  },
+  {
+    "id": 193,
+    "title": "AMC Quote Calculator plan table: column headers no longer overlap",
+    "area": "Pricing & rates",
+    "date": "2026-11-05",
+    "approxDate": false,
+    "status": null,
+    "summary": "In the AMC Quote Calculator's Plan Pricing table, long column labels (Transport cost, Parts reserve, Price excl./incl. VAT) ran into each other because the table used fixed equal-width columns.",
+    "changes": [
+      "What changed: The table now sizes columns automatically, wraps header labels onto two lines, right-aligns the numeric columns and uses even spacing. It scrolls sideways only on narrow screens. Display only; no pricing logic changed."
+    ],
+    "needsYou": "pull and hard-refresh. No API restart or database change.",
+    "migrations": [],
+    "files": "apps/web/src/{app.js,index.html}."
   },
   {
     "id": 192,

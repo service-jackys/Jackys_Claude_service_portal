@@ -3588,6 +3588,43 @@ ${bodyHtml}
     }</tbody></table>`;
   }
 
+  // Pricing section of a certificate for a quote made with the new AMC calculator:
+  // the yearly rate per appliance, the volume discount and the call-out terms.
+  // Nothing internal (cost, margin, cap) is shown to the customer.
+  function printAmcV2Pricing(plan) {
+    if (!plan.unitLines || !plan.unitLines.length) return '';
+    const rows = plan.unitLines
+      .map(
+        (l) =>
+          `<tr><td>${escapeHtml(l.name)}</td><td class="num">${escapeHtml(String(l.qty))}</td><td class="num">${money(l.unitRate)} AED</td><td class="num">${money(l.qty * l.unitRate)} AED</td></tr>`,
+      )
+      .join('');
+    const list = Number(plan.listTotal ?? 0);
+    const discount = Number(plan.discountAmount ?? 0);
+    const adjustment = Number(plan.priceExclVat) - (list - discount);
+    const pct = Math.round(Number(plan.discountPct ?? 0) * 1000) / 10;
+    const summary = [
+      ['Price before discount', money(list) + ' AED'],
+      ...(discount > 0 ? [[`Volume discount (${pct}%)`, '-' + money(discount) + ' AED']] : []),
+      ...(Math.abs(adjustment) > 0.005
+        ? [
+            [
+              'Contract price adjustment',
+              (adjustment < 0 ? '-' : '+') + money(Math.abs(adjustment)) + ' AED',
+            ],
+          ]
+        : []),
+      ['Contract value excl. VAT', money(plan.priceExclVat) + ' AED'],
+    ];
+    return `
+      <h2>Contract pricing (per year)</h2>
+      ${plan.ageBand ? `<p style="font-size:12px;"><strong>Appliance age:</strong> ${escapeHtml(plan.ageBand)}</p>` : ''}
+      <table><thead><tr><th>Appliance type</th><th class="num">Qty</th><th class="num">Rate per appliance</th><th class="num">Total</th></tr></thead><tbody>${rows}</tbody></table>
+      ${printFieldGrid(summary)}
+      ${plan.callOutText ? `<h2>Call-out and repair terms</h2><p style="font-size:12px;">${escapeHtml(plan.callOutText)}</p>` : ''}
+    `;
+  }
+
   // Builds the certificate body for exactly one plan of a saved AMC
   // contract (modification.md #39 -- a saved contract carries all 3
   // computed plans; the plan to print is picked afterwards, per print, so
@@ -3625,6 +3662,7 @@ ${bodyHtml}
       <p style="font-size:11px;color:#555;"><strong>Coverage note:</strong> Coverage applies only to the appliances listed in this quotation and is subject to inspection, parts availability, fair-use conditions and the approved AMC terms. Parts and work not expressly included above require separate approval.</p>
       <h2>Appliance schedule covered under this AMC</h2>
       ${printAmcApplianceTable(contract.appliances)}
+      ${printAmcV2Pricing(plan)}
       <h2>Service inclusions</h2>
       <p style="font-size:12px;"><strong>Planned Preventive Maintenance:</strong> Scheduled visits as per the approved plan, including inspection, cleaning, functional checks and performance verification.</p>
       <p style="font-size:12px;"><strong>Corrective Maintenance:</strong> Valid breakdown calls attended within 24&ndash;48 hours from logging, subject to site access, fault condition and parts availability.</p>
@@ -11084,7 +11122,7 @@ ${bodyHtml}
             label: 'Standard: parts reserve (% of appliance value)',
             type: 'percent',
             tooltip:
-              'Share of the appliance value set aside for spare parts. Standard does not cover parts, so this is normally 0.',
+              'Share of the appliance value set aside for the minor parts Standard covers (filters, belts, seals). Major parts are not covered.',
           },
           {
             path: 'plans.standard.capPct',
@@ -11215,6 +11253,7 @@ ${bodyHtml}
         'Rate overrides per appliance (optional)',
         'Normally the rate is calculated. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
       );
+      overrideHost.parentElement.classList.add('pc-span-full');
       const rerenderOverrides = () =>
         pcRenderTable(
           overrideHost,
@@ -11222,26 +11261,29 @@ ${bodyHtml}
           [
             {
               key: 'name',
-              label: 'Appliance (exactly as in Appliance Master)',
+              label: 'Appliance',
               type: 'text',
-              width: '40%',
-              tooltip: 'Must match the appliance name in Appliance Master.',
+              width: '34%',
+              tooltip: 'Type the appliance name exactly as it is in Appliance Master.',
             },
             {
               key: 'basic',
-              label: 'Basic RM rate',
+              label: 'Basic RM',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Basic RM rate per appliance. 0 = use the calculated rate.',
             },
             {
               key: 'standard',
-              label: 'Standard rate',
+              label: 'Standard',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Standard PMC rate per appliance. 0 = use the calculated rate.',
             },
             {
               key: 'premium',
-              label: 'Premium rate',
+              label: 'Premium',
+              width: '20%',
               type: 'number',
               tooltip: 'Fixed yearly Premium PMC rate per appliance. 0 = use the calculated rate.',
             },
@@ -13953,7 +13995,8 @@ ${bodyHtml}
     const activeCatalog = () => (master?.appliances || []).filter((a) => a.active && a.amcEnabled);
     const refValueOf = (name) =>
       Number(activeCatalog().find((a) => a.name === name)?.amcRefValue) || 0;
-    const lines = []; // { name, qty }
+    const lines = []; // { name, qty, price (reference value), ref: true }
+    let lastQuote = null; // the quote on screen, read by the Issue section when saving
     let ageIndex = 0;
     const optionsHtml = () =>
       activeCatalog()
@@ -13981,6 +14024,11 @@ ${bodyHtml}
         'Add each appliance type with its quantity and pick the age of the appliances. Every plan is priced per appliance from AMC Admin Rates (New): a volume discount is applied by the total number of appliances, and the price never goes above the plan’s cap on the equipment value. Red means the price is below cost, amber means below the target margin or outside the usual range. The original AMC Quote Calculator is unchanged; the table at the bottom compares both.',
       ) +
       '</div>' +
+      '<div class="vc-tab-nav" role="tablist" aria-label="AMC Quote Calculator (New) sections">' +
+      '<button type="button" class="action-tab active" data-v2-tab="quote" role="tab" aria-selected="true">Quote Calculator</button>' +
+      '<button type="button" class="action-tab" data-v2-tab="issued" role="tab" aria-selected="false">AMC Issued (New)</button>' +
+      '</div>' +
+      '<div class="vc-tab-panels">' +
       '<section data-v2-panel>' +
       '<div class="detail-action-card pc-span-full"><h4>Appliances for this contract</h4>' +
       '<div class="field-grid">' +
@@ -14007,7 +14055,19 @@ ${bodyHtml}
         'The same appliances priced with the original AMC Quote Calculator formulas, to check the new prices against.',
       ) +
       '</h4><div data-v2-compare></div></div>' +
-      '</section>';
+      '<div class="detail-action-card pc-span-full"><h4>Issue an AMC Contract — Customer Certificate ' +
+      tipHtml(
+        'Saves this quote with all 3 plans and the rate per appliance. The quote appears under AMC Issued (New), where you pick the plan to print and mark it Sold or Lost. New-calculator quotes are kept apart from the original calculator’s.',
+      ) +
+      '</h4><div data-v2-sale></div></div>' +
+      '</section>' +
+      '<section data-v2-issued-panel hidden>' +
+      '<h4>AMC Issued (New) ' +
+      tipHtml(
+        'Every AMC contract saved from AMC Quote Calculator (New). Pick a plan and Print to generate that plan’s certificate. A saved record is a Quote until you pick the plan the customer took and press Sold; only Sold contracts count as AMC revenue.',
+      ) +
+      '</h4><div data-v2-issued></div></section>' +
+      '</div>';
 
     const linesHost = container.querySelector('[data-v2-lines]');
     const output = container.querySelector('[data-v2-output]');
@@ -14076,6 +14136,7 @@ ${bodyHtml}
     function recompute() {
       const input = lines.map((l) => ({ name: l.name, qty: l.qty, refValue: refValueOf(l.name) }));
       const quote = core.computeQuote(cfg, input, ageIndex);
+      lastQuote = lines.length && quote.totalQty > 0 ? quote : null;
       if (!lines.length || quote.totalQty <= 0) {
         output.innerHTML = lines.length
           ? '<p class="form-note">Enter a quantity for at least one appliance above to see plan pricing.</p>'
@@ -14083,7 +14144,7 @@ ${bodyHtml}
         compare.innerHTML = '';
         return;
       }
-      const co = quote.callOut;
+      const terms = core.callOutTerms(cfg);
       output.innerHTML =
         '<p class="form-note">Total appliances: <strong>' +
         quote.totalQty +
@@ -14139,13 +14200,17 @@ ${bodyHtml}
               : '',
           )
           .join('') +
-        '<p class="form-note"><strong>Call-out terms (shown to the customer):</strong> Basic RM call-out labour AED ' +
-        money(co.basicRate) +
-        ' (normal AED ' +
-        money(co.labourCharge) +
-        '); AED ' +
-        money(co.handlingCharge) +
-        ' handling charge if the appliance cannot be repaired; spare parts extra on Basic RM and Standard PMC.</p>';
+        '<p class="form-note"><strong>Call-out and repair terms (printed on the certificate):</strong></p>' +
+        ['basic', 'standard', 'premium']
+          .map(
+            (key, n) =>
+              '<p class="form-note"><strong>' +
+              escapeHtml(quote.plans[n].planLabel) +
+              ':</strong> ' +
+              escapeHtml(terms[key]) +
+              '</p>',
+          )
+          .join('');
 
       const old = core.computeOld(oldCfg, quote.totalQty, quote.totalValue);
       compare.innerHTML = old.length
@@ -14176,15 +14241,16 @@ ${bodyHtml}
 
     container.querySelector('[data-v2-add]').addEventListener('click', () => {
       if (!select.value) return;
-      lines.push({ name: select.value, qty: 0 });
+      lines.push({ name: select.value, qty: 0, price: refValueOf(select.value), ref: true });
       renderLines();
       recompute();
     });
-    container.querySelector('[data-v2-clear]').addEventListener('click', () => {
+    function clearLines() {
       lines.length = 0;
       renderLines();
       recompute();
-    });
+    }
+    container.querySelector('[data-v2-clear]').addEventListener('click', clearLines);
     ageSelect.addEventListener('change', () => {
       ageIndex = Number(ageSelect.value) || 0;
       recompute();
@@ -14206,10 +14272,119 @@ ${bodyHtml}
         select.innerHTML = optionsHtml();
         if (activeCatalog().some((a) => a.name === keep)) select.value = keep;
         ageSelect.innerHTML = ageOptionsHtml();
+        lines.forEach((line) => {
+          line.price = refValueOf(line.name);
+        });
         renderLines();
         recompute();
       },
     });
+
+    // ---- Save, issue and print (new-calculator quotes only) -------------------
+    const PLAN_KEYS = { basic: 'basic-rm', standard: 'standard-pmc', premium: 'premium-pmc' };
+    function buildPlans() {
+      const quote = lastQuote;
+      const terms = core.callOutTerms(cfg);
+      return quote.plans.map((p) => {
+        const fallback = AMC_CONTRACT_PLAN_FALLBACKS[PLAN_KEYS[p.planKey]];
+        const planned = p.planKey === 'basic' ? 0 : Number(cfg.plans[p.planKey].plannedVisits) || 0;
+        const red = p.flags.find((f) => f.code === 'below-cost');
+        return {
+          planKey: PLAN_KEYS[p.planKey],
+          planLabel: fallback.label,
+          coverage: fallback.coverage,
+          coverageDetail: fallback.coverageDetail,
+          included: fallback.included,
+          notIncluded: fallback.notIncluded,
+          visitsText:
+            p.planKey === 'basic'
+              ? 'Reactive call-outs only (no planned visits)'
+              : planned +
+                (planned === 1 ? ' planned visit' : ' planned visits') +
+                ' per appliance per year',
+          // planned visits per appliance per year (not the team trips for the whole contract)
+          annualVisits: planned,
+          laborCost: p.directTotal - p.partsTotal,
+          transportCost: 0, // transport is inside the visit cost in the new model
+          partsReserve: p.partsTotal,
+          directCost: p.directTotal,
+          overhead: p.breakEvenTotal - p.directTotal,
+          priceExclVat: p.priceExclVat,
+          priceInclVat: p.priceInclVat,
+          unitLines: p.lines.map((l) => ({ name: l.name, qty: l.qty, unitRate: l.unitRate })),
+          listTotal: p.listTotal,
+          discountPct: p.discountPct,
+          discountAmount: p.listTotal - p.discountedTotal,
+          capApplied: p.capApplied,
+          ...(p.capTotal !== null ? { capTotal: p.capTotal } : {}),
+          perUnit: p.perUnit,
+          ...(red ? { belowCostShortfall: red.shortfall } : {}),
+          callOutText: terms[p.planKey],
+          ageBand: quote.ageLabel,
+        };
+      });
+    }
+
+    const saleHost = container.querySelector('[data-v2-sale]');
+    const issuedHost = container.querySelector('[data-v2-issued]');
+    const saleControl = renderAmcContractSection(
+      saleHost,
+      lines,
+      () => lastQuote,
+      clearLines,
+      () => {
+        const panel = container.querySelector('[data-v2-issued-panel]');
+        if (panel && !panel.hidden) loadAmcIssuedList(issuedHost, beginEdit, 'v2');
+      },
+      { model: 'v2', buildPlans },
+    );
+
+    const tabNav = container.querySelector('.vc-tab-nav');
+    tabNav.addEventListener('click', (event) => {
+      const button = event.target.closest('.action-tab');
+      if (!button) return;
+      const target = button.dataset.v2Tab;
+      tabNav.querySelectorAll('.action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      container.querySelector('[data-v2-panel]').hidden = target !== 'quote';
+      container.querySelector('[data-v2-issued-panel]').hidden = target !== 'issued';
+      if (target === 'issued') loadAmcIssuedList(issuedHost, beginEdit, 'v2');
+    });
+
+    // Admin: reopen an issued new-calculator quote with the current Admin rates.
+    async function beginEdit(id) {
+      if (!saleControl || !hasPermission('amc_contract.revise')) return;
+      try {
+        const detail = await apiRequest('/api/amc-contracts/' + id);
+        const contract = detail.amcContract;
+        lines.length = 0;
+        (contract.appliances || []).forEach((line) => {
+          lines.push({
+            name: line.name,
+            qty: Number(line.qty) || 0,
+            price: refValueOf(line.name),
+            ref: true,
+          });
+        });
+        const savedAge = (contract.plans || []).find((plan) => plan.ageBand)?.ageBand;
+        const index = cfg.ageBands.findIndex((band) => band.label === savedAge);
+        ageIndex = index >= 0 ? index : 0;
+        ageSelect.innerHTML = ageOptionsHtml();
+        renderLines();
+        recompute();
+        container.querySelector('[data-v2-tab="quote"]')?.click();
+        saleControl.startEdit(contract);
+        saleHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        setMessage(
+          '#workspaceMessage',
+          'Could not open this AMC quote for editing: ' + (error.message || 'unknown error'),
+        );
+      }
+    }
   }
 
   function renderAmcCalc(container, data, master) {
@@ -14653,7 +14828,7 @@ ${bodyHtml}
   // previously issued AMC contract can be found again and a chosen plan's
   // certificate reprinted. Each saved record carries all 3 computed plans
   // -- the plan to print is picked per row, per print, from a dropdown.
-  async function loadAmcIssuedList(host, onEdit) {
+  async function loadAmcIssuedList(host, onEdit, pricingModel = 'v1') {
     if (!hasPermission('amc_contract.read')) {
       host.innerHTML =
         '<p class="form-note">You don\'t have permission to view issued AMC contracts.</p>';
@@ -14663,7 +14838,9 @@ ${bodyHtml}
     const canRevise = hasPermission('amc_contract.revise');
     host.innerHTML = '<p class="form-note">Loading issued AMC contracts&hellip;</p>';
     try {
-      const response = await apiRequest('/api/amc-contracts?pageSize=100');
+      const response = await apiRequest(
+        '/api/amc-contracts?pageSize=100&pricingModel=' + encodeURIComponent(pricingModel),
+      );
       const contracts = response.amcContracts || [];
       if (!contracts.length) {
         host.innerHTML = '<p class="form-note">No AMC contracts issued yet.</p>';
@@ -14894,7 +15071,7 @@ ${bodyHtml}
               method: 'PATCH',
               body: JSON.stringify(payload),
             });
-            await loadAmcIssuedList(host, onEdit);
+            await loadAmcIssuedList(host, onEdit, pricingModel);
           } catch (error) {
             setMessage('#workspaceMessage', error.message || 'Could not change the status.');
             button.disabled = false;
@@ -14933,7 +15110,15 @@ ${bodyHtml}
   // the next customer -- a "Plan to print" dropdown + Print button stay
   // enabled against the just-saved record, and onSaved() refreshes the
   // "AMC Issued" tab if it's open.
-  function renderAmcContractSection(saleHost, appliances, getRows, clearAppliances, onSaved) {
+  function renderAmcContractSection(
+    saleHost,
+    appliances,
+    getRows,
+    clearAppliances,
+    onSaved,
+    options = {},
+  ) {
+    const v2 = options.model === 'v2';
     if (!hasPermission('amc_contract.write')) {
       saleHost.innerHTML =
         '<p class="form-note">You don\'t have permission to issue AMC contracts.</p>';
@@ -15061,28 +15246,30 @@ ${bodyHtml}
         return;
       }
       const totalValue = appliances.reduce((s, a) => s + a.qty * a.price, 0);
-      const plans = Object.keys(AMC_CONTRACT_PLAN_FALLBACKS).map((planKey) => {
-        const fallback = AMC_CONTRACT_PLAN_FALLBACKS[planKey];
-        const rowEntry = rows.find(([label]) => label === fallback.label);
-        const plan = rowEntry[1];
-        return {
-          planKey,
-          planLabel: fallback.label,
-          coverage: fallback.coverage,
-          coverageDetail: fallback.coverageDetail,
-          included: fallback.included,
-          notIncluded: fallback.notIncluded,
-          visitsText: plan.visits + ' visits/year',
-          annualVisits: plan.visits,
-          laborCost: plan.labor,
-          transportCost: plan.transport,
-          partsReserve: plan.parts,
-          directCost: plan.direct,
-          overhead: plan.overhead,
-          priceExclVat: plan.priceExclVat,
-          priceInclVat: plan.priceInclVat,
-        };
-      });
+      const plans = v2
+        ? options.buildPlans()
+        : Object.keys(AMC_CONTRACT_PLAN_FALLBACKS).map((planKey) => {
+            const fallback = AMC_CONTRACT_PLAN_FALLBACKS[planKey];
+            const rowEntry = rows.find(([label]) => label === fallback.label);
+            const plan = rowEntry[1];
+            return {
+              planKey,
+              planLabel: fallback.label,
+              coverage: fallback.coverage,
+              coverageDetail: fallback.coverageDetail,
+              included: fallback.included,
+              notIncluded: fallback.notIncluded,
+              visitsText: plan.visits + ' visits/year',
+              annualVisits: plan.visits,
+              laborCost: plan.labor,
+              transportCost: plan.transport,
+              partsReserve: plan.parts,
+              directCost: plan.direct,
+              overhead: plan.overhead,
+              priceExclVat: plan.priceExclVat,
+              priceInclVat: plan.priceInclVat,
+            };
+          });
       const field = (selector) => saleHost.querySelector(selector).value.trim();
       const payload = {
         contractPeriod: field('[data-as-period]') || undefined,
@@ -15100,6 +15287,7 @@ ${bodyHtml}
         plans,
         commencementDate: field('[data-as-commencement]') || undefined,
         contractRef: field('[data-as-contract-ref]') || undefined,
+        ...(v2 ? { pricingModel: 'v2' } : {}),
       };
       try {
         const wasEditing = editing;

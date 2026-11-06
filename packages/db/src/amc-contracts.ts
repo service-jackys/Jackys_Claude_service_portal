@@ -26,6 +26,17 @@ export type AmcPlanComputation = {
   overhead: number;
   priceExclVat: number;
   priceInclVat: number;
+  // Only on quotes from the new AMC calculator (pricingModel 'v2').
+  unitLines?: { name: string; qty: number; unitRate: number }[];
+  listTotal?: number;
+  discountPct?: number;
+  discountAmount?: number;
+  capApplied?: boolean;
+  capTotal?: number;
+  perUnit?: number;
+  belowCostShortfall?: number;
+  callOutText?: string | null;
+  ageBand?: string | null;
 };
 
 export type AmcContractRecord = {
@@ -42,6 +53,7 @@ export type AmcContractRecord = {
   plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
+  pricingModel: 'v1' | 'v2';
   revision: number;
   revisionNote: string | null;
   status: 'Quote' | 'Sold' | 'Lost';
@@ -70,6 +82,7 @@ export type AmcContractContent = {
   plans: AmcPlanComputation[];
   commencementDate: string | null;
   contractRef: string | null;
+  pricingModel?: 'v1' | 'v2';
 };
 
 const columns = `
@@ -86,6 +99,7 @@ const columns = `
   plans,
   commencement_date::text AS "commencementDate",
   contract_ref AS "contractRef",
+  pricing_model AS "pricingModel",
   revision,
   revision_note AS "revisionNote",
   status,
@@ -111,12 +125,12 @@ export async function insertAmcContract(
     `INSERT INTO amc_contracts (
        amc_contract_reference, contract_date, contract_period, client_name, attention_to,
        site_location, appliances, total_count, total_value, plans,
-       commencement_date, contract_ref,
+       commencement_date, contract_ref, pricing_model,
        created_by, updated_by
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7::jsonb, $8, $9, $10::jsonb,
-       $11, $12,
+       $11, $12, $14,
        $13, $13
      )
      RETURNING id`,
@@ -134,6 +148,7 @@ export async function insertAmcContract(
       c.commencementDate,
       c.contractRef,
       input.createdBy,
+      c.pricingModel ?? 'v1',
     ],
   );
   const amcContract = await findAmcContractById(client, result.rows[0].id);
@@ -154,7 +169,13 @@ export async function findAmcContractById(
 
 export async function listAmcContracts(
   client: PoolClient,
-  query: { search?: string; status?: string; page: number; pageSize: number },
+  query: {
+    search?: string;
+    status?: string;
+    pricingModel?: string;
+    page: number;
+    pageSize: number;
+  },
 ) {
   const values: unknown[] = [];
   const filters: string[] = [];
@@ -170,6 +191,9 @@ export async function listAmcContracts(
   }
   if (query.status) {
     filters.push(`status = ${add(query.status)}`);
+  }
+  if (query.pricingModel) {
+    filters.push(`pricing_model = ${add(query.pricingModel)}`);
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const count = await client.query<{ total: string }>(
