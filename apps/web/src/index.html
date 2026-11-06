@@ -5976,6 +5976,60 @@
       .vc-tab-panels {
         min-width: 0;
       }
+      /* Green live result shown under the fields it is calculated from (AMC Admin Rates (New)). */
+      .pc-live-result {
+        margin-top: 0.9rem;
+        padding: 0.7rem 0.9rem;
+        border: 1px solid #9fd6b8;
+        border-left: 5px solid var(--success);
+        border-radius: 10px;
+        background: #e0f4ea;
+        color: #0f4a34;
+      }
+      .pc-live-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .pc-live-value {
+        font-size: 1.45rem;
+        font-weight: 800;
+        color: var(--success);
+      }
+      .pc-live-value small {
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+      .pc-live-sum {
+        font-size: 0.85rem;
+        margin-top: 0.2rem;
+      }
+      tr.pc-live-row td {
+        background: #e0f4ea;
+        color: #0f4a34;
+      }
+      .pc-flag-red {
+        color: var(--red);
+        font-weight: 700;
+      }
+      .pc-flag-amber {
+        color: var(--warning);
+        font-weight: 700;
+      }
+      .pc-flag-ok {
+        color: var(--success);
+        font-weight: 700;
+      }
+      [data-theme='dark'] .pc-live-result,
+      [data-theme='dark'] tr.pc-live-row td {
+        background: #123326;
+        border-color: #1f6b4a;
+        color: #bfe9d3;
+      }
+      [data-theme='dark'] .pc-live-value {
+        color: #6fd3a3;
+      }
       @media (max-width: 780px) {
         .detail-actions {
           flex-direction: column;
@@ -14725,61 +14779,97 @@
                     ><span class="tooltip-icon" aria-hidden="true">i</span
                     ><span class="tooltip-bubble" role="tooltip"
                       >NEW AMC pricing, built next to the original AMC Admin Rate Section so the two
-                      can be compared. Prices are per appliance per year from the visit cost,
-                      breakdown allowance, appliance age, volume discount and a cap as a share of
-                      equipment value. Hover the i icons for what each field does. Save your values,
-                      or revert to the starting defaults at any time. Every change is logged and can
-                      be restored from History.</span
+                      can be compared. Each plan price is what it costs us to look after one
+                      appliance for a year (visits, repairs, parts) plus overhead plus profit. The
+                      volume discount and a cap (a share of the equipment value) can then lower what
+                      the customer pays. Hover the i icons for what each field does, or open the How
+                      it works tab for a step-by-step example. Save your values, or revert to the
+                      starting defaults at any time. Every change is logged and can be restored from
+                      History.</span
                     ></span
                   >
                 </div>
 
-                <section
-                  class="detail-action-card pricing-config-card"
-                  data-pc-domain="amc_pricing_v2"
-                  style="margin-bottom: 16px"
+                <div
+                  class="vc-tab-nav"
+                  id="amcAdminV2Tabs"
+                  role="tablist"
+                  aria-label="AMC Admin Rates (New) sections"
                 >
-                  <h4>
-                    AMC Rate Configuration (New)<span class="tooltip" tabindex="0"
-                      ><span class="tooltip-icon" aria-hidden="true">i</span
-                      ><span class="tooltip-bubble" role="tooltip"
-                        >Visit and breakdown costs, call-out terms, plan settings, appliance age
-                        bands, volume discount ladder, caps and optional per-appliance rates used by
-                        AMC Quote Calculator (New).</span
-                      ></span
-                    >
-                  </h4>
-                  <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
-                  <div data-pc-fields></div>
-                  <div class="form-footer">
-                    <button class="button button-primary" type="button" data-pc-save>Save</button>
-                    <button class="button button-outline" type="button" data-pc-reset>
-                      Revert to default
-                    </button>
-                    <button class="button button-outline" type="button" data-pc-toggle-history>
-                      History
-                    </button>
-                  </div>
-                  <div data-pc-history hidden style="margin-top: 12px">
-                    <div class="table-wrap">
-                      <table>
-                        <caption class="visually-hidden">
-                          Change history
-                        </caption>
-                        <thead>
-                          <tr>
-                            <th>When</th>
-                            <th>Action</th>
-                            <th>By</th>
-                            <th></th>
-                          </tr>
-                        </thead>
-                        <tbody data-pc-history-body></tbody>
-                      </table>
+                  <button
+                    type="button"
+                    class="action-tab active"
+                    data-amcv2-tab="rates"
+                    role="tab"
+                    aria-selected="true"
+                  >
+                    Rates
+                  </button>
+                  <button
+                    type="button"
+                    class="action-tab"
+                    data-amcv2-tab="help"
+                    role="tab"
+                    aria-selected="false"
+                  >
+                    How it works (temporary)
+                  </button>
+                </div>
+
+                <div id="amcAdminV2HelpPanel" hidden>
+                  <div id="amcV2HelpHost"></div>
+                </div>
+
+                <div id="amcAdminV2RatesPanel">
+                  <section
+                    class="detail-action-card pricing-config-card"
+                    data-pc-domain="amc_pricing_v2"
+                    style="margin-bottom: 16px"
+                  >
+                    <h4>
+                      AMC Rate Configuration (New)<span class="tooltip" tabindex="0"
+                        ><span class="tooltip-icon" aria-hidden="true">i</span
+                        ><span class="tooltip-bubble" role="tooltip"
+                          >All the numbers behind the new AMC prices: what a planned visit and a
+                          repair cost us, the call-out terms printed on quotes, what each plan
+                          includes and its cap, the age risk factors, the volume discount ladder and
+                          the reference value of each appliance. Used by AMC Quote Calculator
+                          (New).</span
+                        ></span
+                      >
+                    </h4>
+                    <p class="form-note" data-pc-source-note>Loading current values&hellip;</p>
+                    <div data-pc-fields></div>
+                    <div class="form-footer">
+                      <button class="button button-primary" type="button" data-pc-save>Save</button>
+                      <button class="button button-outline" type="button" data-pc-reset>
+                        Revert to default
+                      </button>
+                      <button class="button button-outline" type="button" data-pc-toggle-history>
+                        History
+                      </button>
                     </div>
-                    <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
-                  </div>
-                </section>
+                    <div data-pc-history hidden style="margin-top: 12px">
+                      <div class="table-wrap">
+                        <table>
+                          <caption class="visually-hidden">
+                            Change history
+                          </caption>
+                          <thead>
+                            <tr>
+                              <th>When</th>
+                              <th>Action</th>
+                              <th>By</th>
+                              <th></th>
+                            </tr>
+                          </thead>
+                          <tbody data-pc-history-body></tbody>
+                        </table>
+                      </div>
+                      <p class="empty-state" data-pc-history-empty hidden>No saved changes yet.</p>
+                    </div>
+                  </section>
+                </div>
               </div>
             </div>
 

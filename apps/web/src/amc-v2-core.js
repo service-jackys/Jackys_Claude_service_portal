@@ -45,6 +45,35 @@
     return (costPerVisit(cfg) + num(l.transportPerVisit)) / (num(l.handledPerVisit) || 1);
   }
 
+  function fin(value) {
+    return isFinite(value) ? value : 0;
+  }
+
+  // Every step of the planned-visit cost, for the green line on the admin page and the
+  // "How it works" tab. perAppliance is exactly visitCostPerAppliance(cfg).
+  function visitBreakdown(cfg) {
+    var l = cfg.labour;
+    var technicianPerHour = fin(num(l.salary) / num(l.workingDays) / num(l.hoursPerDay));
+    var teamPerHour = technicianPerHour * num(l.technicians);
+    var labourPerVisit = fin(costPerVisit(cfg));
+    var transport = num(l.transportPerVisit);
+    var handled = num(l.handledPerVisit) || 1;
+    var perAppliance = fin(visitCostPerAppliance(cfg));
+    return {
+      technicianPerHour: technicianPerHour,
+      teamPerHour: teamPerHour,
+      labourPerVisit: labourPerVisit,
+      transportPerVisit: transport,
+      wholeVisit: labourPerVisit + transport,
+      handledPerVisit: handled,
+      perAppliance: perAppliance,
+      standardVisits: num(cfg.plans.standard.plannedVisits),
+      premiumVisits: num(cfg.plans.premium.plannedVisits),
+      standard: num(cfg.plans.standard.plannedVisits) * perAppliance,
+      premium: num(cfg.plans.premium.plannedVisits) * perAppliance,
+    };
+  }
+
   function discountFor(cfg, totalQty) {
     var pct = 0;
     var best = 0;
@@ -218,6 +247,40 @@
     };
   }
 
+  // One appliance, one year, Standard and Premium: each cost item and the price it leads to.
+  // Used by the "How it works" tab so management can follow the arithmetic.
+  function exampleRate(cfg, refValue, ageIndex) {
+    var quote = computeQuote(cfg, [{ name: 'Example', qty: 1, refValue: refValue }], ageIndex);
+    var visit = visitCostPerAppliance(cfg);
+    var breakdown =
+      num(cfg.breakdown.callsPerUnitPerYear) * num(cfg.breakdown.costPerCall) * quote.ageFactor;
+    function planRow(key) {
+      var plan = quote.plans.filter(function (p) {
+        return p.planKey === key;
+      })[0];
+      var visits = num(cfg.plans[key].plannedVisits);
+      var direct = plan.directTotal;
+      var breakEven = direct * (1 + num(cfg.overhead));
+      return {
+        visits: visits,
+        visitCost: visits * visit,
+        breakdown: breakdown,
+        parts: plan.partsTotal,
+        direct: direct,
+        overheadAmount: breakEven - direct,
+        breakEven: breakEven,
+        profitAmount: plan.lines[0].unitRate - breakEven,
+        price: plan.lines[0].unitRate,
+      };
+    }
+    return {
+      ageLabel: quote.ageLabel,
+      ageFactor: quote.ageFactor,
+      standard: planRow('standard'),
+      premium: planRow('premium'),
+    };
+  }
+
   function money2(value) {
     return (Math.round(num(value) * 100) / 100).toFixed(2);
   }
@@ -289,6 +352,8 @@
     PLANS: PLANS,
     costPerVisit: costPerVisit,
     visitCostPerAppliance: visitCostPerAppliance,
+    visitBreakdown: visitBreakdown,
+    exampleRate: exampleRate,
     discountFor: discountFor,
     callOutTerms: callOutTerms,
     computeQuote: computeQuote,
