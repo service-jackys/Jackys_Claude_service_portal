@@ -11251,7 +11251,7 @@ ${bodyHtml}
 
       const overrideHost = card(
         'Rate overrides per appliance (optional)',
-        'Normally the rate is calculated. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
+        'Normally the rate is calculated from the reference value above. To set a fixed yearly rate for one appliance and plan, add it here. Leave a rate at 0 to keep the calculated rate for that plan.',
       );
       overrideHost.parentElement.classList.add('pc-span-full');
       const rerenderOverrides = () =>
@@ -11298,21 +11298,51 @@ ${bodyHtml}
         );
       rerenderOverrides();
 
-      // Read-only: the yearly rate per appliance these settings give.
+      // Every Appliance Master appliance with its reference value (editable, saved back to
+      // Appliance Master) and the yearly rate per appliance these settings give.
       const previewHost = document.createElement('div');
       previewHost.className = 'detail-action-card pc-span-full';
       previewHost.innerHTML =
-        '<h4>Calculated yearly rate per appliance (read-only) ' +
+        '<h4>Appliance reference values &amp; calculated yearly rate per appliance ' +
         tipHtml(
-          'What one appliance costs the customer per year on each plan with the settings above, before the volume discount and the cap. Uses each appliance’s reference value from Appliance Master. Updates as you type.',
+          'Every appliance from Appliance Master. Type the reference value (replacement price) and tick AMC for appliances that get AMC quotes; the rates beside it recalculate as you type. Rates are before the volume discount and the cap. Press "Save reference values" to store the values in Appliance Master (separate from the Save button of this page). Fixed rates for an appliance go in the overrides table below.',
         ) +
-        '</h4><div class="field-grid"><div class="field"><label>Appliance age</label><select data-pv-age></select></div></div><div data-pv-table></div>';
+        '</h4><div class="field-grid"><div class="field"><label>Appliance age ' +
+        tipHtml('Age band used for the calculated rates in this table only.') +
+        '</label><select data-pv-age></select></div></div><div data-pv-table></div>' +
+        '<p><button type="button" class="button" data-pv-save>Save reference values</button> <span class="form-note" data-pv-note></span></p>';
       grid.appendChild(previewHost);
       const ageSelect = previewHost.querySelector('[data-pv-age]');
       const previewTable = previewHost.querySelector('[data-pv-table]');
-      refreshPreview = () => {
+      const saveButton = previewHost.querySelector('[data-pv-save]');
+      const saveNote = previewHost.querySelector('[data-pv-note]');
+
+      const rateCells = (row, index) => {
         const core = window.JdAmcV2;
-        if (!core || !previewState.master) return;
+        const item = previewState.master.appliances[index];
+        if (!core || !item.amcEnabled) return ['&ndash;', '&ndash;', '&ndash;'];
+        const quote = core.computeQuote(
+          data,
+          [{ name: item.name, qty: 1, refValue: item.amcRefValue }],
+          previewState.age,
+        );
+        return quote.plans.map(
+          (p) =>
+            money(p.lines[0].unitRate) + (p.lines[0].overridden ? ' <small>(fixed)</small>' : ''),
+        );
+      };
+      const updateRates = () => {
+        if (!previewState.master) return;
+        previewTable.querySelectorAll('tr[data-pv-row]').forEach((row) => {
+          const index = Number(row.dataset.pvRow);
+          const cells = rateCells(row, index);
+          row.querySelectorAll('[data-pv-rate]').forEach((cell, n) => {
+            cell.innerHTML = cells[n];
+          });
+        });
+      };
+      refreshPreview = updateRates;
+      const renderPreview = () => {
         ageSelect.innerHTML = data.ageBands
           .map(
             (band, i) =>
@@ -11325,56 +11355,85 @@ ${bodyHtml}
               '</option>',
           )
           .join('');
-        const items = (previewState.master.appliances || []).filter(
-          (a) => a.active && a.amcEnabled,
-        );
-        if (!items.length) {
-          previewTable.innerHTML =
-            '<p class="form-note">No AMC appliances are set up in Appliance Master yet.</p>';
-          return;
-        }
+        const items = previewState.master.appliances || [];
         previewTable.innerHTML =
-          '<div class="table-wrap"><table><thead><tr><th>Appliance</th><th>Reference value (AED)</th><th>Basic RM</th><th>Standard PMC</th><th>Premium PMC</th></tr></thead><tbody>' +
+          '<div class="table-wrap"><table><thead><tr>' +
+          '<th title="Appliance name from Appliance Master. Names are changed in Admin > Masters > Appliance Master.">Appliance</th>' +
+          '<th title="Tick if this appliance is offered on AMC quotes. Untick to keep it out of the AMC calculators.">AMC</th>' +
+          '<th title="Replacement price of the appliance in AED. Sets the parts reserve and the cap. The customer is never asked for it.">Reference value (AED)</th>' +
+          '<th title="Yearly Basic RM rate per appliance (retainer). Before volume discount and cap.">Basic RM</th>' +
+          '<th title="Yearly Standard PMC rate per appliance. Before volume discount and cap.">Standard PMC</th>' +
+          '<th title="Yearly Premium PMC rate per appliance. Before volume discount and cap.">Premium PMC</th>' +
+          '</tr></thead><tbody>' +
           items
-            .map((a) => {
-              const quote = core.computeQuote(
-                data,
-                [{ name: a.name, qty: 1, refValue: a.amcRefValue }],
-                previewState.age,
-              );
-              return (
-                '<tr><td>' +
-                escapeHtml(a.name) +
-                '</td><td>' +
-                money(a.amcRefValue) +
-                '</td>' +
-                quote.plans
-                  .map(
-                    (p) =>
-                      '<td>' +
-                      money(p.lines[0].unitRate) +
-                      (p.lines[0].overridden ? ' <small>(fixed)</small>' : '') +
-                      '</td>',
-                  )
-                  .join('') +
-                '</tr>'
-              );
-            })
+            .map((a, i) =>
+              a.active
+                ? '<tr data-pv-row="' +
+                  i +
+                  '"><td>' +
+                  escapeHtml(a.name) +
+                  '</td><td><input type="checkbox" data-pv-amc="' +
+                  i +
+                  '"' +
+                  (a.amcEnabled ? ' checked' : '') +
+                  ' aria-label="AMC enabled for ' +
+                  escapeHtml(a.name) +
+                  '" /></td><td><input type="number" min="0" step="1" data-pv-ref="' +
+                  i +
+                  '" value="' +
+                  Number(a.amcRefValue || 0) +
+                  '" aria-label="Reference value for ' +
+                  escapeHtml(a.name) +
+                  '" /></td><td data-pv-rate></td><td data-pv-rate></td><td data-pv-rate></td></tr>'
+                : '',
+            )
             .join('') +
           '</tbody></table></div>';
+        previewTable.querySelectorAll('[data-pv-ref]').forEach((input) =>
+          input.addEventListener('input', () => {
+            previewState.master.appliances[Number(input.dataset.pvRef)].amcRefValue = Math.max(
+              0,
+              Number(input.value) || 0,
+            );
+            saveNote.textContent = 'Not saved yet.';
+            updateRates();
+          }),
+        );
+        previewTable.querySelectorAll('[data-pv-amc]').forEach((input) =>
+          input.addEventListener('change', () => {
+            previewState.master.appliances[Number(input.dataset.pvAmc)].amcEnabled = input.checked;
+            saveNote.textContent = 'Not saved yet.';
+            updateRates();
+          }),
+        );
+        updateRates();
       };
       ageSelect.addEventListener('change', () => {
         previewState.age = Number(ageSelect.value) || 0;
-        refreshPreview();
+        updateRates();
+      });
+      saveButton.addEventListener('click', async () => {
+        if (!previewState.master) return;
+        setBusy(saveButton, true, 'Saving…');
+        try {
+          await apiRequest('/api/pricing-config/appliance_master', {
+            method: 'PUT',
+            body: JSON.stringify(previewState.master),
+          });
+          saveNote.textContent = 'Saved to Appliance Master.';
+        } catch (error) {
+          saveNote.textContent = error?.message || 'Could not save to Appliance Master.';
+        } finally {
+          setBusy(saveButton, false);
+        }
       });
       apiRequest('/api/pricing-config/appliance_master', { method: 'GET' })
         .then((response) => {
           previewState.master = response.payload;
-          refreshPreview();
+          renderPreview();
         })
         .catch(() => {
-          previewTable.innerHTML =
-            '<p class="form-note">Could not load Appliance Master for the preview.</p>';
+          previewTable.innerHTML = '<p class="form-note">Could not load Appliance Master.</p>';
         });
     },
     thomson_pricing(container, data, ctx) {

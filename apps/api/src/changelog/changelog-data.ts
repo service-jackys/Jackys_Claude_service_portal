@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 199,
+    "title": "AMC Admin Rates (New): every Appliance Master appliance listed, reference values typed and saved there",
+    "area": "Permissions",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "The read-only \"calculated yearly rate per appliance\" table on AMC Admin Rates (New) only showed AMC-enabled appliances and the reference values could only be changed in Admin > Masters. The person setting prices wanted one list of all appliances to enter the reference value and see the rates calculate.",
+    "changes": [
+      "The table is now \"Appliance reference values & calculated yearly rate per appliance\". It lists every active appliance from Appliance Master (names still come from there; none is stored on this page). Each row has an AMC tick, an editable…",
+      "A Save reference values button writes the ticks and values back to Appliance Master (separate from this page's Save, which saves the pricing settings). The AMC calculators pick them up on the next Refresh rates.",
+      "Fixed per-appliance rates are still entered in \"Rate overrides per appliance (optional)\"; 0 keeps the calculated rate."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts. No API or database change."
+  },
+  {
     "id": 198,
     "title": "AMC Quote Calculator (New): save, issue, AMC Issued (New) and print",
     "area": "Pricing & rates",
