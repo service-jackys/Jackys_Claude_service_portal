@@ -15393,8 +15393,8 @@ ${bodyHtml}
         return;
       }
       host.innerHTML =
-        '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Reference</th><th>Issued</th><th>Client</th><th>Total appliances</th><th>Status</th><th>Plan</th><th>Price incl. VAT</th><th></th>' +
+        '<div class="table-wrap"><table class="amc-issued-table"><thead><tr>' +
+        '<th>Reference</th><th>Client</th><th class="num">Appliances</th><th>Status</th><th>Plan</th><th class="num">Price incl. VAT</th>' +
         '</tr></thead><tbody>' +
         contracts
           .map((c) => {
@@ -15405,18 +15405,19 @@ ${bodyHtml}
               plans[0];
             return (
               '<tr>' +
-              '<td>' +
+              '<td class="ac-ref"><strong>' +
               escapeHtml(c.amcContractReference) +
+              '</strong>' +
               (c.revision > 1
                 ? ' <span class="status-chip" title="This quote has been edited and saved again. Earlier versions are kept under History.">Rev ' +
                   escapeHtml(String(c.revision)) +
                   '</span>'
                 : '') +
-              '</td><td>' +
+              '<small class="ac-sub">' +
               escapeHtml(formatDate(c.createdAt)) +
-              '</td><td>' +
+              '</small></td><td class="ac-client">' +
               escapeHtml(c.clientName || '—') +
-              '</td><td>' +
+              '</td><td class="num">' +
               escapeHtml(String(c.totalCount)) +
               '</td><td><span class="status ' +
               (c.status === 'Sold' ? 'status-ok' : c.status === 'Lost' ? '' : 'status-warn') +
@@ -15424,7 +15425,7 @@ ${bodyHtml}
               escapeHtml(c.status || 'Quote') +
               '</span>' +
               (c.status === 'Sold'
-                ? '<br><small>' +
+                ? '<small class="ac-sub">' +
                   escapeHtml(c.soldPlanLabel || '') +
                   ' &middot; ' +
                   escapeHtml(c.soldDate || '') +
@@ -15432,7 +15433,7 @@ ${bodyHtml}
                   money(c.soldPriceExclVat) +
                   ' ex-VAT</small>'
                 : c.status === 'Lost' && c.lostReason
-                  ? '<br><small>' + escapeHtml(c.lostReason) + '</small>'
+                  ? '<small class="ac-sub">' + escapeHtml(c.lostReason) + '</small>'
                   : '') +
               '</td><td><select data-ac-plan-select="' +
               escapeHtml(c.id) +
@@ -15449,52 +15450,55 @@ ${bodyHtml}
                     '</option>',
                 )
                 .join('') +
-              '</select></td><td data-ac-price-cell="' +
+              '</select></td><td class="num ac-price" data-ac-price-cell="' +
               escapeHtml(c.id) +
               '">' +
               money(defaultPlan ? defaultPlan.priceInclVat : 0) +
-              ' AED</td><td>' +
+              ' AED</td></tr><tr class="ac-actions-row"><td colspan="6"><div class="ac-actions">' +
               (pricingModel === 'v2'
-                ? '<span data-ac-quote-box="' +
+                ? '<div class="ac-group"><span class="ac-label">Quotation</span><span data-ac-quote-box="' +
                   escapeHtml(c.id) +
                   '">' +
                   amcQuotationPlanChecks(plans) +
-                  '</span><br><button type="button" class="button button-outline" data-ac-quote="' +
+                  '</span><div class="ac-row"><button type="button" class="button button-outline button-sm" data-ac-quote="' +
                   escapeHtml(c.id) +
                   '">Print quotation</button>' +
                   (c.status === 'Sold'
-                    ? ' <button type="button" class="button button-outline" data-ac-reprint="' +
+                    ? '<button type="button" class="button button-primary button-sm" data-ac-reprint="' +
                       escapeHtml(c.id) +
                       '" title="The signed contract for the approved plan">Print certificate</button>'
-                    : '')
-                : '<button type="button" class="button button-outline" data-ac-reprint="' +
+                    : '') +
+                  '</div></div>'
+                : '<div class="ac-group"><div class="ac-row"><button type="button" class="button button-outline button-sm" data-ac-reprint="' +
                   escapeHtml(c.id) +
-                  '">Print</button>') +
+                  '">Print</button></div></div>') +
               (canRevise
-                ? (c.status === 'Sold'
+                ? '<div class="ac-group"><span class="ac-label">Manage</span><div class="ac-row">' +
+                  (c.status === 'Sold'
                     ? ''
-                    : ' <button type="button" class="button button-outline" data-ac-edit="' +
+                    : '<button type="button" class="button button-outline button-sm" data-ac-edit="' +
                       escapeHtml(c.id) +
                       '" title="Reopen in the calculator with the current Admin prices">Edit</button>') +
-                  ' <button type="button" class="button button-outline" data-ac-history="' +
+                  '<button type="button" class="button button-outline button-sm" data-ac-history="' +
                   escapeHtml(c.id) +
-                  '">History</button>'
+                  '">History</button></div></div>'
                 : '') +
               (canChangeStatus
                 ? c.status === 'Quote' || !c.status
-                  ? ' <input type="date" data-ac-sold-date="' +
+                  ? '<div class="ac-group"><span class="ac-label">Outcome</span><div class="ac-row"><input type="date" data-ac-sold-date="' +
                     escapeHtml(c.id) +
                     '" value="' +
                     escapeHtml(pgYmd(new Date())) +
-                    '" title="Sold date"> <button type="button" class="button button-primary" data-ac-status="Sold" data-ac-id="' +
+                    '" title="Sold date" aria-label="Sold date"><button type="button" class="button button-primary button-sm" data-ac-status="Sold" data-ac-id="' +
                     escapeHtml(c.id) +
-                    '" title="Mark as sold with the plan selected">Sold</button> <button type="button" class="button button-outline" data-ac-status="Lost" data-ac-id="' +
+                    '" title="Mark as sold with the plan selected">Sold</button><button type="button" class="button button-outline button-sm" data-ac-status="Lost" data-ac-id="' +
                     escapeHtml(c.id) +
-                    '">Lost</button>'
-                  : ' <button type="button" class="button button-outline" data-ac-status="Quote" data-ac-id="' +
+                    '">Lost</button></div></div>'
+                  : '<div class="ac-group"><span class="ac-label">Outcome</span><div class="ac-row"><button type="button" class="button button-outline button-sm" data-ac-status="Quote" data-ac-id="' +
                     escapeHtml(c.id) +
-                    '">Reopen</button>'
+                    '">Reopen</button></div></div>'
                 : '') +
+              '</div>' +
               '</td></tr>'
             );
           })

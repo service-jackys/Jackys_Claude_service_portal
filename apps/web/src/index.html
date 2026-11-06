@@ -5976,26 +5976,189 @@
       .vc-tab-panels {
         min-width: 0;
       }
-      /* Plan tick boxes on the AMC quotation print controls. */
+      /* AMC Issued list (AMC Quote Calculator and AMC Quote Calculator (New)): a compact,
+         scannable table with the row actions grouped into Quotation / Manage / Outcome. */
+      .amc-issued-table {
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+      .amc-issued-table th {
+        background: var(--surface-soft);
+        padding: 0.6rem 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .amc-issued-table th:first-child {
+        border-top-left-radius: 10px;
+      }
+      .amc-issued-table th:last-child {
+        border-top-right-radius: 10px;
+      }
+      .amc-issued-table td {
+        padding: 0.9rem 0.75rem;
+      }
+      .amc-issued-table .num {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+      .amc-issued-table .ac-ref strong {
+        display: block;
+        color: var(--navy);
+        font-size: 0.92rem;
+        letter-spacing: 0.01em;
+        white-space: nowrap;
+      }
+      .amc-issued-table .ac-ref .status-chip {
+        margin-left: 0.3rem;
+      }
+      .amc-issued-table .ac-sub {
+        display: block;
+        margin-top: 0.2rem;
+        color: var(--muted);
+        font-size: 0.74rem;
+        font-weight: 500;
+      }
+      .amc-issued-table .ac-client {
+        min-width: 8rem;
+        font-weight: 600;
+      }
+      .amc-issued-table .ac-price {
+        color: var(--navy);
+        font-size: 0.95rem;
+        font-weight: 800;
+      }
+      .amc-issued-table select {
+        min-width: 9.5rem;
+        padding: 0.4rem 0.5rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+      /* Each quote is two lines: its details, then a toolbar of grouped actions. */
+      .amc-issued-table tbody tr:not(.ac-actions-row) td {
+        border-bottom: 0;
+        padding-bottom: 0.5rem;
+      }
+      .amc-issued-table .ac-actions-row td {
+        padding: 0.2rem 0.75rem 0.95rem;
+        background: transparent;
+      }
+      .ac-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        gap: 0.7rem 0.4rem;
+        padding: 0.7rem 0.2rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface-soft);
+      }
+      .ac-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        padding: 0 1rem;
+      }
+      .ac-label {
+        color: var(--muted);
+        font-size: 0.68rem;
+        font-weight: 800;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+      .ac-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .amc-issued-table .button-sm {
+        min-height: 34px;
+        padding: 0.32rem 0.75rem;
+        border-radius: 8px;
+        font-size: 0.82rem;
+      }
+      .amc-issued-table .ac-row input[type='date'] {
+        width: 8.8rem;
+        min-height: 34px;
+        padding: 0.25rem 0.5rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        font-size: 0.82rem;
+      }
+      /* Plan tick boxes (AMC quotation): pill toggles, filled when ticked. */
       .quote-plan-checks {
         display: inline-flex;
         flex-wrap: wrap;
         align-items: center;
-        gap: 0.2rem 0.7rem;
+        gap: 0.35rem;
         margin-bottom: 0.4rem;
+      }
+      .quote-plan-checks > .form-note {
+        margin: 0 0.2rem 0 0;
+      }
+      .amc-issued-table .quote-plan-checks {
+        margin-bottom: 0;
+      }
+      .amc-issued-table .quote-plan-checks > .form-note {
+        display: none;
       }
       .quote-plan-checks label {
         display: inline-flex;
         align-items: center;
-        gap: 0.3rem;
+        gap: 0.35rem;
         margin: 0;
-        font-weight: 600;
+        padding: 0.22rem 0.6rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
         white-space: nowrap;
+        cursor: pointer;
+        transition:
+          background-color 0.14s ease,
+          border-color 0.14s ease,
+          color 0.14s ease;
+      }
+      .quote-plan-checks label:has(input:checked) {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+        color: #155b91;
+      }
+      .quote-plan-checks label:has(input:focus-visible) {
+        outline: 2px solid var(--blue);
+        outline-offset: 2px;
       }
       .quote-plan-checks input[type='checkbox'] {
         width: auto;
         min-width: 0;
         margin: 0;
+        accent-color: var(--blue);
+      }
+      [data-theme='dark'] .amc-issued-table th {
+        background: #17263a;
+      }
+      [data-theme='dark'] .ac-actions {
+        background: #17263a;
+        border-color: #2b3d55;
+      }
+      [data-theme='dark'] .amc-issued-table select,
+      [data-theme='dark'] .amc-issued-table .ac-row input[type='date'],
+      [data-theme='dark'] .quote-plan-checks label {
+        background: #121e2e;
+        border-color: #2b3d55;
+      }
+      [data-theme='dark'] .amc-issued-table .ac-ref strong,
+      [data-theme='dark'] .amc-issued-table .ac-price {
+        color: #e6edf6;
+      }
+      [data-theme='dark'] .quote-plan-checks label:has(input:checked) {
+        background: #12304a;
+        border-color: #2f7fbf;
+        color: #9fd0f5;
       }
       /* Green live result shown under the fields it is calculated from (AMC Admin Rates (New)). */
       .pc-live-result {
