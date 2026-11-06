@@ -15,6 +15,20 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 210,
+    title: 'AMC quotation: compact bullet lists and 1-month validity',
+    area: 'Pricing & rates',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary:
+      'The Included / Not included bullet lists took too much space, and the quotation had no validity period.',
+    changes: ['What changed (printed AMC quotation, new calculator)'],
+    needsYou: 'pull, hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.',
+  },
+  {
     id: 209,
     title:
       'AMC quotation and certificate: included / not included, 75% + 25% payment, general terms, certificate button',
