@@ -3401,6 +3401,8 @@
   .pg3 .block { font-size: 12.5px; padding: 8px 12px; line-height: 1.45; }
   .pg3 .sign-row { margin-top: 36px !important; }
   .plan-block { margin-bottom: 26px; }
+  .plan-block .incl-excl { margin-bottom: 16px; }
+  .plan-block .block-label { margin-bottom: 4px; }
   .pg-break { page-break-before: always; break-before: page; }
   .block.plain { text-align: justify; text-justify: inter-word; }
   .plan-block { page-break-inside: avoid; break-inside: avoid; }
