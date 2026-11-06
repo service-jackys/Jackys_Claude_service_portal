@@ -1143,6 +1143,7 @@
       loadQuotations();
     } else if (inspections) {
       loadInspections();
+      loadInspectionTechnicians();
     } else if (warrantyApprovals) {
       loadWarrantyApprovals();
     } else if (dashboard) {
@@ -3156,7 +3157,7 @@
         <div class="field"><label for="${prefix}ProjectName">Project name ${tipHtml('Start typing to pick a school or branch from the B2B Branch / School master; only the name is filled in. You can also type any other project name.')}</label><input type="text" id="${prefix}ProjectName" maxlength="200" list="${prefix}ProjectList" autocomplete="off"><datalist id="${prefix}ProjectList"></datalist></div>
         <div class="field"><label for="${prefix}SiteLocation">Site / location</label><input type="text" id="${prefix}SiteLocation" maxlength="500"></div>
         <div class="field"><label for="${prefix}DateOfCollection">Date of collection</label><input type="date" id="${prefix}DateOfCollection"></div>
-        <div class="field"><label for="${prefix}TechnicianName">Technician</label><input type="text" id="${prefix}TechnicianName" maxlength="120"></div>
+        <div class="field"><label for="${prefix}TechnicianName">Technician ${tipHtml('Picked from the Technicians master (active technicians only). To add or change a technician, use the Technicians page.')}</label><select id="${prefix}TechnicianName"><option value="">Select technician</option></select></div>
         <div class="field"><label for="${prefix}WarrantyStatus">Warranty status ${tipHtml('The service job warranty status. Out-of-warranty approval requests raised from a quotation or job pull it in automatically.')}</label><select id="${prefix}WarrantyStatus"><option value="">Select</option><option>In Warranty</option><option>Out Warranty</option></select></div>
       </div>
       <div class="field"><label for="${prefix}CustomerComplaint">Customer complaint</label><textarea id="${prefix}CustomerComplaint" maxlength="10000"></textarea></div>
@@ -3224,6 +3225,36 @@
     renderLineItemsTable(`${prefix}FaultyParts`, `${prefix}FaultyPartsBody`, () => {});
   }
 
+  // Inspection technician comes from the Technicians master (active technicians). A name saved on
+  // an older inspection that is no longer in the master stays selectable so it is not lost.
+  let inspectionTechnicianNames = null;
+  function fillInspectionTechnicianOptions(prefix, keep) {
+    const select = $(`#${prefix}TechnicianName`);
+    if (!select) return;
+    const current = keep === undefined ? select.value : keep;
+    const names = [...(inspectionTechnicianNames || [])];
+    if (current && !names.includes(current)) names.push(current);
+    select.innerHTML =
+      '<option value="">Select technician</option>' +
+      names.map((n) => `<option value="${escapeHtml(n)}">${escapeHtml(n)}</option>`).join('');
+    select.value = current || '';
+    select.disabled = inspectionTechnicianNames === null && !hasPermission('technicians.read');
+  }
+
+  async function loadInspectionTechnicians() {
+    if (!hasPermission('technicians.read')) {
+      for (const prefix of ['iqc', 'iqe']) fillInspectionTechnicianOptions(prefix);
+      return;
+    }
+    try {
+      const result = await apiRequest('/api/technicians?active=true&page=1&pageSize=100');
+      inspectionTechnicianNames = (result.technicians || []).map((t) => t.name);
+    } catch {
+      // Keep whatever is there; the saved value stays selectable.
+    }
+    for (const prefix of ['iqc', 'iqe']) fillInspectionTechnicianOptions(prefix);
+  }
+
   function fillInspectionForm(prefix, i) {
     $(`#${prefix}Date`).value = (i.inspectionDate || '').slice(0, 10);
     $(`#${prefix}CustomerType`).value = i.customerType || '';
@@ -3235,7 +3266,7 @@
     $(`#${prefix}ProjectName`).value = i.projectName || '';
     $(`#${prefix}SiteLocation`).value = i.siteLocation || '';
     $(`#${prefix}DateOfCollection`).value = (i.dateOfCollection || '').slice(0, 10);
-    $(`#${prefix}TechnicianName`).value = i.technicianName || '';
+    fillInspectionTechnicianOptions(prefix, i.technicianName || '');
     const warrantySelect = $(`#${prefix}WarrantyStatus`);
     if (
       i.warrantyStatus &&
