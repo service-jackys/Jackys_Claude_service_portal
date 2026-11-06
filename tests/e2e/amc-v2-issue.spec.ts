@@ -142,6 +142,16 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody).not.toContainText('break-even');
     await expect(quoteBody).not.toContainText('cap');
 
+    // A customer who wants only Basic RM and Standard: untick Premium and print again.
+    await page.locator('[data-ac-quote-box="9"] input[value="premium-pmc"]').uncheck();
+    const twoPopup = page.waitForEvent('popup');
+    await page.locator('[data-ac-quote]').click();
+    const two = await twoPopup;
+    await expect(two.locator('body')).toContainText('Basic RM');
+    await expect(two.locator('body')).toContainText('Standard PMC');
+    await expect(two.locator('body')).not.toContainText('Premium PMC');
+    await page.locator('[data-ac-quote-box="9"] input[value="premium-pmc"]').check();
+
     // No certificate while the quote is still a Quote.
     await expect(page.locator('[data-ac-reprint]')).toHaveCount(0);
 
@@ -168,11 +178,25 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(page.locator('[data-as-print]')).toBeDisabled();
     await page.locator('[data-as-save]').click();
     await expect(page.locator('[data-as-message]')).toContainText('AC-2026-00009');
+    // All plans are ticked to start with; at least one must stay ticked.
+    await expect(page.locator('[data-as-quote-plans] input:checked')).toHaveCount(3);
+    for (const key of ['basic-rm', 'standard-pmc', 'premium-pmc']) {
+      await page.locator('[data-as-quote-plans] input[value="' + key + '"]').uncheck();
+    }
+    await page.locator('[data-as-print]').click();
+    await expect(page.locator('[data-as-message]')).toContainText('Tick at least one plan');
+    await page.locator('[data-as-quote-plans] input[value="basic-rm"]').check();
+    await page.locator('[data-as-quote-plans] input[value="premium-pmc"]').check();
     const popupPromise = page.waitForEvent('popup');
     await page.locator('[data-as-print]').click();
     const popup = await popupPromise;
     await expect(popup.locator('body')).toContainText('AMC Quotation');
     await expect(popup.locator('body')).toContainText('Acme Hotel');
+    await expect(popup.locator('body')).toContainText('Basic RM');
+    await expect(popup.locator('body')).toContainText('Premium PMC');
+    // (Premium's own text mentions Standard PMC, so check Standard's column and plan section.)
+    await expect(popup.locator('body')).not.toContainText('Standard coverage with minor parts');
+    await expect(popup.locator('th', { hasText: 'Standard PMC' })).toHaveCount(0);
   });
 
   test('the original calculator lists only original quotes', async ({ page }) => {

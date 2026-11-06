@@ -3814,14 +3814,45 @@ ${bodyHtml}
     `;
   }
 
-  function printAmcQuotation(contract) {
+  // planKeys (optional): print only these plans, e.g. a customer who wants Basic RM and Standard.
+  function printAmcQuotation(contract, planKeys) {
     if (!contract || !contract.plans || !contract.plans.length) return;
+    const chosen =
+      Array.isArray(planKeys) && planKeys.length
+        ? contract.plans.filter((p) => planKeys.includes(p.planKey))
+        : contract.plans;
+    if (!chosen.length) return;
     openPrintWindow(
       printDocumentShell(
         `AMC Quotation ${contract.amcContractReference || ''}`,
-        buildAmcQuotationBody(contract),
+        buildAmcQuotationBody({ ...contract, plans: chosen }),
       ),
     );
+  }
+
+  // Tick boxes for "which plans go on the quotation" (all ticked to start with).
+  function amcQuotationPlanChecks(plans) {
+    return (
+      '<span class="quote-plan-checks" title="Tick the plans to show on the quotation">' +
+      '<span class="form-note">Plans on quotation:</span> ' +
+      (plans || [])
+        .map(
+          (p) =>
+            '<label><input type="checkbox" data-quote-plan value="' +
+            escapeHtml(p.planKey) +
+            '" checked> ' +
+            escapeHtml(p.planLabel) +
+            '</label>',
+        )
+        .join('') +
+      '</span>'
+    );
+  }
+
+  function ticked(host) {
+    return Array.from(host.querySelectorAll('[data-quote-plan]'))
+      .filter((box) => box.checked)
+      .map((box) => box.value);
   }
 
   // Tax invoice print, laid out like the ERP sample: Jacky's Electronics LLC letterhead
@@ -15424,7 +15455,11 @@ ${bodyHtml}
               money(defaultPlan ? defaultPlan.priceInclVat : 0) +
               ' AED</td><td>' +
               (pricingModel === 'v2'
-                ? '<button type="button" class="button button-outline" data-ac-quote="' +
+                ? '<span data-ac-quote-box="' +
+                  escapeHtml(c.id) +
+                  '">' +
+                  amcQuotationPlanChecks(plans) +
+                  '</span><br><button type="button" class="button button-outline" data-ac-quote="' +
                   escapeHtml(c.id) +
                   '">Print quotation</button>' +
                   (c.status === 'Sold'
@@ -15609,12 +15644,16 @@ ${bodyHtml}
       });
       host.querySelectorAll('[data-ac-quote]').forEach((button) => {
         button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-ac-quote');
+          const keys = ticked(host.querySelector('[data-ac-quote-box="' + id + '"]'));
+          if (!keys.length) {
+            setMessage('#workspaceMessage', 'Tick at least one plan to print on the quotation.');
+            return;
+          }
           button.disabled = true;
           try {
-            const detail = await apiRequest(
-              '/api/amc-contracts/' + button.getAttribute('data-ac-quote'),
-            );
-            printAmcQuotation(detail.amcContract);
+            const detail = await apiRequest('/api/amc-contracts/' + id);
+            printAmcQuotation(detail.amcContract, keys);
           } catch (error) {
             setMessage(
               '#workspaceMessage',
@@ -15709,7 +15748,7 @@ ${bodyHtml}
           )) +
       '</div>' +
       (v2
-        ? '<p class="form-note">A saved quote prints as a quotation with all 3 plans. The contract certificate is printed from AMC Issued (New) once the quote is marked Sold.</p>'
+        ? '<p class="form-note">A saved quote prints as a quotation. Tick the plans to show on it (for example only Basic RM and Standard). The contract certificate is printed from AMC Issued (New) once the quote is marked Sold.</p><p data-as-quote-plans></p>'
         : '') +
       '<p><button type="button" class="button button-outline" data-as-print disabled>' +
       (v2 ? 'Print quotation' : 'Print certificate') +
@@ -15719,6 +15758,7 @@ ${bodyHtml}
     const printPlanSelect =
       saleHost.querySelector('[data-as-print-plan]') || document.createElement('select');
     const printButton = saleHost.querySelector('[data-as-print]');
+    const quotePlansHost = saleHost.querySelector('[data-as-quote-plans]');
     const messageHost = saleHost.querySelector('[data-as-message]');
     let savedContract = null;
     let editing = null; // the issued AMC record being revised, when an admin reopened one
@@ -15762,6 +15802,7 @@ ${bodyHtml}
       printPlanSelect.innerHTML = '<option value="">Save first to choose a plan</option>';
       printPlanSelect.disabled = true;
       printButton.disabled = true;
+      if (quotePlansHost) quotePlansHost.innerHTML = '';
       setEditing(contract);
     }
 
@@ -15787,6 +15828,7 @@ ${bodyHtml}
       printPlanSelect.innerHTML = '<option value="">Save first to choose a plan</option>';
       printPlanSelect.disabled = true;
       printButton.disabled = true;
+      if (quotePlansHost) quotePlansHost.innerHTML = '';
       messageHost.innerHTML = '';
       const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
       if (totalCount <= 0) {
@@ -15884,6 +15926,7 @@ ${bodyHtml}
           .join('');
         printPlanSelect.disabled = false;
         printButton.disabled = false;
+        if (quotePlansHost) quotePlansHost.innerHTML = amcQuotationPlanChecks(savedContract.plans);
         clearContractFormInputs();
         clearAppliances();
         onSaved();
@@ -15897,8 +15940,15 @@ ${bodyHtml}
 
     printButton.addEventListener('click', () => {
       if (!savedContract) return;
-      if (v2) printAmcQuotation(savedContract);
-      else printAmcContractCertificate(savedContract, printPlanSelect.value);
+      if (v2) {
+        const keys = quotePlansHost ? ticked(quotePlansHost) : [];
+        if (!keys.length) {
+          messageHost.innerHTML =
+            '<p class="form-note">Tick at least one plan to print on the quotation.</p>';
+          return;
+        }
+        printAmcQuotation(savedContract, keys);
+      } else printAmcContractCertificate(savedContract, printPlanSelect.value);
     });
 
     return { startEdit };

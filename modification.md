@@ -4413,6 +4413,7 @@ Display only; no pricing formulas, API or database changes.
 - **Print certificate** appears in the list only once the quote is marked **Sold**, and prints the approved plan as before.
 - The "Plan to print" dropdown after saving is no longer shown for new-calculator quotes (the quotation shows every plan). The plan dropdown in the list is still used to choose the approved plan when marking Sold.
 - Admin History (earlier versions) prints the quotation of that version for new-calculator quotes.
+- **Choose which plans appear:** tick boxes (all ticked to start with) next to Print quotation, in the list and right after Save. For example, tick only Basic RM and Standard and the quotation shows just those two (rates, prices, inclusions, call-out terms and the acceptance box). At least one plan must stay ticked.
 - No validity period was added to the quotation (none was specified).
 
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
