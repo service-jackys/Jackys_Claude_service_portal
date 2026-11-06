@@ -3381,13 +3381,13 @@
   .doc-head .printed-at { font-size: 10px; color: #888; margin-top: 6px; }
   h2 { font-size: 12.5px; margin: 16px 0 6px; border-bottom: 1px solid #bbb; padding-bottom: 3px; color: #17324d; }
   .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
-  .quote-head { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; column-gap: 12px; }
-  .quote-head .logo-big { height: 64px; margin-bottom: 6px; }
-  .quote-head .qh-service { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: #17324d; }
-  .quote-head .logo-small { height: 14px; width: auto; display: block; margin: 0; }
-  .quote-head .qh-title { font-size: 21px; font-weight: 800; color: #17324d; text-align: center; letter-spacing: .3px; }
-  .quote-head .qh-ref { text-align: right; font-size: 12px; color: #444; }
-  .quote-head .qh-ref strong { display: inline; font-size: 13px; color: #1a1a1a; }
+  .quote-head { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: end; column-gap: 12px; }
+  .quote-head .logo-big { grid-column: 1 / -1; height: 64px; margin: 0 0 2px; justify-self: start; }
+  .quote-head .qh-service { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; padding-left: 28px; font-size: 13px; font-weight: 700; color: #17324d; white-space: nowrap; }
+  .quote-head .logo-small { height: 20px; width: auto; display: block; margin: 0; }
+  .quote-head .qh-title { grid-row: 2; grid-column: 2; font-size: 18px; font-weight: 900; color: #17324d; text-align: center; letter-spacing: .3px; line-height: 1.1; -webkit-text-stroke: 0.5px #17324d; }
+  .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
+  .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
   .plan-block { page-break-inside: avoid; break-inside: avoid; }
   .tc-list li { text-align: justify; text-justify: inter-word; hyphens: auto; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
@@ -3508,10 +3508,8 @@ ${bodyHtml}
   // it, the title centred, and the contract reference on the title line (no printed date).
   function printAmcQuoteHead(reference) {
     return `<div class="doc-head quote-head">
-      <div class="qh-left">
-        <img class="logo logo-big" src="${JDI_LOGO_DATA_URI}" alt="Jacky's Distribution LLC" />
-        <div class="qh-service"><img class="logo-small" src="${JDI_LOGO_DATA_URI}" alt="" /><span>Jacky's Service Center</span></div>
-      </div>
+      <img class="logo logo-big" src="${JDI_LOGO_DATA_URI}" alt="Jacky's Distribution LLC" />
+      <div class="qh-service"><img class="logo-small" src="${JDI_LOGO_DATA_URI}" alt="" /><span>Jacky's Service Center</span></div>
       <div class="qh-title">AMC Quotation</div>
       <div class="qh-ref">Contract Ref: <strong>${escapeHtml(reference || '\u2014')}</strong></div>
     </div>`;
