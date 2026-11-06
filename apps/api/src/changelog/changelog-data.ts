@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 209,
+    title:
+      'AMC quotation and certificate: included / not included, 75% + 25% payment, general terms, certificate button',
+    area: 'Pricing & rates',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary:
+      'Feedback on the printed AMC quotation: make what is covered easier to read, change the payment terms, add the general terms, and make the certificate button easy to find.',
+    changes: [],
+    needsYou: 'pull, hard-refresh. Confirm the 25% timing (30 days from commencement).',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.',
+  },
+  {
     id: 208,
     title: 'Standard PMC: shared call-out allowance printed on the quote',
     area: 'Invoices & billing',

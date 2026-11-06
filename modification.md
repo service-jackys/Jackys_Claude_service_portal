@@ -4511,3 +4511,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/amc-v2-core.js, apps/web/src/app.js, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-v2-issue.spec.ts. No database migration (the new setting is optional in the saved settings).
 
 **Needs you:** pull, restart the API, hard-refresh. Consider raising the normal labour charge so call-outs above the allowance earn money.
+
+## Modification #209 — AMC quotation and certificate: included / not included, 75% + 25% payment, general terms, certificate button
+
+**Date:** 2026-11-06
+
+**Why.** Feedback on the printed AMC quotation: make what is covered easier to read, change the payment terms, add the general terms, and make the certificate button easy to find.
+
+**What changed (new AMC calculator documents only; the original calculator is untouched).**
+
+- **Included / Not included:** under each plan on the quotation these now sit side by side in a two-column box with a green "Included" and a red "Not included / separately quoted" heading.
+- **Payment terms (quotation and certificate):** 75% payable in advance on acceptance and before service commencement; the remaining 25% within 30 days of the commencement date. The 30-day timing is an assumption to confirm. The original calculator keeps its 100% advance wording.
+- **General Terms and Conditions:** the same list the original certificate uses is now also printed on the quotation (the new-calculator certificate already had it).
+- **Print certificate:** in AMC Issued (New) the button was hidden until a quote was Sold. It is now always visible: greyed out with "Available after Sold" until the customer approves (choose the approved plan, then click Sold), then active.
+- The certificate's "Contract price adjustment" row, when it is a reduction, reads "Special contract discount" like the quotation.
+
+**Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh. Confirm the 25% timing (30 days from commencement).
