@@ -136,6 +136,10 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody).toContainText('Premium PMC');
     await expect(quoteBody).toContainText('Call-out and repair terms');
     await expect(quoteBody).toContainText('\u20C3 87.50 per call');
+    // Standard's fair-use pool is printed for the quoted quantity.
+    await expect(quoteBody).toContainText(
+      /call-outs in total per contract year across all \d+ appliances/,
+    );
     await expect(quoteBody).toContainText('Client acceptance');
     await expect(quoteBody).not.toContainText('Approved service plan');
     // Nothing internal reaches the customer.
