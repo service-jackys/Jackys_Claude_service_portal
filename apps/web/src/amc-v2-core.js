@@ -324,7 +324,7 @@
         (extraPct > 0
           ? '\u20C3 ' + money2(extra) + ' per call (normal rate \u20C3 ' + money2(normal) + ')'
           : 'the normal labour rate of \u20C3 ' + money2(normal) + ' per call') +
-        '. Major spare parts are extra and are quoted for approval before work starts. ' +
+        '. Major spare parts will be charged additionally, in accordance with the quote approved prior to the commencement of work. ' +
         handling,
       premium:
         'Repair labour and all mechanical parts except the compressor are included. ' + handling,

@@ -3383,7 +3383,7 @@
   .doc-head .logo { height: 46px; width: auto; display: block; margin-bottom: 4px; }
   .quote-head { display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: end; column-gap: 12px; }
   .quote-head .logo-big { grid-column: 1 / -1; height: 64px; margin: 0 0 2px; justify-self: start; }
-  .quote-head .qh-service { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; padding-left: 28px; font-size: 13px; font-weight: 700; color: #17324d; white-space: nowrap; }
+  .quote-head .qh-service { grid-row: 2; grid-column: 1; display: flex; align-items: center; gap: 6px; padding-left: 0; font-size: 13px; font-weight: 700; color: #17324d; white-space: nowrap; }
   .quote-head .logo-small { height: 20px; width: auto; display: block; margin: 0; }
   .quote-head .qh-title { grid-row: 2; grid-column: 2; font-size: 18px; font-weight: 900; color: #17324d; text-align: center; letter-spacing: .3px; line-height: 1.1; -webkit-text-stroke: 0.5px #17324d; }
   .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
@@ -3509,7 +3509,7 @@ ${bodyHtml}
   function printAmcQuoteHead(reference) {
     return `<div class="doc-head quote-head">
       <img class="logo logo-big" src="${JDI_LOGO_DATA_URI}" alt="Jacky's Distribution LLC" />
-      <div class="qh-service"><img class="logo-small" src="${JDI_LOGO_DATA_URI}" alt="" /><span>Jacky's Service Center</span></div>
+      <div class="qh-service"><span>Jacky's Service Center</span></div>
       <div class="qh-title">AMC Quotation</div>
       <div class="qh-ref">Contract Ref: <strong>${escapeHtml(reference || '\u2014')}</strong></div>
     </div>`;
@@ -3717,6 +3717,10 @@ ${bodyHtml}
       .replace(
         'Call-outs beyond this are charged at',
         'Call-outs beyond this will be chargeable at',
+      )
+      .replace(
+        'Major spare parts are extra and are quoted for approval before work starts.',
+        'Major spare parts will be charged additionally, in accordance with the quote approved prior to the commencement of work.',
       )
       .replace(
         'handling charge if the appliance cannot be repaired.',
