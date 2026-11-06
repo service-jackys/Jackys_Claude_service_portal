@@ -147,6 +147,10 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     );
     await expect(quoteBody).toContainText('75% of the contract value is payable in advance');
     await expect(quoteBody).toContainText('remaining 25%');
+    await expect(quoteBody.locator('.scope-list li').first()).toBeVisible();
+    await expect(
+      quoteBody.locator('.scope-list li', { hasText: /^Replacement parts$/ }),
+    ).toHaveCount(1);
     await expect(quoteBody).not.toContainText('100% payment in advance');
     await expect(quoteBody).toContainText('General Terms and Conditions');
     await expect(quoteBody).toContainText('Limitation of Liability');
