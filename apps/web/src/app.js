@@ -3920,7 +3920,7 @@ ${bodyHtml}
   // all plans side by side with the rate per appliance, volume discount and call-out terms, and
   // an acceptance box. The signed contract certificate is a separate document, printed only
   // after the quote is marked Sold. Nothing internal (cost, margin, cap) is shown.
-  // ---- Page 1 extras for the quotation (sample variants under review) --------------------------
+  // ---- Page 1 extras for the quotation: Plans at a glance and per-appliance prices ------------
   // Pulls the figures out of the call-out wording saved with each plan, so the summary table can
   // never disagree with the Call-out and repair terms printed on page 2.
   function amcPlanGlance(p) {
@@ -3966,8 +3966,6 @@ ${bodyHtml}
   }
 
   function buildAmcQuotationBody(contract) {
-    // Sample switch used while management reviews the page-1 additions.
-    const variant = (typeof globalThis !== 'undefined' && globalThis.__AMC_QUOTE_VARIANT) || {};
     const money = moneyGrouped;
     const plans = contract.plans || [];
     const fb = (p) =>
@@ -4019,7 +4017,7 @@ ${bodyHtml}
           )
         : '',
       sumRow('Contract value excl. VAT', (p) => '\u20C3 ' + money(p.priceExclVat)),
-      variant.perAppliance && Number(contract.totalCount) > 0
+      Number(contract.totalCount) > 0
         ? sumRow(
             'Price per appliance per year (excl. VAT)',
             (p) => '\u20C3 ' + money(Number(p.priceExclVat) / Number(contract.totalCount)),
@@ -4027,12 +4025,10 @@ ${bodyHtml}
         : '',
       sumRow('VAT @ 5%', (p) => '\u20C3 ' + money(Number(p.priceInclVat) - Number(p.priceExclVat))),
       sumRow('Contract value incl. VAT (per year)', (p) => '\u20C3 ' + money(p.priceInclVat), true),
-      variant.perAppliance
-        ? sumRow(
-            'Equivalent per month (incl. VAT)',
-            (p) => '\u20C3 ' + money(Number(p.priceInclVat) / 12),
-          )
-        : '',
+      sumRow(
+        'Equivalent per month (incl. VAT)',
+        (p) => '\u20C3 ' + money(Number(p.priceInclVat) / 12),
+      ),
     ].join('');
     const planDetails = plans
       .map(
@@ -4072,17 +4068,6 @@ ${bodyHtml}
         ['Contract period', contract.contractPeriod],
         ['Total appliances', String(contract.totalCount)],
         ['Appliance age', first && first.ageBand ? first.ageBand : ''],
-        ...(variant.preparedBy
-          ? [
-              [
-                'Prepared by',
-                contract.createdByName
-                  ? `${contract.createdByName}, Service Department`
-                  : 'Service Department',
-              ],
-              ['Service contact', variant.contact || ''],
-            ]
-          : []),
       ])}
       <h2>Appliance schedule*</h2>
       <table><thead><tr><th>Appliance type</th><th class="num">Qty</th></tr></thead><tbody>${rateRows}</tbody></table>
@@ -4090,7 +4075,7 @@ ${bodyHtml}
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
-      ${variant.glance ? amcPlansAtAGlance(plans, fb, name) : ''}
+      ${amcPlansAtAGlance(plans, fb, name)}
       </div>
       <div class="pg-break">${planDetails}</div>
       <div class="pg-break pg3">
