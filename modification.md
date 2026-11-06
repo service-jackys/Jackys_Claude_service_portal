@@ -4465,3 +4465,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #206 — Inspections: Technician picked from the Technicians master
+
+**Date:** 2026-11-06
+
+**Why.** The Technician on an inspection was free text, so names were typed inconsistently.
+
+**What changed.**
+
+- On **New inspection** and the inspection **edit** form, Technician is now a dropdown of the active technicians from the Technicians master (tooltip explains where to manage them). It still saves the technician's name, so printouts, lists and exports are unchanged.
+- An older inspection whose technician is no longer in the master (or was typed by hand) keeps that name selectable, so nothing is lost on edit.
+- A user without the technicians.read permission sees the field disabled (showing any saved name) instead of a free-text box.
+- Only inspections changed; job card, quotation and other forms are untouched.
+
+**Files.** apps/web/src/app.js, tests/e2e/inspection-technician-master.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.

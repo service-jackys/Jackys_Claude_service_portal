@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 206,
+    title: 'Inspections: Technician picked from the Technicians master',
+    area: 'Scheduler',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary: 'The Technician on an inspection was free text, so names were typed inconsistently.',
+    changes: [
+      "On New inspection and the inspection edit form, Technician is now a dropdown of the active technicians from the Technicians master (tooltip explains where to manage them). It still saves the technician's name, so printouts, lists and…",
+      'An older inspection whose technician is no longer in the master (or was typed by hand) keeps that name selectable, so nothing is lost on edit.',
+      'A user without the technicians.read permission sees the field disabled (showing any saved name) instead of a free-text box.',
+      'Only inspections changed; job card, quotation and other forms are untouched.',
+    ],
+    needsYou: 'pull, hard-refresh.',
+    migrations: [],
+    files:
+      'apps/web/src/app.js, tests/e2e/inspection-technician-master.spec.ts. No API or database change.',
+  },
+  {
     id: 205,
     title: 'AMC quotation: discount rows back, no per-unit rates',
     area: 'Pricing & rates',
