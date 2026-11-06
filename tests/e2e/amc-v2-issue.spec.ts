@@ -143,6 +143,8 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
     await expect(quoteBody).not.toContainText('cap');
     // Price before discount is shown again; per-unit rates are not itemised (explained by a * note).
     await expect(quoteBody).toContainText('Price before discount');
+    // A price cut to the plan maximum is labelled a discount, so the rows add up for the customer.
+    await expect(quoteBody).not.toContainText('Contract price adjustment');
     await expect(quoteBody).toContainText('Appliance schedule*');
     await expect(quoteBody).toContainText('depends on the appliance type, its age');
     await expect(quoteBody.locator('table').first().locator('th')).toHaveCount(2);

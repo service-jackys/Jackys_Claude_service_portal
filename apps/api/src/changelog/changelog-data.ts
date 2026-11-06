@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 207,
+    title: 'AMC quotation: "Special contract discount" so the price rows add up',
+    area: 'Pricing & rates',
+    date: '2026-11-06',
+    approxDate: false,
+    status: null,
+    summary:
+      'Management questioned the "Contract price adjustment" row: price before discount minus the volume discount did not equal the contract value, and the gap was unexplained.',
+    changes: [
+      "What changed (printed AMC quotation only): When the final price is below the discounted price (the plan's maximum price applied), that gap is now labelled Special contract discount and printed as a negative amount, so Price before…",
+    ],
+    needsYou: 'pull, hard-refresh.',
+    migrations: [],
+    files: 'apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.',
+  },
+  {
     id: 206,
     title: 'Inspections: Technician picked from the Technicians master',
     area: 'Scheduler',
