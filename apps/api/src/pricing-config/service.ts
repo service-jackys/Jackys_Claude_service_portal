@@ -111,6 +111,39 @@ async function syncThomsonWithMaster(
   });
 }
 
+// Reference values of the new AMC pricing master are matched to Appliance Master by
+// appliance name, so renaming an appliance there carries its value across.
+async function syncAmcV2ReferenceValueRenames(
+  client: PoolClient,
+  renames: { from: string; to: string }[],
+  profileId: string,
+  requestId: string,
+): Promise<void> {
+  if (!renames.length) return;
+  const row = await getPricingConfig(client, 'amc_pricing_v2');
+  const current = row?.payload as
+    { referenceValues?: { name: string; refValue: number }[] } | undefined;
+  if (!current?.referenceValues?.length) return;
+  let changed = false;
+  const referenceValues = current.referenceValues.map((entry) => {
+    const rename = renames.find((r) => r.from.toLowerCase() === entry.name.toLowerCase());
+    if (!rename) return entry;
+    changed = true;
+    return { ...entry, name: rename.to };
+  });
+  if (!changed) return;
+  const payload = { ...current, referenceValues };
+  const saved = await upsertPricingConfig(client, 'amc_pricing_v2', payload, true, profileId);
+  await insertAuditEvent(client, {
+    actorProfileId: profileId,
+    action: 'pricing_config.saved',
+    targetType: 'pricing_config',
+    targetId: saved.id,
+    metadata: { domain: 'amc_pricing_v2', payload, syncedFrom: 'appliance_master', renames },
+    requestId,
+  });
+}
+
 export function createPricingConfigService(pool: Pool) {
   async function get(domain: PricingConfigDomain): Promise<PricingConfigView> {
     const client = await pool.connect();
@@ -201,6 +234,7 @@ export function createPricingConfigService(pool: Pool) {
           profileId,
           requestId,
         );
+        await syncAmcV2ReferenceValueRenames(client, renames, profileId, requestId);
       }
       return {
         domain,

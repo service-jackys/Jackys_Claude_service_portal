@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 200,
+    "title": "AMC Admin Rates (New): reference values kept in the AMC pricing master, not Appliance Master",
+    "area": "Permissions",
+    "date": "2026-11-06",
+    "approxDate": false,
+    "status": null,
+    "summary": "Appliance Master is the master for appliances, not for rates. The reference values typed on AMC Admin Rates (New) should not be written into it.",
+    "changes": [
+      "The list of appliances on AMC Admin Rates (New) still comes from Appliance Master (new appliances appear automatically; the AMC Yes/No column shows its flag). The reference value typed beside each appliance is now saved with the AMC…",
+      "AMC Quote Calculator (New) reads the reference value from the AMC pricing master. An appliance not valued there yet starts from its Appliance Master value, so nothing appears empty.",
+      "Renaming an appliance in Appliance Master carries its saved reference value across (matched by name).",
+      "The \"Rate overrides per appliance\" table is removed from the page (it was a duplicate way of setting prices). The original AMC calculator keeps using the Appliance Master values until it is dropped.",
+      "Saved AMC pricing configurations without reference values still load (the list starts empty)."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. Enter the reference values again on AMC Admin Rates (New) if you want them different from Appliance Master, then Save.",
+    "migrations": [],
+    "files": "packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, apps/api/src/pricing-config/service.ts, apps/web/src/app.js, tests/e2e/amc-calculator-v2.spec.ts…"
+  },
+  {
     "id": 199,
     "title": "AMC Admin Rates (New): every Appliance Master appliance listed, reference values typed and saved there",
     "area": "Permissions",

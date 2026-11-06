@@ -1677,6 +1677,12 @@ export const amcPricingV2Schema = z
     volumeLadder: z.array(amcV2LadderStepSchema).min(1).max(12),
     corridor: z.object({ minPerUnit: nonNegSchema, maxPerUnit: nonNegSchema }).strict(),
     rateOverrides: z.array(amcV2OverrideSchema).max(200),
+    // Reference value (replacement price, AED) per appliance, kept with the AMC pricing
+    // master rather than in Appliance Master. Matched to Appliance Master by name.
+    referenceValues: z
+      .array(z.object({ name: z.string().trim().min(1).max(120), refValue: nonNegSchema }).strict())
+      .max(500)
+      .default([]),
   })
   .strict();
 export type AmcPricingV2Input = z.infer<typeof amcPricingV2Schema>;

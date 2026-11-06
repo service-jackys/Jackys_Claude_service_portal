@@ -124,14 +124,14 @@ test.describe('AMC Admin Rates (New)', () => {
     await expect(card).toContainText('calculated yearly rate per appliance');
   });
 
-  test('reference values are typed in the list of all appliances and saved to Appliance Master', async ({
+  test('reference values are typed in the list of all appliances and saved with the AMC pricing master', async ({
     page,
   }) => {
-    const puts: unknown[] = [];
+    const puts: { url: string; body: unknown }[] = [];
     await signIn(page, amcPricingV2Default);
-    await page.route('**/api/pricing-config/appliance_master', async (route) => {
+    await page.route('**/api/pricing-config/*', async (route) => {
       if (route.request().method() === 'PUT') {
-        puts.push(route.request().postDataJSON());
+        puts.push({ url: route.request().url(), body: route.request().postDataJSON() });
         return route.fulfill({
           status: 200,
           contentType: 'application/json',
@@ -144,20 +144,34 @@ test.describe('AMC Admin Rates (New)', () => {
     const card = page.locator('[data-pc-domain="amc_pricing_v2"]');
     const row = card.locator('tr[data-pv-row="0"]');
     await expect(row).toContainText('Built-in Oven');
-    // Every active appliance is listed, including ones not yet enabled for AMC.
+    // Every active appliance is listed, including ones that are not AMC.
     await expect(card.locator('tr[data-pv-row]')).toHaveCount(2);
+    await expect(card.locator('tr[data-pv-row="1"]').locator('[data-pv-rate]').first()).toHaveText(
+      '–',
+    );
     const before = await row.locator('[data-pv-rate]').nth(1).textContent();
     await card.locator('[data-pv-ref="0"]').fill('1300');
     await expect(row.locator('[data-pv-rate]').nth(1)).not.toHaveText(before ?? '');
-    await card.locator('[data-pv-save]').click();
-    await expect(card.locator('[data-pv-note]')).toContainText('Saved to Appliance Master');
-    const sent = puts[0] as { appliances: { name: string; amcRefValue: number }[] };
-    expect(sent.appliances[0]!.amcRefValue).toBe(1300);
-    // Not-AMC appliance: tick AMC and the rates appear.
-    const hob = card.locator('tr[data-pv-row="1"]');
-    await expect(hob.locator('[data-pv-rate]').first()).toHaveText('–');
-    await card.locator('[data-pv-amc="1"]').check();
-    await card.locator('[data-pv-ref="1"]').fill('1100');
-    await expect(hob.locator('[data-pv-rate]').first()).toHaveText(/15\.00/);
+    await card.locator('[data-pc-save]').click();
+    await expect.poll(() => puts.length).toBe(1);
+    // Saved with the AMC pricing master -- Appliance Master is not touched.
+    expect(puts[0]!.url).toContain('/api/pricing-config/amc_pricing_v2');
+    const sent = puts[0]!.body as { referenceValues: { name: string; refValue: number }[] };
+    expect(sent.referenceValues).toEqual([{ name: 'Built-in Oven', refValue: 1300 }]);
+  });
+
+  test('the calculator uses the value saved in the AMC pricing master, not Appliance Master', async ({
+    page,
+  }) => {
+    const own = {
+      ...amcPricingV2Default,
+      referenceValues: [{ name: 'Built-in Oven', refValue: 1300 }],
+    };
+    await signIn(page, own);
+    await page.locator('#amcCalcV2Nav').click();
+    await page.locator('[data-v2-add]').click();
+    await page.locator('[data-v2-qty="0"]').fill('10');
+    // 10 x 1,300 (Appliance Master says 650).
+    await expect(page.locator('[data-v2-output]')).toContainText('13000.00');
   });
 });
