@@ -10473,6 +10473,13 @@ ${bodyHtml}
       '), plus parts. Our own yearly admin cost is \u20C3 ' +
       fmt(data.plans.basic.adminCostPerUnit) +
       ' per appliance.</p>' +
+      '<p><strong>Standard</strong> includes repair labour for a shared pool of call-outs: appliances × ' +
+      data.breakdown.callsPerUnitPerYear +
+      ' calls per year (for example 1,595 appliances = ' +
+      Math.ceil(1595 * (Number(data.breakdown.callsPerUnitPerYear) || 0) - 1e-9) +
+      ' call-outs for the whole contract). Call-outs beyond the pool are charged at \u20C3 ' +
+      fmt((Number(co.labourCharge) || 0) * (1 - (Number(co.standardExtraDiscountPct) || 0))) +
+      ' per call. The pool is exactly what the price allows for, so extra call-outs never cost us money.</p>' +
       '<p class="form-note">Standard and Premium customers also pay \u20C3 ' +
       fmt(co.handlingCharge) +
       ' if we attend and the appliance cannot be repaired.</p></div>';
@@ -11590,7 +11597,7 @@ ${bodyHtml}
       pcRenderScalarFields(
         card(
           'Breakdowns &amp; call-out terms',
-          'A breakdown is when a customer calls because the appliance has stopped working. On Standard and Premium we absorb the repair labour, so an allowance for it is added to our cost. The call-out terms below are what customers pay when a repair is not covered; they are printed on the quote and do not change the plan prices.',
+          'A breakdown is when a customer calls because the appliance has stopped working. On Standard and Premium we absorb the repair labour, so an allowance for it is added to our cost. Standard includes that labour only for the call-outs the price allows for (appliances × the calls per appliance below, shared across the whole contract); after that the customer pays the labour charge. The call-out terms below are what customers pay when a repair is not covered; they are printed on the quote and do not change the plan prices.',
         ),
         [
           {
@@ -11599,7 +11606,7 @@ ${bodyHtml}
             type: 'number',
             step: '0.01',
             tooltip:
-              'How many repair calls we expect each appliance to need in a year. 0.1 means 1 call for every 10 appliances; 0.2 means 1 call for every 5. Older appliances use more (see Appliance age bands). Best set from your real repair history.',
+              'How many repair calls we expect each appliance to need in a year. 0.1 means 1 call for every 10 appliances; 0.2 means 1 call for every 5. Older appliances use more (see Appliance age bands). It also sets how many call-outs Standard includes: appliances × this number, shared across the whole contract (1,595 × 0.12 = 192 a year). Call-outs beyond that are charged to the customer. Best set from your real repair history.',
           },
           {
             path: 'breakdown.costPerCall',
@@ -11613,7 +11620,7 @@ ${bodyHtml}
             label: 'Normal labour charge per call-out',
             type: 'number',
             tooltip:
-              'What we charge a customer for one repair call that their plan does not cover (labour only, spare parts extra). Printed on the quote and certificate. It does not change the plan prices.',
+              'What we charge a customer for one repair call that their plan does not cover (labour only, spare parts extra): Basic RM call-outs (less the Basic discount) and Standard call-outs beyond the included number. Keep it at or above the cost per breakdown call so a charged call-out never loses money. Printed on the quote and certificate. It does not change the plan prices.',
           },
           {
             path: 'callOut.basicDiscountPct',
@@ -11621,6 +11628,13 @@ ${bodyHtml}
             type: 'percent',
             tooltip:
               'Discount on the normal labour charge for customers on Basic RM. Example: a charge of 120 less 10% = \u20C3 108 per call. Printed on the Basic quote. It does not change the plan prices.',
+          },
+          {
+            path: 'callOut.standardExtraDiscountPct',
+            label: 'Standard: discount on call-outs beyond the included number',
+            type: 'percent',
+            tooltip:
+              'Standard includes repair labour for as many call-outs per contract year as the price allows for: appliances × the breakdown calls per appliance above (e.g. 1,595 × 0.12 = 192). Call-outs beyond that are charged at the normal labour charge less this discount; leave at 0 to charge the full normal rate. Printed on the Standard quote. It does not change the plan prices.',
           },
           {
             path: 'callOut.handlingCharge',
@@ -14752,7 +14766,7 @@ ${bodyHtml}
         compare.innerHTML = '';
         return;
       }
-      const terms = core.callOutTerms(cfg);
+      const terms = core.callOutTerms(cfg, quote.totalQty);
       output.innerHTML =
         '<p class="form-note">Total appliances: <strong>' +
         quote.totalQty +
@@ -14809,7 +14823,7 @@ ${bodyHtml}
               : '',
           )
           .join('') +
-        '<p class="form-note"><strong>Call-out and repair terms (printed on the certificate):</strong></p>' +
+        '<p class="form-note"><strong>Call-out and repair terms (printed on the quote and certificate; the Standard call-out allowance follows the total appliances above):</strong></p>' +
         ['basic', 'standard', 'premium']
           .map(
             (key, n) =>
@@ -14893,7 +14907,7 @@ ${bodyHtml}
     const PLAN_KEYS = { basic: 'basic-rm', standard: 'standard-pmc', premium: 'premium-pmc' };
     function buildPlans() {
       const quote = lastQuote;
-      const terms = core.callOutTerms(cfg);
+      const terms = core.callOutTerms(cfg, quote.totalQty);
       return quote.plans.map((p) => {
         const fallback = AMC_CONTRACT_PLAN_FALLBACKS[PLAN_KEYS[p.planKey]];
         const planned = p.planKey === 'basic' ? 0 : Number(cfg.plans[p.planKey].plannedVisits) || 0;

@@ -4494,3 +4494,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #208 — Standard PMC: shared call-out allowance printed on the quote
+
+**Date:** 2026-11-06
+
+**Why.** Standard includes repair labour, but the price only allows for the expected number of call-outs. Without a limit, a few heavy-use sites could use far more than was priced and the contract would lose money.
+
+**What changed.**
+
+- **Standard allowance:** repair labour and minor parts are included for a shared pool of call-outs for the whole contract, equal to appliances x Breakdown calls per appliance per year, rounded up (for example 1,595 x 0.12 = 192). The number is printed on the Standard quotation and certificate for the quoted quantity. Call-outs beyond it are charged at the normal labour charge.
+- **New admin setting:** "Standard: discount on call-outs beyond the included number" in AMC Admin Rates (New), default 0%.
+- Tooltips, the card note, the "How it works" tab and the calculator note explain the allowance. The plan prices do not change.
+- Quotes saved earlier keep the wording they were saved with.
+
+**Files.** apps/web/src/amc-v2-core.js, apps/web/src/app.js, packages/contracts/src/index.ts, packages/db/src/pricing-config-defaults.ts, tests/unit/amc-v2-core.test.ts, tests/e2e/amc-v2-issue.spec.ts. No database migration (the new setting is optional in the saved settings).
+
+**Needs you:** pull, restart the API, hard-refresh. Consider raising the normal labour charge so call-outs above the allowance earn money.

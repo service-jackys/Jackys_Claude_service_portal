@@ -1656,6 +1656,9 @@ export const amcPricingV2Schema = z
         labourCharge: nonNegSchema,
         basicDiscountPct: percentSchema,
         handlingCharge: nonNegSchema,
+        // Discount on the normal labour charge for Standard call-outs beyond the included pool.
+        // Optional so configs saved before this existed stay valid (the engine falls back to 0).
+        standardExtraDiscountPct: percentSchema.optional(),
       })
       .strict(),
     overhead: percentSchema,

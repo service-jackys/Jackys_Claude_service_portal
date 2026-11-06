@@ -287,10 +287,16 @@
 
   // Call-out wording per plan, shown under the plan table and printed on the
   // certificate. Built from the admin call-out settings so it always matches them.
-  function callOutTerms(cfg) {
+  function callOutTerms(cfg, totalQty) {
     var co = cfg.callOut;
     var normal = num(co.labourCharge);
     var basic = normal * (1 - num(co.basicDiscountPct));
+    var extraPct = co.standardExtraDiscountPct == null ? 0 : num(co.standardExtraDiscountPct);
+    var extra = normal * (1 - extraPct);
+    var qty = num(totalQty);
+    // Standard fair use: repair labour is included for the call-outs the price allows for, i.e.
+    // appliances x expected breakdown calls per appliance per year, shared across the whole contract.
+    var pool = qty > 0 ? Math.ceil(qty * num(cfg.breakdown.callsPerUnitPerYear) - 1e-9) : 0;
     var handling =
       '\u20C3 ' +
       money2(co.handlingCharge) +
@@ -304,7 +310,19 @@
         '). All spare parts are extra. ' +
         handling,
       standard:
-        'Repair labour and minor parts (filters, belts, seals) are included. Major spare parts are extra. ' +
+        'Repair labour and minor parts (filters, belts, seals) are included for ' +
+        (pool > 0
+          ? 'up to ' +
+            pool +
+            ' call-outs in total per contract year across all ' +
+            qty +
+            ' appliances'
+          : 'the number of call-outs allowed for in the contract price') +
+        '. Call-outs beyond this are charged at ' +
+        (extraPct > 0
+          ? '\u20C3 ' + money2(extra) + ' per call (normal rate \u20C3 ' + money2(normal) + ')'
+          : 'the normal labour rate of \u20C3 ' + money2(normal) + ' per call') +
+        '. Major spare parts are extra and are quoted for approval before work starts. ' +
         handling,
       premium:
         'Repair labour and all mechanical parts except the compressor are included. ' + handling,
