@@ -3390,6 +3390,19 @@
   .quote-head .qh-ref { grid-row: 2; grid-column: 3; text-align: right; font-size: 12.5px; color: #444; }
   .quote-head .qh-ref strong { display: inline; font-size: 14px; color: #1a1a1a; }
   .block.plain { white-space: normal; }
+  .pg1 { font-size: 13px; }
+  .pg1 h2 { font-size: 14.5px; margin: 30px 0 12px; padding-bottom: 5px; }
+  .pg1 .grid { gap: 10px 24px; margin-bottom: 10px; }
+  .pg1 table th, .pg1 table td { padding: 9px 12px; font-size: 13px; }
+  .pg1 p { font-size: 12px !important; line-height: 1.5; margin: 10px 0; }
+  .pg3 h2 { font-size: 13.5px; margin: 20px 0 8px; }
+  .pg3 .tc-list { font-size: 12px !important; padding: 8px 12px 8px 28px !important; line-height: 1.4; }
+  .pg3 .tc-list li { margin-bottom: 4px !important; }
+  .pg3 .block { font-size: 12.5px; padding: 8px 12px; line-height: 1.45; }
+  .pg3 .sign-row { margin-top: 36px !important; }
+  .plan-block { margin-bottom: 26px; }
+  .pg-break { page-break-before: always; break-before: page; }
+  .block.plain { text-align: justify; text-justify: inter-word; }
   .plan-block { page-break-inside: avoid; break-inside: avoid; }
   .tc-list li { text-align: justify; text-justify: inter-word; hyphens: auto; }
   ol { margin: 4px 0 10px; padding-left: 20px; }
@@ -3701,7 +3714,7 @@ ${bodyHtml}
     [/^Labor for the listed RM services$/i, 'Labor cost for the listed RM services'],
     [/^Replacement parts$/i, 'Parts Replacement'],
     [/^Compressor or sealed-system work$/i, 'Compressor or sealed-system Jobs'],
-    [/^Refrigerant\/gas( recharge or leak repair)?$/i, "Refrigerant/gas recharge or leak repair's"],
+    [/^Refrigerant\/gas( recharge or leak repair)?$/i, 'Refrigerant/gas recharge or leak repairs'],
     [/^Cosmetic damage$/i, 'Cosmetic damage Correction'],
     [/^Consumables$/i, 'General Consumables'],
     [/\bpower events\b/i, null],
@@ -3985,6 +3998,7 @@ ${bodyHtml}
     }
     return `
       ${printAmcQuoteHead(ref)}
+      <div class="pg1">
       <h2>Quotation details</h2>
       ${printFieldGrid([
         ['Quotation date', contract.contractDate || formatDate(contract.createdAt)],
@@ -4002,8 +4016,10 @@ ${bodyHtml}
       <h2>Yearly price by plan</h2>
       <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
       <p style="font-size:11px;color:#555;">Prices are for one year and are in \u20C3 (UAE Dirham). VAT is charged at 5%.</p>
-      ${planDetails}
-      <h2>General Terms and Conditions</h2>
+      </div>
+      <div class="pg-break">${planDetails}</div>
+      <div class="pg-break pg3">
+      <h2 style="margin-top:0">General Terms and Conditions</h2>
       <ul class="tc-list" style="font-size:11px;margin:0;padding:6px 8px 6px 24px;border:1px solid #ddd;border-radius:4px;background:#fafafa;">
         ${AMC_V2_GENERAL_TERMS_AND_CONDITIONS.map((term) => `<li style="margin-bottom:2px;">${escapeHtml(term)}</li>`).join('')}
       </ul>
@@ -4019,6 +4035,7 @@ ${bodyHtml}
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
       </div>
       <p style="font-size:9px;color:#777;font-style:italic;margin:8px 0 0;">This quotation is issued by Jacky's Distribution LLC Service Department. It is not a contract until approved by the client and accepted by Jacky's Distribution LLC.</p>
+      </div>
       </div>
     `;
   }
