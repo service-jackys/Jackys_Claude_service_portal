@@ -3713,6 +3713,117 @@ ${bodyHtml}
     openPrintWindow(printDocumentShell(title, buildAmcContractCertificateBody(contract, plan)));
   }
 
+  // Customer QUOTATION for a quote made with the new AMC calculator (modification.md #202):
+  // all plans side by side with the rate per appliance, volume discount and call-out terms, and
+  // an acceptance box. The signed contract certificate is a separate document, printed only
+  // after the quote is marked Sold. Nothing internal (cost, margin, cap) is shown.
+  function buildAmcQuotationBody(contract) {
+    const plans = contract.plans || [];
+    const fb = (p) =>
+      AMC_CONTRACT_PLAN_FALLBACKS[p.planKey] || AMC_CONTRACT_PLAN_FALLBACKS['premium-pmc'];
+    const name = (p) => p.planLabel || fb(p).label;
+    const adj = (p) =>
+      Number(p.priceExclVat) - (Number(p.listTotal ?? 0) - Number(p.discountAmount ?? 0));
+    const anyDiscount = plans.some((p) => Number(p.discountAmount ?? 0) > 0);
+    const anyAdjust = plans.some((p) => Math.abs(adj(p)) > 0.005);
+    const head = plans.map((p) => `<th class="num">${escapeHtml(name(p))}</th>`).join('');
+    const first = plans.find((p) => (p.unitLines || []).length);
+    const rateRows = (first ? first.unitLines : [])
+      .map(
+        (line, i) =>
+          `<tr><td>${escapeHtml(line.name)}</td><td class="num">${escapeHtml(String(line.qty))}</td>${plans
+            .map((p) => {
+              const u = (p.unitLines || [])[i];
+              return `<td class="num">${u ? money(u.unitRate) + ' AED' : '\u2014'}</td>`;
+            })
+            .join('')}</tr>`,
+      )
+      .join('');
+    const sumRow = (label, fn, strong) =>
+      `<tr><td>${strong ? '<strong>' : ''}${escapeHtml(label)}${strong ? '</strong>' : ''}</td>${plans
+        .map(
+          (p) =>
+            `<td class="num">${strong ? '<strong>' : ''}${fn(p)}${strong ? '</strong>' : ''}</td>`,
+        )
+        .join('')}</tr>`;
+    const pctText = (p) => String(Math.round(Number(p.discountPct ?? 0) * 1000) / 10);
+    const summaryRows = [
+      sumRow('Price before discount', (p) => money(p.listTotal ?? 0) + ' AED'),
+      anyDiscount
+        ? sumRow('Volume discount', (p) =>
+            Number(p.discountAmount ?? 0) > 0
+              ? `${pctText(p)}% = -${money(p.discountAmount)} AED`
+              : '\u2014',
+          )
+        : '',
+      anyAdjust
+        ? sumRow('Contract price adjustment', (p) =>
+            Math.abs(adj(p)) > 0.005
+              ? (adj(p) < 0 ? '-' : '+') + money(Math.abs(adj(p))) + ' AED'
+              : '\u2014',
+          )
+        : '',
+      sumRow('Contract value excl. VAT', (p) => money(p.priceExclVat) + ' AED'),
+      sumRow('VAT @ 5%', (p) => money(Number(p.priceInclVat) - Number(p.priceExclVat)) + ' AED'),
+      sumRow('Contract value incl. VAT (per year)', (p) => money(p.priceInclVat) + ' AED', true),
+    ].join('');
+    const planDetails = plans
+      .map(
+        (p) => `
+      <h2>${escapeHtml(name(p))}</h2>
+      ${printFieldGrid([
+        ['Visits', p.visitsText || `${p.annualVisits} visits/year`],
+        ['Coverage / basis', p.coverage || fb(p).coverage],
+      ])}
+      ${printTextBlock('Included', p.included || fb(p).included)}
+      ${printTextBlock('Not included / separately quoted', p.notIncluded || fb(p).notIncluded)}
+      ${p.callOutText ? printTextBlock('Call-out and repair terms', p.callOutText) : ''}`,
+      )
+      .join('');
+    const ref =
+      (contract.amcContractReference || '') +
+      (Number(contract.revision) > 1 ? ` (Rev ${contract.revision})` : '');
+    return `
+      ${printDocHeadWithLogo('AMC Quotation', ref)}
+      <h2>Quotation details</h2>
+      ${printFieldGrid([
+        ['Quotation date', contract.contractDate || formatDate(contract.createdAt)],
+        ['Client', contract.clientName],
+        ['Attention to', contract.attentionTo],
+        ['Site / location', contract.siteLocation],
+        ['Contract period', contract.contractPeriod],
+        ['Total appliances', String(contract.totalCount)],
+        ['Appliance age', first && first.ageBand ? first.ageBand : ''],
+      ])}
+      <h2>Appliance schedule and yearly rate per appliance</h2>
+      <table><thead><tr><th>Appliance type</th><th class="num">Qty</th>${head}</tr></thead><tbody>${rateRows}</tbody></table>
+      <h2>Yearly price by plan</h2>
+      <table><thead><tr><th></th>${head}</tr></thead><tbody>${summaryRows}</tbody></table>
+      <p style="font-size:11px;color:#555;">Rates are per appliance per year, before the volume discount and any price adjustment shown in the next table. Prices are in AED.</p>
+      ${planDetails}
+      <h2>Payment terms</h2>
+      <p style="font-size:12px;">100% payment in advance is required against the selected AMC plan before service commencement. Services will commence only after the quotation is approved and payment is received.</p>
+      <h2>Client acceptance</h2>
+      <p style="font-size:11.5px;">To accept, tick the plan chosen, sign and return this quotation. The AMC contract certificate is issued once the quotation is approved.</p>
+      <p style="font-size:13px;">${plans.map((p) => '&#9744; ' + escapeHtml(name(p))).join(' &nbsp;&nbsp; ')}</p>
+      <div class="sign-row">
+        <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
+        <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
+      </div>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This quotation is issued by Jacky's Distribution LLC Service Department. It is not a contract until approved by the client and accepted by Jacky's Distribution LLC.</p>
+    `;
+  }
+
+  function printAmcQuotation(contract) {
+    if (!contract || !contract.plans || !contract.plans.length) return;
+    openPrintWindow(
+      printDocumentShell(
+        `AMC Quotation ${contract.amcContractReference || ''}`,
+        buildAmcQuotationBody(contract),
+      ),
+    );
+  }
+
   // Tax invoice print, laid out like the ERP sample: Jacky's Electronics LLC letterhead
   // with the JDI logo, the company TRN (always), the customer TRN (only when entered),
   // VAT split lines, and the fixed system-generated note, bank details and terms.
@@ -15312,9 +15423,18 @@ ${bodyHtml}
               '">' +
               money(defaultPlan ? defaultPlan.priceInclVat : 0) +
               ' AED</td><td>' +
-              '<button type="button" class="button button-outline" data-ac-reprint="' +
-              escapeHtml(c.id) +
-              '">Print</button>' +
+              (pricingModel === 'v2'
+                ? '<button type="button" class="button button-outline" data-ac-quote="' +
+                  escapeHtml(c.id) +
+                  '">Print quotation</button>' +
+                  (c.status === 'Sold'
+                    ? ' <button type="button" class="button button-outline" data-ac-reprint="' +
+                      escapeHtml(c.id) +
+                      '" title="The signed contract for the approved plan">Print certificate</button>'
+                    : '')
+                : '<button type="button" class="button button-outline" data-ac-reprint="' +
+                  escapeHtml(c.id) +
+                  '">Print</button>') +
               (canRevise
                 ? (c.status === 'Sold'
                     ? ''
@@ -15433,7 +15553,12 @@ ${bodyHtml}
               printButton.addEventListener('click', () => {
                 const i = Number(printButton.getAttribute('data-ac-hist-print'));
                 const select = panel.querySelector('[data-ac-hist-plan="' + i + '"]');
-                printAmcContractCertificate(versions[i].content, select ? select.value : undefined);
+                if (pricingModel === 'v2') printAmcQuotation(versions[i].content);
+                else
+                  printAmcContractCertificate(
+                    versions[i].content,
+                    select ? select.value : undefined,
+                  );
               });
             });
             panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -15478,6 +15603,24 @@ ${bodyHtml}
             await loadAmcIssuedList(host, onEdit, pricingModel);
           } catch (error) {
             setMessage('#workspaceMessage', error.message || 'Could not change the status.');
+            button.disabled = false;
+          }
+        });
+      });
+      host.querySelectorAll('[data-ac-quote]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          button.disabled = true;
+          try {
+            const detail = await apiRequest(
+              '/api/amc-contracts/' + button.getAttribute('data-ac-quote'),
+            );
+            printAmcQuotation(detail.amcContract);
+          } catch (error) {
+            setMessage(
+              '#workspaceMessage',
+              'Could not load this AMC quotation: ' + (error.message || 'unknown error'),
+            );
+          } finally {
             button.disabled = false;
           }
         });
@@ -15558,15 +15701,23 @@ ${bodyHtml}
       '<button type="button" class="button button-outline" data-as-cancel-edit hidden>Cancel edit</button></p>' +
       '<div data-as-message></div>' +
       '<div class="field-grid">' +
-      calcField(
-        'Plan to print',
-        '<select data-as-print-plan disabled><option value="">Save first to choose a plan</option></select>',
-      ) +
+      (v2
+        ? ''
+        : calcField(
+            'Plan to print',
+            '<select data-as-print-plan disabled><option value="">Save first to choose a plan</option></select>',
+          )) +
       '</div>' +
-      '<p><button type="button" class="button button-outline" data-as-print disabled>Print certificate</button></p>';
+      (v2
+        ? '<p class="form-note">A saved quote prints as a quotation with all 3 plans. The contract certificate is printed from AMC Issued (New) once the quote is marked Sold.</p>'
+        : '') +
+      '<p><button type="button" class="button button-outline" data-as-print disabled>' +
+      (v2 ? 'Print quotation' : 'Print certificate') +
+      '</button></p>';
 
     const saveButton = saleHost.querySelector('[data-as-save]');
-    const printPlanSelect = saleHost.querySelector('[data-as-print-plan]');
+    const printPlanSelect =
+      saleHost.querySelector('[data-as-print-plan]') || document.createElement('select');
     const printButton = saleHost.querySelector('[data-as-print]');
     const messageHost = saleHost.querySelector('[data-as-message]');
     let savedContract = null;
@@ -15746,7 +15897,8 @@ ${bodyHtml}
 
     printButton.addEventListener('click', () => {
       if (!savedContract) return;
-      printAmcContractCertificate(savedContract, printPlanSelect.value);
+      if (v2) printAmcQuotation(savedContract);
+      else printAmcContractCertificate(savedContract, printPlanSelect.value);
     });
 
     return { startEdit };
