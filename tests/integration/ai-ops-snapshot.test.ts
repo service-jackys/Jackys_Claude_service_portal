@@ -100,6 +100,27 @@ test(
       });
       assert.equal(jc.openByAge[0].n, 2);
       assert.ok(!JSON.stringify(jc).includes('Secret'));
+
+      await client.query('DELETE FROM warranty_approvals');
+      await client.query('DELETE FROM quotations');
+      const addQ = (n: number, status: string, total: number) =>
+        client.query(
+          `INSERT INTO quotations (quotation_reference, customer_name, contact_number, project_name, site_location, customer_complaint, grand_total, quotation_status, customer_type)
+           VALUES ($1, 'Secret Person', '0500000000', 'Secret project', 'Secret site', 'Secret complaint', $2, $3, 'B2C')`,
+          ['QO-2026-0000' + n, total, status],
+        );
+      await addQ(1, 'Pending', 100);
+      await addQ(2, 'Pending', 200);
+      await addQ(3, 'Approved', 300);
+      const qo = (await buildOpsSnapshot(pool as unknown as Pool, 'quotations')) as any;
+      assert.equal(qo.total, 3);
+      assert.deepEqual(Object.fromEntries(qo.byStatus.map((r: any) => [r.status, r.n])), {
+        Pending: 2,
+        Approved: 1,
+      });
+      assert.equal(qo.pendingByAge[0].n, 2);
+      assert.equal(qo.valueByStatus.find((r: any) => r.status === 'Approved').value, 300);
+      assert.ok(!JSON.stringify(qo).includes('Secret'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();

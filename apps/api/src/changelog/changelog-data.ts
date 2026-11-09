@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 236,
+    "title": "Ask AI on the Quotations page (counts and statuses only)",
+    "area": "Portal look & feel",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Quotations hold customer and project details, so the AI gets counts, statuses and totals only.",
+    "changes": [
+      "Ask AI button on Quotations (page-level). It reads the filters and rows listed on screen.",
+      "Tick box \"Also read the overall quotation counts and statuses\": the API builds totals by status, ERP status, age of pending quotations, month (last 12, with value), customer type and warranty, and the value by status.",
+      "Never sent: customer names, contacts, project names, site locations, complaints, diagnoses, parts, signatures and quotation references.",
+      "Permissions: new ai_ask.quotations (admin by default; grant it in Roles & permissions). The overall counts also need quotation.read.",
+      "Migration 087 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.quotations to other roles if wanted.",
+    "migrations": [
+      "087_ask_ai_quotations_permission.sql"
+    ],
+    "files": "packages/db/migrations/087_ask_ai_quotations_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 235,
     "title": "Ask AI on the Job cards page (counts and statuses only)",
     "area": "Job cards",

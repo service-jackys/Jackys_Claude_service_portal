@@ -67,6 +67,9 @@ const ASK_GUIDE: Record<string, string> = {
   job_cards:
     'the Service job cards of the service centre. ' +
     'Explain the job status mix, what is waiting for spares, customer approval or closure approval, how long open jobs have been waiting, and the split by month, brand, warranty and source, and suggest which jobs to chase first.',
+  quotations:
+    'the Quotations list of the service centre. ' +
+    'Explain how many quotations are pending, approved or rejected, how long pending ones have waited, which are invoiced in the ERP, the value by status and month, and suggest which pending quotations to chase first.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
