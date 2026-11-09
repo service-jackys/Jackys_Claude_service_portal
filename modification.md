@@ -4675,3 +4675,15 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/thomson-schedule.js, apps/web/src/app.js, apps/web/src/index.html, packages/db/migrations/076_thomson_sale_schedule.sql, packages/db/src/thomson-sales.ts, packages/db/src/pricing-config-defaults.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/service.ts, tests/unit/thomson-schedule.test.ts, tests/integration/thomson-sale-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull, run the database migration, restart the API, hard-refresh. Open Thomson Pricing Admin to check the new card.
+
+## Modification #220 — Thomson calculator: transport now matches the project days
+
+**Date:** 2026-11-09
+
+**Why.** Transport trips were rounded up line by line while the timeline counted the project's days once, so a quote with several lines showed more transport than the schedule justified.
+
+**What changed.** A project's installation days are now worked out once for the whole team (once per phase when phased) and each line carries its share by install hours, so the trips charged equal the working days shown on the Project timeline. A quote with one line is priced exactly as before; quotes with several lines can show slightly lower transport. Single-unit quotes are unchanged.
+
+**Files.** apps/web/src/thomson-schedule.js, apps/web/src/app.js, tests/unit/thomson-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh. Quotes already issued keep their saved prices.

@@ -67,9 +67,26 @@ test('a phase with no work takes no days; zero capacity gives zero', () => {
   assert.equal(sched.daysFor(10, 0), 0);
 });
 
-test('phasedLineTrips rounds every phase separately', () => {
-  assert.equal(sched.phasedLineTrips(0.5, [20, 40, 40], 16), 5); // 10 h, 20 h, 20 h -> 1 + 2 + 2
-  assert.equal(sched.phasedLineTrips(0.5, [100], 16), 4); // continuous equivalent: 50 h -> 4
+test('allocateInstallDays spreads the project days over the lines by hours', () => {
+  // Two lines of 20 h each at 16 h/day: 40 h -> 3 project days (not 2 + 2 = 4).
+  const shares = sched.allocateInstallDays([20, 20], 16);
+  assert.deepEqual(shares, [1.5, 1.5]);
+  assert.equal(shares[0] + shares[1], 3);
+  // One line behaves exactly as before: 50 h -> 4 days.
+  assert.deepEqual(sched.allocateInstallDays([50], 16), [4]);
+  assert.deepEqual(sched.allocateInstallDays([0, 0], 16), [0, 0]);
+});
+
+test('allocateInstallDays rounds each phase on its own and the shares add up', () => {
+  // Phase hours per line: A 17.5 (10 + 7.5), B 27.5 (20 + 7.5), C 35 (20 + 15) -> 2 + 2 + 3 days.
+  const shares = sched.allocateInstallDays([50, 30], 16, [
+    [10, 7.5],
+    [20, 7.5],
+    [20, 15],
+  ]);
+  const total = shares[0] + shares[1];
+  assert.ok(Math.abs(total - 7) < 1e-9);
+  assert.ok(shares[0] > shares[1]);
 });
 
 test('addWorkingDays skips Saturday and Sunday', () => {
