@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 217,
+    "title": "Send ROI: LPO pending block under the Management Summary",
+    "area": "Revenue dashboard",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The weekly ROI now shows the quotations still waiting to be invoiced, by the month they were created.",
+    "changes": [
+      "What changed: the Management Summary ends with Quotations awaiting invoice (LPO pending): waiting value, number of quotations, amount carried forward, a table by the month each quotation was created with oldest age, the oldest 8 quotations to follow up, and the Invoice check result.",
+      "New API route GET /api/revenue-dashboard/lpo-pending-detail. Same figures in the plain-text version; left out when nothing is pending."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh, open Send ROI.",
+    "migrations": [],
+    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard, apps/web/src/roi-core.js, apps/web/src/app.js, tests. No database change."
+  },
+  {
     "id": 216,
     "title": "Dirham sign in email previews, Invoice check help, styled quotations total bar",
     "area": "Quotations",

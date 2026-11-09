@@ -13,6 +13,7 @@ import {
   quotationsLpoPending,
   quotationsLpoPendingByMonth,
   quotationsInvoiceCheck,
+  quotationsLpoPendingDetail,
 } from '../../../../packages/db/src/quotations.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
@@ -188,6 +189,21 @@ export function createRevenueDashboardService(pool: Pool) {
     const client = await pool.connect();
     try {
       return await quotationsLpoPending(client, { year: filters.year, month: filters.month });
+    } finally {
+      client.release();
+    }
+  }
+
+  // LPO pending with the by-created-month breakdown and the quotations to follow up, for the ROI.
+  async function lpoPendingDetail(query: Record<string, unknown>) {
+    const filters = revenueFilterQuerySchema.parse(query);
+    const client = await pool.connect();
+    try {
+      return await quotationsLpoPendingDetail(
+        client,
+        { year: filters.year, month: filters.month },
+        8,
+      );
     } finally {
       client.release();
     }
@@ -566,6 +582,7 @@ export function createRevenueDashboardService(pool: Pool) {
     batches,
     summary,
     lpoPending,
+    lpoPendingDetail,
     lpoPendingByMonth,
     invoiceCheck,
     lines,

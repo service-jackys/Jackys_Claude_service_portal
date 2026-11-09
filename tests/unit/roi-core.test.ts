@@ -232,3 +232,86 @@ test('recipient parsing accepts commas, semicolons and line breaks', () => {
   assert.equal(roi.isEmail('a@x.com'), true);
   assert.equal(roi.isEmail('nope'), false);
 });
+
+const lpo = {
+  total: 4990,
+  count: 5,
+  approved: 2,
+  carriedCount: 3,
+  carriedTotal: 3440,
+  oldestDays: 56,
+  asAt: '09-NOV-2026',
+  byMonth: [
+    { label: 'September 2026', count: 1, approved: 0, oldestDays: 56, total: 650 },
+    {
+      label: 'November 2026',
+      count: 4,
+      approved: 2,
+      oldestDays: 20,
+      total: 4340,
+      isReportMonth: true,
+    },
+  ],
+  items: [
+    {
+      reference: 'QO-2026-00004',
+      customer: 'GEMS <Wellington>',
+      date: '2026-09-14',
+      status: 'Pending',
+      days: 56,
+      subtotal: 650,
+    },
+  ],
+  moreCount: 4,
+  invoiceCheck: { missing: 1, missingTotal: 400, graceDays: 7 },
+};
+
+test('ROI Management summary lists LPO pending by created month, follow-ups and the invoice check', () => {
+  const html = roi.buildRoiHtml({ ...input, summary: { ...summary, lpo } });
+  for (const needle of [
+    'Quotations awaiting invoice (LPO pending)',
+    'AED 4,990',
+    'AED 3,440',
+    'September 2026',
+    '(this month)',
+    '56 days',
+    'QO-2026-00004',
+    'GEMS &lt;Wellington&gt;',
+    '+ 4 more quotations',
+    'Invoice check:',
+    '1 quotation marked Invoiced is not found in the master workbook after 7 days (AED 400)',
+    'Position as at 09-NOV-2026',
+  ]) {
+    assert.ok(html.includes(needle), 'missing: ' + needle);
+  }
+  // The block comes after the budget section, as the last part of the Management summary.
+  assert.ok(
+    html.indexOf('Achievement against budget') < html.indexOf('Quotations awaiting invoice'),
+  );
+  assert.ok(html.indexOf('Quotations awaiting invoice') < html.indexOf('>Issues / Innovation<'));
+  const text = roi.buildRoiText({ ...input, summary: { ...summary, lpo } });
+  assert.match(text, /QUOTATIONS AWAITING INVOICE \(LPO PENDING\), as at 09-NOV-2026/);
+  assert.match(text, /Carried forward: 3, AED 3,440, oldest 56 days/);
+  assert.match(text, /- QO-2026-00004 GEMS <Wellington>, 2026-09-14, Pending, 56 days, AED 650/);
+  assert.match(text, /Invoice check: 1 quotation\(s\) marked Invoiced not found/);
+});
+
+test('ROI Management summary leaves the LPO block out when nothing is pending', () => {
+  for (const empty of [null, undefined, { ...lpo, count: 0 }]) {
+    const html = roi.buildRoiHtml({ ...input, summary: { ...summary, lpo: empty } });
+    assert.ok(!html.includes('Quotations awaiting invoice'));
+    assert.ok(
+      !roi
+        .buildRoiText({ ...input, summary: { ...summary, lpo: empty } })
+        .includes('AWAITING INVOICE'),
+    );
+  }
+  const clear = roi.buildRoiHtml({
+    ...input,
+    summary: {
+      ...summary,
+      lpo: { ...lpo, invoiceCheck: { missing: 0, missingTotal: 0, graceDays: 7 } },
+    },
+  });
+  assert.ok(clear.includes('every quotation marked Invoiced is found in the master workbook'));
+});

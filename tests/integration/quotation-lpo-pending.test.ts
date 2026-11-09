@@ -8,6 +8,7 @@ import { migrate } from '../../packages/db/src/migrate.js';
 import {
   quotationsLpoPending,
   quotationsLpoPendingByMonth,
+  quotationsLpoPendingDetail,
 } from '../../packages/db/src/quotations.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -151,6 +152,32 @@ test(
         ],
         [4, 2700, 1, 800, 3, 1900],
       );
+      // ROI detail: April's position by the month each quotation was created, and the oldest to chase.
+      const detail = await (async () => {
+        const client = await pool.connect();
+        try {
+          return await quotationsLpoPendingDetail(client, { year: '2031', month: '4' }, 2);
+        } finally {
+          client.release();
+        }
+      })();
+      assert.deepEqual(
+        detail.byMonth.map((m) => [m.period, m.count, m.approved, m.total]),
+        [
+          ['2031-03', 3, 2, 1900],
+          ['2031-04', 1, 1, 800],
+        ],
+      );
+      assert.deepEqual(
+        detail.items.map((q) => [q.date, q.status, q.subtotal]),
+        [
+          ['2031-03-05', 'Pending', 100],
+          ['2031-03-20', 'Approved', 200],
+        ],
+      );
+      assert.equal(detail.moreCount, 2);
+      assert.match(detail.asAt, /^\d{4}-\d{2}-\d{2}$/);
+      assert.equal(detail.total, 2700);
       const byMonth = (
         await (async () => {
           const client = await pool.connect();
