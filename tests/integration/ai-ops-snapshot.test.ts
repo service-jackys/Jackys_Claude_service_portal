@@ -143,6 +143,36 @@ test(
       assert.equal(ins.byMonth[ins.byMonth.length - 1].value, 600);
       assert.ok(!JSON.stringify(ins).includes('Secret'));
       assert.ok(!JSON.stringify(ins).includes('Someone'));
+
+      await client.query('DELETE FROM warranty_approvals');
+      await client.query('DELETE FROM quotations');
+      const addWA = async (n: number, status: string, cost: number) => {
+        const q = await client.query(
+          `INSERT INTO quotations (quotation_reference) VALUES ($1) RETURNING id`,
+          ['QO-2026-1000' + n],
+        );
+        await client.query(
+          `INSERT INTO warranty_approvals (approval_reference, quotation_id, customer_name, contact_number, item_description, notes, estimated_cost, status, access_token, decided_at, decided_by_name, decision_notes, warranty_status)
+           VALUES ($1, $2, 'Secret Person', '0500000000', 'Secret item', 'Secret notes', $3, $4, $5,
+                   CASE WHEN $4 = 'Pending' THEN NULL ELSE now() END,
+                   CASE WHEN $4 = 'Pending' THEN NULL ELSE 'Secret Decider' END, NULL, 'In Warranty')`,
+          ['WA-2026-0000' + n, q.rows[0].id, cost, status, 'tok-secret-' + n],
+        );
+      };
+      await addWA(1, 'Pending', 100);
+      await addWA(2, 'Pending', 200);
+      await addWA(3, 'Approved', 300);
+      const wa = (await buildOpsSnapshot(pool as unknown as Pool, 'warranty_approvals')) as any;
+      assert.equal(wa.total, 3);
+      assert.deepEqual(Object.fromEntries(wa.byStatus.map((r: any) => [r.status, r.n])), {
+        Pending: 2,
+        Approved: 1,
+      });
+      assert.equal(wa.pendingByAge[0].n, 2);
+      assert.equal(wa.byStatus.find((r: any) => r.status === 'Approved').value, 300);
+      assert.equal(wa.bySource[0].source, 'Quotation');
+      assert.ok(!JSON.stringify(wa).includes('Secret'));
+      assert.ok(!JSON.stringify(wa).includes('tok-'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();

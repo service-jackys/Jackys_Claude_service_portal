@@ -4987,3 +4987,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/088_ask_ai_inspections_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.inspections` to other roles if wanted.
+
+## Modification #238 — Ask AI on the Warranty approvals page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Warranty approvals hold customer details and private approval links, so the AI gets counts and totals only.
+
+**What changed.**
+
+- **Ask AI button on Warranty approvals** (page-level). It reads the filters and rows listed on screen.
+- **Tick box "Also read the overall warranty approval counts and statuses"**: the API builds totals by status (with estimated cost), age of pending approvals, month (last 12, with estimated cost), source (job card / inspection / quotation), warranty and how decisions were made.
+- **Never sent:** customer names, contacts, item descriptions, notes, decision notes, who decided, the private approval link and approval references.
+- **Permissions:** new `ai_ask.warranty_approvals` (admin by default; grant it in Roles & permissions). The overall counts also need `warranty_approval.read`.
+- Migration 089 adds the permission.
+
+**Files.** packages/db/migrations/089_ask_ai_warranty_approvals_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.warranty_approvals` to other roles if wanted.

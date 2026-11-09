@@ -258,6 +258,52 @@ async function inspections(client: PoolClient) {
   };
 }
 
+async function warrantyApprovals(client: PoolClient) {
+  const blank = (col: string, alias: string) =>
+    `COALESCE(NULLIF(${col}, ''), 'Not stated') AS ${alias}`;
+  return {
+    total: (await counts(client, 'SELECT count(*) AS n FROM warranty_approvals'))[0]?.n ?? 0,
+    byStatus: await counts(
+      client,
+      `SELECT status, count(*) AS n, round(COALESCE(sum(estimated_cost), 0)) AS value
+       FROM warranty_approvals GROUP BY 1 ORDER BY n DESC`,
+    ),
+    pendingByAge: await counts(
+      client,
+      `SELECT CASE
+                WHEN now() - created_at < interval '3 days' THEN '0-2 days'
+                WHEN now() - created_at < interval '8 days' THEN '3-7 days'
+                WHEN now() - created_at < interval '15 days' THEN '8-14 days'
+                ELSE '15+ days' END AS age, count(*) AS n
+       FROM warranty_approvals WHERE status = 'Pending' GROUP BY 1 ORDER BY min(created_at) DESC`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(created_at, 'YYYY-MM') AS month, count(*) AS n,
+              round(COALESCE(sum(estimated_cost), 0)) AS value
+       FROM warranty_approvals
+       WHERE created_at >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    bySource: await counts(
+      client,
+      `SELECT CASE WHEN job_card_id IS NOT NULL THEN 'Job card'
+                   WHEN inspection_id IS NOT NULL THEN 'Inspection'
+                   ELSE 'Quotation' END AS source, count(*) AS n
+       FROM warranty_approvals GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byWarranty: await counts(
+      client,
+      `SELECT ${blank('warranty_status', 'warranty')}, count(*) AS n FROM warranty_approvals GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byDecisionMethod: await counts(
+      client,
+      `SELECT ${blank('decision_method', 'method')}, count(*) AS n
+       FROM warranty_approvals WHERE status <> 'Pending' GROUP BY 1 ORDER BY n DESC`,
+    ),
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
@@ -267,6 +313,7 @@ export const OPS_SECTIONS: Record<
   job_cards: { read: 'service_job_card.read', build: jobCards },
   quotations: { read: 'quotation.read', build: quotations },
   inspections: { read: 'inspection.read', build: inspections },
+  warranty_approvals: { read: 'warranty_approval.read', build: warrantyApprovals },
 };
 
 export async function buildOpsSnapshot(pool: Pool, section: string) {
