@@ -111,12 +111,69 @@ async function appointments(client: PoolClient) {
   };
 }
 
+async function jobCards(client: PoolClient) {
+  const open = "job_final_status NOT IN ('Cancelled', 'Rejected', 'BER') AND final_status IS NULL";
+  const blank = (col: string, alias: string) =>
+    `COALESCE(NULLIF(${col}, ''), 'Not stated') AS ${alias}`;
+  return {
+    total: (await counts(client, 'SELECT count(*) AS n FROM service_job_cards'))[0]?.n ?? 0,
+    byJobStatus: await counts(
+      client,
+      `SELECT job_final_status AS status, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byFinalStatus: await counts(
+      client,
+      `SELECT ${blank('final_status', 'finalStatus')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byClosureApproval: await counts(
+      client,
+      `SELECT ${blank('closure_approval_status', 'closureApproval')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+    openByAge: await counts(
+      client,
+      `SELECT CASE
+                WHEN now() - created_at < interval '3 days' THEN '0-2 days'
+                WHEN now() - created_at < interval '8 days' THEN '3-7 days'
+                WHEN now() - created_at < interval '15 days' THEN '8-14 days'
+                ELSE '15+ days' END AS age, count(*) AS n
+       FROM service_job_cards WHERE ${open} GROUP BY 1 ORDER BY min(created_at) DESC`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(created_at, 'YYYY-MM') AS month, count(*) AS n FROM service_job_cards
+       WHERE created_at >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    byCustomerType: await counts(
+      client,
+      `SELECT ${blank('customer_type', 'type')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byRegion: await counts(
+      client,
+      `SELECT ${blank('region', 'region')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+    byBrand: await counts(
+      client,
+      `SELECT ${blank('brand', 'brand')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+    byWarranty: await counts(
+      client,
+      `SELECT ${blank('COALESCE(final_warranty_status, warranty_status)', 'warranty')}, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+    bySource: await counts(
+      client,
+      `SELECT source_type AS source, count(*) AS n FROM service_job_cards GROUP BY 1 ORDER BY n DESC`,
+    ),
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
 > = {
   complaints: { read: 'complaints.read', build: complaints },
   appointments: { read: 'appointments.read', build: appointments },
+  job_cards: { read: 'service_job_card.read', build: jobCards },
 };
 
 export async function buildOpsSnapshot(pool: Pool, section: string) {

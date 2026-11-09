@@ -29,6 +29,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   vas: 'ai_ask.vas',
   complaints: 'ai_ask.complaints',
   appointments: 'ai_ask.appointments',
+  job_cards: 'ai_ask.job_cards',
 };
 
 export function createAiHandlers(

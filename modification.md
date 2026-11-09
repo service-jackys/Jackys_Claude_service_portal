@@ -4933,3 +4933,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/085_ask_ai_appointments_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.appointments` to other roles if wanted.
+
+## Modification #235 — Ask AI on the Job cards page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Job cards hold customer details, so the AI gets counts and statuses only.
+
+**What changed.**
+
+- **Ask AI button on Job cards** (page-level). It reads the status filter and rows listed on screen.
+- **Tick box "Also read the overall job card counts and statuses"**: the API builds totals by job status, final status, closure approval, age of open jobs, month (last 12), customer type, region, brand, warranty and source.
+- **Never sent:** customer names, contacts, addresses, complaints, service notes, parts, technician names, job card references.
+- **Permissions:** new `ai_ask.job_cards` (admin by default; grant it in Roles & permissions). The overall counts also need `service_job_card.read`.
+- Migration 086 adds the permission.
+
+**Files.** packages/db/migrations/086_ask_ai_job_cards_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.job_cards` to other roles if wanted.

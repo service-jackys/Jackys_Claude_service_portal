@@ -79,6 +79,27 @@ test(
       assert.equal(apt.openWithoutTechnician, 3);
       assert.equal(apt.byBrand[0].n, 4);
       assert.ok(!JSON.stringify(apt).includes('Secret'));
+
+      await client.query('DELETE FROM service_job_cards');
+      const apts = await client.query('SELECT id FROM appointments ORDER BY id');
+      const addJob = (n: number, appointmentId: string, jobStatus: string) =>
+        client.query(
+          `INSERT INTO service_job_cards (job_card_reference, appointment_id, customer_name, customer_contact, complaint, job_final_status, brand, customer_type)
+           VALUES ($1, $2, 'Secret Person', '0500000000', 'Secret complaint', $3, 'Bosch', 'B2C')`,
+          ['JBC-2026-0000' + n, appointmentId, jobStatus],
+        );
+      await addJob(1, apts.rows[0].id, 'WIP');
+      await addJob(2, apts.rows[1].id, 'Spare pending');
+      await addJob(3, apts.rows[2].id, 'Cancelled');
+      const jc = (await buildOpsSnapshot(pool as unknown as Pool, 'job_cards')) as any;
+      assert.equal(jc.total, 3);
+      assert.deepEqual(Object.fromEntries(jc.byJobStatus.map((r: any) => [r.status, r.n])), {
+        WIP: 1,
+        'Spare pending': 1,
+        Cancelled: 1,
+      });
+      assert.equal(jc.openByAge[0].n, 2);
+      assert.ok(!JSON.stringify(jc).includes('Secret'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();
