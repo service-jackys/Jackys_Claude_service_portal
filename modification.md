@@ -4676,6 +4676,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the database migration, restart the API, hard-refresh. Open Thomson Pricing Admin to check the new card.
 
+## Modification #221 — Thomson Issued quotes: status, schedule and outcome like AMC Issued (New)
+
+**Date:** 2026-11-09
+
+**Why.** Issued Thomson quotes were a plain table with a Print button. Management needs to see which are still open, which were sold or lost, and the project schedule each was quoted on.
+
+**What changed.**
+
+- **Issued quotes list:** each quote shows the reference and date, client and site, type (Project or Single unit) with working days and phases, units and lines, a status chip (Quote, Sold with its date, Lost with the reason), total price and margin with the margin percentage. Filter pills show All, Quote, Sold or Lost.
+- **Actions row:** Print quotation, and the outcome: pick the sold date and click Sold, or Lost (with an optional reason); Reopen takes a Sold or Lost quote back to Quote.
+- **Lines and schedule:** an expandable section lists the lines, the work method, technicians, working days, waits and the phase table.
+- **New API:** PATCH /api/thomson-sales/{id}/status and a status filter on the list.
+- **Revenue:** unchanged, except that a quote marked Lost is no longer counted in Budget vs Actual (Quote and Sold quotes count as before).
+- **Not in this change:** editing a saved Thomson quote and its History (the AMC revisions feature).
+
+**Files.** packages/db/migrations/077_thomson_sale_status.sql, packages/db/src/thomson-sales.ts, packages/db/src/budget-variance.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-status.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull, run the database migration, restart the API, hard-refresh.
+
 ## Modification #220 — Thomson calculator: transport now matches the project days
 
 **Date:** 2026-11-09
