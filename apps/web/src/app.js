@@ -15133,7 +15133,9 @@ ${bodyHtml}
   }
 
   let rateCardVisibilityHandler = null;
+  let rateCardAskData = null;
   async function renderRateCardPage(root, quiet) {
+    setAskAiProvider('rate-card', () => rateCardAskData);
     if (!quiet) root.innerHTML = '<p class="form-note">Loading rates&hellip;</p>';
     let data;
     try {
@@ -15143,6 +15145,12 @@ ${bodyHtml}
       root.innerHTML = '<p class="form-note pg-error">' + escapeHtml(error.message) + '</p>';
       return;
     }
+    rateCardAskData = {
+      rates: data.sections,
+      deliveryAndInstallation: data.dandi,
+      customised: data.customised,
+      updatedAt: data.updatedAt || null,
+    };
     const loadedAt = new Date();
     if (rateCardVisibilityHandler)
       document.removeEventListener('visibilitychange', rateCardVisibilityHandler);
@@ -25533,6 +25541,7 @@ ${bodyHtml}
     warranty_approvals: 'ai_ask.warranty_approvals',
     delivery_install: 'ai_ask.delivery_install',
     walk_in: 'ai_ask.walk_in',
+    rate_card: 'ai_ask.rate_card',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25554,6 +25563,16 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    rate_card: {
+      hello: 'Ask me about the rate card.',
+      help: 'I can read the standard rates shown on this page (repairs, inspections, delivery and installation rates, regions, quantity bands and discounts). No customer data is involved.',
+      placeholder: 'Ask about a rate, a region or a discount\u2026',
+      chips: [
+        'Which rate applies to a non-warranty repair?',
+        'How do the delivery and installation rates change with quantity?',
+        'What is the transport charge for each region?',
       ],
     },
     walk_in: {
@@ -25743,6 +25762,7 @@ ${bodyHtml}
     if (mode === 'warranty-approvals') return 'warranty_approvals';
     if (mode === 'delivery-install') return 'delivery_install';
     if (mode === 'walk-in') return 'walk_in';
+    if (mode === 'rate-card') return 'rate_card';
     return '';
   }
 

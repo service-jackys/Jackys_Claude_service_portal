@@ -82,6 +82,9 @@ const ASK_GUIDE: Record<string, string> = {
   walk_in:
     'the Walk-in job card form (a job card opened for a customer at the service counter, with no complaint or appointment) and the walk-in jobs of the service centre. ' +
     'Explain which details matter on the form (customer type, warranty status, brand and model, who is billed), point out anything that looks missing or inconsistent from the fields given, and explain how many walk-in jobs there are by status, month, brand, warranty and region.',
+  rate_card:
+    'the Rate Card: the standard service rates for sales and the service desk (warranty and non-warranty repairs, inspections, and delivery & installation rates by mode, region and quantity band). ' +
+    'Answer questions about which rate applies, how delivery and installation rates change with quantity, region and transport, compare rates, and explain the rules in simple words. Use only the rates given.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',

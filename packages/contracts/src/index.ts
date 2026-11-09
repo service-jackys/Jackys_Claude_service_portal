@@ -2351,6 +2351,7 @@ export const aiAskSections = [
   'warranty_approvals',
   'delivery_install',
   'walk_in',
+  'rate_card',
   'vas',
 ] as const;
 export const aiAskRequestSchema = z

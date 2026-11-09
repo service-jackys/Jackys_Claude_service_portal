@@ -304,6 +304,16 @@ test(
         { revenue: false, budget: false, can: (code: string) => code === 'service_job_card.read' },
       );
       assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
+      await ai.ask(
+        {
+          section: 'rate_card',
+          title: 'Rate card',
+          messages: [{ role: 'user', content: 'How many are pending?' }],
+          context: { statusFilter: 'All' },
+        },
+        { revenue: false, budget: false, can: (code: string) => code === 'rate_card.view' },
+      );
+      assert.ok(String(calls[calls.length - 1].body.system).includes('Rate Card'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',
