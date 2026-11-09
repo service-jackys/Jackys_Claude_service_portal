@@ -19,10 +19,22 @@ function handleError(
   else problem(response, 502, 'ai-provider-failed', 'The AI provider failed', error.message);
 }
 
+// Each section is its own permission so an admin can decide who may ask about
+// pricing, masters, AMC or revenue (modification #229).
+export const ASK_AI_PERMISSIONS: Record<string, string> = {
+  pricing_admin: 'ai_ask.pricing_admin',
+  masters: 'ai_ask.masters',
+  amc: 'ai_ask.amc',
+  revenue: 'ai_ask.revenue',
+};
+
 export function createAiHandlers(
   service: AiService,
   requirePermission: (permission: string) => RequestHandler,
 ): Record<string, RequestHandler[]> {
+  const gates: Record<string, RequestHandler> = Object.fromEntries(
+    Object.values(ASK_AI_PERMISSIONS).map((code) => [code, requirePermission(code)]),
+  );
   return {
     get: [
       requirePermission('ai_settings.manage'),
@@ -76,6 +88,23 @@ export function createAiHandlers(
       async (request, response, next) => {
         try {
           response.json(await service.chat(request.body));
+        } catch (error) {
+          handleError(error, response, next);
+        }
+      },
+    ],
+    ask: [
+      (request, response, next) => {
+        const code = ASK_AI_PERMISSIONS[String((request.body as { section?: unknown })?.section)];
+        if (!code) {
+          problem(response, 400, 'validation', 'Invalid request', 'Unknown section.');
+          return;
+        }
+        gates[code](request, response, next);
+      },
+      async (request, response, next) => {
+        try {
+          response.json(await service.ask(request.body));
         } catch (error) {
           handleError(error, response, next);
         }

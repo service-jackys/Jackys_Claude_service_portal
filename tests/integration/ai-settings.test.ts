@@ -170,6 +170,41 @@ test(
       );
       await assert.rejects(ai.chat({ messages: [{ role: 'user', content: 'x' }], quote: {} }));
 
+      // Ask AI across the portal: figures reach the provider, personal fields do not.
+      const asked = await ai.ask({
+        section: 'revenue',
+        title: 'Budget vs actual',
+        messages: [{ role: 'user', content: 'Where are we behind budget?' }],
+        context: {
+          summary: { budget: 1000, actual: 800 },
+          rows: [
+            { month: 'Oct', budget: 500, actual: 300, customerName: 'Secret LLC', phone: '0501' },
+          ],
+        },
+      });
+      assert.equal(asked.text, 'Add one technician.');
+      const askCall = calls[calls.length - 1];
+      assert.ok(String(askCall.body.system).includes('"budget":1000'));
+      assert.ok(!String(askCall.body.system).includes('Secret LLC'));
+      assert.ok(!String(askCall.body.system).includes('0501'));
+      await assert.rejects(
+        ai.ask({
+          section: 'revenue',
+          title: 'x',
+          messages: [{ role: 'assistant', content: 'Hi' }],
+          context: {},
+        }),
+        /must be a question/,
+      );
+      await assert.rejects(
+        ai.ask({
+          section: 'nope',
+          title: 'x',
+          messages: [{ role: 'user', content: 'Hi' }],
+          context: {},
+        }),
+      );
+
       // A provider failure is reported, and the test result is remembered.
       mode = 'fail';
       await assert.rejects(ai.advise(advice), /401/);

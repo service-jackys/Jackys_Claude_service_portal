@@ -4825,3 +4825,22 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js. No database or API change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #229 — Ask AI across the portal: Admin pricing, Masters, AMC calculators and Revenue / Budget
+
+**Date:** 2026-11-09
+
+**Why.** The Ask AI chat only existed inside the Thomson calculator. Admins and users want to ask for advice wherever there are figures to read.
+
+**What changed.**
+
+- **One Ask AI button** (bottom right, next to Live Chat) now appears on: all **Admin pricing pages** (VAS, Rate Card, D+I, AMC Admin Rates and the new one, Thomson pricing), **Admin → Masters** (Stock master and Appliances), the **AMC Quote Calculator** (original and New), and **Service Revenue Dashboard, Budget vs Actual and Budget Variance**. The Thomson calculator keeps its own chat.
+- **What the AI reads.** Each page hands over the figures it is showing: pricing pages their current settings (including unsaved edits), calculators the appliances, plan prices and settings, revenue and budget pages the figures on screen, Masters the rows shown. Customer, client, contact, phone, e-mail, address and staff fields are left out on the page and removed again by the API. The Masters Customers tab and the AI settings tab are never shared. Revenue views grouped by customer or sales person, and individual lines, are not sent. Quote, contract and job references may be included.
+- **Advice only.** The AI explains, compares and suggests; it cannot change anything.
+- **Permissions, one per section** (admin has all; other roles get them in Roles & permissions): `ai_ask.pricing_admin`, `ai_ask.masters`, `ai_ask.amc`, `ai_ask.revenue`. The button is hidden without the permission or when AI is not set up (Admin → Masters → AI settings); the API returns 403 without it.
+- **API:** POST /api/ai-ask (section, title, messages, context). Migration 081 adds the permissions.
+- **Later:** other sections (complaints, appointments, job cards, quotations, inspections, warranty, dashboards) follow in later PRs.
+
+**Files.** packages/db/migrations/081_ask_ai_permissions.sql, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give the `ai_ask.*` permissions to other roles in Roles & permissions if wanted.

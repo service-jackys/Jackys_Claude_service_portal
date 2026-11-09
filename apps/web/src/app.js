@@ -15267,6 +15267,21 @@ ${bodyHtml}
         .join('');
     }
 
+    setAskAiProvider('amc-calc-v2', () =>
+      lastQuote
+        ? {
+            appliances: lines.map((l) => ({
+              name: l.name,
+              qty: l.qty,
+              refValue: refValueOf(l.name),
+            })),
+            ageBandIndex: ageIndex,
+            quote: lastQuote,
+            settings: cfg,
+          }
+        : null,
+    );
+
     function recompute() {
       const input = lines.map((l) => ({ name: l.name, qty: l.qty, refValue: refValueOf(l.name) }));
       const quote = core.computeQuote(cfg, input, ageIndex);
@@ -15725,6 +15740,18 @@ ${bodyHtml}
       const priceInclVat = priceExclVat * 1.05;
       return { visits, labor, transport, parts, direct, overhead, priceExclVat, priceInclVat };
     }
+
+    setAskAiProvider('amc-calc', () => {
+      const count = appliances.reduce((t, a) => t + a.qty, 0);
+      return lastRows && count > 0
+        ? {
+            appliances: appliances.map((a) => ({ name: a.name, qty: a.qty, unitValue: a.price })),
+            totalCount: count,
+            plans: lastRows,
+            settings: data,
+          }
+        : null;
+    });
 
     function recompute() {
       const totalCount = appliances.reduce((s, a) => s + a.qty, 0);
@@ -25343,7 +25370,398 @@ ${bodyHtml}
     }).catch(() => {});
   }
 
-  const rdApi = (path, params) => apiRequest('/api/revenue-dashboard/' + path + '?' + rdQs(params));
+  // ---- Ask AI across the portal (modification #229) ----------------------
+  // One chat panel for the Admin pricing pages, Masters, the AMC calculators
+  // and the Revenue / Budget dashboards. Each page hands over the figures it is
+  // showing; personal fields are left out here and again by the API. Advice
+  // only: the AI cannot change anything.
+  const ASK_AI_PERMISSION = {
+    pricing_admin: 'ai_ask.pricing_admin',
+    masters: 'ai_ask.masters',
+    amc: 'ai_ask.amc',
+    revenue: 'ai_ask.revenue',
+  };
+  const ASK_AI_COPY = {
+    pricing_admin: {
+      hello: 'Ask me about these prices and rates.',
+      help: 'I can read the settings on this page, explain them and point out values that look off.',
+      placeholder: 'Ask about these rates…',
+      chips: [
+        'Explain the settings on this page in simple words.',
+        'Do any of these values look unusual or inconsistent?',
+        'Which setting has the biggest effect on our margin?',
+      ],
+    },
+    masters: {
+      hello: 'Ask me about this master list.',
+      help: 'I can read the rows shown and spot duplicates, gaps or odd values.',
+      placeholder: 'Ask about this list…',
+      chips: [
+        'Are there duplicates or inconsistent names in this list?',
+        'Which rows have missing or unusual values?',
+        'Summarise what this list contains.',
+      ],
+    },
+    amc: {
+      hello: 'Ask me about this AMC quote.',
+      help: 'I can read the appliances, the plan prices and the call-out terms.',
+      placeholder: 'Ask about plans, margin, discounts…',
+      chips: [
+        'Which plan gives us the best margin, and why?',
+        'Is any plan priced below the minimum margin?',
+        'How could I make this quote more competitive?',
+      ],
+    },
+    revenue: {
+      hello: 'Ask me about these revenue and budget figures.',
+      help: 'I can read the figures shown, compare them with budget and explain gaps.',
+      placeholder: 'Ask about revenue, budget, variance…',
+      chips: [
+        'Where are we behind budget and by how much?',
+        'What stands out in these figures?',
+        'Which month or stream needs attention first?',
+      ],
+    },
+  };
+  const askAiProviders = {};
+  const askAiRevenueLog = [];
+  let askAiStatus = null; // null = not asked yet, then true / false
+  const askAi = { mode: '', section: '', open: false, busy: false, messages: [], root: null };
+
+  function setAskAiProvider(mode, fn) {
+    askAiProviders[mode] = fn;
+  }
+
+  function askAiSectionOf(mode) {
+    if (PRICING_ADMIN_PAGES[mode]) return 'pricing_admin';
+    if (mode === 'amc-calc' || mode === 'amc-calc-v2') return 'amc';
+    if (['revenue-dashboard', 'budget-dashboard', 'budget-variance'].includes(mode))
+      return 'revenue';
+    if (mode === 'masters') return 'masters';
+    return '';
+  }
+
+  const ASK_AI_PERSONAL_HEADER =
+    /customer|client|contact|phone|mobile|e-?mail|address|whatsapp|owner|assign|staff|employee|person/i;
+
+  // Rows of the tables on screen (first 40 each), without personal columns.
+  function askAiTableSnapshot(root) {
+    return Array.from(root.querySelectorAll('table'))
+      .filter((table) => table.offsetParent !== null)
+      .slice(0, 4)
+      .map((table) => {
+        const headers = Array.from(table.querySelectorAll('thead th')).map((th) =>
+          th.textContent.trim(),
+        );
+        const keep = headers.map((h) => !!h && !ASK_AI_PERSONAL_HEADER.test(h));
+        const rows = Array.from(table.querySelectorAll('tbody tr'))
+          .slice(0, 40)
+          .map((tr) => {
+            const cells = Array.from(tr.children).map((td) => td.textContent.trim().slice(0, 120));
+            const row = {};
+            headers.forEach((h, i) => {
+              if (keep[i] && cells[i] !== undefined) row[h] = cells[i];
+            });
+            return row;
+          });
+        return {
+          columns: headers.filter((h, i) => keep[i]),
+          rowsShown: rows.length,
+          rowsOnScreen: table.querySelectorAll('tbody tr').length,
+          rows,
+        };
+      });
+  }
+
+  // The title and figures for the page being viewed, or null when there is
+  // nothing to ask about yet.
+  function askAiContext(mode) {
+    const section = askAiSectionOf(mode);
+    if (!section) return null;
+    if (section === 'pricing_admin') {
+      const page = PRICING_ADMIN_PAGES[mode];
+      const settings = {};
+      page.domains.forEach((domain) => {
+        const state = pricingCardState.get(domain);
+        if (state) settings[domain] = state.data;
+      });
+      if (!Object.keys(settings).length) return null;
+      return {
+        title: page.heading,
+        context: {
+          page: page.heading,
+          unsavedChanges: page.domains.some((d) => pricingCardState.get(d)?.dirty),
+          settings,
+        },
+      };
+    }
+    if (section === 'masters') {
+      const page = PRICING_CALC_PAGES.masters;
+      const root = document.getElementById(page.workspaceId);
+      if (!root) return null;
+      if (mastersTab === 'ai') return null;
+      if (mastersTab === 'customers')
+        return {
+          title: 'Masters: Customers',
+          context: { tab: 'Customers', note: 'The customer list is never shared with the AI.' },
+        };
+      return {
+        title: 'Masters: ' + (mastersTab === 'stock' ? 'Stock master' : 'Appliances'),
+        context: { tab: mastersTab, tables: askAiTableSnapshot(root) },
+      };
+    }
+    const provider = askAiProviders[mode];
+    const result = provider ? provider() : null;
+    if (!result) return null;
+    return { title: PRICING_CALC_PAGES[mode]?.heading || mode, context: result };
+  }
+
+  function askAiEnsure() {
+    if (askAi.root) return askAi.root;
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-ask-root';
+    wrap.innerHTML =
+      '<button type="button" class="tq-chat-launch" data-ai-launch hidden aria-haspopup="dialog" aria-expanded="false">' +
+      '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2zm7 11l.9 2.6 2.6.9-2.6.9L19 20l-.9-2.6-2.6-.9 2.6-.9L19 13z" fill="currentColor"/></svg>' +
+      '<span>Ask AI</span></button>' +
+      '<section class="tq-chat" data-ai-panel role="dialog" aria-label="Ask AI about this page" hidden>' +
+      '<header class="tq-chat-head"><div class="tq-chat-title"><strong>Ask AI</strong>' +
+      '<span class="tq-chat-subject" data-ai-subject></span></div>' +
+      '<div class="tq-chat-actions">' +
+      '<button type="button" class="tq-chat-icon" data-ai-reset title="Start a new conversation" aria-label="Start a new conversation"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 11-5 5H5a7 7 0 107-8z" fill="currentColor"/></svg></button>' +
+      '<button type="button" class="tq-chat-icon" data-ai-close title="Close" aria-label="Close chat"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>' +
+      '</div></header>' +
+      '<div class="tq-chat-body" data-ai-body aria-live="polite"></div>' +
+      '<div class="tq-chat-suggest" data-ai-suggest></div>' +
+      '<form class="tq-chat-form" data-ai-form>' +
+      '<textarea rows="1" maxlength="1000" data-ai-input aria-label="Your question"></textarea>' +
+      '<button type="submit" class="tq-chat-send" data-ai-send aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.2-7.3L3 11.5z" fill="currentColor"/></svg></button>' +
+      '</form>' +
+      '<p class="tq-chat-foot">AI can make mistakes and cannot change anything. It only sees the figures on this page, never customer or staff names or contact details.</p>' +
+      '</section>';
+    document.body.appendChild(wrap);
+    askAi.root = wrap;
+    const q = (sel) => wrap.querySelector(sel);
+    q('[data-ai-launch]').addEventListener('click', () => askAiOpen());
+    q('[data-ai-close]').addEventListener('click', () => askAiClose());
+    q('[data-ai-reset]').addEventListener('click', () => {
+      askAi.messages = [];
+      askAiRender();
+      q('[data-ai-input]').focus();
+    });
+    q('[data-ai-panel]').addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') askAiClose();
+    });
+    q('[data-ai-panel]').addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-ai-ask]');
+      if (chip) askAiSend(chip.getAttribute('data-ai-ask'));
+    });
+    q('[data-ai-form]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      askAiSend(q('[data-ai-input]').value);
+    });
+    const input = q('[data-ai-input]');
+    input.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        askAiSend(input.value);
+      }
+    });
+    input.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 96) + 'px';
+    });
+    return wrap;
+  }
+
+  function askAiChatHtml(text) {
+    const out = [];
+    let list = [];
+    const flush = () => {
+      if (list.length) {
+        out.push('<ul>' + list.map((x) => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul>');
+        list = [];
+      }
+    };
+    String(text)
+      .split(/\r?\n/)
+      .forEach((line) => {
+        const t = line.trim();
+        const bullet = /^[-*•]\s+(.*)$/.exec(t);
+        if (bullet) list.push(bullet[1]);
+        else {
+          flush();
+          if (t) out.push('<p>' + escapeHtml(t) + '</p>');
+        }
+      });
+    flush();
+    return out.join('');
+  }
+
+  function askAiRender() {
+    const wrap = askAi.root;
+    if (!wrap) return;
+    const q = (sel) => wrap.querySelector(sel);
+    const copy = ASK_AI_COPY[askAi.section] || ASK_AI_COPY.pricing_admin;
+    const info = askAiContext(askAi.mode);
+    q('[data-ai-subject]').textContent = info ? 'About ' + info.title : '';
+    q('[data-ai-input]').placeholder = copy.placeholder;
+    const empty = !askAi.messages.length;
+    q('[data-ai-body]').innerHTML = empty
+      ? '<div class="tq-chat-hello"><strong>' +
+        escapeHtml(copy.hello) +
+        '</strong><span>' +
+        escapeHtml(copy.help) +
+        ' I cannot change anything for you.</span></div>'
+      : askAi.messages
+          .map(
+            (m) =>
+              '<div class="tq-chat-msg is-' +
+              m.role +
+              (m.error ? ' is-error' : '') +
+              '">' +
+              (m.role === 'assistant'
+                ? askAiChatHtml(m.content)
+                : '<p>' + escapeHtml(m.content) + '</p>') +
+              '</div>',
+          )
+          .join('') +
+        (askAi.busy
+          ? '<div class="tq-chat-msg is-assistant is-typing" aria-label="The AI is typing"><span></span><span></span><span></span></div>'
+          : '');
+    q('[data-ai-suggest]').innerHTML = empty
+      ? copy.chips
+          .map(
+            (c) =>
+              '<button type="button" class="tq-chat-chip" data-ai-ask="' +
+              escapeHtml(c) +
+              '">' +
+              escapeHtml(c) +
+              '</button>',
+          )
+          .join('')
+      : '';
+    q('[data-ai-send]').disabled = askAi.busy;
+    const body = q('[data-ai-body]');
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function askAiOpen() {
+    const wrap = askAiEnsure();
+    askAi.open = true;
+    wrap.querySelector('[data-ai-panel]').hidden = false;
+    const launch = wrap.querySelector('[data-ai-launch]');
+    launch.hidden = true;
+    launch.setAttribute('aria-expanded', 'true');
+    askAiRender();
+    wrap.querySelector('[data-ai-input]').focus();
+  }
+
+  function askAiClose() {
+    askAi.open = false;
+    const wrap = askAi.root;
+    if (!wrap) return;
+    wrap.querySelector('[data-ai-panel]').hidden = true;
+    const launch = wrap.querySelector('[data-ai-launch]');
+    launch.setAttribute('aria-expanded', 'false');
+    askAiSync();
+    launch.focus();
+  }
+
+  async function askAiSend(text) {
+    const question = String(text || '').trim();
+    if (!question || askAi.busy) return;
+    const info = askAiContext(askAi.mode);
+    askAi.messages.push({ role: 'user', content: question });
+    askAi.busy = true;
+    const input = askAi.root.querySelector('[data-ai-input]');
+    input.value = '';
+    input.style.height = '';
+    askAiRender();
+    try {
+      if (!info) throw Object.assign(new Error('empty'), { status: 0, empty: true });
+      const turns = askAi.messages
+        .filter((m) => !m.error)
+        .slice(-12)
+        .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+      const reply = await apiRequest('/api/ai-ask', {
+        method: 'POST',
+        body: JSON.stringify({
+          section: askAi.section,
+          title: info.title,
+          messages: turns,
+          context: info.context,
+        }),
+      });
+      askAi.messages.push({ role: 'assistant', content: reply.text || '' });
+    } catch (error) {
+      askAi.messages.push({
+        role: 'assistant',
+        error: true,
+        content:
+          error && error.empty
+            ? 'There is nothing on this page for me to read yet. Open or load the figures first, then ask again.'
+            : error && error.status === 409
+              ? 'The AI is not set up. An admin can add the key in Admin › Masters › AI settings.'
+              : error && error.status === 403
+                ? 'You do not have permission to use Ask AI here. Ask an admin to give it in Roles & permissions.'
+                : error && error.status === 400 && error.message
+                  ? error.message
+                  : 'The AI did not answer just now. Please try again in a moment.',
+      });
+    } finally {
+      askAi.busy = false;
+      askAiRender();
+      askAi.root.querySelector('[data-ai-input]').focus();
+    }
+  }
+
+  // Show or hide the button for the page now on screen. The Thomson calculator
+  // has its own Ask AI, so this one stays out of its way.
+  function askAiSync() {
+    const mode = workspaceMode;
+    const section = askAiSectionOf(mode);
+    const allowed = !!section && hasPermission(ASK_AI_PERMISSION[section]);
+    if (!allowed || askAiStatus === false) {
+      if (askAi.root) {
+        askAi.root.querySelector('[data-ai-launch]').hidden = true;
+        askAi.root.querySelector('[data-ai-panel]').hidden = true;
+      }
+      askAi.open = false;
+      return;
+    }
+    if (askAiStatus === null) {
+      askAiStatus = true; // show now; the first answer says if the AI is off
+      apiRequest('/api/ai-settings/status')
+        .then((r) => {
+          if (!r.available) askAiStatus = false;
+          askAiSync();
+        })
+        .catch(() => undefined);
+    }
+    askAiEnsure();
+    if (mode !== askAi.mode) {
+      askAi.mode = mode;
+      askAi.section = section;
+      askAi.messages = [];
+      if (askAi.open) askAiRender();
+    }
+    askAi.root.querySelector('[data-ai-launch]').hidden = askAi.open;
+  }
+  setInterval(askAiSync, 800);
+
+  const rdApi = (path, params) =>
+    apiRequest('/api/revenue-dashboard/' + path + '?' + rdQs(params)).then((data) => {
+      // What the revenue page is showing, for Ask AI. Rows that list customers,
+      // sales people or individual lines are not kept.
+      const personal = ['customer', 'salesPerson'];
+      const dims = [params?.dimension, params?.rowDimension, params?.columnDimension];
+      if (path !== 'lines' && !dims.some((d) => personal.includes(d))) {
+        askAiRevenueLog.push({ view: path, filters: params, figures: data });
+        if (askAiRevenueLog.length > 12) askAiRevenueLog.shift();
+      }
+      return data;
+    });
 
   function rdDownloadBlob(blob, fileName) {
     const url = URL.createObjectURL(blob);
@@ -25456,6 +25874,10 @@ ${bodyHtml}
     let drill = { path: [], groupBy: null, page: 1, search: '' };
     let explorer = { page: 1, search: '' };
     let seeded = false;
+    askAiRevenueLog.length = 0;
+    setAskAiProvider('revenue-dashboard', () =>
+      askAiRevenueLog.length ? { filters: { ...F }, tab, views: askAiRevenueLog.slice() } : null,
+    );
 
     root.innerHTML =
       '<div data-rd-top></div><div data-rd-tabs></div><div data-rd-bar></div><div data-rd-body><p class="form-note">Loading revenue data&hellip;</p></div>';
@@ -27937,6 +28359,7 @@ ${bodyHtml}
       return;
     }
     const reload = () => renderBudgetVariance(root, st);
+    setAskAiProvider('budget-variance', () => ({ tab: st.tab, config: cfg, variance: data }));
     root.innerHTML = '';
     const tabs = document.createElement('div');
     tabs.className = 'form-row';
@@ -28514,6 +28937,7 @@ ${bodyHtml}
       return;
     }
     root.innerHTML = '';
+    setAskAiProvider('budget-dashboard', () => ({ budgetVsActual: data }));
     const head = document.createElement('div');
     head.innerHTML =
       rdSourceBanner(data.budgetBatch, 'budget') +

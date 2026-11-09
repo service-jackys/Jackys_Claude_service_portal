@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
   aiAdviceRequestSchema,
+  aiAskRequestSchema,
   aiChatRequestSchema,
   aiSettingsWriteSchema,
 } from '../../../../packages/contracts/src/index.js';
@@ -43,6 +44,44 @@ const CHAT_SYSTEM =
   'You cannot change the quote or its prices; if a change is wanted, say what to change in the calculator ' +
   '(quantities, transport share, add-on switches, crew or phases). ' +
   'Answer in plain text, under 120 words, no markdown headings or bold; use short lines starting with "- " for lists.';
+
+const ASK_GUIDE: Record<string, string> = {
+  pricing_admin:
+    'the Admin pricing pages (VAS price bands, rate cards, Delivery & Installation, AMC admin rates and the Thomson pricing master). ' +
+    'Explain what a setting does, point out values that look inconsistent, unusually high or low, or that would squeeze margin, and suggest what to review.',
+  masters:
+    'the Admin Masters (reference lists such as appliances, regions, sub-groups and codes). ' +
+    'Help the admin keep the lists clean: spot duplicates, gaps, odd values or inconsistent naming in the rows shown, and suggest fixes.',
+  amc:
+    'the AMC (annual maintenance contract) quote calculators. ' +
+    'Explain how the plan prices were reached, compare plans, point out where the price is capped, discounted or below the minimum margin, and suggest how to improve the quote.',
+  revenue:
+    'the Service revenue and Budget dashboards. ' +
+    'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
+};
+
+const PERSONAL_KEY =
+  /customer|client|contact|phone|mobile|e-?mail|address|whatsapp|passport|emirates|owner|assignee|assigned|created_?by|updated_?by|staff|employee|person/i;
+
+// Defence in depth: the page already leaves personal fields out; this removes
+// any that slipped through and keeps the payload small.
+export function sanitiseAskContext(value: unknown, depth = 0): unknown {
+  if (value === null || typeof value === 'number' || typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.length > 200 ? value.slice(0, 200) + '…' : value;
+  if (depth >= 8) return undefined;
+  if (Array.isArray(value))
+    return value.slice(0, 60).map((item) => sanitiseAskContext(item, depth + 1));
+  if (typeof value === 'object') {
+    const out: Record<string, unknown> = {};
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      if (PERSONAL_KEY.test(key)) continue;
+      const cleaned = sanitiseAskContext(item, depth + 1);
+      if (cleaned !== undefined) out[key] = cleaned;
+    }
+    return out;
+  }
+  return undefined;
+}
 
 export function createAiService(pool: Pool, deps: Deps = {}) {
   const secret = () =>
@@ -211,7 +250,47 @@ export function createAiService(pool: Pool, deps: Deps = {}) {
     }
   }
 
-  return { get, status, save, test, advise, chat };
+  async function ask(input: unknown) {
+    const data = aiAskRequestSchema.parse(input);
+    if (data.messages[data.messages.length - 1].role !== 'user')
+      throw new AiServiceError('invalid', 'The last message must be a question.');
+    const context = JSON.stringify(sanitiseAskContext(data.context));
+    if (context.length > 60000)
+      throw new AiServiceError(
+        'invalid',
+        'There is too much on this page to send. Narrow it down and ask again.',
+      );
+    const config = configFrom(await load());
+    const system =
+      "You are an assistant inside the staff portal of Jacky's Distribution (after-sales service, appliance installation and maintenance, UAE). " +
+      'You are helping with ' +
+      ASK_GUIDE[data.section] +
+      ' The page is: ' +
+      data.title +
+      '. PAGE DATA is the only source of figures: never invent or assume numbers that are not in it, and say so when it does not contain what is needed. ' +
+      'You may do simple arithmetic on the given figures; show the numbers you used. Amounts are in AED. ' +
+      'You cannot change anything in the portal; when a change is wanted, say what to change and where. ' +
+      'Answer in plain text, under 150 words, no markdown headings or bold; use short lines starting with "- " for lists.';
+    try {
+      const text = await completeChat(
+        config,
+        system + '\n\nPAGE DATA (JSON):\n' + context,
+        data.messages,
+        {
+          maxTokens: 600,
+          timeoutMs: 30000,
+          fetchImpl: deps.fetchImpl,
+        },
+      );
+      return { text };
+    } catch (error) {
+      if (error instanceof AiProviderError)
+        throw new AiServiceError('provider-failed', error.message);
+      throw error;
+    }
+  }
+
+  return { get, status, save, test, advise, chat, ask };
 }
 
 export type AiService = ReturnType<typeof createAiService>;
