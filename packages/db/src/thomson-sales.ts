@@ -16,6 +16,7 @@ export type ThomsonSaleLineItem = {
 };
 
 export type ThomsonSaleSchedule = Record<string, unknown>;
+export type ThomsonSaleEditorState = Record<string, unknown>;
 
 export type ThomsonSaleRecord = {
   id: string;
@@ -31,6 +32,9 @@ export type ThomsonSaleRecord = {
   margin: string;
   contractRef: string | null;
   schedule: ThomsonSaleSchedule | null;
+  editorState: ThomsonSaleEditorState | null;
+  revision: number;
+  revisionNote: string | null;
   status: 'Quote' | 'Sold' | 'Lost';
   soldDate: string | null;
   lostReason: string | null;
@@ -53,6 +57,7 @@ export type ThomsonSaleContent = {
   margin: number;
   contractRef: string | null;
   schedule: ThomsonSaleSchedule | null;
+  editorState: ThomsonSaleEditorState | null;
 };
 
 const columns = `
@@ -69,6 +74,9 @@ const columns = `
   margin,
   contract_ref AS "contractRef",
   schedule,
+  editor_state AS "editorState",
+  revision,
+  revision_note AS "revisionNote",
   status,
   sold_date::text AS "soldDate",
   lost_reason AS "lostReason",
@@ -88,11 +96,11 @@ export async function insertThomsonSale(
     `INSERT INTO thomson_sales (
        thomson_sale_reference, sale_date, client_name, contact_number,
        site_location, transport_share_percent, line_items, total_price,
-       total_cost, margin, contract_ref, created_by, updated_by, schedule
+       total_cost, margin, contract_ref, created_by, updated_by, schedule, editor_state
      ) VALUES (
        $1, $2, $3, $4,
        $5, $6, $7::jsonb, $8,
-       $9, $10, $11, $12, $12, $13::jsonb
+       $9, $10, $11, $12, $12, $13::jsonb, $14::jsonb
      )
      RETURNING id`,
     [
@@ -109,6 +117,7 @@ export async function insertThomsonSale(
       c.contractRef,
       input.createdBy,
       c.schedule ? JSON.stringify(c.schedule) : null,
+      c.editorState ? JSON.stringify(c.editorState) : null,
     ],
   );
   const thomsonSale = await findThomsonSaleById(client, result.rows[0].id);
@@ -192,4 +201,113 @@ export async function changeThomsonSaleStatus(
     ],
   );
   return findThomsonSaleById(client, id);
+}
+
+export type ThomsonSaleRevision = {
+  id: string;
+  revision: number;
+  revisionNote: string | null;
+  savedAt: Date;
+  savedBy: string | null;
+  savedByName: string | null;
+  supersededAt: Date;
+  supersededByName: string | null;
+  snapshot: Record<string, unknown>;
+};
+
+// Replaces the live content of an issued quote with a new version and moves the
+// version it replaces into thomson_sale_revisions. Returns null when the record
+// does not exist and 'sold' when it is Sold (a Sold quote's value feeds revenue,
+// so it must be reopened to Quote first).
+export async function reviseThomsonSale(
+  client: PoolClient,
+  id: string,
+  input: { content: ThomsonSaleContent; revisionNote: string | null; profileId: string },
+): Promise<{ before: ThomsonSaleRecord; after: ThomsonSaleRecord } | 'sold' | null> {
+  const lock = await client.query(`SELECT id FROM thomson_sales WHERE id = $1 FOR UPDATE`, [id]);
+  if (!lock.rows.length) return null;
+  const before = await findThomsonSaleById(client, id);
+  if (!before) return null;
+  if (before.status === 'Sold') return 'sold';
+  const snapshot = {
+    saleDate: before.saleDate,
+    clientName: before.clientName,
+    contactNumber: before.contactNumber,
+    siteLocation: before.siteLocation,
+    transportSharePercent: Number(before.transportSharePercent),
+    lineItems: before.lineItems,
+    totalPrice: Number(before.totalPrice),
+    totalCost: Number(before.totalCost),
+    margin: Number(before.margin),
+    contractRef: before.contractRef,
+    schedule: before.schedule,
+    editorState: before.editorState,
+    status: before.status,
+  };
+  await client.query(
+    `INSERT INTO thomson_sale_revisions (
+       thomson_sale_id, revision, snapshot, revision_note,
+       saved_at, saved_by, superseded_by
+     ) VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7)`,
+    [
+      id,
+      before.revision,
+      JSON.stringify(snapshot),
+      before.revisionNote,
+      before.updatedAt,
+      before.updatedBy,
+      input.profileId,
+    ],
+  );
+  const c = input.content;
+  await client.query(
+    `UPDATE thomson_sales
+     SET client_name = $2, contact_number = $3, site_location = $4,
+         transport_share_percent = $5, line_items = $6::jsonb, total_price = $7,
+         total_cost = $8, margin = $9, contract_ref = $10,
+         schedule = $11::jsonb, editor_state = $12::jsonb,
+         revision = revision + 1, revision_note = $13,
+         updated_at = now(), updated_by = $14
+     WHERE id = $1`,
+    [
+      id,
+      c.clientName,
+      c.contactNumber,
+      c.siteLocation,
+      c.transportSharePercent,
+      JSON.stringify(c.lineItems),
+      c.totalPrice,
+      c.totalCost,
+      c.margin,
+      c.contractRef,
+      c.schedule ? JSON.stringify(c.schedule) : null,
+      c.editorState ? JSON.stringify(c.editorState) : null,
+      input.revisionNote,
+      input.profileId,
+    ],
+  );
+  const after = await findThomsonSaleById(client, id);
+  if (!after) throw new Error('The revised Thomson quote could not be loaded.');
+  return { before, after };
+}
+
+export async function listThomsonSaleRevisions(
+  client: PoolClient,
+  id: string,
+): Promise<ThomsonSaleRevision[]> {
+  const result = await client.query<ThomsonSaleRevision>(
+    `SELECT r.id, r.revision, r.revision_note AS "revisionNote",
+            r.saved_at AS "savedAt", r.saved_by AS "savedBy",
+            sp.display_name AS "savedByName",
+            r.superseded_at AS "supersededAt",
+            up.display_name AS "supersededByName",
+            r.snapshot
+     FROM thomson_sale_revisions r
+     LEFT JOIN profiles sp ON sp.id = r.saved_by
+     LEFT JOIN profiles up ON up.id = r.superseded_by
+     WHERE r.thomson_sale_id = $1
+     ORDER BY r.revision DESC`,
+    [id],
+  );
+  return result.rows;
 }

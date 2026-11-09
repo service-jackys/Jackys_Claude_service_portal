@@ -4747,3 +4747,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/ai-settings.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #224 — Thomson Issued quotes: Edit and History
+
+**Date:** 2026-11-09
+
+**Why.** An issued Thomson quote could only be reprinted or marked Sold/Lost. When the customer changed the order there was no way to correct it without issuing a new quote and losing the reference.
+
+**What changed.**
+
+- **Edit (admin).** In Issued quotes, a quote that is not Sold now has an **Edit** button. It reopens the quote in the calculator with its items, services, crew and phases as they were built (older quotes that were saved before this change come back without their per-phase quantities, and the calculator says so). Prices are recalculated with the **current** Thomson Pricing Admin values. **Save revision** keeps the same reference, becomes "Rev 2, 3…", and takes an optional reason.
+- **History (admin).** Every earlier version is kept. History lists each revision with who saved it, when, the reason, units and totals, and any version can be printed.
+- **Sold quotes are locked**, as for AMC: reopen to Quote first, then edit.
+- **API:** PUT /api/thomson-sales/{id} (save a revision, 409 when Sold), GET /api/thomson-sales/{id}/revisions. New permission thomson_sale.revise (admin). New quotes now also store what the calculator needs to reopen them.
+
+**Files.** packages/db/migrations/079_thomson_sale_revisions.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull, run the database migration (079), restart the API, hard-refresh.

@@ -149,6 +149,7 @@ export type RouteDefinition = {
     | 'aiSettings'
     | 'aiAdvice'
     | 'thomsonSaleStatus'
+    | 'thomsonSaleRevise'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision'
     | 'warrantyApprovalManualDecision';
@@ -755,6 +756,14 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         setStatus: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        revise: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        revisions: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -3115,6 +3124,30 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.setStatus,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/thomson-sales/{id}',
+        operationId: 'reviseThomsonSale',
+        tags: ['Thomson Sales'],
+        summary:
+          'Admin: save a new revision of an issued Thomson quote (same reference; Sold quotes are locked)',
+        security: 'bearerAuth' as const,
+        requestBody: 'thomsonSaleRevise' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 409, 500],
+        handlers: thomsonSaleHandlers.revise,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/thomson-sales/{id}/revisions',
+        operationId: 'listThomsonSaleRevisions',
+        tags: ['Thomson Sales'],
+        summary: 'Admin: previous saved versions of a Thomson quote',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 401, 403, 404, 500],
+        handlers: thomsonSaleHandlers.revisions,
       },
       {
         method: 'get' as const,
