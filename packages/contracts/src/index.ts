@@ -2338,7 +2338,7 @@ export type AiChatRequestInput = z.infer<typeof aiChatRequestSchema>;
 
 // Ask AI across the portal (modification #229): the page sends the figures it
 // is showing; the API removes personal fields, caps the size and adds advice.
-export const aiAskSections = ['pricing_admin', 'masters', 'amc', 'revenue'] as const;
+export const aiAskSections = ['pricing_admin', 'masters', 'amc', 'revenue', 'vas'] as const;
 export const aiAskRequestSchema = z
   .object({
     section: z.enum(aiAskSections),

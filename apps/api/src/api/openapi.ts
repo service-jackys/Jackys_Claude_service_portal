@@ -1555,7 +1555,10 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           additionalProperties: false,
           required: ['section', 'title', 'messages', 'context'],
           properties: {
-            section: { type: 'string', enum: ['pricing_admin', 'masters', 'amc', 'revenue'] },
+            section: {
+              type: 'string',
+              enum: ['pricing_admin', 'masters', 'amc', 'revenue', 'vas'],
+            },
             title: { type: 'string', maxLength: 120 },
             messages: {
               type: 'array',
