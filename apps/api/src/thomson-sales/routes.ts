@@ -5,11 +5,19 @@ import { ThomsonSaleServiceError, type ThomsonSaleService } from './service.js';
 
 function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): void {
   if (!(error instanceof ThomsonSaleServiceError)) throw error;
+  if (error.code === 'forbidden') {
+    problem(response, 403, 'forbidden', 'Forbidden', error.message);
+    return;
+  }
   if (error.code === 'sold-locked') {
     problem(response, 409, 'thomson-sold-locked', 'Conflict', error.message);
     return;
   }
   problem(response, 404, 'not-found', 'Not Found', error.message);
+}
+
+function canOverrideRate(auth: ApplicationAuth): boolean {
+  return auth.permissions.includes('*') || auth.permissions.includes('thomson_sale.override_rate');
 }
 
 export function createThomsonSaleHandlers(
@@ -48,9 +56,14 @@ export function createThomsonSaleHandlers(
               request.body,
               auth.profileId,
               request.header('x-request-id') ?? undefined,
+              canOverrideRate(auth),
             ),
           });
         } catch (error) {
+          if (error instanceof ThomsonSaleServiceError) {
+            serviceError(error, response);
+            return;
+          }
           next(error);
         }
       },
@@ -88,6 +101,7 @@ export function createThomsonSaleHandlers(
               request.body,
               auth.profileId,
               request.header('x-request-id') ?? undefined,
+              canOverrideRate(auth),
             ),
           });
         } catch (error) {

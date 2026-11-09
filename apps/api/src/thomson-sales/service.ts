@@ -22,11 +22,19 @@ import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class ThomsonSaleServiceError extends Error {
   constructor(
-    public readonly code: 'not-found' | 'sold-locked',
+    public readonly code: 'not-found' | 'sold-locked' | 'forbidden',
     message: string,
   ) {
     super(message);
   }
+}
+
+function assertRateOverrideAllowed(input: ThomsonSaleWriteInput, canOverrideRate: boolean) {
+  if (!canOverrideRate && input.lineItems.some((line) => line.rateOverridden))
+    throw new ThomsonSaleServiceError(
+      'forbidden',
+      'You do not have permission to override the unit rate. Ask an admin to give it in Roles & permissions.',
+    );
 }
 
 function toContent(input: ThomsonSaleWriteInput): ThomsonSaleContent {
@@ -47,8 +55,14 @@ function toContent(input: ThomsonSaleWriteInput): ThomsonSaleContent {
 }
 
 export function createThomsonSaleService(pool: Pool) {
-  async function create(input: unknown, profileId: string, requestId: string = randomUUID()) {
+  async function create(
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+    canOverrideRate = false,
+  ) {
     const data = thomsonSaleWriteSchema.parse(input);
+    assertRateOverrideAllowed(data, canOverrideRate);
     return withTransaction(pool, async (client) => {
       const scopeDate = data.saleDate ?? new Date().toISOString().slice(0, 10);
       const thomsonSaleReference = await allocateThomsonSaleReference(client, scopeDate);
@@ -140,8 +154,10 @@ export function createThomsonSaleService(pool: Pool) {
     input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
+    canOverrideRate = false,
   ) {
     const data = thomsonSaleReviseSchema.parse(input);
+    assertRateOverrideAllowed(data, canOverrideRate);
     return withTransaction(pool, async (client) => {
       const result = await reviseThomsonSale(client, id, {
         content: toContent(data),

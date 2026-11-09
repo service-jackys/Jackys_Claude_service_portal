@@ -945,6 +945,10 @@ export const thomsonSaleLineItemSchema = z
     // 'single' = a single-unit / small-job quote (modification #179);
     // absent on older sales, which are project quotes.
     quoteMode: z.enum(['project', 'single']).optional(),
+    // The unit rate was typed over the master tier rate (modification #226);
+    // tierRate is the master rate it replaced.
+    rateOverridden: z.boolean().optional(),
+    tierRate: z.number().min(0).max(10000000).optional(),
   })
   .strict();
 
@@ -995,6 +999,7 @@ export const thomsonSaleEditorStateSchema = z
             qty: z.number().min(0).max(1000000),
             siteVisits: z.number().min(0).max(100000),
             trainingSessions: z.number().min(0).max(100000),
+            rateOverride: z.number().min(0).max(10000000).nullable().optional(),
           })
           .strict(),
       )
@@ -2275,6 +2280,8 @@ export const aiChatRequestSchema = z
                 appliance: z.string().trim().max(200),
                 qty: z.number().min(0).max(1000000),
                 unitRate: chatMoney,
+                listRate: chatMoney.optional(),
+                rateOverridden: z.boolean().optional(),
                 equipment: chatMoney,
                 services: chatMoney,
                 transportCharged: chatMoney,

@@ -3019,6 +3019,57 @@
       .tq-editbar .tq-edit-note input {
         min-width: 16rem;
       }
+      /* Edit quantity and override the unit rate of a quote line (modification #226). */
+      .tq-table input.tq-qty-input {
+        width: 5.5rem;
+        padding: 0.35rem 0.5rem;
+        text-align: right;
+      }
+      .tq-rate-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.15rem 0.45rem;
+        border: 1px dashed var(--blue);
+        border-radius: 8px;
+        background: var(--blue-soft);
+        color: var(--navy);
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .tq-rate-btn:hover {
+        background: #d6e9f7;
+      }
+      .tq-rate-btn:focus-visible {
+        outline: 3px solid #9cc7ea;
+        outline-offset: 2px;
+      }
+      .tq-rate-dialog {
+        width: min(520px, calc(100vw - 32px));
+      }
+      .tq-rate-dialog .tq-rate-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.7rem;
+      }
+      .tq-rate-dialog .tq-rate-grid label {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+      }
+      .tq-rate-dialog .tq-rate-grid label:first-child {
+        grid-column: 1 / -1;
+      }
+      .tq-rate-dialog .tq-rate-impact {
+        margin: 0.6rem 0;
+        padding: 0.6rem 0.8rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-soft);
+      }
       /* Ask AI chat in the Thomson calculator (modification #225). */
       /* Sits to the left of the portal's round Live Chat button (right 20px, 54px wide). */
       .tq-chat-launch {

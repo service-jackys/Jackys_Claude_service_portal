@@ -96,6 +96,37 @@ test.describe('Thomson Quote Calculator', () => {
     await expect(page.locator('[data-tq-total]')).toContainText('390.00');
   });
 
+  test('a line quantity can be changed and its unit rate overridden from a pop-up', async ({
+    page,
+  }) => {
+    const saved: unknown[] = [];
+    await openCalculator(page, saved);
+    await page.locator('[data-tcc-qty]').fill('3');
+    await page.locator('[data-tcc-add]').click();
+    await expect(page.locator('[data-tq-total]')).toContainText('540.00');
+
+    // 10 units: 1000 equipment + PM 5% 50 + visit 150 + testing 10 x 25 = 250 -> 1450.
+    const qty = page.locator('[data-tcc-qty-edit="0"]');
+    await qty.fill('10');
+    await qty.press('Tab');
+    await expect(page.locator('[data-tq-total]')).toContainText('1450.00');
+
+    // The unit rate opens a pop-up; 20% off the 100.00 tier rate gives 80.00 per unit.
+    await page.locator('[data-tcc-rate="0"]').click();
+    const dialog = page.locator('dialog.tq-rate-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('[data-rd-disc]').fill('20');
+    await expect(dialog.locator('[data-rd-rate]')).toHaveValue('80.00');
+    await dialog.locator('[data-rd-apply]').click();
+    // 800 + PM 40 + 150 + 250 = 1240.
+    await expect(page.locator('[data-tq-total]')).toContainText('1240.00');
+    await expect(page.locator('[data-tq-lines]')).toContainText('Custom rate');
+
+    await page.locator('[data-tcc-rate="0"]').click();
+    await dialog.locator('[data-rd-reset]').click();
+    await expect(page.locator('[data-tq-total]')).toContainText('1450.00');
+  });
+
   test('a single-unit quote uses the base rate, a call-out charge and the minimum', async ({
     page,
   }) => {

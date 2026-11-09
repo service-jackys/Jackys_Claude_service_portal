@@ -16704,6 +16704,8 @@ ${bodyHtml}
       'Training (End User)': 'Per training session on a line',
     };
     const canAmendAddons = hasPermission('pricing_config.write');
+    // Typing over the master tier rate of a line (modification #226) is a permission.
+    const canOverrideRate = hasPermission('thomson_sale.override_rate');
     function cloneAddonDefaults() {
       return THOMSON_ADDON_NAMES.reduce((acc, name) => {
         const entry = data.addons[name] || {};
@@ -17079,7 +17081,9 @@ ${bodyHtml}
       // A single-unit quote always uses the base rate (no volume tier).
       const tier = single ? 'Base' : thomsonCalcTier(li.qty);
       const baseRate = appliance.rates.Base;
-      const unitRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
+      const tierRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
+      const rateOverridden = li.rateOverride !== undefined && li.rateOverride !== null;
+      const unitRate = rateOverridden ? Number(li.rateOverride) : tierRate;
       const applianceSubtotal = li.qty * unitRate;
       const lineHours = li.qty * (appliance.avgMin / 60);
       // Overtime hours are paid at the admin multiplier: the share of the work
@@ -17140,6 +17144,8 @@ ${bodyHtml}
         applianceName: appliance.name,
         tier,
         baseRate,
+        tierRate,
+        rateOverridden,
         unitRate,
         applianceSubtotal,
         addonRevenue,
@@ -17838,11 +17844,28 @@ ${bodyHtml}
               '</td><td>' +
               escapeHtml(c.applianceName) +
               '</td><td class="num">' +
+              '<input type="number" class="tq-qty-input" min="1" step="1" value="' +
               c.qty +
-              '</td><td class="num">' +
-              money(c.unitRate) +
+              '" data-tcc-qty-edit="' +
+              i +
+              '" aria-label="Quantity of ' +
+              escapeHtml(c.applianceName) +
+              ' in ' +
+              escapeHtml(c.region) +
+              '"></td><td class="num">' +
+              (canOverrideRate
+                ? '<button type="button" class="tq-rate-btn" data-tcc-rate="' +
+                  i +
+                  '" title="Change the tier, discount or rate per unit for this line">' +
+                  money(c.unitRate) +
+                  '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>'
+                : money(c.unitRate)) +
               '<span class="cell-sub">' +
-              (c.tier === 'Base' ? 'Base rate' : 'Tier ' + escapeHtml(c.tier)) +
+              (c.rateOverridden
+                ? 'Custom rate &middot; list ' + money(c.tierRate)
+                : c.tier === 'Base'
+                  ? 'Base rate'
+                  : 'Tier ' + escapeHtml(c.tier)) +
               '</span></td><td class="num"><button class="button button-outline rm-btn rm-btn-sm" type="button" data-tcc-remove="' +
               i +
               '">Remove</button></td></tr>',
@@ -17854,6 +17877,18 @@ ${bodyHtml}
           lineItems.splice(Number(btn.getAttribute('data-tcc-remove')), 1);
           renderAll();
         });
+      });
+      // Quantity of a line already in the quote can be changed in place; it is
+      // applied when the field is left or Enter is pressed.
+      linesHost.querySelectorAll('[data-tcc-qty-edit]').forEach((input) => {
+        input.addEventListener('change', () =>
+          changeLineQty(Number(input.getAttribute('data-tcc-qty-edit')), parseNumber(input.value)),
+        );
+      });
+      linesHost.querySelectorAll('[data-tcc-rate]').forEach((btn) => {
+        btn.addEventListener('click', () =>
+          openRateDialog(Number(btn.getAttribute('data-tcc-rate'))),
+        );
       });
 
       // Step 4: what the customer sees.
@@ -18261,6 +18296,194 @@ ${bodyHtml}
       getEditorState,
     );
 
+    // ---- Change a line's quantity / unit rate (modification #226) -----------
+    function rescalePhases(li, oldQty, newQty) {
+      if (!phases.length || !(oldQty > 0)) return;
+      const parts = phases.map((ph) => ((Number(ph.qty[li.uid]) || 0) * newQty) / oldQty);
+      const floors = parts.map(Math.floor);
+      let rest = newQty - floors.reduce((t, x) => t + x, 0);
+      parts
+        .map((x, i) => [x - floors[i], i])
+        .sort((a, b) => b[0] - a[0])
+        .forEach(([, i]) => {
+          if (rest >= 1) {
+            floors[i] += 1;
+            rest -= 1;
+          }
+        });
+      phases.forEach((ph, i) => {
+        ph.qty[li.uid] = floors[i];
+      });
+    }
+
+    function changeLineQty(index, qty) {
+      const li = lineItems[index];
+      if (!li) return;
+      if (!(qty > 0) || (li.mode === 'single' && qty >= 50) || qty === li.qty) {
+        renderAll(); // put the old value back
+        return;
+      }
+      const old = li.qty;
+      li.qty = qty;
+      rescalePhases(li, old, qty);
+      renderAll();
+    }
+
+    // A pop-up to change the tier, the discount on it, or the rate per unit of
+    // one line. Everything is recalculated; the master rate is never changed.
+    function openRateDialog(index) {
+      const li = lineItems[index];
+      if (!li || !canOverrideRate) return;
+      const appliance = appliances[li.applianceIdx];
+      const single = li.mode === 'single';
+      const autoTier = single ? 'Base' : thomsonCalcTier(li.qty);
+      const tierRateOf = (key) => {
+        const k = key === 'auto' ? autoTier : key;
+        return Number(k === 'Base' ? appliance.rates.Base : appliance.rates[k]) || 0;
+      };
+      const tierLabel = (k) => (k === 'Base' ? 'Base rate' : 'Tier ' + k);
+      const options = single ? [] : ['Base', '50+', '150+', '300+', '500+'];
+      let tierKey = 'auto';
+      let rate =
+        li.rateOverride !== undefined && li.rateOverride !== null
+          ? Number(li.rateOverride)
+          : tierRateOf('auto');
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog tq-rate-dialog';
+      dialog.setAttribute('aria-labelledby', 'tqRateTitle');
+      dialog.innerHTML =
+        '<h3 id="tqRateTitle">Unit rate for this line</h3>' +
+        '<p class="form-note"><strong>' +
+        escapeHtml(appliance.name) +
+        '</strong> &middot; ' +
+        escapeHtml(li.region) +
+        ' &middot; ' +
+        li.qty +
+        ' units. The master rate for this quantity is <strong>' +
+        escapeHtml(tierLabel(autoTier)) +
+        ', ⃃ ' +
+        money(tierRateOf('auto')) +
+        '</strong> per unit.</p>' +
+        '<div class="tq-rate-grid">' +
+        '<label>Tier<select data-rd-tier><option value="auto">Automatic for this quantity (' +
+        escapeHtml(tierLabel(autoTier)) +
+        ', ' +
+        money(tierRateOf('auto')) +
+        ')</option>' +
+        options
+          .map(
+            (k) =>
+              '<option value="' +
+              k +
+              '">' +
+              escapeHtml(tierLabel(k)) +
+              ', ' +
+              money(tierRateOf(k)) +
+              '</option>',
+          )
+          .join('') +
+        '</select></label>' +
+        '<label>Discount on the tier rate (%)<input type="number" step="0.1" min="-100" max="100" data-rd-disc></label>' +
+        '<label>Rate per unit (⃃)<input type="number" step="0.01" min="0" data-rd-rate></label>' +
+        '</div>' +
+        '<p class="form-note">A minus discount raises the rate above the tier. The master rate in Thomson Pricing Admin is not changed.</p>' +
+        '<div class="tq-rate-impact" data-rd-impact aria-live="polite"></div>' +
+        '<div class="form-footer">' +
+        '<button type="button" class="button button-outline" data-rd-reset>Use master rate</button> ' +
+        '<button type="button" class="button" data-rd-cancel>Cancel</button> ' +
+        '<button type="button" class="button button-primary" data-rd-apply>Apply</button></div>';
+      const tierSel = dialog.querySelector('[data-rd-tier]');
+      const discIn = dialog.querySelector('[data-rd-disc]');
+      const rateIn = dialog.querySelector('[data-rd-rate]');
+      const impact = dialog.querySelector('[data-rd-impact]');
+      const applyBtn = dialog.querySelector('[data-rd-apply]');
+      const discOf = () => {
+        const t = tierRateOf(tierKey);
+        return t > 0 && Number.isFinite(rate) ? Math.round((1 - rate / t) * 1000) / 10 : 0;
+      };
+      const fill = () => {
+        discIn.value = String(discOf());
+        rateIn.value = Number.isFinite(rate) ? rate.toFixed(2) : '';
+      };
+      const showImpact = () => {
+        const valid = Number.isFinite(rate) && rate >= 0;
+        applyBtn.disabled = !valid;
+        if (!valid) {
+          impact.innerHTML = '<p class="form-note pg-error">Enter a rate of 0 or more.</p>';
+          return;
+        }
+        const trips = installTripsFor(lineItems);
+        const now = computeLine({ ...li, rateOverride: rate }, trips[index]);
+        const list = computeLine({ ...li, rateOverride: null }, trips[index]);
+        const pct = now.totalPrice ? (now.margin / now.totalPrice) * 100 : 0;
+        const guard = schedCfg().minMarginPct;
+        impact.innerHTML =
+          '<dl class="tq-facts"><div><dt>Equipment</dt><dd>⃃ ' +
+          money(now.applianceSubtotal) +
+          ' <small>(master ' +
+          money(list.applianceSubtotal) +
+          ')</small></dd></div><div><dt>Line total</dt><dd>⃃ ' +
+          money(now.totalPrice) +
+          ' <small>(master ' +
+          money(list.totalPrice) +
+          ')</small></dd></div><div><dt>Line margin</dt><dd>⃃ ' +
+          money(now.margin) +
+          ' &middot; ' +
+          pct.toFixed(1) +
+          '% <small>(master ' +
+          money(list.margin) +
+          ')</small></dd></div></dl>' +
+          (pct < guard
+            ? '<p class="form-note pg-error">This line is below the ' +
+              guard +
+              '% margin guard.</p>'
+            : '');
+      };
+      tierSel.addEventListener('change', () => {
+        // A new tier starts from its own rate with no discount.
+        tierKey = tierSel.value;
+        rate = tierRateOf(tierKey);
+        fill();
+        showImpact();
+      });
+      discIn.addEventListener('input', () => {
+        const d = Number(discIn.value);
+        rate = tierRateOf(tierKey) * (1 - (Number.isFinite(d) ? d : 0) / 100);
+        rateIn.value = rate.toFixed(2);
+        showImpact();
+      });
+      rateIn.addEventListener('input', () => {
+        rate = rateIn.value === '' ? NaN : Number(rateIn.value);
+        const t = tierRateOf(tierKey);
+        discIn.value = String(
+          t > 0 && Number.isFinite(rate) ? Math.round((1 - rate / t) * 1000) / 10 : 0,
+        );
+        showImpact();
+      });
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-rd-cancel]')) dialog.close();
+        else if (event.target.closest('[data-rd-reset]')) {
+          delete li.rateOverride;
+          dialog.close();
+          renderAll();
+        } else if (event.target.closest('[data-rd-apply]')) {
+          if (!Number.isFinite(rate) || rate < 0) return;
+          const rounded = Math.round(rate * 100) / 100;
+          if (Math.abs(rounded - tierRateOf('auto')) < 0.005) delete li.rateOverride;
+          else li.rateOverride = rounded;
+          dialog.close();
+          renderAll();
+        }
+      });
+      dialog.addEventListener('close', () => dialog.remove());
+      document.body.appendChild(dialog);
+      fill();
+      showImpact();
+      dialog.showModal();
+      rateIn.focus();
+      rateIn.select();
+    }
+
     // ---- Edit an issued quote (modification #224) -------------------------
     // The saved quote is loaded back into this calculator and re-priced with
     // the current Admin prices; saving stores a new revision of the same
@@ -18279,6 +18502,8 @@ ${bodyHtml}
           qty: li.qty,
           siteVisits: li.siteVisits,
           trainingSessions: li.trainingSessions,
+          rateOverride:
+            li.rateOverride !== undefined && li.rateOverride !== null ? li.rateOverride : null,
         })),
         phases: phases.map((ph) => ({
           name: ph.name,
@@ -18315,8 +18540,10 @@ ${bodyHtml}
               qty: li.qty,
               siteVisits: li.siteVisits,
               trainingSessions: li.trainingSessions,
+              rateOverride: li.rateOverridden ? li.unitRate : null,
             }));
         const uids = [];
+        let droppedOverrides = 0;
         source.forEach((l) => {
           const idx = appliances.findIndex((a) => a.name === l.applianceName);
           if (idx < 0) {
@@ -18348,8 +18575,17 @@ ${bodyHtml}
             siteVisits: Number(l.siteVisits) || 0,
             trainingSessions: Number(l.trainingSessions) || 0,
           });
+          if (l.rateOverride !== undefined && l.rateOverride !== null) {
+            if (canOverrideRate)
+              lineItems[lineItems.length - 1].rateOverride = Number(l.rateOverride);
+            else droppedOverrides += 1;
+          }
           uids.push(uid);
         });
+        if (droppedOverrides)
+          notes.push(
+            'This quote had custom unit rates. You do not have permission to override rates, so the master rates were used. Ask an admin to give you the permission in Roles & permissions if you need to keep them.',
+          );
         if (mode !== 'single')
           transportShareInput.value = String(Number(sale.transportSharePercent));
         const sc = sale.schedule;
@@ -18477,6 +18713,8 @@ ${bodyHtml}
           appliance: c.applianceName,
           qty: c.qty,
           unitRate: round2(c.unitRate),
+          listRate: round2(c.tierRate),
+          rateOverridden: c.rateOverridden || undefined,
           equipment: round2(c.applianceSubtotal),
           services: round2(c.addonRevenue),
           transportCharged: round2(c.customerTransportCharge),
@@ -18501,6 +18739,8 @@ ${bodyHtml}
         appliance: li.applianceName,
         qty: Number(li.qty) || 0,
         unitRate: round2(li.unitRate),
+        listRate: li.rateOverridden ? round2(li.tierRate) : undefined,
+        rateOverridden: li.rateOverridden || undefined,
         equipment: round2(li.applianceSubtotal),
         services: round2(li.addonRevenue),
         transportCharged: Math.max(
@@ -18827,6 +19067,9 @@ ${bodyHtml}
               li.qty +
               '</td><td class="num">' +
               money(li.unitRate) +
+              (li.rateOverridden
+                ? '<small class="ac-sub">custom rate (list ' + money(li.tierRate) + ')</small>'
+                : '') +
               '</td><td class="num">' +
               money(li.totalPrice) +
               '</td></tr>',
@@ -19230,6 +19473,8 @@ ${bodyHtml}
           totalCost: c.totalCost,
           margin: c.margin,
           quoteMode: single ? 'single' : 'project',
+          rateOverridden: c.rateOverridden || undefined,
+          tierRate: c.rateOverridden ? c.tierRate : undefined,
         })),
         totalPrice,
         totalCost,

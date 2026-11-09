@@ -4781,3 +4781,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-settings.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No database change.
 
 **Needs you:** pull, restart the API, hard-refresh.
+
+## Modification #226 — Thomson calculator: change a line's quantity and override its unit rate
+
+**Date:** 2026-11-09
+
+**Why.** While preparing or editing a quote, the quantity of an item already added could not be changed without removing and re-adding it, and the unit rate always came from the tier in Thomson Pricing Admin.
+
+**What changed.**
+
+- **Edit quantity in place.** In step 2 (Items) the quantity of each added line is now a field. Changing it recalculates the tier, services, transport, schedule and margin at once. If the quote has phases, the line's quantity is re-split across the phases in proportion.
+- **Override the unit rate.** The unit rate of each line is now a button that opens a pop-up. Choose the tier (automatic for the quantity, Base, 50+, 150+, 300+, 500+), change the discount % on that tier or type a rate per unit; the three stay in step. The pop-up shows the effect on equipment, line total and margin against the master rate, and warns when the line falls below the minimum-margin guard. "Use master rate" removes the override. The master rate in Thomson Pricing Admin is never changed.
+- **Saved and edited quotes.** A custom rate is marked "Custom rate · list X" in the calculator, the Issued quotes detail and the Ask AI chat, and is kept when the quote is edited again.
+- **Permission.** Only roles that have **thomson_sale.override_rate** can use the pop-up; admin has it by default. Other roles get it in Roles & permissions. The API refuses a custom rate from a user without it (403). If a user without the permission edits a quote that has custom rates, the master rates are used and a note says so.
+
+**Files.** packages/db/migrations/080_thomson_override_rate_permission.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give thomson_sale.override_rate to other roles in Roles & permissions if wanted.

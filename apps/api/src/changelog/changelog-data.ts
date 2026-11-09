@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 226,
+    "title": "Thomson calculator: change a line's quantity and override its unit rate",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "While preparing or editing a quote, the quantity of an item already added could not be changed without removing and re-adding it, and the unit rate always came from the tier in Thomson Pricing Admin.",
+    "changes": [
+      "Edit quantity in place. In step 2 (Items) the quantity of each added line is now a field. Changing it recalculates the tier, services, transport, schedule and margin at once. If the quote has phases, the line's quantity is re-split across…",
+      "Override the unit rate. The unit rate of each line is now a button that opens a pop-up. Choose the tier (automatic for the quantity, Base, 50+, 150+, 300+, 500+), change the discount % on that tier or type a rate per unit; the three stay…",
+      "Saved and edited quotes. A custom rate is marked \"Custom rate · list X\" in the calculator, the Issued quotes detail and the Ask AI chat, and is kept when the quote is edited again.",
+      "Permission. Only roles that have thomson_sale.override_rate can use the pop-up; admin has it by default. Other roles get it in Roles & permissions. The API refuses a custom rate from a user without it (403). If a user without the…"
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give thomson_sale.override_rate to other roles in Roles & permissions if wanted.",
+    "migrations": [
+      "080_thomson_override_rate_permission.sql"
+    ],
+    "files": "packages/db/migrations/080_thomson_override_rate_permission.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 225,
     "title": "Thomson calculator: Ask AI chat about the quote",
     "area": "Pricing & rates",
