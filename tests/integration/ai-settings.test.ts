@@ -227,6 +227,17 @@ test(
       assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
       await complaintsAsk(false);
       assert.ok(!String(calls[calls.length - 1].body.system).includes('"portalData"'));
+      await ai.ask(
+        {
+          section: 'appointments',
+          title: 'Appointments',
+          messages: [{ role: 'user', content: 'How many are overdue?' }],
+          context: { statusFilter: 'All' },
+          includePortalData: true,
+        },
+        { revenue: false, budget: false, can: (code: string) => code === 'appointments.read' },
+      );
+      assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',

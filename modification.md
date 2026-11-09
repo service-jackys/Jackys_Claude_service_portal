@@ -4915,3 +4915,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/084_ask_ai_vas_permission.sql, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
+## Modification #234 — Ask AI on the Appointments page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Appointments hold customer details, so the AI gets counts and statuses only, never names or contacts.
+
+**What changed.**
+
+- **Ask AI button on Appointments** (page-level). It reads the filters on screen (status, date range, rows listed).
+- **Tick box "Also read the overall appointment counts and statuses"**: the API builds, from the database, totals by status, open appointments by due date (overdue / today / next 7 days / later), by month (last 12), customer type, region, brand and warranty, and how many open appointments have no technician.
+- **Never sent:** customer names, contact numbers, e-mails, addresses, fault descriptions, technician names, appointment references.
+- **Permissions:** new `ai_ask.appointments` (admin by default; grant it in Roles & permissions). The overall counts also need `appointments.read`.
+- Migration 085 adds the permission.
+
+**Files.** packages/db/migrations/085_ask_ai_appointments_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.appointments` to other roles if wanted.

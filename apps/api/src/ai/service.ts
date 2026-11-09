@@ -61,6 +61,9 @@ const ASK_GUIDE: Record<string, string> = {
   complaints:
     'the Complaints list of the service centre. ' +
     'Explain the status mix, ageing and trends, point out what is piling up or unusual (by status, month, region, brand, warranty), and suggest what to follow up first.',
+  appointments:
+    'the Appointments schedule of the service centre. ' +
+    'Explain the status mix, what is overdue or coming up, how busy each day or month is, and the split by region, brand, warranty and customer type, and suggest what to schedule or chase first.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
