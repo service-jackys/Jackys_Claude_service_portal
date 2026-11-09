@@ -933,6 +933,9 @@
           : '<button type="button" class="button button-outline tk-btn tk-danger" data-tk-delete>Delete</button>' +
             (deps.openChatRecord
               ? '<button type="button" class="button button-outline tk-btn" data-tk-discuss>Discuss</button>'
+              : '') +
+            (deps.canAsk && deps.canAsk()
+              ? '<button type="button" class="button button-outline tk-btn" data-tk-ask>Ask AI</button>'
               : '')) +
         '</div><div class="tk-foot-main"><button type="button" class="button button-outline tk-btn" data-tk-close>Cancel</button><button type="submit" class="button button-primary tk-btn">' +
         (isNew ? 'Add' : 'Save changes') +
@@ -1047,6 +1050,11 @@
           const shell = st.root.querySelector('.tk');
           if (shell) shell.classList.toggle('tk-flow', st.flow);
           return;
+        }
+        if (target.matches('[data-tk-ask]') && st.panel && deps.askAbout) {
+          const task = st.panel.task;
+          closePanel();
+          return deps.askAbout('Task: ' + String(task.title || '').slice(0, 80), askTask(task));
         }
         if (target.matches('[data-tk-discuss]') && st.panel && deps.openChatRecord)
           return deps.openChatRecord('task', st.panel.task.id);
@@ -1956,7 +1964,67 @@
       laneDraw();
     }
 
-    return { renderPage, openComposer, openTask, renderBoardLane };
+    // Ask AI (modification #242): the loaded tasks, compact, with counts. Archived items are left out.
+    function askTask(t) {
+      const day = today();
+      return {
+        title: t.title,
+        type: t.kind,
+        status: t.status,
+        priority: t.priority,
+        start: t.startDate || null,
+        due: t.dueDate || null,
+        percentComplete: t.percentComplete,
+        overdue: Boolean(t.dueDate && t.dueDate < day && t.status !== 'completed'),
+        remarks: t.remarks || '',
+        notes: t.notes || '',
+        completedAt: t.completedAt ? String(t.completedAt).slice(0, 10) : null,
+      };
+    }
+    function askSnapshot() {
+      if (!st.root) return null;
+      const day = today();
+      const list = (st.tasks || []).filter((t) => !t.archivedAt).map(askTask);
+      const tally = (key) =>
+        list.reduce((acc, t) => {
+          acc[t[key]] = (acc[t[key]] || 0) + 1;
+          return acc;
+        }, {});
+      const open = list.filter((t) => t.status !== 'completed');
+      const rank = { urgent: 0, high: 1, medium: 2, low: 3 };
+      open.sort(
+        (a, b) =>
+          Number(b.overdue) - Number(a.overdue) ||
+          (a.due || '9999').localeCompare(b.due || '9999') ||
+          (rank[a.priority] ?? 9) - (rank[b.priority] ?? 9),
+      );
+      const done = list.filter((t) => t.status === 'completed').slice(0, 10);
+      return {
+        today: day,
+        view: st.view,
+        showingOwn: st.owner === 'me',
+        filters: { ...st.f, archive: st.archive },
+        counts: {
+          total: list.length,
+          open: open.length,
+          overdue: open.filter((t) => t.overdue).length,
+          dueWithin7Days: open.filter((t) => t.due && t.due >= day && t.due <= addDays(day, 7))
+            .length,
+          byStatus: tally('status'),
+          byPriority: tally('priority'),
+          byType: tally('type'),
+        },
+        openTasks: open.slice(0, 40),
+        recentlyCompleted: done,
+      };
+    }
+    function addDays(isoDay, n) {
+      const d = new Date(isoDay + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + n);
+      return d.toISOString().slice(0, 10);
+    }
+
+    return { renderPage, openComposer, openTask, renderBoardLane, askSnapshot };
   }
 
   window.JdTasks = { create };

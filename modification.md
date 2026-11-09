@@ -5059,3 +5059,22 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/092_ask_ai_rate_card_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.rate_card` to other roles if wanted.
+
+## Modification #242 — Ask AI on the Tasks page (your own tasks)
+
+**Date:** 2026-11-09
+
+**Why.** Tasks, objectives and issues are what each person reports to management every week; the AI can help plan, prioritise and summarise them.
+
+**What changed.**
+
+- **Ask AI button on the Tasks page.** It reads your tasks on screen (title, type, status, priority, start and due dates, progress, remarks and notes) with counts by status, priority and type, overdue and due-this-week counts. Archived items are left out; when an admin views a colleague's tasks the AI reads those.
+- **Ask AI on one task:** an **Ask AI** button in the task panel opens the chat about just that item.
+- No server-side counts are read; the AI works from what the Tasks page has loaded.
+- **Never sent:** customer or staff personal fields (removed on the page and again by the API: any field named like customer, contact, e-mail, address, assignee or owner) and other people's tasks unless an admin is viewing them.
+- **Permissions:** new `ai_ask.tasks` (admin by default; grant it in Roles & permissions). The overall counts also need `tasks.use`.
+- Migration 093 adds the permission.
+
+**Files.** packages/db/migrations/093_ask_ai_tasks_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.tasks` to other roles if wanted.

@@ -36,6 +36,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   delivery_install: 'ai_ask.delivery_install',
   walk_in: 'ai_ask.walk_in',
   rate_card: 'ai_ask.rate_card',
+  tasks: 'ai_ask.tasks',
 };
 
 export function createAiHandlers(

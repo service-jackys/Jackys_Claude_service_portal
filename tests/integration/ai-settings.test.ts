@@ -314,6 +314,16 @@ test(
         { revenue: false, budget: false, can: (code: string) => code === 'rate_card.view' },
       );
       assert.ok(String(calls[calls.length - 1].body.system).includes('Rate Card'));
+      await ai.ask(
+        {
+          section: 'tasks',
+          title: 'Tasks',
+          messages: [{ role: 'user', content: 'How many are pending?' }],
+          context: { statusFilter: 'All' },
+        },
+        { revenue: false, budget: false, can: (code: string) => code === 'tasks.use' },
+      );
+      assert.ok(String(calls[calls.length - 1].body.system).includes('Tasks page'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',
