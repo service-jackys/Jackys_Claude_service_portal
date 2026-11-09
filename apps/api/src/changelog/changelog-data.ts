@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 238,
+    "title": "Ask AI on the Warranty approvals page (counts and statuses only)",
+    "area": "Complaints",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Warranty approvals hold customer details and private approval links, so the AI gets counts and totals only.",
+    "changes": [
+      "Ask AI button on Warranty approvals (page-level). It reads the filters and rows listed on screen.",
+      "Tick box \"Also read the overall warranty approval counts and statuses\": the API builds totals by status (with estimated cost), age of pending approvals, month (last 12, with estimated cost), source (job card / inspection / quotation)…",
+      "Never sent: customer names, contacts, item descriptions, notes, decision notes, who decided, the private approval link and approval references.",
+      "Permissions: new ai_ask.warranty_approvals (admin by default; grant it in Roles & permissions). The overall counts also need warranty_approval.read.",
+      "Migration 089 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.warranty_approvals to other roles if wanted.",
+    "migrations": [
+      "089_ask_ai_warranty_approvals_permission.sql"
+    ],
+    "files": "packages/db/migrations/089_ask_ai_warranty_approvals_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 237,
     "title": "Ask AI on the Inspections page (counts and statuses only)",
     "area": "Portal look & feel",

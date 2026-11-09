@@ -25480,6 +25480,7 @@ ${bodyHtml}
     job_cards: 'ai_ask.job_cards',
     quotations: 'ai_ask.quotations',
     inspections: 'ai_ask.inspections',
+    warranty_approvals: 'ai_ask.warranty_approvals',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25501,6 +25502,18 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    warranty_approvals: {
+      hello: 'Ask me about the warranty approvals.',
+      help: 'I can read counts and estimated cost totals across all warranty approvals (by status, age of pending ones, month, source, warranty and how the decision was made). I never see names, contacts, items, notes or approval links.',
+      placeholder: 'Ask about pending approvals, cost\u2026',
+      dataLabel:
+        'Also read the overall warranty approval counts and statuses (all warranty approvals)',
+      chips: [
+        'How many warranty approvals are pending and for how long?',
+        'What is the estimated cost of pending versus approved approvals?',
+        'How many approvals were declined, and how were decisions made?',
       ],
     },
     inspections: {
@@ -25653,6 +25666,7 @@ ${bodyHtml}
     if (mode === 'job-cards') return 'job_cards';
     if (mode === 'quotations') return 'quotations';
     if (mode === 'inspections') return 'inspections';
+    if (mode === 'warranty-approvals') return 'warranty_approvals';
     return '';
   }
 
@@ -25723,6 +25737,18 @@ ${bodyHtml}
               ? 'Ready for Scheduling'
               : document.getElementById('complaintStatusFilter')?.value || 'All',
           complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
+    if (section === 'warranty_approvals') {
+      const body = document.getElementById('warrantyApprovalsBody');
+      return {
+        title: 'Warranty approvals',
+        context: {
+          statusFilter: document.getElementById('warrantyApprovalStatusFilter')?.value || 'All',
+          approvalsListedOnScreen: body
+            ? body.querySelectorAll('[data-warranty-approval-id]').length
+            : 0,
         },
       };
     }

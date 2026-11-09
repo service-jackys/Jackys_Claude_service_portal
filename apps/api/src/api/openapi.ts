@@ -1567,6 +1567,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'job_cards',
                 'quotations',
                 'inspections',
+                'warranty_approvals',
                 'vas',
               ],
             },
