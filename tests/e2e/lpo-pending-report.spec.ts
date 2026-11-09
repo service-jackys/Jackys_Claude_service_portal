@@ -174,6 +174,11 @@ test('Invoice check shows quotations marked Invoiced that are missing from the m
   await page.locator('#financeNav').click();
   await page.getByRole('button', { name: 'Service Revenue Dashboard' }).first().click();
   await page.getByRole('tab', { name: 'Reports' }).click();
+  // Hovering the pill explains the check in plain words.
+  await expect(page.getByRole('button', { name: 'Invoice check' })).toHaveAttribute(
+    'title',
+    /master workbook.*7 days/,
+  );
   await page.getByRole('button', { name: 'Invoice check' }).click();
   const section = page.locator('[data-rd-report-body]');
   await expect(section).toContainText('5 checked');
@@ -183,4 +188,60 @@ test('Invoice check shows quotations marked Invoiced that are missing from the m
   await expect(section.locator('tbody tr').first()).toContainText('INV-9001');
   await expect(section.locator('tbody tr').first()).toContainText('Not in master');
   await expect(section.locator('tbody tr').nth(1)).toContainText('Amount differs by');
+});
+
+// The Formatted email preview shows amounts with the Dirham sign; the email itself keeps "AED".
+test('the Formatted email preview shows the Dirham sign', async ({ page }) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    const json = (body: unknown, status = 200) =>
+      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.pathname === '/api/auth/login') return json({ token: 'test-token' });
+    if (url.pathname === '/api/auth/me') {
+      return json({
+        user: {
+          name: 'Finance',
+          email: 'finance@jackys.com',
+          role: 'staff',
+          permissions: ['revenue_dashboard.read', 'revenue_dashboard.tab_reports'],
+        },
+      });
+    }
+    if (url.pathname === '/api/revenue-dashboard/summary') {
+      return json({
+        batch: { fileName: 'master.xlsm', uploadedAt: '2026-11-01T08:00:00Z' },
+        summary: {
+          totals: { jobs: 5, qty: 7, revenue: 4321 },
+          options: {
+            years: [2026],
+            months: [10],
+            weeks: [],
+            jobTypes: [],
+            channels: [],
+            costStatuses: [],
+          },
+          monthly: [],
+        },
+      });
+    }
+    if (url.pathname === '/api/revenue-dashboard/exceptions') {
+      return json({ data: { exceptions: [], totals: { revenue: 4321, jobs: 5 } } });
+    }
+    if (url.pathname.startsWith('/api/revenue-dashboard/')) return json({ data: { rows: [] } });
+    return json({}, 404);
+  });
+  await page.goto('/portal/');
+  await page.locator('#loginEmail').fill('finance@jackys.com');
+  await page.locator('#loginPassword').fill('local-password-1234');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('#staff-workspace')).toBeVisible();
+  const management = page.getByRole('button', { name: 'Management', exact: true });
+  if ((await management.getAttribute('aria-expanded')) !== 'true') await management.click();
+  await page.locator('#financeNav').click();
+  await page.getByRole('button', { name: 'Service Revenue Dashboard' }).first().click();
+  await page.getByRole('tab', { name: 'Reports' }).click();
+  await page.getByRole('button', { name: 'Formatted email' }).click();
+  const frame = page.frameLocator('[data-rd-html-frame]');
+  await expect(frame.locator('span[style*="Dirham"]').first()).toBeVisible();
+  await expect(frame.locator('body')).not.toContainText('AED 4,321');
 });

@@ -456,14 +456,17 @@ test.describe('quotation list date', () => {
       },
     );
     const total = page.locator('#quotationTotalLabel');
-    await expect(total).toContainText('3570.00 incl. VAT');
-    await expect(total).toContainText('6 quotations');
+    await expect(total).toContainText('3570.00');
+    await expect(total).toContainText('Quotations6');
     await page.locator('#quotationErpFilter').selectOption('Invoiced');
-    await expect(total).toContainText('3465.00 incl. VAT');
-    await expect(total).toContainText('5 quotations');
+    await expect(total).toContainText('3465.00');
+    await expect(total).toContainText('Quotations5');
     await page.locator('#quotationErpFilter').selectOption('Pending invoice');
-    await expect(total).toContainText('105.00 incl. VAT');
-    await expect(total).toContainText('1 quotation');
+    await expect(total).toContainText('105.00');
+    await expect(total).toContainText('Quotations1');
+    await page
+      .locator('#quotationTotalBar')
+      .screenshot({ path: process.env.TOTAL_SHOT || 'test-results/quotation-total-bar.png' });
     expect(queries).toEqual(['', 'Invoiced', 'Pending invoice']);
   });
 });

@@ -1427,7 +1427,28 @@
         };
         c.html = Roi.buildRoiHtml(c.input);
         c.text = Roi.buildRoiText(c.input);
-        $c('[data-c-frame]').srcdoc = c.html;
+        $c('[data-c-frame]').srcdoc = dirhamPreview(c.html);
+      }
+      // Preview only: show amounts with the Dirham sign. The iframe does not see the page font, so
+      // the font rule is copied in. The email that is copied or downloaded still says "AED",
+      // because the recipient's mail app may not have a font with the new sign.
+      function dirhamPreview(html) {
+        let fontRule = '';
+        try {
+          for (const sheet of Array.from(document.styleSheets)) {
+            for (const rule of Array.from(sheet.cssRules || [])) {
+              if (rule.type === CSSRule.FONT_FACE_RULE && /Dirham/.test(rule.cssText))
+                fontRule = rule.cssText;
+            }
+          }
+        } catch {
+          // A cross-origin sheet cannot be read; the sign then falls back to the default font.
+        }
+        const converted = String(html).replace(
+          /\bAED(?=\s*[\d,.])/g,
+          '<span style="font-family:\'Dirham\'">\u20C3</span>',
+        );
+        return fontRule ? `<style>${fontRule}</style>${converted}` : converted;
       }
       function schedule() {
         window.clearTimeout(timer);

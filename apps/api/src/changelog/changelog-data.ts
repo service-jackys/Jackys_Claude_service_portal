@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 216,
+    "title": "Dirham sign in email previews, Invoice check help, styled quotations total bar",
+    "area": "Quotations",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The ROI and Formatted email previews show the Dirham sign, the quotations total bar matches the page, and the Invoice check pill explains itself.",
+    "changes": [
+      "Previews: the Send ROI email preview and the Reports Formatted email preview show amounts with the Dirham sign. The email itself still says AED, because the recipient's mail app may not have a font with the new sign.",
+      "Quotations total bar: the ERP / ORION selector and the total are a bordered bar in the page's colours, with Total incl. VAT, Excl. VAT and the quotation count. It stacks on a phone and is hidden on the New quotation tab.",
+      "Invoice check: hovering the pill or the About this view tip explains the check in plain words."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, apps/web/src/app.js, apps/web/src/tasks.js, tests/e2e/quotation-units.spec.ts, tests/e2e/lpo-pending-report.spec.ts. No API or database change."
+  },
+  {
     "id": 215,
     "title": "ERP / ORION invoice number, Invoice check, and a total under the quotations list",
     "area": "Quotations",

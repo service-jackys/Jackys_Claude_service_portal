@@ -4622,3 +4622,19 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/*, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests (quotation-invoice-check, quotation-lpo-pending, quotation-units, lpo-pending-report).
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Upload the master workbook as usual; the Invoice check reads the active upload.
+
+## Modification #216 — Dirham sign in the ROI and email previews, Invoice check help, styled quotations total bar
+
+**Date:** 2026-11-09
+
+**Why.** The email previews still showed "AED"; the new quotations total bar needed to match the page; management needed a plain-language explanation of the Invoice check.
+
+**What changed.**
+
+- **Previews:** the Send ROI email preview and the Reports "Formatted email" preview show amounts with the Dirham sign. The email that is copied, downloaded or sent still says "AED", because the recipient's mail app may not have a font with the new sign.
+- **Quotations total bar:** the ERP / ORION selector and the total under the Created quotations table are now a bordered bar in the page's own colours: the selector on the left, and Total incl. VAT (large), Excl. VAT and Quotations on the right. It stacks on a phone and is hidden on the New quotation tab.
+- **Invoice check help:** hovering the Invoice check pill, or the About this view tip, explains the check in plain words.
+
+**Files.** apps/web/src/index.html, apps/web/src/app.js, apps/web/src/tasks.js, tests/e2e/quotation-units.spec.ts, tests/e2e/lpo-pending-report.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
