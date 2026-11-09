@@ -17070,7 +17070,7 @@ ${bodyHtml}
       setTimeout(() => livePill.classList.remove('is-flashing'), 520);
     }
 
-    function computeLine(li) {
+    function computeLine(li, projectTrips) {
       const region = regions.find((r) => r.name === li.region) || regions[0];
       const appliance = appliances[li.applianceIdx];
       const single = li.mode === 'single';
@@ -17090,20 +17090,13 @@ ${bodyHtml}
             data.techRate
           : 0;
       const installLaborCost = lineHours * data.techRate + overtimeExtra;
-      // Phase to phase: every phase carrying this line is rounded up on its
-      // own, so each phase is its own set of site trips. Used only when the
-      // phases account for the whole quantity of the line.
-      const phasedTrips =
-        !single && workMode === 'phased' && li.uid && linePhasedFully(li)
-          ? Sched.phasedLineTrips(
-              appliance.avgMin / 60,
-              phases.map((ph) => ph.qty[li.uid] || 0),
-              teamCapacity,
-            )
-          : null;
+      // Installation days (= site trips) come from the project: the team's days
+      // are worked out once (per phase when phased) and each line carries its
+      // share, so transport matches the schedule. A single-unit quote is its
+      // own one-line job.
       const installDays =
-        phasedTrips !== null
-          ? phasedTrips
+        projectTrips !== undefined
+          ? projectTrips
           : teamCapacity > 0
             ? Math.ceil(lineHours / teamCapacity)
             : 0;
@@ -17156,10 +17149,48 @@ ${bodyHtml}
       };
     }
 
+    // Installation days per line for the whole project (see allocateInstallDays).
+    // Phase to phase applies to lines whose quantity is fully placed in phases;
+    // any other line (and the item being previewed) is worked out continuously.
+    function installTripsFor(lines) {
+      if (mode === 'single') return lines.map(() => undefined);
+      const hoursOf = (li) => li.qty * ((appliances[li.applianceIdx]?.avgMin || 0) / 60);
+      const result = lines.map(() => 0);
+      const phasedIdx = [];
+      const plainIdx = [];
+      lines.forEach((li, i) => {
+        if (workMode === 'phased' && li.uid && linePhasedFully(li)) phasedIdx.push(i);
+        else plainIdx.push(i);
+      });
+      if (phasedIdx.length) {
+        const phaseHours = phases.map((ph) =>
+          phasedIdx.map(
+            (i) => (Number(ph.qty[lines[i].uid]) || 0) * (hoursOf(lines[i]) / lines[i].qty),
+          ),
+        );
+        const shares = Sched.allocateInstallDays(
+          phasedIdx.map((i) => hoursOf(lines[i])),
+          teamCapacity,
+          phaseHours,
+        );
+        phasedIdx.forEach((lineIndex, k) => (result[lineIndex] = shares[k]));
+      }
+      if (plainIdx.length) {
+        const shares = Sched.allocateInstallDays(
+          plainIdx.map((i) => hoursOf(lines[i])),
+          teamCapacity,
+        );
+        plainIdx.forEach((lineIndex, k) => (result[lineIndex] = shares[k]));
+      }
+      return result;
+    }
+
     // Lines + quote-level extras (single-unit call-out and minimum charge are
     // added once, to the first line, so the saved lines still add up).
     function computeQuote(extraLine) {
-      const computed = (extraLine ? [...lineItems, extraLine] : lineItems).map(computeLine);
+      const allLines = extraLine ? [...lineItems, extraLine] : lineItems;
+      const trips = installTripsFor(allLines);
+      const computed = allLines.map((li, i) => computeLine(li, trips[i]));
       let callOut = 0;
       let minTopUp = 0;
       if (mode === 'single' && computed.length) {

@@ -247,6 +247,21 @@ test.describe('Thomson Quote Calculator', () => {
     await expect(page.locator('[data-tq-timeline]')).toContainText('Add items in step 2');
   });
 
+  test('transport follows the project days, not each line rounded up separately', async ({
+    page,
+  }) => {
+    await openCalculator(page, []);
+    await page.locator('[data-tcc-visits]').fill('0');
+    await page.locator('[data-tcc-qty]').fill('40');
+    await page.locator('[data-tcc-add]').click();
+    await page.locator('[data-tcc-add]').click();
+    await page.locator('[data-tcc-transport-share]').fill('100');
+    // 2 x 40 ovens x 30 min = 40 h; 16 h a day -> 3 project days (2 + 2 = 4 if each line rounded up alone).
+    // Equipment 8000 + PM 5% 400 + testing 80 x 25 = 2000 + transport 3 x 60 = 180.
+    await expect(page.locator('[data-tq-total]')).toContainText('10580.00');
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('3');
+  });
   test('the Quote total panel never overlaps the steps and stays below the header while scrolling', async ({
     page,
   }) => {
