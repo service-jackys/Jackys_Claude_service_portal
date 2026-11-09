@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 239,
+    "title": "Ask AI on the Delivery and installation jobs page (counts and statuses only)",
+    "area": "Portal look & feel",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Delivery & Installation jobs hold B2B customer details, so the AI gets the job being entered plus counts and revenue totals only.",
+    "changes": [
+      "Ask AI button on Delivery and installation jobs (page-level). It reads the filters and rows listed on screen.",
+      "Tick box \"Also read the overall delivery and installation counts and statuses\": the API builds totals by status (with revenue), age of drafts, month (last 12 completed jobs, with CSIDI / CSIDO / CSIII revenue), region and sales channel.",
+      "Never sent: customer names and codes, salesman names, delivery note, ERP invoice and CSOSC numbers, notes and job references.",
+      "Permissions: new ai_ask.delivery_install (admin by default; grant it in Roles & permissions). The overall counts also need di_jobs.read.",
+      "Migration 090 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.delivery_install to other roles if wanted.",
+    "migrations": [
+      "090_ask_ai_delivery_install_permission.sql"
+    ],
+    "files": "packages/db/migrations/090_ask_ai_delivery_install_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 238,
     "title": "Ask AI on the Warranty approvals page (counts and statuses only)",
     "area": "Complaints",

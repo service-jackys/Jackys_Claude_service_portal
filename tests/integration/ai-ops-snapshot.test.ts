@@ -173,6 +173,28 @@ test(
       assert.equal(wa.bySource[0].source, 'Quotation');
       assert.ok(!JSON.stringify(wa).includes('Secret'));
       assert.ok(!JSON.stringify(wa).includes('tok-'));
+
+      await client.query('DELETE FROM di_jobs');
+      const addDi = (n: number, status: string, csidi: number, csido: number) =>
+        client.query(
+          `INSERT INTO di_jobs (reference, service_date, status, customer_name, salesman, notes, region, total_csidi, total_csido, total_revenue, completed_at, cancelled_at)
+           VALUES ($1, current_date, $2, 'Secret Customer', 'Secret Salesman', 'Secret notes', 'Dubai', $3, $4, $3::numeric + $4::numeric,
+                   CASE WHEN $2::text = 'Completed' THEN now() END, CASE WHEN $2::text = 'Cancelled' THEN now() END)`,
+          ['DIJ-2026-0000' + n, status, csidi, csido],
+        );
+      await addDi(1, 'Draft', 0, 0);
+      await addDi(2, 'Completed', 100, 50);
+      await addDi(3, 'Completed', 200, 0);
+      const di = (await buildOpsSnapshot(pool as unknown as Pool, 'delivery_install')) as any;
+      assert.equal(di.total, 3);
+      assert.deepEqual(Object.fromEntries(di.byStatus.map((r: any) => [r.status, r.n])), {
+        Completed: 2,
+        Draft: 1,
+      });
+      assert.equal(di.byMonth[di.byMonth.length - 1].csidi, 300);
+      assert.equal(di.byMonth[di.byMonth.length - 1].value, 350);
+      assert.equal(di.draftsByAge[0].n, 1);
+      assert.ok(!JSON.stringify(di).includes('Secret'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();

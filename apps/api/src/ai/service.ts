@@ -76,6 +76,9 @@ const ASK_GUIDE: Record<string, string> = {
   warranty_approvals:
     'the Warranty approvals of the service centre. ' +
     'Explain how many approvals are pending, approved or declined, how long pending ones have waited, the estimated cost by status and month, how decisions were made, and suggest which pending approvals to chase first.',
+  delivery_install:
+    'the Delivery & Installation jobs (CSIDI delivery + installation, CSIDO delivery only, CSIII installation only) of the service centre. ' +
+    'Explain how the job being entered is priced (item lines, activity type, quantity, total per type), how many jobs are draft, completed or cancelled, the revenue by month and type, and the split by region and sales channel, and suggest what to check or follow up.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
