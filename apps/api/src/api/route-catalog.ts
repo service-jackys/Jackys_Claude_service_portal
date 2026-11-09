@@ -144,6 +144,7 @@ export type RouteDefinition = {
     | 'amcContractStatus'
     | 'rateCardSale'
     | 'thomsonSale'
+    | 'thomsonSaleStatus'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision'
     | 'warrantyApprovalManualDecision';
@@ -746,6 +747,10 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         detail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        setStatus: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -3008,6 +3013,11 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         parameters: paginationParameters.concat([
           { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+          {
+            name: 'status',
+            in: 'query',
+            schema: { type: 'string', enum: ['Quote', 'Sold', 'Lost'] },
+          },
         ]),
         responses: [200, 400, 401, 403, 500],
         handlers: thomsonSaleHandlers.list,
@@ -3033,6 +3043,18 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: thomsonSaleHandlers.detail,
+      },
+      {
+        method: 'patch' as const,
+        path: '/api/thomson-sales/{id}/status',
+        operationId: 'changeThomsonSaleStatus',
+        tags: ['Thomson Sales'],
+        summary: 'Mark an issued Thomson quote Sold (with the date), Lost, or back to Quote',
+        security: 'bearerAuth' as const,
+        requestBody: 'thomsonSaleStatus' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: thomsonSaleHandlers.setStatus,
       },
       {
         method: 'get' as const,

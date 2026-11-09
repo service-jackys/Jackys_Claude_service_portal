@@ -289,7 +289,7 @@ export async function actualRevenue(
        UNION ALL
        SELECT 'portal_rate_card', ${day('sale_date')}, total_value, 1 FROM rate_card_sales
        UNION ALL
-       SELECT 'portal_thomson', ${day('sale_date')}, total_price, 1 FROM thomson_sales
+       SELECT 'portal_thomson', ${day('sale_date')}, total_price, 1 FROM thomson_sales WHERE status <> 'Lost'
        UNION ALL
        -- AMC: counted at the contract start month (commencement date), ex-VAT,
        -- using the price of the plan that was sold.

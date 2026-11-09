@@ -17966,52 +17966,215 @@ ${bodyHtml}
   // Lists every saved thomson_sales record (modification.md #44) so a
   // previously issued Thomson sale can be found again and its quotation
   // reprinted, without anywhere else in the portal to look it up.
-  async function loadThomsonIssuedList(host) {
+  async function loadThomsonIssuedList(host, statusFilter = '') {
     if (!hasPermission('thomson_sale.read')) {
       host.innerHTML =
         '<p class="form-note">You don\'t have permission to view issued Thomson sales.</p>';
       return;
     }
+    const canChangeStatus = hasPermission('thomson_sale.write');
     host.innerHTML = '<p class="form-note">Loading issued Thomson sales&hellip;</p>';
     try {
-      const response = await apiRequest('/api/thomson-sales?pageSize=100');
+      const response = await apiRequest(
+        '/api/thomson-sales?pageSize=100' +
+          (statusFilter ? '&status=' + encodeURIComponent(statusFilter) : ''),
+      );
       const sales = response.thomsonSales || [];
+      const filterBar =
+        '<div class="tq-issued-filter" role="group" aria-label="Filter by outcome">' +
+        [
+          ['', 'All'],
+          ['Quote', 'Quote'],
+          ['Sold', 'Sold'],
+          ['Lost', 'Lost'],
+        ]
+          .map(
+            ([value, label]) =>
+              '<button type="button" class="tq-issued-pill' +
+              (statusFilter === value ? ' active' : '') +
+              '" data-tq-issued-filter="' +
+              value +
+              '">' +
+              label +
+              '</button>',
+          )
+          .join('') +
+        '</div>';
       if (!sales.length) {
-        host.innerHTML = '<p class="form-note">No Thomson sales issued yet.</p>';
+        host.innerHTML =
+          filterBar +
+          '<p class="form-note">' +
+          (statusFilter
+            ? 'No ' + escapeHtml(statusFilter) + ' Thomson quotes.'
+            : 'No Thomson sales issued yet.') +
+          '</p>';
+        bindThomsonIssuedFilter(host);
         return;
       }
-      host.innerHTML =
-        '<div class="table-wrap"><table><thead><tr>' +
-        '<th>Reference</th><th>Issued</th><th>Client</th><th>Type</th><th>Lines</th><th>Total price</th><th>Margin</th><th></th>' +
-        '</tr></thead><tbody>' +
-        sales
+      const lineTable = (sale) =>
+        '<div class="table-wrap"><table class="tq-table"><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Line total</th></tr></thead><tbody>' +
+        (sale.lineItems || [])
           .map(
-            (sale) =>
-              '<tr>' +
-              '<td>' +
-              escapeHtml(sale.thomsonSaleReference) +
+            (li) =>
+              '<tr><td>' +
+              escapeHtml(li.region) +
               '</td><td>' +
-              escapeHtml(formatDate(sale.createdAt)) +
-              '</td><td>' +
-              escapeHtml(sale.clientName || '—') +
-              '</td><td>' +
-              (isThomsonSingleSale(sale) ? 'Single unit' : 'Project') +
-              '</td><td>' +
-              String((sale.lineItems || []).length) +
-              '</td><td>' +
-              '\u20C3 ' +
-              money(sale.totalPrice) +
-              '</td><td>' +
-              '\u20C3 ' +
-              money(sale.margin) +
-              '</td><td>' +
-              '<button type="button" class="button button-outline" data-tcc-reprint="' +
-              escapeHtml(sale.id) +
-              '">Print</button>' +
+              escapeHtml(li.applianceName) +
+              '</td><td class="num">' +
+              li.qty +
+              '</td><td class="num">' +
+              money(li.unitRate) +
+              '</td><td class="num">' +
+              money(li.totalPrice) +
               '</td></tr>',
           )
           .join('') +
         '</tbody></table></div>';
+      const scheduleLine = (sale) => {
+        const sc = sale.schedule;
+        if (!sc) return '';
+        return (
+          '<p class="form-note">Schedule: ' +
+          escapeHtml(sc.workMode === 'phased' ? 'phase to phase' : 'continuous') +
+          ' &middot; ' +
+          sc.technicians +
+          ' technicians &middot; ' +
+          sc.workingDays +
+          ' working days' +
+          (sc.waitingDays ? ' + ' + sc.waitingDays + ' waiting' : '') +
+          (sc.estimatedCompletion
+            ? ' &middot; est. completion ' + escapeHtml(formatDate(sc.estimatedCompletion))
+            : '') +
+          '</p>'
+        );
+      };
+      host.innerHTML =
+        filterBar +
+        '<div class="table-wrap"><table class="amc-issued-table"><thead><tr>' +
+        '<th>Reference</th><th>Client</th><th>Type</th><th class="num">Units</th><th>Status</th><th class="num">Total price</th><th class="num">Margin</th>' +
+        '</tr></thead><tbody>' +
+        sales
+          .map((sale) => {
+            const single = isThomsonSingleSale(sale);
+            const units = (sale.lineItems || []).reduce((t, li) => t + Number(li.qty || 0), 0);
+            const price = Number(sale.totalPrice) || 0;
+            const marginPct = price ? (Number(sale.margin) / price) * 100 : 0;
+            const status = sale.status || 'Quote';
+            const sc = sale.schedule;
+            return (
+              '<tr><td class="ac-ref"><strong>' +
+              escapeHtml(sale.thomsonSaleReference) +
+              '</strong><small class="ac-sub">' +
+              escapeHtml(formatDate(sale.createdAt)) +
+              '</small></td><td class="ac-client">' +
+              escapeHtml(sale.clientName || '—') +
+              (sale.siteLocation
+                ? '<small class="ac-sub">' + escapeHtml(sale.siteLocation) + '</small>'
+                : '') +
+              '</td><td><span class="status-chip">' +
+              (single ? 'Single unit' : 'Project') +
+              '</span>' +
+              (sc && !single
+                ? '<small class="ac-sub">' +
+                  sc.workingDays +
+                  ' working days' +
+                  (sc.workMode === 'phased' ? ' &middot; ' + sc.phases.length + ' phases' : '') +
+                  '</small>'
+                : '') +
+              '</td><td class="num">' +
+              units +
+              '<small class="ac-sub">' +
+              (sale.lineItems || []).length +
+              ((sale.lineItems || []).length === 1 ? ' line' : ' lines') +
+              '</small></td><td><span class="status ' +
+              (status === 'Sold' ? 'status-ok' : status === 'Lost' ? '' : 'status-warn') +
+              '">' +
+              escapeHtml(status) +
+              '</span>' +
+              (status === 'Sold' && sale.soldDate
+                ? '<small class="ac-sub">' + escapeHtml(sale.soldDate) + '</small>'
+                : status === 'Lost' && sale.lostReason
+                  ? '<small class="ac-sub">' + escapeHtml(sale.lostReason) + '</small>'
+                  : '') +
+              '</td><td class="num ac-price">⃃ ' +
+              money(sale.totalPrice) +
+              '</td><td class="num">⃃ ' +
+              money(sale.margin) +
+              '<small class="ac-sub">' +
+              marginPct.toFixed(1) +
+              '%</small></td></tr><tr class="ac-actions-row"><td colspan="7"><div class="ac-actions">' +
+              '<div class="ac-group"><span class="ac-label">Quotation</span><div class="ac-row">' +
+              '<button type="button" class="button button-outline button-sm" data-tcc-reprint="' +
+              escapeHtml(sale.id) +
+              '">Print quotation</button></div></div>' +
+              (canChangeStatus
+                ? status === 'Quote'
+                  ? '<div class="ac-group"><span class="ac-label">Outcome</span><div class="ac-row"><input type="date" data-tcc-sold-date="' +
+                    escapeHtml(sale.id) +
+                    '" value="' +
+                    escapeHtml(pgYmd(new Date())) +
+                    '" title="Sold date" aria-label="Sold date"><button type="button" class="button button-primary button-sm" data-tcc-status="Sold" data-tcc-id="' +
+                    escapeHtml(sale.id) +
+                    '">Sold</button><button type="button" class="button button-outline button-sm" data-tcc-status="Lost" data-tcc-id="' +
+                    escapeHtml(sale.id) +
+                    '">Lost</button></div></div>'
+                  : '<div class="ac-group"><span class="ac-label">Outcome</span><div class="ac-row"><button type="button" class="button button-outline button-sm" data-tcc-status="Quote" data-tcc-id="' +
+                    escapeHtml(sale.id) +
+                    '">Reopen</button></div></div>'
+                : '') +
+              '</div><details class="tq-issued-details"><summary>Lines and schedule</summary>' +
+              scheduleLine(sale) +
+              lineTable(sale) +
+              (sc && sc.workMode === 'phased' && (sc.phases || []).length
+                ? '<div class="table-wrap"><table class="tq-table"><thead><tr><th>Phase</th><th>Scope</th><th class="num">Wait before (days)</th><th class="num">Working days</th></tr></thead><tbody>' +
+                  sc.phases
+                    .map(
+                      (ph) =>
+                        '<tr><td>' +
+                        escapeHtml(ph.name) +
+                        '</td><td>' +
+                        escapeHtml(ph.items || '') +
+                        '</td><td class="num">' +
+                        ph.waitBeforeDays +
+                        (ph.readiness === 'assumed' ? ' (assumed)' : '') +
+                        '</td><td class="num">' +
+                        ph.days +
+                        '</td></tr>',
+                    )
+                    .join('') +
+                  '</tbody></table></div>'
+                : '') +
+              '</details></td></tr>'
+            );
+          })
+          .join('') +
+        '</tbody></table></div>';
+      bindThomsonIssuedFilter(host);
+      host.querySelectorAll('[data-tcc-status]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-tcc-id');
+          const status = button.getAttribute('data-tcc-status');
+          const payload = { status };
+          if (status === 'Sold') {
+            const date = host.querySelector('[data-tcc-sold-date="' + id + '"]');
+            payload.soldDate = date ? date.value : '';
+          } else if (status === 'Lost') {
+            const reason = window.prompt('Why was this Thomson quote lost? (optional)') || '';
+            if (reason.trim()) payload.reason = reason.trim();
+          }
+          button.disabled = true;
+          try {
+            await apiRequest('/api/thomson-sales/' + id + '/status', {
+              method: 'PATCH',
+              body: JSON.stringify(payload),
+            });
+            await loadThomsonIssuedList(host, statusFilter);
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message || 'Could not change the status.');
+            button.disabled = false;
+          }
+        });
+      });
       host.querySelectorAll('[data-tcc-reprint]').forEach((button) => {
         button.addEventListener('click', async () => {
           button.disabled = true;
@@ -18031,6 +18194,14 @@ ${bodyHtml}
     } catch (error) {
       host.innerHTML = '<p class="form-note">Could not load issued Thomson sales.</p>';
     }
+  }
+
+  function bindThomsonIssuedFilter(host) {
+    host.querySelectorAll('[data-tq-issued-filter]').forEach((button) => {
+      button.addEventListener('click', () =>
+        loadThomsonIssuedList(host, button.getAttribute('data-tq-issued-filter') || ''),
+      );
+    });
   }
 
   // Fills in the "Issue a Thomson Sale -- Printable Quotation" section

@@ -3,9 +3,11 @@ import type { Pool } from 'pg';
 import {
   thomsonSaleWriteSchema,
   thomsonSaleListQuerySchema,
+  thomsonSaleStatusSchema,
   type ThomsonSaleWriteInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
+  changeThomsonSaleStatus,
   findThomsonSaleById,
   insertThomsonSale,
   listThomsonSales,
@@ -72,6 +74,7 @@ export function createThomsonSaleService(pool: Pool) {
     try {
       return listThomsonSales(client, {
         search: data.search,
+        status: data.status,
         page: data.page,
         pageSize: data.pageSize,
       });
@@ -92,7 +95,43 @@ export function createThomsonSaleService(pool: Pool) {
     }
   }
 
-  return { create, list, detail };
+  async function setStatus(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const change = thomsonSaleStatusSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const result = await changeThomsonSaleStatus(
+        client,
+        id,
+        change.status === 'Sold'
+          ? { status: 'Sold', soldDate: change.soldDate }
+          : change.status === 'Lost'
+            ? { status: 'Lost', reason: change.reason ?? null }
+            : { status: 'Quote' },
+        profileId,
+      );
+      if (result === null)
+        throw new ThomsonSaleServiceError('not-found', 'The Thomson sale was not found.');
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'thomson_sale.status_changed',
+        targetType: 'thomson_sale',
+        targetId: result.id,
+        metadata: {
+          thomsonSaleReference: result.thomsonSaleReference,
+          status: result.status,
+          soldDate: result.soldDate,
+        },
+        requestId,
+      });
+      return result;
+    });
+  }
+
+  return { create, list, detail, setStatus };
 }
 
 export type ThomsonSaleService = ReturnType<typeof createThomsonSaleService>;

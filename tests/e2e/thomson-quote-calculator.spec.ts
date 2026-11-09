@@ -246,4 +246,101 @@ test.describe('Thomson Quote Calculator', () => {
     await page.locator('[data-tq-s3tab="timeline"]').click();
     await expect(page.locator('[data-tq-timeline]')).toContainText('Add items in step 2');
   });
+
+  test('Issued quotes show status, schedule and outcome actions', async ({ page }) => {
+    await openCalculator(page, []);
+    const changes: { url: string; body: unknown }[] = [];
+    const sale = (over: Record<string, unknown>) => ({
+      id: '1',
+      thomsonSaleReference: 'TH-2026-00001',
+      createdAt: '2026-11-02T08:00:00Z',
+      clientName: 'Acme Towers',
+      siteLocation: 'Business Bay',
+      status: 'Quote',
+      soldDate: null,
+      lostReason: null,
+      totalPrice: '12000',
+      totalCost: '9000',
+      margin: '3000',
+      lineItems: [
+        {
+          region: 'Dubai',
+          applianceName: 'Built-in Oven',
+          qty: 100,
+          unitRate: 100,
+          totalPrice: 12000,
+        },
+      ],
+      schedule: {
+        workMode: 'phased',
+        technicians: 2,
+        workingDays: 6,
+        waitingDays: 6,
+        totalDays: 12,
+        phases: [
+          {
+            name: 'Block A',
+            items: '50 × Built-in Oven',
+            days: 3,
+            waitBeforeDays: 0,
+            readiness: 'confirmed',
+          },
+          {
+            name: 'Block B',
+            items: '50 × Built-in Oven',
+            days: 3,
+            waitBeforeDays: 3,
+            readiness: 'assumed',
+          },
+        ],
+      },
+      ...over,
+    });
+    await page.route('**/api/thomson-sales**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      if (request.method() === 'PATCH') {
+        changes.push({ url: url.pathname, body: request.postDataJSON() });
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({ thomsonSale: sale({ status: 'Sold' }) }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          thomsonSales: [
+            sale({}),
+            sale({
+              id: '2',
+              thomsonSaleReference: 'TH-2026-00002',
+              status: 'Lost',
+              lostReason: 'Price',
+              schedule: null,
+            }),
+          ],
+          pagination: { page: 1, pageSize: 100, total: 2, totalPages: 1 },
+        }),
+      });
+    });
+    await page.getByRole('tab', { name: 'Issued quotes' }).click();
+    const row = page.locator('.amc-issued-table tbody tr').first();
+    await expect(row).toContainText('TH-2026-00001');
+    await expect(row).toContainText('Acme Towers');
+    await expect(row).toContainText('6 working days');
+    await expect(row).toContainText('25.0%');
+    await expect(page.locator('.amc-issued-table')).toContainText('Price');
+    // Lines and schedule open on demand and list the phases.
+    await page.locator('.tq-issued-details summary').first().click();
+    await expect(page.locator('.tq-issued-details').first()).toContainText('Block B');
+    await expect(page.locator('.tq-issued-details').first()).toContainText('(assumed)');
+    // Marking a quote Sold sends the date.
+    await page.locator('[data-tcc-status="Sold"]').first().click();
+    await expect.poll(() => changes.length).toBe(1);
+    expect(changes[0].url).toBe('/api/thomson-sales/1/status');
+    expect(changes[0].body).toMatchObject({ status: 'Sold' });
+    expect((changes[0].body as { soldDate: string }).soldDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
 });

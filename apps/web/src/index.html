@@ -2909,6 +2909,39 @@
         margin: 0;
         color: var(--navy);
       }
+      /* Thomson Issued quotes (modification #221): outcome filter + expandable detail. */
+      .tq-issued-filter {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-bottom: 0.8rem;
+      }
+      .tq-issued-pill {
+        min-height: 0;
+        margin: 0;
+        padding: 0.3rem 0.9rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .tq-issued-pill.active {
+        background: var(--navy);
+        border-color: var(--navy);
+        color: #fff;
+      }
+      .tq-issued-details {
+        margin-top: 0.6rem;
+      }
+      .tq-issued-details summary {
+        cursor: pointer;
+        color: var(--navy);
+        font-size: 0.82rem;
+        font-weight: 700;
+      }
       /* Thomson Quote Calculator: Project timeline tab + Smart advice (modification #218). */
       .tq-s3-tabs {
         margin-top: 0.4rem;
