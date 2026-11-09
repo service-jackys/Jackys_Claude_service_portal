@@ -808,6 +808,7 @@
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminV2Nav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
+    $('#aiAdminNav').hidden = !hasPermission('ai_settings.manage');
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
@@ -12559,6 +12560,14 @@ ${bodyHtml}
       description: 'Admin entry for the AMC rate configuration.',
       domains: ['amc_pricing'],
     },
+    'ai-admin': {
+      navId: 'aiAdminNav',
+      workspaceId: 'aiAdminWorkspace',
+      heading: 'AI settings',
+      description: 'Optional AI wording for the Thomson Smart advice.',
+      domains: [],
+      onActivate: () => renderAiAdminPage(),
+    },
     'amc-admin-v2': {
       navId: 'amcAdminV2Nav',
       workspaceId: 'amcAdminV2Workspace',
@@ -12809,6 +12818,176 @@ ${bodyHtml}
       pcWireCard(domain);
       pcLoadCard(domain);
     });
+    if (page.onActivate) page.onActivate();
+  }
+
+  // Admin > AI settings (modification #222): provider, model, API key (stored
+  // encrypted, never shown again), on/off, and a connection test.
+  async function renderAiAdminPage() {
+    const host = document.querySelector('[data-ai-admin]');
+    if (!host) return;
+    if (!hasPermission('ai_settings.manage')) {
+      host.innerHTML = '<p class="form-note">You don\'t have permission to change AI settings.</p>';
+      return;
+    }
+    host.innerHTML = '<p class="form-note">Loading&hellip;</p>';
+    let current;
+    try {
+      current = (await apiRequest('/api/ai-settings')).aiSettings;
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">Could not load the AI settings.</p>';
+      return;
+    }
+    const presets = {
+      anthropic: {
+        model: 'claude-haiku-4-5',
+        url: 'https://api.anthropic.com',
+        note: 'Needs an Anthropic API key from console.anthropic.com. A Claude Pro or Max subscription does not include API access.',
+      },
+      openrouter: {
+        model: 'anthropic/claude-haiku-4.5',
+        url: 'https://openrouter.ai/api/v1',
+        note: 'Needs an OpenRouter key from openrouter.ai. Use the model name exactly as OpenRouter lists it.',
+      },
+      custom: {
+        model: '',
+        url: 'https://your-provider.example.com/v1',
+        note: 'Any provider that offers the common chat/completions interface. Enter its base address (https) and model name.',
+      },
+    };
+    const statusHtml = () =>
+      current.lastTestedAt
+        ? '<div class="ai-admin-status ' +
+          (current.lastTestOk ? 'is-ok' : 'is-bad') +
+          '">Last test ' +
+          escapeHtml(formatDate(current.lastTestedAt)) +
+          ': ' +
+          escapeHtml(current.lastTestMessage || (current.lastTestOk ? 'Connected.' : 'Failed.')) +
+          '</div>'
+        : '<div class="ai-admin-status">Not tested yet.</div>';
+    host.innerHTML =
+      (current.secretConfigured
+        ? ''
+        : '<div class="ai-admin-status is-bad">The server has no secret for encrypting the key. Set <strong>AI_SETTINGS_SECRET</strong> (at least 16 characters) in the API environment and restart it before saving a key.</div>') +
+      '<div class="field-grid">' +
+      calcField(
+        'Provider',
+        '<select data-ai-provider><option value="anthropic">Anthropic (Claude)</option><option value="openrouter">OpenRouter</option><option value="custom">Custom (OpenAI-compatible)</option></select>',
+        'Where the AI request is sent.',
+      ) +
+      calcField(
+        'Model',
+        '<input type="text" maxlength="120" data-ai-model />',
+        'The model name as the provider lists it. A small, fast model is enough.',
+      ) +
+      calcField(
+        'Base address (optional)',
+        '<input type="text" maxlength="300" data-ai-url />',
+        "Leave blank for the provider's standard address. Required for Custom. Must start with https://.",
+      ) +
+      calcField(
+        'API key',
+        '<input type="password" autocomplete="off" maxlength="400" data-ai-key />',
+        'Stored encrypted and never shown again. Leave blank to keep the saved key.',
+      ) +
+      '</div>' +
+      '<p class="form-note" data-ai-note></p>' +
+      '<label class="tl-switch"><input type="checkbox" role="switch" data-ai-enabled><span class="tl-switch-track" aria-hidden="true"></span><span>Use AI wording in the Thomson calculator</span></label>' +
+      '<div class="ai-admin-actions">' +
+      '<button type="button" class="button button-primary" data-ai-save>Save</button>' +
+      '<button type="button" class="button button-outline" data-ai-test>Test connection</button>' +
+      '<button type="button" class="button button-outline" data-ai-remove>Remove key</button>' +
+      '</div>' +
+      '<div data-ai-status></div>';
+    const $f = (sel) => host.querySelector(sel);
+    const providerSel = $f('[data-ai-provider]');
+    const modelInput = $f('[data-ai-model]');
+    const urlInput = $f('[data-ai-url]');
+    const keyInput = $f('[data-ai-key]');
+    const enabledBox = $f('[data-ai-enabled]');
+    const showStatus = () => {
+      $f('[data-ai-status]').innerHTML =
+        (current.hasKey
+          ? '<p class="form-note">Key saved (' + escapeHtml(current.keyHint || '••••') + ').</p>'
+          : '<p class="form-note">No key saved. The calculator uses its own computed Smart advice.</p>') +
+        statusHtml();
+    };
+    const applyPreset = (keepModel) => {
+      const preset = presets[providerSel.value];
+      $f('[data-ai-note]').textContent = preset.note;
+      urlInput.placeholder = preset.url;
+      if (!keepModel || !modelInput.value) modelInput.value = preset.model;
+    };
+    providerSel.value = current.provider;
+    modelInput.value = current.model;
+    urlInput.value = current.baseUrl || '';
+    enabledBox.checked = !!current.enabled;
+    applyPreset(true);
+    showStatus();
+    providerSel.addEventListener('change', () => applyPreset(false));
+    const save = async (keyValue) => {
+      const body = {
+        provider: providerSel.value,
+        model: modelInput.value.trim(),
+        enabled: enabledBox.checked,
+      };
+      if (urlInput.value.trim()) body.baseUrl = urlInput.value.trim();
+      if (keyValue !== undefined) body.apiKey = keyValue;
+      const response = await apiRequest('/api/ai-settings', {
+        method: 'PUT',
+        body: JSON.stringify(body),
+      });
+      current = response.aiSettings;
+      keyInput.value = '';
+      showStatus();
+    };
+    $f('[data-ai-save]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await save(keyInput.value.trim() || undefined);
+        setMessage('#workspaceMessage', 'AI settings saved.', true);
+      } catch (error) {
+        setMessage('#workspaceMessage', error.message || 'Could not save the AI settings.', false);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $f('[data-ai-remove]').addEventListener('click', async (event) => {
+      if (!current.hasKey || !confirm('Remove the saved API key?')) return;
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        await save('');
+        setMessage('#workspaceMessage', 'The API key was removed.', true);
+      } catch (error) {
+        setMessage('#workspaceMessage', error.message || 'Could not remove the key.', false);
+      } finally {
+        button.disabled = false;
+      }
+    });
+    $f('[data-ai-test]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      $f('[data-ai-status]').innerHTML = '<p class="form-note">Testing&hellip;</p>';
+      try {
+        // Save first so the test uses what is on screen.
+        await save(keyInput.value.trim() || undefined);
+        const result = await apiRequest('/api/ai-settings/test', { method: 'POST' });
+        current = (await apiRequest('/api/ai-settings')).aiSettings;
+        showStatus();
+        setMessage(
+          '#workspaceMessage',
+          result.ok ? 'Connection works.' : 'The test failed: ' + result.message,
+          !!result.ok,
+        );
+      } catch (error) {
+        showStatus();
+        setMessage('#workspaceMessage', error.message || 'The test could not run.', false);
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 
   $('#vasAdminNav')?.addEventListener('click', () => setWorkspaceMode('vas-admin'));
@@ -12816,6 +12995,7 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#amcAdminV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-admin-v2'));
+  $('#aiAdminNav')?.addEventListener('click', () => setWorkspaceMode('ai-admin'));
   // AMC Admin Rates (New): Rates / How it works (temporary) tabs.
   $('#amcAdminV2Tabs')?.addEventListener('click', (event) => {
     const button = event.target.closest('.action-tab');
@@ -16545,6 +16725,20 @@ ${bodyHtml}
     // (crew on site every working day) or phase to phase (work starts as each
     // phase / site is ready). Phases hold their quantity per line (by line uid).
     const Sched = window.JdThomsonSchedule;
+    // Smart advice can optionally be worded by the AI set up in Admin > AI
+    // settings (modification #222). The figures always come from this page.
+    const aiAdvice = { available: false, on: false, sig: '', text: '', loading: false, failed: '' };
+    try {
+      aiAdvice.on = localStorage.getItem('jd-thomson-ai-wording') === '1';
+    } catch (error) {
+      /* storage unavailable: off */
+    }
+    apiRequest('/api/ai-settings/status')
+      .then((r) => {
+        aiAdvice.available = !!r.available;
+        if (container.isConnected) renderTimeline();
+      })
+      .catch(() => {});
     const schedCfg = () => ({ ...THOMSON_SCHEDULING_DEFAULTS, ...(data.scheduling || {}) });
     let crewTechs = data.techCount;
     let otHours = 0;
@@ -17205,13 +17399,72 @@ ${bodyHtml}
           );
         })
         .join('');
+      // Optional AI wording of the same figures.
+      let aiHtml = '';
+      if (aiAdvice.available && aiAdvice.on) {
+        const facts = {
+          projectDays: current.days,
+          thresholdDays: cfg.highDaysThreshold,
+          workMode,
+          technicians: crewTechs,
+          hoursPerDay: data.hoursDay + otHours,
+          marginPct: Math.round(current.pct * 10) / 10,
+          minMarginPct: cfg.minMarginPct,
+          options: options.map((o) => ({
+            title: o.title,
+            days: o.result.days,
+            marginChange: Math.round((o.result.margin - current.margin) * 100) / 100,
+            marginPct: Math.round(o.result.pct * 10) / 10,
+            withinGuard: o.result.pct >= cfg.minMarginPct,
+            note: o.note,
+          })),
+        };
+        const sig = JSON.stringify(facts);
+        if (aiAdvice.sig === sig && aiAdvice.text) {
+          aiHtml =
+            '<p class="tl-ai-text"><span class="tl-chip is-ai">AI-worded</span> ' +
+            escapeHtml(aiAdvice.text) +
+            '</p>';
+        } else if (aiAdvice.sig === sig && aiAdvice.failed) {
+          aiHtml =
+            '<p class="form-note">AI wording is not available right now, so the computed advice is shown.</p>';
+        } else {
+          aiHtml = '<p class="form-note">Writing advice&hellip;</p>';
+          if (!aiAdvice.loading) {
+            aiAdvice.loading = true;
+            aiAdvice.sig = sig;
+            aiAdvice.text = '';
+            aiAdvice.failed = '';
+            apiRequest('/api/thomson-advice', { method: 'POST', body: JSON.stringify(facts) })
+              .then((r) => {
+                aiAdvice.text = r.text || '';
+                if (!aiAdvice.text) aiAdvice.failed = 'empty';
+              })
+              .catch((error) => {
+                aiAdvice.failed = error.message || 'failed';
+              })
+              .finally(() => {
+                aiAdvice.loading = false;
+                if (container.isConnected) renderTimeline();
+              });
+          }
+        }
+      }
+      const toggle = aiAdvice.available
+        ? '<label class="tl-switch" title="Have the AI put this advice into words. The figures are still worked out by the calculator.">' +
+          '<input type="checkbox" role="switch" data-tl-ai ' +
+          (aiAdvice.on ? 'checked' : '') +
+          '><span class="tl-switch-track" aria-hidden="true"></span><span>AI wording</span></label>'
+        : '';
       return (
         '<div class="tl-advice"><div class="tl-advice-head"><strong>Smart advice</strong>' +
+        toggle +
         '<span class="tl-chip is-warn">' +
         current.days +
         ' days &middot; above ' +
         cfg.highDaysThreshold +
         '</span></div>' +
+        aiHtml +
         '<p>This is a long project. Options to finish sooner, with the effect on margin worked out from your admin rates:</p>' +
         (rows ? '<ul class="tl-options">' + rows + '</ul>' : '') +
         '<p class="form-note">Another lever: agree with the customer on site readiness before the start, so phases can be released together.</p></div>'
@@ -17470,6 +17723,16 @@ ${bodyHtml}
         return;
       }
       // change events
+      if (t.matches('[data-tl-ai]')) {
+        aiAdvice.on = t.checked;
+        aiAdvice.sig = '';
+        try {
+          localStorage.setItem('jd-thomson-ai-wording', aiAdvice.on ? '1' : '0');
+        } catch (error) {
+          /* storage unavailable: per-visit only */
+        }
+        return renderTimeline();
+      }
       if (t.matches('[data-tl-techs]')) {
         const cfg = schedCfg();
         crewTechs = Math.min(
@@ -27552,6 +27815,7 @@ ${bodyHtml}
         ['amc-admin', 'AMC Admin Rates'],
         ['amc-admin-v2', 'AMC Admin Rates (New)'],
         ['thomson-admin', 'Thomson Pricing Admin'],
+        ['ai-admin', 'AI settings'],
       ],
     },
   };
@@ -27579,7 +27843,10 @@ ${bodyHtml}
       body.insertBefore(strip, body.firstChild);
     }
     strip.innerHTML = '';
-    (key === 'finance' ? financeMembers() : group.members).forEach(([memberMode, label]) => {
+    (key === 'finance'
+      ? financeMembers()
+      : group.members.filter((m) => m[0] !== 'ai-admin' || hasPermission('ai_settings.manage'))
+    ).forEach(([memberMode, label]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'button ' + (memberMode === mode ? 'button-primary' : 'button-outline');

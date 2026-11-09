@@ -2121,3 +2121,46 @@ export const chatPushSubscribeSchema = z
 export const chatPushUnsubscribeSchema = z
   .object({ endpoint: z.string().url().max(1000) })
   .strict();
+
+// Admin -> AI settings and the Thomson Smart advice wording (modification #222).
+export const aiProviders = ['anthropic', 'openrouter', 'custom'] as const;
+
+export const aiSettingsWriteSchema = z
+  .object({
+    provider: z.enum(aiProviders),
+    // Blank = the provider's standard address. Custom needs one.
+    baseUrl: z.string().trim().max(300).optional(),
+    model: z.string().trim().min(1).max(120),
+    enabled: z.boolean(),
+    // Omitted = keep the stored key; empty string = remove it.
+    apiKey: z.string().trim().max(400).optional(),
+  })
+  .strict();
+export type AiSettingsWriteInput = z.infer<typeof aiSettingsWriteSchema>;
+
+export const aiAdviceRequestSchema = z
+  .object({
+    projectDays: z.number().min(0).max(100000),
+    thresholdDays: z.number().min(0).max(100000),
+    workMode: z.enum(['continuous', 'phased']),
+    technicians: z.number().min(0).max(1000),
+    hoursPerDay: z.number().min(0).max(48),
+    marginPct: z.number().min(-1000).max(1000),
+    minMarginPct: z.number().min(0).max(100),
+    options: z
+      .array(
+        z
+          .object({
+            title: z.string().trim().min(1).max(200),
+            days: z.number().min(0).max(100000),
+            marginChange: z.number().min(-100000000).max(100000000),
+            marginPct: z.number().min(-1000).max(1000),
+            withinGuard: z.boolean(),
+            note: z.string().trim().max(300).optional(),
+          })
+          .strict(),
+      )
+      .max(6),
+  })
+  .strict();
+export type AiAdviceRequestInput = z.infer<typeof aiAdviceRequestSchema>;

@@ -22,6 +22,7 @@ const responseDefinitions: Record<number, object> = {
   429: { ...problemResponse, headers: { 'Retry-After': { schema: { type: 'integer' } } } },
   500: problemResponse,
   501: problemResponse,
+  502: problemResponse,
 };
 
 const requestBodies = {
@@ -404,6 +405,14 @@ const requestBodies = {
         schema: { $ref: '#/components/schemas/RateCardSaleRequest' },
       },
     },
+  },
+  aiSettings: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/AiSettingsRequest' } } },
+  },
+  aiAdvice: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/AiAdviceRequest' } } },
   },
   thomsonSale: {
     required: true,
@@ -1444,6 +1453,58 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             },
             totalValue: { type: 'number', minimum: 0, maximum: 100000000 },
             contractRef: { type: 'string', minLength: 1, maxLength: 120 },
+          },
+        },
+        AiSettingsRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['provider', 'model', 'enabled'],
+          properties: {
+            provider: { type: 'string', enum: ['anthropic', 'openrouter', 'custom'] },
+            baseUrl: { type: 'string', maxLength: 300 },
+            model: { type: 'string', minLength: 1, maxLength: 120 },
+            enabled: { type: 'boolean' },
+            apiKey: { type: 'string', maxLength: 400 },
+          },
+        },
+        AiAdviceRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: [
+            'projectDays',
+            'thresholdDays',
+            'workMode',
+            'technicians',
+            'hoursPerDay',
+            'marginPct',
+            'minMarginPct',
+            'options',
+          ],
+          properties: {
+            projectDays: { type: 'number' },
+            thresholdDays: { type: 'number' },
+            workMode: { type: 'string', enum: ['continuous', 'phased'] },
+            technicians: { type: 'number' },
+            hoursPerDay: { type: 'number' },
+            marginPct: { type: 'number' },
+            minMarginPct: { type: 'number' },
+            options: {
+              type: 'array',
+              maxItems: 6,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['title', 'days', 'marginChange', 'marginPct', 'withinGuard'],
+                properties: {
+                  title: { type: 'string', maxLength: 200 },
+                  days: { type: 'number' },
+                  marginChange: { type: 'number' },
+                  marginPct: { type: 'number' },
+                  withinGuard: { type: 'boolean' },
+                  note: { type: 'string', maxLength: 300 },
+                },
+              },
+            },
           },
         },
         ThomsonSaleRequest: {
