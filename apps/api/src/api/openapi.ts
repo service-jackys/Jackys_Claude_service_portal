@@ -1571,6 +1571,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'delivery_install',
                 'walk_in',
                 'rate_card',
+                'tasks',
                 'vas',
               ],
             },

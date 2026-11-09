@@ -280,6 +280,63 @@ test.describe('Ask AI across the portal', () => {
     expect(asked[0].section).toBe('rate_card');
   });
 
+  test('the Tasks page can be asked about, with the counts tick box', async ({ page }) => {
+    await signIn(page, ['*']);
+    await page.locator('#tasksNav').dispatchEvent('click');
+    await expect(page.locator('[data-ai-launch]')).toBeVisible();
+    await page.locator('[data-ai-launch]').click();
+    await page.locator('[data-ai-ask]').first().click();
+    await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
+    expect(asked[0].section).toBe('tasks');
+  });
+
+  test('the Tasks page sends the loaded tasks with counts', async ({ page }) => {
+    await signIn(page, ['*']);
+    await page.route('**/api/roi/tasks**', (route) =>
+      route.fulfill({
+        json: {
+          tasks: [
+            {
+              id: 1,
+              title: 'Chase spare parts',
+              kind: 'task',
+              status: 'in_progress',
+              priority: 'high',
+              startDate: null,
+              dueDate: '2020-01-01',
+              percentComplete: 40,
+              remarks: '',
+              notes: '',
+              archivedAt: null,
+            },
+            {
+              id: 2,
+              title: 'Done thing',
+              kind: 'issue',
+              status: 'completed',
+              priority: 'low',
+              startDate: null,
+              dueDate: null,
+              percentComplete: 100,
+              remarks: '',
+              notes: '',
+              archivedAt: null,
+            },
+          ],
+          owners: [],
+        },
+      }),
+    );
+    await page.locator('#tasksNav').dispatchEvent('click');
+    await expect(page.locator('[data-ai-launch]')).toBeVisible();
+    await page.locator('[data-ai-launch]').click();
+    await page.locator('[data-ai-ask]').first().click();
+    await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
+    expect(asked[0].context.counts.total).toBe(2);
+    expect(asked[0].context.counts.overdue).toBe(1);
+    expect(asked[0].context.openTasks[0].title).toBe('Chase spare parts');
+  });
+
   test('the button follows the permission and the AI being set up', async ({ page }) => {
     // A role that can use the calculators but was not given Ask AI for AMC.
     await signIn(page, ['quote_calculators.use', 'pricing_config.read']);

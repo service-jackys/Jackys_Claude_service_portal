@@ -19815,6 +19815,8 @@ ${bodyHtml}
         getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
         canSummary: () => hasPermission('revenue_dashboard.read'),
         openChatRecord: (type, id) => discussRecord(type, id),
+        canAsk: () => askAiCanAsk('tasks'),
+        askAbout: (title, context) => askAiAbout(title, context),
         loadSummary: roiSummaryData,
         download: rdDownloadBlob,
         // Dashboard kanban -> the full task (or the Tasks page when no id is given).
@@ -20005,7 +20007,10 @@ ${bodyHtml}
       permission: 'tasks.use',
       hideCurrencyNote: true,
       domains: [],
-      load: (root) => getTasksUi().renderPage(root),
+      load: (root) => {
+        setAskAiProvider('tasks', () => getTasksUi().askSnapshot());
+        return getTasksUi().renderPage(root);
+      },
     },
     'revenue-dashboard': {
       navId: 'revenueDashNav',
@@ -25542,6 +25547,7 @@ ${bodyHtml}
     delivery_install: 'ai_ask.delivery_install',
     walk_in: 'ai_ask.walk_in',
     rate_card: 'ai_ask.rate_card',
+    tasks: 'ai_ask.tasks',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25563,6 +25569,16 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    tasks: {
+      hello: 'Ask me about the tasks.',
+      help: 'I can read your tasks on screen: titles, type, status, priority, dates, progress, remarks and notes, with counts by status, priority and type. I cannot change anything.',
+      placeholder: 'Ask about priorities, overdue items, the week\u2026',
+      chips: [
+        'What should I focus on first this week?',
+        'Which tasks are overdue or due soon?',
+        'Summarise my week for the ROI report.',
       ],
     },
     rate_card: {
@@ -25763,6 +25779,7 @@ ${bodyHtml}
     if (mode === 'delivery-install') return 'delivery_install';
     if (mode === 'walk-in') return 'walk_in';
     if (mode === 'rate-card') return 'rate_card';
+    if (mode === 'tasks') return 'tasks';
     return '';
   }
 

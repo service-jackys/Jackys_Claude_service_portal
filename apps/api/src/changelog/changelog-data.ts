@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 242,
+    "title": "Ask AI on the Tasks page (your own tasks)",
+    "area": "Tasks",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Tasks, objectives and issues are what each person reports to management every week; the AI can help plan, prioritise and summarise them.",
+    "changes": [
+      "Ask AI button on the Tasks page. It reads your tasks on screen (title, type, status, priority, start and due dates, progress, remarks and notes) with counts by status, priority and type, overdue and due-this-week counts. Archived items…",
+      "Ask AI on one task: an Ask AI button in the task panel opens the chat about just that item.",
+      "No server-side counts are read; the AI works from what the Tasks page has loaded.",
+      "Never sent: customer or staff personal fields (removed on the page and again by the API: any field named like customer, contact, e-mail, address, assignee or owner) and other people's tasks unless an admin is viewing them.",
+      "Permissions: new ai_ask.tasks (admin by default; grant it in Roles & permissions). The overall counts also need tasks.use.",
+      "Migration 093 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.tasks to other roles if wanted.",
+    "migrations": [
+      "093_ask_ai_tasks_permission.sql"
+    ],
+    "files": "packages/db/migrations/093_ask_ai_tasks_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 241,
     "title": "Ask AI on the Rate card page (the standard rates on screen)",
     "area": "Pricing & rates",

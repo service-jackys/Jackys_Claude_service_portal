@@ -2352,6 +2352,7 @@ export const aiAskSections = [
   'delivery_install',
   'walk_in',
   'rate_card',
+  'tasks',
   'vas',
 ] as const;
 export const aiAskRequestSchema = z

@@ -85,6 +85,9 @@ const ASK_GUIDE: Record<string, string> = {
   rate_card:
     'the Rate Card: the standard service rates for sales and the service desk (warranty and non-warranty repairs, inspections, and delivery & installation rates by mode, region and quantity band). ' +
     'Answer questions about which rate applies, how delivery and installation rates change with quantity, region and transport, compare rates, and explain the rules in simple words. Use only the rates given.',
+  tasks:
+    "the person's own Tasks page (weekly tasks, objectives, issues, innovations and requests with status, priority, dates and progress, which they send to management as the ROI). " +
+    'Help the person plan and prioritise: say what is overdue, due soon or stuck, which items to do first, how the week looks by status and priority, and what to mention in the weekly ROI. Use only the tasks given and do not invent items or dates.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
