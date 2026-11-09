@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 227,
+    "title": "Thomson printed quotation: show transport charged to the customer, not our transport cost",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The printed Thomson quotation had a \"Transport cost\" column showing our internal transport cost per line (for example 470.73 and 1449.27) even when the customer pays 0% of transport and the total does not include it. That is internal information and contradicted the Quote total in the portal.",
+    "changes": [
+      "The printed lines table now shows Transport charged, which is what is actually in the line total on top of equipment and services. It is 0.00 when the customer pays no transport. For single-unit quotes the column is called Transport &…",
+      "Our internal transport cost is no longer printed. It is still saved and shown in the portal's Internal view."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js. No database or API change."
+  },
+  {
     "id": 226,
     "title": "Thomson calculator: change a line's quantity and override its unit rate",
     "area": "Pricing & rates",

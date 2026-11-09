@@ -4798,3 +4798,18 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/080_thomson_override_rate_permission.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give thomson_sale.override_rate to other roles in Roles & permissions if wanted.
+
+## Modification #227 — Thomson printed quotation: show transport charged to the customer, not our transport cost
+
+**Date:** 2026-11-09
+
+**Why.** The printed Thomson quotation had a "Transport cost" column showing our internal transport cost per line (for example 470.73 and 1449.27) even when the customer pays 0% of transport and the total does not include it. That is internal information and contradicted the Quote total in the portal.
+
+**What changed.**
+
+- The printed lines table now shows **Transport charged**, which is what is actually in the line total on top of equipment and services. It is 0.00 when the customer pays no transport. For single-unit quotes the column is called **Transport & call-out** because the call-out charge and minimum top-up are included.
+- Our internal transport cost is no longer printed. It is still saved and shown in the portal's Internal view.
+
+**Files.** apps/web/src/app.js. No database or API change.
+
+**Needs you:** pull, hard-refresh.
