@@ -4694,3 +4694,27 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/077_thomson_sale_status.sql, packages/db/src/thomson-sales.ts, packages/db/src/budget-variance.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-status.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull, run the database migration, restart the API, hard-refresh.
+
+## Modification #220 — Thomson calculator: transport now matches the project days
+
+**Date:** 2026-11-09
+
+**Why.** Transport trips were rounded up line by line while the timeline counted the project's days once, so a quote with several lines showed more transport than the schedule justified.
+
+**What changed.** A project's installation days are now worked out once for the whole team (once per phase when phased) and each line carries its share by install hours, so the trips charged equal the working days shown on the Project timeline. A quote with one line is priced exactly as before; quotes with several lines can show slightly lower transport. Single-unit quotes are unchanged.
+
+**Files.** apps/web/src/thomson-schedule.js, apps/web/src/app.js, tests/unit/thomson-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh. Quotes already issued keep their saved prices.
+
+## Modification #219 — Thomson calculator: Quote total panel no longer overlaps or hides under the header
+
+**Date:** 2026-11-09
+
+**Why.** On a long quote (the Project timeline tab open) the Quote total panel sat under the page header when scrolling, and could overlap the right edge of the steps.
+
+**What changed.** The Quote total panel now stays just below the page header and follows the scroll, and the steps column can no longer grow into it. On a short window the panel scrolls inside itself.
+
+**Files.** apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.

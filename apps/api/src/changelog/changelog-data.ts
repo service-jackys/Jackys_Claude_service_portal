@@ -37,6 +37,36 @@ export const CHANGELOG: ChangelogEntry[] = [
     "files": "packages/db/migrations/077_thomson_sale_status.sql, packages/db/src/thomson-sales.ts, packages/db/src/budget-variance.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*…"
   },
   {
+    "id": 220,
+    "title": "Thomson calculator: transport now matches the project days",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Transport trips were rounded up line by line while the timeline counted the project's days once, so a quote with several lines showed more transport than the schedule justified.",
+    "changes": [
+      "What changed: A project's installation days are now worked out once for the whole team (once per phase when phased) and each line carries its share by install hours, so the trips charged equal the working days shown on the Project…"
+    ],
+    "needsYou": "pull, hard-refresh. Quotes already issued keep their saved prices.",
+    "migrations": [],
+    "files": "apps/web/src/thomson-schedule.js, apps/web/src/app.js, tests/unit/thomson-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change."
+  },
+  {
+    "id": 219,
+    "title": "Thomson calculator: Quote total panel no longer overlaps or hides under the header",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "On a long quote (the Project timeline tab open) the Quote total panel sat under the page header when scrolling, and could overlap the right edge of the steps.",
+    "changes": [
+      "What changed: The Quote total panel now stays just below the page header and follows the scroll, and the steps column can no longer grow into it. On a short window the panel scrolls inside itself."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change."
+  },
+  {
     "id": 218,
     "title": "Thomson Quote Calculator: Project timeline, phases and Smart advice",
     "area": "Pricing & rates",

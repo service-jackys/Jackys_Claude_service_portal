@@ -89,12 +89,30 @@
     };
   }
 
-  /** Trips (= working days) a single line needs in a phased job: every phase
-   *  that carries some of the line is rounded up on its own. */
-  function phasedLineTrips(hoursPerUnit, phaseQtys, capacity) {
-    return (phaseQtys || []).reduce(function (sum, qty) {
-      return sum + daysFor(num(qty) * num(hoursPerUnit), capacity);
-    }, 0);
+  /**
+   * Spreads the project's installation days over its lines, so the transport
+   * cost matches the schedule: the days are worked out for the whole team once
+   * and every line carries its share by install hours (a day is in one region
+   * at a time). The shares add up to exactly the project's installation days.
+   * hours: install hours per line (continuous), or per phase when `phaseHours`
+   * is given ([phase][line]); each phase is rounded up on its own.
+   */
+  function allocateInstallDays(hours, capacity, phaseHours) {
+    var shares = hours.map(function () {
+      return 0;
+    });
+    var groups = phaseHours && phaseHours.length ? phaseHours : [hours];
+    groups.forEach(function (group) {
+      var total = group.reduce(function (sum, h) {
+        return sum + num(h);
+      }, 0);
+      var days = daysFor(total, capacity);
+      if (!(total > 0)) return;
+      group.forEach(function (h, i) {
+        shares[i] += (days * num(h)) / total;
+      });
+    });
+    return shares;
   }
 
   /** Add `days` working days to an ISO date (YYYY-MM-DD), skipping Saturday
@@ -114,7 +132,7 @@
     capacityPerDay: capacityPerDay,
     daysFor: daysFor,
     computeSchedule: computeSchedule,
-    phasedLineTrips: phasedLineTrips,
+    allocateInstallDays: allocateInstallDays,
     addWorkingDays: addWorkingDays,
   };
 });
