@@ -64,6 +64,9 @@ const ASK_GUIDE: Record<string, string> = {
   appointments:
     'the Appointments schedule of the service centre. ' +
     'Explain the status mix, what is overdue or coming up, how busy each day or month is, and the split by region, brand, warranty and customer type, and suggest what to schedule or chase first.',
+  job_cards:
+    'the Service job cards of the service centre. ' +
+    'Explain the job status mix, what is waiting for spares, customer approval or closure approval, how long open jobs have been waiting, and the split by month, brand, warranty and source, and suggest which jobs to chase first.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',

@@ -2345,6 +2345,7 @@ export const aiAskSections = [
   'revenue',
   'complaints',
   'appointments',
+  'job_cards',
   'vas',
 ] as const;
 export const aiAskRequestSchema = z

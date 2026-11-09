@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 235,
+    "title": "Ask AI on the Job cards page (counts and statuses only)",
+    "area": "Job cards",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Job cards hold customer details, so the AI gets counts and statuses only.",
+    "changes": [
+      "Ask AI button on Job cards (page-level). It reads the status filter and rows listed on screen.",
+      "Tick box \"Also read the overall job card counts and statuses\": the API builds totals by job status, final status, closure approval, age of open jobs, month (last 12), customer type, region, brand, warranty and source.",
+      "Never sent: customer names, contacts, addresses, complaints, service notes, parts, technician names, job card references.",
+      "Permissions: new ai_ask.job_cards (admin by default; grant it in Roles & permissions). The overall counts also need service_job_card.read.",
+      "Migration 086 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.job_cards to other roles if wanted.",
+    "migrations": [
+      "086_ask_ai_job_cards_permission.sql"
+    ],
+    "files": "packages/db/migrations/086_ask_ai_job_cards_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 234,
     "title": "Ask AI on the Appointments page (counts and statuses only)",
     "area": "Scheduler",

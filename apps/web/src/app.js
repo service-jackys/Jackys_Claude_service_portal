@@ -25477,6 +25477,7 @@ ${bodyHtml}
     vas: 'ai_ask.vas',
     complaints: 'ai_ask.complaints',
     appointments: 'ai_ask.appointments',
+    job_cards: 'ai_ask.job_cards',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25498,6 +25499,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    job_cards: {
+      hello: 'Ask me about the job cards.',
+      help: 'I can read counts and statuses across all job cards (by job status, final status, closure approval, age, month, region, brand, warranty and source). I never see names, contacts, faults or parts.',
+      placeholder: 'Ask about job status, waiting jobs\u2026',
+      dataLabel: 'Also read the overall job card counts and statuses (all job cards)',
+      chips: [
+        'How many jobs are waiting for spares or approval, and for how long?',
+        'Which job status has the most cards right now?',
+        'How many job cards are awaiting final status or closure approval?',
       ],
     },
     appointments: {
@@ -25614,6 +25626,7 @@ ${bodyHtml}
     if (mode === 'masters') return 'masters';
     if (mode === 'complaints' || mode === 'service-requests') return 'complaints';
     if (mode === 'appointments') return 'appointments';
+    if (mode === 'job-cards') return 'job_cards';
     return '';
   }
 
@@ -25684,6 +25697,16 @@ ${bodyHtml}
               ? 'Ready for Scheduling'
               : document.getElementById('complaintStatusFilter')?.value || 'All',
           complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
+    if (section === 'job_cards') {
+      const body = document.getElementById('jobCardsBody');
+      return {
+        title: 'Job cards',
+        context: {
+          statusFilter: document.getElementById('jobCardStatusFilter')?.value || 'All',
+          jobCardsListedOnScreen: body ? body.querySelectorAll('[data-job-card-id]').length : 0,
         },
       };
     }
