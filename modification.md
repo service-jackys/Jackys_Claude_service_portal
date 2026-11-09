@@ -5023,3 +5023,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/090_ask_ai_delivery_install_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.delivery_install` to other roles if wanted.
+
+## Modification #240 — Ask AI on the Walk-in job cards page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Walk-in job cards hold customer details, so the AI gets which fields are filled (not their values for personal fields) and counts only.
+
+**What changed.**
+
+- **Ask AI button on Walk-in job cards** (page-level). It reads the filters and rows listed on screen.
+- **Tick box "Also read the overall walk-in job card counts and statuses"**: the API builds totals (and today) by job status, month, customer type, warranty, brand and region, for walk-in job cards only.
+- **Never sent:** customer names, contacts, e-mails, addresses, serial numbers, the complaint, accessories, condition notes, salesman and technician names.
+- **Permissions:** new `ai_ask.walk_in` (admin by default; grant it in Roles & permissions). The overall counts also need `service_job_card.read`.
+- Migration 091 adds the permission.
+
+**Files.** packages/db/migrations/091_ask_ai_walk_in_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.walk_in` to other roles if wanted.

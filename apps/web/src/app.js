@@ -14811,6 +14811,40 @@ ${bodyHtml}
     root.innerHTML = walkInIntakeHtml();
     const form = root.querySelector('#walkInForm');
     const done = root.querySelector('[data-wi-done]');
+    setAskAiProvider('walk-in', () => {
+      const v = (id) => {
+        const el = root.querySelector('#' + id);
+        return el && 'value' in el ? String(el.value || '').trim() : '';
+      };
+      const filled = (id) => Boolean(v(id));
+      return {
+        customerType: v('wiCustomerType'),
+        warrantyStatus: v('wiWarrantyStatus'),
+        brand: v('wiBrand'),
+        model: v('wiModelNo'),
+        itemCode: v('wiItemCode'),
+        mainGroup: v('wiMainGroup'),
+        group: v('wiGroup'),
+        subGroup: v('wiSubGroup'),
+        region: v('wiRegion'),
+        purchaseDate: v('wiPurchaseDate'),
+        fieldsFilled: {
+          customerName: filled('wiCustomerName'),
+          contactNumber: filled('wiCustomerContact'),
+          complaint: filled('wiComplaint'),
+          serialNo: filled('wiSerialNo'),
+          salesman: filled('wiSalesman'),
+          salesChannel: filled('wiSalesChannel'),
+          technicianAssigned: filled('wiTechnician'),
+          invoiceNo: filled('wiInvoiceNo'),
+          salesOrderNumber: filled('wiSalesOrderNumber'),
+        },
+        salesmanRequired: v('wiCustomerType') === 'B2C' && v('wiWarrantyStatus') === 'In Warranty',
+        duplicateWarningShown: Boolean(
+          root.querySelector('[data-wi-dup]:not([hidden])')?.textContent?.trim(),
+        ),
+      };
+    });
     const dup = root.querySelector('[data-wi-dup]');
     const $$ = (id) => root.querySelector('#' + id);
     attachItemPicker({
@@ -25498,6 +25532,7 @@ ${bodyHtml}
     inspections: 'ai_ask.inspections',
     warranty_approvals: 'ai_ask.warranty_approvals',
     delivery_install: 'ai_ask.delivery_install',
+    walk_in: 'ai_ask.walk_in',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25519,6 +25554,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    walk_in: {
+      hello: 'Ask me about the walk-in job cards.',
+      help: 'I can read which fields of the walk-in form are filled (customer type, warranty, brand, model, item groups, region; not the customer details) and overall walk-in counts (by status, month, customer type, warranty, brand and region). I never see names, contacts, addresses or the complaint.',
+      placeholder: 'Ask about this walk-in job, walk-in volumes\u2026',
+      dataLabel: 'Also read the overall walk-in job card counts and statuses (all walk-ins)',
+      chips: [
+        'What is still missing on this walk-in job card?',
+        'Is the warranty and billing set correctly for this walk-in?',
+        'How many walk-in jobs came in this month, and for which brands?',
       ],
     },
     delivery_install: {
@@ -25696,6 +25742,7 @@ ${bodyHtml}
     if (mode === 'inspections') return 'inspections';
     if (mode === 'warranty-approvals') return 'warranty_approvals';
     if (mode === 'delivery-install') return 'delivery_install';
+    if (mode === 'walk-in') return 'walk_in';
     return '';
   }
 
