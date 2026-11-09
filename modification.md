@@ -5041,3 +5041,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/091_ask_ai_walk_in_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.walk_in` to other roles if wanted.
+
+## Modification #241 — Ask AI on the Rate card page (the standard rates on screen)
+
+**Date:** 2026-11-09
+
+**Why.** Sales and the service desk ask which rate applies; the AI can read the rates and explain them.
+
+**What changed.**
+
+- **Ask AI button on the Rate Card page.** It reads the standard rates on screen: repair and inspection rates, delivery and installation rates by mode, regions with round-trip cost, quantity bands and discounts.
+- No customer data is involved on this page, so there is no overall-counts tick box.
+- **Never sent:** nothing personal exists on this page; rates only (the page has no customer data).
+- **Permissions:** new `ai_ask.rate_card` (admin by default; grant it in Roles & permissions). The overall counts also need `rate_card.view`.
+- Migration 092 adds the permission.
+
+**Files.** packages/db/migrations/092_ask_ai_rate_card_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.rate_card` to other roles if wanted.
