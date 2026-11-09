@@ -25478,6 +25478,7 @@ ${bodyHtml}
     complaints: 'ai_ask.complaints',
     appointments: 'ai_ask.appointments',
     job_cards: 'ai_ask.job_cards',
+    quotations: 'ai_ask.quotations',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25499,6 +25500,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    quotations: {
+      hello: 'Ask me about the quotations.',
+      help: 'I can read counts, statuses and totals across all quotations (by status, ERP status, age of pending ones, month, customer type and warranty). I never see names, contacts, projects or sites.',
+      placeholder: 'Ask about pending quotations, value\u2026',
+      dataLabel: 'Also read the overall quotation counts and statuses (all quotations)',
+      chips: [
+        'How many quotations are still pending and for how long?',
+        'What is the value of approved versus pending quotations?',
+        'How many approved quotations are not yet invoiced in the ERP?',
       ],
     },
     job_cards: {
@@ -25627,6 +25639,7 @@ ${bodyHtml}
     if (mode === 'complaints' || mode === 'service-requests') return 'complaints';
     if (mode === 'appointments') return 'appointments';
     if (mode === 'job-cards') return 'job_cards';
+    if (mode === 'quotations') return 'quotations';
     return '';
   }
 
@@ -25697,6 +25710,16 @@ ${bodyHtml}
               ? 'Ready for Scheduling'
               : document.getElementById('complaintStatusFilter')?.value || 'All',
           complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
+    if (section === 'quotations') {
+      const body = document.getElementById('quotationsBody');
+      return {
+        title: 'Quotations',
+        context: {
+          statusFilter: document.getElementById('quotationErpFilter')?.value || 'All',
+          quotationsListedOnScreen: body ? body.querySelectorAll('[data-quotation-id]').length : 0,
         },
       };
     }

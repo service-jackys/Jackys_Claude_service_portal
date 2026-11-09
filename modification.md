@@ -4951,3 +4951,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/086_ask_ai_job_cards_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.job_cards` to other roles if wanted.
+
+## Modification #236 — Ask AI on the Quotations page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Quotations hold customer and project details, so the AI gets counts, statuses and totals only.
+
+**What changed.**
+
+- **Ask AI button on Quotations** (page-level). It reads the filters and rows listed on screen.
+- **Tick box "Also read the overall quotation counts and statuses"**: the API builds totals by status, ERP status, age of pending quotations, month (last 12, with value), customer type and warranty, and the value by status.
+- **Never sent:** customer names, contacts, project names, site locations, complaints, diagnoses, parts, signatures and quotation references.
+- **Permissions:** new `ai_ask.quotations` (admin by default; grant it in Roles & permissions). The overall counts also need `quotation.read`.
+- Migration 087 adds the permission.
+
+**Files.** packages/db/migrations/087_ask_ai_quotations_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.quotations` to other roles if wanted.

@@ -9,7 +9,8 @@ async function counts(client: PoolClient, sql: string): Promise<Rows> {
   const result = await client.query(sql);
   return result.rows.map((row) => {
     const out: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(row)) out[key] = key === 'n' ? Number(value) : value;
+    for (const [key, value] of Object.entries(row))
+      out[key] = key === 'n' || key === 'value' ? Number(value) : value;
     return out;
   });
 }
@@ -167,6 +168,52 @@ async function jobCards(client: PoolClient) {
   };
 }
 
+async function quotations(client: PoolClient) {
+  const blank = (col: string, alias: string) =>
+    `COALESCE(NULLIF(${col}, ''), 'Not stated') AS ${alias}`;
+  return {
+    total: (await counts(client, 'SELECT count(*) AS n FROM quotations'))[0]?.n ?? 0,
+    byStatus: await counts(
+      client,
+      `SELECT quotation_status AS status, count(*) AS n FROM quotations GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byErpStatus: await counts(
+      client,
+      `SELECT ${blank('erp_status', 'erp')}, count(*) AS n FROM quotations GROUP BY 1 ORDER BY n DESC`,
+    ),
+    pendingByAge: await counts(
+      client,
+      `SELECT CASE
+                WHEN now() - created_at < interval '3 days' THEN '0-2 days'
+                WHEN now() - created_at < interval '8 days' THEN '3-7 days'
+                WHEN now() - created_at < interval '15 days' THEN '8-14 days'
+                ELSE '15+ days' END AS age, count(*) AS n
+       FROM quotations WHERE quotation_status = 'Pending' GROUP BY 1 ORDER BY min(created_at) DESC`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(quotation_date, 'YYYY-MM') AS month, count(*) AS n,
+              round(COALESCE(sum(grand_total), 0)) AS value
+       FROM quotations
+       WHERE quotation_date >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    byCustomerType: await counts(
+      client,
+      `SELECT ${blank('customer_type', 'type')}, count(*) AS n FROM quotations GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byWarranty: await counts(
+      client,
+      `SELECT ${blank('warranty_status', 'warranty')}, count(*) AS n FROM quotations GROUP BY 1 ORDER BY n DESC`,
+    ),
+    valueByStatus: await counts(
+      client,
+      `SELECT quotation_status AS status, round(COALESCE(sum(grand_total), 0)) AS value, count(*) AS n
+       FROM quotations GROUP BY 1 ORDER BY value DESC`,
+    ),
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
@@ -174,6 +221,7 @@ export const OPS_SECTIONS: Record<
   complaints: { read: 'complaints.read', build: complaints },
   appointments: { read: 'appointments.read', build: appointments },
   job_cards: { read: 'service_job_card.read', build: jobCards },
+  quotations: { read: 'quotation.read', build: quotations },
 };
 
 export async function buildOpsSnapshot(pool: Pool, section: string) {
