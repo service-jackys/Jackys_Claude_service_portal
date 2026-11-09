@@ -33,11 +33,23 @@ export function resolveBaseUrl(provider: AiProvider, baseUrl: string | null): st
   return url.toString().replace(/\/+$/, '');
 }
 
+export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+
 /** One short completion. Anthropic uses its Messages API; the others use the common chat/completions format. */
 export async function completeText(
   config: ProviderConfig,
   system: string,
   user: string,
+  options: { maxTokens?: number; timeoutMs?: number; fetchImpl?: FetchLike } = {},
+): Promise<string> {
+  return completeChat(config, system, [{ role: 'user', content: user }], options);
+}
+
+/** A conversation: earlier turns plus the new question. */
+export async function completeChat(
+  config: ProviderConfig,
+  system: string,
+  turns: ChatMessage[],
   options: { maxTokens?: number; timeoutMs?: number; fetchImpl?: FetchLike } = {},
 ): Promise<string> {
   const doFetch = options.fetchImpl ?? fetch;
@@ -62,15 +74,12 @@ export async function completeText(
               model: config.model,
               max_tokens: options.maxTokens ?? 300,
               system,
-              messages: [{ role: 'user', content: user }],
+              messages: turns,
             }
           : {
               model: config.model,
               max_tokens: options.maxTokens ?? 300,
-              messages: [
-                { role: 'system', content: system },
-                { role: 'user', content: user },
-              ],
+              messages: [{ role: 'system', content: system }, ...turns],
             },
       ),
     });

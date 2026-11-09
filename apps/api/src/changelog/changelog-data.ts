@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 225,
+    "title": "Thomson calculator: Ask AI chat about the quote",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Smart advice only words a fixed set of options. The service manager also wants to ask free questions about the margin and profit of the quote they are preparing or of an issued quote.",
+    "changes": [
+      "Ask AI chat. When AI is set up (Admin → Masters → AI settings), an Ask AI button appears at the bottom of the Thomson calculator, next to the Live Chat button. It opens a small chat with suggested questions. Each question is sent with the…",
+      "Issued quotes. Each issued quote has an Ask AI button that opens the chat about that saved quote (any status). \"Use my current quote\" switches back. A quote opened with Edit is the quote in the calculator, so the chat follows it as you…",
+      "Privacy. The client name, contact number and site address are never sent to the AI.",
+      "API: POST /api/thomson-chat (permission quote_calculators.use). If the AI is off or fails, the chat says so and the calculator keeps working."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh.",
+    "migrations": [],
+    "files": "apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html…"
+  },
+  {
     "id": 224,
     "title": "Thomson Issued quotes: Edit and History",
     "area": "Pricing & rates",

@@ -3019,6 +3019,297 @@
       .tq-editbar .tq-edit-note input {
         min-width: 16rem;
       }
+      /* Ask AI chat in the Thomson calculator (modification #225). */
+      /* Sits to the left of the portal's round Live Chat button (right 20px, 54px wide). */
+      .tq-chat-launch {
+        position: fixed;
+        right: 86px;
+        bottom: 26px;
+        z-index: 35;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.65rem 1.05rem;
+        border: 0;
+        border-radius: 999px;
+        background: linear-gradient(135deg, var(--navy), var(--blue));
+        color: #fff;
+        font: inherit;
+        font-weight: 700;
+        box-shadow: 0 10px 28px rgb(16 43 78 / 32%);
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+      .tq-chat-launch:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 32px rgb(16 43 78 / 38%);
+      }
+      .tq-chat-launch:focus-visible,
+      .tq-chat-icon:focus-visible,
+      .tq-chat-chip:focus-visible,
+      .tq-chat-send:focus-visible {
+        outline: 3px solid #9cc7ea;
+        outline-offset: 2px;
+      }
+      .tq-chat-launch[hidden],
+      .tq-chat[hidden] {
+        display: none;
+      }
+      .tq-chat {
+        position: fixed;
+        right: 86px;
+        bottom: 20px;
+        z-index: 36;
+        display: flex;
+        flex-direction: column;
+        width: 392px;
+        max-width: calc(100vw - 32px);
+        height: min(580px, calc(100vh - 110px));
+        border: 1px solid var(--line);
+        border-radius: 18px;
+        background: var(--surface);
+        box-shadow: 0 24px 60px rgb(16 43 78 / 28%);
+        overflow: hidden;
+      }
+      .tq-chat-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 0.5rem;
+        padding: 0.8rem 0.9rem;
+        background: linear-gradient(135deg, var(--navy), var(--blue));
+        color: #fff;
+      }
+      .tq-chat-title {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .tq-chat-subject {
+        font-size: 0.76rem;
+        opacity: 0.9;
+      }
+      .tq-chat-link {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: #fff;
+        font: inherit;
+        font-size: 0.76rem;
+        text-decoration: underline;
+        cursor: pointer;
+      }
+      .tq-chat-actions {
+        display: flex;
+        gap: 0.25rem;
+      }
+      .tq-chat-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 0;
+        border-radius: 8px;
+        background: rgb(255 255 255 / 14%);
+        color: #fff;
+        cursor: pointer;
+      }
+      .tq-chat-icon:hover {
+        background: rgb(255 255 255 / 26%);
+      }
+      .tq-chat-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 0.55rem;
+        padding: 0.9rem;
+        overflow-y: auto;
+        background: var(--surface-soft);
+      }
+      .tq-chat-hello {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        margin: auto 0;
+        padding: 0.9rem;
+        border: 1px dashed var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-align: center;
+      }
+      .tq-chat-hello strong {
+        color: var(--navy);
+        font-size: 0.95rem;
+      }
+      .tq-chat-msg {
+        max-width: 88%;
+        padding: 0.55rem 0.75rem;
+        border-radius: 14px;
+        font-size: 0.87rem;
+        line-height: 1.45;
+        overflow-wrap: anywhere;
+      }
+      .tq-chat .tq-chat-msg p {
+        margin: 0;
+        color: inherit;
+        font-size: inherit;
+        line-height: inherit;
+      }
+      .tq-chat .tq-chat-msg li {
+        color: inherit;
+      }
+      .tq-chat .tq-chat-msg p + p,
+      .tq-chat .tq-chat-msg p + ul,
+      .tq-chat .tq-chat-msg ul + p {
+        margin-top: 0.4rem;
+      }
+      .tq-chat-msg ul {
+        margin: 0;
+        padding-left: 1.1rem;
+      }
+      .tq-chat-msg.is-user {
+        align-self: flex-end;
+        border-bottom-right-radius: 4px;
+        background: var(--blue);
+        color: #fff;
+      }
+      .tq-chat-msg.is-assistant {
+        align-self: flex-start;
+        border: 1px solid var(--line);
+        border-bottom-left-radius: 4px;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      .tq-chat-msg.is-error {
+        border-color: #f0c2bd;
+        background: #fff4f3;
+        color: #8a2a22;
+      }
+      .tq-chat-msg.is-typing {
+        display: inline-flex;
+        gap: 4px;
+        padding: 0.7rem 0.85rem;
+      }
+      .tq-chat-msg.is-typing span {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--muted);
+        animation: tq-chat-dot 1s infinite ease-in-out;
+      }
+      .tq-chat-msg.is-typing span:nth-child(2) {
+        animation-delay: 0.15s;
+      }
+      .tq-chat-msg.is-typing span:nth-child(3) {
+        animation-delay: 0.3s;
+      }
+      @keyframes tq-chat-dot {
+        0%,
+        80%,
+        100% {
+          opacity: 0.3;
+          transform: translateY(0);
+        }
+        40% {
+          opacity: 1;
+          transform: translateY(-3px);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .tq-chat-msg.is-typing span {
+          animation: none;
+          opacity: 0.7;
+        }
+        .tq-chat-launch {
+          transition: none;
+        }
+      }
+      .tq-chat-suggest {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        padding: 0 0.9rem;
+        background: var(--surface-soft);
+      }
+      .tq-chat-suggest:empty {
+        display: none;
+      }
+      .tq-chat-chip {
+        padding: 0.35rem 0.65rem;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface);
+        color: var(--navy);
+        font: inherit;
+        font-size: 0.78rem;
+        text-align: left;
+        cursor: pointer;
+      }
+      .tq-chat-chip:hover {
+        border-color: var(--blue);
+        background: var(--blue-soft);
+      }
+      .tq-chat-form {
+        display: flex;
+        align-items: flex-end;
+        gap: 0.5rem;
+        padding: 0.7rem 0.9rem 0.3rem;
+        background: var(--surface-soft);
+      }
+      .tq-chat .tq-chat-form textarea {
+        flex: 1;
+        height: 40px;
+        min-height: 40px;
+        max-height: 96px;
+        box-sizing: border-box;
+        padding: 0.55rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        font: inherit;
+        font-size: 0.88rem;
+        resize: none;
+      }
+      .tq-chat-send {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 12px;
+        background: var(--blue);
+        color: #fff;
+        cursor: pointer;
+      }
+      .tq-chat-send:disabled {
+        opacity: 0.5;
+        cursor: progress;
+      }
+      .tq-chat-foot {
+        margin: 0;
+        padding: 0.2rem 0.9rem 0.7rem;
+        background: var(--surface-soft);
+        color: var(--muted);
+        font-size: 0.7rem;
+      }
+      @media (max-width: 560px) {
+        .tq-chat {
+          right: 8px;
+          bottom: 84px;
+          width: calc(100vw - 16px);
+          height: calc(100vh - 140px);
+        }
+        .tq-chat-launch {
+          right: 80px;
+          bottom: 26px;
+        }
+      }
       /* Thomson Issued quotes (modification #221): outcome filter + expandable detail. */
       .tq-issued-filter {
         display: flex;

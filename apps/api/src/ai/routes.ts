@@ -71,6 +71,16 @@ export function createAiHandlers(
         }
       },
     ],
+    chat: [
+      requirePermission('quote_calculators.use'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.chat(request.body));
+        } catch (error) {
+          handleError(error, response, next);
+        }
+      },
+    ],
     advice: [
       requirePermission('quote_calculators.use'),
       async (request, response, next) => {

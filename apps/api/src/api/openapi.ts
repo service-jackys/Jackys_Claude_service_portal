@@ -414,6 +414,10 @@ const requestBodies = {
     required: true,
     content: { 'application/json': { schema: { $ref: '#/components/schemas/AiAdviceRequest' } } },
   },
+  aiChat: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/AiChatRequest' } } },
+  },
   thomsonSaleRevise: {
     required: true,
     content: {
@@ -1537,6 +1541,30 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             model: { type: 'string', minLength: 1, maxLength: 120 },
             enabled: { type: 'boolean' },
             apiKey: { type: 'string', maxLength: 400 },
+          },
+        },
+        AiChatRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['messages', 'quote'],
+          properties: {
+            messages: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 20,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['role', 'content'],
+                properties: {
+                  role: { type: 'string', enum: ['user', 'assistant'] },
+                  content: { type: 'string', minLength: 1, maxLength: 2000 },
+                },
+              },
+            },
+            // The figures of the quote being prepared or opened; client name and
+            // contact number are never sent.
+            quote: { type: 'object', additionalProperties: true },
           },
         },
         AiAdviceRequest: {

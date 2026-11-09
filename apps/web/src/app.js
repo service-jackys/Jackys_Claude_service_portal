@@ -16733,7 +16733,10 @@ ${bodyHtml}
     apiRequest('/api/ai-settings/status')
       .then((r) => {
         aiAdvice.available = !!r.available;
-        if (container.isConnected) renderTimeline();
+        if (container.isConnected) {
+          renderTimeline();
+          syncChatLauncher();
+        }
       })
       .catch(() => {});
     const schedCfg = () => ({ ...THOMSON_SCHEDULING_DEFAULTS, ...(data.scheduling || {}) });
@@ -16758,6 +16761,7 @@ ${bodyHtml}
     // lastRows (modification.md #39).
     let lastComputed = null;
     let saleControl = null;
+    let loadedRef = null;
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
@@ -16910,7 +16914,7 @@ ${bodyHtml}
         panel.hidden = panel.dataset.thPanel !== target;
       });
       if (target === 'issued') {
-        loadThomsonIssuedList(issuedHost, '', beginEdit);
+        loadThomsonIssuedList(issuedHost, '', beginEdit, askAboutSale);
       }
     });
 
@@ -18092,6 +18096,7 @@ ${bodyHtml}
     // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
     function clearLineItems() {
       lineItems.length = 0;
+      loadedRef = null;
       resetTimeline();
       lastAddedSig = null;
       hideReminder();
@@ -18247,7 +18252,8 @@ ${bodyHtml}
       () => {
         // Keep the Issued quotes list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-th-panel="issued"]');
-        if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost, '', beginEdit);
+        if (issuedPanel && !issuedPanel.hidden)
+          loadThomsonIssuedList(issuedHost, '', beginEdit, askAboutSale);
       },
       container,
       () => mode,
@@ -18397,6 +18403,11 @@ ${bodyHtml}
         renderAddonsEditTable();
         renderAll();
         container.querySelector('[data-th-tab="quote"]')?.click();
+        loadedRef = {
+          reference: sale.thomsonSaleReference,
+          status: sale.status,
+          revision: sale.revision,
+        };
         saleControl.startEdit(sale, notes);
         saleHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (error) {
@@ -18406,13 +18417,358 @@ ${bodyHtml}
         );
       }
     }
+
+    // ---- Ask AI chat (modification #225) ------------------------------------
+    // A small chat about the quote being prepared, or an issued quote opened
+    // with "Ask AI". The AI only receives the figures below; client name and
+    // contact number are never sent.
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const chat = { open: false, busy: false, messages: [], subject: null };
+
+    function chatContextFromCalculator() {
+      const computed = lineItems.length ? computeQuote().computed : [];
+      const price = computed.reduce((t, c) => t + c.totalPrice, 0);
+      const cost = computed.reduce((t, c) => t + c.totalCost, 0);
+      let schedule;
+      if (mode !== 'single' && lineItems.length) {
+        const sch = scheduleNow();
+        schedule = {
+          workMode: sch.mode,
+          technicians: crewTechs,
+          hoursPerDay: data.hoursDay + otHours,
+          workingDays: sch.workingDays,
+          waitingDays: sch.gapDays,
+          totalDays: sch.calendarDays,
+          highDaysThreshold: schedCfg().highDaysThreshold,
+          phases:
+            sch.mode === 'phased'
+              ? sch.phases.map((row, i) => ({
+                  name: row.name,
+                  items: lineItems
+                    .map((li) => {
+                      const q = Number(phases[i].qty[li.uid]) || 0;
+                      return q ? q + ' x ' + (appliances[li.applianceIdx]?.name || '') : '';
+                    })
+                    .filter(Boolean)
+                    .join(', ')
+                    .slice(0, 500),
+                  days: row.days,
+                  waitBeforeDays: row.gapDays,
+                }))
+              : [],
+        };
+      }
+      return {
+        source: 'calculator',
+        reference: loadedRef ? loadedRef.reference : undefined,
+        status: loadedRef ? loadedRef.status : undefined,
+        revision: loadedRef ? loadedRef.revision : undefined,
+        mode,
+        transportSharePercent: mode === 'single' ? 100 : parseNumber(transportShareInput.value),
+        totals: {
+          price: round2(price),
+          cost: round2(cost),
+          margin: round2(price - cost),
+          marginPct: price ? round2(((price - cost) / price) * 100) : 0,
+        },
+        minMarginPct: schedCfg().minMarginPct,
+        lines: computed.map((c) => ({
+          region: c.region,
+          appliance: c.applianceName,
+          qty: c.qty,
+          unitRate: round2(c.unitRate),
+          equipment: round2(c.applianceSubtotal),
+          services: round2(c.addonRevenue),
+          transportCharged: round2(c.customerTransportCharge),
+          transportCost: round2(c.transportCost),
+          totalPrice: round2(c.totalPrice),
+          totalCost: round2(c.totalCost),
+          margin: round2(c.margin),
+        })),
+        schedule,
+        addons: THOMSON_ADDON_NAMES.map((name) => ({
+          name,
+          rate: Number(addons[name].rate) || 0,
+          hours: Number(addons[name].hours) || 0,
+          on: addons[name].on !== false,
+        })),
+      };
+    }
+
+    function chatContextFromSale(sale) {
+      const lines = (sale.lineItems || []).map((li) => ({
+        region: li.region,
+        appliance: li.applianceName,
+        qty: Number(li.qty) || 0,
+        unitRate: round2(li.unitRate),
+        equipment: round2(li.applianceSubtotal),
+        services: round2(li.addonRevenue),
+        transportCharged: Math.max(
+          0,
+          round2(li.totalPrice - li.applianceSubtotal - li.addonRevenue),
+        ),
+        transportCost: round2(li.transportCost),
+        totalPrice: round2(li.totalPrice),
+        totalCost: round2(li.totalCost),
+        margin: round2(li.margin),
+      }));
+      const price = Number(sale.totalPrice) || 0;
+      const sc = sale.schedule;
+      return {
+        source: 'issued',
+        reference: sale.thomsonSaleReference,
+        status: sale.status || 'Quote',
+        revision: sale.revision || 1,
+        mode: isThomsonSingleSale(sale) ? 'single' : 'project',
+        transportSharePercent: Number(sale.transportSharePercent) || 0,
+        totals: {
+          price: round2(price),
+          cost: round2(sale.totalCost),
+          margin: round2(sale.margin),
+          marginPct: price ? round2((Number(sale.margin) / price) * 100) : 0,
+        },
+        minMarginPct: schedCfg().minMarginPct,
+        lines,
+        schedule: sc
+          ? {
+              workMode: sc.workMode,
+              technicians: sc.technicians,
+              hoursPerDay: sc.hoursPerDay || 0,
+              workingDays: sc.workingDays,
+              waitingDays: sc.waitingDays,
+              totalDays: sc.totalDays,
+              highDaysThreshold: schedCfg().highDaysThreshold,
+              phases: (sc.phases || []).map((ph) => ({
+                name: ph.name,
+                items: ph.items || '',
+                days: ph.days,
+                waitBeforeDays: ph.waitBeforeDays,
+              })),
+            }
+          : undefined,
+      };
+    }
+
+    const chatContext = () =>
+      chat.subject ? chatContextFromSale(chat.subject) : chatContextFromCalculator();
+
+    container.insertAdjacentHTML(
+      'beforeend',
+      '<button type="button" class="tq-chat-launch" data-tq-chat-launch hidden aria-haspopup="dialog" aria-expanded="false">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2zm7 11l.9 2.6 2.6.9-2.6.9L19 20l-.9-2.6-2.6-.9 2.6-.9L19 13z" fill="currentColor"/></svg>' +
+        '<span>Ask AI</span></button>' +
+        '<section class="tq-chat" data-tq-chat role="dialog" aria-label="Ask AI about this quote" hidden>' +
+        '<header class="tq-chat-head"><div class="tq-chat-title"><strong>Ask AI</strong>' +
+        '<span class="tq-chat-subject" data-tq-chat-subject></span></div>' +
+        '<div class="tq-chat-actions">' +
+        '<button type="button" class="tq-chat-icon" data-tq-chat-reset title="Start a new conversation" aria-label="Start a new conversation"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 11-5 5H5a7 7 0 107-8z" fill="currentColor"/></svg></button>' +
+        '<button type="button" class="tq-chat-icon" data-tq-chat-close title="Close" aria-label="Close chat"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>' +
+        '</div></header>' +
+        '<div class="tq-chat-body" data-tq-chat-body aria-live="polite"></div>' +
+        '<div class="tq-chat-suggest" data-tq-chat-suggest></div>' +
+        '<form class="tq-chat-form" data-tq-chat-form>' +
+        '<textarea rows="1" maxlength="1000" data-tq-chat-input aria-label="Your question" placeholder="Ask about margin, profit, transport&hellip;"></textarea>' +
+        '<button type="submit" class="tq-chat-send" data-tq-chat-send aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.2-7.3L3 11.5z" fill="currentColor"/></svg></button>' +
+        '</form>' +
+        '<p class="tq-chat-foot">AI can make mistakes. It only sees this quote’s figures, not the client’s name or contact.</p>' +
+        '</section>',
+    );
+    const chatLaunch = container.querySelector('[data-tq-chat-launch]');
+    const chatPanel = container.querySelector('[data-tq-chat]');
+    const chatBody = container.querySelector('[data-tq-chat-body]');
+    const chatSuggest = container.querySelector('[data-tq-chat-suggest]');
+    const chatInput = container.querySelector('[data-tq-chat-input]');
+    const chatSend = container.querySelector('[data-tq-chat-send]');
+    const chatSubjectEl = container.querySelector('[data-tq-chat-subject]');
+
+    function syncChatLauncher() {
+      thomsonChatAvailable = !!aiAdvice.available;
+      chatLaunch.hidden = !aiAdvice.available || chat.open;
+      if (!aiAdvice.available) chatPanel.hidden = true;
+    }
+
+    // Tiny, safe renderer: paragraphs and "- " lists, everything escaped.
+    function chatTextHtml(text) {
+      const out = [];
+      let list = [];
+      const flush = () => {
+        if (list.length) {
+          out.push('<ul>' + list.map((x) => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul>');
+          list = [];
+        }
+      };
+      String(text)
+        .split(/\r?\n/)
+        .forEach((line) => {
+          const t = line.trim();
+          const bullet = /^[-*•]\s+(.*)$/.exec(t);
+          if (bullet) list.push(bullet[1]);
+          else {
+            flush();
+            if (t) out.push('<p>' + escapeHtml(t) + '</p>');
+          }
+        });
+      flush();
+      return out.join('');
+    }
+
+    function renderChat() {
+      const subject = chat.subject
+        ? 'About ' +
+          chat.subject.thomsonSaleReference +
+          ' (' +
+          (chat.subject.status || 'Quote') +
+          ')'
+        : loadedRef
+          ? 'About ' + loadedRef.reference + ' (being edited)'
+          : 'About the quote you are preparing';
+      chatSubjectEl.innerHTML =
+        escapeHtml(subject) +
+        (chat.subject
+          ? ' <button type="button" class="tq-chat-link" data-tq-chat-current>Use my current quote</button>'
+          : '');
+      const empty = !chat.messages.length;
+      chatBody.innerHTML = empty
+        ? '<div class="tq-chat-hello"><strong>Ask me about this quote.</strong><span>I can read its lines, margin, transport and schedule. I cannot change anything for you.</span></div>'
+        : chat.messages
+            .map(
+              (m) =>
+                '<div class="tq-chat-msg is-' +
+                m.role +
+                (m.error ? ' is-error' : '') +
+                '">' +
+                (m.role === 'assistant'
+                  ? chatTextHtml(m.content)
+                  : '<p>' + escapeHtml(m.content) + '</p>') +
+                '</div>',
+            )
+            .join('') +
+          (chat.busy
+            ? '<div class="tq-chat-msg is-assistant is-typing" aria-label="The AI is typing"><span></span><span></span><span></span></div>'
+            : '');
+      const suggestions = [
+        'Where does my margin come from?',
+        'Which line earns the least margin?',
+        'How much discount can I give and stay above the margin guard?',
+      ];
+      if ((chat.subject ? chatContextFromSale(chat.subject).mode : mode) !== 'single')
+        suggestions.push('What happens to profit if the customer pays all the transport?');
+      chatSuggest.innerHTML = empty
+        ? suggestions
+            .map(
+              (q) =>
+                '<button type="button" class="tq-chat-chip" data-tq-chat-ask="' +
+                escapeHtml(q) +
+                '">' +
+                escapeHtml(q) +
+                '</button>',
+            )
+            .join('')
+        : '';
+      chatSend.disabled = chat.busy;
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function openChat() {
+      chat.open = true;
+      chatPanel.hidden = false;
+      chatLaunch.setAttribute('aria-expanded', 'true');
+      chatLaunch.hidden = true;
+      renderChat();
+      chatInput.focus();
+    }
+
+    function closeChat() {
+      chat.open = false;
+      chatPanel.hidden = true;
+      chatLaunch.setAttribute('aria-expanded', 'false');
+      chatLaunch.hidden = !aiAdvice.available;
+      chatLaunch.focus();
+    }
+
+    async function sendChat(text) {
+      const question = String(text || '').trim();
+      if (!question || chat.busy) return;
+      chat.messages.push({ role: 'user', content: question });
+      chat.busy = true;
+      chatInput.value = '';
+      chatInput.style.height = '';
+      renderChat();
+      try {
+        const turns = chat.messages
+          .filter((m) => !m.error)
+          .slice(-12)
+          .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+        const reply = await apiRequest('/api/thomson-chat', {
+          method: 'POST',
+          body: JSON.stringify({ messages: turns, quote: chatContext() }),
+        });
+        chat.messages.push({ role: 'assistant', content: reply.text || '' });
+      } catch (error) {
+        chat.messages.push({
+          role: 'assistant',
+          error: true,
+          content:
+            error && error.status === 409
+              ? 'The AI is not set up. An admin can add the key in Admin › Masters › AI settings.'
+              : 'The AI did not answer just now. Please try again in a moment.',
+        });
+      } finally {
+        chat.busy = false;
+        renderChat();
+        chatInput.focus();
+      }
+    }
+
+    // Used by the Issued quotes list: open the chat about that saved quote.
+    function askAboutSale(sale) {
+      chat.subject = sale;
+      chat.messages = [];
+      openChat();
+    }
+
+    chatLaunch.addEventListener('click', openChat);
+    container.querySelector('[data-tq-chat-close]').addEventListener('click', closeChat);
+    container.querySelector('[data-tq-chat-reset]').addEventListener('click', () => {
+      chat.messages = [];
+      renderChat();
+      chatInput.focus();
+    });
+    chatPanel.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeChat();
+    });
+    chatPanel.addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-tq-chat-ask]');
+      if (chip) sendChat(chip.getAttribute('data-tq-chat-ask'));
+      if (event.target.closest('[data-tq-chat-current]')) {
+        chat.subject = null;
+        chat.messages = [];
+        renderChat();
+      }
+    });
+    container.querySelector('[data-tq-chat-form]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      sendChat(chatInput.value);
+    });
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        sendChat(chatInput.value);
+      }
+    });
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 96) + 'px';
+    });
+    syncChatLauncher();
   }
 
   // Lists every saved thomson_sales record (modification.md #44) so a
   // previously issued Thomson sale can be found again and its quotation
   // reprinted, without anywhere else in the portal to look it up.
-  async function loadThomsonIssuedList(host, statusFilter = '', onEdit = null) {
+  async function loadThomsonIssuedList(host, statusFilter = '', onEdit = null, onAsk = null) {
     if (onEdit) host._tqOnEdit = onEdit;
+    if (onAsk) host._tqOnAsk = onAsk;
     const canRevise = hasPermission('thomson_sale.revise');
     if (!hasPermission('thomson_sale.read')) {
       host.innerHTML =
@@ -18559,7 +18915,13 @@ ${bodyHtml}
               '<div class="ac-group"><span class="ac-label">Quotation</span><div class="ac-row">' +
               '<button type="button" class="button button-outline button-sm" data-tcc-reprint="' +
               escapeHtml(sale.id) +
-              '">Print quotation</button></div></div>' +
+              '">Print quotation</button>' +
+              (host._tqOnAsk && thomsonChatAvailable
+                ? '<button type="button" class="button button-outline button-sm" data-tcc-ask="' +
+                  escapeHtml(sale.id) +
+                  '" title="Ask the AI about this quote\'s margin and figures">Ask AI</button>'
+                : '') +
+              '</div></div>' +
               (canRevise
                 ? '<div class="ac-group"><span class="ac-label">Manage</span><div class="ac-row">' +
                   (status === 'Sold' || !host._tqOnEdit
@@ -18614,6 +18976,12 @@ ${bodyHtml}
           .join('') +
         '</tbody></table></div><div data-tcc-history-panel></div>';
       bindThomsonIssuedFilter(host);
+      host.querySelectorAll('[data-tcc-ask]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const sale = sales.find((x) => String(x.id) === button.getAttribute('data-tcc-ask'));
+          if (sale && host._tqOnAsk) host._tqOnAsk(sale);
+        });
+      });
       host.querySelectorAll('[data-tcc-edit]').forEach((button) => {
         button.addEventListener('click', () => {
           if (host._tqOnEdit) host._tqOnEdit(button.getAttribute('data-tcc-edit'));
@@ -18744,6 +19112,9 @@ ${bodyHtml}
       host.innerHTML = '<p class="form-note">Could not load issued Thomson sales.</p>';
     }
   }
+
+  // Whether the AI is set up (set by the calculator once it has asked the server).
+  let thomsonChatAvailable = false;
 
   function bindThomsonIssuedFilter(host) {
     host.querySelectorAll('[data-tq-issued-filter]').forEach((button) => {

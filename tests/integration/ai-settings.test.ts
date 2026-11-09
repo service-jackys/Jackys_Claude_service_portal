@@ -128,6 +128,48 @@ test(
       assert.equal(last.url, 'https://api.anthropic.com/v1/messages');
       assert.equal(last.headers['x-api-key'], 'sk-or-secret-123456');
 
+      // Ask-AI chat: earlier turns and the quote's figures reach the provider.
+      const quote = {
+        source: 'calculator' as const,
+        mode: 'project' as const,
+        transportSharePercent: 0,
+        totals: { price: 540, cost: 300, margin: 240, marginPct: 44.4 },
+        minMarginPct: 15,
+        lines: [
+          {
+            region: 'Dubai',
+            appliance: 'Built-in Hob',
+            qty: 3,
+            unitRate: 100,
+            equipment: 300,
+            services: 240,
+            transportCharged: 0,
+            transportCost: 60,
+            totalPrice: 540,
+            totalCost: 300,
+            margin: 240,
+          },
+        ],
+      };
+      const reply = await ai.chat({
+        messages: [
+          { role: 'user', content: 'What is my margin?' },
+          { role: 'assistant', content: 'About 44%.' },
+          { role: 'user', content: 'And on the hobs?' },
+        ],
+        quote,
+      });
+      assert.equal(reply.text, 'Add one technician.');
+      const chatCall = calls[calls.length - 1];
+      assert.ok(String(chatCall.body.system).includes('Built-in Hob'));
+      assert.equal(chatCall.body.messages.length, 3);
+      assert.equal(chatCall.body.messages[2].content, 'And on the hobs?');
+      await assert.rejects(
+        ai.chat({ messages: [{ role: 'assistant', content: 'Hello' }], quote }),
+        /must be a question/,
+      );
+      await assert.rejects(ai.chat({ messages: [{ role: 'user', content: 'x' }], quote: {} }));
+
       // A provider failure is reported, and the test result is remembered.
       mode = 'fail';
       await assert.rejects(ai.advise(advice), /401/);

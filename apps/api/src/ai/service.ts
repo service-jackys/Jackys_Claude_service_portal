@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
   aiAdviceRequestSchema,
+  aiChatRequestSchema,
   aiSettingsWriteSchema,
 } from '../../../../packages/contracts/src/index.js';
 import {
@@ -13,7 +14,7 @@ import {
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { decryptSecret, encryptSecret, keyHint } from './crypto.js';
-import { AiProviderError, completeText, resolveBaseUrl } from './provider.js';
+import { AiProviderError, completeChat, completeText, resolveBaseUrl } from './provider.js';
 
 export class AiServiceError extends Error {
   constructor(
@@ -31,6 +32,17 @@ const ADVICE_SYSTEM =
   'Write 2 to 4 short sentences of plain advice (under 90 words, no markdown, no bullet lists) ' +
   'about how to shorten a long installation project. Use ONLY the figures given; never invent numbers, ' +
   'and never recommend an option marked as outside the margin guard. Amounts are in AED.';
+
+const CHAT_SYSTEM =
+  "You are a pricing and margin assistant inside the Thomson Quote Calculator of Jacky's Distribution " +
+  '(installation of built-in kitchen appliances, UAE). Help the service manager understand and improve the quote below. ' +
+  'The QUOTE DATA is the only source of figures: use it, never invent or assume numbers that are not in it, ' +
+  'and say so when the data does not contain what is needed. You may do simple arithmetic on the given figures; ' +
+  'show the numbers you used. Margin = price minus cost; margin % = margin divided by price. Amounts are in AED. ' +
+  'minMarginPct is the lowest margin the company accepts: warn when a suggestion would go below it. ' +
+  'You cannot change the quote or its prices; if a change is wanted, say what to change in the calculator ' +
+  '(quantities, transport share, add-on switches, crew or phases). ' +
+  'Answer in plain text, under 120 words, no markdown headings or bold; use short lines starting with "- " for lists.';
 
 export function createAiService(pool: Pool, deps: Deps = {}) {
   const secret = () =>
@@ -179,7 +191,27 @@ export function createAiService(pool: Pool, deps: Deps = {}) {
     }
   }
 
-  return { get, status, save, test, advise };
+  async function chat(input: unknown) {
+    const data = aiChatRequestSchema.parse(input);
+    if (data.messages[data.messages.length - 1].role !== 'user')
+      throw new AiServiceError('invalid', 'The last message must be a question.');
+    const config = configFrom(await load());
+    try {
+      const text = await completeChat(
+        config,
+        CHAT_SYSTEM + '\n\nQUOTE DATA (JSON):\n' + JSON.stringify(data.quote),
+        data.messages,
+        { maxTokens: 500, timeoutMs: 30000, fetchImpl: deps.fetchImpl },
+      );
+      return { text };
+    } catch (error) {
+      if (error instanceof AiProviderError)
+        throw new AiServiceError('provider-failed', error.message);
+      throw error;
+    }
+  }
+
+  return { get, status, save, test, advise, chat };
 }
 
 export type AiService = ReturnType<typeof createAiService>;

@@ -4764,3 +4764,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/079_thomson_sale_revisions.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull, run the database migration (079), restart the API, hard-refresh.
+
+## Modification #225 — Thomson calculator: Ask AI chat about the quote
+
+**Date:** 2026-11-09
+
+**Why.** The Smart advice only words a fixed set of options. The service manager also wants to ask free questions about the margin and profit of the quote they are preparing or of an issued quote.
+
+**What changed.**
+
+- **Ask AI chat.** When AI is set up (Admin → Masters → AI settings), an **Ask AI** button appears at the bottom of the Thomson calculator, next to the Live Chat button. It opens a small chat with suggested questions. Each question is sent with the quote's current figures: lines, unit rates, equipment, services, transport charged and transport cost, price, cost, margin and margin %, the minimum-margin guard, the crew and schedule, and the add-on switches. The AI is told to use only those figures and cannot change the quote.
+- **Issued quotes.** Each issued quote has an **Ask AI** button that opens the chat about that saved quote (any status). "Use my current quote" switches back. A quote opened with Edit is the quote in the calculator, so the chat follows it as you change it.
+- **Privacy.** The client name, contact number and site address are never sent to the AI.
+- **API:** POST /api/thomson-chat (permission quote_calculators.use). If the AI is off or fails, the chat says so and the calculator keeps working.
+
+**Files.** apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-settings.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No database change.
+
+**Needs you:** pull, restart the API, hard-refresh.
