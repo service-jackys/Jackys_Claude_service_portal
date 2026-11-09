@@ -10,6 +10,7 @@ import {
 export interface WorkbookAccess {
   revenue: boolean;
   budget: boolean;
+  can?: (permission: string) => boolean;
 }
 
 // What the Ask AI may read beyond the screen (modification #231): the

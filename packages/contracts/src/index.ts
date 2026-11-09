@@ -2338,7 +2338,14 @@ export type AiChatRequestInput = z.infer<typeof aiChatRequestSchema>;
 
 // Ask AI across the portal (modification #229): the page sends the figures it
 // is showing; the API removes personal fields, caps the size and adds advice.
-export const aiAskSections = ['pricing_admin', 'masters', 'amc', 'revenue', 'vas'] as const;
+export const aiAskSections = [
+  'pricing_admin',
+  'masters',
+  'amc',
+  'revenue',
+  'complaints',
+  'vas',
+] as const;
 export const aiAskRequestSchema = z
   .object({
     section: z.enum(aiAskSections),
@@ -2357,6 +2364,8 @@ export const aiAskRequestSchema = z
     context: z.record(z.string(), z.unknown()),
     // Also read the summarised data of the uploaded revenue / budget workbooks.
     includeWorkbook: z.boolean().optional(),
+    // Also read the portal's overall counts and statuses for this section.
+    includePortalData: z.boolean().optional(),
   })
   .strict();
 export type AiAskRequestInput = z.infer<typeof aiAskRequestSchema>;
