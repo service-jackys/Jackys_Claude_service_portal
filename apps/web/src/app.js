@@ -25479,6 +25479,7 @@ ${bodyHtml}
     appointments: 'ai_ask.appointments',
     job_cards: 'ai_ask.job_cards',
     quotations: 'ai_ask.quotations',
+    inspections: 'ai_ask.inspections',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25500,6 +25501,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    inspections: {
+      hello: 'Ask me about the inspections.',
+      help: 'I can read counts and estimated repair cost totals across all inspections (by review state, quotation raised, age, month, customer type and warranty). I never see names, contacts, projects, sites or findings.',
+      placeholder: 'Ask about unreviewed inspections, repair cost\u2026',
+      dataLabel: 'Also read the overall inspection counts and statuses (all inspections)',
+      chips: [
+        'How many inspections are still waiting for review and for how long?',
+        'How many inspections have no quotation yet?',
+        'How is the estimated repair cost trending by month?',
       ],
     },
     quotations: {
@@ -25640,6 +25652,7 @@ ${bodyHtml}
     if (mode === 'appointments') return 'appointments';
     if (mode === 'job-cards') return 'job_cards';
     if (mode === 'quotations') return 'quotations';
+    if (mode === 'inspections') return 'inspections';
     return '';
   }
 
@@ -25710,6 +25723,18 @@ ${bodyHtml}
               ? 'Ready for Scheduling'
               : document.getElementById('complaintStatusFilter')?.value || 'All',
           complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
+    if (section === 'inspections') {
+      const body = document.getElementById('inspectionsBody');
+      return {
+        title: 'Inspections',
+        context: {
+          statusFilter: document.getElementById('inspectionSearch')?.value ? 'Searched' : 'All',
+          inspectionsListedOnScreen: body
+            ? body.querySelectorAll('[data-inspection-id]').length
+            : 0,
         },
       };
     }

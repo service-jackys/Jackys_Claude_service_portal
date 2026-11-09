@@ -214,6 +214,18 @@ test.describe('Ask AI across the portal', () => {
     expect(asked[0].includePortalData).toBe(true);
   });
 
+  test('the Inspections page can be asked about, with the counts tick box', async ({ page }) => {
+    await signIn(page, ['*']);
+    await page.locator('#inspectionsNav').dispatchEvent('click');
+    await expect(page.locator('[data-ai-launch]')).toBeVisible();
+    await page.locator('[data-ai-launch]').click();
+    await expect(page.locator('[data-ai-wb-row]')).toContainText('inspection counts');
+    await page.locator('[data-ai-ask]').first().click();
+    await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
+    expect(asked[0].section).toBe('inspections');
+    expect(asked[0].includePortalData).toBe(true);
+  });
+
   test('the button follows the permission and the AI being set up', async ({ page }) => {
     // A role that can use the calculators but was not given Ask AI for AMC.
     await signIn(page, ['quote_calculators.use', 'pricing_config.read']);

@@ -31,6 +31,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   appointments: 'ai_ask.appointments',
   job_cards: 'ai_ask.job_cards',
   quotations: 'ai_ask.quotations',
+  inspections: 'ai_ask.inspections',
 };
 
 export function createAiHandlers(
