@@ -5,7 +5,10 @@ import { createServiceJobCardService } from '../../apps/api/src/job-cards/servic
 import { createQuotationService } from '../../apps/api/src/quotations/service.js';
 import { createDbPool } from '../../packages/db/src/client.js';
 import { migrate } from '../../packages/db/src/migrate.js';
-import { quotationsLpoPending } from '../../packages/db/src/quotations.js';
+import {
+  quotationsLpoPending,
+  quotationsLpoPendingByMonth,
+} from '../../packages/db/src/quotations.js';
 
 const databaseUrl = process.env.DATABASE_URL;
 
@@ -93,7 +96,7 @@ test(
       await make('2031-03-25', 'Rejected', 'Pending invoice', 400);
       await make('2031-04-02', 'Approved', 'Pending invoice', 800);
       // Already invoiced: sits inside that month's revenue, so it is not LPO pending.
-      await make('2031-03-27', 'Approved', 'Invoiced', 3200);
+      const invoicedLater = await make('2031-03-27', 'Approved', 'Invoiced', 3200);
       // Has a job card but is not invoiced yet: still LPO pending.
       const withJob = await make('2031-03-28', 'Approved', 'Pending invoice', 1600);
       await jobs.createFromQuotation(withJob.id, {}, profileId as string, `lpo-job-${suffix}`);
@@ -106,6 +109,64 @@ test(
       );
       const year = await lpo({ year: '2031' });
       assert.deepEqual([year.count, year.total], [4, 2700]);
+
+      // Marking Invoiced stamps the invoiced date; setting it back clears it.
+      const stamp = async () =>
+        (
+          await pool.query<{ d: string | null }>(
+            `SELECT invoiced_at::text AS d FROM quotations WHERE id = $1`,
+            [invoicedLater.id],
+          )
+        ).rows[0].d;
+      assert.ok(await stamp(), 'invoiced_at is stamped when created as Invoiced');
+      await pool.query(`UPDATE quotations SET erp_status = 'Pending invoice' WHERE id = $1`, [
+        invoicedLater.id,
+      ]);
+      assert.equal(await stamp(), null);
+      await pool.query(`UPDATE quotations SET erp_status = 'Invoiced' WHERE id = $1`, [
+        invoicedLater.id,
+      ]);
+      assert.ok(await stamp());
+      // Pretend it was invoiced on 10 April 2031: it was still pending at the end of March.
+      await pool.query(`UPDATE quotations SET invoiced_at = '2031-04-10' WHERE id = $1`, [
+        invoicedLater.id,
+      ]);
+      const marchAsOf = await lpo({ year: '2031', month: '3' });
+      assert.deepEqual(
+        [marchAsOf.count, marchAsOf.total, marchAsOf.raisedCount, marchAsOf.carriedCount],
+        [4, 5100, 4, 0],
+      );
+      // April carries forward March's open quotations (100 + 200 + 1600) and adds April's own 800;
+      // the one invoiced on 10 April is no longer pending.
+      const april = await lpo({ year: '2031', month: '4' });
+      assert.deepEqual(
+        [
+          april.count,
+          april.total,
+          april.raisedCount,
+          april.raisedTotal,
+          april.carriedCount,
+          april.carriedTotal,
+        ],
+        [4, 2700, 1, 800, 3, 1900],
+      );
+      const byMonth = (
+        await (async () => {
+          const client = await pool.connect();
+          try {
+            return await quotationsLpoPendingByMonth(client);
+          } finally {
+            client.release();
+          }
+        })()
+      ).filter((m) => m.period === '2031-03' || m.period === '2031-04');
+      assert.deepEqual(
+        byMonth.map((m) => [m.period, m.count, m.total, m.carriedCount]),
+        [
+          ['2031-03', 4, 5100, 0],
+          ['2031-04', 4, 2700, 3],
+        ],
+      );
     } finally {
       if (ids.length) {
         await pool.query('DELETE FROM service_job_cards WHERE quotation_id = ANY($1)', [ids]);

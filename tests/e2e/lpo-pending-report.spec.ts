@@ -47,6 +47,11 @@ test('the Total revenue card shows LPO pending beside, not inside, the revenue f
       return json({
         count: 3,
         total: 12345.5,
+        raisedCount: 1,
+        raisedTotal: 345.5,
+        carriedCount: 2,
+        carriedTotal: 12000,
+        oldestDays: 41,
         byStatus: {
           Pending: { count: 1, total: 345.5 },
           Approved: { count: 2, total: 12000 },
@@ -71,6 +76,9 @@ test('the Total revenue card shows LPO pending beside, not inside, the revenue f
   await expect(card.locator('.rd-lpo')).toContainText('LPO pending');
   await expect(card.locator('.rd-lpo')).toContainText('\u20C3 12,346');
   await expect(card.locator('.rd-lpo')).toContainText('3 quotations (2 approved, 1 pending)');
+  await expect(card.locator('.rd-lpo')).toContainText(
+    '1 raised this month, 2 carried forward (\u20C3 12,000, oldest 41 days)',
+  );
   await expect(card.locator('.rd-lpo')).toContainText('not in revenue');
   expect(lpoQuery).toContain('year=2026');
   // The other cards carry no LPO section.

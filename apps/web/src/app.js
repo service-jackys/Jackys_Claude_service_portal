@@ -24886,7 +24886,7 @@ ${bodyHtml}
           ...(lpo.byStatus.Pending.count ? [`${lpo.byStatus.Pending.count} pending`] : []),
         ];
         lpoHtml =
-          '<div class="rd-lpo" title="Quotations that are Pending or Approved and have no job card yet, by quotation date (excl. VAT). Shown for visibility; it is not counted in revenue.">' +
+          '<div class="rd-lpo" title="Quotations that are Pending or Approved with ERP / ORION status Pending invoice (excl. VAT). A quotation stays here, carried forward month after month, until it is marked Invoiced. Shown for visibility; it is not counted in revenue.">' +
           '<div class="rd-lpo-head"><span>LPO pending</span><strong>\u20C3 ' +
           rdMoney(lpo.total) +
           '</strong></div><div class="rd-lpo-sub">' +
@@ -24896,6 +24896,16 @@ ${bodyHtml}
               (lpo.count === 1 ? '' : 's') +
               (parts.length ? ' (' + parts.join(', ') + ')' : '')
             : 'No quotations waiting') +
+          (lpo.carriedCount
+            ? ' &middot; ' +
+              lpo.raisedCount +
+              ' raised this month, ' +
+              lpo.carriedCount +
+              ' carried forward (\u20C3 ' +
+              rdMoney(lpo.carriedTotal) +
+              (lpo.oldestDays ? ', oldest ' + lpo.oldestDays + ' days' : '') +
+              ')'
+            : '') +
           ' &middot; not invoiced yet, not in revenue</div></div>';
       } catch {
         lpoHtml = '';
@@ -26307,7 +26317,13 @@ ${bodyHtml}
     try {
       const lpoData = await apiRequest('/api/revenue-dashboard/lpo-pending-by-month');
       (lpoData.months || []).forEach((m) => {
-        lpoByPeriod[m.period] = { total: Number(m.total), count: Number(m.count) };
+        lpoByPeriod[m.period] = {
+          total: Number(m.total),
+          count: Number(m.count),
+          carriedCount: Number(m.carriedCount || 0),
+          carriedTotal: Number(m.carriedTotal || 0),
+          oldestDays: Number(m.oldestDays || 0),
+        };
       });
     } catch {
       // The chart still works without it.
@@ -26512,7 +26528,12 @@ ${bodyHtml}
                     ' LPO pending: \u20C3 ' +
                     rdMoney(c.raw) +
                     (lpo
-                      ? ' (' + lpo.count + ' quotation' + (lpo.count === 1 ? '' : 's') + ')'
+                      ? ' (' +
+                        lpo.count +
+                        ' quotation' +
+                        (lpo.count === 1 ? '' : 's') +
+                        (lpo.carriedCount ? ', ' + lpo.carriedCount + ' carried forward' : '') +
+                        ')'
                       : '')
                   );
                 }
@@ -26520,7 +26541,9 @@ ${bodyHtml}
               },
               afterBody: (items) =>
                 items.some((i) => i.datasetIndex === 2)
-                  ? ['Not invoiced yet. Not included in Actual.']
+                  ? [
+                      'Not invoiced yet. Includes quotations carried forward from earlier months. Not included in Actual.',
+                    ]
                   : [],
             },
           },
