@@ -20582,6 +20582,22 @@ ${bodyHtml}
       },
     };
     const locked = () => Boolean(state.job && state.job.status !== 'Draft') || !canWrite;
+    setAskAiProvider('delivery-install', () => ({
+      tab: state.tab,
+      region: state.form.region,
+      jobStatus: state.job ? state.job.status : 'New (not saved)',
+      jobsListFilter: state.list.status || 'All',
+      lines: state.lines.slice(0, 40).map((l) => ({
+        itemCode: l.itemCode,
+        item: l.itemDesc,
+        brand: l.brand,
+        group: l.groupName,
+        type: l.type,
+        qty: Number(l.qty) || 0,
+      })),
+      livePrice: state.priced || null,
+      priceError: state.priceError || '',
+    }));
 
     root.innerHTML =
       '<div class="rcv-banner"><strong>Delivery &amp; Installation</strong><span>Enter the job after it is done — one entry for each ERP delivery note</span></div>' +
@@ -25481,6 +25497,7 @@ ${bodyHtml}
     quotations: 'ai_ask.quotations',
     inspections: 'ai_ask.inspections',
     warranty_approvals: 'ai_ask.warranty_approvals',
+    delivery_install: 'ai_ask.delivery_install',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25502,6 +25519,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    delivery_install: {
+      hello: 'Ask me about the delivery and installation jobs.',
+      help: 'I can read the job being entered (items, activity types, quantities and the live price) and overall counts and revenue across all jobs (by status, month, activity type, region and sales channel). I never see customer names, delivery notes, invoice numbers or notes.',
+      placeholder: 'Ask about this job price, revenue by type\u2026',
+      dataLabel: 'Also read the overall delivery and installation counts and revenue (all jobs)',
+      chips: [
+        'How is the price of this job worked out?',
+        'How many jobs are still in draft, and for how long?',
+        'How does revenue split between CSIDI, CSIDO and CSIII by month?',
       ],
     },
     warranty_approvals: {
@@ -25667,6 +25695,7 @@ ${bodyHtml}
     if (mode === 'quotations') return 'quotations';
     if (mode === 'inspections') return 'inspections';
     if (mode === 'warranty-approvals') return 'warranty_approvals';
+    if (mode === 'delivery-install') return 'delivery_install';
     return '';
   }
 

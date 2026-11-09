@@ -3,6 +3,7 @@ import type { Pool, PoolClient } from 'pg';
 // Ask AI beyond the screen for the operational sections (modification #232+):
 // counts and statuses only, built by the API from the database. Never names,
 // contact details, addresses or free text.
+const NUMERIC_KEYS = new Set(['n', 'value', 'csidi', 'csido', 'csiii']);
 type Rows = Record<string, unknown>[];
 
 async function counts(client: PoolClient, sql: string): Promise<Rows> {
@@ -10,7 +11,7 @@ async function counts(client: PoolClient, sql: string): Promise<Rows> {
   return result.rows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row))
-      out[key] = key === 'n' || key === 'value' ? Number(value) : value;
+      out[key] = NUMERIC_KEYS.has(key) ? Number(value) : value;
     return out;
   });
 }
@@ -304,10 +305,54 @@ async function warrantyApprovals(client: PoolClient) {
   };
 }
 
+async function deliveryInstall(client: PoolClient) {
+  const blank = (col: string, alias: string) =>
+    `COALESCE(NULLIF(${col}, ''), 'Not stated') AS ${alias}`;
+  return {
+    total: (await counts(client, 'SELECT count(*) AS n FROM di_jobs'))[0]?.n ?? 0,
+    byStatus: await counts(
+      client,
+      `SELECT status, count(*) AS n, round(COALESCE(sum(total_revenue), 0)) AS value
+       FROM di_jobs GROUP BY 1 ORDER BY n DESC`,
+    ),
+    draftsByAge: await counts(
+      client,
+      `SELECT CASE
+                WHEN now() - created_at < interval '3 days' THEN '0-2 days'
+                WHEN now() - created_at < interval '8 days' THEN '3-7 days'
+                WHEN now() - created_at < interval '15 days' THEN '8-14 days'
+                ELSE '15+ days' END AS age, count(*) AS n
+       FROM di_jobs WHERE status = 'Draft' GROUP BY 1 ORDER BY min(created_at) DESC`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(service_date, 'YYYY-MM') AS month, count(*) AS n,
+              round(COALESCE(sum(total_csidi), 0)) AS csidi,
+              round(COALESCE(sum(total_csido), 0)) AS csido,
+              round(COALESCE(sum(total_csiii), 0)) AS csiii,
+              round(COALESCE(sum(total_revenue), 0)) AS value
+       FROM di_jobs
+       WHERE status = 'Completed'
+         AND service_date >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    byRegion: await counts(
+      client,
+      `SELECT ${blank('region', 'region')}, count(*) AS n FROM di_jobs GROUP BY 1 ORDER BY n DESC`,
+    ),
+    bySalesChannel: await counts(
+      client,
+      `SELECT ${blank('sales_channel', 'channel')}, count(*) AS n, round(COALESCE(sum(total_revenue), 0)) AS value
+       FROM di_jobs WHERE status = 'Completed' GROUP BY 1 ORDER BY value DESC LIMIT 15`,
+    ),
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
 > = {
+  delivery_install: { read: 'di_jobs.read', build: deliveryInstall },
   complaints: { read: 'complaints.read', build: complaints },
   appointments: { read: 'appointments.read', build: appointments },
   job_cards: { read: 'service_job_card.read', build: jobCards },

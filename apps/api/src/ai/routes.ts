@@ -33,6 +33,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   quotations: 'ai_ask.quotations',
   inspections: 'ai_ask.inspections',
   warranty_approvals: 'ai_ask.warranty_approvals',
+  delivery_install: 'ai_ask.delivery_install',
 };
 
 export function createAiHandlers(
