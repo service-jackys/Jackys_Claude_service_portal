@@ -4735,3 +4735,15 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/078_ai_settings.sql, packages/db/src/ai-settings.ts, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-settings.test.ts, tests/e2e/ai-settings.spec.ts.
 
 **Needs you:** pull, run the database migration, restart the API (set AI_SETTINGS_SECRET in .env first), hard-refresh. Then open AI settings, paste your key and click Test connection.
+
+## Modification #223 — AI settings moved to Admin → Masters
+
+**Date:** 2026-11-09
+
+**Why.** AI settings is not a pricing master, so it did not belong under Pricing Masters.
+
+**What changed.** AI settings is now a tab in Management → Masters (next to Stock master, Customers and Appliances), shown to admins only. It is removed from the Pricing Masters tab strip. Nothing about how it works changed.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/ai-settings.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.
