@@ -55,6 +55,9 @@ const ASK_GUIDE: Record<string, string> = {
   amc:
     'the AMC (annual maintenance contract) quote calculators. ' +
     'Explain how the plan prices were reached, compare plans, point out where the price is capped, discounted or below the minimum margin, and suggest how to improve the quote.',
+  vas:
+    'the VAS (value added service / extended protection plan) quote calculator. ' +
+    'Explain how the plan fee, service fee and claims allowed follow from the selling price and value band, compare the plans, and suggest which plan to offer.',
   complaints:
     'the Complaints list of the service centre. ' +
     'Explain the status mix, ageing and trends, point out what is piling up or unusual (by status, month, region, brand, warranty), and suggest what to follow up first.',
@@ -64,7 +67,7 @@ const ASK_GUIDE: Record<string, string> = {
 };
 
 const PERSONAL_KEY =
-  /customer|client|contact|phone|mobile|e-?mail|address|whatsapp|passport|emirates|owner|assignee|assigned|created_?by|updated_?by|staff|employee|person/i;
+  /customer|client|contact|phone|mobile|e-?mail|address|whatsapp|passport|emirates|owner|assignee|assigned|created_?by|updated_?by|saved_?by|staff|employee|person|location|project_?name/i;
 
 // Defence in depth: the page already leaves personal fields out; this removes
 // any that slipped through and keeps the payload small.

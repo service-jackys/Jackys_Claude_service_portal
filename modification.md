@@ -4897,3 +4897,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/083_ask_ai_complaints_permission.sql, apps/api/src/ai/ops-snapshot.ts (new), apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts (new), tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.complaints` to other roles if wanted.
+
+## Modification #233 — Ask AI on the other quote calculators: VAS, AMC (New and original), and their issued quotes
+
+**Date:** 2026-11-09
+
+**Why.** The Thomson Quote Calculator has an Ask AI on each issued quote. The other calculators should have the same.
+
+**What changed.**
+
+- **Ask AI on each issued quote** in **AMC Issued (New)**, the original AMC Issued (in Admin → Archive) and **VAS Issued**: an **Ask AI** button next to Print opens the chat about that saved quote (reference, status, revision, appliances, plan prices and the figures behind them). "Use this page instead" in the chat header switches back to the page.
+- **VAS Quote Calculator page** now has the Ask AI button too: selling price, value band, every plan's fee, service fee and claims allowed, and the VAS settings.
+- The AMC calculators already had Ask AI on the page (#229). Thomson keeps its own.
+- **Never sent:** client / customer names, contact numbers, e-mails, addresses, locations, project names, and who created or saved a record. This is removed on the page and again by the API.
+- **Permissions:** AMC uses `ai_ask.amc`; VAS uses the new `ai_ask.vas` (migration 084, admin by default, grant it in Roles & permissions). The button is hidden without the permission or when AI is not set up.
+
+**Files.** packages/db/migrations/084_ask_ai_vas_permission.sql, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.

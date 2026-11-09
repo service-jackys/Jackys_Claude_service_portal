@@ -13401,6 +13401,26 @@ ${bodyHtml}
     // the explicit Clear button and automatically once a VAS sale has been
     // saved, so the next customer starts from a blank slate (modification.md
     // #36, issues 1 & 3).
+    setAskAiProvider('vas-calc', () => {
+      if (!orderValueInput.value.trim()) return null;
+      const orderValue = parseNumber(orderValueInput.value);
+      const band =
+        bands.find((b) => orderValue >= b.start && orderValue <= b.end) || bands[bands.length - 1];
+      return {
+        sellingPrice: orderValue,
+        selectedPlan: planSelect.value,
+        valueBand: band.label,
+        plans: VAS_CALC_PLANS.map((p) => ({
+          plan: p.label,
+          planFee: vasCalcFee(p, params, band),
+          serviceFee: String(vasCalcServiceFeeText(p, params, orderValue)),
+          claimsAllowed: params[p.claimsKey],
+          deductible: params[p.deductibleKey] || 0,
+        })),
+        settings: { bands, params },
+      };
+    });
+
     function resetCalculatorInputs() {
       orderValueInput.value = '';
       planSelect.value = VAS_CALC_PLANS[0].key;
@@ -13483,10 +13503,17 @@ ${bodyHtml}
               '<button type="button" class="button button-outline" data-vc-reprint="' +
               escapeHtml(sale.id) +
               '">Print</button>' +
+              askAiAboutButton('vas', sale.id) +
               '</td></tr>',
           )
           .join('') +
         '</tbody></table></div>';
+      host.querySelectorAll('[data-ai-about]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const sale = sales.find((x) => String(x.id) === button.getAttribute('data-ai-about'));
+          if (sale) askAiAbout('VAS sale ' + sale.vasSaleReference, sale);
+        });
+      });
       host.querySelectorAll('[data-vc-reprint]').forEach((button) => {
         button.addEventListener('click', async () => {
           button.disabled = true;
@@ -16138,10 +16165,13 @@ ${bodyHtml}
                     : '<button type="button" class="button button-outline button-sm" disabled data-ac-reprint-locked="' +
                       escapeHtml(c.id) +
                       '" title="The certificate is issued once the customer approves: choose the approved plan and click Sold">Print certificate</button><span class="ac-label" data-ac-cert-hint>Available after Sold</span>') +
+                  askAiAboutButton('amc', c.id) +
                   '</div></div>'
                 : '<div class="ac-group"><div class="ac-row"><button type="button" class="button button-outline button-sm" data-ac-reprint="' +
                   escapeHtml(c.id) +
-                  '">Print</button></div></div>') +
+                  '">Print</button>' +
+                  askAiAboutButton('amc', c.id) +
+                  '</div></div>') +
               (canRevise
                 ? '<div class="ac-group"><span class="ac-label">Manage</span><div class="ac-row">' +
                   (c.status === 'Sold'
@@ -16174,6 +16204,12 @@ ${bodyHtml}
           })
           .join('') +
         '</tbody></table></div><div data-ac-history-panel></div>';
+      host.querySelectorAll('[data-ai-about]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const c = contracts.find((x) => String(x.id) === button.getAttribute('data-ai-about'));
+          if (c) askAiAbout('AMC contract ' + c.amcContractReference, c);
+        });
+      });
       host.querySelectorAll('[data-ac-edit]').forEach((button) => {
         button.addEventListener('click', () => {
           if (onEdit) onEdit(button.getAttribute('data-ac-edit'));
@@ -25438,9 +25474,20 @@ ${bodyHtml}
     masters: 'ai_ask.masters',
     amc: 'ai_ask.amc',
     revenue: 'ai_ask.revenue',
+    vas: 'ai_ask.vas',
     complaints: 'ai_ask.complaints',
   };
   const ASK_AI_COPY = {
+    vas: {
+      hello: 'Ask me about this VAS quote.',
+      help: 'I can read the selling price, value band, plan fees and the settings behind them.',
+      placeholder: 'Ask about plans, fees, bands\u2026',
+      chips: [
+        'Which VAS plan should I offer at this selling price, and why?',
+        'How is the plan fee worked out for this value band?',
+        'What changes between the plans?',
+      ],
+    },
     complaints: {
       hello: 'Ask me about the complaints.',
       help: 'I can read counts and statuses across all complaints (by status, age, month, region, brand and warranty). I never see names, contacts or descriptions.',
@@ -25496,7 +25543,51 @@ ${bodyHtml}
   const askAiProviders = {};
   const askAiRevenueLog = [];
   let askAiStatus = null; // null = not asked yet, then true / false
-  const askAi = { mode: '', section: '', open: false, busy: false, messages: [], root: null };
+  const askAi = {
+    mode: '',
+    section: '',
+    open: false,
+    busy: false,
+    messages: [],
+    root: null,
+    subject: null, // a saved quote the person asked about: { mode, title, context }
+  };
+
+  // Same personal-field rule as the API, applied before anything leaves the page.
+  const ASK_AI_PERSONAL_KEY =
+    /customer|client|contact|phone|mobile|e-?mail|address|whatsapp|passport|emirates|owner|assignee|assigned|created_?by|updated_?by|saved_?by|staff|employee|person|location|project_?name/i;
+  function askAiStrip(value) {
+    if (Array.isArray(value)) return value.map(askAiStrip);
+    if (value && typeof value === 'object') {
+      const out = {};
+      Object.entries(value).forEach(([key, item]) => {
+        if (!ASK_AI_PERSONAL_KEY.test(key)) out[key] = askAiStrip(item);
+      });
+      return out;
+    }
+    return value;
+  }
+
+  function askAiCanAsk(section) {
+    return hasPermission(ASK_AI_PERMISSION[section]) && askAiStatus !== false;
+  }
+
+  // The "Ask AI" button on a saved quote in an Issued list.
+  function askAiAboutButton(section, id) {
+    return askAiCanAsk(section)
+      ? ' <button type="button" class="button button-outline button-sm" data-ai-about="' +
+          escapeHtml(id) +
+          '">Ask AI</button>'
+      : '';
+  }
+
+  // Open the chat about one saved quote instead of the page.
+  function askAiAbout(title, context) {
+    askAiSync(); // first, so a page change is picked up before the subject is set
+    askAi.subject = { mode: workspaceMode, title, context: askAiStrip(context) };
+    askAi.messages = [];
+    askAiOpen();
+  }
 
   function setAskAiProvider(mode, fn) {
     askAiProviders[mode] = fn;
@@ -25505,6 +25596,7 @@ ${bodyHtml}
   function askAiSectionOf(mode) {
     if (PRICING_ADMIN_PAGES[mode]) return 'pricing_admin';
     if (mode === 'amc-calc' || mode === 'amc-calc-v2') return 'amc';
+    if (mode === 'vas-calc') return 'vas';
     if (['revenue-dashboard', 'budget-dashboard', 'budget-variance'].includes(mode))
       return 'revenue';
     if (mode === 'masters') return 'masters';
@@ -25549,6 +25641,8 @@ ${bodyHtml}
   function askAiContext(mode) {
     const section = askAiSectionOf(mode);
     if (!section) return null;
+    if (askAi.subject && askAi.subject.mode === mode)
+      return { title: askAi.subject.title, context: askAi.subject.context };
     if (section === 'pricing_admin') {
       const page = PRICING_ADMIN_PAGES[mode];
       const settings = {};
@@ -25641,6 +25735,11 @@ ${bodyHtml}
     q('[data-ai-panel]').addEventListener('click', (event) => {
       const chip = event.target.closest('[data-ai-ask]');
       if (chip) askAiSend(chip.getAttribute('data-ai-ask'));
+      if (event.target.closest('[data-ai-subject-clear]')) {
+        askAi.subject = null;
+        askAi.messages = [];
+        askAiRender();
+      }
     });
     q('[data-ai-form]').addEventListener('submit', (event) => {
       event.preventDefault();
@@ -25690,7 +25789,11 @@ ${bodyHtml}
     const q = (sel) => wrap.querySelector(sel);
     const copy = ASK_AI_COPY[askAi.section] || ASK_AI_COPY.pricing_admin;
     const info = askAiContext(askAi.mode);
-    q('[data-ai-subject]').textContent = info ? 'About ' + info.title : '';
+    q('[data-ai-subject]').innerHTML =
+      escapeHtml(info ? 'About ' + info.title : '') +
+      (askAi.subject
+        ? ' <button type="button" class="tq-chat-link" data-ai-subject-clear>Use this page instead</button>'
+        : '');
     q('[data-ai-wb-row]').hidden = !(askAi.section === 'revenue' || copy.dataLabel);
     if (copy.dataLabel) q('[data-ai-wb-text]').textContent = copy.dataLabel;
     else
@@ -25838,6 +25941,7 @@ ${bodyHtml}
     askAiEnsure();
     if (mode !== askAi.mode) {
       askAi.mode = mode;
+      askAi.subject = null;
       askAi.section = section;
       askAi.messages = [];
       if (askAi.open) askAiRender();

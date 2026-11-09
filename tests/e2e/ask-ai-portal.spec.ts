@@ -3,6 +3,8 @@ import type { Page } from '@playwright/test';
 import {
   amcPricingDefault,
   amcPricingV2Default,
+  vasPriceBandsDefault,
+  vasPricingParamsDefault,
 } from '../../packages/db/src/pricing-config-defaults.js';
 
 const master = {
@@ -41,6 +43,39 @@ async function signIn(page: Page, permissions: string[], aiOn = true) {
     if (url.pathname === '/api/pricing-config/amc_pricing')
       return json({ payload: amcPricingDefault });
     if (url.pathname === '/api/pricing-config/appliance_master') return json({ payload: master });
+    if (url.pathname === '/api/pricing-config/vas_price_bands')
+      return json({ payload: vasPriceBandsDefault });
+    if (url.pathname === '/api/pricing-config/vas_pricing_params')
+      return json({ payload: vasPricingParamsDefault });
+    if (url.pathname === '/api/amc-contracts' && request.method() === 'GET')
+      return json({
+        amcContracts: [
+          {
+            id: '7',
+            amcContractReference: 'AC-2026-00007',
+            clientName: 'Secret LLC',
+            contactNumber: '0501234567',
+            status: 'Quote',
+            revision: 2,
+            totalCount: 40,
+            plans: [{ planKey: 'standard', planLabel: 'Standard PMC', priceInclVat: 1234.5 }],
+          },
+        ],
+      });
+    if (url.pathname === '/api/vas-sales' && request.method() === 'GET')
+      return json({
+        vasSales: [
+          {
+            id: '3',
+            vasSaleReference: 'VAS-2026-00003',
+            createdAt: '2026-11-09T08:00:00Z',
+            customerName: 'Secret Person',
+            vasProduct: 'Extended Protection',
+            sellingPrice: 2000,
+            planFee: 150,
+          },
+        ],
+      });
     if (url.pathname === '/api/pricing-config/rate_card')
       return json({ payload: { sections: [{ name: 'Delivery', rate: 40 }] } });
     return json({});
@@ -85,6 +120,48 @@ test.describe('Ask AI across the portal', () => {
     await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
     expect(asked[0].section).toBe('pricing_admin');
     expect(asked[0].context.settings.rate_card.sections[0]).toEqual({ name: 'Delivery', rate: 40 });
+  });
+
+  test('a saved AMC quote can be asked about, without the client details', async ({ page }) => {
+    await signIn(page, ['*']);
+    await page.getByRole('button', { name: 'Quote Calculators', exact: true }).click();
+    await page.locator('#amcCalcV2Nav').click();
+    await page.locator('[data-v2-tab="issued"]').click();
+    await page.locator('[data-ai-about="7"]').click();
+    await expect(page.locator('[data-ai-subject]')).toContainText('AMC contract AC-2026-00007');
+    await page.locator('[data-ai-ask]').first().click();
+    await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
+    const sent = JSON.stringify(asked[0]);
+    expect(asked[0].section).toBe('amc');
+    expect(sent).toContain('AC-2026-00007');
+    expect(sent).toContain('Standard PMC');
+    expect(sent).not.toContain('Secret LLC');
+    expect(sent).not.toContain('0501234567');
+    // Back to the page itself.
+    await page.locator('[data-ai-subject-clear]').click();
+    await expect(page.locator('[data-ai-subject]')).not.toContainText('AC-2026-00007');
+  });
+
+  test('the VAS calculator and its issued sales can be asked about', async ({ page }) => {
+    await signIn(page, ['*']);
+    await page.getByRole('button', { name: 'Quote Calculators', exact: true }).click();
+    await page.locator('#vasCalcNav').click();
+    await page.locator('[data-vc-order-value]').fill('2000');
+    await page.locator('[data-ai-launch]').click();
+    await page.locator('[data-ai-ask]').first().click();
+    await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');
+    expect(asked[0].section).toBe('vas');
+    expect(asked[0].context.sellingPrice).toBe(2000);
+    expect(asked[0].context.plans.length).toBeGreaterThan(1);
+
+    await page.locator('[data-ai-close]').click();
+    await page.locator('[data-vc-tab="issued"]').click();
+    await page.locator('[data-ai-about="3"]').click();
+    await page.locator('[data-ai-ask]').first().click();
+    await expect.poll(() => asked.length).toBe(2);
+    expect(asked[1].title).toBe('VAS sale VAS-2026-00003');
+    expect(JSON.stringify(asked[1])).not.toContain('Secret Person');
+    expect(asked[1].context.planFee).toBe(150);
   });
 
   test('the Complaints page can be asked about, with the counts tick box', async ({ page }) => {

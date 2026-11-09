@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 233,
+    "title": "Ask AI on the other quote calculators: VAS, AMC (New and original), and their issued quotes",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Thomson Quote Calculator has an Ask AI on each issued quote. The other calculators should have the same.",
+    "changes": [
+      "Ask AI on each issued quote in AMC Issued (New), the original AMC Issued (in Admin → Archive) and VAS Issued: an Ask AI button next to Print opens the chat about that saved quote (reference, status, revision, appliances, plan prices and…",
+      "VAS Quote Calculator page now has the Ask AI button too: selling price, value band, every plan's fee, service fee and claims allowed, and the VAS settings.",
+      "The AMC calculators already had Ask AI on the page (#229). Thomson keeps its own.",
+      "Never sent: client / customer names, contact numbers, e-mails, addresses, locations, project names, and who created or saved a record. This is removed on the page and again by the API.",
+      "Permissions: AMC uses ai_ask.amc; VAS uses the new ai_ask.vas (migration 084, admin by default, grant it in Roles & permissions). The button is hidden without the permission or when AI is not set up."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
+    "migrations": [
+      "084_ask_ai_vas_permission.sql"
+    ],
+    "files": "packages/db/migrations/084_ask_ai_vas_permission.sql, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js…"
+  },
+  {
     "id": 232,
     "title": "Ask AI on the Complaints pages (counts and statuses only)",
     "area": "Complaints",

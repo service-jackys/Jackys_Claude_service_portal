@@ -26,6 +26,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   masters: 'ai_ask.masters',
   amc: 'ai_ask.amc',
   revenue: 'ai_ask.revenue',
+  vas: 'ai_ask.vas',
   complaints: 'ai_ask.complaints',
 };
 
