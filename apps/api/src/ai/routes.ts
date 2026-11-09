@@ -26,6 +26,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   masters: 'ai_ask.masters',
   amc: 'ai_ask.amc',
   revenue: 'ai_ask.revenue',
+  complaints: 'ai_ask.complaints',
 };
 
 export function createAiHandlers(
@@ -111,6 +112,7 @@ export function createAiHandlers(
             await service.ask(request.body, {
               revenue: has('revenue_dashboard.read'),
               budget: has('revenue_dashboard.budget_actual'),
+              can: has,
             }),
           );
         } catch (error) {

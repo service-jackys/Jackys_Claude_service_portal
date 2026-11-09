@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 232,
+    "title": "Ask AI on the Complaints pages (counts and statuses only)",
+    "area": "Complaints",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "First of the operational sections to get Ask AI (next ones follow one PR each: appointments, job cards, quotations, inspections, warranty approvals).",
+    "changes": [
+      "The Ask AI button now appears on Complaints and Service requests. It knows which filter is on screen and how many rows are listed.",
+      "A tick box Also read the overall complaint counts and statuses (all complaints), on by default, lets the AI answer beyond the 50 rows on screen. The API builds the figures from the database: complaints by status, open complaints by age…",
+      "Never sent: customer names, contact numbers, e-mails, addresses, descriptions, notes, or the search text typed in the list. Complaint references are not needed and are not sent.",
+      "Permissions: new ai_ask.complaints (admin by default; grant it in Roles & permissions). The overall counts also need complaints.read.",
+      "Migration 083 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.complaints to other roles if wanted.",
+    "migrations": [
+      "083_ask_ai_complaints_permission.sql"
+    ],
+    "files": "packages/db/migrations/083_ask_ai_complaints_permission.sql, apps/api/src/ai/ops-snapshot.ts (new), apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 231,
     "title": "Ask AI can read the uploaded Revenue and Budget workbooks, not only the screen",
     "area": "Revenue",
