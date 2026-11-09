@@ -16594,6 +16594,10 @@ ${bodyHtml}
         ) / 100,
       );
     const anySingle = (lineItems || []).some((li) => li.quoteMode === 'single');
+    const sum = (f) => (lineItems || []).reduce((t, li) => t + (Number(f(li)) || 0), 0);
+    const totalsRow = (lineItems || []).length
+      ? `<tfoot><tr><td colspan="2"><strong>Total</strong></td><td class="num"><strong>${sum((li) => li.qty)}</strong></td><td></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.applianceSubtotal))}</strong></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.addonRevenue))}</strong></td><td class="num"><strong>\u20C3 ${money(sum(charged))}</strong></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.totalPrice))}</strong></td></tr></tfoot>`
+      : '';
     const rows = (lineItems || [])
       .map(
         (li) =>
@@ -16602,7 +16606,7 @@ ${bodyHtml}
       .join('');
     return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">${anySingle ? 'Transport &amp; call-out' : 'Transport charged'}</th><th class="num">Total price</th></tr></thead><tbody>${
       rows || '<tr><td colspan="8" style="text-align:center;color:#888;">No lines</td></tr>'
-    }</tbody></table>`;
+    }</tbody>${totalsRow}</table>`;
   }
 
   // Project schedule block on the printed quotation (modification #218).
