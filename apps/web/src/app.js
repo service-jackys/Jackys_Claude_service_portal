@@ -16581,13 +16581,26 @@ ${bodyHtml}
   }
 
   function printThomsonLineItemsTable(lineItems) {
+    // The customer sees what is charged to them, never our internal transport
+    // cost: whatever is in the line total beyond equipment and services.
+    const charged = (li) =>
+      Math.max(
+        0,
+        Math.round(
+          ((Number(li.totalPrice) || 0) -
+            (Number(li.applianceSubtotal) || 0) -
+            (Number(li.addonRevenue) || 0)) *
+            100,
+        ) / 100,
+      );
+    const anySingle = (lineItems || []).some((li) => li.quoteMode === 'single');
     const rows = (lineItems || [])
       .map(
         (li) =>
-          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">\u20C3 ${money(li.unitRate)}</td><td class="num">\u20C3 ${money(li.applianceSubtotal)}</td><td class="num">\u20C3 ${money(li.addonRevenue)}</td><td class="num">\u20C3 ${money(li.transportCost)}</td><td class="num">\u20C3 ${money(li.totalPrice)}</td></tr>`,
+          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">\u20C3 ${money(li.unitRate)}</td><td class="num">\u20C3 ${money(li.applianceSubtotal)}</td><td class="num">\u20C3 ${money(li.addonRevenue)}</td><td class="num">\u20C3 ${money(charged(li))}</td><td class="num">\u20C3 ${money(li.totalPrice)}</td></tr>`,
       )
       .join('');
-    return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">Transport cost</th><th class="num">Total price</th></tr></thead><tbody>${
+    return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">${anySingle ? 'Transport &amp; call-out' : 'Transport charged'}</th><th class="num">Total price</th></tr></thead><tbody>${
       rows || '<tr><td colspan="8" style="text-align:center;color:#888;">No lines</td></tr>'
     }</tbody></table>`;
   }
