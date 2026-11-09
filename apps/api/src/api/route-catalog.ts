@@ -50,6 +50,8 @@ import { createAmcContractHandlers } from '../amc-contracts/routes.js';
 import { createAmcContractService } from '../amc-contracts/service.js';
 import { createRateCardSaleHandlers } from '../rate-card-sales/routes.js';
 import { createRateCardSaleService } from '../rate-card-sales/service.js';
+import { createAiHandlers } from '../ai/routes.js';
+import { createAiService } from '../ai/service.js';
 import { createThomsonSaleHandlers } from '../thomson-sales/routes.js';
 import { createThomsonSaleService } from '../thomson-sales/service.js';
 import { createDailyListHandlers } from '../daily-list/routes.js';
@@ -144,6 +146,8 @@ export type RouteDefinition = {
     | 'amcContractStatus'
     | 'rateCardSale'
     | 'thomsonSale'
+    | 'aiSettings'
+    | 'aiAdvice'
     | 'thomsonSaleStatus'
     | 'warrantyApprovalCreate'
     | 'warrantyApprovalDecision'
@@ -755,6 +759,9 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
       };
+  const aiHandlers = pool
+    ? createAiHandlers(createAiService(pool), requirePermission)
+    : unavailableHandlers(['get', 'save', 'test', 'status', 'advice']);
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
@@ -3003,6 +3010,59 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 401, 403, 404, 500],
         handlers: rateCardSaleHandlers.detail,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/ai-settings',
+        operationId: 'getAiSettings',
+        tags: ['AI'],
+        summary: 'Admin: read the AI provider settings (the API key is never returned)',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: aiHandlers.get,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/ai-settings',
+        operationId: 'saveAiSettings',
+        tags: ['AI'],
+        summary: 'Admin: save the AI provider, model and API key (encrypted at rest)',
+        security: 'bearerAuth' as const,
+        requestBody: 'aiSettings' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: aiHandlers.save,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/ai-settings/test',
+        operationId: 'testAiSettings',
+        tags: ['AI'],
+        summary: 'Admin: test the saved AI connection',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 409, 500],
+        handlers: aiHandlers.test,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/ai-settings/status',
+        operationId: 'getAiStatus',
+        tags: ['AI'],
+        summary: 'Whether AI wording is available for the Smart advice toggle',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: aiHandlers.status,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/thomson-advice',
+        operationId: 'getThomsonAiAdvice',
+        tags: ['AI'],
+        summary:
+          'Word the Thomson Smart advice with the configured AI (figures come from the calculator)',
+        security: 'bearerAuth' as const,
+        requestBody: 'aiAdvice' as const,
+        responses: [200, 400, 401, 403, 409, 502, 500],
+        handlers: aiHandlers.advice,
       },
       {
         method: 'get' as const,

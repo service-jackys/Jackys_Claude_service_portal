@@ -2916,6 +2916,91 @@
         margin: 0;
         color: var(--navy);
       }
+      .tl-chip.is-ai {
+        background: #e4ecff;
+        color: #2446a8;
+      }
+      .tl-ai-text {
+        padding: 0.5rem 0.7rem;
+        border-radius: 8px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+      }
+      .tl-switch {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-weight: 700;
+        cursor: pointer;
+      }
+      .tl-switch input {
+        position: absolute;
+        opacity: 0;
+        width: 1px;
+        height: 1px;
+      }
+      .tl-switch-track {
+        position: relative;
+        width: 2.2rem;
+        height: 1.2rem;
+        border-radius: 999px;
+        background: #c4ced9;
+        transition: background-color 0.15s ease;
+      }
+      .tl-switch-track::after {
+        content: '';
+        position: absolute;
+        top: 0.15rem;
+        left: 0.15rem;
+        width: 0.9rem;
+        height: 0.9rem;
+        border-radius: 50%;
+        background: #fff;
+        box-shadow: 0 1px 2px rgb(0 0 0 / 25%);
+        transition: transform 0.15s ease;
+      }
+      .tl-switch input:checked + .tl-switch-track {
+        background: #2e9e5b;
+      }
+      .tl-switch input:checked + .tl-switch-track::after {
+        transform: translateX(1rem);
+      }
+      .tl-switch input:focus-visible + .tl-switch-track {
+        outline: 2px solid var(--navy);
+        outline-offset: 2px;
+      }
+      /* Admin > AI settings (modification #222). */
+      .ai-admin {
+        display: grid;
+        gap: 0.9rem;
+        max-width: 42rem;
+      }
+      .ai-admin .field-grid {
+        margin: 0;
+      }
+      .ai-admin-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .ai-admin-status {
+        padding: 0.6rem 0.8rem;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+        font-size: 0.85rem;
+      }
+      .ai-admin-status.is-ok {
+        border-color: #b6dfc3;
+        background: #f2fbf5;
+      }
+      .ai-admin-status.is-bad {
+        border-color: #f0c2bd;
+        background: #fff4f3;
       /* Thomson Issued quotes (modification #221): outcome filter + expandable detail. */
       .tq-issued-filter {
         display: flex;
@@ -12816,6 +12901,18 @@
                     <button
                       class="dashboard-link nav-child"
                       type="button"
+                      id="aiAdminNav"
+                      hidden
+                      aria-label="AI settings"
+                      title="AI settings"
+                    >
+                      <svg class="nav-icon" aria-hidden="true"><use href="#icon-cash"></use></svg>
+                      <span class="nav-label">AI settings</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link nav-child"
+                      type="button"
                       id="revenueDashNav"
                       hidden
                       aria-label="Service Revenue Dashboard"
@@ -15338,6 +15435,24 @@
               </div>
             </div>
 
+            <div class="card" id="aiAdminWorkspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Optional. Connects an AI service that can put the Thomson Smart advice into
+                      words. Prices, days and margins are always worked out by the portal; the AI
+                      only writes the sentences. With no key, or if the AI fails, the calculator
+                      shows its own computed advice. The key is stored encrypted and is never shown
+                      again.</span
+                    ></span
+                  >
+                </div>
+                <div class="ai-admin" data-ai-admin></div>
+              </div>
+            </div>
             <div class="card" id="thomsonAdminWorkspace" hidden>
               <div class="card-body">
                 <div class="card-help">

@@ -1,0 +1,156 @@
+import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
+import test from 'node:test';
+import { decryptSecret, encryptSecret } from '../../apps/api/src/ai/crypto.js';
+import { resolveBaseUrl } from '../../apps/api/src/ai/provider.js';
+import { createAiService } from '../../apps/api/src/ai/service.js';
+import { createDbPool } from '../../packages/db/src/client.js';
+import { migrate } from '../../packages/db/src/migrate.js';
+
+const databaseUrl = process.env.DATABASE_URL;
+
+test('the stored key round-trips and a wrong secret cannot read it', () => {
+  const stored = encryptSecret('sk-test-1234567890', 'a-server-secret-of-16-chars');
+  assert.ok(!stored.includes('sk-test'));
+  assert.equal(decryptSecret(stored, 'a-server-secret-of-16-chars'), 'sk-test-1234567890');
+  assert.throws(() => decryptSecret(stored, 'another-secret-16-chars!'));
+});
+
+test('provider addresses: defaults, https only, custom needs one', () => {
+  assert.equal(resolveBaseUrl('anthropic', null), 'https://api.anthropic.com');
+  assert.equal(resolveBaseUrl('openrouter', ''), 'https://openrouter.ai/api/v1');
+  assert.equal(
+    resolveBaseUrl('custom', 'https://gateway.example.com/v1/'),
+    'https://gateway.example.com/v1',
+  );
+  assert.equal(resolveBaseUrl('custom', 'http://localhost:11434/v1'), 'http://localhost:11434/v1');
+  assert.throws(() => resolveBaseUrl('custom', null));
+  assert.throws(() => resolveBaseUrl('custom', 'http://example.com/v1'));
+});
+
+test(
+  'AI settings are saved encrypted, never returned, and used for the Smart advice wording',
+  { skip: !databaseUrl, concurrency: false },
+  async (context) => {
+    try {
+      await migrate();
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ECONNREFUSED') {
+        context.skip('PostgreSQL is not available');
+        return;
+      }
+      throw error;
+    }
+    const pool = createDbPool(databaseUrl);
+    const suffix = randomUUID().slice(0, 8);
+    const calls: { url: string; headers: Record<string, string>; body: any }[] = [];
+    let mode: 'ok' | 'fail' = 'ok';
+    const fakeFetch = (async (url: string, init: any) => {
+      calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
+      if (mode === 'fail')
+        return new Response(JSON.stringify({ error: { message: 'bad key' } }), { status: 401 });
+      const anthropic = String(url).includes('/v1/messages');
+      return new Response(
+        JSON.stringify(
+          anthropic
+            ? { content: [{ type: 'text', text: 'Add one technician.' }] }
+            : { choices: [{ message: { content: 'Add one technician.' } }] },
+        ),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+    const ai = createAiService(pool, {
+      fetchImpl: fakeFetch,
+      secret: 'a-server-secret-of-16-chars',
+    });
+    let profileId: string | undefined;
+    const advice = {
+      projectDays: 13,
+      thresholdDays: 10,
+      workMode: 'continuous' as const,
+      technicians: 2,
+      hoursPerDay: 8,
+      marginPct: 40,
+      minMarginPct: 15,
+      options: [
+        {
+          title: 'Deploy 3 technicians',
+          days: 9,
+          marginChange: 240,
+          marginPct: 42,
+          withinGuard: true,
+        },
+      ],
+    };
+    try {
+      profileId = (
+        await pool.query<{ id: string }>(
+          `INSERT INTO profiles (email, display_name) VALUES ($1, 'AI settings') RETURNING id`,
+          [`ai-settings-${suffix}@example.test`],
+        )
+      ).rows[0].id;
+      // Not configured yet: no wording, and a clear error rather than a crash.
+      await pool.query('DELETE FROM ai_settings');
+      assert.equal((await ai.status()).available, false);
+      await assert.rejects(ai.advise(advice), /not set up/);
+
+      const saved = await ai.save(
+        {
+          provider: 'openrouter',
+          model: 'anthropic/claude-haiku-4.5',
+          enabled: true,
+          apiKey: 'sk-or-secret-123456',
+        },
+        profileId,
+      );
+      assert.equal(saved.hasKey, true);
+      assert.equal(saved.keyHint, '••••3456');
+      assert.ok(!JSON.stringify(saved).includes('sk-or-secret'));
+      const row = await pool.query('SELECT api_key_encrypted FROM ai_settings');
+      assert.ok(!row.rows[0].api_key_encrypted.includes('sk-or-secret'));
+      assert.equal((await ai.status()).available, true);
+
+      const test1 = await ai.test();
+      assert.equal(test1.ok, true);
+      assert.equal(calls[0].url, 'https://openrouter.ai/api/v1/chat/completions');
+      assert.equal(calls[0].headers.authorization, 'Bearer sk-or-secret-123456');
+
+      const wording = await ai.advise(advice);
+      assert.equal(wording.text, 'Add one technician.');
+      assert.equal(calls[1].body.model, 'anthropic/claude-haiku-4.5');
+      assert.ok(JSON.stringify(calls[1].body.messages).includes('Deploy 3 technicians'));
+
+      // Saving again without a key keeps the stored one; switching to Anthropic uses its API shape.
+      await ai.save({ provider: 'anthropic', model: 'claude-haiku-4-5', enabled: true }, profileId);
+      const keep = await ai.advise(advice);
+      assert.equal(keep.text, 'Add one technician.');
+      const last = calls[calls.length - 1];
+      assert.equal(last.url, 'https://api.anthropic.com/v1/messages');
+      assert.equal(last.headers['x-api-key'], 'sk-or-secret-123456');
+
+      // A provider failure is reported, and the test result is remembered.
+      mode = 'fail';
+      await assert.rejects(ai.advise(advice), /401/);
+      const failed = await ai.test();
+      assert.equal(failed.ok, false);
+      assert.equal((await ai.get()).lastTestOk, false);
+
+      // Removing the key turns the wording off.
+      await ai.save(
+        { provider: 'anthropic', model: 'claude-haiku-4-5', enabled: true, apiKey: '' },
+        profileId,
+      );
+      assert.equal((await ai.status()).available, false);
+
+      await assert.rejects(
+        ai.save({ provider: 'custom', model: 'x', enabled: true }, profileId),
+        /base URL/,
+      );
+    } finally {
+      await pool.query('DELETE FROM ai_settings');
+      if (profileId)
+        await pool.query('DELETE FROM profiles WHERE id = $1', [profileId]).catch(() => undefined);
+      await pool.end();
+    }
+  },
+);

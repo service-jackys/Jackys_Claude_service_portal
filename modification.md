@@ -4718,3 +4718,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #222 — Admin → AI settings and optional AI wording of the Thomson Smart advice
+
+**Date:** 2026-11-09
+
+**Why.** The Thomson Smart advice is worked out by the calculator. The company wanted the option of having an AI service put it into words, using a key they can swap later.
+
+**What changed.**
+
+- **New page: Management → Pricing Masters → AI settings (admin only).** Choose the provider (Anthropic Claude, OpenRouter, or Custom for any service with the common chat/completions interface), model, an optional base address (https only) and the API key, switch it on or off, and Test connection. The key is stored encrypted and is never shown again (only its last four characters); Remove key clears it.
+- **Thomson calculator.** When AI is set up, the Smart advice card shows an "AI wording" switch (remembered per browser). With it on, the advice is written by the AI and marked "AI-worded". The days, margins and options are still worked out by the calculator; only the sentences come from the AI. With no key, if the AI is off, or if it fails, the calculator shows its own computed advice and nothing breaks.
+- **New API:** GET/PUT /api/ai-settings, POST /api/ai-settings/test, GET /api/ai-settings/status, POST /api/thomson-advice. New permission ai_settings.manage (admin).
+- **Needs a server secret:** the key is encrypted with AI_SETTINGS_SECRET (at least 16 characters; if it is not set, ATTACHMENT_URL_SECRET is used). Changing that secret later means entering the key again.
+
+**Files.** packages/db/migrations/078_ai_settings.sql, packages/db/src/ai-settings.ts, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-settings.test.ts, tests/e2e/ai-settings.spec.ts.
+
+**Needs you:** pull, run the database migration, restart the API (set AI_SETTINGS_SECRET in .env first), hard-refresh. Then open AI settings, paste your key and click Test connection.

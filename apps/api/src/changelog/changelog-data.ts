@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 222,
+    "title": "Admin → AI settings and optional AI wording of the Thomson Smart advice",
+    "area": "Permissions",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Thomson Smart advice is worked out by the calculator. The company wanted the option of having an AI service put it into words, using a key they can swap later.",
+    "changes": [
+      "New page: Management → Pricing Masters → AI settings (admin only). Choose the provider (Anthropic Claude, OpenRouter, or Custom for any service with the common chat/completions interface), model, an optional base address (https only) and…",
+      "Thomson calculator. When AI is set up, the Smart advice card shows an \"AI wording\" switch (remembered per browser). With it on, the advice is written by the AI and marked \"AI-worded\". The days, margins and options are still worked out by…",
+      "New API: GET/PUT /api/ai-settings, POST /api/ai-settings/test, GET /api/ai-settings/status, POST /api/thomson-advice. New permission ai_settings.manage (admin).",
+      "Needs a server secret: the key is encrypted with AI_SETTINGS_SECRET (at least 16 characters; if it is not set, ATTACHMENT_URL_SECRET is used). Changing that secret later means entering the key again."
+    ],
+    "needsYou": "pull, run the database migration, restart the API (set AI_SETTINGS_SECRET in .env first), hard-refresh. Then open AI settings, paste your key and click Test connection.",
+    "migrations": [
+      "078_ai_settings.sql"
+    ],
+    "files": "packages/db/migrations/078_ai_settings.sql, packages/db/src/ai-settings.ts, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 221,
     "title": "Thomson Issued quotes: status, schedule and outcome like AMC Issued (New)",
     "area": "Pricing & rates",
