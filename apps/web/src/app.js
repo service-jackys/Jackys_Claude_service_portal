@@ -4971,8 +4971,12 @@ ${bodyHtml}
   function renderQuotationTotal(result) {
     const totals = result.totals || { amount: 0, subtotal: 0 };
     const count = result.pagination ? result.pagination.total : (result.quotations || []).length;
-    $('#quotationTotalLabel').textContent =
-      `Total \u20C3 ${money(totals.amount)} incl. VAT (\u20C3 ${money(totals.subtotal)} excl. VAT) \u00B7 ${count} quotation${count === 1 ? '' : 's'}`;
+    const figure = (label, value, main) =>
+      `<div class="list-total-figure${main ? ' is-main' : ''}"><dt>${label}</dt><dd>${value}</dd></div>`;
+    $('#quotationTotalLabel').innerHTML =
+      figure('Total incl. VAT', `\u20C3 ${money(totals.amount)}`, true) +
+      figure('Excl. VAT', `\u20C3 ${money(totals.subtotal)}`) +
+      figure('Quotations', String(count));
   }
 
   async function loadQuotations() {
@@ -23048,6 +23052,32 @@ ${bodyHtml}
     );
   }
 
+  // Preview only: show amounts with the Dirham sign inside an email preview frame. The frame does not
+  // see the page font, so the font rule is copied in. The copied / downloaded email still says "AED",
+  // because the recipient's mail app may not have a font with the new sign.
+  function rdDirhamPreview(html) {
+    let fontRule = '';
+    try {
+      for (const sheet of Array.from(document.styleSheets)) {
+        for (const rule of Array.from(sheet.cssRules || [])) {
+          if (rule.type === CSSRule.FONT_FACE_RULE && /Dirham/.test(rule.cssText))
+            fontRule = rule.cssText;
+        }
+      }
+    } catch {
+      // The sign then falls back to the default font.
+    }
+    const converted = String(html).replace(
+      /\bAED(?=\s*[\d,.])/g,
+      '<span style="font-family:\'Dirham\'">\u20C3</span>',
+    );
+    return fontRule ? `<style>${fontRule}</style>${converted}` : converted;
+  }
+
+  // Plain-language help for Reports > Invoice check (pill hover and the About this view tip).
+  const RD_INVOICE_CHECK_TIP =
+    'Checks every quotation marked Invoiced against the invoice numbers in the master workbook. Found: fine. Not found within 7 days of being marked Invoiced: waiting. Still not found after 7 days: flagged red, as the invoice may not exist in ERP. An amount that differs from the quotation (excl. VAT) by more than 1 is also flagged. Older Invoiced quotations with no invoice number are counted but not checked.';
+
   function rdSection(title, inner, extra) {
     return (
       '<div class="rc-section"><div class="rc-section-head"><span>' +
@@ -24328,11 +24358,7 @@ ${bodyHtml}
       reportBody.innerHTML = rdSection(
         'Invoice check: marked Invoiced, found in master',
         '<div class="card-help rd-pad"><span>About this view</span>' +
-          tipHtml(
-            'Each quotation marked Invoiced carries its ERP / ORION invoice number. This checks that number against the invoice numbers (Inv/Del no.) in the uploaded master workbook. Not found within ' +
-              d.graceDays +
-              ' days of being marked Invoiced is flagged red. Quotations marked Invoiced before the invoice number existed are not checked.',
-          ) +
+          tipHtml(RD_INVOICE_CHECK_TIP) +
           '</div>' +
           (d.hasBatch
             ? ''
@@ -25036,7 +25062,9 @@ ${bodyHtml}
         '<div class="rd-view-pills">' +
         VIEWS.map(
           ([id, name]) =>
-            '<button type="button" class="rd-mpill' +
+            '<button type="button"' +
+            (id === 'invoicecheck' ? ' title="' + RD_INVOICE_CHECK_TIP + '"' : '') +
+            ' class="rd-mpill' +
             (id === reportView ? ' active' : '') +
             '" data-rd-view="' +
             id +
@@ -25146,7 +25174,7 @@ ${bodyHtml}
           const text = await managementSummary(sum);
           emailBuilt = { html, text, subject: 'Service revenue summary - ' + periodLabel() };
           box.hidden = false;
-          body.querySelector('[data-rd-html-frame]').srcdoc = html;
+          body.querySelector('[data-rd-html-frame]').srcdoc = rdDirhamPreview(html);
           box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
           rdLogActivity('email_drafted', 'html-email', periodLabel());
         } catch (error) {

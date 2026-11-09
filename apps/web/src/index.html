@@ -5660,7 +5660,90 @@
         display: none;
       }
       #quotationWorkspace[data-tab='new'] .inbox-tools,
+      /* Total bar under the Created quotations table: ERP / ORION filter on the left, figures on the right. */
+      .list-total-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.75rem 1.5rem;
+        margin-top: 0.75rem;
+        padding: 0.7rem 1rem;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+      .list-total-filter {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+      }
+      .list-total-filter label {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .list-total-filter select {
+        width: auto;
+        min-width: 11rem;
+        min-height: 34px;
+        padding: 0.3rem 2rem 0.3rem 0.65rem;
+        border-radius: 8px;
+        font-size: 0.85rem;
+      }
+      .list-total-figures {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        margin: 0;
+      }
+      .list-total-figure {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+        padding: 0 1.25rem;
+        border-left: 1px solid var(--line);
+      }
+      .list-total-figure:first-child {
+        border-left: 0;
+      }
+      .list-total-figure:last-child {
+        padding-right: 0.25rem;
+      }
+      .list-total-figure dt {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .list-total-figure dd {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+        color: var(--ink);
+      }
+      .list-total-figure.is-main dd {
+        font-size: 1.2rem;
+        color: var(--navy);
+      }
+      @media (max-width: 640px) {
+        .list-total-bar {
+          flex-direction: column;
+          align-items: stretch;
+        }
+        .list-total-figure {
+          padding: 0 0.85rem;
+        }
+        .list-total-figure:first-child {
+          padding-left: 0;
+        }
+      }
       #quotationWorkspace[data-tab='new'] .list-table-wrap,
+      #quotationWorkspace[data-tab='new'] .list-total-bar,
       #quotationWorkspace[data-tab='new'] #quotationsEmpty,
       #quotationWorkspace[data-tab='new'] #quotationDetail,
       #inspectionWorkspace[data-tab='new'] .inbox-tools,
@@ -13716,14 +13799,16 @@
                     <tbody id="quotationsBody"></tbody>
                   </table>
                 </div>
-                <div class="inbox-tools">
-                  <label class="form-note" for="quotationErpFilter">ERP / ORION status</label>
-                  <select id="quotationErpFilter">
-                    <option value="">All quotations</option>
-                    <option value="Invoiced">Invoiced</option>
-                    <option value="Pending invoice">Pending invoice</option>
-                  </select>
-                  <strong id="quotationTotalLabel"></strong>
+                <div class="list-total-bar" id="quotationTotalBar">
+                  <div class="list-total-filter">
+                    <label for="quotationErpFilter">ERP / ORION status</label>
+                    <select id="quotationErpFilter">
+                      <option value="">All quotations</option>
+                      <option value="Invoiced">Invoiced</option>
+                      <option value="Pending invoice">Pending invoice</option>
+                    </select>
+                  </div>
+                  <dl class="list-total-figures" id="quotationTotalLabel" aria-live="polite"></dl>
                 </div>
                 <p class="empty-state" id="quotationsEmpty" hidden>
                   No quotations match the selected filters.
