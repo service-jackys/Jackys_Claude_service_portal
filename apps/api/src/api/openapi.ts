@@ -414,6 +414,10 @@ const requestBodies = {
     required: true,
     content: { 'application/json': { schema: { $ref: '#/components/schemas/AiAdviceRequest' } } },
   },
+  aiAsk: {
+    required: true,
+    content: { 'application/json': { schema: { $ref: '#/components/schemas/AiAskRequest' } } },
+  },
   aiChat: {
     required: true,
     content: { 'application/json': { schema: { $ref: '#/components/schemas/AiChatRequest' } } },
@@ -1544,6 +1548,30 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             model: { type: 'string', minLength: 1, maxLength: 120 },
             enabled: { type: 'boolean' },
             apiKey: { type: 'string', maxLength: 400 },
+          },
+        },
+        AiAskRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['section', 'title', 'messages', 'context'],
+          properties: {
+            section: { type: 'string', enum: ['pricing_admin', 'masters', 'amc', 'revenue'] },
+            title: { type: 'string', maxLength: 120 },
+            messages: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 20,
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                required: ['role', 'content'],
+                properties: {
+                  role: { type: 'string', enum: ['user', 'assistant'] },
+                  content: { type: 'string', minLength: 1, maxLength: 2000 },
+                },
+              },
+            },
+            context: { type: 'object', additionalProperties: true },
           },
         },
         AiChatRequest: {

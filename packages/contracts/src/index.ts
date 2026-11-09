@@ -2335,3 +2335,26 @@ export const aiChatRequestSchema = z
   })
   .strict();
 export type AiChatRequestInput = z.infer<typeof aiChatRequestSchema>;
+
+// Ask AI across the portal (modification #229): the page sends the figures it
+// is showing; the API removes personal fields, caps the size and adds advice.
+export const aiAskSections = ['pricing_admin', 'masters', 'amc', 'revenue'] as const;
+export const aiAskRequestSchema = z
+  .object({
+    section: z.enum(aiAskSections),
+    title: z.string().trim().min(1).max(120),
+    messages: z
+      .array(
+        z
+          .object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string().trim().min(1).max(2000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+    context: z.record(z.string(), z.unknown()),
+  })
+  .strict();
+export type AiAskRequestInput = z.infer<typeof aiAskRequestSchema>;
