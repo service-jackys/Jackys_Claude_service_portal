@@ -104,7 +104,15 @@ export function createAiHandlers(
       },
       async (request, response, next) => {
         try {
-          response.json(await service.ask(request.body));
+          const auth = response.locals.auth as ApplicationAuth;
+          const has = (code: string) =>
+            auth.permissions.includes('*') || auth.permissions.includes(code);
+          response.json(
+            await service.ask(request.body, {
+              revenue: has('revenue_dashboard.read'),
+              budget: has('revenue_dashboard.budget_actual'),
+            }),
+          );
         } catch (error) {
           handleError(error, response, next);
         }
