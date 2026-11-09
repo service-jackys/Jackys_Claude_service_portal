@@ -79,6 +79,9 @@ const ASK_GUIDE: Record<string, string> = {
   delivery_install:
     'the Delivery & Installation jobs (CSIDI delivery + installation, CSIDO delivery only, CSIII installation only) of the service centre. ' +
     'Explain how the job being entered is priced (item lines, activity type, quantity, total per type), how many jobs are draft, completed or cancelled, the revenue by month and type, and the split by region and sales channel, and suggest what to check or follow up.',
+  walk_in:
+    'the Walk-in job card form (a job card opened for a customer at the service counter, with no complaint or appointment) and the walk-in jobs of the service centre. ' +
+    'Explain which details matter on the form (customer type, warranty status, brand and model, who is billed), point out anything that looks missing or inconsistent from the fields given, and explain how many walk-in jobs there are by status, month, brand, warranty and region.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',

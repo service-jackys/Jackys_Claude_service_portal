@@ -348,10 +348,54 @@ async function deliveryInstall(client: PoolClient) {
   };
 }
 
+async function walkIn(client: PoolClient) {
+  const blank = (col: string, alias: string) =>
+    `COALESCE(NULLIF(${col}, ''), 'Not stated') AS ${alias}`;
+  const w = "source_type = 'Walk-in'";
+  return {
+    total:
+      (await counts(client, `SELECT count(*) AS n FROM service_job_cards WHERE ${w}`))[0]?.n ?? 0,
+    today:
+      (
+        await counts(
+          client,
+          `SELECT count(*) AS n FROM service_job_cards WHERE ${w} AND created_at::date = current_date`,
+        )
+      )[0]?.n ?? 0,
+    byJobStatus: await counts(
+      client,
+      `SELECT job_final_status AS status, count(*) AS n FROM service_job_cards WHERE ${w} GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(created_at, 'YYYY-MM') AS month, count(*) AS n FROM service_job_cards
+       WHERE ${w} AND created_at >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    byCustomerType: await counts(
+      client,
+      `SELECT ${blank('customer_type', 'type')}, count(*) AS n FROM service_job_cards WHERE ${w} GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byWarranty: await counts(
+      client,
+      `SELECT ${blank('COALESCE(final_warranty_status, warranty_status)', 'warranty')}, count(*) AS n FROM service_job_cards WHERE ${w} GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byBrand: await counts(
+      client,
+      `SELECT ${blank('brand', 'brand')}, count(*) AS n FROM service_job_cards WHERE ${w} GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+    byRegion: await counts(
+      client,
+      `SELECT ${blank('region', 'region')}, count(*) AS n FROM service_job_cards WHERE ${w} GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
 > = {
+  walk_in: { read: 'service_job_card.read', build: walkIn },
   delivery_install: { read: 'di_jobs.read', build: deliveryInstall },
   complaints: { read: 'complaints.read', build: complaints },
   appointments: { read: 'appointments.read', build: appointments },

@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 240,
+    "title": "Ask AI on the Walk-in job cards page (counts and statuses only)",
+    "area": "Job cards",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Walk-in job cards hold customer details, so the AI gets which fields are filled (not their values for personal fields) and counts only.",
+    "changes": [
+      "Ask AI button on Walk-in job cards (page-level). It reads the filters and rows listed on screen.",
+      "Tick box \"Also read the overall walk-in job card counts and statuses\": the API builds totals (and today) by job status, month, customer type, warranty, brand and region, for walk-in job cards only.",
+      "Never sent: customer names, contacts, e-mails, addresses, serial numbers, the complaint, accessories, condition notes, salesman and technician names.",
+      "Permissions: new ai_ask.walk_in (admin by default; grant it in Roles & permissions). The overall counts also need service_job_card.read.",
+      "Migration 091 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.walk_in to other roles if wanted.",
+    "migrations": [
+      "091_ask_ai_walk_in_permission.sql"
+    ],
+    "files": "packages/db/migrations/091_ask_ai_walk_in_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 239,
     "title": "Ask AI on the Delivery and installation jobs page (counts and statuses only)",
     "area": "Portal look & feel",

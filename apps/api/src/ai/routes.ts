@@ -34,6 +34,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   inspections: 'ai_ask.inspections',
   warranty_approvals: 'ai_ask.warranty_approvals',
   delivery_install: 'ai_ask.delivery_install',
+  walk_in: 'ai_ask.walk_in',
 };
 
 export function createAiHandlers(

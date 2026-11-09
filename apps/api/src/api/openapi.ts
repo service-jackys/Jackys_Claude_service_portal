@@ -1569,6 +1569,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 'inspections',
                 'warranty_approvals',
                 'delivery_install',
+                'walk_in',
                 'vas',
               ],
             },

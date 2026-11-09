@@ -195,6 +195,26 @@ test(
       assert.equal(di.byMonth[di.byMonth.length - 1].value, 350);
       assert.equal(di.draftsByAge[0].n, 1);
       assert.ok(!JSON.stringify(di).includes('Secret'));
+
+      await client.query('DELETE FROM service_job_cards');
+      const addWi = (n: number, jobStatus: string, brand: string) =>
+        client.query(
+          `INSERT INTO service_job_cards (job_card_reference, source_type, customer_name, customer_contact, complaint, job_final_status, brand, customer_type, warranty_status)
+           VALUES ($1, 'Walk-in', 'Secret Person', '0500000000', 'Secret complaint', $2, $3, 'B2C', 'In Warranty')`,
+          ['JBC-2026-0001' + n, jobStatus, brand],
+        );
+      await addWi(1, 'WIP', 'Bosch');
+      await addWi(2, 'WIP', 'Bosch');
+      await addWi(3, 'Spare pending', 'Thomson');
+      const wi = (await buildOpsSnapshot(pool as unknown as Pool, 'walk_in')) as any;
+      assert.equal(wi.total, 3);
+      assert.equal(wi.today, 3);
+      assert.deepEqual(Object.fromEntries(wi.byJobStatus.map((r: any) => [r.status, r.n])), {
+        WIP: 2,
+        'Spare pending': 1,
+      });
+      assert.equal(wi.byBrand[0].brand, 'Bosch');
+      assert.ok(!JSON.stringify(wi).includes('Secret'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();
