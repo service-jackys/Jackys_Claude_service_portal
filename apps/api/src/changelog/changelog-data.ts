@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 219,
+    "title": "Thomson calculator: Quote total panel no longer overlaps or hides under the header",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "On a long quote (the Project timeline tab open) the Quote total panel sat under the page header when scrolling, and could overlap the right edge of the steps.",
+    "changes": [
+      "What changed: The Quote total panel now stays just below the page header and follows the scroll, and the steps column can no longer grow into it. On a short window the panel scrolls inside itself."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change."
+  },
+  {
     "id": 218,
     "title": "Thomson Quote Calculator: Project timeline, phases and Smart advice",
     "area": "Pricing & rates",
