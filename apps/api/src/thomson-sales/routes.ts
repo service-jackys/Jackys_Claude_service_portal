@@ -51,6 +51,28 @@ export function createThomsonSaleHandlers(
         }
       },
     ],
+    setStatus: [
+      requirePermission('thomson_sale.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            thomsonSale: await service.setStatus(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ThomsonSaleServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     detail: [
       requirePermission('thomson_sale.read'),
       async (request, response, next) => {

@@ -31,6 +31,10 @@ export type ThomsonSaleRecord = {
   margin: string;
   contractRef: string | null;
   schedule: ThomsonSaleSchedule | null;
+  status: 'Quote' | 'Sold' | 'Lost';
+  soldDate: string | null;
+  lostReason: string | null;
+  statusChangedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -65,6 +69,10 @@ const columns = `
   margin,
   contract_ref AS "contractRef",
   schedule,
+  status,
+  sold_date::text AS "soldDate",
+  lost_reason AS "lostReason",
+  status_changed_at AS "statusChangedAt",
   created_at AS "createdAt",
   updated_at AS "updatedAt",
   created_by AS "createdBy",
@@ -121,7 +129,7 @@ export async function findThomsonSaleById(
 
 export async function listThomsonSales(
   client: PoolClient,
-  query: { search?: string; page: number; pageSize: number },
+  query: { search?: string; status?: string; page: number; pageSize: number },
 ) {
   const values: unknown[] = [];
   const filters: string[] = [];
@@ -135,6 +143,7 @@ export async function listThomsonSales(
       `(thomson_sale_reference ILIKE ${parameter} OR client_name ILIKE ${parameter} OR contact_number ILIKE ${parameter} OR contract_ref ILIKE ${parameter})`,
     );
   }
+  if (query.status) filters.push(`status = ${add(query.status)}`);
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
   const count = await client.query<{ total: string }>(
     `SELECT count(*)::text AS total FROM thomson_sales ${where}`,
@@ -149,4 +158,38 @@ export async function listThomsonSales(
     values,
   );
   return { items: result.rows, total: Number(count.rows[0].total) };
+}
+
+export type ThomsonSaleStatusChange =
+  | { status: 'Sold'; soldDate: string }
+  | { status: 'Lost'; reason: string | null }
+  | { status: 'Quote' };
+
+export async function changeThomsonSaleStatus(
+  client: PoolClient,
+  id: string,
+  change: ThomsonSaleStatusChange,
+  profileId: string,
+): Promise<ThomsonSaleRecord | null> {
+  const current = await findThomsonSaleById(client, id);
+  if (!current) return null;
+  await client.query(
+    `UPDATE thomson_sales
+     SET status = $2,
+         sold_date = $3::date,
+         lost_reason = $4,
+         status_changed_at = now(),
+         status_changed_by = $5,
+         updated_at = now(),
+         updated_by = $5
+     WHERE id = $1`,
+    [
+      id,
+      change.status,
+      change.status === 'Sold' ? change.soldDate : null,
+      change.status === 'Lost' ? change.reason : null,
+      profileId,
+    ],
+  );
+  return findThomsonSaleById(client, id);
 }

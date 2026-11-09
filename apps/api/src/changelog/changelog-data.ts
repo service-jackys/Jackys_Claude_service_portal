@@ -35,6 +35,28 @@ export const CHANGELOG: ChangelogEntry[] = [
     "files": "packages/db/migrations/078_ai_settings.sql, packages/db/src/ai-settings.ts, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts…"
   },
   {
+    "id": 221,
+    "title": "Thomson Issued quotes: status, schedule and outcome like AMC Issued (New)",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Issued Thomson quotes were a plain table with a Print button. Management needs to see which are still open, which were sold or lost, and the project schedule each was quoted on.",
+    "changes": [
+      "Issued quotes list: each quote shows the reference and date, client and site, type (Project or Single unit) with working days and phases, units and lines, a status chip (Quote, Sold with its date, Lost with the reason), total price and…",
+      "Actions row: Print quotation, and the outcome: pick the sold date and click Sold, or Lost (with an optional reason); Reopen takes a Sold or Lost quote back to Quote.",
+      "Lines and schedule: an expandable section lists the lines, the work method, technicians, working days, waits and the phase table.",
+      "New API: PATCH /api/thomson-sales/{id}/status and a status filter on the list.",
+      "Revenue: unchanged, except that a quote marked Lost is no longer counted in Budget vs Actual (Quote and Sold quotes count as before).",
+      "Not in this change: editing a saved Thomson quote and its History (the AMC revisions feature)."
+    ],
+    "needsYou": "pull, run the database migration, restart the API, hard-refresh.",
+    "migrations": [
+      "077_thomson_sale_status.sql"
+    ],
+    "files": "packages/db/migrations/077_thomson_sale_status.sql, packages/db/src/thomson-sales.ts, packages/db/src/budget-variance.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*…"
+  },
+  {
     "id": 220,
     "title": "Thomson calculator: transport now matches the project days",
     "area": "Pricing & rates",

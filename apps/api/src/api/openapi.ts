@@ -414,6 +414,14 @@ const requestBodies = {
     required: true,
     content: { 'application/json': { schema: { $ref: '#/components/schemas/AiAdviceRequest' } } },
   },
+  thomsonSaleStatus: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ThomsonSaleStatusRequest' },
+      },
+    },
+  },
   thomsonSale: {
     required: true,
     content: {
@@ -1505,6 +1513,16 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                 },
               },
             },
+          },
+        },
+        ThomsonSaleStatusRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['status'],
+          properties: {
+            status: { type: 'string', enum: ['Quote', 'Sold', 'Lost'] },
+            soldDate: { type: 'string', format: 'date' },
+            reason: { type: 'string', minLength: 1, maxLength: 300 },
           },
         },
         ThomsonSaleRequest: {

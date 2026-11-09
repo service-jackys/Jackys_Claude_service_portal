@@ -995,9 +995,21 @@ export const thomsonSaleWriteSchema = z
 export type ThomsonSaleWriteInput = z.infer<typeof thomsonSaleWriteSchema>;
 export type ThomsonSaleLineItemInput = z.infer<typeof thomsonSaleLineItemSchema>;
 
+export const thomsonSaleStatuses = ['Quote', 'Sold', 'Lost'] as const;
+
+// Outcome of an issued Thomson quote (modification #221): Sold (with the date),
+// Lost (with an optional reason), or back to Quote.
+export const thomsonSaleStatusSchema = z.discriminatedUnion('status', [
+  z.object({ status: z.literal('Sold'), soldDate: dateSchema }).strict(),
+  z.object({ status: z.literal('Lost'), reason: optionalText(300) }).strict(),
+  z.object({ status: z.literal('Quote') }).strict(),
+]);
+export type ThomsonSaleStatusInput = z.infer<typeof thomsonSaleStatusSchema>;
+
 export const thomsonSaleListQuerySchema = z
   .object({
     search: z.string().trim().min(1).max(200).optional(),
+    status: z.enum(thomsonSaleStatuses).optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })
