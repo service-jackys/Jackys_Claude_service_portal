@@ -855,6 +855,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        invoiceCheck: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         lpoPendingByMonth: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -3294,6 +3298,17 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.lpoPending,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/invoice-check',
+        operationId: 'getRevenueDashboardInvoiceCheck',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Quotations marked Invoiced checked against the invoice numbers in the active master workbook (grace days from settings)',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.invoiceCheck,
       },
       {
         method: 'get' as const,

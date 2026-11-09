@@ -12,6 +12,7 @@ import {
 import {
   quotationsLpoPending,
   quotationsLpoPendingByMonth,
+  quotationsInvoiceCheck,
 } from '../../../../packages/db/src/quotations.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
@@ -197,6 +198,21 @@ export function createRevenueDashboardService(pool: Pool) {
     const client = await pool.connect();
     try {
       return { months: await quotationsLpoPendingByMonth(client) };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Quotations marked Invoiced against the invoice numbers in the active master workbook.
+  async function invoiceCheck() {
+    const client = await pool.connect();
+    try {
+      const setting = await client.query<{ value: unknown }>(
+        `SELECT value FROM revenue_settings WHERE key = 'invoice_check_grace_days'`,
+      );
+      const days = Number(setting.rows[0]?.value);
+      const graceDays = Number.isFinite(days) && days >= 0 ? days : 7;
+      return await quotationsInvoiceCheck(client, { graceDays });
     } finally {
       client.release();
     }
@@ -551,6 +567,7 @@ export function createRevenueDashboardService(pool: Pool) {
     summary,
     lpoPending,
     lpoPendingByMonth,
+    invoiceCheck,
     lines,
     budget,
     group,

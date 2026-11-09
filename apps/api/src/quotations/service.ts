@@ -44,6 +44,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     b2bBranchSchool: null,
     quotationStatus: 'Pending',
     erpStatus: '',
+    erpInvoiceNo: '',
     products: [],
     parts: [],
     labourAmount: 0,
@@ -75,6 +76,7 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
     b2bBranchSchool: input.b2bBranchSchool ?? base.b2bBranchSchool,
     quotationStatus: input.quotationStatus ?? base.quotationStatus,
     erpStatus: input.erpStatus ?? base.erpStatus,
+    erpInvoiceNo: (input.erpInvoiceNo ?? base.erpInvoiceNo ?? '').trim(),
     products: input.products ?? base.products,
     parts: input.parts ?? base.parts,
     labourAmount: input.labourAmount ?? base.labourAmount,
@@ -94,6 +96,20 @@ function toContent(input: QuotationWriteInput, existing?: QuotationContent): Quo
   if (!merged.erpStatus) {
     throw new z.ZodError([
       { code: 'custom', path: ['erpStatus'], message: 'ERP/ORION status is required.' },
+    ]);
+  }
+  // An Invoiced quotation needs the ERP / ORION invoice number so it can be checked against the
+  // master workbook. A quotation already Invoiced before this rule (blank number) may be edited
+  // without one; clearing the status clears the number.
+  const legacyInvoiced = base.erpStatus === 'Invoiced' && !base.erpInvoiceNo;
+  if (merged.erpStatus !== 'Invoiced') merged.erpInvoiceNo = '';
+  else if (!merged.erpInvoiceNo && !legacyInvoiced) {
+    throw new z.ZodError([
+      {
+        code: 'custom',
+        path: ['erpInvoiceNo'],
+        message: 'The ERP / ORION invoice number is required when the status is Invoiced.',
+      },
     ]);
   }
   // The total is always worked out here from the lines, never taken from the client.
@@ -153,6 +169,7 @@ export function createQuotationService(pool: Pool) {
         b2bBranchSchool: current.b2bBranchSchool,
         quotationStatus: current.quotationStatus,
         erpStatus: current.erpStatus,
+        erpInvoiceNo: current.erpInvoiceNo,
         products: current.products,
         parts: current.parts,
         labourAmount: Number(current.labourAmount),

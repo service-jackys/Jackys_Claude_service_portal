@@ -2503,6 +2503,7 @@
       <div class="field-grid">
         <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
         <div class="field erp-status-field"><label for="${prefix}ErpStatus">ERP / ORION status <span class="required">*</span> ${tipHtml('Whether this quotation has been invoiced in the ERP (ORION). An Invoiced quotation is already inside that month&#39;s revenue, so it is left out of LPO pending on the Reports tab.')}</label><select id="${prefix}ErpStatus" class="erp-status-select" required><option value="">Select status</option><option value="Pending invoice">Pending invoice</option><option value="Invoiced">Invoiced</option></select></div>
+        <div class="field" id="${prefix}ErpInvoiceField" hidden><label for="${prefix}ErpInvoiceNo">ERP / ORION invoice no. <span class="required">*</span> ${tipHtml('The invoice number from ERP (ORION). It is checked against the invoice numbers in the uploaded master workbook, so a quotation marked Invoiced without a real invoice shows up in Reports under Invoice check.')}</label><input type="text" id="${prefix}ErpInvoiceNo" maxlength="60" autocomplete="off"></div>
         <div class="field"><label for="${prefix}CustomerType">Customer type <span class="required">*</span></label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
         <div class="field"><label for="${prefix}B2bBranchSchool">Look up B2B Branch / School ${tipHtml('For a B2B customer, type the school or branch name (or customer code) and pick it from the list. This loads the correct customer name and project.')}</label><input type="text" id="${prefix}B2bBranchSchool" maxlength="300" list="${prefix}BranchList" autocomplete="off"><datalist id="${prefix}BranchList"></datalist><small id="${prefix}BranchHint" class="field-hint" hidden></small></div>
         <div class="field"><label for="${prefix}CustomerName">Customer name</label><input type="text" id="${prefix}CustomerName" maxlength="200"></div>
@@ -2675,10 +2676,13 @@
     select.classList.toggle('erp-unset', !select.value);
     select.classList.toggle('erp-pending', select.value === 'Pending invoice');
     select.classList.toggle('erp-invoiced', select.value === 'Invoiced');
+    const invoiceField = $(`#${prefix}ErpInvoiceField`);
+    if (invoiceField) invoiceField.hidden = select.value !== 'Invoiced';
   }
 
-  function erpStatusChip(value) {
-    if (value === 'Invoiced') return '<span class="erp-chip erp-chip-invoiced">Invoiced</span>';
+  function erpStatusChip(value, invoiceNo) {
+    if (value === 'Invoiced')
+      return `<span class="erp-chip erp-chip-invoiced"${invoiceNo ? ` title="ERP / ORION invoice ${escapeHtml(invoiceNo)}"` : ''}>Invoiced</span>`;
     if (value === 'Pending invoice')
       return '<span class="erp-chip erp-chip-pending">Pending invoice</span>';
     return '<span class="erp-chip erp-chip-pending">Not set</span>';
@@ -2691,6 +2695,11 @@
     if (erp && !erp.value) {
       erp.focus();
       return 'Select the ERP / ORION status (Pending invoice or Invoiced).';
+    }
+    const invoiceNo = $(`#${prefix}ErpInvoiceNo`);
+    if (erp && erp.value === 'Invoiced' && invoiceNo && !invoiceNo.value.trim()) {
+      invoiceNo.focus();
+      return 'Enter the ERP / ORION invoice number for an Invoiced quotation.';
     }
     const type = $(`#${prefix}CustomerType`);
     if (!type.value) {
@@ -3031,6 +3040,7 @@
   function fillQuotationForm(prefix, q) {
     $(`#${prefix}Date`).value = (q.quotationDate || '').slice(0, 10);
     $(`#${prefix}ErpStatus`).value = q.erpStatus || '';
+    $(`#${prefix}ErpInvoiceNo`).value = q.erpInvoiceNo || '';
     syncErpStatusLook(prefix);
     $(`#${prefix}CustomerType`).value = q.customerType || '';
     $(`#${prefix}B2bBranchSchool`).value = q.b2bBranchSchool || '';
@@ -3099,6 +3109,10 @@
     return {
       quotationDate: $(`#${prefix}Date`).value || undefined,
       erpStatus: $(`#${prefix}ErpStatus`).value || undefined,
+      erpInvoiceNo:
+        $(`#${prefix}ErpStatus`).value === 'Invoiced'
+          ? $(`#${prefix}ErpInvoiceNo`).value.trim() || undefined
+          : '',
       customerType: $(`#${prefix}CustomerType`).value || undefined,
       b2bBranchSchool:
         $(`#${prefix}CustomerType`).value === 'B2C'
@@ -4944,7 +4958,7 @@ ${bodyHtml}
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${erpStatusChip(q.erpStatus)}</td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${erpStatusChip(q.erpStatus, q.erpInvoiceNo)}</td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4953,17 +4967,28 @@ ${bodyHtml}
     );
   }
 
+  // Total of every quotation matching the search and the ERP / ORION choice (not only the 50 shown).
+  function renderQuotationTotal(result) {
+    const totals = result.totals || { amount: 0, subtotal: 0 };
+    const count = result.pagination ? result.pagination.total : (result.quotations || []).length;
+    $('#quotationTotalLabel').textContent =
+      `Total \u20C3 ${money(totals.amount)} incl. VAT (\u20C3 ${money(totals.subtotal)} excl. VAT) \u00B7 ${count} quotation${count === 1 ? '' : 's'}`;
+  }
+
   async function loadQuotations() {
     if (!hasPermission('quotation.read')) return;
     clearWorkspaceRecovery();
     const params = new URLSearchParams({ page: '1', pageSize: '50' });
     const search = $('#quotationSearch').value.trim();
     if (search) params.set('search', search);
+    const erpFilter = $('#quotationErpFilter').value;
+    if (erpFilter) params.set('erpStatus', erpFilter);
     $('#quotationsBody').innerHTML =
       '<tr><td colspan="11" class="empty-state">Loading quotations…</td></tr>';
     try {
       const result = await apiRequest('/api/quotations?' + params);
       renderQuotations(result.quotations || []);
+      renderQuotationTotal(result);
     } catch (error) {
       if (error.status === 401) {
         await signOut(false);
@@ -9796,7 +9821,7 @@ ${bodyHtml}
   $('#appointmentPrintSheetsButton').addEventListener('click', () =>
     printAppointmentRange('sheets'),
   );
-  bindLiveFilters(loadQuotations, '#quotationSearch');
+  bindLiveFilters(loadQuotations, '#quotationSearch', ['#quotationErpFilter']);
   bindLiveFilters(loadInspections, '#inspectionSearch');
   bindLiveFilters(loadWarrantyApprovals, '#warrantyApprovalSearch', [
     '#warrantyApprovalStatusFilter',
@@ -24291,6 +24316,79 @@ ${bodyHtml}
       );
     }
 
+    // Quotations marked Invoiced against the invoice numbers in the master workbook.
+    async function drawInvoiceCheck() {
+      const d = await rdApi('invoice-check', {});
+      const c = d.counts;
+      const stateLabel = {
+        missing: 'Not in master',
+        waiting: 'Waiting',
+        matched: 'Amount differs',
+      };
+      reportBody.innerHTML = rdSection(
+        'Invoice check: marked Invoiced, found in master',
+        '<div class="card-help rd-pad"><span>About this view</span>' +
+          tipHtml(
+            'Each quotation marked Invoiced carries its ERP / ORION invoice number. This checks that number against the invoice numbers (Inv/Del no.) in the uploaded master workbook. Not found within ' +
+              d.graceDays +
+              ' days of being marked Invoiced is flagged red. Quotations marked Invoiced before the invoice number existed are not checked.',
+          ) +
+          '</div>' +
+          (d.hasBatch
+            ? ''
+            : '<p class="form-note rd-pad">No master workbook is uploaded yet, so nothing can be matched.</p>') +
+          '<p class="form-note rd-pad">' +
+          c.checked +
+          ' checked &middot; ' +
+          c.matched +
+          ' found in master &middot; ' +
+          c.waiting +
+          ' waiting (within ' +
+          d.graceDays +
+          ' days) &middot; <strong>' +
+          c.missing +
+          ' not in master after ' +
+          d.graceDays +
+          ' days</strong> &middot; ' +
+          c.amountMismatch +
+          ' amount differs' +
+          (d.legacyCount ? ' &middot; ' + d.legacyCount + ' older quotations not checked' : '') +
+          '</p>' +
+          (d.rows.length
+            ? '<div class="table-wrap"><table class="rc-table"><thead><tr><th>Quotation</th><th>Customer</th><th>Invoice no.</th><th>Marked Invoiced</th><th>By</th><th class="num">Days</th><th class="num">Quotation (\u20C3, excl. VAT)</th><th class="num">Master (\u20C3)</th><th>Result</th></tr></thead><tbody>' +
+              d.rows
+                .map(
+                  (r) =>
+                    '<tr><td>' +
+                    escapeHtml(r.reference) +
+                    '</td><td>' +
+                    escapeHtml(r.customer || '') +
+                    '</td><td>' +
+                    escapeHtml(r.invoiceNo) +
+                    '</td><td>' +
+                    escapeHtml(r.invoicedAt || '') +
+                    '</td><td>' +
+                    escapeHtml(r.markedByName || '') +
+                    '</td><td class="num">' +
+                    r.daysSince +
+                    '</td><td class="num">' +
+                    rdMoney2(r.subtotal) +
+                    '</td><td class="num">' +
+                    (r.masterRevenue === null ? '&mdash;' : rdMoney2(r.masterRevenue)) +
+                    '</td><td><i class="rd-dot ' +
+                    (r.state === 'missing' ? 'rd-dot-warn' : 'rd-dot-ok') +
+                    '"></i>' +
+                    (r.state === 'matched'
+                      ? 'Amount differs by \u20C3 ' + rdMoney2(r.difference)
+                      : stateLabel[r.state]) +
+                    '</td></tr>',
+                )
+                .join('') +
+              '</tbody></table></div>'
+            : '<p class="form-note rd-pad">Nothing to review.</p>'),
+      );
+    }
+
     async function drawExceptions() {
       const data = (await rdApi('exceptions', F)).data;
       const rows = data.exceptions;
@@ -24854,6 +24952,7 @@ ${bodyHtml}
           customers: drawCustomers,
           channels: drawChannels,
           exceptions: drawExceptions,
+          invoicecheck: drawInvoiceCheck,
         };
         await views[reportView]();
         rdLogActivity('viewed', 'reports:' + reportView, periodLabel());
@@ -24919,6 +25018,7 @@ ${bodyHtml}
         ['customers', 'Customers'],
         ['channels', 'Channel & sales'],
         ['exceptions', 'Exceptions'],
+        ['invoicecheck', 'Invoice check'],
       ];
       body.innerHTML =
         rdKpis([

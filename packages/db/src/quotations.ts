@@ -19,6 +19,8 @@ export type QuotationRecord = {
   b2bBranchSchool: string | null;
   quotationStatus: string;
   erpStatus: string;
+  erpInvoiceNo: string;
+  invoicedAt: string | null;
   // Units on the quotation, and how many of them already have a service job card.
   unitCount: number;
   jobCardCount: number;
@@ -63,6 +65,7 @@ export type QuotationContent = {
   b2bBranchSchool: string | null;
   quotationStatus: string;
   erpStatus: string;
+  erpInvoiceNo: string;
   products: QuotationUnit[];
   parts: QuotationCharge[];
   labourAmount: number;
@@ -97,6 +100,8 @@ const columns = `
   b2b_branch_school AS "b2bBranchSchool",
   quotation_status AS "quotationStatus",
   erp_status AS "erpStatus",
+  erp_invoice_no AS "erpInvoiceNo",
+  invoiced_at::text AS "invoicedAt",
   jsonb_array_length(products)::int AS "unitCount",
   (CASE
      WHEN EXISTS (SELECT 1 FROM service_job_cards sjc
@@ -144,13 +149,13 @@ export async function insertQuotation(
        technical_diagnosis, products, parts, labour_amount, grand_total,
        prepared_by, prepared_date, approved_by, approved_date, customer_signature, signature_date,
        legacy_reference, warranty_status, created_by, updated_by, vat_rate, subtotal_amount, vat_amount,
-       customer_type, b2b_branch_school, quotation_status, erp_status
+       customer_type, b2b_branch_school, quotation_status, erp_status, erp_invoice_no
      ) VALUES (
        $1, $2, $3, $4, $5,
        $6, $7, $8, $9, $10,
        $11, $12, $13, $14, $15,
        $16, $17, $18, $19, $20, $21,
-       $22, $23, $24, $24, $25, $26, $27, $28, $29, $30, $31
+       $22, $23, $24, $24, $25, $26, $27, $28, $29, $30, $31, $32
      )
      RETURNING id`,
     [
@@ -185,6 +190,7 @@ export async function insertQuotation(
       c.b2bBranchSchool,
       c.quotationStatus,
       c.erpStatus,
+      c.erpInvoiceNo,
     ],
   );
   const quotation = await findQuotationById(client, result.rows[0].id);
@@ -207,7 +213,7 @@ export async function updateQuotation(
          approved_by = $18, approved_date = $19, customer_signature = $20, signature_date = $21,
          legacy_reference = $22, warranty_status = $23, updated_by = $24, updated_at = now(),
          vat_rate = $25, subtotal_amount = $26, vat_amount = $27,
-         customer_type = $28, b2b_branch_school = $29, quotation_status = $30, erp_status = $31
+         customer_type = $28, b2b_branch_school = $29, quotation_status = $30, erp_status = $31, erp_invoice_no = $32
      WHERE id = $1
      RETURNING id`,
     [
@@ -242,6 +248,7 @@ export async function updateQuotation(
       content.b2bBranchSchool,
       content.quotationStatus,
       content.erpStatus,
+      content.erpInvoiceNo,
     ],
   );
   if (!result.rows[0]) return null;
@@ -299,8 +306,11 @@ export async function listQuotations(
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-  const count = await client.query<{ total: string }>(
-    `SELECT count(*)::text AS total FROM quotations ${where}`,
+  // The count and the money total cover every quotation that matches, not only the page shown.
+  const count = await client.query<{ total: string; amount: string; subtotal: string }>(
+    `SELECT count(*)::text AS total, COALESCE(sum(grand_total), 0)::text AS amount,
+            COALESCE(sum(subtotal_amount), 0)::text AS subtotal
+     FROM quotations ${where}`,
     values,
   );
   const limit = add(query.pageSize);
@@ -311,7 +321,12 @@ export async function listQuotations(
      LIMIT ${limit} OFFSET ${offset}`,
     values,
   );
-  return { items: result.rows, total: Number(count.rows[0].total) };
+  return {
+    items: result.rows,
+    total: Number(count.rows[0].total),
+    totalAmount: Math.round(Number(count.rows[0].amount) * 100) / 100,
+    totalSubtotal: Math.round(Number(count.rows[0].subtotal) * 100) / 100,
+  };
 }
 
 // LPO pending: Pending or Approved quotations still waiting to be invoiced in ERP / ORION.
@@ -433,4 +448,77 @@ export async function quotationsLpoPendingByMonth(client: PoolClient) {
     carriedTotal: Math.round((r.total - r.raisedTotal) * 100) / 100,
     oldestDays: r.oldestDays as number,
   }));
+}
+
+// Invoice check: quotations marked Invoiced against the invoice numbers (inv_del_no) in the active
+// master workbook. A quotation with an invoice number is "matched" when that number is in the
+// workbook, "waiting" while it is within the grace days of being marked Invoiced, and "missing"
+// after that. Quotations Invoiced before the invoice number existed are counted as legacy and not
+// checked. matched rows also carry the workbook amount, flagged when it differs from the quotation
+// subtotal (excl. VAT) by more than the tolerance.
+export async function quotationsInvoiceCheck(
+  client: PoolClient,
+  options: { graceDays: number; tolerance?: number },
+) {
+  const tolerance = options.tolerance ?? 1;
+  const result = await client.query(
+    `WITH batch AS (
+       SELECT id FROM revenue_import_batches
+       WHERE kind = 'revenue' AND is_active ORDER BY uploaded_at DESC LIMIT 1
+     ),
+     master AS (
+       SELECT upper(btrim(l.inv_del_no)) AS inv, COALESCE(sum(l.revenue), 0)::float8 AS revenue
+       FROM revenue_lines l JOIN batch b ON b.id = l.batch_id
+       WHERE btrim(COALESCE(l.inv_del_no, '')) <> ''
+       GROUP BY 1
+     )
+     SELECT q.id::text AS "id", q.quotation_reference AS "reference", q.customer_name AS "customer",
+            q.erp_invoice_no AS "invoiceNo", q.subtotal_amount::float8 AS "subtotal",
+            q.invoiced_at::text AS "invoicedAt", q.updated_by::text AS "markedBy",
+            (SELECT p.display_name FROM profiles p WHERE p.id = q.updated_by) AS "markedByName",
+            ((now() AT TIME ZONE 'Asia/Dubai')::date - q.invoiced_at)::int AS "daysSince",
+            m.revenue AS "masterRevenue", (m.inv IS NOT NULL) AS "found",
+            (SELECT count(*) FROM batch)::int AS "hasBatch"
+     FROM quotations q LEFT JOIN master m ON m.inv = upper(btrim(q.erp_invoice_no))
+     WHERE q.erp_status = 'Invoiced' AND q.erp_invoice_no <> ''
+     ORDER BY q.invoiced_at NULLS LAST, q.id`,
+  );
+  const legacy = await client.query<{ n: number }>(
+    `SELECT count(*)::int AS n FROM quotations WHERE erp_status = 'Invoiced' AND erp_invoice_no = ''`,
+  );
+  const hasBatch = result.rows.length ? result.rows[0].hasBatch > 0 : null;
+  const rows = result.rows.map((r) => {
+    const days = r.daysSince ?? 0;
+    let state: 'matched' | 'waiting' | 'missing' = 'matched';
+    if (!r.found) state = days > options.graceDays ? 'missing' : 'waiting';
+    const difference = r.found ? Math.round((r.masterRevenue - r.subtotal) * 100) / 100 : null;
+    return {
+      id: r.id as string,
+      reference: r.reference as string,
+      customer: r.customer as string | null,
+      invoiceNo: r.invoiceNo as string,
+      subtotal: Math.round(r.subtotal * 100) / 100,
+      invoicedAt: r.invoicedAt as string | null,
+      markedByName: r.markedByName as string | null,
+      daysSince: days,
+      state,
+      masterRevenue: r.found ? Math.round(r.masterRevenue * 100) / 100 : null,
+      difference,
+      amountMismatch: difference !== null && Math.abs(difference) > tolerance,
+    };
+  });
+  return {
+    graceDays: options.graceDays,
+    hasBatch: hasBatch ?? true,
+    legacyCount: legacy.rows[0].n,
+    counts: {
+      checked: rows.length,
+      matched: rows.filter((r) => r.state === 'matched').length,
+      waiting: rows.filter((r) => r.state === 'waiting').length,
+      missing: rows.filter((r) => r.state === 'missing').length,
+      amountMismatch: rows.filter((r) => r.amountMismatch).length,
+    },
+    // Only what needs a look: missing, waiting and amount differences.
+    rows: rows.filter((r) => r.state !== 'matched' || r.amountMismatch),
+  };
 }

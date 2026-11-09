@@ -228,6 +228,14 @@ test.describe('quotation customer type, status and job card', () => {
     await expect(page.locator('.q-status-dialog')).toHaveCount(0);
     await page.locator('#qtcErpStatus').selectOption('Invoiced');
     await expect(page.locator('#qtcErpStatus')).toHaveClass(/erp-invoiced/);
+    // An Invoiced quotation also needs the ERP / ORION invoice number.
+    await expect(page.locator('#qtcErpInvoiceNo')).toBeVisible();
+    await page
+      .locator('#quotationCreatePanel')
+      .getByRole('button', { name: 'Save quotation' })
+      .click();
+    await expect(page.locator('#workspaceMessage')).toContainText('invoice number');
+    await page.locator('#qtcErpInvoiceNo').fill('INV-1001');
     await page
       .locator('#quotationCreatePanel')
       .getByRole('button', { name: 'Save quotation' })
@@ -421,5 +429,41 @@ test.describe('quotation list date', () => {
     await expect(page.getByRole('columnheader', { name: 'Project / site' })).toHaveCount(0);
     await expect(page.getByRole('columnheader', { name: 'ERP / ORION' })).toBeVisible();
     await expect(row.locator('.erp-chip-pending')).toHaveText('Pending invoice');
+  });
+
+  test('the list shows the total of the matching quotations and updates when the ERP / ORION choice changes', async ({
+    page,
+  }) => {
+    const queries: string[] = [];
+    await mockPortal(
+      page,
+      {},
+      {
+        handle: async (url, request, json) => {
+          if (url.pathname !== '/api/quotations' || request.method() !== 'GET') return false;
+          queries.push(url.searchParams.get('erpStatus') ?? '');
+          const invoiced = url.searchParams.get('erpStatus') === 'Invoiced';
+          const pending = url.searchParams.get('erpStatus') === 'Pending invoice';
+          const amount = invoiced ? 3465 : pending ? 105 : 3570;
+          const count = invoiced ? 5 : pending ? 1 : 6;
+          await json({
+            quotations: [legacyQuotation],
+            totals: { amount, subtotal: amount / 1.05 },
+            pagination: { page: 1, pageSize: 50, total: count, totalPages: 1 },
+          });
+          return true;
+        },
+      },
+    );
+    const total = page.locator('#quotationTotalLabel');
+    await expect(total).toContainText('3570.00 incl. VAT');
+    await expect(total).toContainText('6 quotations');
+    await page.locator('#quotationErpFilter').selectOption('Invoiced');
+    await expect(total).toContainText('3465.00 incl. VAT');
+    await expect(total).toContainText('5 quotations');
+    await page.locator('#quotationErpFilter').selectOption('Pending invoice');
+    await expect(total).toContainText('105.00 incl. VAT');
+    await expect(total).toContainText('1 quotation');
+    expect(queries).toEqual(['', 'Invoiced', 'Pending invoice']);
   });
 });
