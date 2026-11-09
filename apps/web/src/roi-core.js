@@ -423,6 +423,10 @@
   //   weeks: [{ label, jobs, qty, revenue }],
   //   budget: null | { monthLabel, monthBudget, monthActual, achievement,
   //                    weeks: weeklyBudget(...) result, ytd: { budget, actual } | null },
+  //   lpo: null | { total, count, approved, carriedCount, carriedTotal, oldestDays, asAt,
+  //                 byMonth: [{ label, count, approved, oldestDays, total, isReportMonth }],
+  //                 items: [{ reference, customer, date, status, days, subtotal }], moreCount,
+  //                 invoiceCheck: null | { missing, missingTotal, graceDays } },
   //   source, uploadedAt
   // }
   function summaryRows(data) {
@@ -604,6 +608,175 @@
         );
       }
     }
+    out += lpoRows(data.lpo);
+    return out;
+  }
+
+  // Quotations awaiting invoice (LPO pending), by the month each quotation was created.
+  function lpoRows(l) {
+    if (!l || !l.count) return '';
+    var AMBER = '#b45309';
+    var out = band('Quotations awaiting invoice (LPO pending)', AMBER);
+    var carried =
+      l.approved +
+      ' approved, ' +
+      (l.count - l.approved) +
+      ' pending. ' +
+      (l.carriedCount
+        ? l.carriedCount +
+          ' carried forward from earlier months, the oldest ' +
+          l.oldestDays +
+          ' days'
+        : 'None carried forward from earlier months');
+    out +=
+      '<tr><td align="left" style="padding:14px 24px 0;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>' +
+      kpi('Waiting to be invoiced', 'AED ' + money(l.total)) +
+      kpi('Quotations', String(l.count)) +
+      kpi('Carried forward', l.carriedCount ? 'AED ' + money(l.carriedTotal) : 'None') +
+      '</tr></table></td></tr>';
+    out += note(
+      '<span style="color:' +
+        MUTED +
+        ';font-size:12px;">' +
+        esc(carried) +
+        '. These are quotations still marked Pending invoice in ERP / ORION. They are not in revenue yet and are shown for visibility only.</span>',
+    );
+    var maxValue = 0;
+    l.byMonth.forEach(function (m) {
+      if (m.total > maxValue) maxValue = m.total;
+    });
+    out += wrap(
+      '<tr>' +
+        th('Quotation created') +
+        th('Quotations', { align: 'right' }) +
+        th('Approved', { align: 'right' }) +
+        th('Pending', { align: 'right' }) +
+        th('Oldest', { align: 'right' }) +
+        th('Value (excl. VAT)', { align: 'right' }) +
+        '</tr>' +
+        l.byMonth
+          .map(function (m) {
+            var old = m.oldestDays > 30;
+            return (
+              '<tr>' +
+              td(
+                '<strong>' +
+                  esc(m.label) +
+                  '</strong>' +
+                  (m.isReportMonth
+                    ? ' <span style="color:' + MUTED + ';">(this month)</span>'
+                    : ''),
+              ) +
+              td(String(m.count), { align: 'right' }) +
+              td(String(m.approved), { align: 'right' }) +
+              td(String(m.count - m.approved), { align: 'right' }) +
+              td(m.oldestDays + ' days', {
+                align: 'right',
+                style: 'color:' + (old ? RED : INK) + ';' + (old ? 'font-weight:600;' : ''),
+              }) +
+              td('AED ' + money(m.total), { align: 'right', style: 'font-weight:600;' }) +
+              '</tr>'
+            );
+          })
+          .join('') +
+        '<tr>' +
+        td('<strong>Total</strong>', { style: 'border-top:1px solid #9aa4b2;' }) +
+        td('<strong>' + l.count + '</strong>', {
+          align: 'right',
+          style: 'border-top:1px solid #9aa4b2;',
+        }) +
+        td('<strong>' + l.approved + '</strong>', {
+          align: 'right',
+          style: 'border-top:1px solid #9aa4b2;',
+        }) +
+        td('<strong>' + (l.count - l.approved) + '</strong>', {
+          align: 'right',
+          style: 'border-top:1px solid #9aa4b2;',
+        }) +
+        td('', { align: 'right', style: 'border-top:1px solid #9aa4b2;' }) +
+        td('<strong>AED ' + money(l.total) + '</strong>', {
+          align: 'right',
+          style: 'border-top:1px solid #9aa4b2;',
+        }) +
+        '</tr>',
+    );
+    out +=
+      '<tr><td align="left" style="padding:14px 28px 0;' +
+      FONT +
+      'font-size:12px;font-weight:600;color:' +
+      NAVY +
+      ';">Quotations to follow up (oldest first)</td></tr>';
+    out += wrap(
+      '<tr>' +
+        th('Quotation') +
+        th('Customer') +
+        th('Created') +
+        th('Status') +
+        th('Age', { align: 'right' }) +
+        th('Value (excl. VAT)', { align: 'right' }) +
+        '</tr>' +
+        l.items
+          .map(function (q) {
+            var old = q.days > 30;
+            return (
+              '<tr>' +
+              td('<strong>' + esc(q.reference) + '</strong>') +
+              td(esc(q.customer)) +
+              td(esc(formatShortDate(q.date)) + ' ' + q.date.slice(0, 4)) +
+              td(
+                pill(
+                  q.status,
+                  q.status === 'Approved' ? '#14532d' : '#7c2d12',
+                  q.status === 'Approved' ? '#dcfce7' : '#ffedd5',
+                ),
+              ) +
+              td(q.days + ' days', {
+                align: 'right',
+                style: 'color:' + (old ? RED : INK) + ';' + (old ? 'font-weight:600;' : ''),
+              }) +
+              td('AED ' + money(q.subtotal), { align: 'right', style: 'font-weight:600;' }) +
+              '</tr>'
+            );
+          })
+          .join(''),
+    );
+    if (l.moreCount)
+      out += note(
+        '<span style="color:' +
+          MUTED +
+          ';">+ ' +
+          l.moreCount +
+          ' more quotations, see Reports &rsaquo; Total revenue &rsaquo; LPO pending.</span>',
+      );
+    var c = l.invoiceCheck;
+    if (c) {
+      out += note(
+        c.missing
+          ? '<strong style="color:' +
+              RED +
+              ';">Invoice check:</strong> ' +
+              c.missing +
+              ' quotation' +
+              (c.missing === 1 ? '' : 's') +
+              ' marked Invoiced ' +
+              (c.missing === 1 ? 'is' : 'are') +
+              ' not found in the master workbook after ' +
+              c.graceDays +
+              ' days (AED ' +
+              money(c.missingTotal) +
+              '). Please confirm the invoice exists in ERP.'
+          : '<strong style="color:' +
+              GREEN +
+              ';">Invoice check:</strong> every quotation marked Invoiced is found in the master workbook.',
+      );
+    }
+    out += note(
+      '<span style="color:' +
+        MUTED +
+        ';font-size:11px;">Position as at ' +
+        esc(l.asAt) +
+        '. Quotations stay here, month after month, until they are marked Invoiced.</span>',
+    );
     return out;
   }
 
@@ -760,6 +933,74 @@
           );
         });
       }
+    }
+    var l = s && s.lpo;
+    if (l && l.count) {
+      out.push('', 'QUOTATIONS AWAITING INVOICE (LPO PENDING), as at ' + l.asAt);
+      out.push(
+        '  Waiting to be invoiced: AED ' +
+          money(l.total) +
+          ' | Quotations: ' +
+          l.count +
+          ' (' +
+          l.approved +
+          ' approved, ' +
+          (l.count - l.approved) +
+          ' pending)' +
+          (l.carriedCount
+            ? ' | Carried forward: ' +
+              l.carriedCount +
+              ', AED ' +
+              money(l.carriedTotal) +
+              ', oldest ' +
+              l.oldestDays +
+              ' days'
+            : ''),
+      );
+      l.byMonth.forEach(function (m) {
+        out.push(
+          '  - Created ' +
+            m.label +
+            ': ' +
+            m.count +
+            ' quotations (' +
+            m.approved +
+            ' approved), oldest ' +
+            m.oldestDays +
+            ' days, AED ' +
+            money(m.total),
+        );
+      });
+      out.push('  To follow up (oldest first):');
+      l.items.forEach(function (q) {
+        out.push(
+          '  - ' +
+            q.reference +
+            ' ' +
+            line(q.customer || '') +
+            ', ' +
+            q.date +
+            ', ' +
+            q.status +
+            ', ' +
+            q.days +
+            ' days, AED ' +
+            money(q.subtotal),
+        );
+      });
+      if (l.moreCount) out.push('  + ' + l.moreCount + ' more quotations.');
+      if (l.invoiceCheck && l.invoiceCheck.missing) {
+        out.push(
+          '  Invoice check: ' +
+            l.invoiceCheck.missing +
+            ' quotation(s) marked Invoiced not found in the master workbook after ' +
+            l.invoiceCheck.graceDays +
+            ' days (AED ' +
+            money(l.invoiceCheck.missingTotal) +
+            ').',
+        );
+      }
+      out.push('  Not in revenue yet; information only.');
     }
     out.push('', 'OBJECTIVE');
     if (!g.objectives.length) out.push('  No open objectives.');

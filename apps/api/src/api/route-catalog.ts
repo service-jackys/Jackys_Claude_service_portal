@@ -859,6 +859,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        lpoPendingDetail: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         lpoPendingByMonth: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -3309,6 +3313,18 @@ export function createRouteCatalog(
         security: 'bearerAuth' as const,
         responses: [200, 401, 403, 500],
         handlers: revenueDashboardHandlers.invoiceCheck,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/lpo-pending-detail',
+        operationId: 'getRevenueDashboardLpoPendingDetail',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'LPO pending for the selected month with the by-created-month breakdown and the oldest quotations to follow up (for the weekly ROI)',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.lpoPendingDetail,
       },
       {
         method: 'get' as const,

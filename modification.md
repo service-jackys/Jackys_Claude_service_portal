@@ -4619,7 +4619,7 @@ Display only; no pricing formulas, API or database changes.
 - **Invoice check (Reports, new pill):** each Invoiced quotation's invoice number is matched against the invoice numbers (Inv/Del no.) in the active master workbook. Not found within 7 days of being marked Invoiced is flagged red; within 7 days it shows as waiting; an amount that differs from the quotation subtotal (excl. VAT) by more than 1 is flagged. Older Invoiced quotations with no number are counted as not checked. The 7 days is the `invoice_check_grace_days` setting.
 - **Quotations list total:** under the Created quotations table, a selector (All quotations / Invoiced / Pending invoice) filters the list and shows the total of every matching quotation (incl. and excl. VAT, and the count), not just the 50 on screen. No styling changed.
 
-**Files.** packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/*, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests (quotation-invoice-check, quotation-lpo-pending, quotation-units, lpo-pending-report).
+**Files.** packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/_, apps/api/src/revenue-dashboard/_, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests (quotation-invoice-check, quotation-lpo-pending, quotation-units, lpo-pending-report).
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Upload the master workbook as usual; the Invoice check reads the active upload.
 
@@ -4638,3 +4638,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/index.html, apps/web/src/app.js, apps/web/src/tasks.js, tests/e2e/quotation-units.spec.ts, tests/e2e/lpo-pending-report.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #217 — Send ROI: LPO pending block under the Management Summary
+
+**Date:** 2026-11-09
+
+**Why.** Management should see which quotations are still waiting to be invoiced, how long they have waited, and which month they came from, in the weekly ROI itself.
+
+**What changed.** The ROI Management Summary now ends with "Quotations awaiting invoice (LPO pending)" for the month the ROI week falls in:
+
+- **Tiles:** waiting to be invoiced (AED, excl. VAT), number of quotations, and the amount carried forward from earlier months.
+- **By the month the quotation was created:** quotations, approved, pending, oldest age (red over 30 days) and value, with a total.
+- **Quotations to follow up:** the oldest 8 (reference, customer, created date, status, age, value), then "+ n more".
+- **Invoice check:** quotations marked Invoiced that are not in the master workbook after 7 days (red) or "all found" (green).
+- Same figures in the plain-text version. Left out when nothing is pending. The preview shows the Dirham sign; the email text keeps AED.
+
+**Files.** packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts (new GET /api/revenue-dashboard/lpo-pending-detail), apps/web/src/roi-core.js, apps/web/src/app.js, tests (roi-core unit, quotation-lpo-pending integration, roi-lpo-section e2e). No database change.
+
+**Needs you:** pull, restart the API, hard-refresh, open Send ROI.

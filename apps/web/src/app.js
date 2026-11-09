@@ -17618,6 +17618,46 @@ ${bodyHtml}
 
   // Management Summary for the month the ROI week ends in: month totals, revenue
   // by job type, the weekly table, and budget achievement when a budget exists.
+  // LPO pending block of the Management Summary: quotations still waiting to be invoiced, by the
+  // month they were created, the oldest ones to follow up, and the Invoiced-but-not-in-master count.
+  // Never stops the summary: without it the block is simply left out.
+  async function roiLpoData(year, month, period) {
+    try {
+      const [lpo, check] = await Promise.all([
+        rdApi('lpo-pending-detail', { year, month }),
+        rdApi('invoice-check', {}).catch(() => null),
+      ]);
+      if (!lpo.count) return null;
+      const missingRows = check ? check.rows.filter((r) => r.state === 'missing') : [];
+      return {
+        total: lpo.total,
+        count: lpo.count,
+        approved: lpo.byStatus.Approved.count,
+        carriedCount: lpo.carriedCount,
+        carriedTotal: lpo.carriedTotal,
+        oldestDays: lpo.oldestDays,
+        asAt: JdRoi.formatRoiDate(lpo.asAt),
+        byMonth: lpo.byMonth.map((m) => ({
+          ...m,
+          label: RD_MONTHS_FULL[Number(m.period.slice(5, 7)) - 1] + ' ' + m.period.slice(0, 4),
+          isReportMonth: m.period === period,
+        })),
+        items: lpo.items,
+        moreCount: lpo.moreCount,
+        invoiceCheck:
+          check && check.hasBatch
+            ? {
+                missing: check.counts.missing,
+                missingTotal: missingRows.reduce((sum, r) => sum + r.subtotal, 0),
+                graceDays: check.graceDays,
+              }
+            : null,
+      };
+    } catch {
+      return null;
+    }
+  }
+
   async function roiSummaryData(week) {
     if (!hasPermission('revenue_dashboard.read')) {
       return { data: null, reason: 'No Service Revenue access' };
@@ -17656,6 +17696,7 @@ ${bodyHtml}
         budget: null,
         source: byType.batch.fileName,
       };
+      data.lpo = await roiLpoData(year, month, period);
       if (budget && budget.budgetBatch) {
         const lines = new Map();
         budget.budget.forEach((row) => {

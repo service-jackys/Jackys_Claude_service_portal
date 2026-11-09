@@ -337,10 +337,7 @@ export async function listQuotations(
 // and never counts). With only a year, or no filter, it is what is open now. Quotation status
 // Rejected is left out. The value is the subtotal excluding VAT. It is shown to management as
 // visibility only and is never added to revenue.
-export async function quotationsLpoPending(
-  client: PoolClient,
-  filter: { year?: string; month?: string },
-) {
+function lpoScope(filter: { year?: string; month?: string }) {
   const values: unknown[] = [];
   const where = [`quotation_status IN ('Pending', 'Approved')`];
   let raisedExpr = 'TRUE';
@@ -366,6 +363,14 @@ export async function quotationsLpoPending(
       where.push(`EXTRACT(MONTH FROM quotation_date) = $${values.length}`);
     }
   }
+  return { values, where, raisedExpr, asOfExpr };
+}
+
+export async function quotationsLpoPending(
+  client: PoolClient,
+  filter: { year?: string; month?: string },
+) {
+  const { values, where, raisedExpr, asOfExpr } = lpoScope(filter);
   const result = await client.query(
     `SELECT quotation_status AS "status", count(*)::int AS "count",
             COALESCE(sum(subtotal_amount), 0)::float8 AS "total",
@@ -400,6 +405,53 @@ export async function quotationsLpoPending(
     carriedCount: count - raisedCount,
     carriedTotal: round2(total - raisedTotal),
     oldestDays: count - raisedCount > 0 ? oldestDays : 0,
+  };
+}
+
+// The date the LPO pending position is as at: the end of the chosen month, or today if that is earlier.
+function lpoAsAt(filter: { year?: string; month?: string }) {
+  const today = new Date(Date.now() + 4 * 3600000).toISOString().slice(0, 10);
+  if (!(filter.year && filter.month)) return today;
+  const end = new Date(Date.UTC(Number(filter.year), Number(filter.month), 0))
+    .toISOString()
+    .slice(0, 10);
+  return end < today ? end : today;
+}
+
+// LPO pending in detail, for the Management summary of the weekly ROI: the same position as
+// quotationsLpoPending, broken down by the month each quotation was created, plus the oldest
+// quotations to follow up (up to `limit`; moreCount is how many more there are).
+export async function quotationsLpoPendingDetail(
+  client: PoolClient,
+  filter: { year?: string; month?: string },
+  limit = 8,
+) {
+  const summary = await quotationsLpoPending(client, filter);
+  const { values, where, asOfExpr } = lpoScope(filter);
+  const byMonth = await client.query(
+    `SELECT to_char(quotation_date, 'YYYY-MM') AS "period", count(*)::int AS "count",
+            count(*) FILTER (WHERE quotation_status = 'Approved')::int AS "approved",
+            COALESCE(sum(subtotal_amount), 0)::float8 AS "total",
+            GREATEST(max(${asOfExpr} - quotation_date), 0)::int AS "oldestDays"
+     FROM quotations WHERE ${where.join(' AND ')} AND quotation_date IS NOT NULL
+     GROUP BY 1 ORDER BY 1`,
+    values,
+  );
+  const items = await client.query(
+    `SELECT quotation_reference AS "reference", customer_name AS "customer",
+            quotation_date::text AS "date", quotation_status AS "status",
+            GREATEST(${asOfExpr} - quotation_date, 0)::int AS "days",
+            COALESCE(subtotal_amount, 0)::float8 AS "subtotal"
+     FROM quotations WHERE ${where.join(' AND ')} AND quotation_date IS NOT NULL
+     ORDER BY quotation_date, id LIMIT ${Math.max(1, Math.floor(limit))}`,
+    values,
+  );
+  return {
+    ...summary,
+    asAt: lpoAsAt(filter),
+    byMonth: byMonth.rows.map((r) => ({ ...r, total: Math.round(r.total * 100) / 100 })),
+    items: items.rows.map((r) => ({ ...r, subtotal: Math.round(r.subtotal * 100) / 100 })),
+    moreCount: Math.max(0, summary.count - items.rows.length),
   };
 }
 
