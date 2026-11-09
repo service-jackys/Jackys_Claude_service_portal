@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 231,
+    "title": "Ask AI can read the uploaded Revenue and Budget workbooks, not only the screen",
+    "area": "Revenue",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Ask AI on the Revenue and Budget pages only saw what was on screen. Questions about other months, streams or last year's budget need the uploaded workbook data.",
+    "changes": [
+      "On Service Revenue Dashboard, Budget vs Actual and Budget Variance, the Ask AI panel has a tick box Also read the uploaded workbook data (all periods, summarised), on by default.",
+      "When ticked, the API itself builds a summary from the workbooks already uploaded to the portal: revenue by month, job type, sales channel, cost status and job status with totals, and the budget by stream and month with actual revenue by…",
+      "Permissions apply: the revenue part needs revenue_dashboard.read, the budget part needs revenue_dashboard.budget_actual; a person without them gets only what is on screen.",
+      "Never sent: customers, sales people and individual lines. The original .xlsx file is not read; the AI uses the parsed data the portal stores.",
+      "Other sections (Masters, pricing, AMC) are unchanged."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh.",
+    "migrations": [],
+    "files": "apps/api/src/ai/workbook.ts (new), apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html…"
+  },
+  {
     "id": 230,
     "title": "Admin → Archive: the original AMC Quote Calculator and AMC Admin Rates",
     "area": "Permissions",

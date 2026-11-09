@@ -1572,6 +1572,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
               },
             },
             context: { type: 'object', additionalProperties: true },
+            includeWorkbook: { type: 'boolean' },
           },
         },
         AiChatRequest: {

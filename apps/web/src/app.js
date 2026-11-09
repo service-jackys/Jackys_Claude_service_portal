@@ -25472,7 +25472,7 @@ ${bodyHtml}
     },
     revenue: {
       hello: 'Ask me about these revenue and budget figures.',
-      help: 'I can read the figures shown, compare them with budget and explain gaps.',
+      help: 'I can read the figures shown and, when ticked below, the uploaded Revenue and Budget workbooks for every period, then compare with budget and explain gaps.',
       placeholder: 'Ask about revenue, budget, variance…',
       chips: [
         'Where are we behind budget and by how much?',
@@ -25595,7 +25595,8 @@ ${bodyHtml}
       '<textarea rows="1" maxlength="1000" data-ai-input aria-label="Your question"></textarea>' +
       '<button type="submit" class="tq-chat-send" data-ai-send aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.2-7.3L3 11.5z" fill="currentColor"/></svg></button>' +
       '</form>' +
-      '<p class="tq-chat-foot">AI can make mistakes and cannot change anything. It only sees the figures on this page, never customer or staff names or contact details.</p>' +
+      '<label class="tq-chat-wb" data-ai-wb-row hidden><input type="checkbox" data-ai-wb checked /> <span>Also read the uploaded workbook data (all periods, summarised)</span></label>' +
+      '<p class="tq-chat-foot">AI can make mistakes and cannot change anything. It only sees figures, never customer or staff names or contact details.</p>' +
       '</section>';
     document.body.appendChild(wrap);
     askAi.root = wrap;
@@ -25663,6 +25664,7 @@ ${bodyHtml}
     const copy = ASK_AI_COPY[askAi.section] || ASK_AI_COPY.pricing_admin;
     const info = askAiContext(askAi.mode);
     q('[data-ai-subject]').textContent = info ? 'About ' + info.title : '';
+    q('[data-ai-wb-row]').hidden = askAi.section !== 'revenue';
     q('[data-ai-input]').placeholder = copy.placeholder;
     const empty = !askAi.messages.length;
     q('[data-ai-body]').innerHTML = empty
@@ -25749,6 +25751,8 @@ ${bodyHtml}
           title: info.title,
           messages: turns,
           context: info.context,
+          includeWorkbook:
+            askAi.section === 'revenue' && askAi.root.querySelector('[data-ai-wb]').checked,
         }),
       });
       askAi.messages.push({ role: 'assistant', content: reply.text || '' });

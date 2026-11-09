@@ -4861,3 +4861,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/082_archive_permission.sql, apps/web/src/app.js, apps/web/src/index.html, tests/e2e/archive.spec.ts (new), tests/e2e/amc-*.spec.ts and permissions-flat-rates.spec.ts (open the archived pages directly).
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
+## Modification #231 — Ask AI can read the uploaded Revenue and Budget workbooks, not only the screen
+
+**Date:** 2026-11-09
+
+**Why.** The Ask AI on the Revenue and Budget pages only saw what was on screen. Questions about other months, streams or last year's budget need the uploaded workbook data.
+
+**What changed.**
+
+- On Service Revenue Dashboard, Budget vs Actual and Budget Variance, the Ask AI panel has a tick box **Also read the uploaded workbook data (all periods, summarised)**, on by default.
+- When ticked, the API itself builds a summary from the workbooks already uploaded to the portal: revenue by month, job type, sales channel, cost status and job status with totals, and the budget by stream and month with actual revenue by month. The browser cannot choose what is read.
+- **Permissions apply:** the revenue part needs `revenue_dashboard.read`, the budget part needs `revenue_dashboard.budget_actual`; a person without them gets only what is on screen.
+- **Never sent:** customers, sales people and individual lines. The original .xlsx file is not read; the AI uses the parsed data the portal stores.
+- Other sections (Masters, pricing, AMC) are unchanged.
+
+**Files.** apps/api/src/ai/workbook.ts (new), apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-workbook.test.ts (new), tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts. No database change.
+
+**Needs you:** pull, restart the API, hard-refresh.

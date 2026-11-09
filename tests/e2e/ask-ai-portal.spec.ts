@@ -65,6 +65,7 @@ test.describe('Ask AI across the portal', () => {
 
     await page.locator('[data-ai-launch]').click();
     await expect(page.locator('[data-ai-panel]')).toBeVisible();
+    await expect(page.locator('[data-ai-wb-row]')).toBeHidden();
     await page.locator('[data-ai-input]').fill('Which plan is best?');
     await page.locator('[data-ai-send]').click();
     await expect(page.locator('[data-ai-body]')).toContainText('Standard has the best margin.');

@@ -3019,6 +3019,21 @@
       .tq-editbar .tq-edit-note input {
         min-width: 16rem;
       }
+      .tq-chat .tq-chat-wb {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0 0.9rem 0.4rem;
+        font-size: 0.78rem;
+        color: var(--muted, #5b6b7b);
+      }
+      .tq-chat .tq-chat-wb[hidden] {
+        display: none;
+      }
+      .tq-chat .tq-chat-wb input {
+        width: auto;
+        margin: 0;
+      }
       /* Edit quantity and override the unit rate of a quote line (modification #226). */
       .tq-table input.tq-qty-input {
         width: 5.5rem;

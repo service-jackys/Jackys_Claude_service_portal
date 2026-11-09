@@ -2355,6 +2355,8 @@ export const aiAskRequestSchema = z
       .min(1)
       .max(20),
     context: z.record(z.string(), z.unknown()),
+    // Also read the summarised data of the uploaded revenue / budget workbooks.
+    includeWorkbook: z.boolean().optional(),
   })
   .strict();
 export type AiAskRequestInput = z.infer<typeof aiAskRequestSchema>;

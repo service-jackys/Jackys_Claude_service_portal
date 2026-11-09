@@ -187,6 +187,30 @@ test(
       assert.ok(String(askCall.body.system).includes('"budget":1000'));
       assert.ok(!String(askCall.body.system).includes('Secret LLC'));
       assert.ok(!String(askCall.body.system).includes('0501'));
+      // Beyond the screen: the uploaded workbook summary is added only when the
+      // person's permissions allow it.
+      await ai.ask(
+        {
+          section: 'revenue',
+          title: 'Budget vs actual',
+          messages: [{ role: 'user', content: 'And last year?' }],
+          context: { summary: { budget: 1 } },
+          includeWorkbook: true,
+        },
+        { revenue: true, budget: false },
+      );
+      const wbCall = calls[calls.length - 1];
+      assert.ok(String(wbCall.body.system).includes('"onScreen"'));
+      assert.ok(String(wbCall.body.system).includes('"revenueWorkbook"'));
+      assert.ok(!String(wbCall.body.system).includes('"budgetWorkbook"'));
+      await ai.ask({
+        section: 'revenue',
+        title: 'Budget vs actual',
+        messages: [{ role: 'user', content: 'And last year?' }],
+        context: { summary: { budget: 1 } },
+        includeWorkbook: true,
+      });
+      assert.ok(!String(calls[calls.length - 1].body.system).includes('"workbook"'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',
