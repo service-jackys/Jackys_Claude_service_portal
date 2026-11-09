@@ -28,6 +28,7 @@ export const ASK_AI_PERMISSIONS: Record<string, string> = {
   revenue: 'ai_ask.revenue',
   vas: 'ai_ask.vas',
   complaints: 'ai_ask.complaints',
+  appointments: 'ai_ask.appointments',
 };
 
 export function createAiHandlers(

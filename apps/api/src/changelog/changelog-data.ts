@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 234,
+    "title": "Ask AI on the Appointments page (counts and statuses only)",
+    "area": "Scheduler",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Appointments hold customer details, so the AI gets counts and statuses only, never names or contacts.",
+    "changes": [
+      "Ask AI button on Appointments (page-level). It reads the filters on screen (status, date range, rows listed).",
+      "Tick box \"Also read the overall appointment counts and statuses\": the API builds, from the database, totals by status, open appointments by due date (overdue / today / next 7 days / later), by month (last 12), customer type, region, brand…",
+      "Never sent: customer names, contact numbers, e-mails, addresses, fault descriptions, technician names, appointment references.",
+      "Permissions: new ai_ask.appointments (admin by default; grant it in Roles & permissions). The overall counts also need appointments.read.",
+      "Migration 085 adds the permission."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give ai_ask.appointments to other roles if wanted.",
+    "migrations": [
+      "085_ask_ai_appointments_permission.sql"
+    ],
+    "files": "packages/db/migrations/085_ask_ai_appointments_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts…"
+  },
+  {
     "id": 233,
     "title": "Ask AI on the other quote calculators: VAS, AMC (New and original), and their issued quotes",
     "area": "Pricing & rates",

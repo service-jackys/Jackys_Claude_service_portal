@@ -25476,6 +25476,7 @@ ${bodyHtml}
     revenue: 'ai_ask.revenue',
     vas: 'ai_ask.vas',
     complaints: 'ai_ask.complaints',
+    appointments: 'ai_ask.appointments',
   };
   const ASK_AI_COPY = {
     vas: {
@@ -25497,6 +25498,17 @@ ${bodyHtml}
         'How many complaints are open and how old are they?',
         'Which status has the most complaints waiting?',
         'Which brands or regions generate the most complaints?',
+      ],
+    },
+    appointments: {
+      hello: 'Ask me about the appointments.',
+      help: 'I can read counts and statuses across all appointments (by status, due date, month, region, brand and warranty). I never see names, contacts or addresses.',
+      placeholder: 'Ask about appointment load, overdue\u2026',
+      dataLabel: 'Also read the overall appointment counts and statuses (all appointments)',
+      chips: [
+        'How many appointments are overdue or due this week?',
+        'How busy are the coming days compared with earlier months?',
+        'Which regions or brands have the most appointments?',
       ],
     },
     pricing_admin: {
@@ -25601,6 +25613,7 @@ ${bodyHtml}
       return 'revenue';
     if (mode === 'masters') return 'masters';
     if (mode === 'complaints' || mode === 'service-requests') return 'complaints';
+    if (mode === 'appointments') return 'appointments';
     return '';
   }
 
@@ -25671,6 +25684,20 @@ ${bodyHtml}
               ? 'Ready for Scheduling'
               : document.getElementById('complaintStatusFilter')?.value || 'All',
           complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
+    if (section === 'appointments') {
+      const body = document.getElementById('appointmentsBody');
+      return {
+        title: 'Appointments',
+        context: {
+          statusFilter: document.getElementById('appointmentStatusFilter')?.value || 'All',
+          dateFrom: document.getElementById('appointmentFrom')?.value || '',
+          dateTo: document.getElementById('appointmentTo')?.value || '',
+          appointmentsListedOnScreen: body
+            ? body.querySelectorAll('[data-appointment-id]').length
+            : 0,
         },
       };
     }

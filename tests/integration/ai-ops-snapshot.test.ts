@@ -56,6 +56,29 @@ test(
       );
       assert.ok(!JSON.stringify(snap).includes('Secret'));
       assert.equal(await buildOpsSnapshot(pool as unknown as Pool, 'nope'), null);
+
+      await client.query('DELETE FROM appointments');
+      const addApt = (n: number, status: string, offsetDays: number) =>
+        client.query(
+          `INSERT INTO appointments (appointment_reference, customer_type, customer_name, contact_number, fault_description, appointment_date, status, closed_at, brand, region, job_warranty)
+           VALUES ($1, 'B2C', 'Secret Person', '0500000000', 'Secret fault', current_date + $2::int, $3,
+                   CASE WHEN $3 IN ('Completed','Cancelled') THEN now() END, 'Bosch', 'Dubai', 'In Warranty')`,
+          ['APT-2026-0000' + n, offsetDays, status],
+        );
+      await addApt(1, 'Scheduled', -2);
+      await addApt(2, 'Scheduled', 0);
+      await addApt(3, 'In Progress', 3);
+      await addApt(4, 'Completed', -5);
+      const apt = (await buildOpsSnapshot(pool as unknown as Pool, 'appointments')) as any;
+      assert.equal(apt.total, 4);
+      assert.deepEqual(Object.fromEntries(apt.openByDueDate.map((r: any) => [r.due, r.n])), {
+        Overdue: 1,
+        Today: 1,
+        'Next 7 days': 1,
+      });
+      assert.equal(apt.openWithoutTechnician, 3);
+      assert.equal(apt.byBrand[0].n, 4);
+      assert.ok(!JSON.stringify(apt).includes('Secret'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();

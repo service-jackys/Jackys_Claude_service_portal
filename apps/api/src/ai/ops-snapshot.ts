@@ -59,11 +59,64 @@ async function complaints(client: PoolClient) {
   };
 }
 
+async function appointments(client: PoolClient) {
+  const open = "status IN ('Scheduled', 'In Progress')";
+  return {
+    total: (await counts(client, 'SELECT count(*) AS n FROM appointments'))[0]?.n ?? 0,
+    byStatus: await counts(
+      client,
+      `SELECT status, count(*) AS n FROM appointments GROUP BY 1 ORDER BY n DESC`,
+    ),
+    openByDueDate: await counts(
+      client,
+      `SELECT CASE
+                WHEN appointment_date < current_date THEN 'Overdue'
+                WHEN appointment_date = current_date THEN 'Today'
+                WHEN appointment_date <= current_date + 7 THEN 'Next 7 days'
+                ELSE 'Later' END AS due, count(*) AS n
+       FROM appointments WHERE ${open} GROUP BY 1 ORDER BY min(appointment_date)`,
+    ),
+    byMonth: await counts(
+      client,
+      `SELECT to_char(appointment_date, 'YYYY-MM') AS month, count(*) AS n FROM appointments
+       WHERE appointment_date >= date_trunc('month', now()) - interval '11 months'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    byCustomerType: await counts(
+      client,
+      `SELECT customer_type AS type, count(*) AS n FROM appointments GROUP BY 1 ORDER BY n DESC`,
+    ),
+    byRegion: await counts(
+      client,
+      `SELECT COALESCE(NULLIF(region, ''), 'Not stated') AS region, count(*) AS n
+       FROM appointments GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+    byBrand: await counts(
+      client,
+      `SELECT COALESCE(NULLIF(brand, ''), 'Not stated') AS brand, count(*) AS n
+       FROM appointments GROUP BY 1 ORDER BY n DESC LIMIT 15`,
+    ),
+    byWarranty: await counts(
+      client,
+      `SELECT COALESCE(NULLIF(job_warranty, ''), 'Not stated') AS warranty, count(*) AS n
+       FROM appointments GROUP BY 1 ORDER BY n DESC`,
+    ),
+    openWithoutTechnician:
+      (
+        await counts(
+          client,
+          `SELECT count(*) AS n FROM appointments WHERE ${open} AND technician_id IS NULL`,
+        )
+      )[0]?.n ?? 0,
+  };
+}
+
 export const OPS_SECTIONS: Record<
   string,
   { read: string; build: (c: PoolClient) => Promise<unknown> }
 > = {
   complaints: { read: 'complaints.read', build: complaints },
+  appointments: { read: 'appointments.read', build: appointments },
 };
 
 export async function buildOpsSnapshot(pool: Pool, section: string) {
