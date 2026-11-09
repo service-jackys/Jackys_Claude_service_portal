@@ -25438,8 +25438,20 @@ ${bodyHtml}
     masters: 'ai_ask.masters',
     amc: 'ai_ask.amc',
     revenue: 'ai_ask.revenue',
+    complaints: 'ai_ask.complaints',
   };
   const ASK_AI_COPY = {
+    complaints: {
+      hello: 'Ask me about the complaints.',
+      help: 'I can read counts and statuses across all complaints (by status, age, month, region, brand and warranty). I never see names, contacts or descriptions.',
+      placeholder: 'Ask about complaint volumes, ageing\u2026',
+      dataLabel: 'Also read the overall complaint counts and statuses (all complaints)',
+      chips: [
+        'How many complaints are open and how old are they?',
+        'Which status has the most complaints waiting?',
+        'Which brands or regions generate the most complaints?',
+      ],
+    },
     pricing_admin: {
       hello: 'Ask me about these prices and rates.',
       help: 'I can read the settings on this page, explain them and point out values that look off.',
@@ -25496,6 +25508,7 @@ ${bodyHtml}
     if (['revenue-dashboard', 'budget-dashboard', 'budget-variance'].includes(mode))
       return 'revenue';
     if (mode === 'masters') return 'masters';
+    if (mode === 'complaints' || mode === 'service-requests') return 'complaints';
     return '';
   }
 
@@ -25553,6 +25566,20 @@ ${bodyHtml}
         },
       };
     }
+    if (section === 'complaints') {
+      const body = document.getElementById('complaintsBody');
+      return {
+        title:
+          mode === 'service-requests' ? 'Service requests (ready for scheduling)' : 'Complaints',
+        context: {
+          statusFilter:
+            mode === 'service-requests'
+              ? 'Ready for Scheduling'
+              : document.getElementById('complaintStatusFilter')?.value || 'All',
+          complaintsListedOnScreen: body ? body.querySelectorAll('[data-complaint-id]').length : 0,
+        },
+      };
+    }
     if (section === 'masters') {
       const page = PRICING_CALC_PAGES.masters;
       const root = document.getElementById(page.workspaceId);
@@ -25595,7 +25622,7 @@ ${bodyHtml}
       '<textarea rows="1" maxlength="1000" data-ai-input aria-label="Your question"></textarea>' +
       '<button type="submit" class="tq-chat-send" data-ai-send aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.2-7.3L3 11.5z" fill="currentColor"/></svg></button>' +
       '</form>' +
-      '<label class="tq-chat-wb" data-ai-wb-row hidden><input type="checkbox" data-ai-wb checked /> <span>Also read the uploaded workbook data (all periods, summarised)</span></label>' +
+      '<label class="tq-chat-wb" data-ai-wb-row hidden><input type="checkbox" data-ai-wb checked /> <span data-ai-wb-text>Also read the uploaded workbook data (all periods, summarised)</span></label>' +
       '<p class="tq-chat-foot">AI can make mistakes and cannot change anything. It only sees figures, never customer or staff names or contact details.</p>' +
       '</section>';
     document.body.appendChild(wrap);
@@ -25664,7 +25691,11 @@ ${bodyHtml}
     const copy = ASK_AI_COPY[askAi.section] || ASK_AI_COPY.pricing_admin;
     const info = askAiContext(askAi.mode);
     q('[data-ai-subject]').textContent = info ? 'About ' + info.title : '';
-    q('[data-ai-wb-row]').hidden = askAi.section !== 'revenue';
+    q('[data-ai-wb-row]').hidden = !(askAi.section === 'revenue' || copy.dataLabel);
+    if (copy.dataLabel) q('[data-ai-wb-text]').textContent = copy.dataLabel;
+    else
+      q('[data-ai-wb-text]').textContent =
+        'Also read the uploaded workbook data (all periods, summarised)';
     q('[data-ai-input]').placeholder = copy.placeholder;
     const empty = !askAi.messages.length;
     q('[data-ai-body]').innerHTML = empty
@@ -25753,6 +25784,9 @@ ${bodyHtml}
           context: info.context,
           includeWorkbook:
             askAi.section === 'revenue' && askAi.root.querySelector('[data-ai-wb]').checked,
+          includePortalData:
+            !!ASK_AI_COPY[askAi.section]?.dataLabel &&
+            askAi.root.querySelector('[data-ai-wb]').checked,
         }),
       });
       askAi.messages.push({ role: 'assistant', content: reply.text || '' });

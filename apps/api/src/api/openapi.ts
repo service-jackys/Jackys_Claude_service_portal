@@ -1555,7 +1555,10 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
           additionalProperties: false,
           required: ['section', 'title', 'messages', 'context'],
           properties: {
-            section: { type: 'string', enum: ['pricing_admin', 'masters', 'amc', 'revenue'] },
+            section: {
+              type: 'string',
+              enum: ['pricing_admin', 'masters', 'amc', 'revenue', 'complaints'],
+            },
             title: { type: 'string', maxLength: 120 },
             messages: {
               type: 'array',
@@ -1573,6 +1576,7 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
             },
             context: { type: 'object', additionalProperties: true },
             includeWorkbook: { type: 'boolean' },
+            includePortalData: { type: 'boolean' },
           },
         },
         AiChatRequest: {

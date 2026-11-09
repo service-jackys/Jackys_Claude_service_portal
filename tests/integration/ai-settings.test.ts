@@ -211,6 +211,22 @@ test(
         includeWorkbook: true,
       });
       assert.ok(!String(calls[calls.length - 1].body.system).includes('"workbook"'));
+      // Complaints: the counts-and-statuses snapshot needs the record permission.
+      const complaintsAsk = (includePortalData: boolean) =>
+        ai.ask(
+          {
+            section: 'complaints',
+            title: 'Complaints',
+            messages: [{ role: 'user', content: 'How many are open?' }],
+            context: { statusFilter: 'All' },
+            includePortalData,
+          },
+          { revenue: false, budget: false, can: (code: string) => code === 'complaints.read' },
+        );
+      await complaintsAsk(true);
+      assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
+      await complaintsAsk(false);
+      assert.ok(!String(calls[calls.length - 1].body.system).includes('"portalData"'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',
