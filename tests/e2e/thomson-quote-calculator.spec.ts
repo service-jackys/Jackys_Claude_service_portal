@@ -262,4 +262,27 @@ test.describe('Thomson Quote Calculator', () => {
     await page.locator('[data-tq-s3tab="timeline"]').click();
     await expect(page.locator('.tl-live-num strong')).toHaveText('3');
   });
+  test('the Quote total panel never overlaps the steps and stays below the header while scrolling', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 1383, height: 800 });
+    await openCalculator(page, []);
+    for (const qty of ['1079', '319', '40']) {
+      await page.locator('[data-tcc-qty]').fill(qty);
+      await page.locator('[data-tcc-add]').click();
+    }
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await page.locator('[data-tl-mode="phased"]').click();
+    await page.locator('[data-tl-add]').click();
+    await page.locator('[data-tl-add]').click();
+    const steps = (await page.locator('.tq-steps').boundingBox())!;
+    const summary = page.locator('.tq-summary');
+    expect((await summary.boundingBox())!.x).toBeGreaterThanOrEqual(steps.x + steps.width);
+    await page.mouse.wheel(0, 900);
+    await page.waitForTimeout(300);
+    const nav = (await page.locator('.nav').first().boundingBox())!;
+    const after = (await summary.boundingBox())!;
+    expect(after.y).toBeGreaterThanOrEqual(nav.y + nav.height);
+    await expect(page.locator('[data-tq-total]')).toBeInViewport();
+  });
 });

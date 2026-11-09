@@ -4687,3 +4687,15 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/thomson-schedule.js, apps/web/src/app.js, tests/unit/thomson-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh. Quotes already issued keep their saved prices.
+
+## Modification #219 — Thomson calculator: Quote total panel no longer overlaps or hides under the header
+
+**Date:** 2026-11-09
+
+**Why.** On a long quote (the Project timeline tab open) the Quote total panel sat under the page header when scrolling, and could overlap the right edge of the steps.
+
+**What changed.** The Quote total panel now stays just below the page header and follows the scroll, and the steps column can no longer grow into it. On a short window the panel scrolls inside itself.
+
+**Files.** apps/web/src/index.html, tests/e2e/thomson-quote-calculator.spec.ts. No API or database change.
+
+**Needs you:** pull, hard-refresh.

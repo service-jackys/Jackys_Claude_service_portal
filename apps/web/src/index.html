@@ -2828,10 +2828,12 @@
       }
       .tq-steps {
         display: grid;
+        grid-template-columns: minmax(0, 1fr);
         gap: 0.8rem;
         min-width: 0;
       }
       .tq-step {
+        min-width: 0;
         padding: 0.8rem 1rem;
         border: 1px solid var(--line);
         border-radius: 12px;
@@ -2897,9 +2899,14 @@
         gap: 0.5rem;
         font-weight: 600;
       }
+      /* Stays in view while the page scrolls: top clears the sticky site header
+         (same offset as .dashboard-nav), and a short window scrolls inside. */
       .tq-summary {
         position: sticky;
-        top: 0.8rem;
+        top: 96px;
+        min-width: 0;
+        max-height: calc(100vh - 112px);
+        overflow-y: auto;
         padding: 0.9rem 1rem;
         border: 1px solid var(--line);
         border-radius: 12px;
