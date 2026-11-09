@@ -170,4 +170,80 @@ test.describe('Thomson Quote Calculator', () => {
     await page.clock.fastForward(11000);
     await expect(page.locator('.tq-toast')).toHaveCount(0);
   });
+
+  test('the Project timeline tab projects working days, phases and Smart advice', async ({
+    page,
+  }) => {
+    await openCalculator(page, []);
+    // 100 ovens x 30 min = 50 h; 2 technicians x 8 h = 16 h a day -> 4 days.
+    await page.locator('[data-tcc-qty]').fill('100');
+    await page.locator('[data-tcc-visits]').fill('0');
+    await page.locator('[data-tcc-add]').click();
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('4');
+    await expect(page.locator('[data-tl-badge]')).toContainText('4 days');
+    await expect(page.locator('.tl-advice.is-ok')).toContainText('On track');
+
+    // Phase to phase: three phases (34 / 33 / 33 ovens) round up separately: 2 + 2 + 2.
+    await page.locator('[data-tl-mode="phased"]').click();
+    await page.locator('[data-tl-add]').click();
+    await page.locator('[data-tl-add]').click();
+    await page.locator('[data-tl-even]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('6');
+    // Two waits of the 3-day default between three phases -> 12 days start to finish.
+    await expect(page.locator('.tl-live-sub')).toContainText('waiting between phases 6');
+    await expect(page.locator('.tl-live-sub')).toContainText('12');
+    // Entering readiness for phase 2 overrides the default.
+    await page.locator('[data-tl-gap="1"]').fill('0');
+    await page.locator('[data-tl-gap="1"]').press('Tab');
+    await expect(page.locator('.tl-live-sub')).toContainText('waiting between phases 3');
+    await page.locator('[data-tl-mode="continuous"]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('4');
+
+    // 400 ovens = 200 h -> 13 days, above the 10-day guide: advice offers more technicians.
+    await page.locator('[data-tq-s3tab="services"]').click();
+    await page.locator('[data-tcc-clear]').click();
+    await page.locator('[data-tcc-qty]').fill('400');
+    await page.locator('[data-tcc-visits]').fill('0');
+    await page.locator('[data-tcc-add]').click();
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('13');
+    await expect(page.locator('.tl-advice')).toContainText('Deploy 3 technicians');
+    await page.locator('[data-tl-apply="techs:3"]').click();
+    await expect(page.locator('.tl-live-num strong')).toHaveText('9');
+    await expect(page.locator('[data-tl-techs]')).toHaveValue('3');
+  });
+
+  test('a saved project quote carries its phase schedule', async ({ page }) => {
+    const saved: unknown[] = [];
+    await openCalculator(page, saved);
+    await page.locator('[data-tcc-qty]').fill('100');
+    await page.locator('[data-tcc-visits]').fill('0');
+    await page.locator('[data-tcc-add]').click();
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await page.locator('[data-tl-mode="phased"]').click();
+    await page.locator('[data-tl-add]').click();
+    await page.locator('[data-tl-add]').click();
+    await page.locator('[data-tl-even]').click();
+    await page.locator('[data-tl-gap="1"]').fill('2');
+    await page.locator('[data-tl-gap="1"]').press('Tab');
+    await page.locator('[data-tl-start]').fill('2026-12-01');
+    await page.locator('[data-tl-start]').press('Tab');
+    await page.getByRole('button', { name: 'Save quotation' }).click();
+    await expect(page.locator('[data-ths-message]')).toContainText('TH-2026-00009');
+    const body = saved[0] as { schedule: Record<string, unknown> & { phases: unknown[] } };
+    expect(body.schedule).toMatchObject({
+      workMode: 'phased',
+      technicians: 2,
+      workingDays: 6,
+      waitingDays: 5,
+      totalDays: 11,
+    });
+    expect(body.schedule.phases).toHaveLength(3);
+    expect(body.schedule.phases[1]).toMatchObject({ waitBeforeDays: 2, readiness: 'confirmed' });
+    expect(body.schedule.phases[2]).toMatchObject({ waitBeforeDays: 3, readiness: 'assumed' });
+    // The quote resets for the next customer, including the timeline.
+    await page.locator('[data-tq-s3tab="timeline"]').click();
+    await expect(page.locator('[data-tq-timeline]')).toContainText('Add items in step 2');
+  });
 });

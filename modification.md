@@ -4656,3 +4656,22 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts (new GET /api/revenue-dashboard/lpo-pending-detail), apps/web/src/roi-core.js, apps/web/src/app.js, tests (roi-core unit, quotation-lpo-pending integration, roi-lpo-section e2e). No database change.
 
 **Needs you:** pull, restart the API, hard-refresh, open Send ROI.
+
+## Modification #218 — Thomson Quote Calculator: Project timeline, phases and Smart advice
+
+**Date:** 2026-11-09
+
+**Why.** A Thomson project quote showed a price but not how long the work would take, so crew size, phasing and customer site readiness were not visible in the quote.
+
+**What changed.**
+
+- **New tab beside Services & transport (step 3): Project timeline.** A live projection of working days from the items added, using Technicians deployed and Working hours per day (Deployment Economics), each appliance's Avg install minutes and the region. Installation days are rounded up once for the whole project; site-survey and training visits are added as separate days. The tab label shows the live day count.
+- **Continuous or phase to phase.** Continuous means the crew is on site every working day. Phase to phase splits the items into phases (name, quantity per item, wait before the phase). Each phase is rounded up on its own, so phasing can add site trips and transport cost; the quote re-prices transport by phase. The wait defaults to the admin figure and can be overridden per phase when the customer has confirmed readiness. A planned start date gives an estimated completion date (Saturday and Sunday are not worked).
+- **Crew for this quote.** Technicians and overtime hours per day can be changed for the quote only; overtime is costed at the admin multiplier.
+- **Smart advice.** When the working days go above the admin threshold, a card shows options (more technicians, overtime, doing the work continuously) with the days saved and the effect on margin worked out from the admin rates. An option that would take the margin below the admin guard is marked "Below guard". Apply sets it on the quote. Within the threshold it shows "On track".
+- **Thomson Pricing Admin: new card "Project timeline & Smart advice".** High-duration threshold (default 10 working days), default readiness gap between phases (3), maximum technicians (6), overtime hours per day (2) and multiplier (1.5), minimum margin guard (15%), maximum phases (12). All optional, with tooltips; Reset to defaults and History work as before.
+- **Saved and printed.** A project quote now stores its schedule (work method, technicians, working days, waits, phases, estimated completion) and the printed quotation shows a Project schedule block. Single-unit quotes and quotes issued earlier are unchanged.
+
+**Files.** apps/web/src/thomson-schedule.js, apps/web/src/app.js, apps/web/src/index.html, packages/db/migrations/076_thomson_sale_schedule.sql, packages/db/src/thomson-sales.ts, packages/db/src/pricing-config-defaults.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/service.ts, tests/unit/thomson-schedule.test.ts, tests/integration/thomson-sale-schedule.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull, run the database migration, restart the API, hard-refresh. Open Thomson Pricing Admin to check the new card.

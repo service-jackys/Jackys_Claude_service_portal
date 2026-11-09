@@ -36,6 +36,7 @@ function toContent(input: ThomsonSaleWriteInput): ThomsonSaleContent {
     totalCost: input.totalCost,
     margin: input.margin,
     contractRef: input.contractRef ?? null,
+    schedule: input.schedule ?? null,
   };
 }
 

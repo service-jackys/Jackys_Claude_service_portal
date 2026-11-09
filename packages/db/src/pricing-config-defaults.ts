@@ -328,6 +328,15 @@ export const thomsonPricingDefault: ThomsonPricingInput = {
       active: true,
     },
   ],
+  scheduling: {
+    highDaysThreshold: 10,
+    defaultPhaseGapDays: 3,
+    maxTechnicians: 6,
+    overtimeHoursPerDay: 2,
+    overtimeMultiplier: 1.5,
+    minMarginPct: 15,
+    maxPhases: 12,
+  },
   addons: {
     'Project Management Fee': {
       rate: 0.05,
