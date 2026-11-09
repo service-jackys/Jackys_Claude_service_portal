@@ -54,30 +54,31 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 217,
     "title": "Send ROI: LPO pending block under the Management Summary",
-    "area": "Tasks",
+    "area": "Revenue dashboard",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "Management should see which quotations are still waiting to be invoiced, how long they have waited, and which month they came from, in the weekly ROI itself.",
+    "summary": "The weekly ROI now shows the quotations still waiting to be invoiced, by the month they were created.",
     "changes": [
-      "What changed: The ROI Management Summary now ends with \"Quotations awaiting invoice (LPO pending)\" for the month the ROI week falls in:"
+      "What changed: the Management Summary ends with Quotations awaiting invoice (LPO pending): waiting value, number of quotations, amount carried forward, a table by the month each quotation was created with oldest age, the oldest 8 quotations to follow up, and the Invoice check result.",
+      "New API route GET /api/revenue-dashboard/lpo-pending-detail. Same figures in the plain-text version; left out when nothing is pending."
     ],
     "needsYou": "pull, restart the API, hard-refresh, open Send ROI.",
     "migrations": [],
-    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts (new GET /api/revenue-dashboard/lpo-pending-detail), apps/web/src/roi-core.js, apps/web/src/app.js…"
+    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard, apps/web/src/roi-core.js, apps/web/src/app.js, tests. No database change."
   },
   {
     "id": 216,
-    "title": "Dirham sign in the ROI and email previews, Invoice check help, styled quotations total bar",
-    "area": "Invoices & billing",
+    "title": "Dirham sign in email previews, Invoice check help, styled quotations total bar",
+    "area": "Quotations",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "The email previews still showed \"AED\"; the new quotations total bar needed to match the page; management needed a plain-language explanation of the Invoice check.",
+    "summary": "The ROI and Formatted email previews show the Dirham sign, the quotations total bar matches the page, and the Invoice check pill explains itself.",
     "changes": [
-      "Previews: the Send ROI email preview and the Reports \"Formatted email\" preview show amounts with the Dirham sign. The email that is copied, downloaded or sent still says \"AED\", because the recipient's mail app may not have a font with the…",
-      "Quotations total bar: the ERP / ORION selector and the total under the Created quotations table are now a bordered bar in the page's own colours: the selector on the left, and Total incl. VAT (large), Excl. VAT and Quotations on the…",
-      "Invoice check help: hovering the Invoice check pill, or the About this view tip, explains the check in plain words."
+      "Previews: the Send ROI email preview and the Reports Formatted email preview show amounts with the Dirham sign. The email itself still says AED, because the recipient's mail app may not have a font with the new sign.",
+      "Quotations total bar: the ERP / ORION selector and the total are a bordered bar in the page's colours, with Total incl. VAT, Excl. VAT and the quotation count. It stacks on a phone and is hidden on the New quotation tab.",
+      "Invoice check: hovering the pill or the About this view tip explains the check in plain words."
     ],
     "needsYou": "pull, hard-refresh.",
     "migrations": [],
@@ -86,39 +87,34 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 215,
     "title": "ERP / ORION invoice number, Invoice check, and a total under the quotations list",
-    "area": "Invoices & billing",
+    "area": "Quotations",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "An Invoiced status was only a manual choice, so a quotation could be marked Invoiced with no invoice in ERP and nobody would notice. Management also wanted the quotations list to show a total.",
+    "summary": "A quotation marked Invoiced now needs its invoice number, Reports checks it against the master workbook, and the quotations list shows a total you can filter by ERP / ORION status.",
     "changes": [
-      "Invoice number: when the ERP / ORION status is Invoiced the quotation now needs the ERP / ORION invoice number (shown only for Invoiced, with a tooltip). It is cleared if the status goes back to Pending invoice. Quotations already…",
-      "Invoice check (Reports, new pill): each Invoiced quotation's invoice number is matched against the invoice numbers (Inv/Del no.) in the active master workbook. Not found within 7 days of being marked Invoiced is flagged red; within 7 days…",
-      "Quotations list total: under the Created quotations table, a selector (All quotations / Invoiced / Pending invoice) filters the list and shows the total of every matching quotation (incl. and excl. VAT, and the count), not just the 50 on…"
+      "Invoice number: required when the status is Invoiced, cleared when it goes back to Pending invoice. Quotations already Invoiced before this change can still be edited without one.",
+      "Invoice check (Reports): matches each Invoiced quotation's invoice number to the master workbook. Not found within 7 days (setting invoice_check_grace_days) is flagged red; an amount that differs is flagged. Older Invoiced quotations are counted as not checked.",
+      "Quotations list: a selector (All, Invoiced, Pending invoice) filters the list and shows the total of every matching quotation, incl. and excl. VAT. No styling changed."
     ],
-    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. Upload the master workbook as usual; the Invoice check reads the active upload.",
-    "migrations": [
-      "075_quotation_erp_invoice_no.sql"
-    ],
-    "files": "packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/_, apps/api/src/revenue-dashboard/_…"
+    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["075_quotation_erp_invoice_no.sql"],
+    "files": "packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, apps/api/src/quotations, apps/api/src/revenue-dashboard, apps/web/src/app.js, apps/web/src/index.html, tests."
   },
   {
     "id": 214,
     "title": "LPO pending carries forward to the current month",
-    "area": "General",
+    "area": "Revenue dashboard",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "LPO pending was counted in the month the quotation was created, so a quotation still waiting to be invoiced dropped out of sight in later months. Management wants to keep seeing what is pending.",
+    "summary": "Quotations still waiting to be invoiced stay visible in later months instead of dropping out after their quotation month.",
     "changes": [
-      "Carry-forward: a Pending / Approved quotation whose ERP / ORION status is Pending invoice now shows in every month from its quotation month until it is marked Invoiced. The current month shows everything still open, split into \"raised…",
-      "Past months: show the position at that month-end, using a new Invoiced date (invoiced_at) that is stamped automatically (Dubai date) when the status becomes Invoiced and cleared if it is set back. Quotations already Invoiced before this…",
-      "Screens: the Total revenue card and the Budget vs Actual chart tooltip show the carried-forward split. It is information only and is never added to revenue."
+      "What changed: LPO pending now shows every Pending / Approved quotation whose ERP / ORION status is Pending invoice, from its quotation month until it is marked Invoiced. The current month is split into raised this month and carried forward, with the oldest age in days.",
+      "Past months show the position at that month-end using a new Invoiced date, stamped automatically when the status becomes Invoiced. Older Invoiced quotations have no date and stay out. It is information only and never added to revenue."
     ],
-    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh.",
-    "migrations": [
-      "074_quotation_invoiced_at.sql"
-    ],
+    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["074_quotation_invoiced_at.sql"],
     "files": "packages/db/migrations/074_quotation_invoiced_at.sql, packages/db/src/quotations.ts, apps/web/src/app.js, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts."
   },
   {
