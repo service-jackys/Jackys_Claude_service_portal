@@ -5,6 +5,10 @@ import { ThomsonSaleServiceError, type ThomsonSaleService } from './service.js';
 
 function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): void {
   if (!(error instanceof ThomsonSaleServiceError)) throw error;
+  if (error.code === 'sold-locked') {
+    problem(response, 409, 'thomson-sold-locked', 'Conflict', error.message);
+    return;
+  }
   problem(response, 404, 'not-found', 'Not Found', error.message);
 }
 
@@ -64,6 +68,42 @@ export function createThomsonSaleHandlers(
               request.header('x-request-id') ?? undefined,
             ),
           });
+        } catch (error) {
+          if (error instanceof ThomsonSaleServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    revise: [
+      requirePermission('thomson_sale.revise'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json({
+            thomsonSale: await service.revise(
+              String(request.params.id),
+              request.body,
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          });
+        } catch (error) {
+          if (error instanceof ThomsonSaleServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    revisions: [
+      requirePermission('thomson_sale.revise'),
+      async (request, response, next) => {
+        try {
+          response.json({ revisions: await service.revisions(String(request.params.id)) });
         } catch (error) {
           if (error instanceof ThomsonSaleServiceError) {
             serviceError(error, response);

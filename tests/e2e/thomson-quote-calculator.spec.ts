@@ -382,4 +382,120 @@ test.describe('Thomson Quote Calculator', () => {
     expect(changes[0].body).toMatchObject({ status: 'Sold' });
     expect((changes[0].body as { soldDate: string }).soldDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
+
+  test('an issued quote can be edited and saved as a new revision, with its history', async ({
+    page,
+  }) => {
+    await openCalculator(page, []);
+    const puts: { url: string; body: Record<string, unknown> }[] = [];
+    const sale = {
+      id: '1',
+      thomsonSaleReference: 'TH-2026-00001',
+      createdAt: '2026-11-02T08:00:00Z',
+      updatedAt: '2026-11-02T08:00:00Z',
+      clientName: 'Acme Towers',
+      contactNumber: '0501234567',
+      siteLocation: 'Business Bay',
+      status: 'Quote',
+      revision: 1,
+      revisionNote: null,
+      transportSharePercent: '0',
+      soldDate: null,
+      lostReason: null,
+      totalPrice: '540',
+      totalCost: '300',
+      margin: '240',
+      schedule: null,
+      editorState: {
+        mode: 'project',
+        workMode: 'continuous',
+        technicians: 2,
+        overtimeHours: 0,
+        lines: [
+          {
+            region: 'Dubai',
+            applianceName: 'Built-in Hob (30 cm)',
+            qty: 3,
+            siteVisits: 1,
+            trainingSessions: 0,
+          },
+        ],
+        phases: [],
+        addons: [
+          { name: 'Project Management Fee', rate: 0.05, hours: 0, on: true },
+          { name: 'Site Survey', rate: 150, hours: 2, on: true },
+          { name: 'Testing & Commissioning', rate: 25, hours: 0.25, on: true },
+          { name: 'Training (End User)', rate: 750, hours: 3, on: true },
+        ],
+      },
+      lineItems: [
+        {
+          region: 'Dubai',
+          applianceName: 'Built-in Hob (30 cm)',
+          qty: 3,
+          unitRate: 100,
+          totalPrice: 540,
+        },
+      ],
+    };
+    await page.route('**/api/thomson-sales**', async (route) => {
+      const request = route.request();
+      const url = new URL(request.url());
+      const json = (body: unknown) =>
+        route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+      if (request.method() === 'PUT') {
+        puts.push({ url: url.pathname, body: request.postDataJSON() });
+        return json({ thomsonSale: { ...sale, revision: 2, revisionNote: 'Fixed the contact' } });
+      }
+      if (url.pathname === '/api/thomson-sales/1/revisions') {
+        return json({
+          revisions: [
+            {
+              id: '5',
+              revision: 1,
+              revisionNote: null,
+              savedAt: '2026-11-02T08:00:00Z',
+              savedByName: 'Admin',
+              snapshot: { totalPrice: 400, margin: 100, lineItems: sale.lineItems },
+            },
+          ],
+        });
+      }
+      if (url.pathname === '/api/thomson-sales/1') return json({ thomsonSale: sale });
+      return json({
+        thomsonSales: [{ ...sale, revision: 2 }],
+        pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+      });
+    });
+    await page.getByRole('tab', { name: 'Issued quotes' }).click();
+    await expect(page.locator('.amc-issued-table')).toContainText('Rev 2');
+
+    // History lists the current and the earlier version.
+    await page.locator('[data-tcc-history="1"]').click();
+    const history = page.locator('[data-tcc-history-panel]');
+    await expect(history).toContainText('Rev 1');
+    await expect(history).toContainText('Current');
+    await expect(history).toContainText('400.00');
+
+    // Edit reloads the quote into the calculator.
+    await page.locator('[data-tcc-edit="1"]').click();
+    await expect(page.locator('[data-ths-editbar]')).toContainText('Editing TH-2026-00001 (Rev 1)');
+    await expect(page.locator('[data-ths-client]')).toHaveValue('Acme Towers');
+    await expect(page.locator('[data-tq-total]')).toContainText('540.00');
+    await page.locator('[data-ths-location]').fill('Downtown');
+    await page.locator('[data-ths-revision-note]').fill('Fixed the contact');
+    await page.getByRole('button', { name: 'Save revision' }).click();
+    await expect(page.locator('[data-ths-message]')).toContainText('Rev 2');
+    expect(puts).toHaveLength(1);
+    expect(puts[0].url).toBe('/api/thomson-sales/1');
+    expect(puts[0].body).toMatchObject({
+      siteLocation: 'Downtown',
+      revisionNote: 'Fixed the contact',
+      totalPrice: 540,
+    });
+    expect((puts[0].body.editorState as { lines: unknown[] }).lines).toHaveLength(1);
+    // The edit banner is gone and the quote resets.
+    await expect(page.locator('[data-ths-editbar]')).toBeHidden();
+    await expect(page.locator('[data-tq-total]')).not.toContainText('540.00');
+  });
 });

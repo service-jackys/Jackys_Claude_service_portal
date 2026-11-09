@@ -16757,6 +16757,7 @@ ${bodyHtml}
     // saves the exact numbers currently on screen, same pattern as AMC's
     // lastRows (modification.md #39).
     let lastComputed = null;
+    let saleControl = null;
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
@@ -16909,7 +16910,7 @@ ${bodyHtml}
         panel.hidden = panel.dataset.thPanel !== target;
       });
       if (target === 'issued') {
-        loadThomsonIssuedList(issuedHost);
+        loadThomsonIssuedList(issuedHost, '', beginEdit);
       }
     });
 
@@ -18238,7 +18239,7 @@ ${bodyHtml}
           : '';
       },
     });
-    renderThomsonSaleSection(
+    saleControl = renderThomsonSaleSection(
       saleHost,
       () => lastComputed,
       transportShareInput,
@@ -18246,18 +18247,173 @@ ${bodyHtml}
       () => {
         // Keep the Issued quotes list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-th-panel="issued"]');
-        if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost);
+        if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost, '', beginEdit);
       },
       container,
       () => mode,
       buildSavedSchedule,
+      getEditorState,
     );
+
+    // ---- Edit an issued quote (modification #224) -------------------------
+    // The saved quote is loaded back into this calculator and re-priced with
+    // the current Admin prices; saving stores a new revision of the same
+    // reference (the earlier version is kept under History).
+    function getEditorState() {
+      return {
+        mode,
+        workMode,
+        technicians: crewTechs,
+        overtimeHours: otHours,
+        plannedStart:
+          plannedStart && /^\d{4}-\d{2}-\d{2}$/.test(plannedStart) ? plannedStart : undefined,
+        lines: lineItems.map((li) => ({
+          region: li.region,
+          applianceName: appliances[li.applianceIdx]?.name || '',
+          qty: li.qty,
+          siteVisits: li.siteVisits,
+          trainingSessions: li.trainingSessions,
+        })),
+        phases: phases.map((ph) => ({
+          name: ph.name,
+          gap: ph.gap,
+          qty: lineItems.map((li) => Number(ph.qty[li.uid]) || 0),
+        })),
+        addons: THOMSON_ADDON_NAMES.map((name) => ({
+          name,
+          rate: Number(addons[name].rate) || 0,
+          hours: Number(addons[name].hours) || 0,
+          on: addons[name].on !== false,
+        })),
+      };
+    }
+
+    async function beginEdit(id) {
+      if (!saleControl || !hasPermission('thomson_sale.revise')) return;
+      try {
+        const detail = await apiRequest('/api/thomson-sales/' + id);
+        const sale = detail.thomsonSale;
+        const st = sale.editorState;
+        const notes = [];
+        mode = st ? st.mode : isThomsonSingleSale(sale) ? 'single' : 'project';
+        lineItems.length = 0;
+        resetTimeline();
+        lastAddedSig = null;
+        hideReminder();
+        applyMode();
+        const source = st
+          ? st.lines
+          : (sale.lineItems || []).map((li) => ({
+              region: li.region,
+              applianceName: li.applianceName,
+              qty: li.qty,
+              siteVisits: li.siteVisits,
+              trainingSessions: li.trainingSessions,
+            }));
+        const uids = [];
+        source.forEach((l) => {
+          const idx = appliances.findIndex((a) => a.name === l.applianceName);
+          if (idx < 0) {
+            notes.push(
+              l.applianceName +
+                ' is no longer active in Thomson Pricing Admin, so that line was left out.',
+            );
+            uids.push(null);
+            return;
+          }
+          let region = l.region;
+          if (!regions.some((r) => r.name === region)) {
+            notes.push(
+              'Region ' +
+                l.region +
+                ' is no longer active; ' +
+                (regions[0]?.name || '') +
+                ' was used.',
+            );
+            region = regions[0]?.name || l.region;
+          }
+          const uid = uidSeq++;
+          lineItems.push({
+            uid,
+            mode,
+            region,
+            applianceIdx: idx,
+            qty: Number(l.qty) || 0,
+            siteVisits: Number(l.siteVisits) || 0,
+            trainingSessions: Number(l.trainingSessions) || 0,
+          });
+          uids.push(uid);
+        });
+        if (mode !== 'single')
+          transportShareInput.value = String(Number(sale.transportSharePercent));
+        const sc = sale.schedule;
+        if (st) {
+          workMode = st.workMode;
+          crewTechs = st.technicians;
+          otHours = st.overtimeHours;
+          plannedStart = st.plannedStart || '';
+          st.phases.forEach((ph) => {
+            const qty = {};
+            uids.forEach((uid, i) => {
+              if (uid !== null) qty[uid] = Number(ph.qty[i]) || 0;
+            });
+            phases.push({ name: ph.name, gap: ph.gap, qty });
+          });
+          st.addons.forEach((a) => {
+            if (addons[a.name])
+              Object.assign(addons[a.name], { rate: a.rate, hours: a.hours, on: a.on });
+          });
+        } else if (sc) {
+          workMode = sc.workMode;
+          crewTechs = sc.technicians;
+          otHours = sc.overtimeHours || 0;
+          plannedStart = sc.plannedStart || '';
+          if (workMode === 'phased') {
+            (sc.phases || []).forEach((ph) =>
+              phases.push({
+                name: ph.name,
+                gap: ph.readiness === 'confirmed' ? ph.waitBeforeDays : null,
+                qty: {},
+              }),
+            );
+            ensurePhases();
+            notes.push(
+              'This quote was saved before phase quantities were stored, so every item is in the first phase. Please check the phases.',
+            );
+          }
+        }
+        updateCapacity();
+        const setField = (selector, value) => {
+          const el = container.querySelector(selector);
+          if (el) el.value = value || '';
+        };
+        setField('[data-ths-client]', sale.clientName);
+        setField('[data-ths-contact-number]', sale.contactNumber);
+        setField('[data-ths-location]', sale.siteLocation);
+        setField('[data-ths-contract-ref]', sale.contractRef);
+        // The item picker in step 2 is not a pending item of this quote.
+        lastAddedSig = draftSignature();
+        renderAddonsTable();
+        renderAddonsEditTable();
+        renderAll();
+        container.querySelector('[data-th-tab="quote"]')?.click();
+        saleControl.startEdit(sale, notes);
+        saleHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (error) {
+        setMessage(
+          '#workspaceMessage',
+          'Could not open this Thomson quote for editing: ' + (error.message || 'unknown error'),
+        );
+      }
+    }
   }
 
   // Lists every saved thomson_sales record (modification.md #44) so a
   // previously issued Thomson sale can be found again and its quotation
   // reprinted, without anywhere else in the portal to look it up.
-  async function loadThomsonIssuedList(host, statusFilter = '') {
+  async function loadThomsonIssuedList(host, statusFilter = '', onEdit = null) {
+    if (onEdit) host._tqOnEdit = onEdit;
+    const canRevise = hasPermission('thomson_sale.revise');
     if (!hasPermission('thomson_sale.read')) {
       host.innerHTML =
         '<p class="form-note">You don\'t have permission to view issued Thomson sales.</p>';
@@ -18355,7 +18511,13 @@ ${bodyHtml}
             return (
               '<tr><td class="ac-ref"><strong>' +
               escapeHtml(sale.thomsonSaleReference) +
-              '</strong><small class="ac-sub">' +
+              '</strong>' +
+              (sale.revision > 1
+                ? ' <span class="status-chip" title="This quote has been edited and saved again. Earlier versions are kept under History.">Rev ' +
+                  escapeHtml(String(sale.revision)) +
+                  '</span>'
+                : '') +
+              '<small class="ac-sub">' +
               escapeHtml(formatDate(sale.createdAt)) +
               '</small></td><td class="ac-client">' +
               escapeHtml(sale.clientName || '—') +
@@ -18398,6 +18560,17 @@ ${bodyHtml}
               '<button type="button" class="button button-outline button-sm" data-tcc-reprint="' +
               escapeHtml(sale.id) +
               '">Print quotation</button></div></div>' +
+              (canRevise
+                ? '<div class="ac-group"><span class="ac-label">Manage</span><div class="ac-row">' +
+                  (status === 'Sold' || !host._tqOnEdit
+                    ? ''
+                    : '<button type="button" class="button button-outline button-sm" data-tcc-edit="' +
+                      escapeHtml(sale.id) +
+                      '" title="Reopen in the calculator with the current Admin prices">Edit</button>') +
+                  '<button type="button" class="button button-outline button-sm" data-tcc-history="' +
+                  escapeHtml(sale.id) +
+                  '">History</button></div></div>'
+                : '') +
               (canChangeStatus
                 ? status === 'Quote'
                   ? '<div class="ac-group"><span class="ac-label">Outcome</span><div class="ac-row"><input type="date" data-tcc-sold-date="' +
@@ -18439,8 +18612,93 @@ ${bodyHtml}
             );
           })
           .join('') +
-        '</tbody></table></div>';
+        '</tbody></table></div><div data-tcc-history-panel></div>';
       bindThomsonIssuedFilter(host);
+      host.querySelectorAll('[data-tcc-edit]').forEach((button) => {
+        button.addEventListener('click', () => {
+          if (host._tqOnEdit) host._tqOnEdit(button.getAttribute('data-tcc-edit'));
+        });
+      });
+      host.querySelectorAll('[data-tcc-history]').forEach((button) => {
+        button.addEventListener('click', async () => {
+          const id = button.getAttribute('data-tcc-history');
+          const sale = sales.find((x) => String(x.id) === String(id));
+          const panel = host.querySelector('[data-tcc-history-panel]');
+          if (!sale || !panel) return;
+          panel.innerHTML = '<p class="form-note">Loading history&hellip;</p>';
+          try {
+            const response = await apiRequest('/api/thomson-sales/' + id + '/revisions');
+            const versions = [
+              {
+                revision: sale.revision,
+                current: true,
+                note: sale.revisionNote,
+                savedAt: sale.updatedAt,
+                savedBy: null,
+                content: sale,
+              },
+            ].concat(
+              (response.revisions || []).map((r) => ({
+                revision: r.revision,
+                current: false,
+                note: r.revisionNote,
+                savedAt: r.savedAt,
+                savedBy: r.savedByName,
+                content: Object.assign({}, sale, r.snapshot, {
+                  thomsonSaleReference:
+                    sale.thomsonSaleReference + ' (Rev ' + r.revision + ' \u2014 superseded)',
+                }),
+              })),
+            );
+            panel.innerHTML =
+              '<h4>History of ' +
+              escapeHtml(sale.thomsonSaleReference) +
+              ' <button type="button" class="button button-outline" data-tcc-history-close>Close</button></h4>' +
+              '<p class="form-note">Every saved version is kept; the current one is on top.</p>' +
+              '<div class="table-wrap"><table><thead><tr><th>Revision</th><th>Saved</th><th>Saved by</th><th>Reason</th><th class="num">Units</th><th class="num">Total price</th><th class="num">Margin</th><th></th></tr></thead><tbody>' +
+              versions
+                .map(
+                  (v, i) =>
+                    '<tr><td>Rev ' +
+                    escapeHtml(String(v.revision)) +
+                    (v.current ? ' <span class="status-chip">Current</span>' : '') +
+                    '</td><td>' +
+                    escapeHtml(formatDate(v.savedAt)) +
+                    '</td><td>' +
+                    escapeHtml(v.savedBy || '\u2014') +
+                    '</td><td>' +
+                    escapeHtml(v.note || '\u2014') +
+                    '</td><td class="num">' +
+                    (v.content.lineItems || []).reduce((t, li) => t + Number(li.qty || 0), 0) +
+                    '</td><td class="num">' +
+                    money(v.content.totalPrice) +
+                    '</td><td class="num">' +
+                    money(v.content.margin) +
+                    '</td><td><button type="button" class="button button-outline" data-tcc-hist-print="' +
+                    i +
+                    '">Print</button></td></tr>',
+                )
+                .join('') +
+              '</tbody></table></div>';
+            panel.querySelector('[data-tcc-history-close]').addEventListener('click', () => {
+              panel.innerHTML = '';
+            });
+            panel.querySelectorAll('[data-tcc-hist-print]').forEach((printButton) => {
+              printButton.addEventListener('click', () =>
+                printThomsonSaleCertificate(
+                  versions[Number(printButton.getAttribute('data-tcc-hist-print'))].content,
+                ),
+              );
+            });
+            panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          } catch (error) {
+            panel.innerHTML =
+              '<p class="form-note">Could not load the history: ' +
+              escapeHtml(error.message || 'unknown error') +
+              '</p>';
+          }
+        });
+      });
       host.querySelectorAll('[data-tcc-status]').forEach((button) => {
         button.addEventListener('click', async () => {
           const id = button.getAttribute('data-tcc-id');
@@ -18512,13 +18770,20 @@ ${bodyHtml}
     formRoot,
     getMode,
     getSchedule,
+    getEditorState,
   ) {
     if (!hasPermission('thomson_sale.write')) {
       saleHost.innerHTML =
         '<p class="form-note">You don\'t have permission to issue Thomson sales.</p>';
-      return;
+      return null;
     }
     saleHost.innerHTML =
+      '<div class="tq-editbar" data-ths-editbar hidden>' +
+      '<p class="form-note"><strong data-ths-edit-title></strong> Prices are recalculated with the current Admin prices. The earlier version stays under History.</p>' +
+      '<div data-ths-edit-notes></div>' +
+      '<label class="tq-edit-note">Reason for the change (optional) <input type="text" maxlength="300" data-ths-revision-note /></label> ' +
+      '<button type="button" class="button button-outline rm-btn" data-ths-cancel-edit>Cancel edit</button>' +
+      '</div>' +
       '<p class="form-note">Save the quotation, then print it. Client details come from step 1; you can reprint any saved quote from Issued quotes.</p>' +
       '<p>' +
       '<button type="button" class="button button-primary rm-btn" data-ths-save>Save quotation</button> ' +
@@ -18530,6 +18795,23 @@ ${bodyHtml}
     const printButton = saleHost.querySelector('[data-ths-print]');
     const messageHost = saleHost.querySelector('[data-ths-message]');
     let savedSale = null;
+    let editing = null;
+    const editBar = saleHost.querySelector('[data-ths-editbar]');
+    const noteInput = saleHost.querySelector('[data-ths-revision-note]');
+
+    function endEdit() {
+      editing = null;
+      editBar.hidden = true;
+      noteInput.value = '';
+      saveButton.textContent = 'Save quotation';
+    }
+
+    saleHost.querySelector('[data-ths-cancel-edit]').addEventListener('click', () => {
+      endEdit();
+      messageHost.innerHTML = '';
+      clearSaleFormInputs();
+      clearLineItems();
+    });
 
     function clearSaleFormInputs() {
       formRoot
@@ -18583,17 +18865,26 @@ ${bodyHtml}
         margin,
         contractRef: field('[data-ths-contract-ref]') || undefined,
         schedule,
+        editorState: getEditorState ? getEditorState() : undefined,
       };
       try {
-        const response = await apiRequest('/api/thomson-sales', {
-          method: 'POST',
-          body: JSON.stringify(payload),
-        });
+        const wasEditing = editing;
+        if (wasEditing) payload.revisionNote = noteInput.value.trim() || undefined;
+        const response = await apiRequest(
+          wasEditing ? '/api/thomson-sales/' + wasEditing.id : '/api/thomson-sales',
+          { method: wasEditing ? 'PUT' : 'POST', body: JSON.stringify(payload) },
+        );
         savedSale = response.thomsonSale;
-        messageHost.innerHTML =
-          '<p class="form-note">Saved as <strong>' +
-          escapeHtml(savedSale.thomsonSaleReference) +
-          '</strong> and added to Issued quotes. Print it now, or reprint it any time from Issued quotes. The quote has been reset for the next customer.</p>';
+        messageHost.innerHTML = wasEditing
+          ? '<p class="form-note">Saved as <strong>Rev ' +
+            escapeHtml(String(savedSale.revision)) +
+            '</strong> of <strong>' +
+            escapeHtml(savedSale.thomsonSaleReference) +
+            '</strong>. The earlier version is under History in Issued quotes. Print it now, or reprint it any time. The quote has been reset for the next customer.</p>'
+          : '<p class="form-note">Saved as <strong>' +
+            escapeHtml(savedSale.thomsonSaleReference) +
+            '</strong> and added to Issued quotes. Print it now, or reprint it any time from Issued quotes. The quote has been reset for the next customer.</p>';
+        endEdit();
         printButton.disabled = false;
         clearSaleFormInputs();
         clearLineItems();
@@ -18610,6 +18901,23 @@ ${bodyHtml}
       if (!savedSale) return;
       printThomsonSaleCertificate(savedSale);
     });
+
+    return {
+      startEdit(sale, notes) {
+        editing = sale;
+        savedSale = null;
+        printButton.disabled = true;
+        saveButton.textContent = 'Save revision';
+        saleHost.querySelector('[data-ths-edit-title]').textContent =
+          'Editing ' + sale.thomsonSaleReference + ' (Rev ' + sale.revision + ').';
+        saleHost.querySelector('[data-ths-edit-notes]').innerHTML = (notes || [])
+          .map((n) => '<p class="form-note pg-error">' + escapeHtml(n) + '</p>')
+          .join('');
+        noteInput.value = '';
+        editBar.hidden = false;
+        messageHost.innerHTML = '';
+      },
+    };
   }
 
   // ---------------------------------------------------------------------------

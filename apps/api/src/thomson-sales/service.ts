@@ -4,6 +4,7 @@ import {
   thomsonSaleWriteSchema,
   thomsonSaleListQuerySchema,
   thomsonSaleStatusSchema,
+  thomsonSaleReviseSchema,
   type ThomsonSaleWriteInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
@@ -11,6 +12,8 @@ import {
   findThomsonSaleById,
   insertThomsonSale,
   listThomsonSales,
+  listThomsonSaleRevisions,
+  reviseThomsonSale,
   type ThomsonSaleContent,
 } from '../../../../packages/db/src/thomson-sales.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
@@ -19,7 +22,7 @@ import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class ThomsonSaleServiceError extends Error {
   constructor(
-    public readonly code: 'not-found',
+    public readonly code: 'not-found' | 'sold-locked',
     message: string,
   ) {
     super(message);
@@ -39,6 +42,7 @@ function toContent(input: ThomsonSaleWriteInput): ThomsonSaleContent {
     margin: input.margin,
     contractRef: input.contractRef ?? null,
     schedule: input.schedule ?? null,
+    editorState: input.editorState ?? null,
   };
 }
 
@@ -131,7 +135,56 @@ export function createThomsonSaleService(pool: Pool) {
     });
   }
 
-  return { create, list, detail, setStatus };
+  async function revise(
+    id: string,
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = thomsonSaleReviseSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      const result = await reviseThomsonSale(client, id, {
+        content: toContent(data),
+        revisionNote: data.revisionNote ?? null,
+        profileId,
+      });
+      if (result === null)
+        throw new ThomsonSaleServiceError('not-found', 'The Thomson sale was not found.');
+      if (result === 'sold')
+        throw new ThomsonSaleServiceError(
+          'sold-locked',
+          'This quote is Sold and locked. Reopen it to Quote first, then edit it.',
+        );
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'thomson_sale.revised',
+        targetType: 'thomson_sale',
+        targetId: result.after.id,
+        metadata: {
+          thomsonSaleReference: result.after.thomsonSaleReference,
+          revision: result.after.revision,
+          totalPrice: result.after.totalPrice,
+          previousTotalPrice: result.before.totalPrice,
+          revisionNote: result.after.revisionNote,
+        },
+        requestId,
+      });
+      return result.after;
+    });
+  }
+
+  async function revisions(id: string) {
+    const client = await pool.connect();
+    try {
+      const sale = await findThomsonSaleById(client, id);
+      if (!sale) throw new ThomsonSaleServiceError('not-found', 'The Thomson sale was not found.');
+      return listThomsonSaleRevisions(client, id);
+    } finally {
+      client.release();
+    }
+  }
+
+  return { create, list, detail, setStatus, revise, revisions };
 }
 
 export type ThomsonSaleService = ReturnType<typeof createThomsonSaleService>;

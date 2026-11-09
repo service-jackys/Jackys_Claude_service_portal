@@ -977,6 +977,55 @@ export const thomsonSaleScheduleSchema = z
   .strict();
 export type ThomsonSaleScheduleInput = z.infer<typeof thomsonSaleScheduleSchema>;
 
+// What the calculator needs to reopen a saved quote exactly as it was built
+// (modification #224). Quantities per phase follow the order of `lines`.
+export const thomsonSaleEditorStateSchema = z
+  .object({
+    mode: z.enum(['project', 'single']),
+    workMode: z.enum(['continuous', 'phased']),
+    technicians: z.number().min(1).max(1000),
+    overtimeHours: z.number().min(0).max(24),
+    plannedStart: dateSchema.optional(),
+    lines: z
+      .array(
+        z
+          .object({
+            region: z.string().trim().min(1).max(120),
+            applianceName: z.string().trim().min(1).max(200),
+            qty: z.number().min(0).max(1000000),
+            siteVisits: z.number().min(0).max(100000),
+            trainingSessions: z.number().min(0).max(100000),
+          })
+          .strict(),
+      )
+      .max(200),
+    phases: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(60),
+            gap: z.number().min(0).max(100000).nullable(),
+            qty: z.array(z.number().min(0).max(1000000)).max(200),
+          })
+          .strict(),
+      )
+      .max(50),
+    addons: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(80),
+            rate: z.number().min(-100000000).max(100000000),
+            hours: z.number().min(0).max(100000),
+            on: z.boolean(),
+          })
+          .strict(),
+      )
+      .max(10),
+  })
+  .strict();
+export type ThomsonSaleEditorStateInput = z.infer<typeof thomsonSaleEditorStateSchema>;
+
 export const thomsonSaleWriteSchema = z
   .object({
     saleDate: dateSchema.optional(),
@@ -990,9 +1039,16 @@ export const thomsonSaleWriteSchema = z
     margin: z.number().min(-100000000).max(100000000),
     contractRef: optionalText(120),
     schedule: thomsonSaleScheduleSchema.optional(),
+    editorState: thomsonSaleEditorStateSchema.optional(),
   })
   .strict();
 export type ThomsonSaleWriteInput = z.infer<typeof thomsonSaleWriteSchema>;
+
+// Saving an edit of an issued quote: the same content plus an optional reason.
+export const thomsonSaleReviseSchema = thomsonSaleWriteSchema.extend({
+  revisionNote: optionalText(300),
+});
+export type ThomsonSaleReviseInput = z.infer<typeof thomsonSaleReviseSchema>;
 export type ThomsonSaleLineItemInput = z.infer<typeof thomsonSaleLineItemSchema>;
 
 export const thomsonSaleStatuses = ['Quote', 'Sold', 'Lost'] as const;
