@@ -22,6 +22,7 @@ export function createQuotationHandlers(
           const pageSize = Number(request.query.pageSize ?? 25);
           response.json({
             quotations: result.items,
+            totals: { amount: result.totalAmount, subtotal: result.totalSubtotal },
             pagination: {
               page,
               pageSize,

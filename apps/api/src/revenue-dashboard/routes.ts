@@ -100,6 +100,16 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    invoiceCheck: [
+      requirePermission('revenue_dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json(await service.invoiceCheck());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     lpoPendingByMonth: [
       requirePermission('revenue_dashboard.read'),
       async (_request, response, next) => {

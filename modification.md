@@ -4606,3 +4606,19 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/074_quotation_invoiced_at.sql, packages/db/src/quotations.ts, apps/web/src/app.js, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts.
 
 **Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.
+
+## Modification #215 — ERP / ORION invoice number, Invoice check, and a total under the quotations list
+
+**Date:** 2026-11-09
+
+**Why.** An Invoiced status was only a manual choice, so a quotation could be marked Invoiced with no invoice in ERP and nobody would notice. Management also wanted the quotations list to show a total.
+
+**What changed.**
+
+- **Invoice number:** when the ERP / ORION status is Invoiced the quotation now needs the ERP / ORION invoice number (shown only for Invoiced, with a tooltip). It is cleared if the status goes back to Pending invoice. Quotations already Invoiced before this change can still be edited without one.
+- **Invoice check (Reports, new pill):** each Invoiced quotation's invoice number is matched against the invoice numbers (Inv/Del no.) in the active master workbook. Not found within 7 days of being marked Invoiced is flagged red; within 7 days it shows as waiting; an amount that differs from the quotation subtotal (excl. VAT) by more than 1 is flagged. Older Invoiced quotations with no number are counted as not checked. The 7 days is the `invoice_check_grace_days` setting.
+- **Quotations list total:** under the Created quotations table, a selector (All quotations / Invoiced / Pending invoice) filters the list and shows the total of every matching quotation (incl. and excl. VAT, and the count), not just the 50 on screen. No styling changed.
+
+**Files.** packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/*, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests (quotation-invoice-check, quotation-lpo-pending, quotation-units, lpo-pending-report).
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh. Upload the master workbook as usual; the Invoice check reads the active upload.

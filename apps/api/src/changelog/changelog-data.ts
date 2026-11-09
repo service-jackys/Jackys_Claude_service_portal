@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 215,
+    "title": "ERP / ORION invoice number, Invoice check, and a total under the quotations list",
+    "area": "Quotations",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "A quotation marked Invoiced now needs its invoice number, Reports checks it against the master workbook, and the quotations list shows a total you can filter by ERP / ORION status.",
+    "changes": [
+      "Invoice number: required when the status is Invoiced, cleared when it goes back to Pending invoice. Quotations already Invoiced before this change can still be edited without one.",
+      "Invoice check (Reports): matches each Invoiced quotation's invoice number to the master workbook. Not found within 7 days (setting invoice_check_grace_days) is flagged red; an amount that differs is flagged. Older Invoiced quotations are counted as not checked.",
+      "Quotations list: a selector (All, Invoiced, Pending invoice) filters the list and shows the total of every matching quotation, incl. and excl. VAT. No styling changed."
+    ],
+    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["075_quotation_erp_invoice_no.sql"],
+    "files": "packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, apps/api/src/quotations, apps/api/src/revenue-dashboard, apps/web/src/app.js, apps/web/src/index.html, tests."
+  },
+  {
     "id": 214,
     "title": "LPO pending carries forward to the current month",
     "area": "Revenue dashboard",

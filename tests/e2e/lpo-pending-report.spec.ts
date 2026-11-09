@@ -85,3 +85,102 @@ test('the Total revenue card shows LPO pending beside, not inside, the revenue f
   await expect(page.locator('.rd-lpo')).toHaveCount(1);
   await card.screenshot({ path: process.env.LPO_SHOT || 'test-results/lpo-card.png' });
 });
+
+// Reports > Invoice check lists quotations marked Invoiced whose invoice number is not (yet) in
+// the master workbook, with the days since they were marked and the 7-day grace.
+test('Invoice check shows quotations marked Invoiced that are missing from the master workbook', async ({
+  page,
+}) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    const json = (body: unknown, status = 200) =>
+      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.pathname === '/api/auth/login') return json({ token: 'test-token' });
+    if (url.pathname === '/api/auth/me') {
+      return json({
+        user: {
+          name: 'Finance',
+          email: 'finance@jackys.com',
+          role: 'staff',
+          permissions: ['revenue_dashboard.read', 'revenue_dashboard.tab_reports'],
+        },
+      });
+    }
+    if (url.pathname === '/api/revenue-dashboard/summary') {
+      return json({
+        batch: { fileName: 'master.xlsm', uploadedAt: '2026-11-01T08:00:00Z' },
+        summary: {
+          totals: { jobs: 1, qty: 1, revenue: 100 },
+          options: {
+            years: [2026],
+            months: [10],
+            weeks: [],
+            jobTypes: [],
+            channels: [],
+            costStatuses: [],
+          },
+          monthly: [],
+        },
+      });
+    }
+    if (url.pathname === '/api/revenue-dashboard/invoice-check') {
+      return json({
+        graceDays: 7,
+        hasBatch: true,
+        legacyCount: 12,
+        counts: { checked: 5, matched: 2, waiting: 1, missing: 1, amountMismatch: 1 },
+        rows: [
+          {
+            id: '1',
+            reference: 'QO-2026-00101',
+            customer: 'GEMS Wellington',
+            invoiceNo: 'INV-9001',
+            subtotal: 400,
+            invoicedAt: '2026-10-28',
+            markedByName: 'Sales User',
+            daysSince: 12,
+            state: 'missing',
+            masterRevenue: null,
+            difference: null,
+            amountMismatch: false,
+          },
+          {
+            id: '2',
+            reference: 'QO-2026-00102',
+            customer: 'Emaar',
+            invoiceNo: 'INV-9002',
+            subtotal: 300,
+            invoicedAt: '2026-11-05',
+            markedByName: 'Sales User',
+            daysSince: 4,
+            state: 'matched',
+            masterRevenue: 250,
+            difference: -50,
+            amountMismatch: true,
+          },
+        ],
+      });
+    }
+    if (url.pathname.startsWith('/api/revenue-dashboard/')) return json({ data: { rows: [] } });
+    return json({}, 404);
+  });
+  await page.goto('/portal/');
+  await page.locator('#loginEmail').fill('finance@jackys.com');
+  await page.locator('#loginPassword').fill('local-password-1234');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('#staff-workspace')).toBeVisible();
+  const management = page.getByRole('button', { name: 'Management', exact: true });
+  if ((await management.getAttribute('aria-expanded')) !== 'true') await management.click();
+  await page.locator('#financeNav').click();
+  await page.getByRole('button', { name: 'Service Revenue Dashboard' }).first().click();
+  await page.getByRole('tab', { name: 'Reports' }).click();
+  await page.getByRole('button', { name: 'Invoice check' }).click();
+  const section = page.locator('[data-rd-report-body]');
+  await expect(section).toContainText('5 checked');
+  await expect(section).toContainText('1 not in master after 7 days');
+  await expect(section).toContainText('12 older quotations not checked');
+  await expect(section.locator('tbody tr')).toHaveCount(2);
+  await expect(section.locator('tbody tr').first()).toContainText('INV-9001');
+  await expect(section.locator('tbody tr').first()).toContainText('Not in master');
+  await expect(section.locator('tbody tr').nth(1)).toContainText('Amount differs by');
+});

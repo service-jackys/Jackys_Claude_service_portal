@@ -54,6 +54,7 @@ test(
             quotationDate: date,
             quotationStatus: status,
             erpStatus,
+            erpInvoiceNo: erpStatus === 'Invoiced' ? `INV-${suffix}` : undefined,
             products: [
               {
                 unitKey: 'u1',
