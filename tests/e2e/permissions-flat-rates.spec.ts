@@ -63,7 +63,7 @@ test.describe('Invoices, Billing and Quote Calculators permissions', () => {
   }) => {
     await mockApi(page, ['quote_calculators.use']);
     await signIn(page);
-    for (const id of ['#vasCalcNav', '#amcCalcNav', '#thomsonCalcNav'])
+    for (const id of ['#vasCalcNav', '#amcCalcV2Nav', '#thomsonCalcNav'])
       await expect(page.locator(id)).not.toHaveAttribute('hidden', /.*/);
     for (const id of ['#dandiAdminNav', '#vasAdminNav', '#pricingMastersNav'])
       await expect(page.locator(id)).toHaveAttribute('hidden', /.*/);

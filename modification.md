@@ -4844,3 +4844,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/081_ask_ai_permissions.sql, packages/contracts/src/index.ts, apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give the `ai_ask.*` permissions to other roles in Roles & permissions if wanted.
+
+## Modification #230 — Admin → Archive: the original AMC Quote Calculator and AMC Admin Rates
+
+**Date:** 2026-11-09
+
+**Why.** The new AMC Quote Calculator and AMC Admin Rates (New) replace the originals. The originals should leave the menus but stay available to an admin, with all their data.
+
+**What changed.**
+
+- **New Admin → Archive page** (admin only, permission `archive.view`). It lists the archived pages with what replaced them and an **Open** button for each.
+- **Archived:** AMC Quote Calculator (original, with its AMC Issued list and saved quotes) and AMC Admin Rate Section (original, no longer a tab in Pricing Masters). Both are removed from the sidebar and the Quote Calculators menu, and their pages say "Archived page" when opened.
+- **Nothing is deleted.** Rates, saved original quotes, printouts, APIs and permissions are unchanged. The Dashboard "AMC contracts" tile now opens the new AMC calculator.
+- Migration 082 adds `archive.view` (admin only by default; can be granted in Roles & permissions).
+
+**Files.** packages/db/migrations/082_archive_permission.sql, apps/web/src/app.js, apps/web/src/index.html, tests/e2e/archive.spec.ts (new), tests/e2e/amc-*.spec.ts and permissions-flat-rates.spec.ts (open the archived pages directly).
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.

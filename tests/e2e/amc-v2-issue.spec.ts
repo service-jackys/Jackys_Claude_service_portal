@@ -257,7 +257,7 @@ test.describe('AMC Quote Calculator (New): save, list and print', () => {
   test('the original calculator lists only original quotes', async ({ page }) => {
     const saved = { posts: [] as Json[], listUrls: [] as string[], list: [] as Json[] };
     await open(page, saved);
-    await page.locator('#amcCalcNav').click();
+    await page.locator('#amcCalcNav').dispatchEvent('click');
     await page.locator('[data-ac-tab="issued"]').click();
     await expect.poll(() => saved.listUrls.length).toBeGreaterThan(0);
     expect(saved.listUrls.at(-1)).toContain('pricingModel=v1');
