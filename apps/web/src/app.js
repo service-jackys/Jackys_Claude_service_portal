@@ -12283,6 +12283,74 @@ ${bodyHtml}
         data,
         ctx.markDirty,
       );
+      // Project timeline & Smart advice settings (modification #218).
+      if (!data.scheduling) data.scheduling = { ...THOMSON_SCHEDULING_DEFAULTS };
+      const schedCardHost = document.createElement('div');
+      schedCardHost.className = 'detail-action-card';
+      schedCardHost.innerHTML =
+        '<h4>Project timeline &amp; Smart advice</h4><p class="form-note">Used by the Project timeline tab in the Thomson Quote Calculator.</p>';
+      grid.appendChild(schedCardHost);
+      const schedHost = document.createElement('div');
+      schedCardHost.appendChild(schedHost);
+      pcRenderScalarFields(
+        schedHost,
+        [
+          {
+            path: 'scheduling.highDaysThreshold',
+            label: 'High-duration threshold (working days)',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'When a quote needs more working days than this, the Smart advice card suggests ways to finish sooner.',
+          },
+          {
+            path: 'scheduling.defaultPhaseGapDays',
+            label: 'Default readiness gap between phases (days)',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'Waiting days assumed between phases when the customer has not confirmed site readiness. The user can override it per phase.',
+          },
+          {
+            path: 'scheduling.maxTechnicians',
+            label: 'Maximum technicians per project',
+            type: 'number',
+            step: '1',
+            tooltip: 'Upper limit when Smart advice recommends adding technicians.',
+          },
+          {
+            path: 'scheduling.overtimeHoursPerDay',
+            label: 'Overtime hours allowed per day',
+            type: 'number',
+            step: '0.5',
+            tooltip:
+              'Extra hours per day Smart advice may suggest. 0 turns the overtime suggestion off.',
+          },
+          {
+            path: 'scheduling.overtimeMultiplier',
+            label: 'Overtime pay multiplier',
+            type: 'number',
+            step: '0.1',
+            tooltip: 'Overtime labour cost = normal technician cost per hour x this number.',
+          },
+          {
+            path: 'scheduling.minMarginPct',
+            label: 'Minimum margin guard (%)',
+            type: 'number',
+            tooltip:
+              'Smart advice only recommends a change if the quote margin stays at or above this percentage.',
+          },
+          {
+            path: 'scheduling.maxPhases',
+            label: 'Maximum phases per quote',
+            type: 'number',
+            step: '1',
+            tooltip: 'Sanity limit on how many phases a quote can be split into.',
+          },
+        ],
+        data,
+        ctx.markDirty,
+      );
       const regionsHost = document.createElement('div');
       regionsHost.className = 'detail-action-card';
       regionsHost.innerHTML = '<h4>Regions</h4>';
@@ -16312,6 +16380,16 @@ ${bodyHtml}
   }
 
   // --- Thomson --------------------------------------------------------------
+  const THOMSON_SCHEDULING_DEFAULTS = {
+    highDaysThreshold: 10,
+    defaultPhaseGapDays: 3,
+    maxTechnicians: 6,
+    overtimeHoursPerDay: 2,
+    overtimeMultiplier: 1.5,
+    minMarginPct: 15,
+    maxPhases: 12,
+  };
+
   function thomsonCalcTier(qty) {
     if (qty >= 500) return '500+';
     if (qty >= 300) return '300+';
@@ -16335,6 +16413,46 @@ ${bodyHtml}
     return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">Transport cost</th><th class="num">Total price</th></tr></thead><tbody>${
       rows || '<tr><td colspan="8" style="text-align:center;color:#888;">No lines</td></tr>'
     }</tbody></table>`;
+  }
+
+  // Project schedule block on the printed quotation (modification #218).
+  function buildThomsonScheduleHtml(schedule) {
+    if (!schedule) return '';
+    const phased = schedule.workMode === 'phased';
+    const rows = (schedule.phases || [])
+      .map(
+        (ph) =>
+          '<tr><td>' +
+          escapeHtml(ph.name) +
+          '</td><td>' +
+          escapeHtml(ph.items || '') +
+          '</td><td>' +
+          ph.waitBeforeDays +
+          (ph.readiness === 'assumed' ? ' (assumed)' : '') +
+          '</td><td>' +
+          ph.days +
+          '</td></tr>',
+      )
+      .join('');
+    return (
+      '<h2>Project schedule</h2>' +
+      printFieldGrid([
+        ['Work method', phased ? 'Phase to phase' : 'Continuous work'],
+        ['Technicians on site', String(schedule.technicians)],
+        ['Working days', String(schedule.workingDays)],
+        ...(phased ? [['Waiting between phases', schedule.waitingDays + ' days']] : []),
+        ['Start to finish', schedule.totalDays + ' days'],
+        ...(schedule.estimatedCompletion
+          ? [['Estimated completion', schedule.estimatedCompletion]]
+          : []),
+      ]) +
+      (phased && rows
+        ? '<table><thead><tr><th>Phase</th><th>Scope</th><th>Wait before (days)</th><th>Working days</th></tr></thead><tbody>' +
+          rows +
+          '</tbody></table>'
+        : '') +
+      '<p style="font-size:10px;color:#555;">Dates depend on the site being ready as scheduled; phases that are not released on time move the completion date.</p>'
+    );
   }
 
   function isThomsonSingleSale(sale) {
@@ -16364,6 +16482,7 @@ ${bodyHtml}
         <div class="fee">\u20C3 ${money(sale.totalPrice)}</div>
         <div>${isThomsonSingleSale(sale) ? 'Total price' : 'Total project price'}</div>
       </div>
+      ${buildThomsonScheduleHtml(sale.schedule)}
       <h2>Signatures</h2>
       <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing and payment terms.</p>
       <div class="sign-row">
@@ -16421,7 +16540,22 @@ ${bodyHtml}
       }, {});
     }
     let addons = cloneAddonDefaults();
-    let teamCapacity = data.techCount * data.hoursDay;
+    // Project timeline state (modification #218): the crew can be changed for
+    // this quote only (technicians, overtime hours); work is either continuous
+    // (crew on site every working day) or phase to phase (work starts as each
+    // phase / site is ready). Phases hold their quantity per line (by line uid).
+    const Sched = window.JdThomsonSchedule;
+    const schedCfg = () => ({ ...THOMSON_SCHEDULING_DEFAULTS, ...(data.scheduling || {}) });
+    let crewTechs = data.techCount;
+    let otHours = 0;
+    let workMode = 'continuous';
+    let plannedStart = '';
+    let uidSeq = 1;
+    const phases = [];
+    let teamCapacity = crewTechs * (data.hoursDay + otHours);
+    function updateCapacity() {
+      teamCapacity = crewTechs * (data.hoursDay + otHours);
+    }
     const lineItems = [];
     // 'project' (several units / sites, tiered rates, project services) or
     // 'single' (one item or a small job: base rate, call-out, minimum charge).
@@ -16510,6 +16644,11 @@ ${bodyHtml}
       '</section>' +
       // 3 (project)
       '<section class="tq-step" data-tq-project-only><h4><span class="tq-num">3</span>Services &amp; transport</h4>' +
+      '<div class="vc-tab-nav tq-s3-tabs" role="tablist" aria-label="Services and project timeline">' +
+      '<button type="button" class="action-tab active" role="tab" aria-selected="true" data-tq-s3tab="services">Services &amp; transport</button>' +
+      '<button type="button" class="action-tab" role="tab" aria-selected="false" data-tq-s3tab="timeline">Project timeline <span class="tl-badge" data-tl-badge></span></button>' +
+      '</div>' +
+      '<div data-tq-s3panel="services">' +
       '<p class="form-note">Untick a service to leave it out of this quote.</p>' +
       '<div data-tcc-addons></div>' +
       (canAmendAddons
@@ -16525,6 +16664,8 @@ ${bodyHtml}
         '0% means we absorb the transport cost (the workbook default). 100% charges the customer the full transport cost.',
       ) +
       '</div>' +
+      '</div>' +
+      '<div data-tq-s3panel="timeline" hidden><div data-tq-timeline></div></div>' +
       '</section>' +
       // 3 (single)
       '<section class="tq-step" data-tq-single-only hidden><h4><span class="tq-num">3</span>Call-out &amp; minimum charge</h4>' +
@@ -16744,9 +16885,34 @@ ${bodyHtml}
       const baseRate = appliance.rates.Base;
       const unitRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
       const applianceSubtotal = li.qty * unitRate;
-      const installLaborCost = li.qty * (appliance.avgMin / 60) * data.techRate;
+      const lineHours = li.qty * (appliance.avgMin / 60);
+      // Overtime hours are paid at the admin multiplier: the share of the work
+      // done in overtime costs (multiplier - 1) x the normal hourly cost extra.
+      const overtimeExtra =
+        otHours > 0 && data.hoursDay + otHours > 0
+          ? lineHours *
+            (otHours / (data.hoursDay + otHours)) *
+            (schedCfg().overtimeMultiplier - 1) *
+            data.techRate
+          : 0;
+      const installLaborCost = lineHours * data.techRate + overtimeExtra;
+      // Phase to phase: every phase carrying this line is rounded up on its
+      // own, so each phase is its own set of site trips. Used only when the
+      // phases account for the whole quantity of the line.
+      const phasedTrips =
+        !single && workMode === 'phased' && li.uid && linePhasedFully(li)
+          ? Sched.phasedLineTrips(
+              appliance.avgMin / 60,
+              phases.map((ph) => ph.qty[li.uid] || 0),
+              teamCapacity,
+            )
+          : null;
       const installDays =
-        teamCapacity > 0 ? Math.ceil((li.qty * (appliance.avgMin / 60)) / teamCapacity) : 0;
+        phasedTrips !== null
+          ? phasedTrips
+          : teamCapacity > 0
+            ? Math.ceil(lineHours / teamCapacity)
+            : 0;
       let addonRevenue = 0;
       let addonServicesCost = 0;
       let siteTrips = 0;
@@ -16864,6 +17030,485 @@ ${bodyHtml}
       }
       return html;
     }
+
+    // ---- Project timeline (modification #218) -------------------------------
+    function linePhasedFully(li) {
+      const sum = phases.reduce((t, ph) => t + (Number(ph.qty[li.uid]) || 0), 0);
+      return sum === li.qty;
+    }
+
+    function resetTimeline() {
+      phases.length = 0;
+      workMode = 'continuous';
+      crewTechs = data.techCount;
+      otHours = 0;
+      plannedStart = '';
+      updateCapacity();
+    }
+
+    function newPhase() {
+      return { name: 'Phase ' + (phases.length + 1), gap: null, qty: {} };
+    }
+
+    // Phase 1 exists as soon as phase to phase is chosen; a line that no
+    // phase carries yet goes into Phase 1 so nothing is silently left out.
+    function ensurePhases() {
+      if (!phases.length) phases.push(newPhase());
+      lineItems.forEach((li) => {
+        const sum = phases.reduce((t, ph) => t + (Number(ph.qty[li.uid]) || 0), 0);
+        if (sum === 0) phases[0].qty[li.uid] = li.qty;
+      });
+    }
+
+    function scheduleNow() {
+      const cfg = schedCfg();
+      const lines = lineItems.map((li) => {
+        const appliance = appliances[li.applianceIdx];
+        const survey = addons['Site Survey'];
+        const training = addons['Training (End User)'];
+        return {
+          uid: li.uid,
+          hoursPerUnit: appliance ? appliance.avgMin / 60 : 0,
+          qty: li.qty,
+          extraDays:
+            li.mode === 'single'
+              ? 0
+              : (survey.on ? li.siteVisits : 0) + (training.on ? li.trainingSessions : 0),
+        };
+      });
+      const phased = workMode === 'phased' && phases.length > 0;
+      return Sched.computeSchedule({
+        lines,
+        techCount: crewTechs,
+        hoursDay: data.hoursDay + otHours,
+        mode: phased ? 'phased' : 'continuous',
+        phases: phases.map((ph) => ({
+          name: ph.name,
+          qty: lineItems.map((li) => Number(ph.qty[li.uid]) || 0),
+          gapDays: ph.gap === null ? cfg.defaultPhaseGapDays : ph.gap,
+          gapSource: ph.gap === null ? 'default' : 'entered',
+        })),
+      });
+    }
+
+    // Re-prices the quote under a different crew / mode without touching the
+    // real state -- used by Smart advice to show what a change would do.
+    function scenario(over) {
+      const keep = { crewTechs, otHours, workMode };
+      if (over.crewTechs !== undefined) crewTechs = over.crewTechs;
+      if (over.otHours !== undefined) otHours = over.otHours;
+      if (over.workMode !== undefined) workMode = over.workMode;
+      updateCapacity();
+      try {
+        const q = computeQuote();
+        const sch = scheduleNow();
+        const price = q.computed.reduce((t, c) => t + c.totalPrice, 0);
+        const cost = q.computed.reduce((t, c) => t + c.totalCost, 0);
+        return {
+          days: sch.workingDays,
+          calendar: sch.calendarDays,
+          price,
+          cost,
+          margin: price - cost,
+          pct: price ? ((price - cost) / price) * 100 : 0,
+        };
+      } finally {
+        crewTechs = keep.crewTechs;
+        otHours = keep.otHours;
+        workMode = keep.workMode;
+        updateCapacity();
+      }
+    }
+
+    function signedMoney(value) {
+      const rounded = Math.round(value * 100) / 100;
+      if (Math.abs(rounded) < 0.005) return 'no change';
+      return (rounded > 0 ? '+' : '−') + '⃃ ' + money(Math.abs(rounded));
+    }
+
+    function timelineAdviceHtml(current) {
+      const cfg = schedCfg();
+      if (current.days <= cfg.highDaysThreshold) {
+        return (
+          '<div class="tl-advice is-ok"><div class="tl-advice-head"><strong>Smart advice</strong>' +
+          '<span class="tl-chip is-ok">On track</span></div>' +
+          '<p>This project needs ' +
+          current.days +
+          ' working days, within the ' +
+          cfg.highDaysThreshold +
+          '-day guide. No change needed.</p></div>'
+        );
+      }
+      const options = [];
+      const pushOption = (title, apply, result, note) =>
+        options.push({ title, apply, result, note });
+      for (let t = crewTechs + 1; t <= cfg.maxTechnicians; t += 1) {
+        const r = scenario({ crewTechs: t });
+        const reached = r.days <= cfg.highDaysThreshold;
+        if (reached || t === cfg.maxTechnicians) {
+          pushOption(
+            'Deploy ' + t + ' technicians (now ' + crewTechs + ')',
+            'techs:' + t,
+            r,
+            'Same labour hours, shorter stay on site' +
+              (reached ? '.' : '; this is the most the admin cap allows.'),
+          );
+          break;
+        }
+      }
+      if (cfg.overtimeHoursPerDay > 0 && otHours === 0) {
+        const r = scenario({ otHours: cfg.overtimeHoursPerDay });
+        pushOption(
+          'Work ' + cfg.overtimeHoursPerDay + ' overtime hours a day',
+          'ot:' + cfg.overtimeHoursPerDay,
+          r,
+          'Overtime is paid at ' + cfg.overtimeMultiplier + 'x the normal hourly cost.',
+        );
+      }
+      if (workMode === 'phased' && phases.length > 1) {
+        const r = scenario({ workMode: 'continuous' });
+        pushOption(
+          'Do the work continuously',
+          'mode:continuous',
+          r,
+          'Possible only if the customer can release all areas together.',
+        );
+      }
+      const rows = options
+        .map((o) => {
+          const guard = o.result.pct >= cfg.minMarginPct;
+          return (
+            '<li><div class="tl-opt-main"><strong>' +
+            escapeHtml(o.title) +
+            '</strong><span>' +
+            current.days +
+            ' &rarr; ' +
+            o.result.days +
+            ' working days &middot; margin ' +
+            escapeHtml(signedMoney(o.result.margin - current.margin)) +
+            ' (' +
+            o.result.pct.toFixed(1) +
+            '%)</span><em>' +
+            escapeHtml(o.note) +
+            (guard
+              ? ''
+              : ' Margin would fall below the ' +
+                cfg.minMarginPct +
+                '% guard, so not recommended.') +
+            '</em></div>' +
+            (guard
+              ? '<button type="button" class="button button-outline rm-btn rm-btn-sm" data-tl-apply="' +
+                escapeHtml(o.apply) +
+                '">Apply</button>'
+              : '<span class="tl-chip is-warn">Below guard</span>') +
+            '</li>'
+          );
+        })
+        .join('');
+      return (
+        '<div class="tl-advice"><div class="tl-advice-head"><strong>Smart advice</strong>' +
+        '<span class="tl-chip is-warn">' +
+        current.days +
+        ' days &middot; above ' +
+        cfg.highDaysThreshold +
+        '</span></div>' +
+        '<p>This is a long project. Options to finish sooner, with the effect on margin worked out from your admin rates:</p>' +
+        (rows ? '<ul class="tl-options">' + rows + '</ul>' : '') +
+        '<p class="form-note">Another lever: agree with the customer on site readiness before the start, so phases can be released together.</p></div>'
+      );
+    }
+
+    function renderTimeline() {
+      const host = container.querySelector('[data-tq-timeline]');
+      const badge = container.querySelector('[data-tl-badge]');
+      if (!host) return;
+      const cfg = schedCfg();
+      if (!lineItems.length) {
+        if (badge) badge.textContent = '';
+        host.innerHTML =
+          '<p class="empty-state">Add items in step 2 to see the live timeline projection.</p>';
+        return;
+      }
+      if (workMode === 'phased') ensurePhases();
+      const sch = scheduleNow();
+      const current = scenario({});
+      if (badge) badge.textContent = '· ' + sch.workingDays + ' days';
+      const finish =
+        plannedStart && /^\d{4}-\d{2}-\d{2}$/.test(plannedStart)
+          ? Sched.addWorkingDays(plannedStart, sch.calendarDays)
+          : '';
+      const phasedHtml =
+        workMode === 'phased'
+          ? '<div class="tl-phases"><div class="table-wrap"><table class="tq-table"><thead><tr><th>Phase</th>' +
+            '<th class="num">Wait before (days) ' +
+            tipHtml(
+              'Working days the crew waits for this phase to be ready. Leave blank to use the admin default (' +
+                cfg.defaultPhaseGapDays +
+                ' days). Enter a number when the customer has confirmed readiness.',
+            ) +
+            '</th>' +
+            lineItems
+              .map(
+                (li) =>
+                  '<th class="num">' +
+                  escapeHtml(li.region) +
+                  '<span class="cell-sub">' +
+                  escapeHtml(appliances[li.applianceIdx]?.name || '') +
+                  ' (' +
+                  li.qty +
+                  ')</span></th>',
+              )
+              .join('') +
+            '<th class="num">Days</th><th></th></tr></thead><tbody>' +
+            phases
+              .map((ph, i) => {
+                const row = sch.phases[i] || { days: 0 };
+                return (
+                  '<tr><td><input type="text" maxlength="60" value="' +
+                  escapeHtml(ph.name) +
+                  '" data-tl-name="' +
+                  i +
+                  '" aria-label="Phase name" /></td><td class="num">' +
+                  (i === 0
+                    ? '<span class="tq-muted">Start</span>'
+                    : '<input type="number" min="0" step="1" placeholder="' +
+                      cfg.defaultPhaseGapDays +
+                      '" value="' +
+                      (ph.gap === null ? '' : ph.gap) +
+                      '" data-tl-gap="' +
+                      i +
+                      '" aria-label="Wait before this phase in days" />') +
+                  '</td>' +
+                  lineItems
+                    .map(
+                      (li) =>
+                        '<td class="num"><input type="number" min="0" step="1" value="' +
+                        (Number(ph.qty[li.uid]) || 0) +
+                        '" data-tl-qty="' +
+                        i +
+                        ':' +
+                        li.uid +
+                        '" aria-label="Quantity in this phase" /></td>',
+                    )
+                    .join('') +
+                  '<td class="num"><strong>' +
+                  row.days +
+                  '</strong></td><td class="num">' +
+                  (phases.length > 1
+                    ? '<button type="button" class="button button-outline rm-btn rm-btn-sm" data-tl-remove="' +
+                      i +
+                      '">Remove</button>'
+                    : '') +
+                  '</td></tr>'
+                );
+              })
+              .join('') +
+            '<tr class="tl-unassigned"><td colspan="2">Not yet in a phase</td>' +
+            lineItems
+              .map((li) => {
+                const left =
+                  li.qty - phases.reduce((t, ph) => t + (Number(ph.qty[li.uid]) || 0), 0);
+                return '<td class="num' + (left !== 0 ? ' is-off' : '') + '">' + left + '</td>';
+              })
+              .join('') +
+            '<td colspan="2"></td></tr></tbody></table></div>' +
+            '<p class="tl-phase-actions">' +
+            (phases.length < cfg.maxPhases
+              ? '<button type="button" class="button button-outline rm-btn rm-btn-sm" data-tl-add>Add phase</button> '
+              : '') +
+            '<button type="button" class="button button-outline rm-btn rm-btn-sm" data-tl-even>Split evenly</button>' +
+            '</p>' +
+            (lineItems.some((li) => !linePhasedFully(li))
+              ? '<p class="form-note tl-warn">Every item must be fully placed in phases (the &ldquo;Not yet in a phase&rdquo; row must read 0). Until then the unplaced items are priced as continuous work.</p>'
+              : '') +
+            '</div>'
+          : '';
+      host.innerHTML =
+        '<div class="tl-live"><div><span class="tl-live-label">Projected duration</span>' +
+        '<div class="tl-live-num"><strong>' +
+        sch.workingDays +
+        '</strong> working days</div>' +
+        '<p class="tl-live-sub">' +
+        (sch.extraDays || sch.gapDays
+          ? 'Installation ' +
+            sch.installDays +
+            (sch.extraDays ? ' + survey / training ' + sch.extraDays : '') +
+            (sch.gapDays ? ' + waiting between phases ' + sch.gapDays : '') +
+            ' = <strong>' +
+            sch.calendarDays +
+            '</strong> days from start to finish'
+          : 'Installation only: <strong>' +
+            sch.calendarDays +
+            '</strong> days from start to finish') +
+        (finish
+          ? ' &middot; est. completion <strong>' + escapeHtml(formatDate(finish)) + '</strong>'
+          : '') +
+        '</p></div><span class="live-pill is-static">Live</span></div>' +
+        '<div class="tl-mode" role="radiogroup" aria-label="How will the work run?">' +
+        '<button type="button" class="tq-mode-btn' +
+        (workMode === 'continuous' ? ' active' : '') +
+        '" role="radio" aria-checked="' +
+        (workMode === 'continuous') +
+        '" data-tl-mode="continuous"><strong>Continuous work</strong><span>Crew on site every working day until done</span></button>' +
+        '<button type="button" class="tq-mode-btn' +
+        (workMode === 'phased' ? ' active' : '') +
+        '" role="radio" aria-checked="' +
+        (workMode === 'phased') +
+        '" data-tl-mode="phased"><strong>Phase to phase</strong><span>Work starts as each phase / site is ready</span></button>' +
+        '</div>' +
+        '<div class="field-grid tl-crew">' +
+        calcField(
+          'Technicians on this project',
+          '<input type="number" min="1" max="' +
+            cfg.maxTechnicians +
+            '" step="1" value="' +
+            crewTechs +
+            '" data-tl-techs />',
+          'Starts at the admin figure (' +
+            data.techCount +
+            '). Changing it re-prices transport for this quote only.',
+        ) +
+        calcField(
+          'Overtime hours per day',
+          '<input type="number" min="0" max="' +
+            cfg.overtimeHoursPerDay +
+            '" step="0.5" value="' +
+            otHours +
+            '" data-tl-ot />',
+          'Extra hours worked each day (admin allows up to ' +
+            cfg.overtimeHoursPerDay +
+            '). Paid at ' +
+            cfg.overtimeMultiplier +
+            'x.',
+        ) +
+        calcField(
+          'Planned start date (optional)',
+          '<input type="date" value="' + escapeHtml(plannedStart) + '" data-tl-start />',
+          'Gives an estimated completion date (Saturday and Sunday are not worked).',
+        ) +
+        '</div>' +
+        phasedHtml +
+        timelineAdviceHtml(current);
+    }
+
+    // The schedule stored with a saved project quote and printed on it.
+    function buildSavedSchedule() {
+      if (mode === 'single' || !lineItems.length) return undefined;
+      const sch = scheduleNow();
+      const finish =
+        plannedStart && /^\d{4}-\d{2}-\d{2}$/.test(plannedStart)
+          ? Sched.addWorkingDays(plannedStart, sch.calendarDays)
+          : undefined;
+      return {
+        workMode: sch.mode,
+        technicians: crewTechs,
+        overtimeHours: otHours,
+        hoursPerDay: data.hoursDay + otHours,
+        workingDays: sch.workingDays,
+        waitingDays: sch.gapDays,
+        totalDays: sch.calendarDays,
+        plannedStart: finish ? plannedStart : undefined,
+        estimatedCompletion: finish,
+        phases:
+          sch.mode === 'phased'
+            ? sch.phases.map((row, i) => ({
+                name: row.name,
+                items: lineItems
+                  .map((li) => {
+                    const q = Number(phases[i].qty[li.uid]) || 0;
+                    return q ? q + ' \u00D7 ' + (appliances[li.applianceIdx]?.name || '') : '';
+                  })
+                  .filter(Boolean)
+                  .join(', ')
+                  .slice(0, 500),
+                days: row.days,
+                waitBeforeDays: row.gapDays,
+                readiness: row.gapSource === 'entered' ? 'confirmed' : 'assumed',
+              }))
+            : [],
+      };
+    }
+
+    function onTimelineEvent(event) {
+      const t = event.target;
+      const modeBtn = t.closest('[data-tl-mode]');
+      if (event.type === 'click') {
+        if (modeBtn) {
+          workMode = modeBtn.dataset.tlMode;
+          return renderAll();
+        }
+        if (t.closest('[data-tl-add]')) {
+          phases.push(newPhase());
+          return renderAll();
+        }
+        const rm = t.closest('[data-tl-remove]');
+        if (rm) {
+          phases.splice(Number(rm.dataset.tlRemove), 1);
+          phases.forEach((ph, i) => {
+            if (/^Phase \d+$/.test(ph.name)) ph.name = 'Phase ' + (i + 1);
+          });
+          return renderAll();
+        }
+        if (t.closest('[data-tl-even]')) {
+          lineItems.forEach((li) => {
+            const each = Math.floor(li.qty / phases.length);
+            phases.forEach((ph, i) => {
+              ph.qty[li.uid] = each + (i === 0 ? li.qty - each * phases.length : 0);
+            });
+          });
+          return renderAll();
+        }
+        const apply = t.closest('[data-tl-apply]');
+        if (apply) {
+          const [kind, value] = apply.dataset.tlApply.split(':');
+          if (kind === 'techs') crewTechs = Number(value);
+          if (kind === 'ot') otHours = Number(value);
+          if (kind === 'mode') workMode = value;
+          updateCapacity();
+          return renderAll();
+        }
+        return;
+      }
+      // change events
+      if (t.matches('[data-tl-techs]')) {
+        const cfg = schedCfg();
+        crewTechs = Math.min(
+          cfg.maxTechnicians,
+          Math.max(1, Math.round(parseNumber(t.value)) || 1),
+        );
+      } else if (t.matches('[data-tl-ot]')) {
+        otHours = Math.min(schedCfg().overtimeHoursPerDay, Math.max(0, parseNumber(t.value)));
+      } else if (t.matches('[data-tl-start]')) {
+        plannedStart = t.value;
+      } else if (t.matches('[data-tl-name]')) {
+        phases[Number(t.dataset.tlName)].name = t.value.trim() || 'Phase';
+      } else if (t.matches('[data-tl-gap]')) {
+        phases[Number(t.dataset.tlGap)].gap =
+          t.value === '' ? null : Math.max(0, Math.round(parseNumber(t.value)));
+      } else if (t.matches('[data-tl-qty]')) {
+        const [i, uid] = t.dataset.tlQty.split(':');
+        phases[Number(i)].qty[uid] = Math.max(0, Math.round(parseNumber(t.value)));
+      } else {
+        return;
+      }
+      updateCapacity();
+      renderAll();
+    }
+
+    container.querySelector('[data-tq-timeline]').addEventListener('click', onTimelineEvent);
+    container.querySelector('[data-tq-timeline]').addEventListener('change', onTimelineEvent);
+    container.querySelector('.tq-s3-tabs').addEventListener('click', (event) => {
+      const button = event.target.closest('[data-tq-s3tab]');
+      if (!button) return;
+      container.querySelectorAll('.tq-s3-tabs .action-tab').forEach((tab) => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      container.querySelectorAll('[data-tq-s3panel]').forEach((panel) => {
+        panel.hidden = panel.dataset.tqS3panel !== button.dataset.tqS3tab;
+      });
+    });
 
     function renderAll() {
       flashLivePill();
@@ -17029,6 +17674,7 @@ ${bodyHtml}
     }
 
     function refreshSummary() {
+      renderTimeline();
       const base = lineItems.length ? computeQuote() : null;
       const draft = currentDraft();
       const preview = draft ? computeQuote(draft) : base;
@@ -17067,7 +17713,10 @@ ${bodyHtml}
           computed.length +
           '</dd></div><div><dt>Units</dt><dd>' +
           units +
-          '</dd></div>'
+          '</dd></div>' +
+          (mode === 'single'
+            ? ''
+            : '<div><dt>Working days</dt><dd>' + scheduleNow().workingDays + '</dd></div>')
         : '';
       const notes = [];
       if (preview && preview.callOut) {
@@ -17151,6 +17800,7 @@ ${bodyHtml}
     // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
     function clearLineItems() {
       lineItems.length = 0;
+      resetTimeline();
       lastAddedSig = null;
       hideReminder();
       renderAll();
@@ -17182,6 +17832,7 @@ ${bodyHtml}
         return;
       }
       lineItems.length = 0;
+      resetTimeline();
       lastAddedSig = null;
       hideReminder();
       mode = button.dataset.tqMode;
@@ -17197,6 +17848,7 @@ ${bodyHtml}
         return;
       }
       lineItems.push({
+        uid: uidSeq++,
         mode,
         region: regionSelect.value,
         applianceIdx: Number(applianceSelect.value),
@@ -17249,7 +17901,8 @@ ${bodyHtml}
         );
         smallJob.callOutFee = Number(next.smallJob?.callOutFee) || 0;
         smallJob.minimumCharge = Number(next.smallJob?.minimumCharge) || 0;
-        teamCapacity = next.techCount * next.hoursDay;
+        if (crewTechs === previous.techCount) crewTechs = next.techCount;
+        updateCapacity();
         // Additional services: an amount the user amended for this quote stays;
         // one still equal to the old admin default follows the new default.
         THOMSON_ADDON_NAMES.forEach((name) => {
@@ -17306,6 +17959,7 @@ ${bodyHtml}
       },
       container,
       () => mode,
+      buildSavedSchedule,
     );
   }
 
@@ -17395,6 +18049,7 @@ ${bodyHtml}
     onSaved,
     formRoot,
     getMode,
+    getSchedule,
   ) {
     if (!hasPermission('thomson_sale.write')) {
       saleHost.innerHTML =
@@ -17439,6 +18094,7 @@ ${bodyHtml}
       const margin = totalPrice - totalCost;
       const field = (selector) => formRoot.querySelector(selector).value.trim();
       const single = getMode() === 'single';
+      const schedule = getSchedule ? getSchedule() : undefined;
       const payload = {
         clientName: field('[data-ths-client]') || undefined,
         contactNumber: field('[data-ths-contact-number]') || undefined,
@@ -17464,6 +18120,7 @@ ${bodyHtml}
         totalCost,
         margin,
         contractRef: field('[data-ths-contract-ref]') || undefined,
+        schedule,
       };
       try {
         const response = await apiRequest('/api/thomson-sales', {

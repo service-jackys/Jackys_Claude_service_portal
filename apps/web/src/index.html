@@ -2909,6 +2909,145 @@
         margin: 0;
         color: var(--navy);
       }
+      /* Thomson Quote Calculator: Project timeline tab + Smart advice (modification #218). */
+      .tq-s3-tabs {
+        margin-top: 0.4rem;
+      }
+      .tl-badge {
+        font-weight: 600;
+        opacity: 0.85;
+      }
+      .tl-live {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+        padding: 0.9rem 1rem;
+        margin-bottom: 0.9rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-soft);
+      }
+      .tl-live-label {
+        color: var(--muted);
+        font-size: 0.75rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+      .tl-live-num {
+        color: var(--navy);
+        font-size: 1.15rem;
+        font-weight: 700;
+      }
+      .tl-live-num strong {
+        font-size: 2rem;
+        font-weight: 800;
+      }
+      .tl-live-sub {
+        margin: 0.15rem 0 0;
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
+      .tl-mode {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+        gap: 0.6rem;
+        margin-bottom: 0.9rem;
+      }
+      .tl-crew {
+        margin-bottom: 0.9rem;
+      }
+      .tl-phases input[type='text'],
+      .tl-phases input[type='number'] {
+        width: 100%;
+        min-width: 4.2rem;
+      }
+      .tl-unassigned td {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .tl-unassigned td.is-off {
+        color: #b3261e;
+        font-weight: 700;
+      }
+      .tl-phase-actions {
+        margin: 0.6rem 0;
+      }
+      .tl-warn {
+        color: #8a4b00;
+      }
+      .tl-advice {
+        margin-top: 1rem;
+        padding: 0.9rem 1rem;
+        border: 1px solid #f0c987;
+        border-left: 4px solid #e29a1a;
+        border-radius: 10px;
+        background: #fff9ee;
+      }
+      .tl-advice.is-ok {
+        border-color: #b6dfc3;
+        border-left-color: #2e9e5b;
+        background: #f2fbf5;
+      }
+      .tl-advice p {
+        margin: 0.4rem 0;
+        font-size: 0.88rem;
+      }
+      .tl-advice-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.6rem;
+      }
+      .tl-chip {
+        padding: 0.15rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.74rem;
+        font-weight: 700;
+        white-space: nowrap;
+      }
+      .tl-chip.is-ok {
+        background: #d9f2e2;
+        color: #1b6b3c;
+      }
+      .tl-chip.is-warn {
+        background: #fde8c4;
+        color: #8a4b00;
+      }
+      .tl-options {
+        list-style: none;
+        margin: 0.5rem 0;
+        padding: 0;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .tl-options li {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.6rem 0.75rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+      }
+      .tl-opt-main {
+        display: grid;
+        gap: 0.1rem;
+        min-width: 0;
+      }
+      .tl-opt-main span {
+        font-size: 0.85rem;
+      }
+      .tl-opt-main em {
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-style: normal;
+      }
+      .live-pill.is-static {
+        flex: none;
+      }
       .tq-total {
         margin: 0.4rem 0;
         color: var(--navy);
@@ -16178,6 +16317,7 @@
     </footer>
     <script src="/portal/roi-core.js" defer></script>
     <script src="/portal/amc-v2-core.js" defer></script>
+    <script src="/portal/thomson-schedule.js" defer></script>
     <script src="/portal/tasks.js" defer></script>
     <script src="/portal/chat.js" defer></script>
     <script src="/portal/app.js" defer></script>

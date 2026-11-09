@@ -948,6 +948,35 @@ export const thomsonSaleLineItemSchema = z
   })
   .strict();
 
+// The Project timeline the quote was priced on (modification #218).
+export const thomsonSaleScheduleSchema = z
+  .object({
+    workMode: z.enum(['continuous', 'phased']),
+    technicians: z.number().min(1).max(1000),
+    overtimeHours: z.number().min(0).max(24),
+    hoursPerDay: z.number().min(0).max(48),
+    workingDays: z.number().min(0).max(100000),
+    waitingDays: z.number().min(0).max(100000),
+    totalDays: z.number().min(0).max(100000),
+    plannedStart: dateSchema.optional(),
+    estimatedCompletion: dateSchema.optional(),
+    phases: z
+      .array(
+        z
+          .object({
+            name: z.string().trim().min(1).max(60),
+            items: z.string().max(500),
+            days: z.number().min(0).max(100000),
+            waitBeforeDays: z.number().min(0).max(100000),
+            readiness: z.enum(['confirmed', 'assumed']),
+          })
+          .strict(),
+      )
+      .max(50),
+  })
+  .strict();
+export type ThomsonSaleScheduleInput = z.infer<typeof thomsonSaleScheduleSchema>;
+
 export const thomsonSaleWriteSchema = z
   .object({
     saleDate: dateSchema.optional(),
@@ -960,6 +989,7 @@ export const thomsonSaleWriteSchema = z
     totalCost: z.number().min(0).max(100000000),
     margin: z.number().min(-100000000).max(100000000),
     contractRef: optionalText(120),
+    schedule: thomsonSaleScheduleSchema.optional(),
   })
   .strict();
 export type ThomsonSaleWriteInput = z.infer<typeof thomsonSaleWriteSchema>;
@@ -1741,6 +1771,21 @@ export const thomsonPricingSchema = z
     // configurations stay valid; both read as 0 when absent.
     smallJob: z
       .object({ callOutFee: nonNegSchema, minimumCharge: nonNegSchema })
+      .strict()
+      .optional(),
+    // Project timeline & Smart advice settings (modification #218). Optional
+    // so existing saved configurations stay valid; the web app falls back to
+    // the same defaults when absent.
+    scheduling: z
+      .object({
+        highDaysThreshold: positiveSchema,
+        defaultPhaseGapDays: nonNegSchema,
+        maxTechnicians: positiveSchema,
+        overtimeHoursPerDay: nonNegSchema,
+        overtimeMultiplier: positiveSchema,
+        minMarginPct: nonNegSchema,
+        maxPhases: positiveSchema,
+      })
       .strict()
       .optional(),
     addons: z

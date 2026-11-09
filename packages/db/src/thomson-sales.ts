@@ -15,6 +15,8 @@ export type ThomsonSaleLineItem = {
   margin: number;
 };
 
+export type ThomsonSaleSchedule = Record<string, unknown>;
+
 export type ThomsonSaleRecord = {
   id: string;
   thomsonSaleReference: string;
@@ -28,6 +30,7 @@ export type ThomsonSaleRecord = {
   totalCost: string;
   margin: string;
   contractRef: string | null;
+  schedule: ThomsonSaleSchedule | null;
   createdAt: Date;
   updatedAt: Date;
   createdBy: string | null;
@@ -45,6 +48,7 @@ export type ThomsonSaleContent = {
   totalCost: number;
   margin: number;
   contractRef: string | null;
+  schedule: ThomsonSaleSchedule | null;
 };
 
 const columns = `
@@ -60,6 +64,7 @@ const columns = `
   total_cost AS "totalCost",
   margin,
   contract_ref AS "contractRef",
+  schedule,
   created_at AS "createdAt",
   updated_at AS "updatedAt",
   created_by AS "createdBy",
@@ -75,11 +80,11 @@ export async function insertThomsonSale(
     `INSERT INTO thomson_sales (
        thomson_sale_reference, sale_date, client_name, contact_number,
        site_location, transport_share_percent, line_items, total_price,
-       total_cost, margin, contract_ref, created_by, updated_by
+       total_cost, margin, contract_ref, created_by, updated_by, schedule
      ) VALUES (
        $1, $2, $3, $4,
        $5, $6, $7::jsonb, $8,
-       $9, $10, $11, $12, $12
+       $9, $10, $11, $12, $12, $13::jsonb
      )
      RETURNING id`,
     [
@@ -95,6 +100,7 @@ export async function insertThomsonSale(
       c.margin,
       c.contractRef,
       input.createdBy,
+      c.schedule ? JSON.stringify(c.schedule) : null,
     ],
   );
   const thomsonSale = await findThomsonSaleById(client, result.rows[0].id);

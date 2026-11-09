@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 218,
+    "title": "Thomson Quote Calculator: Project timeline, phases and Smart advice",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "A Thomson project quote showed a price but not how long the work would take, so crew size, phasing and customer site readiness were not visible in the quote.",
+    "changes": [
+      "New tab beside Services & transport (step 3): Project timeline. A live projection of working days from the items added, using Technicians deployed and Working hours per day (Deployment Economics), each appliance's Avg install minutes and…",
+      "Continuous or phase to phase. Continuous means the crew is on site every working day. Phase to phase splits the items into phases (name, quantity per item, wait before the phase). Each phase is rounded up on its own, so phasing can add…",
+      "Crew for this quote. Technicians and overtime hours per day can be changed for the quote only; overtime is costed at the admin multiplier.",
+      "Smart advice. When the working days go above the admin threshold, a card shows options (more technicians, overtime, doing the work continuously) with the days saved and the effect on margin worked out from the admin rates. An option that…",
+      "Thomson Pricing Admin: new card \"Project timeline & Smart advice\". High-duration threshold (default 10 working days), default readiness gap between phases (3), maximum technicians (6), overtime hours per day (2) and multiplier (1.5)…",
+      "Saved and printed. A project quote now stores its schedule (work method, technicians, working days, waits, phases, estimated completion) and the printed quotation shows a Project schedule block. Single-unit quotes and quotes issued…"
+    ],
+    "needsYou": "pull, run the database migration, restart the API, hard-refresh. Open Thomson Pricing Admin to check the new card.",
+    "migrations": [
+      "076_thomson_sale_schedule.sql"
+    ],
+    "files": "apps/web/src/thomson-schedule.js, apps/web/src/app.js, apps/web/src/index.html, packages/db/migrations/076_thomson_sale_schedule.sql, packages/db/src/thomson-sales.ts…"
+  },
+  {
     "id": 217,
     "title": "Send ROI: LPO pending block under the Management Summary",
     "area": "Revenue dashboard",
