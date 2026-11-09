@@ -121,6 +121,28 @@ test(
       assert.equal(qo.pendingByAge[0].n, 2);
       assert.equal(qo.valueByStatus.find((r: any) => r.status === 'Approved').value, 300);
       assert.ok(!JSON.stringify(qo).includes('Secret'));
+
+      await client.query('DELETE FROM warranty_approvals');
+      await client.query('DELETE FROM inspections');
+      const addI = (n: number, reviewer: string | null, quotation: string | null, cost: number) =>
+        client.query(
+          `INSERT INTO inspections (inspection_reference, customer_name, contact_number, project_name, site_location, customer_complaint, visual_findings, reviewed_by, ref_quotation_no, est_repair_cost, warranty_status, customer_type, inspection_date)
+           VALUES ($1, 'Secret Person', '0500000000', 'Secret project', 'Secret site', 'Secret complaint', 'Secret findings', $2, $3, $4, 'In Warranty', 'B2C', current_date)`,
+          ['IR-2026-0000' + n, reviewer, quotation, cost],
+        );
+      await addI(1, null, null, 100);
+      await addI(2, null, 'QO-2026-00001', 200);
+      await addI(3, 'Someone', 'QO-2026-00002', 300);
+      const ins = (await buildOpsSnapshot(pool as unknown as Pool, 'inspections')) as any;
+      assert.equal(ins.total, 3);
+      assert.deepEqual(Object.fromEntries(ins.reviewState.map((r: any) => [r.review, r.n])), {
+        'Not reviewed': 2,
+        Reviewed: 1,
+      });
+      assert.equal(ins.unreviewedByAge[0].n, 2);
+      assert.equal(ins.byMonth[ins.byMonth.length - 1].value, 600);
+      assert.ok(!JSON.stringify(ins).includes('Secret'));
+      assert.ok(!JSON.stringify(ins).includes('Someone'));
     } finally {
       await client.query('ROLLBACK').catch(() => undefined);
       client.release();

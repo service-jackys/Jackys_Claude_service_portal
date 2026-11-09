@@ -70,6 +70,9 @@ const ASK_GUIDE: Record<string, string> = {
   quotations:
     'the Quotations list of the service centre. ' +
     'Explain how many quotations are pending, approved or rejected, how long pending ones have waited, which are invoiced in the ERP, the value by status and month, and suggest which pending quotations to chase first.',
+  inspections:
+    'the Inspection reports of the service centre. ' +
+    'Explain how many inspections are reviewed or still waiting for review, how long unreviewed ones have waited, how many have a quotation, the estimated repair cost by month, and the split by warranty and customer type, and suggest which to review first.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
     'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',

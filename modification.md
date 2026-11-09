@@ -4969,3 +4969,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/087_ask_ai_quotations_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.quotations` to other roles if wanted.
+
+## Modification #237 — Ask AI on the Inspections page (counts and statuses only)
+
+**Date:** 2026-11-09
+
+**Why.** Inspection reports hold customer and site details, so the AI gets counts and totals only.
+
+**What changed.**
+
+- **Ask AI button on Inspections** (page-level). It reads the filters and rows listed on screen.
+- **Tick box "Also read the overall inspection counts and statuses"**: the API builds totals by review state, quotation raised or not, age of unreviewed inspections, month (last 12, with estimated repair cost), customer type and warranty.
+- **Never sent:** customer names, contacts, project names, site locations, complaints, findings, diagnoses, faulty parts, signatures, the search text typed in the list, and inspection references.
+- **Permissions:** new `ai_ask.inspections` (admin by default; grant it in Roles & permissions). The overall counts also need `inspection.read`.
+- Migration 088 adds the permission.
+
+**Files.** packages/db/migrations/088_ask_ai_inspections_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.inspections` to other roles if wanted.

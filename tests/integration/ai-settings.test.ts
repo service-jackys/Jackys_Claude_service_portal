@@ -260,6 +260,17 @@ test(
         { revenue: false, budget: false, can: (code: string) => code === 'quotation.read' },
       );
       assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
+      await ai.ask(
+        {
+          section: 'inspections',
+          title: 'Inspections',
+          messages: [{ role: 'user', content: 'How many are pending?' }],
+          context: { statusFilter: 'All' },
+          includePortalData: true,
+        },
+        { revenue: false, budget: false, can: (code: string) => code === 'inspection.read' },
+      );
+      assert.ok(String(calls[calls.length - 1].body.system).includes('"portalData"'));
       await assert.rejects(
         ai.ask({
           section: 'revenue',
