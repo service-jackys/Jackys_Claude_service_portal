@@ -77,7 +77,7 @@ async function openCalculator(page: Page, rates: { current: typeof amc } = { cur
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.getByRole('button', { name: 'Quote Calculators', exact: true }).click();
-  await page.locator('#amcCalcNav').click();
+  await page.locator('#amcCalcNav').dispatchEvent('click');
   await expect(page.locator('[data-ac-add]')).toBeVisible();
 }
 

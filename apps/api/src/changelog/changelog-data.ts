@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 230,
+    "title": "Admin → Archive: the original AMC Quote Calculator and AMC Admin Rates",
+    "area": "Permissions",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The new AMC Quote Calculator and AMC Admin Rates (New) replace the originals. The originals should leave the menus but stay available to an admin, with all their data.",
+    "changes": [
+      "New Admin → Archive page (admin only, permission archive.view). It lists the archived pages with what replaced them and an Open button for each.",
+      "Archived: AMC Quote Calculator (original, with its AMC Issued list and saved quotes) and AMC Admin Rate Section (original, no longer a tab in Pricing Masters). Both are removed from the sidebar and the Quote Calculators menu, and their…",
+      "Nothing is deleted. Rates, saved original quotes, printouts, APIs and permissions are unchanged. The Dashboard \"AMC contracts\" tile now opens the new AMC calculator.",
+      "Migration 082 adds archive.view (admin only by default; can be granted in Roles & permissions)."
+    ],
+    "needsYou": "pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
+    "migrations": [
+      "082_archive_permission.sql"
+    ],
+    "files": "packages/db/migrations/082_archive_permission.sql, apps/web/src/app.js, apps/web/src/index.html, tests/e2e/archive.spec.ts (new), tests/e2e/amc-*.spec.ts and permissions-flat-rates.spec.ts (open the…"
+  },
+  {
     "id": 229,
     "title": "Ask AI across the portal: Admin pricing, Masters, AMC calculators and Revenue / Budget",
     "area": "Revenue",

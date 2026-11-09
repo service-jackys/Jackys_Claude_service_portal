@@ -805,14 +805,17 @@
     $('#vasAdminNav').hidden = !canReadPricingConfig;
     $('#rateCardAdminNav').hidden = !canReadPricingConfig;
     $('#dandiAdminNav').hidden = !canReadPricingConfig;
-    $('#amcAdminNav').hidden = !canReadPricingConfig;
+    // The original AMC Admin Rates and AMC Quote Calculator are archived: they
+    // are opened from Admin > Archive, not from the menu (modification #230).
+    $('#amcAdminNav').hidden = true;
     $('#amcAdminV2Nav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
     $('#vasCalcNav').hidden = !canUseCalculators;
-    $('#amcCalcNav').hidden = !canUseCalculators;
+    $('#amcCalcNav').hidden = true;
+    $('#archiveNav').hidden = !hasPermission('archive.view');
     $('#amcCalcV2Nav').hidden = !canUseCalculators;
     $('#thomsonCalcNav').hidden = !canUseCalculators;
     const canReadRevenue = hasPermission('revenue_dashboard.read');
@@ -6866,7 +6869,7 @@ ${bodyHtml}
     quotations: () => setWorkspaceMode('quotations'),
     inspections: () => setWorkspaceMode('inspections'),
     vasSales: () => setWorkspaceMode('vas-calc'),
-    amcContracts: () => setWorkspaceMode('amc-calc'),
+    amcContracts: () => setWorkspaceMode('amc-calc-v2'),
     outOfWarranty: () => setWorkspaceMode('invoices'),
     rateCardSales: () => setWorkspaceMode('reports'),
     thomsonSales: () => setWorkspaceMode('thomson-calc'),
@@ -12557,7 +12560,8 @@ ${bodyHtml}
       navId: 'amcAdminNav',
       workspaceId: 'amcAdminWorkspace',
       heading: 'AMC Admin Rate Section',
-      description: 'Admin entry for the AMC rate configuration.',
+      description:
+        'Archived page (open from Admin > Archive). Admin entry for the AMC rate configuration used by the original AMC calculator.',
       domains: ['amc_pricing'],
     },
     'amc-admin-v2': {
@@ -14211,6 +14215,48 @@ ${bodyHtml}
       );
     }
     return parts.join('');
+  }
+
+  // Admin > Archive (modification #230): replaced pages are kept, with their
+  // data and saved quotes, and opened from here.
+  const ARCHIVE_ITEMS = [
+    {
+      mode: 'amc-calc',
+      title: 'AMC Quote Calculator (original)',
+      replacedBy: 'AMC Quote Calculator (New)',
+      note: 'The original calculator, its AMC Issued list and the quotes saved with it.',
+    },
+    {
+      mode: 'amc-admin',
+      title: 'AMC Admin Rate Section (original)',
+      replacedBy: 'AMC Admin Rates (New)',
+      note: 'The rates the original calculator reads. Saving here only affects the original calculator.',
+    },
+  ];
+  function renderArchivePage(root) {
+    root.innerHTML =
+      '<p class="form-note">These pages were replaced and are no longer in the menu. Nothing was deleted: their rates, saved quotes and printouts are still here.</p>' +
+      '<div class="table-wrap"><table><thead><tr><th>Archived page</th><th>Replaced by</th><th>What is kept</th><th></th></tr></thead><tbody>' +
+      ARCHIVE_ITEMS.map(
+        (item) =>
+          '<tr><td><strong>' +
+          escapeHtml(item.title) +
+          '</strong></td><td>' +
+          escapeHtml(item.replacedBy) +
+          '</td><td>' +
+          escapeHtml(item.note) +
+          '</td><td class="num"><button type="button" class="button button-outline" data-archive-open="' +
+          item.mode +
+          '">Open</button></td></tr>',
+      ).join('') +
+      '</tbody></table></div>';
+    root
+      .querySelectorAll('[data-archive-open]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          setWorkspaceMode(button.getAttribute('data-archive-open')),
+        ),
+      );
   }
 
   // Admin > Masters: one place for the master lists that the forms read.
@@ -19837,7 +19883,8 @@ ${bodyHtml}
       workspaceId: 'amcCalcWorkspace',
       heading: 'AMC Quote Calculator',
       permission: 'quote_calculators.use',
-      description: 'Stand-alone quote calculator, reading AMC Admin Rate Section’s admin data.',
+      description:
+        'Archived page (open from Admin > Archive). Use AMC Quote Calculator (New) for new quotes.',
       domains: ['amc_pricing', 'appliance_master'],
       render: (root, dataByDomain) =>
         renderAmcCalc(root, dataByDomain.amc_pricing, dataByDomain.appliance_master),
@@ -19918,6 +19965,17 @@ ${bodyHtml}
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderRateCardPage(root),
+    },
+    archive: {
+      navId: 'archiveNav',
+      workspaceId: 'archiveWorkspace',
+      heading: 'Archive',
+      description:
+        'Pages that were replaced but are kept, with all their data, so an admin can still open them.',
+      permission: 'archive.view',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderArchivePage(root),
     },
     masters: {
       navId: 'mastersNav',
@@ -29376,7 +29434,6 @@ ${bodyHtml}
         ['vas-admin', 'VAS Pricing Master'],
         ['rate-card-admin', 'Rate Card Admin'],
         ['dandi-admin', 'D+I Admin Entry'],
-        ['amc-admin', 'AMC Admin Rates'],
         ['amc-admin-v2', 'AMC Admin Rates (New)'],
         ['thomson-admin', 'Thomson Pricing Admin'],
       ],
@@ -29437,6 +29494,7 @@ ${bodyHtml}
   $('#rolesNav')?.addEventListener('click', () => setWorkspaceMode('roles'));
   $('#changelogNav')?.addEventListener('click', () => setWorkspaceMode('changelog'));
   $('#mastersNav')?.addEventListener('click', () => setWorkspaceMode('masters'));
+  $('#archiveNav')?.addEventListener('click', () => setWorkspaceMode('archive'));
   // "Download Excel" on the revenue / budget source banner.
   document.addEventListener('click', async (event) => {
     const button = event.target instanceof Element ? event.target.closest('[data-rd-dl]') : null;

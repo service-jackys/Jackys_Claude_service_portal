@@ -113,7 +113,7 @@ async function open(page: import('@playwright/test').Page, status: string, perms
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.getByRole('button', { name: 'Quote Calculators', exact: true }).click();
-  await page.locator('#amcCalcNav').click();
+  await page.locator('#amcCalcNav').dispatchEvent('click');
   await page.locator('[data-ac-tab="issued"]').click();
   return puts;
 }
