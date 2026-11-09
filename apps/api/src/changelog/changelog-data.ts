@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 223,
+    "title": "AI settings moved to Admin → Masters",
+    "area": "Permissions",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "AI settings is not a pricing master, so it did not belong under Pricing Masters.",
+    "changes": [
+      "What changed: AI settings is now a tab in Management → Masters (next to Stock master, Customers and Appliances), shown to admins only. It is removed from the Pricing Masters tab strip. Nothing about how it works changed."
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/ai-settings.spec.ts. No API or database change."
+  },
+  {
     "id": 222,
     "title": "Admin → AI settings and optional AI wording of the Thomson Smart advice",
     "area": "Permissions",

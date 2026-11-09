@@ -808,7 +808,6 @@
     $('#amcAdminNav').hidden = !canReadPricingConfig;
     $('#amcAdminV2Nav').hidden = !canReadPricingConfig;
     $('#thomsonAdminNav').hidden = !canReadPricingConfig;
-    $('#aiAdminNav').hidden = !hasPermission('ai_settings.manage');
     // Quote calculators have their own permission (#114); the API lets it read
     // only the rate data the calculators use.
     const canUseCalculators = hasPermission('quote_calculators.use');
@@ -839,7 +838,8 @@
     $('#mastersNav').hidden = !(
       hasPermission('stock.write') ||
       hasPermission('b2b_master.write') ||
-      hasPermission('pricing_config.read')
+      hasPermission('pricing_config.read') ||
+      hasPermission('ai_settings.manage')
     );
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
@@ -12560,14 +12560,6 @@ ${bodyHtml}
       description: 'Admin entry for the AMC rate configuration.',
       domains: ['amc_pricing'],
     },
-    'ai-admin': {
-      navId: 'aiAdminNav',
-      workspaceId: 'aiAdminWorkspace',
-      heading: 'AI settings',
-      description: 'Optional AI wording for the Thomson Smart advice.',
-      domains: [],
-      onActivate: () => renderAiAdminPage(),
-    },
     'amc-admin-v2': {
       navId: 'amcAdminV2Nav',
       workspaceId: 'amcAdminV2Workspace',
@@ -12995,7 +12987,6 @@ ${bodyHtml}
   $('#dandiAdminNav')?.addEventListener('click', () => setWorkspaceMode('dandi-admin'));
   $('#amcAdminNav')?.addEventListener('click', () => setWorkspaceMode('amc-admin'));
   $('#amcAdminV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-admin-v2'));
-  $('#aiAdminNav')?.addEventListener('click', () => setWorkspaceMode('ai-admin'));
   // AMC Admin Rates (New): Rates / How it works (temporary) tabs.
   $('#amcAdminV2Tabs')?.addEventListener('click', (event) => {
     const button = event.target.closest('.action-tab');
@@ -14229,6 +14220,7 @@ ${bodyHtml}
     if (hasPermission('stock.write')) tabs.push(['stock', 'Stock master']);
     if (hasPermission('b2b_master.write')) tabs.push(['customers', 'Customers']);
     if (hasPermission('pricing_config.read')) tabs.push(['appliances', 'Appliances']);
+    if (hasPermission('ai_settings.manage')) tabs.push(['ai', 'AI settings']);
     if (!tabs.some(([key]) => key === mastersTab)) mastersTab = tabs[0][0];
     root.innerHTML =
       '<div class="ws-tabs" role="tablist" aria-label="Masters">' +
@@ -14256,7 +14248,12 @@ ${bodyHtml}
     );
     if (mastersTab === 'customers') await renderCustomerMasterPage(body);
     else if (mastersTab === 'appliances') await renderApplianceMasterTab(body);
-    else await renderStockMasterPage(body);
+    else if (mastersTab === 'ai') {
+      body.innerHTML =
+        '<p class="form-note">Optional. Connects an AI service that can put the Thomson Smart advice into words. Prices, days and margins are always worked out by the portal; the AI only writes the sentences. With no key, or if the AI fails, the calculator shows its own computed advice. The key is stored encrypted and is never shown again.</p>' +
+        '<div class="ai-admin" data-ai-admin></div>';
+      await renderAiAdminPage();
+    } else await renderStockMasterPage(body);
   }
 
   // Appliance Master tab (Admin > Masters): the shared AMC + Thomson appliance
@@ -18959,8 +18956,8 @@ ${bodyHtml}
       workspaceId: 'mastersWorkspace',
       heading: 'Masters',
       description:
-        'Upload and check the master lists the forms read: stock items, B2B customers and appliances.',
-      permission: ['stock.write', 'b2b_master.write', 'pricing_config.read'],
+        'Upload and check the master lists the forms read: stock items, B2B customers and appliances. AI settings are also kept here.',
+      permission: ['stock.write', 'b2b_master.write', 'pricing_config.read', 'ai_settings.manage'],
       hideCurrencyNote: true,
       domains: [],
       load: (root) => renderMastersPage(root),
@@ -28017,7 +28014,6 @@ ${bodyHtml}
         ['amc-admin', 'AMC Admin Rates'],
         ['amc-admin-v2', 'AMC Admin Rates (New)'],
         ['thomson-admin', 'Thomson Pricing Admin'],
-        ['ai-admin', 'AI settings'],
       ],
     },
   };
@@ -28045,10 +28041,7 @@ ${bodyHtml}
       body.insertBefore(strip, body.firstChild);
     }
     strip.innerHTML = '';
-    (key === 'finance'
-      ? financeMembers()
-      : group.members.filter((m) => m[0] !== 'ai-admin' || hasPermission('ai_settings.manage'))
-    ).forEach(([memberMode, label]) => {
+    (key === 'finance' ? financeMembers() : group.members).forEach(([memberMode, label]) => {
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'button ' + (memberMode === mode ? 'button-primary' : 'button-outline');

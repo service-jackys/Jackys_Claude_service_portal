@@ -102,8 +102,8 @@ test('Admin > AI settings saves a provider and key, tests it and never shows the
   const calls: Calls = [];
   await signIn(page, calls, { available: false });
   await page.locator('#navGroup-management').click();
-  await page.locator('#pricingMastersNav').click();
-  await page.getByRole('button', { name: 'AI settings' }).click();
+  await page.locator('#mastersNav').dispatchEvent('click');
+  await page.getByRole('tab', { name: 'AI settings' }).click();
   const admin = page.locator('[data-ai-admin]');
   await expect(admin).toContainText('No key saved');
 
