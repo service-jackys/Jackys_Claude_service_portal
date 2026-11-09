@@ -4813,3 +4813,15 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js. No database or API change.
 
 **Needs you:** pull, hard-refresh.
+
+## Modification #228 — Thomson printed quotation: totals row under the project lines
+
+**Date:** 2026-11-09
+
+**Why.** The printed lines table had no total for the appliances, so the customer could not see the total units or the total appliance value without adding the lines up.
+
+**What changed.** A **Total** row now closes the printed lines table: total quantity, total appliance subtotal, total add-on revenue, total transport charged and total price. It uses the same figures as the lines above, so it always matches the Total project price.
+
+**Files.** apps/web/src/app.js. No database or API change.
+
+**Needs you:** pull, hard-refresh.

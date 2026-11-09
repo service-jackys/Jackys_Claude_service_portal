@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 228,
+    "title": "Thomson printed quotation: totals row under the project lines",
+    "area": "Pricing & rates",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "The printed lines table had no total for the appliances, so the customer could not see the total units or the total appliance value without adding the lines up.",
+    "changes": [
+      "What changed: A Total row now closes the printed lines table: total quantity, total appliance subtotal, total add-on revenue, total transport charged and total price. It uses the same figures as the lines above, so it always matches the…"
+    ],
+    "needsYou": "pull, hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js. No database or API change."
+  },
+  {
     "id": 227,
     "title": "Thomson printed quotation: show transport charged to the customer, not our transport cost",
     "area": "Pricing & rates",
