@@ -4590,3 +4590,19 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/web/src/app.js, tests/e2e/amc-v2-issue.spec.ts. No API or database change.
 
 **Needs you:** pull, hard-refresh, reprint the quote.
+
+## Modification #214 — LPO pending carries forward to the current month
+
+**Date:** 2026-11-09
+
+**Why.** LPO pending was counted in the month the quotation was created, so a quotation still waiting to be invoiced dropped out of sight in later months. Management wants to keep seeing what is pending.
+
+**What changed.**
+
+- **Carry-forward:** a Pending / Approved quotation whose ERP / ORION status is Pending invoice now shows in every month from its quotation month until it is marked Invoiced. The current month shows everything still open, split into "raised this month" and "carried forward" with the oldest age in days.
+- **Past months:** show the position at that month-end, using a new Invoiced date (`invoiced_at`) that is stamped automatically (Dubai date) when the status becomes Invoiced and cleared if it is set back. Quotations already Invoiced before this change have no date and stay out, so history does not move.
+- **Screens:** the Total revenue card and the Budget vs Actual chart tooltip show the carried-forward split. It is information only and is never added to revenue.
+
+**Files.** packages/db/migrations/074_quotation_invoiced_at.sql, packages/db/src/quotations.ts, apps/web/src/app.js, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh.

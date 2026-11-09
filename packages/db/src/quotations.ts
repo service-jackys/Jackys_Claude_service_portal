@@ -314,27 +314,49 @@ export async function listQuotations(
   return { items: result.rows, total: Number(count.rows[0].total) };
 }
 
-// LPO pending: Pending or Approved quotations whose ERP / ORION status is 'Pending invoice', by
-// quotation date. Whether a job card exists does not matter: the ERP status decides. An Invoiced
-// quotation already sits inside that month's revenue, so it is never counted here. The value is the
-// subtotal excluding VAT. It is shown to management as visibility only and is never added to revenue.
+// LPO pending: Pending or Approved quotations still waiting to be invoiced in ERP / ORION.
+// A quotation stays pending (carried forward) from its quotation month until it is marked
+// Invoiced, so management does not lose track of it. For a selected month the figure is the
+// position at that month's end: dated on or before it, and not yet invoiced by then (invoiced_at
+// is stamped when the status becomes Invoiced; a blank invoiced_at is a legacy Invoiced quotation
+// and never counts). With only a year, or no filter, it is what is open now. Quotation status
+// Rejected is left out. The value is the subtotal excluding VAT. It is shown to management as
+// visibility only and is never added to revenue.
 export async function quotationsLpoPending(
   client: PoolClient,
   filter: { year?: string; month?: string },
 ) {
   const values: unknown[] = [];
-  const where = [`quotation_status IN ('Pending', 'Approved')`, `erp_status = 'Pending invoice'`];
-  if (filter.year) {
-    values.push(Number(filter.year));
-    where.push(`EXTRACT(YEAR FROM quotation_date) = $${values.length}`);
-  }
-  if (filter.month) {
-    values.push(Number(filter.month));
-    where.push(`EXTRACT(MONTH FROM quotation_date) = $${values.length}`);
+  const where = [`quotation_status IN ('Pending', 'Approved')`];
+  let raisedExpr = 'TRUE';
+  let asOfExpr = `(now() AT TIME ZONE 'Asia/Dubai')::date`;
+  if (filter.year && filter.month) {
+    values.push(Number(filter.year), Number(filter.month));
+    const first = `make_date($1::int, $2::int, 1)`;
+    const end = `(${first} + interval '1 month - 1 day')::date`;
+    where.push(
+      `quotation_date <= ${end}`,
+      `(erp_status = 'Pending invoice' OR (erp_status = 'Invoiced' AND invoiced_at > ${end}))`,
+    );
+    raisedExpr = `quotation_date >= ${first}`;
+    asOfExpr = `LEAST(${end}, (now() AT TIME ZONE 'Asia/Dubai')::date)`;
+  } else {
+    where.push(`erp_status = 'Pending invoice'`);
+    if (filter.year) {
+      values.push(Number(filter.year));
+      where.push(`EXTRACT(YEAR FROM quotation_date) = $${values.length}`);
+    }
+    if (filter.month) {
+      values.push(Number(filter.month));
+      where.push(`EXTRACT(MONTH FROM quotation_date) = $${values.length}`);
+    }
   }
   const result = await client.query(
     `SELECT quotation_status AS "status", count(*)::int AS "count",
-            COALESCE(sum(subtotal_amount), 0)::float8 AS "total"
+            COALESCE(sum(subtotal_amount), 0)::float8 AS "total",
+            count(*) FILTER (WHERE ${raisedExpr})::int AS "raisedCount",
+            COALESCE(sum(subtotal_amount) FILTER (WHERE ${raisedExpr}), 0)::float8 AS "raisedTotal",
+            max(${asOfExpr} - quotation_date)::int AS "oldestDays"
      FROM quotations WHERE ${where.join(' AND ')} GROUP BY quotation_status`,
     values,
   );
@@ -342,24 +364,73 @@ export async function quotationsLpoPending(
     Pending: { count: 0, total: 0 },
     Approved: { count: 0, total: 0 },
   };
-  for (const row of result.rows) byStatus[row.status] = { count: row.count, total: row.total };
+  let raisedCount = 0;
+  let raisedTotal = 0;
+  let oldestDays = 0;
+  for (const row of result.rows) {
+    byStatus[row.status] = { count: row.count, total: row.total };
+    raisedCount += row.raisedCount;
+    raisedTotal += row.raisedTotal;
+    oldestDays = Math.max(oldestDays, row.oldestDays ?? 0);
+  }
+  const count = byStatus.Pending.count + byStatus.Approved.count;
+  const total = byStatus.Pending.total + byStatus.Approved.total;
+  const round2 = (n: number) => Math.round(n * 100) / 100;
   return {
-    count: byStatus.Pending.count + byStatus.Approved.count,
-    total: Math.round((byStatus.Pending.total + byStatus.Approved.total) * 100) / 100,
+    count,
+    total: round2(total),
     byStatus,
+    raisedCount,
+    raisedTotal: round2(raisedTotal),
+    carriedCount: count - raisedCount,
+    carriedTotal: round2(total - raisedTotal),
+    oldestDays: count - raisedCount > 0 ? oldestDays : 0,
   };
 }
 
-// LPO pending for every month (by quotation date), for the Budget vs Actual chart. Same rule as
-// quotationsLpoPending: Pending / Approved quotations whose ERP / ORION status is Pending invoice.
+// LPO pending for every month, for the Budget vs Actual chart. Each month shows the position at
+// its end (same carry-forward rule as quotationsLpoPending): quotations dated on or before the
+// month that were not yet invoiced by then. "raised" is the part dated in that month; the rest was
+// carried forward from earlier months.
 export async function quotationsLpoPendingByMonth(client: PoolClient) {
   const result = await client.query(
-    `SELECT to_char(quotation_date, 'YYYY-MM') AS "period", count(*)::int AS "count",
-            COALESCE(sum(subtotal_amount), 0)::float8 AS "total"
-     FROM quotations
-     WHERE quotation_status IN ('Pending', 'Approved') AND erp_status = 'Pending invoice'
-       AND quotation_date IS NOT NULL
-     GROUP BY 1 ORDER BY 1`,
+    `WITH cand AS (
+       SELECT quotation_date, quotation_status, subtotal_amount, erp_status, invoiced_at
+       FROM quotations
+       WHERE quotation_status IN ('Pending', 'Approved') AND quotation_date IS NOT NULL
+         AND (erp_status = 'Pending invoice' OR (erp_status = 'Invoiced' AND invoiced_at IS NOT NULL))
+     ),
+     months AS (
+       SELECT generate_series(
+         date_trunc('month', (SELECT min(quotation_date) FROM cand))::date,
+         GREATEST(date_trunc('month', (now() AT TIME ZONE 'Asia/Dubai'))::date,
+                  date_trunc('month', (SELECT max(quotation_date) FROM cand))::date),
+         interval '1 month')::date AS m
+     )
+     SELECT to_char(m, 'YYYY-MM') AS "period",
+            count(*)::int AS "count",
+            COALESCE(sum(c.subtotal_amount), 0)::float8 AS "total",
+            count(*) FILTER (WHERE c.quotation_status = 'Approved')::int AS "approved",
+            count(*) FILTER (WHERE c.quotation_date >= m)::int AS "raisedCount",
+            COALESCE(sum(c.subtotal_amount) FILTER (WHERE c.quotation_date >= m), 0)::float8 AS "raisedTotal",
+            COALESCE(max(LEAST((m + interval '1 month - 1 day')::date,
+                               (now() AT TIME ZONE 'Asia/Dubai')::date) - c.quotation_date)
+                     FILTER (WHERE c.quotation_date < m), 0)::int AS "oldestDays"
+     FROM months
+     JOIN cand c ON c.quotation_date <= (m + interval '1 month - 1 day')::date
+       AND (c.erp_status = 'Pending invoice'
+            OR c.invoiced_at > (m + interval '1 month - 1 day')::date)
+     GROUP BY m ORDER BY m`,
   );
-  return result.rows as { period: string; count: number; total: number }[];
+  return result.rows.map((r) => ({
+    period: r.period as string,
+    count: r.count as number,
+    total: Math.round(r.total * 100) / 100,
+    approved: r.approved as number,
+    raisedCount: r.raisedCount as number,
+    raisedTotal: Math.round(r.raisedTotal * 100) / 100,
+    carriedCount: (r.count - r.raisedCount) as number,
+    carriedTotal: Math.round((r.total - r.raisedTotal) * 100) / 100,
+    oldestDays: r.oldestDays as number,
+  }));
 }

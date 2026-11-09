@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 214,
+    "title": "LPO pending carries forward to the current month",
+    "area": "Revenue dashboard",
+    "date": "2026-11-09",
+    "approxDate": false,
+    "status": null,
+    "summary": "Quotations still waiting to be invoiced stay visible in later months instead of dropping out after their quotation month.",
+    "changes": [
+      "What changed: LPO pending now shows every Pending / Approved quotation whose ERP / ORION status is Pending invoice, from its quotation month until it is marked Invoiced. The current month is split into raised this month and carried forward, with the oldest age in days.",
+      "Past months show the position at that month-end using a new Invoiced date, stamped automatically when the status becomes Invoiced. Older Invoiced quotations have no date and stay out. It is information only and never added to revenue."
+    ],
+    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["074_quotation_invoiced_at.sql"],
+    "files": "packages/db/migrations/074_quotation_invoiced_at.sql, packages/db/src/quotations.ts, apps/web/src/app.js, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts."
+  },
+  {
     "id": 213,
     "title": "AMC quotation: \"Equivalent per month\" row removed",
     "area": "Pricing & rates",
