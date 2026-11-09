@@ -79,6 +79,34 @@ test(
         phases: [],
         addons: [{ name: 'Site Survey', rate: 50, hours: 1, on: true }],
       };
+      // Overriding a unit rate needs the permission; without it the save is refused.
+      const overridden = {
+        transportSharePercent: 0,
+        lineItems: [{ ...line, unitRate: 90, rateOverridden: true, tierRate: 100 }],
+        totalPrice: 900,
+        totalCost: 500,
+        margin: 400,
+      };
+      await assert.rejects(sales.create(overridden, profileId), /permission to override/);
+      await assert.rejects(
+        sales.revise(created.id, overridden, profileId),
+        /permission to override/,
+      );
+      const allowed = await sales.revise(created.id, overridden, profileId, undefined, true);
+      assert.equal(allowed.revision, 2);
+      assert.equal(allowed.lineItems[0].rateOverridden, true);
+      await sales.revise(
+        created.id,
+        {
+          transportSharePercent: 0,
+          lineItems: [line],
+          totalPrice: 1000,
+          totalCost: 500,
+          margin: 500,
+        },
+        profileId,
+      );
+
       const revised = await sales.revise(
         created.id,
         {
@@ -94,15 +122,15 @@ test(
         profileId,
       );
       assert.equal(revised.thomsonSaleReference, created.thomsonSaleReference);
-      assert.equal(revised.revision, 2);
+      assert.equal(revised.revision, 4);
       assert.equal(revised.revisionNote, 'Customer doubled the order');
       assert.equal(Number(revised.totalPrice), 2000);
       assert.equal((revised.editorState as { technicians: number }).technicians, 2);
 
       const history = await sales.revisions(created.id);
-      assert.equal(history.length, 1);
-      assert.equal(history[0].revision, 1);
-      assert.equal(Number((history[0].snapshot as { totalPrice: number }).totalPrice), 1000);
+      assert.equal(history.length, 3);
+      assert.equal(history[2].revision, 1);
+      assert.equal(Number((history[2].snapshot as { totalPrice: number }).totalPrice), 1000);
 
       await sales.setStatus(created.id, { status: 'Sold', soldDate: '2026-11-09' }, profileId);
       await assert.rejects(
@@ -131,7 +159,7 @@ test(
         },
         profileId,
       );
-      assert.equal(again.revision, 3);
+      assert.equal(again.revision, 5);
       await assert.rejects(
         sales.revise(
           '999999999',

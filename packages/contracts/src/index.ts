@@ -945,6 +945,10 @@ export const thomsonSaleLineItemSchema = z
     // 'single' = a single-unit / small-job quote (modification #179);
     // absent on older sales, which are project quotes.
     quoteMode: z.enum(['project', 'single']).optional(),
+    // The unit rate was typed over the master tier rate (modification #226);
+    // tierRate is the master rate it replaced.
+    rateOverridden: z.boolean().optional(),
+    tierRate: z.number().min(0).max(10000000).optional(),
   })
   .strict();
 
@@ -995,6 +999,7 @@ export const thomsonSaleEditorStateSchema = z
             qty: z.number().min(0).max(1000000),
             siteVisits: z.number().min(0).max(100000),
             trainingSessions: z.number().min(0).max(100000),
+            rateOverride: z.number().min(0).max(10000000).nullable().optional(),
           })
           .strict(),
       )
@@ -2232,3 +2237,101 @@ export const aiAdviceRequestSchema = z
   })
   .strict();
 export type AiAdviceRequestInput = z.infer<typeof aiAdviceRequestSchema>;
+
+// Ask-AI chat in the Thomson calculator (modification #225). The browser sends
+// the quote it is showing (or an issued quote that was opened); the AI may only
+// use those figures. Client name and contact number are never sent.
+const chatMoney = z.number().min(-100000000).max(100000000);
+export const aiChatRequestSchema = z
+  .object({
+    messages: z
+      .array(
+        z
+          .object({
+            role: z.enum(['user', 'assistant']),
+            content: z.string().trim().min(1).max(2000),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+    quote: z
+      .object({
+        source: z.enum(['calculator', 'issued']),
+        reference: z.string().trim().max(80).optional(),
+        status: z.string().trim().max(20).optional(),
+        revision: z.number().int().min(1).max(100000).optional(),
+        mode: z.enum(['project', 'single']),
+        transportSharePercent: z.number().min(0).max(100),
+        totals: z
+          .object({
+            price: chatMoney,
+            cost: chatMoney,
+            margin: chatMoney,
+            marginPct: z.number().min(-1000).max(1000),
+          })
+          .strict(),
+        minMarginPct: z.number().min(0).max(100),
+        lines: z
+          .array(
+            z
+              .object({
+                region: z.string().trim().max(120),
+                appliance: z.string().trim().max(200),
+                qty: z.number().min(0).max(1000000),
+                unitRate: chatMoney,
+                listRate: chatMoney.optional(),
+                rateOverridden: z.boolean().optional(),
+                equipment: chatMoney,
+                services: chatMoney,
+                transportCharged: chatMoney,
+                transportCost: chatMoney,
+                totalPrice: chatMoney,
+                totalCost: chatMoney,
+                margin: chatMoney,
+              })
+              .strict(),
+          )
+          .max(200),
+        schedule: z
+          .object({
+            workMode: z.enum(['continuous', 'phased']),
+            technicians: z.number().min(0).max(1000),
+            hoursPerDay: z.number().min(0).max(48),
+            workingDays: z.number().min(0).max(100000),
+            waitingDays: z.number().min(0).max(100000),
+            totalDays: z.number().min(0).max(100000),
+            highDaysThreshold: z.number().min(0).max(100000).optional(),
+            phases: z
+              .array(
+                z
+                  .object({
+                    name: z.string().trim().max(60),
+                    items: z.string().max(500),
+                    days: z.number().min(0).max(100000),
+                    waitBeforeDays: z.number().min(0).max(100000),
+                  })
+                  .strict(),
+              )
+              .max(50),
+          })
+          .strict()
+          .optional(),
+        addons: z
+          .array(
+            z
+              .object({
+                name: z.string().trim().max(80),
+                rate: chatMoney,
+                hours: z.number().min(0).max(100000),
+                on: z.boolean(),
+              })
+              .strict(),
+          )
+          .max(10)
+          .optional(),
+      })
+      .strict(),
+  })
+  .strict();
+export type AiChatRequestInput = z.infer<typeof aiChatRequestSchema>;

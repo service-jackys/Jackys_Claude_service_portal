@@ -148,6 +148,7 @@ export type RouteDefinition = {
     | 'thomsonSale'
     | 'aiSettings'
     | 'aiAdvice'
+    | 'aiChat'
     | 'thomsonSaleStatus'
     | 'thomsonSaleRevise'
     | 'warrantyApprovalCreate'
@@ -770,7 +771,7 @@ export function createRouteCatalog(
       };
   const aiHandlers = pool
     ? createAiHandlers(createAiService(pool), requirePermission)
-    : unavailableHandlers(['get', 'save', 'test', 'status', 'advice']);
+    : unavailableHandlers(['get', 'save', 'test', 'status', 'advice', 'chat']);
   const auditHandlers = pool
     ? createAuditHandlers(createAuditService(pool), requirePermission)
     : unavailableHandlers(['list', 'filters']);
@@ -3072,6 +3073,18 @@ export function createRouteCatalog(
         requestBody: 'aiAdvice' as const,
         responses: [200, 400, 401, 403, 409, 502, 500],
         handlers: aiHandlers.advice,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/thomson-chat',
+        operationId: 'thomsonAiChat',
+        tags: ['AI'],
+        summary:
+          'Ask the configured AI a question about the Thomson quote being prepared or opened (only the figures sent are used)',
+        security: 'bearerAuth' as const,
+        requestBody: 'aiChat' as const,
+        responses: [200, 400, 401, 403, 409, 502, 500],
+        handlers: aiHandlers.chat,
       },
       {
         method: 'get' as const,

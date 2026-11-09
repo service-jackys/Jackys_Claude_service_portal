@@ -4764,3 +4764,37 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/079_thomson_sale_revisions.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
 
 **Needs you:** pull, run the database migration (079), restart the API, hard-refresh.
+
+## Modification #225 — Thomson calculator: Ask AI chat about the quote
+
+**Date:** 2026-11-09
+
+**Why.** The Smart advice only words a fixed set of options. The service manager also wants to ask free questions about the margin and profit of the quote they are preparing or of an issued quote.
+
+**What changed.**
+
+- **Ask AI chat.** When AI is set up (Admin → Masters → AI settings), an **Ask AI** button appears at the bottom of the Thomson calculator, next to the Live Chat button. It opens a small chat with suggested questions. Each question is sent with the quote's current figures: lines, unit rates, equipment, services, transport charged and transport cost, price, cost, margin and margin %, the minimum-margin guard, the crew and schedule, and the add-on switches. The AI is told to use only those figures and cannot change the quote.
+- **Issued quotes.** Each issued quote has an **Ask AI** button that opens the chat about that saved quote (any status). "Use my current quote" switches back. A quote opened with Edit is the quote in the calculator, so the chat follows it as you change it.
+- **Privacy.** The client name, contact number and site address are never sent to the AI.
+- **API:** POST /api/thomson-chat (permission quote_calculators.use). If the AI is off or fails, the chat says so and the calculator keeps working.
+
+**Files.** apps/api/src/ai/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/ai-settings.test.ts, tests/e2e/thomson-quote-calculator.spec.ts. No database change.
+
+**Needs you:** pull, restart the API, hard-refresh.
+
+## Modification #226 — Thomson calculator: change a line's quantity and override its unit rate
+
+**Date:** 2026-11-09
+
+**Why.** While preparing or editing a quote, the quantity of an item already added could not be changed without removing and re-adding it, and the unit rate always came from the tier in Thomson Pricing Admin.
+
+**What changed.**
+
+- **Edit quantity in place.** In step 2 (Items) the quantity of each added line is now a field. Changing it recalculates the tier, services, transport, schedule and margin at once. If the quote has phases, the line's quantity is re-split across the phases in proportion.
+- **Override the unit rate.** The unit rate of each line is now a button that opens a pop-up. Choose the tier (automatic for the quantity, Base, 50+, 150+, 300+, 500+), change the discount % on that tier or type a rate per unit; the three stay in step. The pop-up shows the effect on equipment, line total and margin against the master rate, and warns when the line falls below the minimum-margin guard. "Use master rate" removes the override. The master rate in Thomson Pricing Admin is never changed.
+- **Saved and edited quotes.** A custom rate is marked "Custom rate · list X" in the calculator, the Issued quotes detail and the Ask AI chat, and is kept when the quote is edited again.
+- **Permission.** Only roles that have **thomson_sale.override_rate** can use the pop-up; admin has it by default. Other roles get it in Roles & permissions. The API refuses a custom rate from a user without it (403). If a user without the permission edits a quote that has custom rates, the master rates are used and a note says so.
+
+**Files.** packages/db/migrations/080_thomson_override_rate_permission.sql, packages/db/src/thomson-sales.ts, packages/contracts/src/index.ts, apps/api/src/thomson-sales/*, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/thomson-sale-revise.test.ts, tests/e2e/thomson-quote-calculator.spec.ts.
+
+**Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give thomson_sale.override_rate to other roles in Roles & permissions if wanted.

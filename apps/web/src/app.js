@@ -16704,6 +16704,8 @@ ${bodyHtml}
       'Training (End User)': 'Per training session on a line',
     };
     const canAmendAddons = hasPermission('pricing_config.write');
+    // Typing over the master tier rate of a line (modification #226) is a permission.
+    const canOverrideRate = hasPermission('thomson_sale.override_rate');
     function cloneAddonDefaults() {
       return THOMSON_ADDON_NAMES.reduce((acc, name) => {
         const entry = data.addons[name] || {};
@@ -16733,7 +16735,10 @@ ${bodyHtml}
     apiRequest('/api/ai-settings/status')
       .then((r) => {
         aiAdvice.available = !!r.available;
-        if (container.isConnected) renderTimeline();
+        if (container.isConnected) {
+          renderTimeline();
+          syncChatLauncher();
+        }
       })
       .catch(() => {});
     const schedCfg = () => ({ ...THOMSON_SCHEDULING_DEFAULTS, ...(data.scheduling || {}) });
@@ -16758,6 +16763,7 @@ ${bodyHtml}
     // lastRows (modification.md #39).
     let lastComputed = null;
     let saleControl = null;
+    let loadedRef = null;
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
@@ -16910,7 +16916,7 @@ ${bodyHtml}
         panel.hidden = panel.dataset.thPanel !== target;
       });
       if (target === 'issued') {
-        loadThomsonIssuedList(issuedHost, '', beginEdit);
+        loadThomsonIssuedList(issuedHost, '', beginEdit, askAboutSale);
       }
     });
 
@@ -17075,7 +17081,9 @@ ${bodyHtml}
       // A single-unit quote always uses the base rate (no volume tier).
       const tier = single ? 'Base' : thomsonCalcTier(li.qty);
       const baseRate = appliance.rates.Base;
-      const unitRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
+      const tierRate = single ? baseRate : thomsonCalcUnitRate(appliance, li.qty);
+      const rateOverridden = li.rateOverride !== undefined && li.rateOverride !== null;
+      const unitRate = rateOverridden ? Number(li.rateOverride) : tierRate;
       const applianceSubtotal = li.qty * unitRate;
       const lineHours = li.qty * (appliance.avgMin / 60);
       // Overtime hours are paid at the admin multiplier: the share of the work
@@ -17136,6 +17144,8 @@ ${bodyHtml}
         applianceName: appliance.name,
         tier,
         baseRate,
+        tierRate,
+        rateOverridden,
         unitRate,
         applianceSubtotal,
         addonRevenue,
@@ -17834,11 +17844,28 @@ ${bodyHtml}
               '</td><td>' +
               escapeHtml(c.applianceName) +
               '</td><td class="num">' +
+              '<input type="number" class="tq-qty-input" min="1" step="1" value="' +
               c.qty +
-              '</td><td class="num">' +
-              money(c.unitRate) +
+              '" data-tcc-qty-edit="' +
+              i +
+              '" aria-label="Quantity of ' +
+              escapeHtml(c.applianceName) +
+              ' in ' +
+              escapeHtml(c.region) +
+              '"></td><td class="num">' +
+              (canOverrideRate
+                ? '<button type="button" class="tq-rate-btn" data-tcc-rate="' +
+                  i +
+                  '" title="Change the tier, discount or rate per unit for this line">' +
+                  money(c.unitRate) +
+                  '<svg viewBox="0 0 24 24" width="13" height="13" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4zM14 6l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></button>'
+                : money(c.unitRate)) +
               '<span class="cell-sub">' +
-              (c.tier === 'Base' ? 'Base rate' : 'Tier ' + escapeHtml(c.tier)) +
+              (c.rateOverridden
+                ? 'Custom rate &middot; list ' + money(c.tierRate)
+                : c.tier === 'Base'
+                  ? 'Base rate'
+                  : 'Tier ' + escapeHtml(c.tier)) +
               '</span></td><td class="num"><button class="button button-outline rm-btn rm-btn-sm" type="button" data-tcc-remove="' +
               i +
               '">Remove</button></td></tr>',
@@ -17850,6 +17877,18 @@ ${bodyHtml}
           lineItems.splice(Number(btn.getAttribute('data-tcc-remove')), 1);
           renderAll();
         });
+      });
+      // Quantity of a line already in the quote can be changed in place; it is
+      // applied when the field is left or Enter is pressed.
+      linesHost.querySelectorAll('[data-tcc-qty-edit]').forEach((input) => {
+        input.addEventListener('change', () =>
+          changeLineQty(Number(input.getAttribute('data-tcc-qty-edit')), parseNumber(input.value)),
+        );
+      });
+      linesHost.querySelectorAll('[data-tcc-rate]').forEach((btn) => {
+        btn.addEventListener('click', () =>
+          openRateDialog(Number(btn.getAttribute('data-tcc-rate'))),
+        );
       });
 
       // Step 4: what the customer sees.
@@ -18092,6 +18131,7 @@ ${bodyHtml}
     // same Clear-must-actually-clear fix VAS/AMC/Rate Card got).
     function clearLineItems() {
       lineItems.length = 0;
+      loadedRef = null;
       resetTimeline();
       lastAddedSig = null;
       hideReminder();
@@ -18247,13 +18287,202 @@ ${bodyHtml}
       () => {
         // Keep the Issued quotes list in sync if it's the tab currently open.
         const issuedPanel = container.querySelector('[data-th-panel="issued"]');
-        if (issuedPanel && !issuedPanel.hidden) loadThomsonIssuedList(issuedHost, '', beginEdit);
+        if (issuedPanel && !issuedPanel.hidden)
+          loadThomsonIssuedList(issuedHost, '', beginEdit, askAboutSale);
       },
       container,
       () => mode,
       buildSavedSchedule,
       getEditorState,
     );
+
+    // ---- Change a line's quantity / unit rate (modification #226) -----------
+    function rescalePhases(li, oldQty, newQty) {
+      if (!phases.length || !(oldQty > 0)) return;
+      const parts = phases.map((ph) => ((Number(ph.qty[li.uid]) || 0) * newQty) / oldQty);
+      const floors = parts.map(Math.floor);
+      let rest = newQty - floors.reduce((t, x) => t + x, 0);
+      parts
+        .map((x, i) => [x - floors[i], i])
+        .sort((a, b) => b[0] - a[0])
+        .forEach(([, i]) => {
+          if (rest >= 1) {
+            floors[i] += 1;
+            rest -= 1;
+          }
+        });
+      phases.forEach((ph, i) => {
+        ph.qty[li.uid] = floors[i];
+      });
+    }
+
+    function changeLineQty(index, qty) {
+      const li = lineItems[index];
+      if (!li) return;
+      if (!(qty > 0) || (li.mode === 'single' && qty >= 50) || qty === li.qty) {
+        renderAll(); // put the old value back
+        return;
+      }
+      const old = li.qty;
+      li.qty = qty;
+      rescalePhases(li, old, qty);
+      renderAll();
+    }
+
+    // A pop-up to change the tier, the discount on it, or the rate per unit of
+    // one line. Everything is recalculated; the master rate is never changed.
+    function openRateDialog(index) {
+      const li = lineItems[index];
+      if (!li || !canOverrideRate) return;
+      const appliance = appliances[li.applianceIdx];
+      const single = li.mode === 'single';
+      const autoTier = single ? 'Base' : thomsonCalcTier(li.qty);
+      const tierRateOf = (key) => {
+        const k = key === 'auto' ? autoTier : key;
+        return Number(k === 'Base' ? appliance.rates.Base : appliance.rates[k]) || 0;
+      };
+      const tierLabel = (k) => (k === 'Base' ? 'Base rate' : 'Tier ' + k);
+      const options = single ? [] : ['Base', '50+', '150+', '300+', '500+'];
+      let tierKey = 'auto';
+      let rate =
+        li.rateOverride !== undefined && li.rateOverride !== null
+          ? Number(li.rateOverride)
+          : tierRateOf('auto');
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog tq-rate-dialog';
+      dialog.setAttribute('aria-labelledby', 'tqRateTitle');
+      dialog.innerHTML =
+        '<h3 id="tqRateTitle">Unit rate for this line</h3>' +
+        '<p class="form-note"><strong>' +
+        escapeHtml(appliance.name) +
+        '</strong> &middot; ' +
+        escapeHtml(li.region) +
+        ' &middot; ' +
+        li.qty +
+        ' units. The master rate for this quantity is <strong>' +
+        escapeHtml(tierLabel(autoTier)) +
+        ', ⃃ ' +
+        money(tierRateOf('auto')) +
+        '</strong> per unit.</p>' +
+        '<div class="tq-rate-grid">' +
+        '<label>Tier<select data-rd-tier><option value="auto">Automatic for this quantity (' +
+        escapeHtml(tierLabel(autoTier)) +
+        ', ' +
+        money(tierRateOf('auto')) +
+        ')</option>' +
+        options
+          .map(
+            (k) =>
+              '<option value="' +
+              k +
+              '">' +
+              escapeHtml(tierLabel(k)) +
+              ', ' +
+              money(tierRateOf(k)) +
+              '</option>',
+          )
+          .join('') +
+        '</select></label>' +
+        '<label>Discount on the tier rate (%)<input type="number" step="0.1" min="-100" max="100" data-rd-disc></label>' +
+        '<label>Rate per unit (⃃)<input type="number" step="0.01" min="0" data-rd-rate></label>' +
+        '</div>' +
+        '<p class="form-note">A minus discount raises the rate above the tier. The master rate in Thomson Pricing Admin is not changed.</p>' +
+        '<div class="tq-rate-impact" data-rd-impact aria-live="polite"></div>' +
+        '<div class="form-footer">' +
+        '<button type="button" class="button button-outline" data-rd-reset>Use master rate</button> ' +
+        '<button type="button" class="button" data-rd-cancel>Cancel</button> ' +
+        '<button type="button" class="button button-primary" data-rd-apply>Apply</button></div>';
+      const tierSel = dialog.querySelector('[data-rd-tier]');
+      const discIn = dialog.querySelector('[data-rd-disc]');
+      const rateIn = dialog.querySelector('[data-rd-rate]');
+      const impact = dialog.querySelector('[data-rd-impact]');
+      const applyBtn = dialog.querySelector('[data-rd-apply]');
+      const discOf = () => {
+        const t = tierRateOf(tierKey);
+        return t > 0 && Number.isFinite(rate) ? Math.round((1 - rate / t) * 1000) / 10 : 0;
+      };
+      const fill = () => {
+        discIn.value = String(discOf());
+        rateIn.value = Number.isFinite(rate) ? rate.toFixed(2) : '';
+      };
+      const showImpact = () => {
+        const valid = Number.isFinite(rate) && rate >= 0;
+        applyBtn.disabled = !valid;
+        if (!valid) {
+          impact.innerHTML = '<p class="form-note pg-error">Enter a rate of 0 or more.</p>';
+          return;
+        }
+        const trips = installTripsFor(lineItems);
+        const now = computeLine({ ...li, rateOverride: rate }, trips[index]);
+        const list = computeLine({ ...li, rateOverride: null }, trips[index]);
+        const pct = now.totalPrice ? (now.margin / now.totalPrice) * 100 : 0;
+        const guard = schedCfg().minMarginPct;
+        impact.innerHTML =
+          '<dl class="tq-facts"><div><dt>Equipment</dt><dd>⃃ ' +
+          money(now.applianceSubtotal) +
+          ' <small>(master ' +
+          money(list.applianceSubtotal) +
+          ')</small></dd></div><div><dt>Line total</dt><dd>⃃ ' +
+          money(now.totalPrice) +
+          ' <small>(master ' +
+          money(list.totalPrice) +
+          ')</small></dd></div><div><dt>Line margin</dt><dd>⃃ ' +
+          money(now.margin) +
+          ' &middot; ' +
+          pct.toFixed(1) +
+          '% <small>(master ' +
+          money(list.margin) +
+          ')</small></dd></div></dl>' +
+          (pct < guard
+            ? '<p class="form-note pg-error">This line is below the ' +
+              guard +
+              '% margin guard.</p>'
+            : '');
+      };
+      tierSel.addEventListener('change', () => {
+        // A new tier starts from its own rate with no discount.
+        tierKey = tierSel.value;
+        rate = tierRateOf(tierKey);
+        fill();
+        showImpact();
+      });
+      discIn.addEventListener('input', () => {
+        const d = Number(discIn.value);
+        rate = tierRateOf(tierKey) * (1 - (Number.isFinite(d) ? d : 0) / 100);
+        rateIn.value = rate.toFixed(2);
+        showImpact();
+      });
+      rateIn.addEventListener('input', () => {
+        rate = rateIn.value === '' ? NaN : Number(rateIn.value);
+        const t = tierRateOf(tierKey);
+        discIn.value = String(
+          t > 0 && Number.isFinite(rate) ? Math.round((1 - rate / t) * 1000) / 10 : 0,
+        );
+        showImpact();
+      });
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-rd-cancel]')) dialog.close();
+        else if (event.target.closest('[data-rd-reset]')) {
+          delete li.rateOverride;
+          dialog.close();
+          renderAll();
+        } else if (event.target.closest('[data-rd-apply]')) {
+          if (!Number.isFinite(rate) || rate < 0) return;
+          const rounded = Math.round(rate * 100) / 100;
+          if (Math.abs(rounded - tierRateOf('auto')) < 0.005) delete li.rateOverride;
+          else li.rateOverride = rounded;
+          dialog.close();
+          renderAll();
+        }
+      });
+      dialog.addEventListener('close', () => dialog.remove());
+      document.body.appendChild(dialog);
+      fill();
+      showImpact();
+      dialog.showModal();
+      rateIn.focus();
+      rateIn.select();
+    }
 
     // ---- Edit an issued quote (modification #224) -------------------------
     // The saved quote is loaded back into this calculator and re-priced with
@@ -18273,6 +18502,8 @@ ${bodyHtml}
           qty: li.qty,
           siteVisits: li.siteVisits,
           trainingSessions: li.trainingSessions,
+          rateOverride:
+            li.rateOverride !== undefined && li.rateOverride !== null ? li.rateOverride : null,
         })),
         phases: phases.map((ph) => ({
           name: ph.name,
@@ -18309,8 +18540,10 @@ ${bodyHtml}
               qty: li.qty,
               siteVisits: li.siteVisits,
               trainingSessions: li.trainingSessions,
+              rateOverride: li.rateOverridden ? li.unitRate : null,
             }));
         const uids = [];
+        let droppedOverrides = 0;
         source.forEach((l) => {
           const idx = appliances.findIndex((a) => a.name === l.applianceName);
           if (idx < 0) {
@@ -18342,8 +18575,17 @@ ${bodyHtml}
             siteVisits: Number(l.siteVisits) || 0,
             trainingSessions: Number(l.trainingSessions) || 0,
           });
+          if (l.rateOverride !== undefined && l.rateOverride !== null) {
+            if (canOverrideRate)
+              lineItems[lineItems.length - 1].rateOverride = Number(l.rateOverride);
+            else droppedOverrides += 1;
+          }
           uids.push(uid);
         });
+        if (droppedOverrides)
+          notes.push(
+            'This quote had custom unit rates. You do not have permission to override rates, so the master rates were used. Ask an admin to give you the permission in Roles & permissions if you need to keep them.',
+          );
         if (mode !== 'single')
           transportShareInput.value = String(Number(sale.transportSharePercent));
         const sc = sale.schedule;
@@ -18397,6 +18639,11 @@ ${bodyHtml}
         renderAddonsEditTable();
         renderAll();
         container.querySelector('[data-th-tab="quote"]')?.click();
+        loadedRef = {
+          reference: sale.thomsonSaleReference,
+          status: sale.status,
+          revision: sale.revision,
+        };
         saleControl.startEdit(sale, notes);
         saleHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (error) {
@@ -18406,13 +18653,362 @@ ${bodyHtml}
         );
       }
     }
+
+    // ---- Ask AI chat (modification #225) ------------------------------------
+    // A small chat about the quote being prepared, or an issued quote opened
+    // with "Ask AI". The AI only receives the figures below; client name and
+    // contact number are never sent.
+    const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
+    const chat = { open: false, busy: false, messages: [], subject: null };
+
+    function chatContextFromCalculator() {
+      const computed = lineItems.length ? computeQuote().computed : [];
+      const price = computed.reduce((t, c) => t + c.totalPrice, 0);
+      const cost = computed.reduce((t, c) => t + c.totalCost, 0);
+      let schedule;
+      if (mode !== 'single' && lineItems.length) {
+        const sch = scheduleNow();
+        schedule = {
+          workMode: sch.mode,
+          technicians: crewTechs,
+          hoursPerDay: data.hoursDay + otHours,
+          workingDays: sch.workingDays,
+          waitingDays: sch.gapDays,
+          totalDays: sch.calendarDays,
+          highDaysThreshold: schedCfg().highDaysThreshold,
+          phases:
+            sch.mode === 'phased'
+              ? sch.phases.map((row, i) => ({
+                  name: row.name,
+                  items: lineItems
+                    .map((li) => {
+                      const q = Number(phases[i].qty[li.uid]) || 0;
+                      return q ? q + ' x ' + (appliances[li.applianceIdx]?.name || '') : '';
+                    })
+                    .filter(Boolean)
+                    .join(', ')
+                    .slice(0, 500),
+                  days: row.days,
+                  waitBeforeDays: row.gapDays,
+                }))
+              : [],
+        };
+      }
+      return {
+        source: 'calculator',
+        reference: loadedRef ? loadedRef.reference : undefined,
+        status: loadedRef ? loadedRef.status : undefined,
+        revision: loadedRef ? loadedRef.revision : undefined,
+        mode,
+        transportSharePercent: mode === 'single' ? 100 : parseNumber(transportShareInput.value),
+        totals: {
+          price: round2(price),
+          cost: round2(cost),
+          margin: round2(price - cost),
+          marginPct: price ? round2(((price - cost) / price) * 100) : 0,
+        },
+        minMarginPct: schedCfg().minMarginPct,
+        lines: computed.map((c) => ({
+          region: c.region,
+          appliance: c.applianceName,
+          qty: c.qty,
+          unitRate: round2(c.unitRate),
+          listRate: round2(c.tierRate),
+          rateOverridden: c.rateOverridden || undefined,
+          equipment: round2(c.applianceSubtotal),
+          services: round2(c.addonRevenue),
+          transportCharged: round2(c.customerTransportCharge),
+          transportCost: round2(c.transportCost),
+          totalPrice: round2(c.totalPrice),
+          totalCost: round2(c.totalCost),
+          margin: round2(c.margin),
+        })),
+        schedule,
+        addons: THOMSON_ADDON_NAMES.map((name) => ({
+          name,
+          rate: Number(addons[name].rate) || 0,
+          hours: Number(addons[name].hours) || 0,
+          on: addons[name].on !== false,
+        })),
+      };
+    }
+
+    function chatContextFromSale(sale) {
+      const lines = (sale.lineItems || []).map((li) => ({
+        region: li.region,
+        appliance: li.applianceName,
+        qty: Number(li.qty) || 0,
+        unitRate: round2(li.unitRate),
+        listRate: li.rateOverridden ? round2(li.tierRate) : undefined,
+        rateOverridden: li.rateOverridden || undefined,
+        equipment: round2(li.applianceSubtotal),
+        services: round2(li.addonRevenue),
+        transportCharged: Math.max(
+          0,
+          round2(li.totalPrice - li.applianceSubtotal - li.addonRevenue),
+        ),
+        transportCost: round2(li.transportCost),
+        totalPrice: round2(li.totalPrice),
+        totalCost: round2(li.totalCost),
+        margin: round2(li.margin),
+      }));
+      const price = Number(sale.totalPrice) || 0;
+      const sc = sale.schedule;
+      return {
+        source: 'issued',
+        reference: sale.thomsonSaleReference,
+        status: sale.status || 'Quote',
+        revision: sale.revision || 1,
+        mode: isThomsonSingleSale(sale) ? 'single' : 'project',
+        transportSharePercent: Number(sale.transportSharePercent) || 0,
+        totals: {
+          price: round2(price),
+          cost: round2(sale.totalCost),
+          margin: round2(sale.margin),
+          marginPct: price ? round2((Number(sale.margin) / price) * 100) : 0,
+        },
+        minMarginPct: schedCfg().minMarginPct,
+        lines,
+        schedule: sc
+          ? {
+              workMode: sc.workMode,
+              technicians: sc.technicians,
+              hoursPerDay: sc.hoursPerDay || 0,
+              workingDays: sc.workingDays,
+              waitingDays: sc.waitingDays,
+              totalDays: sc.totalDays,
+              highDaysThreshold: schedCfg().highDaysThreshold,
+              phases: (sc.phases || []).map((ph) => ({
+                name: ph.name,
+                items: ph.items || '',
+                days: ph.days,
+                waitBeforeDays: ph.waitBeforeDays,
+              })),
+            }
+          : undefined,
+      };
+    }
+
+    const chatContext = () =>
+      chat.subject ? chatContextFromSale(chat.subject) : chatContextFromCalculator();
+
+    container.insertAdjacentHTML(
+      'beforeend',
+      '<button type="button" class="tq-chat-launch" data-tq-chat-launch hidden aria-haspopup="dialog" aria-expanded="false">' +
+        '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 2l1.9 5.6L19.5 9.5l-5.6 1.9L12 17l-1.9-5.6L4.5 9.5l5.6-1.9L12 2zm7 11l.9 2.6 2.6.9-2.6.9L19 20l-.9-2.6-2.6-.9 2.6-.9L19 13z" fill="currentColor"/></svg>' +
+        '<span>Ask AI</span></button>' +
+        '<section class="tq-chat" data-tq-chat role="dialog" aria-label="Ask AI about this quote" hidden>' +
+        '<header class="tq-chat-head"><div class="tq-chat-title"><strong>Ask AI</strong>' +
+        '<span class="tq-chat-subject" data-tq-chat-subject></span></div>' +
+        '<div class="tq-chat-actions">' +
+        '<button type="button" class="tq-chat-icon" data-tq-chat-reset title="Start a new conversation" aria-label="Start a new conversation"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 5V2L7 6.5 12 11V8a5 5 0 11-5 5H5a7 7 0 107-8z" fill="currentColor"/></svg></button>' +
+        '<button type="button" class="tq-chat-icon" data-tq-chat-close title="Close" aria-label="Close chat"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>' +
+        '</div></header>' +
+        '<div class="tq-chat-body" data-tq-chat-body aria-live="polite"></div>' +
+        '<div class="tq-chat-suggest" data-tq-chat-suggest></div>' +
+        '<form class="tq-chat-form" data-tq-chat-form>' +
+        '<textarea rows="1" maxlength="1000" data-tq-chat-input aria-label="Your question" placeholder="Ask about margin, profit, transport&hellip;"></textarea>' +
+        '<button type="submit" class="tq-chat-send" data-tq-chat-send aria-label="Send"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M3 11.5L21 3l-8.5 18-2.2-7.3L3 11.5z" fill="currentColor"/></svg></button>' +
+        '</form>' +
+        '<p class="tq-chat-foot">AI can make mistakes. It only sees this quote’s figures, not the client’s name or contact.</p>' +
+        '</section>',
+    );
+    const chatLaunch = container.querySelector('[data-tq-chat-launch]');
+    const chatPanel = container.querySelector('[data-tq-chat]');
+    const chatBody = container.querySelector('[data-tq-chat-body]');
+    const chatSuggest = container.querySelector('[data-tq-chat-suggest]');
+    const chatInput = container.querySelector('[data-tq-chat-input]');
+    const chatSend = container.querySelector('[data-tq-chat-send]');
+    const chatSubjectEl = container.querySelector('[data-tq-chat-subject]');
+
+    function syncChatLauncher() {
+      thomsonChatAvailable = !!aiAdvice.available;
+      chatLaunch.hidden = !aiAdvice.available || chat.open;
+      if (!aiAdvice.available) chatPanel.hidden = true;
+    }
+
+    // Tiny, safe renderer: paragraphs and "- " lists, everything escaped.
+    function chatTextHtml(text) {
+      const out = [];
+      let list = [];
+      const flush = () => {
+        if (list.length) {
+          out.push('<ul>' + list.map((x) => '<li>' + escapeHtml(x) + '</li>').join('') + '</ul>');
+          list = [];
+        }
+      };
+      String(text)
+        .split(/\r?\n/)
+        .forEach((line) => {
+          const t = line.trim();
+          const bullet = /^[-*•]\s+(.*)$/.exec(t);
+          if (bullet) list.push(bullet[1]);
+          else {
+            flush();
+            if (t) out.push('<p>' + escapeHtml(t) + '</p>');
+          }
+        });
+      flush();
+      return out.join('');
+    }
+
+    function renderChat() {
+      const subject = chat.subject
+        ? 'About ' +
+          chat.subject.thomsonSaleReference +
+          ' (' +
+          (chat.subject.status || 'Quote') +
+          ')'
+        : loadedRef
+          ? 'About ' + loadedRef.reference + ' (being edited)'
+          : 'About the quote you are preparing';
+      chatSubjectEl.innerHTML =
+        escapeHtml(subject) +
+        (chat.subject
+          ? ' <button type="button" class="tq-chat-link" data-tq-chat-current>Use my current quote</button>'
+          : '');
+      const empty = !chat.messages.length;
+      chatBody.innerHTML = empty
+        ? '<div class="tq-chat-hello"><strong>Ask me about this quote.</strong><span>I can read its lines, margin, transport and schedule. I cannot change anything for you.</span></div>'
+        : chat.messages
+            .map(
+              (m) =>
+                '<div class="tq-chat-msg is-' +
+                m.role +
+                (m.error ? ' is-error' : '') +
+                '">' +
+                (m.role === 'assistant'
+                  ? chatTextHtml(m.content)
+                  : '<p>' + escapeHtml(m.content) + '</p>') +
+                '</div>',
+            )
+            .join('') +
+          (chat.busy
+            ? '<div class="tq-chat-msg is-assistant is-typing" aria-label="The AI is typing"><span></span><span></span><span></span></div>'
+            : '');
+      const suggestions = [
+        'Where does my margin come from?',
+        'Which line earns the least margin?',
+        'How much discount can I give and stay above the margin guard?',
+      ];
+      if ((chat.subject ? chatContextFromSale(chat.subject).mode : mode) !== 'single')
+        suggestions.push('What happens to profit if the customer pays all the transport?');
+      chatSuggest.innerHTML = empty
+        ? suggestions
+            .map(
+              (q) =>
+                '<button type="button" class="tq-chat-chip" data-tq-chat-ask="' +
+                escapeHtml(q) +
+                '">' +
+                escapeHtml(q) +
+                '</button>',
+            )
+            .join('')
+        : '';
+      chatSend.disabled = chat.busy;
+      chatBody.scrollTop = chatBody.scrollHeight;
+    }
+
+    function openChat() {
+      chat.open = true;
+      chatPanel.hidden = false;
+      chatLaunch.setAttribute('aria-expanded', 'true');
+      chatLaunch.hidden = true;
+      renderChat();
+      chatInput.focus();
+    }
+
+    function closeChat() {
+      chat.open = false;
+      chatPanel.hidden = true;
+      chatLaunch.setAttribute('aria-expanded', 'false');
+      chatLaunch.hidden = !aiAdvice.available;
+      chatLaunch.focus();
+    }
+
+    async function sendChat(text) {
+      const question = String(text || '').trim();
+      if (!question || chat.busy) return;
+      chat.messages.push({ role: 'user', content: question });
+      chat.busy = true;
+      chatInput.value = '';
+      chatInput.style.height = '';
+      renderChat();
+      try {
+        const turns = chat.messages
+          .filter((m) => !m.error)
+          .slice(-12)
+          .map((m) => ({ role: m.role, content: m.content.slice(0, 2000) }));
+        const reply = await apiRequest('/api/thomson-chat', {
+          method: 'POST',
+          body: JSON.stringify({ messages: turns, quote: chatContext() }),
+        });
+        chat.messages.push({ role: 'assistant', content: reply.text || '' });
+      } catch (error) {
+        chat.messages.push({
+          role: 'assistant',
+          error: true,
+          content:
+            error && error.status === 409
+              ? 'The AI is not set up. An admin can add the key in Admin › Masters › AI settings.'
+              : 'The AI did not answer just now. Please try again in a moment.',
+        });
+      } finally {
+        chat.busy = false;
+        renderChat();
+        chatInput.focus();
+      }
+    }
+
+    // Used by the Issued quotes list: open the chat about that saved quote.
+    function askAboutSale(sale) {
+      chat.subject = sale;
+      chat.messages = [];
+      openChat();
+    }
+
+    chatLaunch.addEventListener('click', openChat);
+    container.querySelector('[data-tq-chat-close]').addEventListener('click', closeChat);
+    container.querySelector('[data-tq-chat-reset]').addEventListener('click', () => {
+      chat.messages = [];
+      renderChat();
+      chatInput.focus();
+    });
+    chatPanel.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeChat();
+    });
+    chatPanel.addEventListener('click', (event) => {
+      const chip = event.target.closest('[data-tq-chat-ask]');
+      if (chip) sendChat(chip.getAttribute('data-tq-chat-ask'));
+      if (event.target.closest('[data-tq-chat-current]')) {
+        chat.subject = null;
+        chat.messages = [];
+        renderChat();
+      }
+    });
+    container.querySelector('[data-tq-chat-form]').addEventListener('submit', (event) => {
+      event.preventDefault();
+      sendChat(chatInput.value);
+    });
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        sendChat(chatInput.value);
+      }
+    });
+    chatInput.addEventListener('input', () => {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 96) + 'px';
+    });
+    syncChatLauncher();
   }
 
   // Lists every saved thomson_sales record (modification.md #44) so a
   // previously issued Thomson sale can be found again and its quotation
   // reprinted, without anywhere else in the portal to look it up.
-  async function loadThomsonIssuedList(host, statusFilter = '', onEdit = null) {
+  async function loadThomsonIssuedList(host, statusFilter = '', onEdit = null, onAsk = null) {
     if (onEdit) host._tqOnEdit = onEdit;
+    if (onAsk) host._tqOnAsk = onAsk;
     const canRevise = hasPermission('thomson_sale.revise');
     if (!hasPermission('thomson_sale.read')) {
       host.innerHTML =
@@ -18471,6 +19067,9 @@ ${bodyHtml}
               li.qty +
               '</td><td class="num">' +
               money(li.unitRate) +
+              (li.rateOverridden
+                ? '<small class="ac-sub">custom rate (list ' + money(li.tierRate) + ')</small>'
+                : '') +
               '</td><td class="num">' +
               money(li.totalPrice) +
               '</td></tr>',
@@ -18559,7 +19158,13 @@ ${bodyHtml}
               '<div class="ac-group"><span class="ac-label">Quotation</span><div class="ac-row">' +
               '<button type="button" class="button button-outline button-sm" data-tcc-reprint="' +
               escapeHtml(sale.id) +
-              '">Print quotation</button></div></div>' +
+              '">Print quotation</button>' +
+              (host._tqOnAsk && thomsonChatAvailable
+                ? '<button type="button" class="button button-outline button-sm" data-tcc-ask="' +
+                  escapeHtml(sale.id) +
+                  '" title="Ask the AI about this quote\'s margin and figures">Ask AI</button>'
+                : '') +
+              '</div></div>' +
               (canRevise
                 ? '<div class="ac-group"><span class="ac-label">Manage</span><div class="ac-row">' +
                   (status === 'Sold' || !host._tqOnEdit
@@ -18614,6 +19219,12 @@ ${bodyHtml}
           .join('') +
         '</tbody></table></div><div data-tcc-history-panel></div>';
       bindThomsonIssuedFilter(host);
+      host.querySelectorAll('[data-tcc-ask]').forEach((button) => {
+        button.addEventListener('click', () => {
+          const sale = sales.find((x) => String(x.id) === button.getAttribute('data-tcc-ask'));
+          if (sale && host._tqOnAsk) host._tqOnAsk(sale);
+        });
+      });
       host.querySelectorAll('[data-tcc-edit]').forEach((button) => {
         button.addEventListener('click', () => {
           if (host._tqOnEdit) host._tqOnEdit(button.getAttribute('data-tcc-edit'));
@@ -18745,6 +19356,9 @@ ${bodyHtml}
     }
   }
 
+  // Whether the AI is set up (set by the calculator once it has asked the server).
+  let thomsonChatAvailable = false;
+
   function bindThomsonIssuedFilter(host) {
     host.querySelectorAll('[data-tq-issued-filter]').forEach((button) => {
       button.addEventListener('click', () =>
@@ -18859,6 +19473,8 @@ ${bodyHtml}
           totalCost: c.totalCost,
           margin: c.margin,
           quoteMode: single ? 'single' : 'project',
+          rateOverridden: c.rateOverridden || undefined,
+          tierRate: c.rateOverridden ? c.tierRate : undefined,
         })),
         totalPrice,
         totalCost,

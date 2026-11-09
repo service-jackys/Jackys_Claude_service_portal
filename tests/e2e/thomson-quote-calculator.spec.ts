@@ -25,6 +25,10 @@ const pricing = {
   },
 };
 
+// Ask-AI chat: switched on per test, and every chat request is recorded.
+let aiAvailable = false;
+const chatCalls: { messages: { role: string; content: string }[]; quote: any }[] = [];
+
 async function openCalculator(page: Page, saved: unknown[]) {
   await page.route('**/api/**', async (route) => {
     const request = route.request();
@@ -44,6 +48,11 @@ async function openCalculator(page: Page, saved: unknown[]) {
       });
     }
     if (url.pathname === '/api/pricing-config/thomson_pricing') return json({ payload: pricing });
+    if (url.pathname === '/api/ai-settings/status') return json({ available: aiAvailable });
+    if (url.pathname === '/api/thomson-chat') {
+      chatCalls.push(request.postDataJSON());
+      return json({ text: 'Your margin is 240.00.\n- Equipment: 300.00\n- Services: 240.00' });
+    }
     if (url.pathname === '/api/thomson-sales' && request.method() === 'POST') {
       saved.push(request.postDataJSON());
       return json(
@@ -85,6 +94,37 @@ test.describe('Thomson Quote Calculator', () => {
     // Leaving a service out lowers the price: no Site Survey -> 540 - 150 = 390.
     await page.locator('[data-tcc-addon-on="1"]').uncheck();
     await expect(page.locator('[data-tq-total]')).toContainText('390.00');
+  });
+
+  test('a line quantity can be changed and its unit rate overridden from a pop-up', async ({
+    page,
+  }) => {
+    const saved: unknown[] = [];
+    await openCalculator(page, saved);
+    await page.locator('[data-tcc-qty]').fill('3');
+    await page.locator('[data-tcc-add]').click();
+    await expect(page.locator('[data-tq-total]')).toContainText('540.00');
+
+    // 10 units: 1000 equipment + PM 5% 50 + visit 150 + testing 10 x 25 = 250 -> 1450.
+    const qty = page.locator('[data-tcc-qty-edit="0"]');
+    await qty.fill('10');
+    await qty.press('Tab');
+    await expect(page.locator('[data-tq-total]')).toContainText('1450.00');
+
+    // The unit rate opens a pop-up; 20% off the 100.00 tier rate gives 80.00 per unit.
+    await page.locator('[data-tcc-rate="0"]').click();
+    const dialog = page.locator('dialog.tq-rate-dialog');
+    await expect(dialog).toBeVisible();
+    await dialog.locator('[data-rd-disc]').fill('20');
+    await expect(dialog.locator('[data-rd-rate]')).toHaveValue('80.00');
+    await dialog.locator('[data-rd-apply]').click();
+    // 800 + PM 40 + 150 + 250 = 1240.
+    await expect(page.locator('[data-tq-total]')).toContainText('1240.00');
+    await expect(page.locator('[data-tq-lines]')).toContainText('Custom rate');
+
+    await page.locator('[data-tcc-rate="0"]').click();
+    await dialog.locator('[data-rd-reset]').click();
+    await expect(page.locator('[data-tq-total]')).toContainText('1450.00');
   });
 
   test('a single-unit quote uses the base rate, a call-out charge and the minimum', async ({
@@ -497,5 +537,104 @@ test.describe('Thomson Quote Calculator', () => {
     // The edit banner is gone and the quote resets.
     await expect(page.locator('[data-ths-editbar]')).toBeHidden();
     await expect(page.locator('[data-tq-total]')).not.toContainText('540.00');
+  });
+
+  test('Ask AI answers from the figures of the quote being prepared and of an issued quote', async ({
+    page,
+  }) => {
+    aiAvailable = true;
+    chatCalls.length = 0;
+    await openCalculator(page, []);
+    const launch = page.locator('[data-tq-chat-launch]');
+    await expect(launch).toBeVisible();
+    await page.locator('[data-tcc-qty]').fill('3');
+    await page.locator('[data-tcc-add]').click();
+    await launch.click();
+    await expect(page.locator('[data-tq-chat]')).toBeVisible();
+    await expect(page.locator('[data-tq-chat-subject]')).toContainText(
+      'the quote you are preparing',
+    );
+
+    // A suggested question is sent with the quote's figures, never the client details.
+    await page.getByRole('button', { name: 'Where does my margin come from?' }).click();
+    await expect(page.locator('.tq-chat-msg.is-assistant li').first()).toContainText('Equipment');
+    expect(chatCalls).toHaveLength(1);
+    expect(chatCalls[0].messages).toHaveLength(1);
+    expect(chatCalls[0].quote).toMatchObject({
+      source: 'calculator',
+      mode: 'project',
+      totals: { price: 540 },
+      lines: [{ appliance: 'Built-in Hob (30 cm)', qty: 3, totalPrice: 540 }],
+    });
+    expect(JSON.stringify(chatCalls[0].quote)).not.toMatch(/clientName|contactNumber/);
+
+    // A follow-up keeps the conversation; Enter sends.
+    await page.locator('[data-tq-chat-input]').fill('And if I drop the site survey?');
+    await page.locator('[data-tq-chat-input]').press('Enter');
+    await expect.poll(() => chatCalls.length).toBe(2);
+    expect(chatCalls[1].messages).toHaveLength(3);
+    await page.locator('[data-tq-chat-close]').click();
+    await expect(page.locator('[data-tq-chat]')).toBeHidden();
+
+    // From Issued quotes, "Ask AI" talks about that saved quote.
+    const sale = {
+      id: '1',
+      thomsonSaleReference: 'TH-2026-00001',
+      createdAt: '2026-11-02T08:00:00Z',
+      updatedAt: '2026-11-02T08:00:00Z',
+      clientName: 'Acme Towers',
+      contactNumber: '0501234567',
+      status: 'Sold',
+      revision: 1,
+      transportSharePercent: '0',
+      totalPrice: '12000',
+      totalCost: '9000',
+      margin: '3000',
+      schedule: null,
+      lineItems: [
+        {
+          region: 'Dubai',
+          applianceName: 'Built-in Oven',
+          qty: 100,
+          unitRate: 100,
+          applianceSubtotal: 10000,
+          addonRevenue: 2000,
+          transportCost: 0,
+          totalPrice: 12000,
+          totalCost: 9000,
+          margin: 3000,
+        },
+      ],
+    };
+    await page.route('**/api/thomson-sales**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          thomsonSales: [sale],
+          pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+        }),
+      }),
+    );
+    await page.getByRole('tab', { name: 'Issued quotes' }).click();
+    await page.locator('[data-tcc-ask="1"]').click();
+    await expect(page.locator('[data-tq-chat-subject]')).toContainText('TH-2026-00001 (Sold)');
+    await page.getByRole('button', { name: 'Which line earns the least margin?' }).click();
+    await expect.poll(() => chatCalls.length).toBe(3);
+    expect(chatCalls[2].messages).toHaveLength(1);
+    expect(chatCalls[2].quote).toMatchObject({
+      source: 'issued',
+      reference: 'TH-2026-00001',
+      status: 'Sold',
+      totals: { price: 12000, cost: 9000, margin: 3000, marginPct: 25 },
+    });
+    expect(JSON.stringify(chatCalls[2].quote)).not.toMatch(/Acme|0501234567/);
+    aiAvailable = false;
+  });
+
+  test('the Ask AI button is hidden when the AI is not set up', async ({ page }) => {
+    aiAvailable = false;
+    await openCalculator(page, []);
+    await expect(page.locator('[data-tq-chat-launch]')).toBeHidden();
   });
 });

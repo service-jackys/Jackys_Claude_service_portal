@@ -13,6 +13,9 @@ export type ThomsonSaleLineItem = {
   totalPrice: number;
   totalCost: number;
   margin: number;
+  quoteMode?: 'project' | 'single';
+  rateOverridden?: boolean;
+  tierRate?: number;
 };
 
 export type ThomsonSaleSchedule = Record<string, unknown>;
