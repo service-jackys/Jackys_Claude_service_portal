@@ -43,9 +43,15 @@ test(
         {
           name: 'Net Sale Current',
           rows: [
-            { 'Inv Dt': '2026-10-12', Brand: 'VENUS', Qty: 2, 'Net Val': 120.5 },
-            { 'Inv Dt': '2026-10-13', Brand: 'VENUS', Qty: 1, 'Net Val': 60 },
-            { 'Inv Dt': '2026-10-13', Brand: 'OTHER', Qty: 4, 'Net Val': 10 },
+            {
+              'Inv Dt': '2026-10-12',
+              Brand: 'VENUS',
+              Qty: 2,
+              'Net Val': 120.5,
+              Code: 'SERV-DELIVERY-HAA',
+            },
+            { 'Inv Dt': '2026-10-13', Brand: 'VENUS', Qty: 1, 'Net Val': 60, Code: 'VG352CS' },
+            { 'Inv Dt': '2026-10-13', Brand: 'OTHER', Qty: 4, 'Net Val': 10, Code: 'serv-x_y' },
           ],
         },
       ]);
@@ -59,27 +65,58 @@ test(
             { name: 'Brand', type: 'text' },
             { name: 'Qty', type: 'number' },
             { name: 'Net Val', type: 'number' },
+            { name: 'Code', type: 'text' },
           ],
         },
       ];
-      const [byBrand, ranged, total] = (await runSheetLookups(client, batch.id, catalog, [
-        {
-          sheet: 'Net Sale Current',
-          groupBy: ['Brand'],
-          filters: {},
-          sum: ['Qty', 'Net Val'],
-          limit: 60,
-        },
-        {
-          sheet: 'Net Sale Current',
-          groupBy: ['Inv Dt'],
-          filters: { Brand: 'venus' },
-          sum: ['Qty'],
-          dateFrom: '2026-10-13',
-          limit: 60,
-        },
-        { sheet: 'Net Sale Current', groupBy: [], filters: {}, sum: ['Net Val'], limit: 60 },
-      ])) as Array<{ columns: string[]; rows: unknown[][] }>;
+      const [byBrand, ranged, total, serv, wild] = (await runSheetLookups(
+        client,
+        batch.id,
+        catalog,
+        [
+          {
+            sheet: 'Net Sale Current',
+            groupBy: ['Brand'],
+            filters: {},
+            contains: {},
+            sum: ['Qty', 'Net Val'],
+            limit: 60,
+          },
+          {
+            sheet: 'Net Sale Current',
+            groupBy: ['Inv Dt'],
+            filters: { Brand: 'venus' },
+            contains: {},
+            sum: ['Qty'],
+            dateFrom: '2026-10-13',
+            limit: 60,
+          },
+          {
+            sheet: 'Net Sale Current',
+            groupBy: [],
+            filters: {},
+            contains: {},
+            sum: ['Net Val'],
+            limit: 60,
+          },
+          {
+            sheet: 'Net Sale Current',
+            groupBy: ['Brand'],
+            filters: {},
+            contains: { Code: 'SERV' },
+            sum: ['Net Val'],
+            limit: 60,
+          },
+          {
+            sheet: 'Net Sale Current',
+            groupBy: [],
+            filters: {},
+            contains: { Code: 'x_y' },
+            sum: [],
+            limit: 60,
+          },
+        ],
+      )) as Array<{ columns: string[]; rows: unknown[][] }>;
       assert.deepEqual(byBrand.columns, ['Brand', 'rows', 'Qty', 'Net Val']);
       assert.deepEqual(byBrand.rows, [
         ['OTHER', 1, 4, 10],
@@ -87,6 +124,11 @@ test(
       ]);
       assert.deepEqual(ranged.rows, [['2026-10-13', 1, 1]]);
       assert.deepEqual(total.rows, [[3, 190.5]]);
+      assert.deepEqual(serv.rows, [
+        ['OTHER', 1, 10],
+        ['VENUS', 1, 120.5],
+      ]);
+      assert.deepEqual(wild.rows, [[1]]);
     } finally {
       await client.query('ROLLBACK');
       client.release();
