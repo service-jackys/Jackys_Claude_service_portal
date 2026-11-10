@@ -45,16 +45,21 @@ test(
     const suffix = randomUUID().slice(0, 8);
     const calls: { url: string; headers: Record<string, string>; body: any }[] = [];
     let mode: 'ok' | 'fail' = 'ok';
+    let planReply: string | null = null;
     const fakeFetch = (async (url: string, init: any) => {
       calls.push({ url, headers: init.headers, body: JSON.parse(init.body) });
       if (mode === 'fail')
         return new Response(JSON.stringify({ error: { message: 'bad key' } }), { status: 401 });
       const anthropic = String(url).includes('/v1/messages');
+      const reply =
+        planReply && String(JSON.parse(init.body).system).includes('extra figures')
+          ? planReply
+          : 'Add one technician.';
       return new Response(
         JSON.stringify(
           anthropic
-            ? { content: [{ type: 'text', text: 'Add one technician.' }] }
-            : { choices: [{ message: { content: 'Add one technician.' } }] },
+            ? { content: [{ type: 'text', text: reply }] }
+            : { choices: [{ message: { content: reply } }] },
         ),
         { status: 200 },
       );
@@ -211,6 +216,37 @@ test(
         includeWorkbook: true,
       });
       assert.ok(!String(calls[calls.length - 1].body.system).includes('"workbook"'));
+      // Revenue lookups: with the workbook ticked and revenue access, the AI is first asked for a
+      // lookup plan (a second provider call), and a bad plan never breaks the answer.
+      const before = calls.length;
+      planReply = '{"lookups":[{"groupBy":["jobType"],"filters":{"date":"2026-11-10"}}]}';
+      const withPlan = await ai.ask(
+        {
+          section: 'revenue',
+          title: 'Budget vs actual',
+          messages: [{ role: 'user', content: 'CSIDI on 2026-11-10?' }],
+          context: { summary: { budget: 1 } },
+          includeWorkbook: true,
+        },
+        { revenue: true, budget: false },
+      );
+      assert.equal(calls.length - before, 2);
+      assert.ok(String(calls[before].body.system).includes('extra figures'));
+      assert.ok(!String(calls[before + 1].body.system).includes('extra figures'));
+      assert.equal(withPlan.text, 'Add one technician.');
+      planReply = null;
+      const noRevenue = calls.length;
+      await ai.ask(
+        {
+          section: 'revenue',
+          title: 'Budget vs actual',
+          messages: [{ role: 'user', content: 'CSIDI on 2026-11-10?' }],
+          context: { summary: { budget: 1 } },
+          includeWorkbook: true,
+        },
+        { revenue: false, budget: true },
+      );
+      assert.equal(calls.length - noRevenue, 1);
       // Complaints: the counts-and-statuses snapshot needs the record permission.
       const complaintsAsk = (includePortalData: boolean) =>
         ai.ask(
