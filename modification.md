@@ -5111,3 +5111,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/quotations/routes.ts, apps/web/src/app.js, tests/unit/quotation-date-auto.test.ts, tests/e2e/quotation-units.spec.ts, modification.md.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #245 — Ask AI on the Service Revenue Dashboard can answer questions about one date
+
+**Date:** 2026-11-10
+
+**Why.** Asked "for 2026-11-10, how many CSIDI jobs were created and how many jobs had delivery charges billed?", the AI answered that it could not check a single date. It was only given totals by month, job type and channel, never by day.
+
+**What changed.**
+
+- When **Also read the uploaded workbook data** is ticked, the AI now also receives a **day-by-day table for the latest 45 days** of the revenue workbook: for each order date and job type, the number of lines, the number of distinct invoices, the units and the revenue.
+- The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, **CSIDO = delivery only (the delivery charges billed)**, CSIII = installation only; it must say whether it is counting lines or invoices and say so if a date is outside the 45 days.
+- Still never sent: customers, sales people, invoice or order numbers, or individual lines.
+- Integration test extended (a date with 2 CSIDI lines on one invoice and 1 CSIDO line).
+
+**Files.** apps/api/src/ai/workbook.ts, apps/api/src/ai/service.ts, tests/integration/ai-workbook.test.ts, modification.md.
+
+**Needs you:** pull and restart the API. No migration. Merge after PR #164 (it builds on it).
