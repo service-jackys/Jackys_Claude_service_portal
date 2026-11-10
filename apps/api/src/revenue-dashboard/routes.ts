@@ -201,6 +201,26 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    transportReview: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.transportReview(request.query as Record<string, unknown>));
+        } catch (error) {
+          if (error instanceof Error && error.name === 'ZodError') {
+            problem(
+              response,
+              400,
+              'invalid-query',
+              'Bad Request',
+              'Check the month and the settings values.',
+            );
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     logicExample: [
       requirePermission('revenue_dashboard.tab_logic'),
       async (request, response, next) => {

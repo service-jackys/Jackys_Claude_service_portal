@@ -5183,3 +5183,25 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, tests, modification.md.
 
 **Needs you:** pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.
+
+
+## Modification #249 — Transport review (test): new trip rule calculated in the portal (read-only)
+
+**Date:** 2026-11-10
+
+**Why.** Phase 2 of the transport / trip plan (Project doc claude/transport-trip-logic-plan-2026-11-10.md). The Head of Service wants to review the new transport rule for 2 weeks before it replaces the current one. The test workbook (Dashboard (New), Trip Calc (Test)) already calculates it; the portal must give the same figures so a review tab can be built on top (Phase 3).
+
+**The rule.** Every CSIDI or CSIDO invoice is one trip: an invoice with any CSIDI line is charged the regional trip rate (Dubai 60 / Sharjah 90), a delivery-only invoice is charged the CSIDO fee (100), which is its trip charge. Per salesperson per day only the 2 highest trip charges are charged (equal charges: lower invoice number first). A CSIDI invoice beyond the 2 still pays its unit prices; a delivery-only invoice beyond the 2 pays nothing. CSIII is never a trip. Unit prices do not change. Transport is reported as its own line.
+
+**What changed.**
+
+- New read-only endpoint `GET /api/revenue-dashboard/transport-review` (permission revenue_dashboard.read). Optional `month` (YYYYMM, 0 = all), and test settings `dubai`, `sharjah`, `csidoFee`, `maxTrips`. Defaults come from the active upload: the regional transport table and the CSIDO rate (after the admin flat-rate override, as the rest of the dashboard), cap 2.
+- It reads the CSIDI sheet rows already stored with the active master workbook upload (modification #247) and the repair revenue (CSIJW, CSIJO) from revenue_lines. Returns key figures, revenue by job type (current vs new, transport on its own line), month by month, salespeople, salesperson-days with each trip (rank, charged or not), and a reconciliation against the delivery / installation revenue the dashboard reports today.
+- If the upload has no stored CSIDI sheet, it says the master workbook must be uploaded again.
+- The calculation is a separate pure module (apps/api/src/revenue-dashboard/transport-review.ts) that mirrors the test workbook's 'Trip Calc (Test)' columns. Nothing existing changes: no migration, no change to the parser, stored revenue or any existing endpoint.
+- Checked against the real master file (Service_Dashboard_Master_ACC_OCT_22_Final.xlsm, uploaded through the normal import): all months current 112,950.25 / new 111,240.25; Oct transport + CSIDO fee 6,780 -> 9,000, Nov 1,180 -> 1,780; trips charged 310, not charged 208, dropped 14,340, salesperson-days over 2 trips 77; reconciliation difference 0. Identical to the test workbook.
+- Tests: unit (the worked examples: third invoice of the day, Sharjah first, 100 + 60, delivery-only beyond the cap, CSIII, months / period / repairs / settings, bad rows) and integration (stored rows come back in sheet order and feed the review).
+
+**Files.** apps/api/src/revenue-dashboard/transport-review.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests/unit/transport-review.test.ts, tests/integration/transport-review-rows.test.ts, modification.md.
+
+**Needs you:** pull and restart the API. No migration. Nothing visible yet: the review tab is Phase 3.

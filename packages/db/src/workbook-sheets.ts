@@ -30,3 +30,16 @@ export async function insertSheetRows(
     }
   }
 }
+
+/** Rows of one stored workbook sheet for a batch, in sheet order (modification #249). */
+export async function listSheetRows(
+  client: Pick<PoolClient, 'query'>,
+  batchId: string | number,
+  sheet: string,
+): Promise<{ rowNo: number; data: Record<string, unknown> }[]> {
+  const result = await client.query<{ row_no: number; data: Record<string, unknown> }>(
+    `SELECT row_no, data FROM workbook_sheet_rows WHERE batch_id = $1 AND sheet = $2 ORDER BY row_no`,
+    [batchId, sheet],
+  );
+  return result.rows.map((r) => ({ rowNo: r.row_no, data: r.data }));
+}

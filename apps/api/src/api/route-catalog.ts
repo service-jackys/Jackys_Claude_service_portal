@@ -934,6 +934,10 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        transportReview: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const attachmentHandlers = pool
     ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
@@ -3566,6 +3570,54 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.logicInvoices,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/transport-review',
+        operationId: 'getRevenueDashboardTransportReview',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Transport review (test): the new trip rule (max charged trips per salesperson per day) applied to the active upload, compared with current revenue',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'month',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'integer' as const },
+            description: 'YYYYMM; 0 or empty = all months',
+          },
+          {
+            name: 'dubai',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'number' as const },
+            description: 'Dubai trip charge (default from the upload)',
+          },
+          {
+            name: 'sharjah',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'number' as const },
+            description: 'Sharjah trip charge (default from the upload)',
+          },
+          {
+            name: 'csidoFee',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'number' as const },
+            description: 'Delivery-only (CSIDO) fee (default from the rates)',
+          },
+          {
+            name: 'maxTrips',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'integer' as const },
+            description: 'Charged trips per salesperson per day (default 2)',
+          },
+        ],
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.transportReview,
       },
       {
         method: 'get' as const,

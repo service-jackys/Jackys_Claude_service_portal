@@ -1,4 +1,6 @@
-import { insertSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
+import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
+import { z } from 'zod';
+import { buildTransportReview, type RepairRevenue } from './transport-review.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
@@ -585,6 +587,78 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
+  // Transport review (test), modification #249: the new transport rule applied to the CSIDI
+  // sheet stored with the active master workbook upload. Read-only; existing figures unchanged.
+  const transportQuerySchema = z.object({
+    month: z.coerce.number().int().min(0).max(299912).optional(),
+    dubai: z.coerce.number().min(0).max(10000).optional(),
+    sharjah: z.coerce.number().min(0).max(10000).optional(),
+    csidoFee: z.coerce.number().min(0).max(10000).optional(),
+    maxTrips: z.coerce.number().int().min(1).max(10).optional(),
+  });
+  async function transportReview(query: Record<string, unknown>) {
+    const q = transportQuerySchema.parse(
+      Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined && v !== '')),
+    );
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) return { batch: null, notice: 'No master workbook has been uploaded yet.' };
+      const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+      const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
+      const trip = (region: string, fallback: number) =>
+        rules.deliveryInstall.transport.find((t) => t.region.toLowerCase() === region)?.roundTrip ??
+        fallback;
+      const settings = {
+        dubai: q.dubai ?? trip('dubai', 60),
+        sharjah: q.sharjah ?? trip('sharjah', 90),
+        csidoFee: q.csidoFee ?? rules.rates.find((r) => r.jobType === 'CSIDO')?.price ?? 100,
+        maxTrips: q.maxTrips ?? 2,
+      };
+      const rows = await listSheetRows(client, batch.id, 'CSIDI');
+      if (!rows.length)
+        return {
+          batch,
+          settings,
+          notice:
+            'This upload has no stored CSIDI sheet. Upload the master workbook again to see the transport review.',
+        };
+      const sums = await client.query<{ job_type: string; month: number; revenue: string }>(
+        `SELECT job_type, (year * 100 + month_no)::int AS month, SUM(revenue)::text AS revenue
+           FROM revenue_lines
+          WHERE batch_id = $1 AND job_type IN ('CSIJW', 'CSIJO', 'CSIDI', 'CSIDO', 'CSIII')
+            AND year IS NOT NULL AND month_no IS NOT NULL
+          GROUP BY job_type, year, month_no`,
+        [batch.id],
+      );
+      const repairs: RepairRevenue[] = sums.rows
+        .filter((r) => r.job_type === 'CSIJW' || r.job_type === 'CSIJO')
+        .map((r) => ({
+          jobType: r.job_type as 'CSIJW' | 'CSIJO',
+          month: r.month,
+          revenue: Number(r.revenue),
+        }));
+      const month = q.month ? q.month : null;
+      const review = buildTransportReview(rows, settings, { month, repairs });
+      // Delivery / installation revenue the dashboard reports today (Revenue Source), to show
+      // that the review starts from the same figures.
+      const reported = sums.rows
+        .filter((r) => !r.job_type.startsWith('CSIJ') && (month === null || r.month === month))
+        .reduce((s, r) => s + Number(r.revenue), 0);
+      return {
+        batch,
+        ...review,
+        reconciliation: {
+          deliveryInstallReported: Math.round(reported * 100) / 100,
+          deliveryInstallFromSheet: review.kpis.deliveryInstallCurrent,
+          difference: Math.round((review.kpis.deliveryInstallCurrent - reported) * 100) / 100,
+        },
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   return {
     importWorkbook,
     downloadBatch,
@@ -605,6 +679,7 @@ export function createRevenueDashboardService(pool: Pool) {
     logicInvoices,
     logicExample,
     recordActivity,
+    transportReview,
   };
 }
 

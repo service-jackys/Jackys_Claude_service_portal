@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 249,
+    "title": "Transport review (test): new trip rule calculated in the portal",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "Phase 2 of the transport plan: the portal calculates the new transport rule read-only, with the same figures as the test workbook, so a review tab can be built next.",
+    "changes": [
+      "New read-only endpoint for the transport review: every CSIDI or CSIDO invoice is a trip, only the 2 highest trip charges per salesperson per day are charged, CSIII never, transport shown as its own line.",
+      "Rates come from the active upload (Dubai 60, Sharjah 90, CSIDO 100); a month and test settings can be chosen.",
+      "Checked on the 22 Oct master file: current 112,950.25, new 111,240.25, identical to the test workbook. Nothing existing changes."
+    ],
+    "needsYou": "pull and restart the API. No migration. The review tab follows in Phase 3.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/transport-review.ts, service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests, modification.md."
+  },
+  {
     "id": 248,
     "title": "Ask AI understands the delivery-charge lines and can search by part of a value",
     "area": "Revenue",
