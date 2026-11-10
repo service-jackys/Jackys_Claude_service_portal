@@ -39,9 +39,10 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
           byDimension[dimension] =
             dimension === 'period' ? rows.sort((x, y) => x.key.localeCompare(y.key)) : rows;
         }
-        // Day by day for the latest 45 days of the workbook, by job type, so questions like
+        // Day by day by job type (latest 240 dates of the workbook), so questions like
         // "how many CSIDI lines on 10 November?" can be answered. Counts and amounts only:
-        // no customers, sales people, invoice or order numbers.
+        // no customers, sales people, invoice or order numbers. Kept as an object keyed by date
+        // (not a list) because the request cleaner keeps only the first 60 items of any list.
         const daily = await client.query<{
           day: string;
           job_type: string;
@@ -55,25 +56,31 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
                   COALESCE(SUM(qty), 0) AS qty, COALESCE(SUM(revenue), 0) AS revenue
              FROM revenue_lines
             WHERE batch_id = $1 AND order_date IS NOT NULL
-              AND order_date >= (SELECT max(order_date) FROM revenue_lines WHERE batch_id = $1) - 45
-            GROUP BY 1, 2 ORDER BY 1 DESC, 2 LIMIT 600`,
+              AND order_date >= COALESCE((
+                SELECT min(d) FROM (
+                  SELECT DISTINCT order_date AS d FROM revenue_lines
+                   WHERE batch_id = $1 AND order_date IS NOT NULL
+                   ORDER BY d DESC LIMIT 240) latest), '1900-01-01')
+            GROUP BY 1, 2 ORDER BY 1 DESC, 2`,
           [revenueBatch.id],
         );
+        const byDate: Record<string, Record<string, number[]>> = {};
+        for (const r of daily.rows) {
+          (byDate[r.day] ??= {})[r.job_type] = [
+            Number(r.lines),
+            Number(r.invoices),
+            Number(r.qty),
+            Math.round(Number(r.revenue) * 100) / 100,
+          ];
+        }
         out.revenueWorkbook = {
           uploaded: true,
           source: revenueBatch.fileName ?? undefined,
           totals: summary.totals,
           groupedBy: byDimension,
           dailyByJobType: {
-            note: 'Latest 45 days of the workbook by order date and job type. "lines" are workbook rows (the "jobs" counts elsewhere are rows too), "invoices" are distinct invoice/delivery numbers, qty is units, revenue is AED. CSIJO/CSIJW = repair jobs, CSIDI = delivery + installation lines, CSIDO = delivery only, CSIII = installation only.',
-            rows: daily.rows.map((r) => ({
-              date: r.day,
-              jobType: r.job_type,
-              lines: Number(r.lines),
-              invoices: Number(r.invoices),
-              qty: Number(r.qty),
-              revenue: Number(r.revenue),
-            })),
+            note: 'Latest 240 order dates of the workbook. Each date lists job types as [lines, invoices, units, revenue AED]. "lines" are workbook rows (what the dashboard calls jobs), "invoices" are distinct invoice/delivery numbers. CSIJO/CSIJW = repair jobs, CSIDI = delivery + installation lines, CSIDO = delivery only, CSIII = installation only. A date that is missing had no lines or is older than this table.',
+            byDate,
           },
         };
       }

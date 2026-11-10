@@ -5120,8 +5120,8 @@ Display only; no pricing formulas, API or database changes.
 
 **What changed.**
 
-- When **Also read the uploaded workbook data** is ticked, the AI now also receives a **day-by-day table for the latest 45 days** of the revenue workbook: for each order date and job type, the number of lines, the number of distinct invoices, the units and the revenue.
-- The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, **CSIDO = delivery only (the delivery charges billed)**, CSIII = installation only; it must say whether it is counting lines or invoices and say so if a date is outside the 45 days.
+- When **Also read the uploaded workbook data** is ticked, the AI now also receives a **day-by-day table for the latest 240 order dates** of the revenue workbook: for each date and job type, the number of lines, the number of distinct invoices, the units and the revenue. (It is sent as a table keyed by date, because the request cleaner keeps only the first 60 items of any list.)
+- The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, **CSIDO = delivery only (the delivery charges billed)**, CSIII = installation only; it must say whether it is counting lines or invoices and say so if a date is outside the table.
 - Still never sent: customers, sales people, invoice or order numbers, or individual lines.
 - Integration test extended (a date with 2 CSIDI lines on one invoice and 1 CSIDO line).
 

@@ -140,16 +140,8 @@ test(
         budget: true,
       })) as any;
       assert.equal(both.revenueWorkbook.uploaded, true);
-      const day = both.revenueWorkbook.dailyByJobType.rows.filter(
-        (r: any) => r.date === '2026-11-10',
-      );
-      assert.deepEqual(
-        day.map((r: any) => [r.jobType, r.lines, r.invoices, r.revenue]),
-        [
-          ['CSIDI', 2, 1, 110],
-          ['CSIDO', 1, 1, 25],
-        ],
-      );
+      const day = both.revenueWorkbook.dailyByJobType.byDate['2026-11-10'];
+      assert.deepEqual(day, { CSIDI: [2, 1, 2, 110], CSIDO: [1, 1, 1, 25] });
       const periods = both.revenueWorkbook.groupedBy.period.map((r: any) => [
         r.key,
         Number(r.revenue),

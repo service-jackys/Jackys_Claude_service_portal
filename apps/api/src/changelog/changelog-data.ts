@@ -23,7 +23,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "status": null,
     "summary": "Asked \"for 2026-11-10, how many CSIDI jobs were created and how many jobs had delivery charges billed?\", the AI answered that it could not check a single date. It was only given totals by month, job type and channel, never by day.",
     "changes": [
-      "When Also read the uploaded workbook data is ticked, the AI now also receives a day-by-day table for the latest 45 days of the revenue workbook: for each order date and job type, the number of lines, the number of distinct invoices, the…",
+      "When Also read the uploaded workbook data is ticked, the AI now also receives a day-by-day table for the latest 240 order dates of the revenue workbook: for each date and job type, the number of lines, the number of distinct invoices, the…",
       "The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, CSIDO = delivery only (the delivery charges billed), CSIII =…",
       "Still never sent: customers, sales people, invoice or order numbers, or individual lines.",
       "Integration test extended (a date with 2 CSIDI lines on one invoice and 1 CSIDO line)."
