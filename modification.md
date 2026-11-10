@@ -5093,3 +5093,21 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/contracts/src/index.ts, tests/unit/quotation-erp-invoice-empty.test.ts, modification.md.
 
 **Needs you:** pull and restart the API. No migration.
+
+## Modification #244 — Quotation date is set by the system
+
+**Date:** 2026-11-10
+
+**Why.** The quotation date should not depend on what a person types: it must be the day the quotation is really created.
+
+**What changed.**
+
+- **New quotation:** the date is stamped by the system with today's date (Dubai time) when the quotation is saved. The **Quotation date** box on the form now shows today's date, is read-only and has a hint that it is set automatically. It refreshes each time the New quotation panel is opened.
+- **Editing a quotation:** the date never changes, whatever is sent. The quotation reference number still follows the quotation's date as before.
+- **Older quotations** keep the dates they already have. Imports and the database layer are unchanged.
+- The form no longer sends a date; if an old client still does, the API ignores it.
+- Tests: unit tests for the create/edit rule (fail without the change) and a browser check that the field is read-only, shows today's date and that no date is sent.
+
+**Files.** apps/api/src/quotations/routes.ts, apps/web/src/app.js, tests/unit/quotation-date-auto.test.ts, tests/e2e/quotation-units.spec.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.

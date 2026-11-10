@@ -3,6 +3,19 @@ import type { ApplicationAuth } from '../auth/application-auth.js';
 import { problem } from '../api/problem.js';
 import { QuotationServiceError, type QuotationService } from './service.js';
 
+/** Today's date in the business time zone (Dubai), as YYYY-MM-DD. */
+function businessToday(): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: process.env.BUSINESS_TIMEZONE || 'Asia/Dubai',
+  }).format(new Date());
+}
+
+/** The quotation date is set by the system: stamped on create, never changed by the person on edit. */
+function withoutQuotationDate(body: unknown): Record<string, unknown> {
+  const { quotationDate: _ignored, ...rest } = (body ?? {}) as Record<string, unknown>;
+  return rest;
+}
+
 function serviceError(error: unknown, response: Parameters<RequestHandler>[1]): void {
   if (!(error instanceof QuotationServiceError)) throw error;
   problem(response, 404, 'not-found', 'Not Found', error.message);
@@ -42,7 +55,7 @@ export function createQuotationHandlers(
           const auth = response.locals.auth as ApplicationAuth;
           response.status(201).json({
             quotation: await service.create(
-              request.body,
+              { ...withoutQuotationDate(request.body), quotationDate: businessToday() },
               auth.profileId,
               request.header('x-request-id') ?? undefined,
             ),
@@ -74,7 +87,7 @@ export function createQuotationHandlers(
           response.json({
             quotation: await service.update(
               String(request.params.id),
-              request.body,
+              withoutQuotationDate(request.body),
               auth.profileId,
               request.header('x-request-id') ?? undefined,
             ),
