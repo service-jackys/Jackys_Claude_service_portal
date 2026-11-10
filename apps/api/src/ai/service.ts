@@ -90,7 +90,8 @@ const ASK_GUIDE: Record<string, string> = {
     'Help the person plan and prioritise: say what is overdue, due soon or stuck, which items to do first, how the week looks by status and priority, and what to mention in the weekly ROI. Use only the tasks given and do not invent items or dates.',
   revenue:
     'the Service revenue and Budget dashboards. ' +
-    'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act.',
+    'Explain trends, budget versus actual and variances, say what is behind a gap using only the figures given, and suggest where to look or act. ' +
+    'When the workbook part is included it has a day-by-day table (dailyByJobType, latest 45 days) with the number of lines and invoices per date and job type: use it for questions about one date, and say whether you are counting lines or invoices. CSIDO lines are the delivery-only charges, CSIII the installation-only charges and CSIDI the delivery + installation lines. If a date is outside that table, say so rather than guessing.',
 };
 
 const PERSONAL_KEY =
