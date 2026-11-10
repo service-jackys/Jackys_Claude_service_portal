@@ -32,7 +32,7 @@ export interface Lookup {
 }
 
 const MAX_LOOKUPS = 3;
-const MAX_ROWS = 150;
+const MAX_ROWS = 60; // the request cleaner keeps only the first 60 items of any list
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 // What the AI is told about the lookups it may ask for.
@@ -64,6 +64,7 @@ export function parseLookupPlan(text: string): Lookup[] {
   for (const item of list.slice(0, MAX_LOOKUPS)) {
     if (!item || typeof item !== 'object') continue;
     const entry = item as Record<string, unknown>;
+    if ('sheet' in entry) continue; // sheet lookups are read by sheet-lookup.ts
     const groupBy = (Array.isArray(entry.groupBy) ? entry.groupBy : [])
       .filter((d): d is LookupDimension => typeof d === 'string' && d in DIMENSIONS)
       .filter((d, i, all) => all.indexOf(d) === i)

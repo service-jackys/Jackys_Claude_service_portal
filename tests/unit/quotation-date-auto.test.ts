@@ -44,7 +44,7 @@ test('A new quotation is stamped with today (Dubai) whatever date the client sen
   const { service, calls } = fakeService();
   const handlers = createQuotationHandlers(
     service,
-    (() => (_q, _r, next) => next()) as never,
+    (() => (_q: unknown, _r: unknown, next: () => void) => next()) as never,
   ) as unknown as { create: unknown[] };
   await run(handlers.create, { customerName: 'A', quotationDate: '2001-01-01' });
   assert.equal(calls.create?.quotationDate, dubaiToday());
@@ -56,7 +56,7 @@ test('Editing a quotation never changes its date', async () => {
   const { service, calls } = fakeService();
   const handlers = createQuotationHandlers(
     service,
-    (() => (_q, _r, next) => next()) as never,
+    (() => (_q: unknown, _r: unknown, next: () => void) => next()) as never,
   ) as unknown as { update: unknown[] };
   await run(handlers.update, { customerName: 'A', quotationDate: '2001-01-01' });
   assert.equal('quotationDate' in (calls.update ?? {}), false);

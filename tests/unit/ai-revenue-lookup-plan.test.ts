@@ -28,7 +28,7 @@ test('counts, limits, groupBy size and dates are capped or rejected', () => {
   const plan = parseLookupPlan(JSON.stringify({ lookups: many }));
   assert.equal(plan.length, 3);
   assert.equal(plan[0].groupBy.length, 2);
-  assert.equal(plan[0].limit, 150);
+  assert.equal(plan[0].limit, 60);
   assert.equal(plan[0].dateFrom, undefined);
   assert.equal(plan[0].dateTo, '2026-11-30');
   assert.deepEqual(plan[0].filters, {});

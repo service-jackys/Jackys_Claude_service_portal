@@ -7,6 +7,8 @@ import {
   type RevenueFilters,
 } from '../../../../packages/db/src/revenue-dashboard.js';
 
+import { describeCatalog, readCatalog } from './sheet-lookup.js';
+
 export interface WorkbookAccess {
   revenue: boolean;
   budget: boolean;
@@ -82,6 +84,7 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
             note: 'Latest 240 order dates of the workbook. Each date lists job types as [lines, invoices, units, revenue AED]. "lines" are workbook rows (what the dashboard calls jobs), "invoices" are distinct invoice/delivery numbers. CSIJO/CSIJW = repair jobs, CSIDI = delivery + installation lines, CSIDO = delivery only, CSIII = installation only. A date that is missing had no lines or is older than this table.',
             byDate,
           },
+          extraSheets: describeCatalog(readCatalog(revenueBatch.summary)),
         };
       }
     }
