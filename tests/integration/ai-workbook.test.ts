@@ -69,13 +69,43 @@ test(
         kind: 'revenue',
         fileName: 'rev.xlsx',
         fileSha256: randomUUID(),
-        rowCount: 3,
-        totalAmount: 600,
+        rowCount: 6,
+        totalAmount: 735,
         summary: {},
         uploadedBy,
       });
       await insertRevenueLines(client as never, rev.id, [
-        line({ sourceRow: 1, revenue: 100, monthNo: 10 }),
+        line({
+          sourceRow: 1,
+          revenue: 100,
+          monthNo: 10,
+          orderDate: '2026-10-20',
+          invDelNo: 'INV-A',
+        }),
+        line({
+          sourceRow: 4,
+          revenue: 50,
+          monthNo: 11,
+          jobType: 'CSIDI',
+          orderDate: '2026-11-10',
+          invDelNo: 'INV-B',
+        }),
+        line({
+          sourceRow: 5,
+          revenue: 60,
+          monthNo: 11,
+          jobType: 'CSIDI',
+          orderDate: '2026-11-10',
+          invDelNo: 'INV-B',
+        }),
+        line({
+          sourceRow: 6,
+          revenue: 25,
+          monthNo: 11,
+          jobType: 'CSIDO',
+          orderDate: '2026-11-10',
+          invDelNo: 'INV-B',
+        }),
         line({ sourceRow: 2, revenue: 200, monthNo: 10, jobType: 'CSIII' }),
         line({ sourceRow: 3, revenue: 300, monthNo: 11 }),
       ]);
@@ -110,13 +140,15 @@ test(
         budget: true,
       })) as any;
       assert.equal(both.revenueWorkbook.uploaded, true);
+      const day = both.revenueWorkbook.dailyByJobType.byDate['2026-11-10'];
+      assert.deepEqual(day, { CSIDI: [2, 1, 2, 110], CSIDO: [1, 1, 1, 25] });
       const periods = both.revenueWorkbook.groupedBy.period.map((r: any) => [
         r.key,
         Number(r.revenue),
       ]);
       assert.deepEqual(periods, [
         ['2026-10', 300],
-        ['2026-11', 300],
+        ['2026-11', 435],
       ]);
       assert.ok(both.revenueWorkbook.groupedBy.jobType.some((r: any) => r.key === 'CSIII'));
       assert.equal(both.budgetWorkbook.budgetLines[0].total, 1500);
