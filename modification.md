@@ -5078,3 +5078,18 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/093_ask_ai_tasks_permission.sql, apps/api/src/ai/ops-snapshot.ts, apps/api/src/ai/service.ts, apps/api/src/ai/routes.ts, apps/api/src/api/openapi.ts, packages/contracts/src/index.ts, apps/web/src/app.js, tests/integration/ai-ops-snapshot.test.ts, tests/integration/ai-settings.test.ts, tests/e2e/ask-ai-portal.spec.ts.
 
 **Needs you:** pull, run the database migration (npm.cmd run db:migrate), restart the API, hard-refresh. Give `ai_ask.tasks` to other roles if wanted.
+
+## Modification #243 — Fix: a new quotation could not be saved when the ERP / ORION status is "Pending invoice"
+
+**Date:** 2026-11-10
+
+**Why.** Creating a new quotation with ERP / ORION status "Pending invoice" (quotation status Pending) failed with "The request is invalid: erpInvoiceNo: String must contain at least 1 character(s)".
+
+**What changed.**
+
+- The quotation form sends a blank ERP invoice number whenever the status is not Invoiced (the number only applies to Invoiced quotations). The API rule for that field refused a blank value. It now accepts blank; the number is still required when the status is Invoiced, still capped at 60 characters, and is cleared whenever the status is not Invoiced.
+- New unit test covers the blank number and the 60-character cap.
+
+**Files.** packages/contracts/src/index.ts, tests/unit/quotation-erp-invoice-empty.test.ts, modification.md.
+
+**Needs you:** pull and restart the API. No migration.

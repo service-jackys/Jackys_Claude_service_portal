@@ -633,7 +633,7 @@ export const quotationWriteSchema = z
     b2bBranchSchool: optionalText(300),
     quotationStatus: z.enum(quotationStatuses).optional(),
     erpStatus: z.enum(quotationErpStatuses).optional(),
-    erpInvoiceNo: optionalText(60),
+    erpInvoiceNo: z.string().trim().max(60).optional(),
     projectName: optionalText(200),
     siteLocation: optionalText(500),
     dateOfCollection: dateSchema.optional(),
