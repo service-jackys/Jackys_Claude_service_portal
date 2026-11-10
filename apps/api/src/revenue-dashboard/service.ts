@@ -1,3 +1,4 @@
+import { insertSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
 import { createHash, randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
 import {
@@ -107,6 +108,12 @@ export function createRevenueDashboardService(pool: Pool) {
                 pricingRules: parsed.pricingRules,
                 pricingMatched: parsed.pricingMatched,
                 pricingUnmatched: parsed.pricingUnmatched,
+                sheets: parsed.sheets.map((sheet) => ({
+                  name: sheet.name,
+                  rows: sheet.rows.length,
+                  dateColumn: sheet.dateColumn,
+                  columns: sheet.columns,
+                })),
               },
               uploadedBy: profileId,
             })
@@ -120,8 +127,10 @@ export function createRevenueDashboardService(pool: Pool) {
               uploadedBy: profileId,
             });
       await saveBatchFile(client, batch.id, kind, file.buffer);
-      if ('rates' in parsed) await insertRevenueLines(client, batch.id, parsed.lines);
-      else await insertBudgetLines(client, batch.id, parsed.lines);
+      if ('rates' in parsed) {
+        await insertRevenueLines(client, batch.id, parsed.lines);
+        await insertSheetRows(client, batch.id, parsed.sheets);
+      } else await insertBudgetLines(client, batch.id, parsed.lines);
       // A budget upload also refreshes the budget version Budget Variance reads, so both
       // tabs show the same figures (modification #134).
       let budgetVersion: Awaited<ReturnType<typeof syncBudgetVersionFromUpload>> = null;

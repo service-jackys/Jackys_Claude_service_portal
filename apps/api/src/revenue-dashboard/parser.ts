@@ -1,3 +1,4 @@
+import { parseExtraSheets, type ParsedExtraSheet } from './extra-sheets.js';
 import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import {
@@ -49,6 +50,8 @@ export type ParsedRevenueWorkbook = {
   pricingUnmatched: number;
   selectedYear: number | null;
   totalRevenue: number;
+  /** Other sheets kept for the Ask AI (customer columns removed). */
+  sheets: ParsedExtraSheet[];
 };
 
 export type ParsedBudgetLine = {
@@ -277,6 +280,7 @@ export async function parseRevenueWorkbook(buffer: Buffer): Promise<ParsedRevenu
     pricingUnmatched,
     selectedYear,
     totalRevenue,
+    sheets: parseExtraSheets(workbook),
   };
 }
 

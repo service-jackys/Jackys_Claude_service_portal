@@ -120,6 +120,12 @@ export function sanitiseAskContext(value: unknown, depth = 0): unknown {
 import { buildOpsSnapshot, OPS_SECTIONS } from './ops-snapshot.js';
 import { buildWorkbookSnapshot, type WorkbookAccess } from './workbook.js';
 import { LOOKUP_INSTRUCTIONS, parseLookupPlan, runLookups } from './revenue-lookup.js';
+import {
+  parseSheetLookups,
+  readCatalog,
+  runSheetLookups,
+  SHEET_LOOKUP_INSTRUCTIONS,
+} from './sheet-lookup.js';
 import { findActiveBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 
 export function createAiService(pool: Pool, deps: Deps = {}) {
@@ -336,22 +342,34 @@ export function createAiService(pool: Pool, deps: Deps = {}) {
     let lookupResults: unknown[] | null = null;
     if (workbook && workbookAccess?.revenue) {
       try {
-        const plan = parseLookupPlan(
-          await completeChat(
-            config,
-            baseSystem + ' ' + LOOKUP_INSTRUCTIONS + '\n\nPAGE DATA (JSON):\n' + context,
-            data.messages,
-            { maxTokens: 300, timeoutMs: 30000, fetchImpl: deps.fetchImpl },
-          ),
-        );
-        if (plan.length) {
-          const client = await pool.connect();
-          try {
-            const batch = await findActiveBatch(client, 'revenue');
-            if (batch) lookupResults = await runLookups(client, batch.id, plan);
-          } finally {
-            client.release();
+        const client = await pool.connect();
+        try {
+          const batch = await findActiveBatch(client, 'revenue');
+          if (batch) {
+            const catalog = readCatalog(batch.summary);
+            const reply = await completeChat(
+              config,
+              baseSystem +
+                ' ' +
+                LOOKUP_INSTRUCTIONS +
+                ' ' +
+                (catalog.length ? SHEET_LOOKUP_INSTRUCTIONS : '') +
+                '\n\nPAGE DATA (JSON):\n' +
+                context,
+              data.messages,
+              { maxTokens: 400, timeoutMs: 30000, fetchImpl: deps.fetchImpl },
+            );
+            const revenuePlan = parseLookupPlan(reply);
+            const sheetPlan = parseSheetLookups(reply, catalog).slice(0, 3 - revenuePlan.length);
+            const results: unknown[] = [];
+            if (revenuePlan.length)
+              results.push(...(await runLookups(client, batch.id, revenuePlan)));
+            if (sheetPlan.length)
+              results.push(...(await runSheetLookups(client, batch.id, catalog, sheetPlan)));
+            if (results.length) lookupResults = results;
           }
+        } finally {
+          client.release();
         }
       } catch {
         lookupResults = null; // answer from the summaries instead

@@ -5146,3 +5146,23 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/ai/revenue-lookup.ts (new), apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md.
 
 **Needs you:** pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).
+
+
+## Modification #247 — Ask AI can answer from Net Sale Current, CSIDI, CSIDO and CSIII
+
+**Date:** 2026-11-10
+
+**Why.** The AI could only see the "Revenue Source" sheet of the daily master workbook (as summaries, a day table and lookups). Questions about the other sheets (net sales by brand or group, the CSIDI / CSIDO / CSIII invoice sheets with their status, trips, discount tier and so on) could not be answered.
+
+**What changed.**
+
+- When the master workbook (.xlsm) is uploaded on the Service Revenue Dashboard, the portal now also keeps the **Net Sale Current**, **CSIDI**, **CSIDO** and **CSIII** sheets (all columns, every row) with that upload. There is no extra step: the same daily upload does it. Migration 094 adds the table `workbook_sheet_rows`.
+- **Dropped when the file is read, never stored:** customer name, customer code, TRN number and the free-text Remarks column. Everything else, including sales person, is kept, as Vysakh decided.
+- With "Also read the uploaded workbook data" ticked and revenue access, the AI is told which sheets and columns exist. It can ask for lookups on them (group by up to 2 columns, equality filters, up to 3 numeric sums, a date range on the sheet's date column). The server checks every sheet and column name against what was stored, then runs read-only SQL. Same two-step flow as #246, at most 3 lookups per question in total.
+- Fix found on the way: revenue lookups could ask for 150 rows but the request cleaner keeps only 60 items of any list, so the cap is now 60.
+- Next sheets (masters) can be added by one line in `EXTRA_SHEETS`.
+- Tests: sheet reader (customer columns dropped), lookup checks, lookup SQL on stored rows; real workbook checked (Net Sale Current 102 rows, CSIDI 689, CSIDO 311, CSIII 40; no customer name present).
+
+**Files.** packages/db/migrations/094_workbook_sheet_rows.sql, packages/db/src/workbook-sheets.ts, apps/api/src/revenue-dashboard/extra-sheets.ts, parser.ts, service.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, service.ts, revenue-lookup.ts, tests, modification.md.
+
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then **upload the master workbook once again** (the sheets are only read at upload time). No new permission.

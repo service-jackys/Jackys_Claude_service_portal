@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 247,
+    "title": "Ask AI can answer from Net Sale Current, CSIDI, CSIDO and CSIII",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "The AI could only see the Revenue Source sheet of the daily master workbook, so it could not answer questions from the other sheets.",
+    "changes": [
+      "The daily master workbook upload now also keeps the Net Sale Current, CSIDI, CSIDO and CSIII sheets. No extra step.",
+      "Customer name, customer code, TRN number and the Remarks text are dropped when the file is read and never stored. Everything else is kept.",
+      "With Also read the uploaded workbook data ticked, the AI is told which sheets and columns exist and can ask for lookups on them (grouped, filtered, summed, by date range). The server checks every name and runs read-only queries.",
+      "Revenue lookups are capped at 60 rows (the request cleaner keeps only 60 items of any list)."
+    ],
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook once again (the sheets are only read at upload time).",
+    "migrations": [
+      "094_workbook_sheet_rows.sql"
+    ],
+    "files": "packages/db/migrations/094_workbook_sheet_rows.sql, packages/db/src/workbook-sheets.ts, apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, apps/api/src/ai/service.ts, apps/api/src/ai/workbook.ts, tests, modification.md."
+  },
+  {
     "id": 246,
     "title": "Ask AI can look up exact revenue figures for any date, month or filter",
     "area": "Revenue",
