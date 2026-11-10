@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 248,
+    "title": "Ask AI understands the delivery-charge lines and can search by part of a value",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "Asked for delivery-charge lines and totals by sales person, the AI said it could not see descriptions or sales persons. The data was stored, but the AI had no hint where the charge lines are, and lookups matched exact values only.",
+    "changes": [
+      "Each extra sheet carries a short description for the AI: in Net Sale Current the charge lines are the rows whose Invi Item Code starts with SERV, Sm Name is the sales person and Proposed Revenue holds the workbook charge.",
+      "Lookups can also ask for text that contains a value (case-insensitive).",
+      "If the last upload predates the stored sheets, the AI says the workbook must be uploaded again."
+    ],
+    "needsYou": "pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, apps/api/src/ai/workbook.ts, tests, modification.md."
+  },
+  {
     "id": 247,
     "title": "Ask AI can answer from Net Sale Current, CSIDI, CSIDO and CSIII",
     "area": "Revenue",

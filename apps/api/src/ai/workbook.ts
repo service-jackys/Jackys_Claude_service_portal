@@ -85,6 +85,9 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
             byDate,
           },
           extraSheets: describeCatalog(readCatalog(revenueBatch.summary)),
+          extraSheetsNote: readCatalog(revenueBatch.summary).length
+            ? undefined
+            : 'No other sheets are stored for this upload. The master workbook must be uploaded again (after the portal update that adds them) before Net Sale Current, CSIDI, CSIDO and CSIII can be read.',
         };
       }
     }

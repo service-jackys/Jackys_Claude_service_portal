@@ -5166,3 +5166,20 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/094_workbook_sheet_rows.sql, packages/db/src/workbook-sheets.ts, apps/api/src/revenue-dashboard/extra-sheets.ts, parser.ts, service.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, service.ts, revenue-lookup.ts, tests, modification.md.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then **upload the master workbook once again** (the sheets are only read at upload time). No new permission.
+
+
+## Modification #248 — Ask AI understands the delivery-charge lines and can search by part of a value
+
+**Date:** 2026-11-10
+
+**Why.** Asked "how many lines with delivery charges today, and the total by sales person?", the AI said it could not see line descriptions or sales person names. Checked against the workbook: the data is stored, but (a) the AI had no hint that in Net Sale Current the delivery / installation charge lines are the rows whose **Invi Item Code** starts with "SERV" (the model is in Invi Item Desc, the ERP Net Val is 0 and the workbook charge is in **Proposed Revenue**), and (b) lookups could only match an exact value, so "all SERV codes" could not be asked.
+
+**What changed.**
+
+- Each extra sheet now carries a short description for the AI (what a row is, which column is the sales person, which holds the charge).
+- Lookups can also ask for **text contains** (case-insensitive, for text columns), for example Invi Item Code contains "SERV".
+- If the last upload was made before sheets were stored, the AI is told to ask for the workbook to be uploaded again, instead of just saying it cannot see the data.
+
+**Files.** apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, tests, modification.md.
+
+**Needs you:** pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.

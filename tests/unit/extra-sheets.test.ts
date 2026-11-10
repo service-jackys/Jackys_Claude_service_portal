@@ -79,6 +79,7 @@ test('sheet lookups keep only known sheets and columns, numeric sums and capped 
           sheet: 'Net Sale Current',
           groupBy: ['Brand', 'Cust Name', 'Qty', 'Inv Dt'],
           filters: { Brand: 'VENUS', 'Cust Name': 'ACME' },
+          contains: { Brand: 'VEN', Qty: '2', 'Cust Name': 'A' },
           sum: ['Qty', 'Brand'],
           dateFrom: '2026-10-01',
           dateTo: 'bad',
@@ -93,6 +94,7 @@ test('sheet lookups keep only known sheets and columns, numeric sums and capped 
   assert.deepEqual(lookup.groupBy, ['Brand', 'Qty']);
   assert.deepEqual(lookup.filters, { Brand: 'VENUS' });
   assert.deepEqual(lookup.sum, ['Qty']);
+  assert.deepEqual(lookup.contains, { Brand: 'VEN' });
   assert.equal(lookup.dateFrom, '2026-10-01');
   assert.equal(lookup.dateTo, undefined);
   assert.equal(lookup.limit, 60);

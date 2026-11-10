@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { EXTRA_SHEETS } from '../revenue-dashboard/extra-sheets.js';
 
 // Lookups on the extra workbook sheets (Net Sale Current, CSIDI, CSIDO, CSIII; modification
 // #247). Same idea as revenue-lookup.ts: the AI proposes, the server checks the names against
@@ -15,6 +16,8 @@ export interface SheetLookup {
   sheet: string;
   groupBy: string[];
   filters: Record<string, string>;
+  /** Text columns that must contain the value (case-insensitive). */
+  contains: Record<string, string>;
   sum: string[];
   dateFrom?: string;
   dateTo?: string;
@@ -35,13 +38,14 @@ export function describeCatalog(catalog: SheetCatalogEntry[]) {
     sheet: s.name,
     rows: s.rows,
     dateColumn: s.dateColumn,
+    about: EXTRA_SHEETS.find((c) => c.name === s.name)?.note,
     columns: s.columns.map((c) => `${c.name} (${c.type})`),
   }));
 }
 
 export const SHEET_LOOKUP_INSTRUCTIONS =
   'PAGE DATA may list extraSheets (other sheets of the uploaded master workbook, customer columns removed). ' +
-  'To query one, add to the lookups list an item {"sheet":"<sheet name>","groupBy":[up to 2 column names],"filters":{"<column>":"exact value"},"sum":[up to 3 number columns],"dateFrom":"YYYY-MM-DD","dateTo":"YYYY-MM-DD","limit":number up to ' +
+  'To query one, add to the lookups list an item {"sheet":"<sheet name>","groupBy":[up to 2 column names],"filters":{"<column>":"exact value"},"contains":{"<text column>":"part of the value"},"sum":[up to 3 number columns],"dateFrom":"YYYY-MM-DD","dateTo":"YYYY-MM-DD","limit":number up to ' +
   MAX_ROWS +
   "}. Use column names exactly as listed. Each result row gives the group values, rows (count of sheet rows) and the sums. The date range applies to the sheet's dateColumn. ";
 
@@ -88,10 +92,21 @@ export function parseSheetLookups(text: string, catalog: SheetCatalogEntry[]): S
       const v = String(value).trim();
       if (v && v.length <= 60) filters[key] = v;
     }
+    const contains: Record<string, string> = {};
+    const containsGiven =
+      entry.contains && typeof entry.contains === 'object'
+        ? (entry.contains as Record<string, unknown>)
+        : {};
+    for (const [key, value] of Object.entries(containsGiven)) {
+      if (known.get(key) !== 'text' || typeof value !== 'string') continue;
+      const v = value.trim();
+      if (v && v.length <= 60) contains[key] = v;
+    }
     const lookup: SheetLookup = {
       sheet: sheet.name,
       groupBy: names(entry.groupBy, false, 2),
       filters,
+      contains,
       sum: names(entry.sum, true, 3),
       limit: Math.min(Math.max(Math.trunc(Number(entry.limit)) || 40, 1), MAX_ROWS),
     };
@@ -123,6 +138,10 @@ export async function runSheetLookups(
     const where = ['batch_id = $1', 'sheet = $2'];
     for (const [column, value] of Object.entries(lookup.filters))
       where.push(`lower(data->>${ph(column)}) = lower(${ph(value)})`);
+    for (const [column, value] of Object.entries(lookup.contains ?? {}))
+      where.push(
+        `data->>${ph(column)} ILIKE '%' || replace(replace(replace(${ph(value)}, '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%'`,
+      );
     if (sheet.dateColumn && (lookup.dateFrom || lookup.dateTo)) {
       const dc = ph(sheet.dateColumn);
       where.push(`data->>${dc} ~ '^\\d{4}-\\d{2}-\\d{2}$'`);

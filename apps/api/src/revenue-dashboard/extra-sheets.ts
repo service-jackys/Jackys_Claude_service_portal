@@ -3,10 +3,26 @@ import type ExcelJS from 'exceljs';
 // Sheets of the Service Dashboard master that are kept (beyond "Revenue Source") so the Ask AI
 // can answer from them. The date column is the one a date filter uses.
 export const EXTRA_SHEETS = [
-  { name: 'Net Sale Current', dateColumn: 'Inv Dt' },
-  { name: 'CSIDI', dateColumn: 'Date' },
-  { name: 'CSIDO', dateColumn: 'Date' },
-  { name: 'CSIII', dateColumn: 'Date' },
+  {
+    name: 'Net Sale Current',
+    dateColumn: 'Inv Dt',
+    note: 'ERP net sale lines of the service invoices, one row per invoice line. Service charge lines (delivery, delivery + installation, installation) are the rows whose "Invi Item Code" starts with "SERV" (for example SERV-DELIVERY-HAA, SERV- DEL&INST -JERC); on those rows "Invi Item Desc" holds the appliance model, "Txn Code" is the job type (CSIDI, CSIDO, CSIII), "Sm Name" is the sales person, "Inv No" the invoice number. The ERP "Net Val" is 0 on them; the charge worked out by the workbook is in "Proposed Revenue" (use that for delivery charge amounts).',
+  },
+  {
+    name: 'CSIDI',
+    dateColumn: 'Date',
+    note: 'Delivery + installation invoices with the workbook pricing; "Salesman" is the sales person, "Proposed Revenue" the workbook charge.',
+  },
+  {
+    name: 'CSIDO',
+    dateColumn: 'Date',
+    note: 'Delivery only invoices; "Salesman" is the sales person.',
+  },
+  {
+    name: 'CSIII',
+    dateColumn: 'Date',
+    note: 'Installation only invoices; "Salesman" is the sales person.',
+  },
 ] as const;
 
 // Columns that identify a customer (or are free text that may contain one). Dropped at read
