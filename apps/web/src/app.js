@@ -2505,7 +2505,7 @@
   function quotationFieldsHtml(prefix) {
     return `
       <div class="field-grid">
-        <div class="field"><label for="${prefix}Date">Quotation date</label><input type="date" id="${prefix}Date"></div>
+        <div class="field"><label for="${prefix}Date">Quotation date ${tipHtml('Set automatically by the system on the day the quotation is created. It cannot be changed.')}</label><input type="date" id="${prefix}Date" readonly tabindex="-1" aria-readonly="true" title="Set automatically by the system"></div>
         <div class="field erp-status-field"><label for="${prefix}ErpStatus">ERP / ORION status <span class="required">*</span> ${tipHtml('Whether this quotation has been invoiced in the ERP (ORION). An Invoiced quotation is already inside that month&#39;s revenue, so it is left out of LPO pending on the Reports tab.')}</label><select id="${prefix}ErpStatus" class="erp-status-select" required><option value="">Select status</option><option value="Pending invoice">Pending invoice</option><option value="Invoiced">Invoiced</option></select></div>
         <div class="field" id="${prefix}ErpInvoiceField" hidden><label for="${prefix}ErpInvoiceNo">ERP / ORION invoice no. <span class="required">*</span> ${tipHtml('The invoice number from ERP (ORION). It is checked against the invoice numbers in the uploaded master workbook, so a quotation marked Invoiced without a real invoice shows up in Reports under Invoice check.')}</label><input type="text" id="${prefix}ErpInvoiceNo" maxlength="60" autocomplete="off"></div>
         <div class="field"><label for="${prefix}CustomerType">Customer type <span class="required">*</span></label><select id="${prefix}CustomerType"><option value="">Select a type</option><option value="B2C">B2C (Direct customer)</option><option value="B2B">B2B (Corporate client)</option></select></div>
@@ -3037,6 +3037,7 @@
     erp.addEventListener('change', () => syncErpStatusLook(prefix));
     syncErpStatusLook(prefix);
     quotationState[prefix] = { units: [], charges: [], vat: true };
+    $(`#${prefix}Date`).value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
     wireQuotationEditor(prefix);
     renderQuotationEditor(prefix);
   }
@@ -3111,7 +3112,6 @@
   function collectQuotationForm(prefix) {
     const state = quotationState[prefix];
     return {
-      quotationDate: $(`#${prefix}Date`).value || undefined,
       erpStatus: $(`#${prefix}ErpStatus`).value || undefined,
       erpInvoiceNo:
         $(`#${prefix}ErpStatus`).value === 'Invoiced'
@@ -9851,6 +9851,7 @@ ${bodyHtml}
   });
   $('#createQuotationButton').addEventListener('click', () => {
     $('#quotationDetail').hidden = true;
+    $('#qtcDate').value = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
     $('#quotationCreatePanel').hidden = false;
     $('#quotationCreatePanel').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   });

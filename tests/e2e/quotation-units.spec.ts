@@ -114,6 +114,10 @@ test.describe('quotation units, charges and VAT', () => {
     const calls: { create?: Json } = {};
     await mockPortal(page, calls);
     await page.getByRole('tab', { name: 'New quotation' }).click();
+    // The quotation date is set by the system: shown as today (Dubai), read-only and never sent.
+    const dubaiToday = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Dubai' });
+    await expect(page.locator('#qtcDate')).toHaveValue(dubaiToday);
+    await expect(page.locator('#qtcDate')).toHaveAttribute('readonly', '');
     await page.locator('#qtcErpStatus').selectOption('Pending invoice');
     await page.locator('#qtcCustomerType').selectOption('B2B');
     await page.locator('#qtcB2bBranchSchool').fill('GEMS');
@@ -172,6 +176,7 @@ test.describe('quotation units, charges and VAT', () => {
       parts: Array<{ unitKey: string; type: string; unitPrice: number }>;
     };
     expect(body.vatRate).toBe(0.05);
+    expect(body).not.toHaveProperty('quotationDate');
     expect(body).toMatchObject({
       customerType: 'B2B',
       b2bBranchSchool: 'GEMS Wellington',

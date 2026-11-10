@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 244,
+    "title": "Quotation date is set by the system",
+    "area": "General",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "The quotation date should not depend on what a person types: it must be the day the quotation is really created.",
+    "changes": [
+      "New quotation: the date is stamped by the system with today's date (Dubai time) when the quotation is saved. The Quotation date box on the form now shows today's date, is read-only and has a hint that it is set automatically. It refreshes…",
+      "Editing a quotation: the date never changes, whatever is sent. The quotation reference number still follows the quotation's date as before.",
+      "Older quotations keep the dates they already have. Imports and the database layer are unchanged.",
+      "The form no longer sends a date; if an old client still does, the API ignores it.",
+      "Tests: unit tests for the create/edit rule (fail without the change) and a browser check that the field is read-only, shows today's date and that no date is sent."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "apps/api/src/quotations/routes.ts, apps/web/src/app.js, tests/unit/quotation-date-auto.test.ts, tests/e2e/quotation-units.spec.ts, modification.md."
+  },
+  {
     id: 243,
     title:
       'Fix: a new quotation could not be saved when the ERP / ORION status is "Pending invoice"',
