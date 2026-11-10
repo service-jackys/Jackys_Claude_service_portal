@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 246,
+    "title": "Ask AI can look up exact revenue figures for any date, month or filter",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "The day-by-day table covers the latest 240 dates only, so the AI could not answer other combinations such as an older date, or a date range by channel.",
+    "changes": [
+      "With Also read the uploaded workbook data ticked, Ask AI now first proposes a small lookup plan (at most 3 lookups, grouped by up to 2 of date, period, job type, channel and similar). The server checks it against a fixed list, runs it read-only and gives the results back to the AI to answer.",
+      "Each result has lines, distinct invoices, units and revenue, up to 150 rows. Customers, sales people and invoice numbers can not be asked for.",
+      "An invalid plan or any failure falls back to the normal answer. This costs one extra AI call per question in this mode."
+    ],
+    "needsYou": "pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).",
+    "migrations": [],
+    "files": "apps/api/src/ai/revenue-lookup.ts, apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md."
+  },
+  {
     "id": 245,
     "title": "Ask AI on the Service Revenue Dashboard can answer questions about one date",
     "area": "Revenue",

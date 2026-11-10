@@ -119,6 +119,8 @@ export function sanitiseAskContext(value: unknown, depth = 0): unknown {
 
 import { buildOpsSnapshot, OPS_SECTIONS } from './ops-snapshot.js';
 import { buildWorkbookSnapshot, type WorkbookAccess } from './workbook.js';
+import { LOOKUP_INSTRUCTIONS, parseLookupPlan, runLookups } from './revenue-lookup.js';
+import { findActiveBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 
 export function createAiService(pool: Pool, deps: Deps = {}) {
   const secret = () =>
@@ -301,22 +303,19 @@ export function createAiService(pool: Pool, deps: Deps = {}) {
       wanted && (workbookAccess.revenue || workbookAccess.budget)
         ? await buildWorkbookSnapshot(pool, workbookAccess)
         : null;
-    const context = JSON.stringify(
-      sanitiseAskContext(
-        workbook
-          ? { onScreen: data.context, workbook }
-          : portal
-            ? { onScreen: data.context, portalData: portal }
-            : data.context,
-      ),
-    );
+    const pageData = workbook
+      ? { onScreen: data.context, workbook }
+      : portal
+        ? { onScreen: data.context, portalData: portal }
+        : data.context;
+    let context = JSON.stringify(sanitiseAskContext(pageData));
     if (context.length > 60000)
       throw new AiServiceError(
         'invalid',
         'There is too much on this page to send. Narrow it down and ask again.',
       );
     const config = configFrom(await load());
-    const system =
+    const baseSystem =
       "You are an assistant inside the staff portal of Jacky's Distribution (after-sales service, appliance installation and maintenance, UAE). " +
       'You are helping with ' +
       ASK_GUIDE[data.section] +
@@ -331,6 +330,45 @@ export function createAiService(pool: Pool, deps: Deps = {}) {
       'You may do simple arithmetic on the given figures; show the numbers you used. Amounts are in AED. ' +
       'You cannot change anything in the portal; when a change is wanted, say what to change and where. ' +
       'Answer in plain text, under 150 words, no markdown headings or bold; use short lines starting with "- " for lists.';
+    // Revenue questions may need exact figures that are not in the summaries (any date, month or
+    // filter). The AI proposes a small plan, the server validates and runs it read-only
+    // (revenue-lookup.ts), and the answer is then written with those results.
+    let lookupResults: unknown[] | null = null;
+    if (workbook && workbookAccess?.revenue) {
+      try {
+        const plan = parseLookupPlan(
+          await completeChat(
+            config,
+            baseSystem + ' ' + LOOKUP_INSTRUCTIONS + '\n\nPAGE DATA (JSON):\n' + context,
+            data.messages,
+            { maxTokens: 300, timeoutMs: 30000, fetchImpl: deps.fetchImpl },
+          ),
+        );
+        if (plan.length) {
+          const client = await pool.connect();
+          try {
+            const batch = await findActiveBatch(client, 'revenue');
+            if (batch) lookupResults = await runLookups(client, batch.id, plan);
+          } finally {
+            client.release();
+          }
+        }
+      } catch {
+        lookupResults = null; // answer from the summaries instead
+      }
+    }
+    if (lookupResults?.length) {
+      const withLookups = JSON.stringify(
+        sanitiseAskContext({ ...(pageData as object), lookupResults }),
+      );
+      if (withLookups.length <= 90000) context = withLookups;
+      else lookupResults = null;
+    }
+    const system =
+      baseSystem +
+      (lookupResults?.length
+        ? ' lookupResults in PAGE DATA were fetched from the server for this question: prefer them over the summaries and say whether you counted lines or invoices.'
+        : '');
     try {
       const text = await completeChat(
         config,
