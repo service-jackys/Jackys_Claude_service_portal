@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    id: 243,
+    title:
+      'Fix: a new quotation could not be saved when the ERP / ORION status is "Pending invoice"',
+    area: 'Invoices & billing',
+    date: '2026-11-10',
+    approxDate: false,
+    status: null,
+    summary:
+      'Creating a new quotation with ERP / ORION status "Pending invoice" (quotation status Pending) failed with "The request is invalid: erpInvoiceNo: String must contain at least 1 character(s)".',
+    changes: [
+      'The quotation form sends a blank ERP invoice number whenever the status is not Invoiced (the number only applies to Invoiced quotations). The API rule for that field refused a blank value. It now accepts blank; the number is still…',
+      'New unit test covers the blank number and the 60-character cap.',
+    ],
+    needsYou: 'pull and restart the API. No migration.',
+    migrations: [],
+    files:
+      'packages/contracts/src/index.ts, tests/unit/quotation-erp-invoice-empty.test.ts, modification.md.',
+  },
+  {
     "id": 242,
     "title": "Ask AI on the Tasks page (your own tasks)",
     "area": "Tasks",
