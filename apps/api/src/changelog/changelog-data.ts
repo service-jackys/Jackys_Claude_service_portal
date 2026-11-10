@@ -15,6 +15,41 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 246,
+    "title": "Ask AI can look up exact revenue figures for any date, month or filter",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "The day-by-day table covers the latest 240 dates only, so the AI could not answer other combinations such as an older date, or a date range by channel.",
+    "changes": [
+      "With Also read the uploaded workbook data ticked, Ask AI now first proposes a small lookup plan (at most 3 lookups, grouped by up to 2 of date, period, job type, channel and similar). The server checks it against a fixed list, runs it read-only and gives the results back to the AI to answer.",
+      "Each result has lines, distinct invoices, units and revenue, up to 150 rows. Customers, sales people and invoice numbers can not be asked for.",
+      "An invalid plan or any failure falls back to the normal answer. This costs one extra AI call per question in this mode."
+    ],
+    "needsYou": "pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).",
+    "migrations": [],
+    "files": "apps/api/src/ai/revenue-lookup.ts, apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md."
+  },
+  {
+    "id": 245,
+    "title": "Ask AI on the Service Revenue Dashboard can answer questions about one date",
+    "area": "Revenue",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "Asked \"for 2026-11-10, how many CSIDI jobs were created and how many jobs had delivery charges billed?\", the AI answered that it could not check a single date. It was only given totals by month, job type and channel, never by day.",
+    "changes": [
+      "When Also read the uploaded workbook data is ticked, the AI now also receives a day-by-day table for the latest 240 order dates of the revenue workbook: for each date and job type, the number of lines, the number of distinct invoices, the…",
+      "The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, CSIDO = delivery only (the delivery charges billed), CSIII =…",
+      "Still never sent: customers, sales people, invoice or order numbers, or individual lines.",
+      "Integration test extended (a date with 2 CSIDI lines on one invoice and 1 CSIDO line)."
+    ],
+    "needsYou": "pull and restart the API. No migration. Merge after PR #164 (it builds on it).",
+    "migrations": [],
+    "files": "apps/api/src/ai/workbook.ts, apps/api/src/ai/service.ts, tests/integration/ai-workbook.test.ts, modification.md."
+  },
+  {
     "id": 244,
     "title": "Quotation date is set by the system",
     "area": "General",

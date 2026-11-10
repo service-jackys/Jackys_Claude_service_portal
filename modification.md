@@ -5111,3 +5111,38 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/quotations/routes.ts, apps/web/src/app.js, tests/unit/quotation-date-auto.test.ts, tests/e2e/quotation-units.spec.ts, modification.md.
 
 **Needs you:** pull, restart the API, hard-refresh. No migration.
+
+## Modification #245 — Ask AI on the Service Revenue Dashboard can answer questions about one date
+
+**Date:** 2026-11-10
+
+**Why.** Asked "for 2026-11-10, how many CSIDI jobs were created and how many jobs had delivery charges billed?", the AI answered that it could not check a single date. It was only given totals by month, job type and channel, never by day.
+
+**What changed.**
+
+- When **Also read the uploaded workbook data** is ticked, the AI now also receives a **day-by-day table for the latest 240 order dates** of the revenue workbook: for each date and job type, the number of lines, the number of distinct invoices, the units and the revenue. (It is sent as a table keyed by date, because the request cleaner keeps only the first 60 items of any list.)
+- The AI is told how to read it: lines are workbook rows (what the dashboard calls jobs), invoices are distinct invoice / delivery numbers, CSIDI = delivery + installation, **CSIDO = delivery only (the delivery charges billed)**, CSIII = installation only; it must say whether it is counting lines or invoices and say so if a date is outside the table.
+- Still never sent: customers, sales people, invoice or order numbers, or individual lines.
+- Integration test extended (a date with 2 CSIDI lines on one invoice and 1 CSIDO line).
+
+**Files.** apps/api/src/ai/workbook.ts, apps/api/src/ai/service.ts, tests/integration/ai-workbook.test.ts, modification.md.
+
+**Needs you:** pull and restart the API. No migration. Merge after PR #164 (it builds on it).
+
+
+## Modification #246 — Ask AI can look up exact revenue figures for any date, month or filter
+
+**Date:** 2026-11-10
+
+**Why.** The day-by-day table (#245) covers the latest 240 dates only, and the AI could not answer other combinations (an older date, a date range by channel, a billing code in one month).
+
+**What changed.**
+
+- On the Service Revenue Dashboard, when **Also read the uploaded workbook data** is ticked and the person has revenue access, Ask AI now works in two steps. First the AI is asked for a small lookup plan (at most 3 lookups: group by up to 2 of date, period, year, month, week, job type, channel, cost status, billing code, job sheet status, order status; optional equality filters and a date range). The server checks the plan against a fixed list, runs it read-only on the active revenue workbook, and gives the results back to the AI to write the answer.
+- Each result row has lines, distinct invoices, units and revenue. At most 150 rows per lookup.
+- Customers, sales people and invoice or order numbers can not be asked for or returned. A plan that is invalid, or any failure, just means the AI answers from the summaries as before.
+- Costs one extra provider call per question in this mode.
+
+**Files.** apps/api/src/ai/revenue-lookup.ts (new), apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md.
+
+**Needs you:** pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).
