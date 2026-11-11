@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Modification #249: transport rules panel on the Service Revenue Dashboard.
+// Modifications #249 / #251: transport rules tab on the Service Revenue Dashboard.
 const rulesResponse = (over: Record<string, unknown> = {}) => ({
   rules: { dailyCap: true, deliveryOnlyCap: false, mixedInvoiceTransport: true, maxTrips: 2 },
   preset: 'new_master',
@@ -105,7 +105,21 @@ async function open(page: Page, permissions: string[], puts: unknown[]) {
       );
     }
     if (url.pathname === '/api/revenue-dashboard/summary')
-      return json({ batch: null, summary: null });
+      return json({
+        batch: { fileName: 'master.xlsm', uploadedAt: '2026-11-11T08:00:00Z' },
+        summary: {
+          totals: { jobs: 5, qty: 7, revenue: 4321 },
+          options: {
+            years: [2026],
+            months: [10],
+            weeks: [],
+            jobTypes: [],
+            channels: [],
+            costStatuses: [],
+          },
+          monthly: [],
+        },
+      });
     return json({}, 404);
   });
   await page.goto('/portal/');
@@ -114,6 +128,10 @@ async function open(page: Page, permissions: string[], puts: unknown[]) {
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.evaluate(() => document.getElementById('revenueDashNav')?.click());
+  // Not on the other tabs any more: only a one-line notice when the rules need attention.
+  await expect(page.locator('.rd-subtab-btn', { hasText: 'Logic applied' })).toBeVisible();
+  await expect(page.locator('.rd-rules-card')).toHaveCount(0);
+  await page.locator('.rd-subtab-btn', { hasText: 'Transport rules' }).click();
   await expect(page.locator('.rd-rules-card')).toBeVisible();
 }
 
@@ -121,7 +139,11 @@ test('admin switches the 2-trip daily cap off and saves for the whole dashboard'
   page,
 }) => {
   const puts: unknown[] = [];
-  await open(page, ['revenue_dashboard.read', 'revenue_dashboard.transport_rules'], puts);
+  await open(
+    page,
+    ['revenue_dashboard.read', 'revenue_dashboard.tab_logic', 'revenue_dashboard.transport_rules'],
+    puts,
+  );
   const card = page.locator('.rd-rules-card');
   await expect(card.locator('.rd-rules-chip')).toHaveText(/new master logic/);
   await expect(card.locator('.rd-rules-flag')).toContainText(
@@ -145,9 +167,19 @@ test('admin switches the 2-trip daily cap off and saves for the whole dashboard'
 });
 
 test('other users see the active rules read-only', async ({ page }) => {
-  await open(page, ['revenue_dashboard.read'], []);
+  await open(page, ['revenue_dashboard.read', 'revenue_dashboard.tab_logic'], []);
   const card = page.locator('.rd-rules-card');
   await expect(card.locator('[data-rd-rule="dailyCap"]')).toBeDisabled();
   await expect(card.locator('[data-rd-rules-save]')).toHaveCount(0);
   await expect(card).toContainText('Only an administrator can change these settings');
+});
+
+test('the other tabs show a short notice that opens the Transport rules tab', async ({ page }) => {
+  await open(page, ['revenue_dashboard.read', 'revenue_dashboard.tab_logic'], []);
+  await page.locator('.rd-subtab-btn', { hasText: 'Logic applied' }).click();
+  const strip = page.locator('.rd-rules-strip');
+  await expect(strip).toContainText('new master logic');
+  await strip.getByRole('button', { name: 'Open Transport rules' }).click();
+  await expect(page.locator('.rd-rules-card')).toBeVisible();
+  await expect(page.locator('.rd-subtab-btn.active')).toHaveText('Transport rules');
 });

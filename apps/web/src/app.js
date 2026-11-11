@@ -25003,6 +25003,50 @@ ${bodyHtml}
     );
   }
 
+  // One-line notice above the tabs (#251), shown only when the transport rules need attention:
+  // not the new master logic, figures differ from the workbook, or not applied to the upload.
+  async function rdTransportStrip(host, F, onOpen) {
+    const month = F.year && F.month ? Number(F.year) * 100 + Number(F.month) : '';
+    let data;
+    try {
+      data = await apiRequest(
+        '/api/revenue-dashboard/transport-rules' + (month ? '?month=' + month : ''),
+      );
+    } catch {
+      rdTransportInfo = null;
+      return;
+    }
+    if (!data || !data.rules || typeof data.rules !== 'object') {
+      rdTransportInfo = null;
+      return;
+    }
+    rdTransportInfo = data;
+    if (!data.batch) return;
+    const attention =
+      data.preset !== 'new_master' ||
+      !data.matchesWorkbook ||
+      data.notRecalculated ||
+      !data.appliedToActive ||
+      Boolean(data.notice);
+    if (!attention) return;
+    const chip =
+      data.preset === 'new_master' ? 'new' : data.preset === 'old_master' ? 'old' : 'custom';
+    const el = document.createElement('div');
+    el.className = 'rd-rules-strip';
+    el.innerHTML =
+      '<span class="rd-rules-chip rd-rules-' +
+      chip +
+      '">' +
+      escapeHtml(data.label) +
+      '</span><span class="rd-rules-strip-text">' +
+      (data.appliedToActive ? '' : 'Not yet applied to the current upload. ') +
+      (data.matchesWorkbook ? '' : 'Figures differ from the uploaded master workbook. ') +
+      (data.notice ? escapeHtml(data.notice) + ' ' : '') +
+      '</span><button type="button" class="button button-outline rd-rules-strip-open">Open Transport rules</button>';
+    el.querySelector('button').addEventListener('click', onOpen);
+    host.appendChild(el);
+  }
+
   async function rdTransportRulesCard(host, F, onSaved) {
     const wrap = document.createElement('div');
     host.appendChild(wrap);
@@ -26568,6 +26612,8 @@ ${bodyHtml}
     rdDestroyCharts(root);
     const F = { year: '', month: '', week: '', jobType: '', channel: '', costStatus: '' };
     const allowedTabs = revenueTabs();
+    // Transport rules tab (#251): for everyone who can open the dashboard; switches are admin only.
+    const shownTabs = allowedTabs.length ? [...allowedTabs, 'transport'] : [];
     let tab = allowedTabs[0] || 'overview';
     let reportView = 'drill';
     let drill = { path: [], groupBy: null, page: 1, search: '' };
@@ -26604,8 +26650,9 @@ ${bodyHtml}
           ['explorer', 'Explorer'],
           ['reports', 'Reports'],
           ['logic', 'Logic applied'],
+          ['transport', 'Transport rules'],
         ]
-          .filter(([id]) => allowedTabs.includes(id))
+          .filter(([id]) => shownTabs.includes(id))
           .map(
             ([id, name]) =>
               '<button type="button" role="tab" class="rd-subtab-btn' +
@@ -28990,10 +29037,15 @@ ${bodyHtml}
         banner.innerHTML = rdSourceBanner(sum.batch, 'revenue');
         top.appendChild(banner);
         rdUploadCard(top, 'revenue', () => renderRevenueDashboard(root));
-        try {
-          await rdTransportRulesCard(top, F, () => renderRevenueDashboard(root));
-        } catch {
-          rdTransportInfo = null; // the transport rules panel must never stop the dashboard
+        if (tab !== 'transport') {
+          try {
+            await rdTransportStrip(top, F, () => {
+              tab = 'transport';
+              draw();
+            });
+          } catch {
+            rdTransportInfo = null; // the transport rules notice must never stop the dashboard
+          }
         }
         if (!allowedTabs.length) {
           tabsEl.innerHTML = '';
@@ -29024,6 +29076,18 @@ ${bodyHtml}
           return;
         }
         drawFilterBar(sum.summary.options);
+        if (tab === 'transport') {
+          body.innerHTML = '';
+          try {
+            await rdTransportRulesCard(body, F, () => draw());
+          } catch {
+            rdTransportInfo = null;
+          }
+          if (!body.innerHTML.trim())
+            body.innerHTML =
+              '<p class="form-note">Transport rules are not available right now.</p>';
+          return;
+        }
         if (tab === 'explorer') await drawExplorer(sum);
         else if (tab === 'reports') await drawReports(sum);
         else await drawOverview(sum);

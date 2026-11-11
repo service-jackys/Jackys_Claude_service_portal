@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 251,
+    "title": "Transport rules moved to their own tab",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Transport rules panel now has its own tab after Logic applied, instead of sitting at the top of every tab.",
+    "changes": [
+      "New Transport rules tab with the full panel and the admin switches; the month filter applies to it.",
+      "Other tabs show a one-line notice with an Open Transport rules button only when the rules need attention."
+    ],
+    "needsYou": "pull and hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/transport-rules.spec.ts, modification.md."
+  },
+  {
     "id": 250,
     "title": "Transport rules panel on the Service Revenue Dashboard",
     "area": "Revenue",
