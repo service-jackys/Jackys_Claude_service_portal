@@ -16,20 +16,22 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 249,
-    "title": "Transport review (test): new trip rule calculated in the portal",
+    "title": "Transport rules: 2-trip daily cap with admin toggles for the whole dashboard",
     "area": "Revenue",
-    "date": "2026-11-10",
+    "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "Phase 2 of the transport plan: the portal calculates the new transport rule read-only, with the same figures as the test workbook, so a review tab can be built next.",
+    "summary": "The master workbook now charges at most 2 installation transport trips per salesperson per day. The portal follows it, and an admin can recalculate the whole Service Revenue Dashboard with three toggles, including a full revert to the old logic.",
     "changes": [
-      "New read-only endpoint for the transport review: every CSIDI or CSIDO invoice is a trip, only the 2 highest trip charges per salesperson per day are charged, CSIII never, transport shown as its own line.",
-      "Rates come from the active upload (Dubai 60, Sharjah 90, CSIDO 100); a month and test settings can be chosen.",
-      "Checked on the 22 Oct master file: current 112,950.25, new 111,240.25, identical to the test workbook. Nothing existing changes."
+      "Three toggles for the whole portal (admin only): 2-trip daily cap, Delivery-only cap, Mixed-invoice transport.",
+      "Every dashboard figure follows the toggles; the uploaded workbook revenue is kept unchanged alongside.",
+      "Default toggles equal the new master (112,050.25 on the 22 Oct file); cap off equals the old figures (112,950.25)."
     ],
-    "needsYou": "pull and restart the API. No migration. The review tab follows in Phase 3.",
-    "migrations": [],
-    "files": "apps/api/src/revenue-dashboard/transport-review.ts, service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests, modification.md."
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, upload the new master saved in Excel. The toggles screen follows next.",
+    "migrations": [
+      "095_revenue_transport_rules.sql"
+    ],
+    "files": "packages/db/migrations/095_revenue_transport_rules.sql, packages/db/src/revenue-transport-rules.ts, apps/api/src/revenue-dashboard/transport-rules.ts, service.ts, routes.ts, route-catalog.ts, tests, modification.md."
   },
   {
     "id": 248,

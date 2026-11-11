@@ -934,7 +934,11 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
-        transportReview: [
+        transportRules: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        saveTransportRules: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -3573,11 +3577,11 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
-        path: '/api/revenue-dashboard/transport-review',
-        operationId: 'getRevenueDashboardTransportReview',
+        path: '/api/revenue-dashboard/transport-rules',
+        operationId: 'getRevenueDashboardTransportRules',
         tags: ['Revenue Dashboard'],
         summary:
-          'Transport review (test): the new trip rule (max charged trips per salesperson per day) applied to the active upload, compared with current revenue',
+          'Transport rules (2-trip daily cap toggles): active setting, banner, workbook vs current revenue, trips per salesperson-day',
         security: 'bearerAuth' as const,
         parameters: [
           {
@@ -3585,39 +3589,22 @@ export function createRouteCatalog(
             in: 'query' as const,
             required: false,
             schema: { type: 'integer' as const },
-            description: 'YYYYMM; 0 or empty = all months',
-          },
-          {
-            name: 'dubai',
-            in: 'query' as const,
-            required: false,
-            schema: { type: 'number' as const },
-            description: 'Dubai trip charge (default from the upload)',
-          },
-          {
-            name: 'sharjah',
-            in: 'query' as const,
-            required: false,
-            schema: { type: 'number' as const },
-            description: 'Sharjah trip charge (default from the upload)',
-          },
-          {
-            name: 'csidoFee',
-            in: 'query' as const,
-            required: false,
-            schema: { type: 'number' as const },
-            description: 'Delivery-only (CSIDO) fee (default from the rates)',
-          },
-          {
-            name: 'maxTrips',
-            in: 'query' as const,
-            required: false,
-            schema: { type: 'integer' as const },
-            description: 'Charged trips per salesperson per day (default 2)',
+            description: 'YYYYMM; empty = all months',
           },
         ],
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.transportRules,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/revenue-dashboard/transport-rules',
+        operationId: 'saveRevenueDashboardTransportRules',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Save the transport rule toggles (admin) and recalculate the revenue of the active upload for the whole dashboard',
+        security: 'bearerAuth' as const,
         responses: [200, 400, 401, 403, 500],
-        handlers: revenueDashboardHandlers.transportReview,
+        handlers: revenueDashboardHandlers.saveTransportRules,
       },
       {
         method: 'get' as const,

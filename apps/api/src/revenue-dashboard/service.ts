@@ -1,8 +1,21 @@
 import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
 import { z } from 'zod';
-import { buildTransportReview, type RepairRevenue } from './transport-review.js';
+import {
+  computeTransport,
+  lineAdjustments,
+  presetOf,
+  summarise,
+  type RulesPreset,
+} from './transport-rules.js';
+import {
+  applyTransportRevenue,
+  getTransportRules,
+  listTransportLines,
+  saveTransportRules,
+  transportTotals,
+} from '../../../../packages/db/src/revenue-transport-rules.js';
 import { createHash, randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import {
   type DandiPricingInput,
   revenueFilterQuerySchema,
@@ -132,6 +145,8 @@ export function createRevenueDashboardService(pool: Pool) {
       if ('rates' in parsed) {
         await insertRevenueLines(client, batch.id, parsed.lines);
         await insertSheetRows(client, batch.id, parsed.sheets);
+        // Apply the portal's transport rules to the new upload (modification #249).
+        await applyRulesToBatch(client, batch.id);
       } else await insertBudgetLines(client, batch.id, parsed.lines);
       // A budget upload also refreshes the budget version Budget Variance reads, so both
       // tabs show the same figures (modification #134).
@@ -587,76 +602,167 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
-  // Transport review (test), modification #249: the new transport rule applied to the CSIDI
-  // sheet stored with the active master workbook upload. Read-only; existing figures unchanged.
-  const transportQuerySchema = z.object({
-    month: z.coerce.number().int().min(0).max(299912).optional(),
-    dubai: z.coerce.number().min(0).max(10000).optional(),
-    sharjah: z.coerce.number().min(0).max(10000).optional(),
-    csidoFee: z.coerce.number().min(0).max(10000).optional(),
-    maxTrips: z.coerce.number().int().min(1).max(10).optional(),
+  // Transport rules (2-trip daily cap), modification #249. The master workbook carries the rule; an
+  // admin can switch three toggles that recalculate revenue_lines.revenue for the whole dashboard.
+  async function applyRulesToBatch(client: PoolClient, batchId: string) {
+    const stored = await getTransportRules(client);
+    const rows = await listSheetRows(client, batchId, 'CSIDI');
+    const lines = await listTransportLines(client, batchId);
+    if (!rows.length) {
+      await applyTransportRevenue(client, batchId, []);
+      return { unmatched: 0, invoices: 0 };
+    }
+    const calc = computeTransport(rows, stored);
+    const { updates, unmatched } = lineAdjustments(calc, lines);
+    await applyTransportRevenue(client, batchId, updates);
+    return { unmatched, invoices: calc.invoices.length };
+  }
+
+  const rulesInputSchema = z.object({
+    dailyCap: z.boolean(),
+    deliveryOnlyCap: z.boolean(),
+    mixedInvoiceTransport: z.boolean(),
+    maxTrips: z.number().int().min(1).max(10).default(2),
   });
-  async function transportReview(query: Record<string, unknown>) {
-    const q = transportQuerySchema.parse(
-      Object.fromEntries(Object.entries(query).filter(([, v]) => v !== undefined && v !== '')),
-    );
+
+  function bannerOf(preset: RulesPreset, workbookRule: 'new' | 'old' | null) {
+    const label =
+      preset === 'new_master'
+        ? 'Transport rules: new master logic (2-trip daily cap, delivery-only outside the cap)'
+        : preset === 'old_master'
+          ? 'Transport rules: old master logic (no daily cap)'
+          : 'Custom transport rules: figures differ from the master workbook';
+    const matches =
+      workbookRule === null ||
+      (preset === 'new_master'
+        ? workbookRule === 'new'
+        : preset === 'old_master'
+          ? workbookRule === 'old'
+          : false);
+    return { label, matchesWorkbook: matches };
+  }
+
+  async function transportRules(query: Record<string, unknown>) {
+    const month = Number(query.month) || null;
     const client = await pool.connect();
     try {
-      const batch = await findActiveBatch(client, 'revenue');
-      if (!batch) return { batch: null, notice: 'No master workbook has been uploaded yet.' };
-      const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
-      const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
-      const trip = (region: string, fallback: number) =>
-        rules.deliveryInstall.transport.find((t) => t.region.toLowerCase() === region)?.roundTrip ??
-        fallback;
-      const settings = {
-        dubai: q.dubai ?? trip('dubai', 60),
-        sharjah: q.sharjah ?? trip('sharjah', 90),
-        csidoFee: q.csidoFee ?? rules.rates.find((r) => r.jobType === 'CSIDO')?.price ?? 100,
-        maxTrips: q.maxTrips ?? 2,
+      const stored = await getTransportRules(client);
+      const rules = {
+        dailyCap: stored.dailyCap,
+        deliveryOnlyCap: stored.deliveryOnlyCap,
+        mixedInvoiceTransport: stored.mixedInvoiceTransport,
+        maxTrips: stored.maxTrips,
       };
+      const preset = presetOf(rules);
+      const batch = await findActiveBatch(client, 'revenue');
+      const base = {
+        rules,
+        preset,
+        updatedAt: stored.updatedAt,
+        updatedByName: stored.updatedByName,
+      };
+      if (!batch)
+        return { ...base, batch: null, ...bannerOf(preset, null), appliedToActive: false };
       const rows = await listSheetRows(client, batch.id, 'CSIDI');
-      if (!rows.length)
-        return {
-          batch,
-          settings,
-          notice:
-            'This upload has no stored CSIDI sheet. Upload the master workbook again to see the transport review.',
-        };
-      const sums = await client.query<{ job_type: string; month: number; revenue: string }>(
-        `SELECT job_type, (year * 100 + month_no)::int AS month, SUM(revenue)::text AS revenue
-           FROM revenue_lines
-          WHERE batch_id = $1 AND job_type IN ('CSIJW', 'CSIJO', 'CSIDI', 'CSIDO', 'CSIII')
-            AND year IS NOT NULL AND month_no IS NOT NULL
-          GROUP BY job_type, year, month_no`,
-        [batch.id],
-      );
-      const repairs: RepairRevenue[] = sums.rows
-        .filter((r) => r.job_type === 'CSIJW' || r.job_type === 'CSIJO')
-        .map((r) => ({
-          jobType: r.job_type as 'CSIJW' | 'CSIJO',
-          month: r.month,
-          revenue: Number(r.revenue),
-        }));
-      const month = q.month ? q.month : null;
-      const review = buildTransportReview(rows, settings, { month, repairs });
-      // Delivery / installation revenue the dashboard reports today (Revenue Source), to show
-      // that the review starts from the same figures.
-      const reported = sums.rows
-        .filter((r) => !r.job_type.startsWith('CSIJ') && (month === null || r.month === month))
-        .reduce((s, r) => s + Number(r.revenue), 0);
+      const calc = rows.length ? computeTransport(rows, rules) : null;
+      const workbookRule = calc?.workbookRule ?? null;
+      const totals = await transportTotals(client, batch.id);
+      const inPeriodMonth = (m: number) => month === null || m === month;
+      const inPeriod = (date: string) =>
+        month === null || Number(date.slice(0, 4)) * 100 + Number(date.slice(5, 7)) === month;
+      const pick = (t: string, k: 'workbook' | 'current') =>
+        totals
+          .filter((x) => x.jobType === t && inPeriodMonth(x.month))
+          .reduce((s, x) => s + x[k], 0);
+      const repairs = { CSIJW: pick('CSIJW', 'current'), CSIJO: pick('CSIJO', 'current') };
+      const summary = calc ? summarise(calc, repairs, inPeriod, rules.maxTrips) : null;
+      const sumAll = (k: 'workbook' | 'current') =>
+        Math.round(
+          totals.filter((x) => inPeriodMonth(x.month)).reduce((s, x) => s + x[k], 0) * 100,
+        ) / 100;
+      // Revenue Source in the uploaded file should equal the CSIDI sheet (Excel recalculation done before upload).
+      let notRecalculated = false;
+      if (calc) {
+        const sheetDandI = rows.reduce((s, r) => {
+          const t = String(r.data['Pricing Type'] ?? '');
+          const v = r.data['Proposed Revenue'];
+          return ['CSIDI', 'CSIDO', 'CSIII'].includes(t) &&
+            typeof v === 'number' &&
+            r.data['Inv/Del No']
+            ? s + v
+            : s;
+        }, 0);
+        const linesDandI = totals
+          .filter((x) => ['CSIDI', 'CSIDO', 'CSIII'].includes(x.jobType))
+          .reduce((s, x) => s + x.workbook, 0);
+        notRecalculated = Math.abs(sheetDandI - linesDandI) > 1;
+      }
+      const days = calc
+        ? Object.values(
+            calc.invoices
+              .filter((i) => i.rank !== null && inPeriod(i.date))
+              .reduce<
+                Record<string, { date: string; salesperson: string; trips: typeof calc.invoices }>
+              >((acc, i) => {
+                const k = `${i.date}|${i.salesperson}`;
+                (acc[k] ??= { date: i.date, salesperson: i.salesperson, trips: [] }).trips.push(i);
+                return acc;
+              }, {}),
+          )
+            .map((d) => ({
+              ...d,
+              trips: d.trips.sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0)),
+              overCap: d.trips.length > rules.maxTrips,
+            }))
+            .sort(
+              (a, b) => b.date.localeCompare(a.date) || a.salesperson.localeCompare(b.salesperson),
+            )
+            .slice(0, 300)
+        : [];
       return {
-        batch,
-        ...review,
-        reconciliation: {
-          deliveryInstallReported: Math.round(reported * 100) / 100,
-          deliveryInstallFromSheet: review.kpis.deliveryInstallCurrent,
-          difference: Math.round((review.kpis.deliveryInstallCurrent - reported) * 100) / 100,
+        ...base,
+        batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
+        workbookRule,
+        ...bannerOf(preset, workbookRule),
+        appliedToActive: stored.appliedBatchId === String(batch.id),
+        notRecalculated,
+        period: month,
+        totals: {
+          workbook: sumAll('workbook'),
+          current: sumAll('current'),
+          change: Math.round((sumAll('current') - sumAll('workbook')) * 100) / 100,
         },
+        summary,
+        days,
+        notice: rows.length
+          ? null
+          : 'This upload has no stored CSIDI sheet. Upload the master workbook again so the transport rules can be applied.',
       };
     } finally {
       client.release();
     }
+  }
+
+  async function saveTransportRulesAndApply(body: unknown, profileId: string) {
+    const input = rulesInputSchema.parse(body);
+    await withTransaction(pool, async (client) => {
+      await saveTransportRules(client, input, profileId);
+      const batch = await findActiveBatch(client, 'revenue');
+      const applied = batch ? await applyRulesToBatch(client, batch.id) : null;
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.transport_rules_changed',
+        targetType: 'revenue_transport_rules',
+        targetId: '1',
+        metadata: {
+          ...input,
+          preset: presetOf(input),
+          batchId: batch?.id ?? null,
+          unmatched: applied?.unmatched ?? null,
+        },
+      });
+    });
+    return transportRules({});
   }
 
   return {
@@ -679,7 +785,8 @@ export function createRevenueDashboardService(pool: Pool) {
     logicInvoices,
     logicExample,
     recordActivity,
-    transportReview,
+    transportRules,
+    saveTransportRulesAndApply,
   };
 }
 

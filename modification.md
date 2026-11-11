@@ -5185,23 +5185,26 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.
 
 
-## Modification #249 — Transport review (test): new trip rule calculated in the portal (read-only)
+## Modification #249 — Transport rules: 2-trip daily cap with portal-wide admin toggles
 
-**Date:** 2026-11-10
+**Date:** 2026-11-11
 
-**Why.** Phase 2 of the transport / trip plan (Project doc claude/transport-trip-logic-plan-2026-11-10.md). The Head of Service wants to review the new transport rule for 2 weeks before it replaces the current one. The test workbook (Dashboard (New), Trip Calc (Test)) already calculates it; the portal must give the same figures so a review tab can be built on top (Phase 3).
+**Why.** Decided with the Head of Service (Project doc claude/transport-trip-logic-plan-2026-11-10.md): transport was charged per invoice, so one salesperson could pay transport many times a day although Service runs only 2 delivery rounds, which can make sales GP negative. The master workbook now carries the new rule (Service_Dashboard_Master_ACC_OCT_22_Final_NewTransportRule.xlsm). The portal must follow it, and an admin must be able to recalculate the whole Service Revenue Dashboard with other settings, including a full revert to the old logic, to show management.
 
-**The rule.** Every CSIDI or CSIDO invoice is one trip: an invoice with any CSIDI line is charged the regional trip rate (Dubai 60 / Sharjah 90), a delivery-only invoice is charged the CSIDO fee (100), which is its trip charge. Per salesperson per day only the 2 highest trip charges are charged (equal charges: lower invoice number first). A CSIDI invoice beyond the 2 still pays its unit prices; a delivery-only invoice beyond the 2 pays nothing. CSIII is never a trip. Unit prices do not change. Transport is reported as its own line.
+**The rule (new master).** A CSIDI invoice with more than 1 unit pays the regional trip charge (Dubai 60 / Sharjah 90); a single-unit CSIDI invoice pays no transport (its standard rate includes it); a mixed CSIDI + CSIDO invoice pays one regional charge on its CSIDO line; a delivery-only invoice pays its AED 100. Per salesperson per day only the 2 highest installation transport charges are charged (equal: lower invoice number first); delivery-only invoices are outside the cap. CSIII never. With the cap off this is exactly the old logic.
 
 **What changed.**
 
-- New read-only endpoint `GET /api/revenue-dashboard/transport-review` (permission revenue_dashboard.read). Optional `month` (YYYYMM, 0 = all), and test settings `dubai`, `sharjah`, `csidoFee`, `maxTrips`. Defaults come from the active upload: the regional transport table and the CSIDO rate (after the admin flat-rate override, as the rest of the dashboard), cap 2.
-- It reads the CSIDI sheet rows already stored with the active master workbook upload (modification #247) and the repair revenue (CSIJW, CSIJO) from revenue_lines. Returns key figures, revenue by job type (current vs new, transport on its own line), month by month, salespeople, salesperson-days with each trip (rank, charged or not), and a reconciliation against the delivery / installation revenue the dashboard reports today.
-- If the upload has no stored CSIDI sheet, it says the master workbook must be uploaded again.
-- The calculation is a separate pure module (apps/api/src/revenue-dashboard/transport-review.ts) that mirrors the test workbook's 'Trip Calc (Test)' columns. Nothing existing changes: no migration, no change to the parser, stored revenue or any existing endpoint.
-- Checked against the real master file (Service_Dashboard_Master_ACC_OCT_22_Final.xlsm, uploaded through the normal import): all months current 112,950.25 / new 111,240.25; Oct transport + CSIDO fee 6,780 -> 9,000, Nov 1,180 -> 1,780; trips charged 310, not charged 208, dropped 14,340, salesperson-days over 2 trips 77; reconciliation difference 0. Identical to the test workbook.
-- Tests: unit (the worked examples: third invoice of the day, Sharjah first, 100 + 60, delivery-only beyond the cap, CSIII, months / period / repairs / settings, bad rows) and integration (stored rows come back in sheet order and feed the review).
+- Three toggles, stored once for the whole portal (table revenue_transport_rules), changed only with the new permission revenue_dashboard.transport_rules (admin):
+  - **2-trip daily cap** - ON: at most 2 charged installation trips per salesperson per day (new master). OFF: no daily limit (old master).
+  - **Delivery-only cap** (only with the cap ON) - ON: delivery-only invoices count toward the 2 (strictest). OFF: they always pay their AED 100 (new master).
+  - **Mixed-invoice transport** - ON: 1 installed unit + delivery-only items pays 60/90 (as today). OFF: no transport on these invoices.
+- revenue_lines.workbook_revenue (new) keeps the revenue exactly as uploaded; revenue_lines.revenue is the figure under the toggles, so every existing report (job types, months, salespeople, budget, exports, Ask AI) follows the toggles without SQL changes. Recalculated after every upload and every toggle save. The adjustment is worked out per invoice and put on its carrying line (the CSIDI line with transport, or the CSIDO line), from the stored revenue lines, so a workbook whose Revenue Source was not recalculated in Excel is still handled correctly.
+- Works with both masters: the new master's "Transport Before Cap" / "Revenue Before Cap" columns give the old figures; an older master's Transport Charge / Proposed Revenue are the old figures.
+- `GET /api/revenue-dashboard/transport-rules` (revenue_dashboard.read): active toggles, preset (new_master / old_master / custom), banner text, whether it matches the uploaded workbook, whether Excel recalculated the file, workbook vs current totals, revenue split by job type with transport as its own line, salesperson-days with each trip (rank, charged or not). `PUT` (admin): save and recalculate.
+- Migration 095. Replaces the read-only test endpoint of PR #170 (never merged).
+- Checked through the normal upload with both real masters: default toggles 112,050.25 (= the new Excel); cap OFF 112,950.25 (= old figures); strict 105,840.25; mixed OFF 111,060.25; a new master not saved in Excel is flagged and still gives 112,050.25.
 
-**Files.** apps/api/src/revenue-dashboard/transport-review.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests/unit/transport-review.test.ts, tests/integration/transport-review-rows.test.ts, modification.md.
+**Files.** packages/db/migrations/095_revenue_transport_rules.sql, packages/db/src/revenue-transport-rules.ts, apps/api/src/revenue-dashboard/transport-rules.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests/unit/transport-rules.test.ts, tests/integration/transport-rules-db.test.ts, modification.md.
 
-**Needs you:** pull and restart the API. No migration. Nothing visible yet: the review tab is Phase 3.
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
