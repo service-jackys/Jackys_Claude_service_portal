@@ -45,6 +45,7 @@ import {
   revenueExportLines,
   revenueGroup,
   revenueInvoiceLines,
+  revenueInvoiceSalesPersons,
   revenueInvoiceList,
   revenueLines,
   revenueLinesForBatch,
@@ -485,8 +486,12 @@ export function createRevenueDashboardService(pool: Pool) {
     const client = await pool.connect();
     try {
       const batch = await findActiveBatch(client, 'revenue');
-      if (!batch) return { batch: null, invoices: [] };
-      return { batch, invoices: await revenueInvoiceList(client, batch.id, filters, 300) };
+      if (!batch) return { batch: null, invoices: [], salesPersons: [] };
+      return {
+        batch,
+        invoices: await revenueInvoiceList(client, batch.id, filters, 300),
+        salesPersons: await revenueInvoiceSalesPersons(client, batch.id, filters),
+      };
     } finally {
       client.release();
     }

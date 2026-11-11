@@ -520,6 +520,7 @@ export type RevenueInvoiceRow = {
   customer: string | null;
   date: string | null;
   jobTypes: string[];
+  salesPerson: string | null;
   lines: number;
   revenue: number;
 };
@@ -538,11 +539,13 @@ export async function revenueInvoiceList(
     customer: string | null;
     date: string | null;
     jobTypes: string[];
+    salesPerson: string | null;
     lines: string;
     revenue: string;
   }>(
     `SELECT inv_del_no AS invoice, MAX(customer) AS customer, MIN(order_date)::text AS date,
             array_agg(DISTINCT job_type ORDER BY job_type) AS "jobTypes",
+            MAX(NULLIF(sales_person, '')) AS "salesPerson",
             COUNT(*) AS lines, COALESCE(SUM(revenue), 0) AS revenue
      FROM revenue_lines WHERE ${f.where} AND inv_del_no IS NOT NULL AND inv_del_no <> ''
      GROUP BY inv_del_no
@@ -554,6 +557,23 @@ export async function revenueInvoiceList(
     lines: Number(r.lines),
     revenue: Number(r.revenue),
   }));
+}
+
+// Sales persons with invoices under the given filters (the sales person filter itself ignored),
+// for the worked-example picker (#253).
+export async function revenueInvoiceSalesPersons(
+  client: PoolClient,
+  batchId: string,
+  filters: RevenueFilters,
+): Promise<string[]> {
+  const f = filterClause(batchId, filters, { ignore: ['salesPerson'] });
+  const rows = await client.query<{ name: string }>(
+    `SELECT DISTINCT ${REVENUE_DIMENSIONS.salesPerson} AS name
+       FROM revenue_lines WHERE ${f.where} AND inv_del_no IS NOT NULL AND inv_del_no <> ''
+      ORDER BY 1`,
+    f.params,
+  );
+  return rows.rows.map((r) => r.name);
 }
 
 // Every line (all job types) of the given invoices, in workbook order.

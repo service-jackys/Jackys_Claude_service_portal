@@ -5210,6 +5210,23 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #253 — Worked example: pick by sales person
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked to look at the worked example by sales person for a chosen year, month or week, besides picking one invoice or pasting numbers.
+
+**What changed.**
+
+- New "Sales person" box in Logic applied > Worked example, next to Job type. Its choices follow the year, month, week and job type chosen ("No sales person" for lines without one). The Invoice list then shows only that sales person's invoices, and each invoice in the list now shows its sales person.
+- "Show all N invoices of <name>" button (with a sales person chosen and more than one invoice): opens all the listed invoices at once, oldest first, at most the latest 20, each with its pricing and Transport note. Choosing a week shows a salesperson's days with trip 1, 2, 3 and which were not charged.
+- The "N invoices match" line stays visible after an invoice is opened.
+- API: GET /api/revenue-dashboard/logic/invoices accepts salesPerson (already part of the revenue filters) and also returns salesPersons for the other filters.
+
+**Files.** packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** with #252: pull, restart the API, hard-refresh the browser.
+
 ## Modification #252 — Worked example says why transport was or was not charged
 
 **Date:** 2026-11-11

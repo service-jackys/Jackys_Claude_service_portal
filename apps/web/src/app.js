@@ -28732,12 +28732,13 @@ ${bodyHtml}
           ) +
           liveSel('week', 'Week', liveOpts.weeks, (v) => 'Wk ' + v) +
           liveSel('jobType', 'Job type', liveOpts.jobTypes) +
+          '<div class="th-field rl-sp"><label>Sales person<select data-rl-f="salesPerson" title="Show only this sales person\u2019s invoices for the chosen year, month, week and job type"><option value="">All</option></select></label></div>' +
           '<div class="th-field rl-grow"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice no." /></label></div>' +
           '</div><div class="rl-live-bar">' +
           '<div class="th-field rl-grow rl-wide"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
           '<div class="th-field rl-grow"><label for="rlPaste">Or paste invoice number(s)</label><span class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083, 16101084" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></span></div>' +
           '</div>' +
-          '<p class="form-note rl-live-msg" data-rl-msg></p></div>' +
+          '<div class="rl-live-foot"><p class="form-note rl-live-msg" data-rl-msg></p><button type="button" class="button button-outline rl-show-all" data-rl-all hidden>Show all listed invoices</button></div></div>' +
           '<div data-rl-out class="rl-out">' +
           (example ? exampleTable(example) : '') +
           '</div>',
@@ -28982,13 +28983,36 @@ ${bodyHtml}
       const liveMsg = body.querySelector('[data-rl-msg]');
       const pick = body.querySelector('[data-rl-pick]');
       const pasteInput = body.querySelector('[data-rl-paste]');
-      const lf = { year: '', month: '', week: '', jobType: '', search: '' };
+      const lf = { year: '', month: '', week: '', jobType: '', salesPerson: '', search: '' };
+      const spSel = body.querySelector('[data-rl-f="salesPerson"]');
+      const allButton = body.querySelector('[data-rl-all]');
+      let listed = [];
+      let countMsg = '';
+      // Sales person choices follow the other filters (#253); keep the choice when still listed.
+      const fillSalesPersons = (names) => {
+        const keep = lf.salesPerson;
+        const list = keep && !names.includes(keep) ? [keep, ...names] : names;
+        spSel.innerHTML =
+          '<option value="">All</option>' +
+          list
+            .map(
+              (n) =>
+                '<option value="' +
+                e(n) +
+                '"' +
+                (n === keep ? ' selected' : '') +
+                '>' +
+                e(n === 'UNASSIGNED' ? 'No sales person' : n) +
+                '</option>',
+            )
+            .join('');
+      };
       let liveSeq = 0;
       const showExamples = (res) => {
         liveRoot.innerHTML = res.examples.map(exampleTable).join('');
         liveMsg.textContent = res.notFound.length
           ? 'Not found in the active upload: ' + res.notFound.join(', ')
-          : '';
+          : countMsg;
         if (!res.examples.length && !res.notFound.length) liveRoot.innerHTML = '';
       };
       // After a paste, make the Invoice box show what was loaded instead of the
@@ -29041,6 +29065,14 @@ ${bodyHtml}
         try {
           const res = await rdApi('logic/invoices', lf);
           const list = res.invoices || [];
+          fillSalesPersons(res.salesPersons || []);
+          listed = list.map((i) => i.invoice);
+          allButton.hidden = !(lf.salesPerson && list.length > 1);
+          allButton.textContent =
+            'Show ' +
+            (list.length > 20 ? 'the latest 20' : 'all ' + list.length) +
+            ' invoices of ' +
+            (lf.salesPerson === 'UNASSIGNED' ? 'no sales person' : lf.salesPerson);
           pick.innerHTML = list.length
             ? list
                 .map(
@@ -29054,6 +29086,7 @@ ${bodyHtml}
                         (i.customer || 'No customer') +
                         ' · ' +
                         (i.date || '') +
+                        (i.salesPerson ? ' · ' + i.salesPerson : '') +
                         ' · ' +
                         i.jobTypes.join('/') +
                         ' · \u20C3 ' +
@@ -29063,9 +29096,10 @@ ${bodyHtml}
                 )
                 .join('')
             : '<option value="">No invoices match</option>';
-          liveMsg.textContent = list.length
+          countMsg = list.length
             ? rdMoney(list.length) + (list.length >= 300 ? '+' : '') + ' invoices match.'
             : '';
+          liveMsg.textContent = countMsg;
           if (list.length) await loadExample(list[0].invoice);
           else liveRoot.innerHTML = '';
         } catch (error) {
@@ -29092,6 +29126,11 @@ ${bodyHtml}
         else control.addEventListener('change', apply);
       });
       pick.addEventListener('change', () => pick.value && loadExample(pick.value));
+      allButton.addEventListener('click', () => {
+        if (!listed.length) return;
+        // Oldest first, so a salesperson's day reads in order (at most 20 at a time).
+        loadExample(listed.slice(0, 20).reverse().join(','));
+      });
       const loadPasted = () => {
         const text = pasteInput.value.trim();
         if (text) loadExample(text, true);
