@@ -201,6 +201,37 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    transportRules: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.transportRules(request.query as Record<string, unknown>));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    saveTransportRules: [
+      requirePermission('revenue_dashboard.transport_rules'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(await service.saveTransportRulesAndApply(request.body, auth.profileId));
+        } catch (error) {
+          if (error instanceof Error && error.name === 'ZodError') {
+            problem(
+              response,
+              400,
+              'invalid-transport-rules',
+              'Bad Request',
+              'Send dailyCap, deliveryOnlyCap and mixedInvoiceTransport as true or false.',
+            );
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     logicExample: [
       requirePermission('revenue_dashboard.tab_logic'),
       async (request, response, next) => {

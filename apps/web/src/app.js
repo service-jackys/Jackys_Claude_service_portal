@@ -24965,6 +24965,267 @@ ${bodyHtml}
 
   // Upload card, shown only to users who may upload. `kind` is
   // 'revenue' or 'budget'; onDone re-renders the page.
+  // Transport rules (2-trip daily cap), modification #249: banner and flags for everyone, the three
+  // portal-wide toggles for admins. Saving recalculates every dashboard figure.
+  const RD_RULE_TOGGLES = [
+    {
+      key: 'dailyCap',
+      label: '2-trip daily cap',
+      on: 'Each salesperson pays transport for at most 2 installation trips a day: the 2 highest charges. Further trips that day pay no transport, but keep their unit prices. (New master logic)',
+      off: 'No daily limit. Every invoice pays transport as it does today. (Old master logic)',
+    },
+    {
+      key: 'deliveryOnlyCap',
+      label: 'Delivery-only cap',
+      note: 'Only works when the 2-trip daily cap is ON.',
+      on: 'Delivery-only invoices count toward the 2 trips. Beyond the 2, their AED 100 fee is not charged. (Strictest)',
+      off: 'Delivery-only invoices always pay their AED 100 fee and never use one of the 2 trips. (New master logic)',
+    },
+    {
+      key: 'mixedInvoiceTransport',
+      label: 'Mixed-invoice transport',
+      on: 'An invoice with 1 installed unit plus delivery-only items pays the regional transport (Dubai 60 / Sharjah 90) for the extra items. (As today; new and old master logic)',
+      off: 'These invoices pay no transport. The installed unit’s standard rate covers the delivery-only items too.',
+    },
+  ];
+  let rdTransportInfo = null; // last transport-rules response, for the job-type note
+
+  function rdTransportNote() {
+    const info = rdTransportInfo;
+    if (!info?.summary || !Array.isArray(info.summary.byJobType)) return '';
+    const t = info.summary.byJobType.find((x) => x.key === 'TRANSPORT');
+    return (
+      '<p class="form-note rd-pad">Includes transport (trip charges) of \u20C3 ' +
+      rdMoney(t?.current || 0) +
+      ' for the whole upload under the active transport rules (' +
+      escapeHtml(info.label) +
+      '). See Transport rules above for the split by line.</p>'
+    );
+  }
+
+  async function rdTransportRulesCard(host, F, onSaved) {
+    const wrap = document.createElement('div');
+    host.appendChild(wrap);
+    const month = F.year && F.month ? Number(F.year) * 100 + Number(F.month) : '';
+    let data;
+    try {
+      data = await apiRequest(
+        '/api/revenue-dashboard/transport-rules' + (month ? '?month=' + month : ''),
+      );
+    } catch {
+      wrap.innerHTML = '';
+      rdTransportInfo = null;
+      return;
+    }
+    if (!data || !data.rules || typeof data.rules !== 'object') {
+      // Unexpected answer: show nothing rather than break the dashboard.
+      wrap.innerHTML = '';
+      rdTransportInfo = null;
+      return;
+    }
+    rdTransportInfo = data;
+    const canEdit = hasPermission('revenue_dashboard.transport_rules');
+    const r = data.rules;
+    const flags = [];
+    if (!data.batch) flags.push(['info', 'No master workbook uploaded yet.']);
+    else {
+      if (!data.matchesWorkbook && data.preset !== 'custom')
+        flags.push([
+          'warn',
+          'Figures differ from the uploaded master workbook (it uses the ' +
+            (data.workbookRule === 'new' ? 'new' : 'old') +
+            ' logic).',
+        ]);
+      if (data.notRecalculated)
+        flags.push([
+          'warn',
+          'The uploaded workbook was not recalculated in Excel before upload, so its own totals still show the old figures. The dashboard applies the rule correctly; upload a copy saved in Excel to make both match.',
+        ]);
+      if (!data.appliedToActive && data.batch)
+        flags.push([
+          'warn',
+          'Not yet applied to the current upload. An admin can press "Save and recalculate".',
+        ]);
+      if (data.notice) flags.push(['warn', data.notice]);
+    }
+    const chip =
+      data.preset === 'new_master' ? 'new' : data.preset === 'old_master' ? 'old' : 'custom';
+    const money = (v) => '⃃ ' + rdMoney(v || 0);
+    const sum = data.summary;
+    const totals = data.totals;
+    const split = sum
+      ? '<div class="table-wrap"><table class="rc-table rd-rules-table"><thead><tr><th>Revenue (' +
+        (month ? escapeHtml(RD_MONTHS_FULL[Number(F.month) - 1] + ' ' + F.year) : 'all months') +
+        ')</th><th class="num">Uploaded workbook</th><th class="num">These rules</th><th class="num">Change</th></tr></thead><tbody>' +
+        sum.byJobType
+          .map(
+            (x) =>
+              '<tr' +
+              (x.key === 'TRANSPORT' ? ' class="rd-rules-transport"' : '') +
+              '><td>' +
+              escapeHtml(x.label) +
+              '</td><td class="num">' +
+              money(x.workbook) +
+              '</td><td class="num">' +
+              money(x.current) +
+              '</td><td class="num">' +
+              (x.change ? money(x.change) : '&ndash;') +
+              '</td></tr>',
+          )
+          .join('') +
+        '<tr class="rd-rules-total"><td>Total service revenue</td><td class="num">' +
+        money(sum.workbookTotal) +
+        '</td><td class="num">' +
+        money(sum.currentTotal) +
+        '</td><td class="num">' +
+        (sum.change ? money(sum.change) : '&ndash;') +
+        '</td></tr></tbody></table></div>' +
+        '<p class="form-note">Transport is shown on its own line (taken out of the CSIDI and CSIDO lines). ' +
+        sum.tripsNotCharged +
+        ' installation trip(s) not charged on ' +
+        sum.daysOverCap +
+        ' salesperson-day(s) with more than ' +
+        r.maxTrips +
+        ' trips; ' +
+        money(sum.droppedCharges) +
+        ' not charged.</p>'
+      : '';
+    const overDays = (data.days || []).filter((d) => d.overCap);
+    const days = overDays.length
+      ? '<details class="rd-rules-days"><summary>Salesperson-days with more than ' +
+        r.maxTrips +
+        ' installation trips (' +
+        overDays.length +
+        ')</summary><div class="table-wrap"><table class="rc-table"><thead><tr><th>Date</th><th>Salesperson</th><th>Invoice</th><th>Trip</th><th class="num">Charge</th><th>Status</th></tr></thead><tbody>' +
+        overDays
+          .flatMap((d) =>
+            d.trips.map(
+              (t, i) =>
+                '<tr><td>' +
+                (i ? '' : escapeHtml(d.date)) +
+                '</td><td>' +
+                (i ? '' : escapeHtml(d.salesperson)) +
+                '</td><td>' +
+                escapeHtml(t.invoice) +
+                '</td><td>' +
+                (t.kind === 'delivery'
+                  ? 'Delivery-only'
+                  : t.carrier === 'CSIDO'
+                    ? 'Mixed'
+                    : 'Installation') +
+                '</td><td class="num">' +
+                money(t.charge) +
+                '</td><td>' +
+                (t.charged
+                  ? 'Charged (' + t.rank + ')'
+                  : '<span class="rd-rules-dropped">Not charged (' + t.rank + ')</span>') +
+                '</td></tr>',
+            ),
+          )
+          .join('') +
+        '</tbody></table></div></details>'
+      : '';
+    const toggles = RD_RULE_TOGGLES.map((t) => {
+      const value = !!r[t.key];
+      const disabled = t.key === 'deliveryOnlyCap' && !r.dailyCap;
+      const help = 'ON: ' + t.on + '\nOFF: ' + t.off + (t.note ? '\n' + t.note : '');
+      return (
+        '<div class="rd-rule-toggle" title="' +
+        escapeHtml(help) +
+        '"><label class="rd-switch"><input type="checkbox" data-rd-rule="' +
+        t.key +
+        '"' +
+        (value ? ' checked' : '') +
+        (canEdit ? '' : ' disabled') +
+        (disabled && canEdit ? ' data-rd-rule-muted="1"' : '') +
+        ' /><span>' +
+        escapeHtml(t.label) +
+        '</span><b class="rd-rule-state">' +
+        (value ? 'ON' : 'OFF') +
+        '</b></label><p class="rd-rule-help">' +
+        escapeHtml(value ? t.on : t.off) +
+        (t.note ? ' <em>' + escapeHtml(t.note) + '</em>' : '') +
+        '</p></div>'
+      );
+    }).join('');
+    wrap.innerHTML =
+      '<div class="rc-section rd-rules-card"><div class="rc-section-head"><span>Transport rules</span><span class="rd-rules-chip rd-rules-' +
+      chip +
+      '">' +
+      escapeHtml(data.label) +
+      '</span></div><div class="rd-pad">' +
+      flags
+        .map(
+          ([k, t]) => '<p class="rd-rules-flag rd-rules-flag-' + k + '">' + escapeHtml(t) + '</p>',
+        )
+        .join('') +
+      (totals
+        ? '<p class="rd-rules-summary">Uploaded workbook <b>' +
+          money(totals.workbook) +
+          '</b> &middot; Dashboard under these rules <b>' +
+          money(totals.current) +
+          '</b>' +
+          (totals.change ? ' &middot; Change <b>' + money(totals.change) + '</b>' : '') +
+          '</p>'
+        : '') +
+      '<div class="rd-rule-toggles">' +
+      toggles +
+      '</div>' +
+      (canEdit
+        ? '<div class="rd-rule-actions"><button type="button" class="button button-outline" data-rd-preset="new">New master</button><button type="button" class="button button-outline" data-rd-preset="old">Old master</button><button type="button" class="button" data-rd-rules-save>Save and recalculate</button><span class="form-note" data-rd-rules-msg></span></div>'
+        : '<p class="form-note">Only an administrator can change these settings. Last changed ' +
+          escapeHtml(data.updatedByName ? 'by ' + data.updatedByName : '') +
+          '.</p>') +
+      split +
+      days +
+      '</div></div>';
+    if (!canEdit) return;
+    const box = (k) => wrap.querySelector('[data-rd-rule="' + k + '"]');
+    const sync = () => {
+      const cap = box('dailyCap').checked;
+      box('deliveryOnlyCap').disabled = !cap;
+      wrap.querySelectorAll('.rd-rule-toggle').forEach((el, i) => {
+        const t = RD_RULE_TOGGLES[i];
+        const on = box(t.key).checked;
+        el.querySelector('.rd-rule-state').textContent = on ? 'ON' : 'OFF';
+        el.querySelector('.rd-rule-help').innerHTML =
+          escapeHtml(on ? t.on : t.off) + (t.note ? ' <em>' + escapeHtml(t.note) + '</em>' : '');
+      });
+    };
+    sync();
+    wrap.querySelectorAll('[data-rd-rule]').forEach((el) => el.addEventListener('change', sync));
+    wrap.querySelectorAll('[data-rd-preset]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const isNew = b.dataset.rdPreset === 'new';
+        box('dailyCap').checked = isNew;
+        box('deliveryOnlyCap').checked = false;
+        box('mixedInvoiceTransport').checked = true;
+        sync();
+      }),
+    );
+    wrap.querySelector('[data-rd-rules-save]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      const msg = wrap.querySelector('[data-rd-rules-msg]');
+      button.disabled = true;
+      msg.textContent = 'Recalculating the dashboard…';
+      try {
+        await apiRequest('/api/revenue-dashboard/transport-rules', {
+          method: 'PUT',
+          body: JSON.stringify({
+            dailyCap: box('dailyCap').checked,
+            deliveryOnlyCap: box('dailyCap').checked && box('deliveryOnlyCap').checked,
+            mixedInvoiceTransport: box('mixedInvoiceTransport').checked,
+            maxTrips: r.maxTrips,
+          }),
+        });
+        onSaved();
+      } catch (error) {
+        msg.textContent = error.message;
+        button.disabled = false;
+      }
+    });
+  }
+
   function rdUploadCard(host, kind, onDone) {
     if (!hasPermission('revenue_dashboard.write')) return;
     const label =
@@ -26516,7 +26777,8 @@ ${bodyHtml}
                   ')</td></tr>',
               )
               .join('') +
-            '</tbody></table></div>',
+            '</tbody></table></div>' +
+            rdTransportNote(),
         ) +
         '<div class="card-help rd-pad"><span>About this view</span>' +
         tipHtml(
@@ -26656,7 +26918,10 @@ ${bodyHtml}
             '</tbody></table></div>',
         ) +
         '</div>' +
-        rdSection('Job type detail', rdGroupTable(byType.data, 'jobType', { title: 'Job type' })) +
+        rdSection(
+          'Job type detail',
+          rdGroupTable(byType.data, 'jobType', { title: 'Job type' }) + rdTransportNote(),
+        ) +
         rdSection(
           'Jobs',
           '<div class="rd-pad"><label class="rd-search">Search<input type="search" data-rd-search value="' +
@@ -28725,6 +28990,11 @@ ${bodyHtml}
         banner.innerHTML = rdSourceBanner(sum.batch, 'revenue');
         top.appendChild(banner);
         rdUploadCard(top, 'revenue', () => renderRevenueDashboard(root));
+        try {
+          await rdTransportRulesCard(top, F, () => renderRevenueDashboard(root));
+        } catch {
+          rdTransportInfo = null; // the transport rules panel must never stop the dashboard
+        }
         if (!allowedTabs.length) {
           tabsEl.innerHTML = '';
           barEl.innerHTML = '';

@@ -934,6 +934,14 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        transportRules: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        saveTransportRules: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
       };
   const attachmentHandlers = pool
     ? createAttachmentHandlers(createAttachmentService(pool), requirePermission)
@@ -3566,6 +3574,37 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.logicInvoices,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/transport-rules',
+        operationId: 'getRevenueDashboardTransportRules',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Transport rules (2-trip daily cap toggles): active setting, banner, workbook vs current revenue, trips per salesperson-day',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'month',
+            in: 'query' as const,
+            required: false,
+            schema: { type: 'integer' as const },
+            description: 'YYYYMM; empty = all months',
+          },
+        ],
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.transportRules,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/revenue-dashboard/transport-rules',
+        operationId: 'saveRevenueDashboardTransportRules',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Save the transport rule toggles (admin) and recalculate the revenue of the active upload for the whole dashboard',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.saveTransportRules,
       },
       {
         method: 'get' as const,
