@@ -65,6 +65,7 @@ import {
   buildWorkedExample,
   rulesOfBatch,
   type LogicSummaryLine,
+  type WorkedExample,
 } from './logic-summary.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { buildRevenueViewWorkbook } from './view-export.js';
@@ -709,15 +710,13 @@ export function createRevenueDashboardService(pool: Pool) {
         .map((x) => {
           const ex = buildWorkedExample(rules, x.invoice, x.set);
           const jobTypes = [...new Set(x.set.map((l) => l.jobType))];
-          return {
-            ...ex,
-            transport: transportNote(
-              transport,
-              x.invoice,
-              jobTypes,
-              Math.round((current.get(x.invoice) ?? 0) * 100) / 100,
-            ),
-          };
+          const note = transportNote(
+            transport,
+            x.invoice,
+            jobTypes,
+            Math.round((current.get(x.invoice) ?? 0) * 100) / 100,
+          );
+          return { ...capWording(ex, note), transport: note };
         });
       const found = new Set(examples.map((e) => e.invoice));
       return { batch, examples, notFound: invoices.filter((i) => !found.has(i)) };
@@ -788,6 +787,40 @@ export function createRevenueDashboardService(pool: Pool) {
       currentCharge: i.scenario,
       delta: i.delta,
     };
+  }
+
+  // Worked example wording under the daily trip cap (#256). The rate card has no cap, so a trip the
+  // cap left uncharged looked like "transport missing from the workbook". Say what happened instead.
+  function capWording(ex: WorkedExample, note: ReturnType<typeof transportNote>): WorkedExample {
+    if (!note || !('status' in note) || note.status !== 'over_cap') return ex;
+    const n = note as Extract<typeof note, { rank: unknown }>;
+    const aed = 'AED ' + String(Math.round(Number(n.charge) * 100) / 100);
+    const capText = n.maxTrips + '-trip daily cap';
+    // The line agrees with the rules once the cap is taken into account: no warning on it;
+    // the Transport note and the bullet below explain the missing charge.
+    const lines = ex.lines.map((l) => {
+      if (l.checkDiff === undefined || Math.abs(l.checkDiff - Number(n.charge)) > 0.01) return l;
+      const { check: _check, checkDiff: _d, checkCause: _c, ...rest } = l;
+      void _check;
+      void _d;
+      void _c;
+      return rest;
+    });
+    const notes = ex.notes.map((t) => {
+      if (!t.startsWith('Transport:')) return t;
+      return n.carrier === 'CSIDI'
+        ? 'Transport: ' +
+            aed +
+            ' would be added once for this invoice (more than 1 unit), but the ' +
+            capText +
+            ' leaves it uncharged (see below).'
+        : 'Transport: the regional rate (' +
+            aed +
+            ') on the delivery-only line pays for the shared visit, but the ' +
+            capText +
+            ' leaves it uncharged (see below).';
+    });
+    return { ...ex, lines, notes };
   }
 
   async function withActive<T>(

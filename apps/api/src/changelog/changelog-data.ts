@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 256,
+    "title": "Worked example: no \"transport missing\" warning for trips the cap left uncharged",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "With the new master, invoices whose transport the 2-trip daily cap left uncharged no longer show \"the once-per-invoice transport is missing from the workbook row\".",
+    "changes": [
+      "The line warning is dropped when the difference is exactly the trip the cap left uncharged.",
+      "The Transport bullet says the charge would be added once but the 2-trip daily cap leaves it uncharged."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/logic-summary.ts, apps/api/src/revenue-dashboard/service.ts, modification.md."
+  },
+  {
     "id": 255,
     "title": "Sales person transport view in the worked example",
     "area": "Revenue",

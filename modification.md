@@ -5210,6 +5210,23 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #256 — Worked example: no "transport missing" warning for trips the cap left uncharged
+
+**Date:** 2026-11-11
+
+**Why.** After uploading the new master (saved in Excel), invoice 16101431 still showed "Rules give AED 174; the workbook shows AED 114 — the once-per-invoice transport is missing from the workbook row". The workbook is right: it was the 3rd installation trip of the day and the 2-trip daily cap leaves it uncharged. The worked example re-priced the line with the rate card, which has no cap.
+
+**What changed.**
+
+- When the Transport note says the trip was not charged under the daily cap, the line's warning is removed if the difference is exactly that trip charge.
+- The "Transport:" bullet now reads: "AED 60 would be added once for this invoice (more than 1 unit), but the 2-trip daily cap leaves it uncharged (see below)." For a mixed invoice (charge on the delivery-only line) the bullet says the same for the regional rate.
+- Other differences (older rates, missing charges unrelated to the cap) still show their warning.
+- Example lines carry the rules-minus-workbook amount and cause of a warning (checkDiff, checkCause) for this comparison.
+
+**Files.** apps/api/src/revenue-dashboard/logic-summary.ts, apps/api/src/revenue-dashboard/service.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh the browser. No migration.
+
 ## Modification #255 — Sales person transport view in the worked example
 
 **Date:** 2026-11-11

@@ -54,6 +54,10 @@ export type ExampleLine = {
   how: string;
   /** Set when the rules rebuild a different figure than the workbook shows. */
   check?: string;
+  /** Rules minus workbook for that line, when check is set (#256). */
+  checkDiff?: number;
+  /** Cause of the difference, when check is set (#256). */
+  checkCause?: string;
 };
 
 export type WorkedExample = {
@@ -262,10 +266,13 @@ export function buildWorkedExample(
           billingCode: l.billingCode,
           pricing: l.pricing,
         });
-        if (e.rebuilt !== null && Math.abs(e.reconcileDiff ?? 0) > 0.01)
+        if (e.rebuilt !== null && Math.abs(e.reconcileDiff ?? 0) > 0.01) {
+          out.checkDiff = round2(e.rebuilt - l.revenue);
+          out.checkCause = e.diffCause ?? undefined;
           out.check =
             `Rules give ${money(e.rebuilt)}; the workbook shows ${money(l.revenue)}` +
             (CAUSE_TEXT[e.diffCause] ? ` — ${CAUSE_TEXT[e.diffCause]}` : '');
+        }
       }
       return out;
     }),
