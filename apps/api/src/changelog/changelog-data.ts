@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 250,
+    "title": "Transport rules panel on the Service Revenue Dashboard",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "Everyone sees the active transport rules at the top of the Service Revenue Dashboard, and an admin can switch the three toggles there to recalculate every figure (modification #249 holds the logic).",
+    "changes": [
+      "New Transport rules panel (all tabs): banner chip (new master, old master or custom rules), flags, workbook vs dashboard totals, revenue split with Transport as its own line, salesperson-days with more than 2 trips.",
+      "Admins get the three switches with ON / OFF explanations, New master / Old master shortcuts and Save and recalculate; everyone else sees them read-only.",
+      "Job type tables carry a note with the transport included under the active rules. The panel can never stop the dashboard."
+    ],
+    "needsYou": "with #249: pull, migrate, restart, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/transport-rules.spec.ts, modification.md."
+  },
+  {
     "id": 249,
     "title": "Transport rules: 2-trip daily cap with admin toggles for the whole dashboard",
     "area": "Revenue",
@@ -27,7 +44,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "Every dashboard figure follows the toggles; the uploaded workbook revenue is kept unchanged alongside.",
       "Default toggles equal the new master (112,050.25 on the 22 Oct file); cap off equals the old figures (112,950.25)."
     ],
-    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, upload the new master saved in Excel. The toggles screen follows next.",
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, upload the new master saved in Excel.",
     "migrations": [
       "095_revenue_transport_rules.sql"
     ],

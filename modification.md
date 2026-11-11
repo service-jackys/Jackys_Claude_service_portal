@@ -5208,3 +5208,27 @@ Display only; no pricing formulas, API or database changes.
 **Files.** packages/db/migrations/095_revenue_transport_rules.sql, packages/db/src/revenue-transport-rules.ts, apps/api/src/revenue-dashboard/transport-rules.ts (new), service.ts, routes.ts, apps/api/src/api/route-catalog.ts, packages/db/src/workbook-sheets.ts, tests/unit/transport-rules.test.ts, tests/integration/transport-rules-db.test.ts, modification.md.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
+
+
+## Modification #250 — Transport rules panel on the Service Revenue Dashboard
+
+**Date:** 2026-11-11
+
+**Why.** Step 3 of the transport plan: show the active transport rules to everyone and let an admin switch the three toggles from the dashboard itself, to show management the effect (modification #249 holds the logic).
+
+**What changed.**
+
+- New "Transport rules" panel at the top of the Service Revenue Dashboard (all tabs), for everyone who can see the dashboard:
+  - Banner chip: "new master logic", "old master logic" or "Custom transport rules: figures differ from the master workbook".
+  - Flags: figures differ from the uploaded master workbook (and which logic the file uses); the uploaded workbook was not recalculated in Excel; rules not yet applied to the current upload; no stored CSIDI sheet.
+  - Uploaded workbook total vs dashboard total under the rules, and the change.
+  - Revenue split: repairs, CSIDI + CSIII unit prices, CSIDO delivery-only fees and **Transport - trip charges as its own line** (uploaded workbook / these rules / change), for the month chosen in the filters or all months.
+  - Expandable list of salesperson-days with more than 2 installation trips, each trip with its rank and Charged / Not charged.
+- The three toggles with their ON / OFF explanations (tooltip and text under each): 2-trip daily cap, Delivery-only cap (disabled while the cap is off), Mixed-invoice transport. Admins (revenue_dashboard.transport_rules) get the switches, "New master" / "Old master" shortcuts and "Save and recalculate" (recalculates every figure for everyone). Others see the settings read-only and who changed them last.
+- Job type tables (Overview "Job type breakdown" and Reports "Job type detail"): a note with the transport included under the active rules.
+- The panel can never stop the dashboard: an error or unexpected answer just hides it.
+- e2e: tests/e2e/transport-rules.spec.ts (admin saves cap off; read-only for others). Checked in a browser against the local API with the real 22 Oct master: every dashboard figure follows the toggles (default 112,050; cap off 112,950).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html (styles), tests/e2e/transport-rules.spec.ts, modification.md.
+
+**Needs you:** with #249: pull, migrate, restart, hard-refresh the browser.
