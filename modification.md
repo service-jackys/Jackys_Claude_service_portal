@@ -5210,6 +5210,23 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #257 — Sales person view: a Show group lists all its invoices; tinted figure tiles
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked that clicking a Show group (All, Not charged, Charged, Delivery only, No transport) loads every invoice of that group below for checking, instead of opening them one by one from the Invoice list, and that the three figure tiles get a light colour each.
+
+**What changed.**
+
+- Clicking a Show group lists all its invoices below, oldest first, each with its pricing and Transport note, under a heading such as "Charged invoices · RENEESH JOSE · November 2026 — Showing 7 of 7 · oldest first". Large groups load 20 at a time with a "Show next 20" button.
+- The Invoice list and paste box stay for checking a single invoice; choosing one replaces the list with that invoice. Changing the year, month, week or job type keeps the chosen group and lists it again.
+- The "Show all invoices of <name>" button is no longer shown when the sales person panel is open (the groups do the same).
+- The three figure tiles are separate cards with a thin border and a light shade: teal for trips charged, amber for trips not charged, indigo for days over the cap (dark theme included).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** pull and hard-refresh the browser. No migration, no API restart.
+
 ## Modification #256 — Worked example: no "transport missing" warning for trips the cap left uncharged
 
 **Date:** 2026-11-11

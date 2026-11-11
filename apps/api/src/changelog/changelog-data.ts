@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 257,
+    "title": "Sales person view: a Show group lists all its invoices; tinted figure tiles",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "In Logic applied > Worked example, clicking All, Not charged, Charged, Delivery only or No transport lists every invoice of that group below for checking.",
+    "changes": [
+      "Invoices load oldest first, 20 at a time, each with its pricing and Transport note; the Invoice list stays for single checks.",
+      "The three figure tiles have a thin border and a light teal, amber and indigo shade."
+    ],
+    "needsYou": "pull and hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 256,
     "title": "Worked example: no \"transport missing\" warning for trips the cap left uncharged",
     "area": "Revenue",

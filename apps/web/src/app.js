@@ -29108,6 +29108,66 @@ ${bodyHtml}
           if (seq === liveSeq) liveMsg.textContent = error.message || 'Could not load the invoice.';
         }
       };
+      // ---- Every invoice of a Show group, 20 at a time (#257) -------------------
+      const BULK = 20;
+      let bulk = null;
+      const showBulk = async (reset) => {
+        if (reset) bulk = { list: listed.slice().reverse(), shown: 0 };
+        if (!bulk) return;
+        const next = bulk.list.slice(bulk.shown, bulk.shown + BULK);
+        const label = (SP_SHOW.find((x) => x[0] === spShow) || SP_SHOW[0])[1];
+        const who = lf.salesPerson === 'UNASSIGNED' ? 'No sales person' : lf.salesPerson;
+        if (!next.length) {
+          liveRoot.innerHTML =
+            '<p class="sp-empty">No ' + e(label.toLowerCase()) + ' invoices in this period.</p>';
+          return;
+        }
+        const seq = ++liveSeq;
+        const more = liveRoot.querySelector('[data-sp-more]');
+        if (more) {
+          more.disabled = true;
+          more.textContent = 'Loading…';
+        } else liveMsg.textContent = 'Loading…';
+        try {
+          const res = await rdApi('logic/example', { invoices: next.join(',') });
+          if (seq !== liveSeq || !bulk) return;
+          bulk.shown += next.length;
+          const cards = res.examples.map(exampleTable).join('');
+          const head =
+            '<div class="sp-list-hd"><div><b>' +
+            e(label === 'All' ? 'All invoices' : label + ' invoices') +
+            '</b> · ' +
+            e(who) +
+            ' · ' +
+            e(spPeriod()) +
+            '</div><span data-sp-count></span></div>';
+          if (bulk.shown <= BULK)
+            liveRoot.innerHTML = head + '<div data-sp-cards>' + cards + '</div>';
+          else liveRoot.querySelector('[data-sp-cards]').insertAdjacentHTML('beforeend', cards);
+          liveRoot.querySelector('[data-sp-more]')?.remove();
+          liveRoot.querySelector('[data-sp-count]').textContent =
+            'Showing ' + bulk.shown + ' of ' + bulk.list.length + ' · oldest first';
+          if (bulk.shown < bulk.list.length) {
+            liveRoot.insertAdjacentHTML(
+              'beforeend',
+              '<div class="sp-more-row"><button type="button" class="sp-btn" data-sp-more>Show next ' +
+                Math.min(BULK, bulk.list.length - bulk.shown) +
+                ' · ' +
+                bulk.shown +
+                ' of ' +
+                bulk.list.length +
+                ' shown</button></div>',
+            );
+            liveRoot
+              .querySelector('[data-sp-more]')
+              .addEventListener('click', () => showBulk(false));
+          }
+          liveMsg.textContent = countMsg;
+        } catch (error) {
+          if (seq === liveSeq)
+            liveMsg.textContent = error.message || 'Could not load the invoices.';
+        }
+      };
       // ---- Sales person transport view (#255) --------------------------------
       const spHost = body.querySelector('[data-rl-sp]');
       let spData = null;
@@ -29210,19 +29270,19 @@ ${bodyHtml}
           '</div></div>' +
           (d.sheetMissing
             ? '<p class="sp-empty">This upload has no stored CSIDI sheet. Upload the master workbook again to see the trips.</p>'
-            : '<div class="sp-stats"><div class="sp-stat"><div class="sp-l">Installation trips charged</div><div class="sp-v">' +
+            : '<div class="sp-stats"><div class="sp-stat t-charged"><div class="sp-l">Installation trips charged</div><div class="sp-v">' +
               rdMoney(d.counts.charged) +
               '<small>of ' +
               rdMoney(d.installTrips) +
               '</small></div><div class="sp-bar"><i style="width:' +
               pct +
-              '%"></i></div></div><div class="sp-stat' +
+              '%"></i></div></div><div class="sp-stat t-not' +
               (d.counts.notCharged ? ' warn' : '') +
               '"><div class="sp-l">Trips not charged</div><div class="sp-v">' +
               rdMoney(d.counts.notCharged) +
               '<small>\u20C3 ' +
               rdMoney2(d.notChargedAmount).replace(/\.00$/, '') +
-              '</small></div></div><div class="sp-stat"><div class="sp-l">Days over the cap</div><div class="sp-v">' +
+              '</small></div></div><div class="sp-stat t-days"><div class="sp-l">Days over the cap</div><div class="sp-v">' +
               d.overDays.length +
               '<small>of ' +
               d.days +
@@ -29242,14 +29302,15 @@ ${bodyHtml}
                   rdMoney(d.counts[c]) +
                   '</i></button>',
               ).join('') +
-              '</div><span class="sp-hint">Click an invoice to open it below</span></div>' +
+              '</div><span class="sp-hint">Choose a group to list all its invoices below</span></div>' +
               table) +
           '</section>';
         spHost.querySelectorAll('[data-sp-show]').forEach((b) =>
           b.addEventListener('click', () => {
             spShow = b.dataset.spShow;
             drawSp();
-            renderPick(true);
+            // Load every invoice of the group below, oldest first (#257).
+            renderPick(false).then(() => showBulk(true));
           }),
         );
         spHost.querySelectorAll('[data-sp-inv]').forEach((b) =>
@@ -29313,7 +29374,7 @@ ${bodyHtml}
           spData && spShow !== 'all'
             ? ' ' + SP_SHOW.find((x) => x[0] === spShow)[1].toLowerCase()
             : '';
-        allButton.hidden = !(lf.salesPerson && list.length > 1);
+        allButton.hidden = Boolean(spData) || !(lf.salesPerson && list.length > 1);
         allButton.textContent =
           'Show ' +
           (list.length > 20 ? 'the latest 20' : 'all ' + list.length) +
@@ -29366,7 +29427,14 @@ ${bodyHtml}
           pickerAll = res.invoices || [];
           fillSalesPersons(res.salesPersons || []);
           if (spShow !== 'all' && !spData) spShow = 'all';
-          await renderPick(true);
+          // A Show group already chosen keeps listing all its invoices; otherwise open the first.
+          if (spShow !== 'all') {
+            await renderPick(false);
+            await showBulk(true);
+          } else {
+            bulk = null;
+            await renderPick(true);
+          }
         } catch (error) {
           pick.innerHTML = '<option value="">—</option>';
           liveMsg.textContent = error.message || 'Could not load invoices.';
@@ -29390,7 +29458,10 @@ ${bodyHtml}
           });
         else control.addEventListener('change', apply);
       });
-      pick.addEventListener('change', () => pick.value && loadExample(pick.value));
+      pick.addEventListener('change', () => {
+        bulk = null;
+        if (pick.value) loadExample(pick.value);
+      });
       allButton.addEventListener('click', () => {
         if (!listed.length) return;
         // Oldest first, so a salesperson's day reads in order (at most 20 at a time).
@@ -29398,7 +29469,9 @@ ${bodyHtml}
       });
       const loadPasted = () => {
         const text = pasteInput.value.trim();
-        if (text) loadExample(text, true);
+        if (!text) return;
+        bulk = null;
+        loadExample(text, true);
       };
       body.querySelector('[data-rl-load]').addEventListener('click', loadPasted);
       pasteInput.addEventListener('keydown', (event) => {
