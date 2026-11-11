@@ -11296,7 +11296,7 @@ ${bodyHtml}
       flatHost.innerHTML =
         '<h4>Flat job-type rates (\u20C3, incl. VAT)</h4>' +
         '<p class="form-note">Fixed charge per job for the revenue streams that are not priced per appliance. ' +
-        'These replace the values from the uploaded workbook on Service Revenue Dashboard &gt; Logic applied.</p>';
+        'These replace the values from the uploaded workbook on Service Revenue Dashboard &gt; Rate card.</p>';
       grid.appendChild(flatHost);
       const flatFields = document.createElement('div');
       flatHost.appendChild(flatFields);
@@ -26613,7 +26613,10 @@ ${bodyHtml}
     const F = { year: '', month: '', week: '', jobType: '', channel: '', costStatus: '' };
     const allowedTabs = revenueTabs();
     // Transport rules tab (#251): for everyone who can open the dashboard; switches are admin only.
-    const shownTabs = allowedTabs.length ? [...allowedTabs, 'transport'] : [];
+    // Rate card tab (#254): the rates and the workbook check, moved out of Logic applied.
+    const shownTabs = allowedTabs.length
+      ? [...allowedTabs, ...(allowedTabs.includes('logic') ? ['rates'] : []), 'transport']
+      : [];
     let tab = allowedTabs[0] || 'overview';
     let reportView = 'drill';
     let drill = { path: [], groupBy: null, page: 1, search: '' };
@@ -26650,6 +26653,7 @@ ${bodyHtml}
           ['explorer', 'Explorer'],
           ['reports', 'Reports'],
           ['logic', 'Logic applied'],
+          ['rates', 'Rate card'],
           ['transport', 'Transport rules'],
         ]
           .filter(([id]) => shownTabs.includes(id))
@@ -28506,7 +28510,7 @@ ${bodyHtml}
     // -------------------------------------------------------------------- main
     // ------------------------------------------------------------ Logic applied
     // Plain-language rules, live figures and a worked example for management.
-    async function drawLogic(sum) {
+    async function drawLogic(sum, ratesOnly = false) {
       barEl.innerHTML = '';
       const res = await rdApi('logic');
       const d = res.data;
@@ -28800,6 +28804,37 @@ ${bodyHtml}
         '</div></div>';
 
       const di = M.deliveryInstall;
+      // Daily trip cap (#254), from the transport rules in force (Transport rules tab).
+      const tc = d.transportCap;
+      const capRows = !tc
+        ? []
+        : [
+            {
+              cells: [
+                'Daily trip cap',
+                tc.rules.dailyCap
+                  ? 'Each salesperson pays transport for at most ' +
+                    tc.rules.maxTrips +
+                    ' installation trips a day (the highest charges). ' +
+                    (tc.rules.deliveryOnlyCap
+                      ? 'Delivery-only invoices count toward the trips.'
+                      : 'Delivery-only fees are outside the cap.')
+                  : 'Off: every invoice pays transport (old master logic).',
+                tc.rules.dailyCap ? tc.rules.maxTrips + ' trips' : '&ndash;',
+              ],
+            },
+            ...(tc.rules.mixedInvoiceTransport
+              ? []
+              : [
+                  {
+                    cells: [
+                      'Mixed-invoice transport',
+                      'Off: an invoice with 1 installed unit plus delivery-only items pays no transport.',
+                      '0.00',
+                    ],
+                  },
+                ]),
+          ];
       const ratesHtml =
         '<div class="rd-two-col">' +
         rdSection(
@@ -28885,7 +28920,8 @@ ${bodyHtml}
                         rdMoney2(d.csidoFlat),
                       ],
                     },
-                  ]),
+                  ])
+                  .concat(capRows),
                 [2],
               ),
               'Sharjah = city containing SHJ or SHARJAH; otherwise Dubai',
@@ -28913,6 +28949,16 @@ ${bodyHtml}
                   aed(rec.differenceAmount) +
                   '</b> in total (workbook minus rules). The workbook keeps earlier rows as locked history and does not recalculate them when a rate changes.'
                 : 'All lines agree with the rules.') +
+              (tc
+                ? ' This check uses the figures before the daily trip cap.' +
+                  (tc.tripsNotCharged
+                    ? ' The cap in force leaves ' +
+                      rdMoney(tc.tripsNotCharged) +
+                      ' trip(s) uncharged, ' +
+                      aed(tc.notCharged) +
+                      ' in total; see the Transport rules tab.'
+                    : '')
+                : '') +
               '</p>' +
               (rec.causes.length
                 ? table(
@@ -28932,6 +28978,18 @@ ${bodyHtml}
           )
         : '';
 
+      const footNote =
+        '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
+      if (ratesOnly) {
+        body.innerHTML =
+          '<div class="rl-hero"><div><h2>Rate card</h2><p>The rates, volume discounts and once-per-invoice charges read from the uploaded master workbook, and how the workbook compares with these rules.</p></div><div class="rl-hero-meta"><span class="rl-chip muted">' +
+          e(d.batch.fileName) +
+          '</span></div></div>' +
+          ratesHtml +
+          recHtml +
+          footNote;
+        return;
+      }
       body.innerHTML =
         '<div class="rl-hero"><div><h2>How revenue is calculated</h2><p>Every revenue figure in this dashboard is the amount calculated in the master workbook. This page explains the rules behind it in plain language, with live figures from the data you uploaded.</p></div><div class="rl-hero-meta"><span class="rl-chip">' +
         (v3 ? 'Invoice-level rules' : 'Earlier per-line rules') +
@@ -28974,9 +29032,7 @@ ${bodyHtml}
           : '<p class="form-note">This workbook uses the earlier per-line rules. The rates below are read from it; the Revenue Logic sheet of the Excel export lists the detail.</p>') +
         rdSection(zeroTitle, zeroHtml) +
         exampleHtml +
-        ratesHtml +
-        recHtml +
-        '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
+        '<p class="form-note rl-foot">The rate card (job-type rates, volume discounts, delivery + installation and installation-only rates, once-per-invoice charges) and the workbook check are on the Rate card tab.</p>';
 
       // ---- Worked example: filters -> invoice picker -> calculation; or paste.
       const liveRoot = body.querySelector('[data-rl-out]');
@@ -29201,8 +29257,8 @@ ${bodyHtml}
           }
         }
         drawTabs();
-        if (tab === 'logic') {
-          await drawLogic(sum);
+        if (tab === 'logic' || tab === 'rates') {
+          await drawLogic(sum, tab === 'rates');
           return;
         }
         drawFilterBar(sum.summary.options);

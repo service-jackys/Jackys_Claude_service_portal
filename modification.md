@@ -5210,6 +5210,24 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #254 — Rate card moved to its own tab
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked to move the rate card out of Logic applied into its own tab between Logic applied and Transport rules, so Logic applied ends with the worked example.
+
+**What changed.**
+
+- New "Rate card" tab between Logic applied and Transport rules (same access as Logic applied). It holds Job-type rates, Volume discount, the CSIDI and CSIII rate cards, Once-per-invoice charges and "How the workbook compares with these rules".
+- Logic applied now ends with "Worked example — pick any invoice" (a one-line pointer to the Rate card tab below it).
+- Once-per-invoice charges has a "Daily trip cap" row from the transport rules in force (2 trips, delivery-only outside the cap; or Off), and a Mixed-invoice transport row when that switch is off.
+- Fix: since #249 the workbook check compared the dashboard figures (after the trip cap) with the rate card, so it reported the 15 capped trips (-900) as "locked rows kept at an older rate". It now compares the figures before the cap (all lines agree on the 22 Oct master) and states the cap separately: "The cap in force leaves 15 trip(s) uncharged, AED 900 in total; see the Transport rules tab." This also works with the new master, whose own figures already carry the cap.
+- Pricing Masters flat-rate note now points to the Rate card tab.
+
+**Files.** apps/web/src/app.js, apps/api/src/revenue-dashboard/service.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh the browser. No migration.
+
 ## Modification #253 — Worked example: pick by sales person
 
 **Date:** 2026-11-11

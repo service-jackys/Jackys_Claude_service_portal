@@ -462,12 +462,47 @@ export function createRevenueDashboardService(pool: Pool) {
   async function logic() {
     return withActive(async (client, batchId) => {
       const batch = await findActiveBatch(client, 'revenue');
-      const lines = (await revenueExportLines(client, batchId, {}, 50000)) as LogicSummaryLine[];
-      return buildLogicSummary(
-        batch!,
-        lines.map(toLogicLine),
-        (await pricing.get('dandi_pricing')).payload as DandiPricingInput,
+      const lines = (await revenueExportLines(client, batchId, {}, 50000)) as (LogicSummaryLine & {
+        id?: unknown;
+      })[];
+      const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+      const summary = buildLogicSummary(batch!, lines.map(toLogicLine), dandi);
+      // The workbook check re-prices lines with the rate card, which has no daily trip cap
+      // (#254). Compare it with the line figures before the cap, and report the cap apart.
+      const sheet = await listSheetRows(client, batchId, 'CSIDI');
+      if (!sheet.length) return { ...summary, transportCap: null };
+      const tLines = await listTransportLines(client, batchId);
+      const noCap = computeTransport(sheet, {
+        dailyCap: false,
+        deliveryOnlyCap: false,
+        mixedInvoiceTransport: true,
+        maxTrips: 2,
+      });
+      const before = new Map(
+        lineAdjustments(noCap, tLines).updates.map((u) => [String(u.id), u.revenue]),
       );
+      const wb = new Map(tLines.map((l) => [String(l.id), l.workbookRevenue]));
+      const preCap = lines.map((l) => {
+        const id = String(l.id);
+        return toLogicLine({
+          ...l,
+          revenue: before.has(id) ? before.get(id)! : wb.has(id) ? wb.get(id)! : l.revenue,
+        });
+      });
+      const check = buildLogicSummary(batch!, preCap, dandi);
+      const rules = await getTransportRules(client);
+      const calc = computeTransport(sheet, rules);
+      const dropped = calc.invoices.filter((i) => !i.charged && i.charge > 0);
+      return {
+        ...summary,
+        reconciliation: check.reconciliation,
+        transportCap: {
+          rules,
+          preset: presetOf(rules),
+          tripsNotCharged: dropped.length,
+          notCharged: Math.round(dropped.reduce((t, i) => t + i.charge, 0) * 100) / 100,
+        },
+      };
     });
   }
 

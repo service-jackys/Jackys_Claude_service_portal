@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 254,
+    "title": "Rate card moved to its own tab",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "The rates, volume discounts, once-per-invoice charges and the workbook check now have their own Rate card tab between Logic applied and Transport rules.",
+    "changes": [
+      "Logic applied ends with the worked example.",
+      "Once-per-invoice charges shows the daily trip cap in force.",
+      "The workbook check compares the figures before the trip cap and states the cap separately (it had shown the capped trips as differences)."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/api/src/revenue-dashboard/service.ts, modification.md."
+  },
+  {
     "id": 253,
     "title": "Worked example: pick by sales person",
     "area": "Revenue",
