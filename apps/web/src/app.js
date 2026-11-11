@@ -28573,6 +28573,96 @@ ${bodyHtml}
           .join('') +
         '</tbody></table></div>';
 
+      // Transport note on a worked example (#252): why transport was or was not charged,
+      // under the transport rules in force, and the dashboard figure when it differs.
+      const transportFlag = (ex) => {
+        const t = ex.transport;
+        if (!t) return '';
+        const amt = (n) => '\u20C3 ' + rdMoney2(n).replace(/\.00$/, '');
+        const who = t.salesperson ? ' for ' + t.salesperson + ' on ' + t.date : '';
+        const trip = t.rank ? 'trip ' + t.rank + ' of ' + t.trips + who : '';
+        const top =
+          'only the ' +
+          t.maxTrips +
+          ' highest transport charges of a salesperson’s day are charged';
+        const mixed = t.mixedSingle
+          ? ' It has 1 installed unit plus delivery-only items, so the regional charge pays for the extra items.'
+          : '';
+        let kind = 'ok';
+        let text = '';
+        switch (t.status) {
+          case 'charged':
+            text = amt(t.charge) + ' charged: ' + trip + ' (' + top + ').' + mixed;
+            break;
+          case 'over_cap':
+            kind = 'warn';
+            text =
+              'No transport charged under the 2-trip daily cap: this was ' +
+              trip +
+              ', and ' +
+              top +
+              '. ' +
+              amt(t.charge) +
+              ' not charged; the unit prices stay as they are.';
+            break;
+          case 'charged_no_cap':
+            text = amt(t.charge) + ' charged (no daily cap in force).' + mixed;
+            break;
+          case 'mixed_off':
+            kind = 'warn';
+            text =
+              'No transport: 1 installed unit plus delivery-only items, and Mixed-invoice transport is switched OFF, so the unit’s standard rate covers the delivery-only items.';
+            break;
+          case 'single_unit':
+            text =
+              'No transport: a single delivery + installation unit. Its standard rate already includes transport, so no trip charge is added.';
+            break;
+          case 'delivery_fee':
+            text =
+              'Delivery-only fee ' +
+              amt(t.charge) +
+              ' charged.' +
+              (t.rules && t.rules.dailyCap
+                ? ' Delivery-only invoices are outside the 2-trip daily cap.'
+                : '');
+            break;
+          case 'delivery_over_cap':
+            kind = 'warn';
+            text =
+              'Delivery-only fee ' +
+              amt(t.charge) +
+              ' not charged: this was ' +
+              trip +
+              ', and the Delivery-only cap is ON (' +
+              top +
+              ').';
+            break;
+          case 'installation_only':
+            text = 'No transport: installation only. Installation-only jobs never carry transport.';
+            break;
+          default:
+            text = 'No transport on this invoice.';
+        }
+        const differs = Math.abs((t.currentTotal || 0) - (ex.total || 0)) >= 0.005;
+        return (
+          '<div class="rl-transport rl-transport-' +
+          kind +
+          '"><b>Transport:</b> ' +
+          e(text) +
+          (differs
+            ? '<div class="rl-transport-total">Workbook total ' +
+              e(amt(ex.total)) +
+              ' · Dashboard under the current rules ' +
+              e(amt(t.currentTotal)) +
+              ' (change ' +
+              e(amt(t.currentTotal - ex.total)) +
+              ')</div>'
+            : '') +
+          '<div class="rl-transport-rules">' +
+          e(t.rulesLabel || '') +
+          '</div></div>'
+        );
+      };
       const exampleTable = (ex) =>
         '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
         e(ex.invoice) +
@@ -28612,6 +28702,7 @@ ${bodyHtml}
             ex.notes.map((n) => '<li>' + e(n) + '</li>').join('') +
             '</ul>'
           : '') +
+        transportFlag(ex) +
         '</div>';
       const liveOpts = (sum && sum.summary && sum.summary.options) || {};
       const liveSel = (name, label, values, labelFor) =>
@@ -28633,7 +28724,7 @@ ${bodyHtml}
         '</select></label></div>';
       const exampleHtml = rdSection(
         'Worked example &mdash; pick any invoice',
-        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures; a note shows where the current rules differ.</p>' +
+        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures. The Transport note under each invoice says why transport was or was not charged under the current transport rules, and the dashboard figure when it differs.</p>' +
           '<div class="rl-live-bar">' +
           liveSel('year', 'Year', liveOpts.years) +
           liveSel('month', 'Month', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], (v) =>
@@ -28641,12 +28732,13 @@ ${bodyHtml}
           ) +
           liveSel('week', 'Week', liveOpts.weeks, (v) => 'Wk ' + v) +
           liveSel('jobType', 'Job type', liveOpts.jobTypes) +
+          '<div class="th-field rl-sp"><label>Sales person<select data-rl-f="salesPerson" title="Show only this sales person\u2019s invoices for the chosen year, month, week and job type"><option value="">All</option></select></label></div>' +
           '<div class="th-field rl-grow"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice no." /></label></div>' +
           '</div><div class="rl-live-bar">' +
           '<div class="th-field rl-grow rl-wide"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
           '<div class="th-field rl-grow"><label for="rlPaste">Or paste invoice number(s)</label><span class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083, 16101084" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></span></div>' +
           '</div>' +
-          '<p class="form-note rl-live-msg" data-rl-msg></p></div>' +
+          '<div class="rl-live-foot"><p class="form-note rl-live-msg" data-rl-msg></p><button type="button" class="button button-outline rl-show-all" data-rl-all hidden>Show all listed invoices</button></div></div>' +
           '<div data-rl-out class="rl-out">' +
           (example ? exampleTable(example) : '') +
           '</div>',
@@ -28891,13 +28983,36 @@ ${bodyHtml}
       const liveMsg = body.querySelector('[data-rl-msg]');
       const pick = body.querySelector('[data-rl-pick]');
       const pasteInput = body.querySelector('[data-rl-paste]');
-      const lf = { year: '', month: '', week: '', jobType: '', search: '' };
+      const lf = { year: '', month: '', week: '', jobType: '', salesPerson: '', search: '' };
+      const spSel = body.querySelector('[data-rl-f="salesPerson"]');
+      const allButton = body.querySelector('[data-rl-all]');
+      let listed = [];
+      let countMsg = '';
+      // Sales person choices follow the other filters (#253); keep the choice when still listed.
+      const fillSalesPersons = (names) => {
+        const keep = lf.salesPerson;
+        const list = keep && !names.includes(keep) ? [keep, ...names] : names;
+        spSel.innerHTML =
+          '<option value="">All</option>' +
+          list
+            .map(
+              (n) =>
+                '<option value="' +
+                e(n) +
+                '"' +
+                (n === keep ? ' selected' : '') +
+                '>' +
+                e(n === 'UNASSIGNED' ? 'No sales person' : n) +
+                '</option>',
+            )
+            .join('');
+      };
       let liveSeq = 0;
       const showExamples = (res) => {
         liveRoot.innerHTML = res.examples.map(exampleTable).join('');
         liveMsg.textContent = res.notFound.length
           ? 'Not found in the active upload: ' + res.notFound.join(', ')
-          : '';
+          : countMsg;
         if (!res.examples.length && !res.notFound.length) liveRoot.innerHTML = '';
       };
       // After a paste, make the Invoice box show what was loaded instead of the
@@ -28950,6 +29065,14 @@ ${bodyHtml}
         try {
           const res = await rdApi('logic/invoices', lf);
           const list = res.invoices || [];
+          fillSalesPersons(res.salesPersons || []);
+          listed = list.map((i) => i.invoice);
+          allButton.hidden = !(lf.salesPerson && list.length > 1);
+          allButton.textContent =
+            'Show ' +
+            (list.length > 20 ? 'the latest 20' : 'all ' + list.length) +
+            ' invoices of ' +
+            (lf.salesPerson === 'UNASSIGNED' ? 'no sales person' : lf.salesPerson);
           pick.innerHTML = list.length
             ? list
                 .map(
@@ -28963,6 +29086,7 @@ ${bodyHtml}
                         (i.customer || 'No customer') +
                         ' · ' +
                         (i.date || '') +
+                        (i.salesPerson ? ' · ' + i.salesPerson : '') +
                         ' · ' +
                         i.jobTypes.join('/') +
                         ' · \u20C3 ' +
@@ -28972,9 +29096,10 @@ ${bodyHtml}
                 )
                 .join('')
             : '<option value="">No invoices match</option>';
-          liveMsg.textContent = list.length
+          countMsg = list.length
             ? rdMoney(list.length) + (list.length >= 300 ? '+' : '') + ' invoices match.'
             : '';
+          liveMsg.textContent = countMsg;
           if (list.length) await loadExample(list[0].invoice);
           else liveRoot.innerHTML = '';
         } catch (error) {
@@ -29001,6 +29126,11 @@ ${bodyHtml}
         else control.addEventListener('change', apply);
       });
       pick.addEventListener('change', () => pick.value && loadExample(pick.value));
+      allButton.addEventListener('click', () => {
+        if (!listed.length) return;
+        // Oldest first, so a salesperson's day reads in order (at most 20 at a time).
+        loadExample(listed.slice(0, 20).reverse().join(','));
+      });
       const loadPasted = () => {
         const text = pasteInput.value.trim();
         if (text) loadExample(text, true);

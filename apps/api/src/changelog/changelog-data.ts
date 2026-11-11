@@ -15,6 +15,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 253,
+    "title": "Worked example: pick by sales person",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "Logic applied > Worked example has a Sales person box: see that person's invoices for the chosen year, month or week, one at a time or all together.",
+    "changes": [
+      "Sales person choices follow the year, month, week and job type; the invoice list shows the sales person of each invoice.",
+      "Show all invoices of a sales person (latest 20, oldest first) with the Transport note on each, to see a day's trips."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
+    "id": 252,
+    "title": "Worked example says why transport was or was not charged",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "Under Logic applied > Worked example, every invoice now ends with a Transport note explaining the transport under the current rules.",
+    "changes": [
+      "Charged trips show their rank for the salesperson's day; trips over the 2-trip cap say the charge was dropped and show the workbook and dashboard totals.",
+      "Single-unit, delivery-only, mixed-invoice and installation-only invoices each say why no transport (or only the delivery fee) applies.",
+      "Line amounts are the uploaded workbook figures; the dashboard figure appears in the note when it differs."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/service.ts, packages/db/src/revenue-dashboard.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 251,
     "title": "Transport rules moved to their own tab",
     "area": "Revenue",

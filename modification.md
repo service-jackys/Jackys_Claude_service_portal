@@ -5210,6 +5210,45 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #253 — Worked example: pick by sales person
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked to look at the worked example by sales person for a chosen year, month or week, besides picking one invoice or pasting numbers.
+
+**What changed.**
+
+- New "Sales person" box in Logic applied > Worked example, next to Job type. Its choices follow the year, month, week and job type chosen ("No sales person" for lines without one). The Invoice list then shows only that sales person's invoices, and each invoice in the list now shows its sales person.
+- "Show all N invoices of <name>" button (with a sales person chosen and more than one invoice): opens all the listed invoices at once, oldest first, at most the latest 20, each with its pricing and Transport note. Choosing a week shows a salesperson's days with trip 1, 2, 3 and which were not charged.
+- The "N invoices match" line stays visible after an invoice is opened.
+- API: GET /api/revenue-dashboard/logic/invoices accepts salesPerson (already part of the revenue filters) and also returns salesPersons for the other filters.
+
+**Files.** packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** with #252: pull, restart the API, hard-refresh the browser.
+
+## Modification #252 — Worked example says why transport was or was not charged
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked that management and users checking an invoice under Logic applied > Worked example can see why transport was or was not charged under the new rule.
+
+**What changed.**
+
+- Every invoice in the worked example now ends with a Transport note (green when charged or not applicable, amber when the rules removed a charge):
+  - Charged: "AED 90 charged: trip 1 of 3 for RENEESH JOSE on 2026-11-10 (only the 2 highest transport charges of a salesperson's day are charged)."
+  - Over the cap: "No transport charged under the 2-trip daily cap: this was trip 3 of 3 for ... AED 60 not charged; the unit prices stay as they are." with "Workbook total / Dashboard under the current rules / change".
+  - Single unit: "No transport: a single delivery + installation unit. Its standard rate already includes transport."
+  - Delivery only: "Delivery-only fee AED 100 charged. Delivery-only invoices are outside the 2-trip daily cap." (or not charged when the Delivery-only cap is ON and it is over the 2 trips).
+  - Mixed 1-unit invoice with Mixed-invoice transport OFF; installation only (CSIII); no daily cap in force (old master logic).
+  - The active transport rules are named under each note.
+- The line amounts are the uploaded workbook figures again (they had shown the dashboard figure since #249, while the text explained the workbook pricing); the dashboard figure appears in the note when it differs.
+- Checked on the real 22 Oct master in the browser (invoices 16101431 over the cap, 16101450 single unit, 16101452 delivery only, 16101559 charged, 16101172 installation only).
+
+**Files.** apps/api/src/revenue-dashboard/service.ts, packages/db/src/revenue-dashboard.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh the browser. No migration.
+
 ## Modification #251 — Transport rules moved to their own tab
 
 **Date:** 2026-11-11
