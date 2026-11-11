@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 255,
+    "title": "Sales person transport view in the worked example",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "Pick a sales person under Logic applied > Worked example to see trips charged, trips not charged under the daily cap and the days over the cap, and to open or download the not-charged invoices.",
+    "changes": [
+      "Three figures, a Show switch (All, Not charged, Charged, Delivery only, No transport) and a day table with charged and not-charged invoices.",
+      "Not-charged list as an Excel download; not-charged invoices are marked in the Invoice list.",
+      "Shorter Transport note under each invoice."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 254,
     "title": "Rate card moved to its own tab",
     "area": "Revenue",

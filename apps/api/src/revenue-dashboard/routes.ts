@@ -191,6 +191,38 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    salespersonTransport: [
+      requirePermission('revenue_dashboard.tab_logic'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.salespersonTransport(request.query));
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    salespersonTransportExport: [
+      requirePermission('revenue_dashboard.tab_logic'),
+      async (request, response, next) => {
+        try {
+          const buffer = await service.salespersonTransportExport(request.query);
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', 'attachment; filename="transport-not-charged.xlsx"')
+            .send(buffer);
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     logicInvoices: [
       requirePermission('revenue_dashboard.tab_logic'),
       async (request, response, next) => {
