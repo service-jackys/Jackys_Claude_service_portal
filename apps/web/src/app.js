@@ -28577,93 +28577,85 @@ ${bodyHtml}
           .join('') +
         '</tbody></table></div>';
 
-      // Transport note on a worked example (#252): why transport was or was not charged,
-      // under the transport rules in force, and the dashboard figure when it differs.
+      // Transport note on a worked example (#252, shortened in #255): why transport was or
+      // was not charged under the transport rules in force, and the dashboard figure when it differs.
+      const shortDate = (iso) => {
+        const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || '');
+        return m ? Number(m[3]) + ' ' + RD_MONTHS_FULL[Number(m[2]) - 1].slice(0, 3) : iso || '';
+      };
       const transportFlag = (ex) => {
         const t = ex.transport;
         if (!t) return '';
         const amt = (n) => '\u20C3 ' + rdMoney2(n).replace(/\.00$/, '');
-        const who = t.salesperson ? ' for ' + t.salesperson + ' on ' + t.date : '';
-        const trip = t.rank ? 'trip ' + t.rank + ' of ' + t.trips + who : '';
-        const top =
-          'only the ' +
-          t.maxTrips +
-          ' highest transport charges of a salesperson’s day are charged';
-        const mixed = t.mixedSingle
-          ? ' It has 1 installed unit plus delivery-only items, so the regional charge pays for the extra items.'
+        const trip = t.rank
+          ? 'trip ' +
+            t.rank +
+            ' of ' +
+            t.trips +
+            ' for ' +
+            t.salesperson +
+            ' on ' +
+            shortDate(t.date)
           : '';
-        let kind = 'ok';
+        const cap = t.maxTrips + '-trip daily cap';
+        let warn = false;
+        let title = 'No transport';
         let text = '';
         switch (t.status) {
           case 'charged':
-            text = amt(t.charge) + ' charged: ' + trip + ' (' + top + ').' + mixed;
+            title = 'Transport charged ' + amt(t.charge);
+            text = trip + ' (' + cap + ').';
             break;
           case 'over_cap':
-            kind = 'warn';
+            warn = true;
+            title = 'Transport not charged';
             text =
-              'No transport charged under the 2-trip daily cap: this was ' +
               trip +
-              ', and ' +
-              top +
-              '. ' +
-              amt(t.charge) +
-              ' not charged; the unit prices stay as they are.';
+              '. Only the ' +
+              t.maxTrips +
+              ' highest trips a day are charged; unit prices stay.';
             break;
           case 'charged_no_cap':
-            text = amt(t.charge) + ' charged (no daily cap in force).' + mixed;
+            title = 'Transport charged ' + amt(t.charge);
+            text = 'no daily cap in force.';
             break;
           case 'mixed_off':
-            kind = 'warn';
-            text =
-              'No transport: 1 installed unit plus delivery-only items, and Mixed-invoice transport is switched OFF, so the unit’s standard rate covers the delivery-only items.';
+            warn = true;
+            text = '1 installed unit plus delivery-only items, and Mixed-invoice transport is OFF.';
             break;
           case 'single_unit':
             text =
-              'No transport: a single delivery + installation unit. Its standard rate already includes transport, so no trip charge is added.';
+              'single delivery + installation unit; its standard rate already includes transport.';
             break;
           case 'delivery_fee':
-            text =
-              'Delivery-only fee ' +
-              amt(t.charge) +
-              ' charged.' +
-              (t.rules && t.rules.dailyCap
-                ? ' Delivery-only invoices are outside the 2-trip daily cap.'
-                : '');
+            title = 'Delivery-only fee ' + amt(t.charge) + ' charged';
+            text = t.rules && t.rules.dailyCap ? 'outside the ' + cap + '.' : '';
             break;
           case 'delivery_over_cap':
-            kind = 'warn';
-            text =
-              'Delivery-only fee ' +
-              amt(t.charge) +
-              ' not charged: this was ' +
-              trip +
-              ', and the Delivery-only cap is ON (' +
-              top +
-              ').';
+            warn = true;
+            title = 'Delivery-only fee not charged';
+            text = trip + '. The Delivery-only cap is ON.';
             break;
           case 'installation_only':
-            text = 'No transport: installation only. Installation-only jobs never carry transport.';
+            text = 'installation only.';
             break;
           default:
-            text = 'No transport on this invoice.';
+            text = '';
         }
         const differs = Math.abs((t.currentTotal || 0) - (ex.total || 0)) >= 0.005;
+        if (differs)
+          text += ' Workbook ' + amt(ex.total) + ' \u2192 dashboard ' + amt(t.currentTotal) + '.';
         return (
-          '<div class="rl-transport rl-transport-' +
-          kind +
-          '"><b>Transport:</b> ' +
-          e(text) +
-          (differs
-            ? '<div class="rl-transport-total">Workbook total ' +
-              e(amt(ex.total)) +
-              ' · Dashboard under the current rules ' +
-              e(amt(t.currentTotal)) +
-              ' (change ' +
-              e(amt(t.currentTotal - ex.total)) +
-              ')</div>'
-            : '') +
-          '<div class="rl-transport-rules">' +
+          '<div class="rl-transport' +
+          (warn ? ' rl-transport-warn' : '') +
+          '" title="' +
           e(t.rulesLabel || '') +
+          '"><span class="rl-transport-ic" aria-hidden="true">' +
+          (warn ? '!' : '\u2713') +
+          '</span><div><b>' +
+          e(title) +
+          '</b>' +
+          (text ? ' \u2014 ' + e(text) : '') +
           '</div></div>'
         );
       };
@@ -28738,7 +28730,7 @@ ${bodyHtml}
           liveSel('jobType', 'Job type', liveOpts.jobTypes) +
           '<div class="th-field rl-sp"><label>Sales person<select data-rl-f="salesPerson" title="Show only this sales person\u2019s invoices for the chosen year, month, week and job type"><option value="">All</option></select></label></div>' +
           '<div class="th-field rl-grow"><label>Search<input type="search" data-rl-f="search" placeholder="Customer or invoice no." /></label></div>' +
-          '</div><div class="rl-live-bar">' +
+          '</div><div data-rl-sp></div><div class="rl-live-bar">' +
           '<div class="th-field rl-grow rl-wide"><label>Invoice<select data-rl-pick><option value="">Loading&hellip;</option></select></label></div>' +
           '<div class="th-field rl-grow"><label for="rlPaste">Or paste invoice number(s)</label><span class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083, 16101084" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></span></div>' +
           '</div>' +
@@ -29116,48 +29108,265 @@ ${bodyHtml}
           if (seq === liveSeq) liveMsg.textContent = error.message || 'Could not load the invoice.';
         }
       };
+      // ---- Sales person transport view (#255) --------------------------------
+      const spHost = body.querySelector('[data-rl-sp]');
+      let spData = null;
+      let spShow = 'all';
+      let pickerAll = [];
+      const spStatus = (inv) => {
+        const row = spData && spData.byInvoice[inv];
+        return row ? row.status : 'none';
+      };
+      const spPeriod = () => {
+        if (lf.week) return 'Week ' + lf.week + (lf.year ? ' ' + lf.year : '');
+        if (lf.month) return RD_MONTHS_FULL[Number(lf.month) - 1] + (lf.year ? ' ' + lf.year : '');
+        return lf.year || 'All dates';
+      };
+      const SP_SHOW = [
+        ['all', 'All', 'all'],
+        ['not_charged', 'Not charged', 'notCharged'],
+        ['charged', 'Charged', 'charged'],
+        ['delivery', 'Delivery only', 'delivery'],
+        ['none', 'No transport', 'none'],
+      ];
+      const drawSp = () => {
+        if (!spData) {
+          spHost.innerHTML = '';
+          return;
+        }
+        const d = spData;
+        const name = d.salesPerson === 'UNASSIGNED' ? 'No sales person' : d.salesPerson;
+        const r = d.rules;
+        const pct = d.installTrips ? Math.round((d.counts.charged / d.installTrips) * 100) : 0;
+        const tag = (t, cls) =>
+          '<button type="button" class="sp-inv ' +
+          cls +
+          '" data-sp-inv="' +
+          e(t.invoice) +
+          '" title="' +
+          e((t.customer || '') + ' · ' + '\u20C3 ' + rdMoney2(t.charge)) +
+          '">' +
+          e(t.invoice) +
+          ' <em>#' +
+          t.rank +
+          '</em></button>';
+        const table = d.overDays.length
+          ? '<div class="table-wrap"><table class="sp-table" data-no-sort><thead><tr><th>Day</th><th class="num">Trips</th><th>Charged</th><th>Not charged</th><th class="num">\u20C3</th></tr></thead><tbody>' +
+            d.overDays
+              .map((day) => {
+                const dt = new Date(day.date + 'T00:00:00');
+                const label = isNaN(dt)
+                  ? day.date
+                  : dt.toLocaleDateString('en-GB', {
+                      weekday: 'short',
+                      day: '2-digit',
+                      month: 'short',
+                    });
+                return (
+                  '<tr><td class="sp-day">' +
+                  e(label) +
+                  '</td><td class="num">' +
+                  day.trips +
+                  '</td><td>' +
+                  day.charged.map((t) => tag(t, 'ok')).join('') +
+                  '</td><td>' +
+                  day.notCharged.map((t) => tag(t, 'no')).join('') +
+                  '</td><td class="num">' +
+                  rdMoney2(day.amount).replace(/\.00$/, '') +
+                  '</td></tr>'
+                );
+              })
+              .join('') +
+            '</tbody></table></div>' +
+            '<p class="sp-foot">Days with more than ' +
+            r.maxTrips +
+            ' installation trips.' +
+            (r.deliveryOnlyCap
+              ? ' Delivery-only fees count toward the trips.'
+              : ' Delivery-only fees are not capped.') +
+            '</p>'
+          : '<p class="sp-empty">' +
+            (r.dailyCap
+              ? 'No day over the ' +
+                r.maxTrips +
+                '-trip cap in this period: every trip was charged.'
+              : 'The daily trip cap is off: every trip is charged.') +
+            '</p>';
+        spHost.innerHTML =
+          '<section class="sp-card" aria-label="Transport for ' +
+          e(name) +
+          '"><div class="sp-hd"><div class="sp-title">Transport · ' +
+          e(name) +
+          ' <span>· ' +
+          e(spPeriod()) +
+          '</span></div><div class="sp-actions"><span class="sp-badge" title="' +
+          e(d.rulesLabel) +
+          '"><i></i>' +
+          (r.dailyCap ? r.maxTrips + '-trip daily cap on' : 'No daily cap') +
+          '</span>' +
+          (d.counts.notCharged
+            ? '<button type="button" class="sp-btn" data-sp-dl>\u2913 Not-charged list (.xlsx)</button>'
+            : '') +
+          '</div></div>' +
+          (d.sheetMissing
+            ? '<p class="sp-empty">This upload has no stored CSIDI sheet. Upload the master workbook again to see the trips.</p>'
+            : '<div class="sp-stats"><div class="sp-stat"><div class="sp-l">Installation trips charged</div><div class="sp-v">' +
+              rdMoney(d.counts.charged) +
+              '<small>of ' +
+              rdMoney(d.installTrips) +
+              '</small></div><div class="sp-bar"><i style="width:' +
+              pct +
+              '%"></i></div></div><div class="sp-stat' +
+              (d.counts.notCharged ? ' warn' : '') +
+              '"><div class="sp-l">Trips not charged</div><div class="sp-v">' +
+              rdMoney(d.counts.notCharged) +
+              '<small>\u20C3 ' +
+              rdMoney2(d.notChargedAmount).replace(/\.00$/, '') +
+              '</small></div></div><div class="sp-stat"><div class="sp-l">Days over the cap</div><div class="sp-v">' +
+              d.overDays.length +
+              '<small>of ' +
+              d.days +
+              ' days</small></div></div></div>' +
+              '<div class="sp-tools"><div class="sp-seg" role="group" aria-label="Show invoices">' +
+              SP_SHOW.map(
+                ([k, label, c]) =>
+                  '<button type="button" data-sp-show="' +
+                  k +
+                  '" aria-pressed="' +
+                  (spShow === k) +
+                  '"' +
+                  (spShow === k ? ' class="on"' : '') +
+                  '>' +
+                  label +
+                  '<i>' +
+                  rdMoney(d.counts[c]) +
+                  '</i></button>',
+              ).join('') +
+              '</div><span class="sp-hint">Click an invoice to open it below</span></div>' +
+              table) +
+          '</section>';
+        spHost.querySelectorAll('[data-sp-show]').forEach((b) =>
+          b.addEventListener('click', () => {
+            spShow = b.dataset.spShow;
+            drawSp();
+            renderPick(true);
+          }),
+        );
+        spHost.querySelectorAll('[data-sp-inv]').forEach((b) =>
+          b.addEventListener('click', () => {
+            const inv = b.dataset.spInv;
+            if (Array.from(pick.options).some((o) => o.value === inv)) pick.value = inv;
+            loadExample(inv);
+          }),
+        );
+        const dl = spHost.querySelector('[data-sp-dl]');
+        if (dl)
+          dl.addEventListener('click', async () => {
+            dl.disabled = true;
+            try {
+              const blob = await apiBlobRequest(
+                '/api/revenue-dashboard/logic/salesperson-transport/export?' + rdQs(lf),
+              );
+              rdDownloadBlob(
+                blob,
+                'Transport_not_charged_' +
+                  name.replace(/[^A-Za-z0-9]+/g, '_') +
+                  '_' +
+                  spPeriod().replace(/\s+/g, '_') +
+                  '.xlsx',
+              );
+            } catch (error) {
+              liveMsg.textContent = error.message || 'Could not download the list.';
+            } finally {
+              dl.disabled = false;
+            }
+          });
+      };
+      const loadSp = async () => {
+        if (!lf.salesPerson) {
+          spData = null;
+          spShow = 'all';
+          drawSp();
+          return;
+        }
+        try {
+          // Direct request: these figures name customers, so they are not kept for Ask AI.
+          const res = await apiRequest(
+            '/api/revenue-dashboard/logic/salesperson-transport?' + rdQs(lf),
+          );
+          spData = res && res.data ? res.data : null;
+          if (spData)
+            spData.byInvoice = Object.fromEntries(spData.invoices.map((i) => [i.invoice, i]));
+        } catch {
+          spData = null;
+        }
+        drawSp();
+      };
+      const renderPick = async (openFirst) => {
+        const list =
+          spData && spShow !== 'all'
+            ? pickerAll.filter((i) => spStatus(i.invoice) === spShow)
+            : pickerAll;
+        listed = list.map((i) => i.invoice);
+        const who = lf.salesPerson === 'UNASSIGNED' ? 'no sales person' : lf.salesPerson;
+        const kind =
+          spData && spShow !== 'all'
+            ? ' ' + SP_SHOW.find((x) => x[0] === spShow)[1].toLowerCase()
+            : '';
+        allButton.hidden = !(lf.salesPerson && list.length > 1);
+        allButton.textContent =
+          'Show ' +
+          (list.length > 20 ? 'the latest 20' : 'all ' + list.length) +
+          kind +
+          ' invoices of ' +
+          who;
+        pick.innerHTML = list.length
+          ? list
+              .map((i) => {
+                const row = spData && spData.byInvoice[i.invoice];
+                const flag =
+                  row && row.status === 'not_charged'
+                    ? '\u26A0 Not charged \u00B7 trip ' + row.rank + ' \u00B7 '
+                    : '';
+                return (
+                  '<option value="' +
+                  e(i.invoice) +
+                  '">' +
+                  e(
+                    flag +
+                      i.invoice +
+                      ' · ' +
+                      (i.customer || 'No customer') +
+                      ' · ' +
+                      (i.date || '') +
+                      (i.salesPerson ? ' · ' + i.salesPerson : '') +
+                      ' · ' +
+                      i.jobTypes.join('/') +
+                      ' · \u20C3 ' +
+                      rdMoney2(i.revenue),
+                  ) +
+                  '</option>'
+                );
+              })
+              .join('')
+          : '<option value="">No invoices match</option>';
+        countMsg = list.length
+          ? rdMoney(list.length) + (list.length >= 300 ? '+' : '') + kind + ' invoices match.'
+          : '';
+        liveMsg.textContent = countMsg;
+        if (openFirst) {
+          if (list.length) await loadExample(list[0].invoice);
+          else liveRoot.innerHTML = '';
+        }
+      };
       const loadPicker = async () => {
         pick.innerHTML = '<option value="">Loading…</option>';
         try {
-          const res = await rdApi('logic/invoices', lf);
-          const list = res.invoices || [];
+          const [res] = await Promise.all([rdApi('logic/invoices', lf), loadSp()]);
+          pickerAll = res.invoices || [];
           fillSalesPersons(res.salesPersons || []);
-          listed = list.map((i) => i.invoice);
-          allButton.hidden = !(lf.salesPerson && list.length > 1);
-          allButton.textContent =
-            'Show ' +
-            (list.length > 20 ? 'the latest 20' : 'all ' + list.length) +
-            ' invoices of ' +
-            (lf.salesPerson === 'UNASSIGNED' ? 'no sales person' : lf.salesPerson);
-          pick.innerHTML = list.length
-            ? list
-                .map(
-                  (i) =>
-                    '<option value="' +
-                    e(i.invoice) +
-                    '">' +
-                    e(
-                      i.invoice +
-                        ' · ' +
-                        (i.customer || 'No customer') +
-                        ' · ' +
-                        (i.date || '') +
-                        (i.salesPerson ? ' · ' + i.salesPerson : '') +
-                        ' · ' +
-                        i.jobTypes.join('/') +
-                        ' · \u20C3 ' +
-                        rdMoney2(i.revenue),
-                    ) +
-                    '</option>',
-                )
-                .join('')
-            : '<option value="">No invoices match</option>';
-          countMsg = list.length
-            ? rdMoney(list.length) + (list.length >= 300 ? '+' : '') + ' invoices match.'
-            : '';
-          liveMsg.textContent = countMsg;
-          if (list.length) await loadExample(list[0].invoice);
-          else liveRoot.innerHTML = '';
+          if (spShow !== 'all' && !spData) spShow = 'all';
+          await renderPick(true);
         } catch (error) {
           pick.innerHTML = '<option value="">—</option>';
           liveMsg.textContent = error.message || 'Could not load invoices.';

@@ -930,6 +930,14 @@ export function createRouteCatalog(
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
+        salespersonTransport: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        salespersonTransportExport: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         logicExample: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -3574,6 +3582,30 @@ export function createRouteCatalog(
         parameters: revenueFilterParameters,
         responses: [200, 400, 401, 403, 500],
         handlers: revenueDashboardHandlers.logicInvoices,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/logic/salesperson-transport',
+        operationId: 'getRevenueDashboardSalespersonTransport',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Transport of one sales person for the worked-example filters: trips charged and not charged under the daily cap, by day',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.salespersonTransport,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/logic/salesperson-transport/export',
+        operationId: 'exportRevenueDashboardSalespersonTransport',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Excel list of the invoices of one sales person whose transport the daily cap left uncharged',
+        security: 'bearerAuth' as const,
+        parameters: revenueFilterParameters,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.salespersonTransportExport,
       },
       {
         method: 'get' as const,

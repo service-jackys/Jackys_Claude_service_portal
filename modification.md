@@ -5210,6 +5210,28 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #255 — Sales person transport view in the worked example
+
+**Date:** 2026-11-11
+
+**Why.** With many invoices per sales person, management could not easily find the invoices whose transport the 2-trip daily cap left uncharged. Vysakh approved the mock-up (version 2, clean dashboard style, only the essential details).
+
+**What changed.**
+
+- Logic applied > Worked example: choosing a sales person opens a "Transport · <name> · <period>" panel for the year / month / week / job type chosen:
+  - Three figures: installation trips charged (of all installation trips, with a bar), trips not charged (count and AED), days over the cap (of the days with invoices).
+  - "Show" switch: All · Not charged · Charged · Delivery only · No transport, with counts. It narrows the Invoice list; invoices the cap left uncharged are marked "⚠ Not charged · trip N" in the list.
+  - Days over the cap: one row per day with the charged trips (grey, with their rank) and the trips not charged (amber); clicking an invoice opens it below.
+  - "Not-charged list (.xlsx)": date, invoice, customer, trip of the day, transport not charged, total; plus an About sheet (filters, rules, source file).
+  - With the cap off, or no day over the cap, the panel says so in one line. Nothing changes when no sales person is chosen.
+- The Transport note under each invoice is shorter: a bold status ("Transport charged ⃃ 60", "Transport not charged", "No transport", "Delivery-only fee ⃃ 100 charged") and one sentence; the rules name moved to its tooltip.
+- New API routes (revenue_dashboard.tab_logic): GET /api/revenue-dashboard/logic/salesperson-transport and /export. These figures name customers, so they are not passed to Ask AI.
+- Checked on the real 22 Oct master: SHIVA, August 2026: 35 of 42 trips charged, 7 not charged (AED 420), 6 days over the cap; matches the mock-up.
+
+**Files.** apps/api/src/revenue-dashboard/service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh the browser. No migration.
+
 ## Modification #254 — Rate card moved to its own tab
 
 **Date:** 2026-11-11

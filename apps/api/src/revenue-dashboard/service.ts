@@ -514,6 +514,139 @@ export function createRevenueDashboardService(pool: Pool) {
     originalJobValue: Number(l.originalJobValue ?? 0),
   });
 
+  // Transport view of one sales person (#255): for the invoices matching the worked-example
+  // filters, which trips were charged and which the daily cap left uncharged, by day.
+  async function salespersonTransport(query: Record<string, unknown>) {
+    const filters = revenueFilterQuerySchema.parse(query) as RevenueFilters;
+    if (!filters.salesPerson)
+      throw new RevenueDashboardServiceError('no-data', 'Choose a sales person.');
+    const client = await pool.connect();
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) return { batch: null, data: null };
+      const listed = await revenueInvoiceList(client, batch.id, filters, 5000);
+      const rules = await getTransportRules(client);
+      const sheet = await listSheetRows(client, batch.id, 'CSIDI');
+      const calc = sheet.length ? computeTransport(sheet, rules) : { invoices: [] };
+      const byInv = new Map(calc.invoices.map((i) => [i.invoice, i]));
+      const customer = new Map(listed.map((l) => [l.invoice, l.customer]));
+      const status = (inv: string) => {
+        const t = byInv.get(inv);
+        if (!t || t.kind === 'none' || t.charge === 0) return 'none';
+        if (!t.charged) return 'not_charged';
+        return t.kind === 'delivery' ? 'delivery' : 'charged';
+      };
+      const invoices = listed.map((l) => {
+        const t = byInv.get(l.invoice);
+        return {
+          invoice: l.invoice,
+          date: l.date,
+          customer: l.customer,
+          status: status(l.invoice),
+          rank: t?.rank ?? null,
+          charge: t?.charge ?? 0,
+        };
+      });
+      const count = (s: string) => invoices.filter((i) => i.status === s).length;
+      const notCharged = invoices.filter((i) => i.status === 'not_charged');
+      // Days over the cap: every capped trip of that salesperson-day, so the ranking reads in full.
+      const overDates = [...new Set(notCharged.map((i) => i.date))].sort();
+      const people = new Set(notCharged.map((i) => byInv.get(i.invoice)?.salesperson));
+      const overDays = overDates.map((date) => {
+        const trips = calc.invoices
+          .filter((t) => t.date === date && people.has(t.salesperson) && t.rank !== null)
+          .sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))
+          .map((t) => ({
+            invoice: t.invoice,
+            rank: t.rank,
+            charge: t.charge,
+            charged: t.charged,
+            customer: customer.get(t.invoice) ?? null,
+          }));
+        return {
+          date,
+          trips: trips.length,
+          charged: trips.filter((t) => t.charged),
+          notCharged: trips.filter((t) => !t.charged),
+          amount:
+            Math.round(trips.filter((t) => !t.charged).reduce((a, t) => a + t.charge, 0) * 100) /
+            100,
+        };
+      });
+      const installTrips = invoices.filter(
+        (i) =>
+          i.status === 'charged' ||
+          (i.status === 'not_charged' && byInv.get(i.invoice)?.kind === 'installation'),
+      ).length;
+      return {
+        batch,
+        data: {
+          salesPerson: filters.salesPerson,
+          rules,
+          preset: presetOf(rules),
+          rulesLabel: bannerOf(presetOf(rules), null).label,
+          sheetMissing: !sheet.length,
+          counts: {
+            all: invoices.length,
+            notCharged: notCharged.length,
+            charged: count('charged'),
+            delivery: count('delivery'),
+            none: count('none'),
+          },
+          installTrips,
+          notChargedAmount: Math.round(notCharged.reduce((a, i) => a + i.charge, 0) * 100) / 100,
+          days: new Set(invoices.map((i) => i.date).filter(Boolean)).size,
+          overDays,
+          invoices,
+        },
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  // Not-charged list for management (#255): one row per invoice the cap left uncharged.
+  async function salespersonTransportExport(query: Record<string, unknown>) {
+    const res = await salespersonTransport(query);
+    if (!res.data)
+      throw new RevenueDashboardServiceError('no-data', 'No master workbook uploaded.');
+    const d = res.data;
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Not charged');
+    ws.columns = [
+      { header: 'Date', key: 'date', width: 12 },
+      { header: 'Invoice', key: 'invoice', width: 14 },
+      { header: 'Customer', key: 'customer', width: 46 },
+      { header: 'Trip of the day', key: 'trip', width: 15 },
+      { header: 'Transport not charged (AED)', key: 'charge', width: 26 },
+    ];
+    for (const day of d.overDays)
+      for (const t of day.notCharged)
+        ws.addRow({
+          date: day.date,
+          invoice: t.invoice,
+          customer: t.customer ?? '',
+          trip: t.rank + ' of ' + day.trips,
+          charge: t.charge,
+        });
+    const total = ws.addRow({ customer: 'Total', charge: d.notChargedAmount });
+    total.font = { bold: true };
+    ws.getRow(1).font = { bold: true };
+    ws.getColumn('charge').numFmt = '#,##0.00';
+    ws.views = [{ state: 'frozen', ySplit: 1 }];
+    const info = wb.addWorksheet('About');
+    info.addRows([
+      ['Sales person', d.salesPerson],
+      ['Filters', JSON.stringify(revenueFilterQuerySchema.parse(query))],
+      ['Transport rules', d.rulesLabel],
+      ['Source', res.batch?.fileName ?? ''],
+    ]);
+    info.getColumn(1).width = 18;
+    info.getColumn(2).width = 80;
+    return Buffer.from(await wb.xlsx.writeBuffer());
+  }
+
   // Worked-example picker: invoices matching year / month / week / job type /
   // search, newest first (at most 300).
   async function logicInvoices(query: Record<string, unknown>) {
@@ -915,6 +1048,8 @@ export function createRevenueDashboardService(pool: Pool) {
     logic,
     logicInvoices,
     logicExample,
+    salespersonTransport,
+    salespersonTransportExport,
     recordActivity,
     transportRules,
     saveTransportRulesAndApply,
