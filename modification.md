@@ -5210,6 +5210,23 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #251 — Transport rules moved to their own tab
+
+**Date:** 2026-11-11
+
+**Why.** Vysakh asked to move the Transport rules panel from the top of every tab to its own tab after Logic applied, to keep the dashboard tidy.
+
+**What changed.**
+
+- New tab "Transport rules" after Logic applied on the Service Revenue Dashboard, for everyone who can open the dashboard. It holds the full panel (banner, flags, totals, revenue split with Transport as its own line, salesperson-days over the cap, the three switches for admins). The month filter applies to it.
+- The other tabs no longer show the panel. A one-line notice appears above the tabs only when the rules need attention (not the new master logic, figures differ from the uploaded workbook, not yet applied to the upload, or a warning such as no stored CSIDI sheet), with an "Open Transport rules" button. Nothing is shown when all is in order.
+- The job type notes on Overview and Reports stay.
+- e2e: tests/e2e/transport-rules.spec.ts updated (panel only on the new tab; notice opens the tab).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html (styles), tests/e2e/transport-rules.spec.ts, modification.md.
+
+**Needs you:** pull and hard-refresh the browser. No migration, no API restart needed.
+
 ## Modification #250 — Transport rules panel on the Service Revenue Dashboard
 
 **Date:** 2026-11-11
