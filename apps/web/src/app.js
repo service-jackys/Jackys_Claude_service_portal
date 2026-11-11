@@ -28573,6 +28573,96 @@ ${bodyHtml}
           .join('') +
         '</tbody></table></div>';
 
+      // Transport note on a worked example (#252): why transport was or was not charged,
+      // under the transport rules in force, and the dashboard figure when it differs.
+      const transportFlag = (ex) => {
+        const t = ex.transport;
+        if (!t) return '';
+        const amt = (n) => '\u20C3 ' + rdMoney2(n).replace(/\.00$/, '');
+        const who = t.salesperson ? ' for ' + t.salesperson + ' on ' + t.date : '';
+        const trip = t.rank ? 'trip ' + t.rank + ' of ' + t.trips + who : '';
+        const top =
+          'only the ' +
+          t.maxTrips +
+          ' highest transport charges of a salesperson’s day are charged';
+        const mixed = t.mixedSingle
+          ? ' It has 1 installed unit plus delivery-only items, so the regional charge pays for the extra items.'
+          : '';
+        let kind = 'ok';
+        let text = '';
+        switch (t.status) {
+          case 'charged':
+            text = amt(t.charge) + ' charged: ' + trip + ' (' + top + ').' + mixed;
+            break;
+          case 'over_cap':
+            kind = 'warn';
+            text =
+              'No transport charged under the 2-trip daily cap: this was ' +
+              trip +
+              ', and ' +
+              top +
+              '. ' +
+              amt(t.charge) +
+              ' not charged; the unit prices stay as they are.';
+            break;
+          case 'charged_no_cap':
+            text = amt(t.charge) + ' charged (no daily cap in force).' + mixed;
+            break;
+          case 'mixed_off':
+            kind = 'warn';
+            text =
+              'No transport: 1 installed unit plus delivery-only items, and Mixed-invoice transport is switched OFF, so the unit’s standard rate covers the delivery-only items.';
+            break;
+          case 'single_unit':
+            text =
+              'No transport: a single delivery + installation unit. Its standard rate already includes transport, so no trip charge is added.';
+            break;
+          case 'delivery_fee':
+            text =
+              'Delivery-only fee ' +
+              amt(t.charge) +
+              ' charged.' +
+              (t.rules && t.rules.dailyCap
+                ? ' Delivery-only invoices are outside the 2-trip daily cap.'
+                : '');
+            break;
+          case 'delivery_over_cap':
+            kind = 'warn';
+            text =
+              'Delivery-only fee ' +
+              amt(t.charge) +
+              ' not charged: this was ' +
+              trip +
+              ', and the Delivery-only cap is ON (' +
+              top +
+              ').';
+            break;
+          case 'installation_only':
+            text = 'No transport: installation only. Installation-only jobs never carry transport.';
+            break;
+          default:
+            text = 'No transport on this invoice.';
+        }
+        const differs = Math.abs((t.currentTotal || 0) - (ex.total || 0)) >= 0.005;
+        return (
+          '<div class="rl-transport rl-transport-' +
+          kind +
+          '"><b>Transport:</b> ' +
+          e(text) +
+          (differs
+            ? '<div class="rl-transport-total">Workbook total ' +
+              e(amt(ex.total)) +
+              ' · Dashboard under the current rules ' +
+              e(amt(t.currentTotal)) +
+              ' (change ' +
+              e(amt(t.currentTotal - ex.total)) +
+              ')</div>'
+            : '') +
+          '<div class="rl-transport-rules">' +
+          e(t.rulesLabel || '') +
+          '</div></div>'
+        );
+      };
       const exampleTable = (ex) =>
         '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
         e(ex.invoice) +
@@ -28612,6 +28702,7 @@ ${bodyHtml}
             ex.notes.map((n) => '<li>' + e(n) + '</li>').join('') +
             '</ul>'
           : '') +
+        transportFlag(ex) +
         '</div>';
       const liveOpts = (sum && sum.summary && sum.summary.options) || {};
       const liveSel = (name, label, values, labelFor) =>
@@ -28633,7 +28724,7 @@ ${bodyHtml}
         '</select></label></div>';
       const exampleHtml = rdSection(
         'Worked example &mdash; pick any invoice',
-        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures; a note shows where the current rules differ.</p>' +
+        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures. The Transport note under each invoice says why transport was or was not charged under the current transport rules, and the dashboard figure when it differs.</p>' +
           '<div class="rl-live-bar">' +
           liveSel('year', 'Year', liveOpts.years) +
           liveSel('month', 'Month', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], (v) =>

@@ -509,21 +509,112 @@ export function createRevenueDashboardService(pool: Pool) {
     try {
       const batch = await findActiveBatch(client, 'revenue');
       if (!batch) return { batch: null, examples: [], notFound: invoices };
-      const rows = (await revenueInvoiceLines(client, batch.id, invoices)) as LogicSummaryLine[];
+      const raw = (await revenueInvoiceLines(client, batch.id, invoices)) as (LogicSummaryLine & {
+        workbookRevenue?: unknown;
+      })[];
+      // The example explains the workbook figures (#252); the dashboard figure under the
+      // transport rules is given in the transport note when it differs.
+      const current = new Map<string, number>();
+      for (const r of raw)
+        current.set(
+          String(r.invDelNo),
+          (current.get(String(r.invDelNo)) ?? 0) + Number(r.revenue ?? 0),
+        );
+      const rows = raw.map((r) => ({
+        ...r,
+        revenue: r.workbookRevenue === undefined ? r.revenue : Number(r.workbookRevenue),
+      })) as LogicSummaryLine[];
       const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
       const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
+      const transport = await exampleTransport(client, batch.id, invoices);
       const examples = invoices
         .map((invoice) => ({
           invoice,
           set: rows.filter((r) => r.invDelNo === invoice).map(toLogicLine),
         }))
         .filter((x) => x.set.length)
-        .map((x) => buildWorkedExample(rules, x.invoice, x.set));
+        .map((x) => {
+          const ex = buildWorkedExample(rules, x.invoice, x.set);
+          const jobTypes = [...new Set(x.set.map((l) => l.jobType))];
+          return {
+            ...ex,
+            transport: transportNote(
+              transport,
+              x.invoice,
+              jobTypes,
+              Math.round((current.get(x.invoice) ?? 0) * 100) / 100,
+            ),
+          };
+        });
       const found = new Set(examples.map((e) => e.invoice));
       return { batch, examples, notFound: invoices.filter((i) => !found.has(i)) };
     } finally {
       client.release();
     }
+  }
+
+  // Transport status of the invoices of a worked example (#252), under the saved rules.
+  async function exampleTransport(
+    client: import('pg').PoolClient,
+    batchId: string,
+    invoices: string[],
+  ) {
+    const rules = await getTransportRules(client);
+    const rows = await listSheetRows(client, batchId, 'CSIDI');
+    if (!rows.length)
+      return { rules, preset: presetOf(rules), byInvoice: new Map(), dayTrips: new Map() };
+    const calc = computeTransport(rows, rules);
+    const wanted = new Set(invoices);
+    const byInvoice = new Map(
+      calc.invoices.filter((i) => wanted.has(i.invoice)).map((i) => [i.invoice, i]),
+    );
+    const dayTrips = new Map<string, number>();
+    for (const i of calc.invoices)
+      if (i.rank !== null) {
+        const k = i.date + '|' + i.salesperson;
+        dayTrips.set(k, (dayTrips.get(k) ?? 0) + 1);
+      }
+    return { rules, preset: presetOf(rules), byInvoice, dayTrips };
+  }
+
+  function transportNote(
+    t: Awaited<ReturnType<typeof exampleTransport>>,
+    invoice: string,
+    jobTypes: string[],
+    currentTotal: number,
+  ) {
+    const i = t.byInvoice.get(invoice);
+    const { label } = bannerOf(t.preset, null);
+    const base = { rules: t.rules, preset: t.preset, rulesLabel: label, currentTotal };
+    if (!i) {
+      if (jobTypes.includes('CSIII') && !jobTypes.some((j) => j === 'CSIDI' || j === 'CSIDO'))
+        return { ...base, status: 'installation_only' };
+      return null;
+    }
+    let status: string;
+    if (i.kind === 'delivery') status = i.charged ? 'delivery_fee' : 'delivery_over_cap';
+    else if (i.kind === 'installation') {
+      if (i.charge === 0 && i.mixedSingle) status = 'mixed_off';
+      else if (!t.rules.dailyCap) status = 'charged_no_cap';
+      else status = i.charged ? 'charged' : 'over_cap';
+    } else if (!jobTypes.some((j) => j === 'CSIDI' || j === 'CSIDO')) status = 'installation_only';
+    else status = i.csidiQty === 1 ? 'single_unit' : 'no_transport';
+    return {
+      ...base,
+      status,
+      date: i.date,
+      salesperson: i.salesperson,
+      csidiQty: i.csidiQty,
+      mixedSingle: i.mixedSingle,
+      carrier: i.carrier,
+      charge: i.charge,
+      rank: i.rank,
+      trips: i.rank === null ? 0 : (t.dayTrips.get(i.date + '|' + i.salesperson) ?? 0),
+      maxTrips: t.rules.maxTrips,
+      workbookCharge: i.actual,
+      currentCharge: i.scenario,
+      delta: i.delta,
+    };
   }
 
   async function withActive<T>(

@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 252,
+    "title": "Worked example says why transport was or was not charged",
+    "area": "Revenue",
+    "date": "2026-11-11",
+    "approxDate": false,
+    "status": null,
+    "summary": "Under Logic applied > Worked example, every invoice now ends with a Transport note explaining the transport under the current rules.",
+    "changes": [
+      "Charged trips show their rank for the salesperson's day; trips over the 2-trip cap say the charge was dropped and show the workbook and dashboard totals.",
+      "Single-unit, delivery-only, mixed-invoice and installation-only invoices each say why no transport (or only the delivery fee) applies.",
+      "Line amounts are the uploaded workbook figures; the dashboard figure appears in the note when it differs."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/service.ts, packages/db/src/revenue-dashboard.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 251,
     "title": "Transport rules moved to their own tab",
     "area": "Revenue",

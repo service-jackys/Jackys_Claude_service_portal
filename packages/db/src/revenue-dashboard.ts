@@ -559,7 +559,7 @@ export async function revenueInvoiceList(
 // Every line (all job types) of the given invoices, in workbook order.
 export async function revenueInvoiceLines(client: PoolClient, batchId: string, invoices: string[]) {
   const rows = await client.query(
-    `SELECT ${lineColumns}, pricing FROM revenue_lines
+    `SELECT ${lineColumns}, COALESCE(workbook_revenue, revenue) AS "workbookRevenue", pricing FROM revenue_lines
      WHERE batch_id = $1 AND inv_del_no = ANY($2::text[])
      ORDER BY inv_del_no, source_row, id`,
     [batchId, invoices],
