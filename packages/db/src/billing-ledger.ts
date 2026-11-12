@@ -14,6 +14,9 @@ const BILLED = 'COALESCE(j.amount_chargeable, j.grand_total)';
 //    Cancelled jobs are not in it, and a reopened job drops out until it is
 //    completed again. The Warranty columns carry the activity type (CSIDI, CSIDO,
 //    CSIII), the same as the Type column, since warranty does not apply.
+//    The amount is the figure under the transport rules (the 2-trip daily cap,
+//    view di_line_effective): a trip the cap leaves uncharged has its transport
+//    taken off, and the line carries a note saying so.
 const SOURCE = `(
   SELECT s.id::text AS id, s.id AS sort_id, 'job-card'::text AS source, s.id::text AS source_ref,
          s.job_card_reference, s.job_card_date, s.delivery_date, s.billing_job_type,
@@ -24,7 +27,8 @@ const SOURCE = `(
          s.serial_no, s.technician_name, s.service_charge, s.total_cost, s.grand_total,
          s.amount_chargeable, s.invoice_no, s.invoice_date, s.payment_mode,
          s.payment_reference, s.payment_confirmed_at, s.final_status, s.job_final_status,
-         s.created_at, NULL::text AS other_types, NULL::numeric AS job_total
+         s.created_at, NULL::text AS other_types, NULL::numeric AS job_total,
+         NULL::numeric AS transport_removed, NULL::text AS transport_note
     FROM service_job_cards s
   UNION ALL
   SELECT 'di:' || l.id, l.id, 'dandi', d.id::text,
@@ -33,14 +37,24 @@ const SOURCE = `(
          NULL::text, l.sales_channel, d.customer_name, 'B2B',
          d.customer_name, d.salesman, l.sales_channel, d.region, d.delivery_note_ref,
          l.item_code, l.brand, l.main_group, l.group_name, l.sub_group, l.item_code,
-         NULL::text, NULL::text, l.revenue, 0::numeric, l.revenue,
+         NULL::text, NULL::text, e.effective_revenue, 0::numeric, e.effective_revenue,
          NULL::numeric, d.erp_inv_no, NULL::date, NULL::text,
          NULL::text, NULL::timestamptz, 'Completed', 'Completed',
          COALESCE(d.completed_at, d.created_at),
          (SELECT string_agg(DISTINCT x.txn_type, ', ' ORDER BY x.txn_type)
             FROM di_job_lines x WHERE x.job_id = d.id AND x.txn_type <> l.txn_type),
-         (SELECT sum(x.revenue) FROM di_job_lines x WHERE x.job_id = d.id)
-    FROM di_job_lines l JOIN di_jobs d ON d.id = l.job_id
+         (SELECT sum(x.effective_revenue) FROM di_line_effective x WHERE x.job_id = d.id),
+         e.removed_amount,
+         CASE WHEN e.transport_removed THEN
+           'Transport AED ' || e.removed_amount::float8::text || ' not charged: '
+           || CASE WHEN e.trip_rank IS NOT NULL
+                   THEN 'trip ' || e.trip_rank || ' of the day for ' || COALESCE(d.salesman, 'the salesman')
+                        || ' (' || e.max_trips || '-trip daily cap)'
+                   ELSE 'mixed-invoice transport is switched off' END
+         END
+    FROM di_job_lines l
+    JOIN di_jobs d ON d.id = l.job_id
+    JOIN di_line_effective e ON e.line_id = l.id
    WHERE d.status = 'Completed'
 )`;
 
@@ -91,6 +105,9 @@ export type BillingLedgerRow = {
   /** Delivery & Installation only: the other activity types on the same job, and the whole job's revenue. */
   otherTypes: string | null;
   jobTotal: number | null;
+  /** Delivery & Installation only: transport the trip cap left uncharged on this line, and why. */
+  transportRemoved: number | null;
+  transportNote: string | null;
   jobCardDate: string | null;
   deliveryDate: string | null;
   billingJobType: string | null;
@@ -162,7 +179,11 @@ export type AllocationRow = {
 };
 
 function where(query: BillingLedgerQuery) {
-  const clauses = [`${BILLED} > 0`, `j.job_final_status IS DISTINCT FROM 'Cancelled'`];
+  // A line whose transport the cap removed can end at 0; it stays in the ledger so the note is seen.
+  const clauses = [
+    `(${BILLED} > 0 OR COALESCE(j.transport_removed, 0) > 0)`,
+    `j.job_final_status IS DISTINCT FROM 'Cancelled'`,
+  ];
   const values: unknown[] = [];
   const add = (sql: string, value: unknown) => {
     values.push(value);
@@ -204,6 +225,7 @@ export async function queryBillingLedger(
   const result = await client.query(
     `SELECT j.id, j.source, j.source_ref AS "sourceRef", j.job_card_reference AS "jobCardReference",
             j.other_types AS "otherTypes", j.job_total::float8 AS "jobTotal",
+            j.transport_removed::float8 AS "transportRemoved", j.transport_note AS "transportNote",
             j.job_card_date::text AS "jobCardDate", j.delivery_date::text AS "deliveryDate",
             j.billing_job_type AS "billingJobType",
             j.warranty_status AS "registeredWarranty",

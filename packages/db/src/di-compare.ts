@@ -51,6 +51,9 @@ export type PortalDandiJobRow = {
 };
 
 /**
+ * Revenue is the figure under the active transport rules (view di_line_effective: the 2-trip
+ * daily cap), the same figure Billing shows, so it compares with the master under the same rules.
+ *
  * Completed jobs dated in the month, plus any Completed job (any date) whose
  * delivery note or ERP Inv No is one the workbook month names -- so a job dated
  * a day either side of the month end still pairs up with its workbook line.
@@ -66,12 +69,14 @@ export async function portalDandiJobs(
             j.delivery_note_ref AS "deliveryNoteRef", j.erp_inv_no AS "erpInvNo",
             COALESCE(array_agg(DISTINCT l.sales_channel) FILTER (WHERE l.sales_channel IS NOT NULL), '{}') AS channels,
             COALESCE(sum(l.qty) FILTER (WHERE l.txn_type = 'CSIDI'), 0)::float8 AS "csidiQty",
-            COALESCE(sum(l.revenue) FILTER (WHERE l.txn_type = 'CSIDI'), 0)::float8 AS "csidiRevenue",
+            COALESCE(sum(COALESCE(e.effective_revenue, l.revenue)) FILTER (WHERE l.txn_type = 'CSIDI'), 0)::float8 AS "csidiRevenue",
             COALESCE(sum(l.qty) FILTER (WHERE l.txn_type = 'CSIDO'), 0)::float8 AS "csidoQty",
-            COALESCE(sum(l.revenue) FILTER (WHERE l.txn_type = 'CSIDO'), 0)::float8 AS "csidoRevenue",
+            COALESCE(sum(COALESCE(e.effective_revenue, l.revenue)) FILTER (WHERE l.txn_type = 'CSIDO'), 0)::float8 AS "csidoRevenue",
             COALESCE(sum(l.qty) FILTER (WHERE l.txn_type = 'CSIII'), 0)::float8 AS "csiiiQty",
-            COALESCE(sum(l.revenue) FILTER (WHERE l.txn_type = 'CSIII'), 0)::float8 AS "csiiiRevenue"
-     FROM di_jobs j LEFT JOIN di_job_lines l ON l.job_id = j.id
+            COALESCE(sum(COALESCE(e.effective_revenue, l.revenue)) FILTER (WHERE l.txn_type = 'CSIII'), 0)::float8 AS "csiiiRevenue"
+     FROM di_jobs j
+     LEFT JOIN di_job_lines l ON l.job_id = j.id
+     LEFT JOIN di_line_effective e ON e.line_id = l.id
      WHERE j.status = 'Completed'
        AND (to_char(j.service_date, 'YYYY-MM') = $1
             OR upper(btrim(j.delivery_note_ref)) = ANY($2::text[])

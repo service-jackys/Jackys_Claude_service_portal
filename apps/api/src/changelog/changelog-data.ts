@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 258,
+    "title": "Delivery & Installation: 2-trip daily cap applied in Billing, comparison and Budget vs Actual",
+    "area": "Revenue",
+    "date": "2026-11-12",
+    "approxDate": false,
+    "status": null,
+    "summary": "Billing now charges installation transport under the same 2-trip daily cap as the Service Revenue Dashboard, using the portal service date; the dashboard itself is unchanged.",
+    "changes": [
+      "Per salesperson per service date the highest transport charges are charged first; equal charges are ordered by the ERP delivery note (Ref Inv); delivery-only notes stay outside the cap unless that toggle is on.",
+      "Billing shows the capped amount with a note for transport not charged, and the Excel export adds Transport Not Charged and Transport Note columns.",
+      "The Portal vs Excel comparison and Budget vs Actual use the capped figures; figures frozen on completed jobs are not changed."
+    ],
+    "needsYou": "pull, run npm run db:migrate (migration 096), restart the API, hard-refresh the browser.",
+    "migrations": ["096_dandi_trip_cap_view.sql"],
+    "files": "packages/db/migrations/096_dandi_trip_cap_view.sql, packages/db/src/billing-ledger.ts, packages/db/src/di-compare.ts, packages/db/src/budget-variance.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-trip-cap.test.ts, modification.md."
+  },
+  {
     "id": 257,
     "title": "Sales person view: a Show group lists all its invoices; tinted figure tiles",
     "area": "Revenue",
