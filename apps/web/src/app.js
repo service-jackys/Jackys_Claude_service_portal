@@ -21017,7 +21017,7 @@ ${bodyHtml}
             '</ul>';
         }
         html += completed
-          ? '<p class="form-note">These figures were frozen when the job was completed.</p>'
+          ? '<p class="form-note">These figures were frozen when the job was completed. Billing may charge less transport where the daily trip cap applies.</p>'
           : '<p class="form-note">Recalculated on every change from the Delivery + Installation pricing master. Figures freeze when you complete the job.</p>';
       }
       box.innerHTML = html;
@@ -22421,7 +22421,15 @@ ${bodyHtml}
             money(r.adjustment) +
             '</td><td class="num"><strong>' +
             money(r.billedAmount) +
-            '</strong></td><td>' +
+            '</strong>' +
+            (r.transportNote
+              ? '<br><small class="acc-capnote" title="' +
+                plain(r.transportNote) +
+                '. The price saved on the job is the full price; Billing follows the transport rules set on the Service Revenue Dashboard.">&#9888; ' +
+                plain(r.transportNote) +
+                '</small>'
+              : '') +
+            '</td><td>' +
             plain(r.invoiceNo || '') +
             (r.invoiceDate ? '<br><small>' + plain(r.invoiceDate) + '</small>' : '') +
             '</td><td>' +

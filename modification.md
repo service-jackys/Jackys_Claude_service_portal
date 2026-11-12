@@ -5210,6 +5210,26 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #258 — Delivery & Installation: 2-trip daily cap applied in Billing, comparison and Budget vs Actual
+
+**Date:** 2026-11-12
+
+**Why.** The Service Revenue Dashboard caps installation transport at 2 trips per salesperson per day, but the Delivery & Installation figures frozen at completion had no cap, so Billing could charge more transport than the master workbook logic. The dashboard itself must keep reading the master workbook only and is not touched.
+
+**What changed.**
+
+- New database views `di_job_trip_cap` and `di_line_effective` (migration 096) apply the same Transport rules the dashboard uses (daily cap, delivery-only cap, mixed-invoice transport, max trips) when figures are read. Cap groups by the portal **service date** and the salesperson; highest transport charge first; equal charges ordered by the ERP delivery note (Ref Inv). Delivery-only notes stay outside the cap unless the admin switches the delivery-only cap on.
+- Figures frozen on a completed job are not changed (they stay the full price); the uncharged transport is taken off the line that carries it when read.
+- Billing shows the capped amount, with a note under the amount ("Transport AED N not charged: trip R of the day for SALESMAN (M-trip daily cap)"). Rows whose whole amount was transport stay visible. The Billing Excel export gains "Transport Not Charged (AED)" and "Transport Note".
+- The Portal vs Excel comparison and Budget vs Actual (portal D&I feed) use the capped figures.
+- Delivery & Installation job screen: the frozen-price note says Billing may charge less transport where the daily cap applies.
+- Service Revenue Dashboard: unchanged.
+- Test: tests/integration/dandi-trip-cap.test.ts (4 trips for one salesperson on one date, cap off, 3 trips, delivery-only outside the cap). Existing D&I and billing integration tests pass.
+
+**Files.** packages/db/migrations/096_dandi_trip_cap_view.sql, packages/db/src/billing-ledger.ts, packages/db/src/di-compare.ts, packages/db/src/budget-variance.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-trip-cap.test.ts, modification.md.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 096), restart the API, hard-refresh the browser.
+
 ## Modification #257 — Sales person view: a Show group lists all its invoices; tinted figure tiles
 
 **Date:** 2026-11-11

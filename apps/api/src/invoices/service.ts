@@ -228,6 +228,8 @@ export function createInvoiceService(pool: Pool) {
       ['Payment Reference', 'paymentReference'],
       ['Billing Stage', 'stage'],
       ['Job Status', 'jobFinalStatus'],
+      ['Transport Not Charged (AED)', 'transportRemoved', true],
+      ['Transport Note', 'transportNote'],
     ];
     const sheet = workbook.addWorksheet('Billing ledger');
     sheet.columns = ledgerCols.map(([label]) => ({

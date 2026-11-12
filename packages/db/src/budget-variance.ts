@@ -314,11 +314,15 @@ export async function actualRevenue(
          options.portalDandi
            ? `UNION ALL
        -- Delivery & Installation: Completed jobs, on the service date, at the figures
-       -- frozen when the job was completed. Delivery only counts one trip per charge.
-       SELECT 'portal_dandi_' || lower(l.txn_type), j.service_date, COALESCE(l.revenue, 0),
-              CASE WHEN l.txn_type = 'CSIDO' THEN (CASE WHEN COALESCE(l.charge, 0) > 0 THEN 1 ELSE 0 END)
+       -- frozen when the job was completed, less any transport the 2-trip daily cap leaves
+       -- uncharged (view di_line_effective). Delivery only counts one trip per charge.
+       SELECT 'portal_dandi_' || lower(l.txn_type), j.service_date,
+              COALESCE(e.effective_revenue, l.revenue, 0),
+              CASE WHEN l.txn_type = 'CSIDO'
+                   THEN (CASE WHEN COALESCE(l.charge, 0) > 0 AND COALESCE(e.effective_revenue, l.revenue, 0) > 0 THEN 1 ELSE 0 END)
                    ELSE l.qty END
        FROM di_job_lines l JOIN di_jobs j ON j.id = l.job_id
+       LEFT JOIN di_line_effective e ON e.line_id = l.id
        WHERE j.status = 'Completed'`
            : ''
        }
