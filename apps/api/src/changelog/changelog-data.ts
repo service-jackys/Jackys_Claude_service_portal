@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 262,
+    "title": "Brand supplier-details template for the sales team (Stock Master)",
+    "area": "Stock Master",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Stock Master page can download an Excel template with one row per MDA and SDA brand, for the sales team to fill in the warranty, supplier and service center contacts the service team needs to follow up complaints.",
+    "changes": [
+      "Pre-filled from the live Stock Master: brand, category, product groups and item count.",
+      "Columns for warranty provider, supplier contact, brand service center and call center, complaint registration link and method, and sales sign-off, with drop-downs and a Status column.",
+      "Read me sheet explains how to fill it; Products by brand sheet is a reference."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "packages/db/src/stock-master.ts, apps/api/src/stock-master/supplier-template.ts, apps/api/src/stock-master/service.ts, apps/api/src/stock-master/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/brand-supplier-template.test.ts, modification.md."
+  },
+  {
     "id": 261,
     "title": "Quotations list: month filter, management report, ORION Ref column",
     "area": "Quotations",

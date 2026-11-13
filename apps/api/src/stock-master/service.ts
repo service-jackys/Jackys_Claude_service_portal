@@ -3,6 +3,7 @@ import type { Pool } from 'pg';
 import { z } from 'zod';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
+  brandCatalogue,
   latestStockUploadFile,
   saveStockUploadFile,
   saveStockUploadReport,
@@ -14,6 +15,7 @@ import {
 } from '../../../../packages/db/src/stock-master.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildStockMasterWorkbook } from './download.js';
+import { buildBrandSupplierTemplate } from './supplier-template.js';
 import { parseStockWorkbook, StockParseError } from './parser.js';
 
 export class StockMasterServiceError extends Error {
@@ -139,9 +141,39 @@ export function createStockMasterService(pool: Pool) {
     }
   }
 
+  /** The brand supplier-details template for the sales team, pre-filled from the stock master. */
+  async function supplierTemplate(profileId: string, requestId: string = randomUUID()) {
+    const client = await pool.connect();
+    try {
+      const { brands, products } = await brandCatalogue(client);
+      if (brands.length === 0) {
+        throw new StockMasterServiceError(
+          'no-data',
+          'No MDA or SDA brands are in the stock master yet. Upload the ERP Item Listing first.',
+        );
+      }
+      const stamp = new Date().toISOString().slice(0, 10);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'stock.brand_template_downloaded',
+        targetType: 'stock_download',
+        metadata: { brands: brands.length },
+        requestId,
+      });
+      return {
+        fileName: `Brand_supplier_details_template_${stamp}.xlsx`,
+        buffer: await buildBrandSupplierTemplate(brands, products),
+        brands: brands.length,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
   return {
     upload,
     download,
+    supplierTemplate,
     status: () => stockStatus(pool),
     async search(query: unknown) {
       const parsed = searchQuerySchema.parse(query);
