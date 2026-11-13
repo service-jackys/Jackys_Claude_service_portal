@@ -5219,8 +5219,8 @@ Display only; no pricing formulas, API or database changes.
 **What changed.**
 
 - Stock Master page (Admin): new "Download brand template" button. It builds an Excel from the live Stock Master: one row per brand supplied in the MDA and SDA categories, with the category, the product groups and the item count already filled in.
-- Sheets: "Read me" (why, who fills, how, the minimum needed), "Brand details" (the form) and "Products by brand" (reference: brand, product group, sub group, item count).
-- The form has six bands: From the portal (locked grey), Warranty, Supplier / distributor, Brand service center, Complaint registration, Sales sign off. Drop-downs for brand type, who provides the warranty and how to register a complaint. A Status column shows Not started, Partly filled or Complete (Complete once warranty provider, supplier company, supplier phone, service center phone, service center email and registration method are filled). Venus and Thomson are marked Own brand; Philips carries a note (own brand for air conditioners only).
+- Sheets: "Brand details" (the form) and "Products by brand" (reference: brand, product group, sub group, item count). No title row and no Read me sheet.
+- The form has six bands: From the portal (grey), Warranty, Supplier / distributor, Brand service center, Complaint registration (link), Sales sign off (filled by, remarks). Drop-downs for brand type and who provides the warranty. A Status column shows Not started, Partly filled or Complete (Complete once warranty provider, supplier company, supplier phone, service center phone and service center email are filled). Venus and Thomson are marked Own brand; Philips carries a note (own brand for air conditioners only).
 - New API: GET /api/stock/supplier-template (needs stock.write); audited as stock.brand_template_downloaded. No migration.
 - Test: tests/integration/brand-supplier-template.test.ts.
 

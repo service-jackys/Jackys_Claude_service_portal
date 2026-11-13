@@ -53,12 +53,12 @@ test(
       await book.xlsx.load(file.buffer as unknown as ArrayBuffer);
       assert.deepEqual(
         book.worksheets.map((w) => w.name),
-        ['Read me', 'Brand details', 'Products by brand'],
+        ['Brand details', 'Products by brand'],
       );
       const sheet = book.getWorksheet('Brand details')!;
       const rows: Record<string, ExcelJS.Row> = {};
       sheet.eachRow((row, n) => {
-        if (n >= 4) rows[String(row.getCell(1).value ?? '')] = row;
+        if (n >= 3) rows[String(row.getCell(1).value ?? '')] = row;
       });
       const nikai = rows[`NIKAI${tag}`]!;
       assert.equal(nikai.getCell(2).value, 'MDA + SDA');
