@@ -1144,6 +1144,7 @@
     } else if (jobCards) {
       loadJobCards();
     } else if (quotations) {
+      loadQuotationMonths();
       loadQuotations();
     } else if (inspections) {
       loadInspections();
@@ -4818,8 +4819,15 @@ ${bodyHtml}
   // "2 of 5" chip: how many of a quotation's units already have a service job card.
   // Only an Approved quotation can have job cards, so the others show a dash.
   function quotationJobsChip(q) {
-    if (q.quotationStatus !== 'Approved') return '—';
-    const total = Math.max(Number(q.unitCount) || 0, 1);
+    const units = Math.max(Number(q.unitCount) || 0, 0);
+    // Until the quotation is Approved AND invoiced in ERP / ORION, job cards cannot be tracked
+    // yet, so the column simply shows how many units the quotation covers.
+    if (q.quotationStatus !== 'Approved' || q.erpStatus !== 'Invoiced') {
+      return units
+        ? `<span class="jobs-chip jobs-units" title="Units on this quotation. Job card progress shows here once it is Approved and Invoiced.">${units} ${units === 1 ? 'unit' : 'units'}</span>`
+        : '—';
+    }
+    const total = Math.max(units, 1);
     const done = Math.min(Number(q.jobCardCount) || 0, total);
     if (done >= total) {
       return `<span class="jobs-chip jobs-done" title="Every unit has a service job card">All ${total} created</span>`;
@@ -4962,7 +4970,7 @@ ${bodyHtml}
     body.innerHTML = quotations
       .map(
         (q) =>
-          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${q.unitCount || '—'}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${erpStatusChip(q.erpStatus, q.erpInvoiceNo)}</td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
+          `<tr><td><button class="table-link" type="button" data-quotation-id="${escapeHtml(q.id)}">${escapeHtml(q.quotationReference)}</button></td><td>${escapeHtml(formatDateOnly(q.quotationDate))}</td><td>${escapeHtml(q.customerName || '—')}<br>${escapeHtml(q.contactNumber || '')}${quotationListExtra(q)}</td><td>${customerTypeBadge(q.customerType) || '—'}${q.b2bBranchSchool ? `<br><small>${escapeHtml(q.b2bBranchSchool)}</small>` : ''}</td><td class="num">${money(Number(q.grandTotal) || 0)}</td><td><span class="status ${statusClass(q.quotationStatus)}">${escapeHtml(q.quotationStatus || 'Pending')}</span></td><td>${erpStatusChip(q.erpStatus, q.erpInvoiceNo)}</td><td>${q.erpInvoiceNo ? escapeHtml(q.erpInvoiceNo) : '—'}</td><td>${quotationJobsChip(q)}</td><td>${q.approvalStatus ? `<span class="status ${statusClass(q.approvalStatus)}">${escapeHtml(q.approvalStatus)}</span>` : '—'}</td><td>${escapeHtml(formatDate(q.updatedAt))}</td></tr>`,
       )
       .join('');
     $('#quotationsEmpty').hidden = quotations.length > 0;
@@ -4983,6 +4991,67 @@ ${bodyHtml}
       figure('Quotations', String(count));
   }
 
+  const QUOTATION_MONTH_NAMES = [
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
+  ];
+  function quotationMonthLabel(month) {
+    const [y, m] = String(month).split('-');
+    return (QUOTATION_MONTH_NAMES[Number(m) - 1] || month) + ' ' + y;
+  }
+
+  // Fill the month filter with the months that have quotations (newest first), keeping the choice.
+  async function loadQuotationMonths() {
+    const select = $('#quotationMonthFilter');
+    try {
+      const { months } = await apiRequest('/api/quotations/months');
+      const keep = select.value;
+      select.innerHTML =
+        '<option value="">All months</option>' +
+        (months || [])
+          .map(
+            (m) =>
+              `<option value="${escapeHtml(m.month)}">${escapeHtml(quotationMonthLabel(m.month))} (${Number(m.count)})</option>`,
+          )
+          .join('');
+      select.value = keep && (months || []).some((m) => m.month === keep) ? keep : '';
+    } catch {
+      /* the filter just stays on "All months" */
+    }
+  }
+
+  async function downloadQuotationReport() {
+    const button = $('#quotationReportButton');
+    const params = new URLSearchParams();
+    const month = $('#quotationMonthFilter').value;
+    if (month) params.set('month', month);
+    const search = $('#quotationSearch').value.trim();
+    if (search) params.set('search', search);
+    const erpFilter = $('#quotationErpFilter').value;
+    if (erpFilter) params.set('erpStatus', erpFilter);
+    button.disabled = true;
+    button.textContent = 'Preparing…';
+    try {
+      const blob = await apiBlobRequest('/api/quotations/export?' + params);
+      rdDownloadBlob(blob, 'Quotations_Report_' + (month || 'All_months') + '.xlsx');
+    } catch (error) {
+      setWorkspaceRecovery(error.message, downloadQuotationReport);
+    } finally {
+      button.disabled = false;
+      button.textContent = 'Download report';
+    }
+  }
+
   async function loadQuotations() {
     if (!hasPermission('quotation.read')) return;
     clearWorkspaceRecovery();
@@ -4991,6 +5060,8 @@ ${bodyHtml}
     if (search) params.set('search', search);
     const erpFilter = $('#quotationErpFilter').value;
     if (erpFilter) params.set('erpStatus', erpFilter);
+    const month = $('#quotationMonthFilter').value;
+    if (month) params.set('month', month);
     $('#quotationsBody').innerHTML =
       '<tr><td colspan="11" class="empty-state">Loading quotations…</td></tr>';
     try {
@@ -9829,7 +9900,11 @@ ${bodyHtml}
   $('#appointmentPrintSheetsButton').addEventListener('click', () =>
     printAppointmentRange('sheets'),
   );
-  bindLiveFilters(loadQuotations, '#quotationSearch', ['#quotationErpFilter']);
+  bindLiveFilters(loadQuotations, '#quotationSearch', [
+    '#quotationErpFilter',
+    '#quotationMonthFilter',
+  ]);
+  $('#quotationReportButton').addEventListener('click', downloadQuotationReport);
   bindLiveFilters(loadInspections, '#inspectionSearch');
   bindLiveFilters(loadWarrantyApprovals, '#warrantyApprovalSearch', [
     '#warrantyApprovalStatusFilter',

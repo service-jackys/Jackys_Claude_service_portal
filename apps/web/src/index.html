@@ -796,6 +796,13 @@
         color: var(--muted);
         border: 1px solid var(--line);
       }
+      .jobs-chip.jobs-units {
+        font-weight: 600;
+        background: transparent;
+      }
+      #quotationMonthFilter {
+        min-width: 11rem;
+      }
       .jobs-chip.jobs-partial {
         background: #fdf3dc;
         border-color: #f0dba5;
@@ -14943,7 +14950,23 @@
                     id="quotationSearch"
                     type="search"
                     placeholder="Search reference, customer, project"
-                  /><button class="button button-primary" type="button" id="createQuotationButton">
+                  />
+                  <label class="visually-hidden" for="quotationMonthFilter">Quotation month</label>
+                  <select
+                    id="quotationMonthFilter"
+                    title="Show quotations of one month. The report download follows this choice."
+                  >
+                    <option value="">All months</option>
+                  </select>
+                  <button
+                    class="button"
+                    type="button"
+                    id="quotationReportButton"
+                    title="Download a management report (Excel) for the selected month, or all months"
+                  >
+                    Download report
+                  </button>
+                  <button class="button button-primary" type="button" id="createQuotationButton">
                     New quotation
                   </button>
                 </div>
@@ -14958,10 +14981,10 @@
                         <th>Quotation date</th>
                         <th>Customer</th>
                         <th>Type</th>
-                        <th class="num">Units</th>
                         <th>Total (&#x20C3;)</th>
                         <th>Status</th>
                         <th>ERP / ORION</th>
+                        <th>ORION Ref</th>
                         <th>Job cards</th>
                         <th>Customer approval</th>
                         <th>Updated</th>

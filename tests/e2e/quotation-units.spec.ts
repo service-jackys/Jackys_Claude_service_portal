@@ -281,6 +281,101 @@ test.describe('quotation customer type, status and job card', () => {
   });
 });
 
+test.describe('quotations list: month filter, report and ORION Ref', () => {
+  const base = { ...legacyQuotation, unitCount: 8, jobCardCount: 0 };
+  const rows = [
+    { ...base, id: '1', quotationReference: 'QO-A', quotationStatus: 'Pending' },
+    { ...base, id: '2', quotationReference: 'QO-B', quotationStatus: 'Approved' },
+    {
+      ...base,
+      id: '3',
+      quotationReference: 'QO-C',
+      quotationStatus: 'Approved',
+      erpStatus: 'Invoiced',
+      erpInvoiceNo: 'ORN-777',
+    },
+  ];
+
+  test('Job cards shows the unit count until Approved and Invoiced; ORION Ref replaces Units', async ({
+    page,
+  }) => {
+    await mockPortal(page, {}, { quotations: rows });
+    const table = page.locator('#quotationsBody').locator('xpath=ancestor::table');
+    await expect(table.locator('th')).toContainText(['ORION Ref', 'Job cards']);
+    await expect(table.locator('th', { hasText: /^Units$/ })).toHaveCount(0);
+    const a = page.locator('#quotationsBody tr', { hasText: 'QO-A' });
+    const b = page.locator('#quotationsBody tr', { hasText: 'QO-B' });
+    const c = page.locator('#quotationsBody tr', { hasText: 'QO-C' });
+    // Pending, and Approved but not yet invoiced: just the units.
+    await expect(a.locator('.jobs-chip')).toHaveText('8 units');
+    await expect(b.locator('.jobs-chip')).toHaveText('8 units');
+    // Approved and Invoiced: job card progress, plus the ORION invoice number.
+    await expect(c.locator('.jobs-chip')).toHaveText('0 of 8 created');
+    await expect(c).toContainText('ORN-777');
+    await expect(a.locator('td').nth(7)).toHaveText('—');
+  });
+
+  test('the month filter narrows the list, and the report follows the chosen month or all', async ({
+    page,
+  }) => {
+    const listUrls: string[] = [];
+    const exportUrls: string[] = [];
+    await mockPortal(
+      page,
+      {},
+      {
+        quotations: rows,
+        handle: async (url, _request, json) => {
+          if (url.pathname === '/api/quotations/months') {
+            await json({
+              months: [
+                { month: '2026-11', count: 5 },
+                { month: '2026-10', count: 12 },
+              ],
+            });
+            return true;
+          }
+          if (url.pathname === '/api/quotations') listUrls.push(url.search);
+          if (url.pathname === '/api/quotations/export') {
+            exportUrls.push(url.search);
+            return false;
+          }
+          return false;
+        },
+      },
+    );
+    const month = page.locator('#quotationMonthFilter');
+    await expect(month.locator('option')).toHaveText([
+      'All months',
+      'November 2026 (5)',
+      'October 2026 (12)',
+    ]);
+    await month.selectOption('2026-10');
+    await expect.poll(() => listUrls.at(-1)).toContain('month=2026-10');
+    await month.selectOption('');
+    await expect.poll(() => listUrls.at(-1)).not.toContain('month=');
+    // The report is requested for the same month.
+    await month.selectOption('2026-11');
+    await page.route('**/api/quotations/export*', async (route) => {
+      exportUrls.push(new URL(route.request().url()).search);
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        body: 'xlsx',
+      });
+    });
+    const download = page.waitForEvent('download');
+    await page.locator('#quotationReportButton').click();
+    expect((await download).suggestedFilename()).toBe('Quotations_Report_2026-11.xlsx');
+    expect(exportUrls.at(-1)).toContain('month=2026-11');
+    await month.selectOption('');
+    const all = page.waitForEvent('download');
+    await page.locator('#quotationReportButton').click();
+    expect((await all).suggestedFilename()).toBe('Quotations_Report_All_months.xlsx');
+    expect(exportUrls.at(-1)).not.toContain('month=');
+  });
+});
+
 test('inspection form has customer type and B2B lookup, without a status popup', async ({
   page,
 }) => {
@@ -324,6 +419,8 @@ test('a school quote shows its units and job cards, and each unit gets its own j
     id: '900',
     quotationReference: 'QO-2026-00900',
     quotationStatus: 'Approved',
+    erpStatus: 'Invoiced',
+    erpInvoiceNo: 'INV-900',
     customerComplaint: null,
     products: [1, 2, 3].map((n) => ({
       unitKey: `u${n}`,
@@ -401,7 +498,11 @@ test('a school quote shows its units and job cards, and each unit gets its own j
   // The list shows the unit count and how many job cards exist.
   const row = page.locator('#quotationsBody tr', { hasText: 'QO-2026-00900' });
   await expect(row).toContainText('1 of 3 created');
-  await expect(row.locator('td.num').first()).toHaveText('3');
+  // The Units column is gone; the ORION invoice number has its own column.
+  await expect(
+    page.locator('#quotationsBody').locator('xpath=ancestor::table//th'),
+  ).not.toContainText(['Units']);
+  await expect(row).toContainText('INV-900');
   // Opening a quotation brings the edit page into view with its job-card progress.
   await row.getByRole('button', { name: 'QO-2026-00900' }).click();
   await expect(page.locator('#quotationJobUnits')).toContainText('1 of 3 created');

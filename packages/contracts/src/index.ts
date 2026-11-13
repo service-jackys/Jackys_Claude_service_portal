@@ -667,10 +667,23 @@ export const quotationListQuerySchema = z
     quotationStatus: z.enum(quotationStatuses).optional(),
     erpStatus: z.enum(quotationErpStatuses).optional(),
     customerType: customerTypeSchema.optional(),
+    // Quotation month, YYYY-MM.
+    month: z
+      .string()
+      .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+      .optional(),
     page: queryNumber(1, 1, 100000),
     pageSize: queryNumber(25, 1, 100),
   })
   .strict();
+
+/** The management report takes the same filters as the list, without paging. */
+export const quotationReportQuerySchema = quotationListQuerySchema.omit({
+  page: true,
+  pageSize: true,
+  appointmentId: true,
+  unused: true,
+});
 
 export const inspectionWriteSchema = z
   .object({

@@ -65,6 +65,32 @@ export function createQuotationHandlers(
         }
       },
     ],
+    months: [
+      requirePermission('quotation.read'),
+      async (_request, response, next) => {
+        try {
+          response.json({ months: await service.months() });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    exportReport: [
+      requirePermission('quotation.read'),
+      async (request, response, next) => {
+        try {
+          const result = await service.exportReport(request.query);
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', `attachment; filename="${result.fileName}"`)
+            .set('X-Report-Rows', String(result.rows))
+            .set('Access-Control-Expose-Headers', 'Content-Disposition, X-Report-Rows')
+            .send(result.buffer);
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     detail: [
       requirePermission('quotation.read'),
       async (request, response, next) => {

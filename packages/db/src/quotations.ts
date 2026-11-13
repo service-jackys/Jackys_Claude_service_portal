@@ -280,6 +280,8 @@ export async function listQuotations(
     quotationStatus?: string;
     erpStatus?: string;
     customerType?: string;
+    // Quotation month as YYYY-MM (the Records > Quotations month filter).
+    month?: string;
     page: number;
     pageSize: number;
   },
@@ -299,6 +301,7 @@ export async function listQuotations(
   if (query.quotationStatus) filters.push(`quotation_status = ${add(query.quotationStatus)}`);
   if (query.erpStatus) filters.push(`erp_status = ${add(query.erpStatus)}`);
   if (query.customerType) filters.push(`customer_type = ${add(query.customerType)}`);
+  if (query.month) filters.push(`to_char(quotation_date, 'YYYY-MM') = ${add(query.month)}`);
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(
@@ -327,6 +330,16 @@ export async function listQuotations(
     totalAmount: Math.round(Number(count.rows[0].amount) * 100) / 100,
     totalSubtotal: Math.round(Number(count.rows[0].subtotal) * 100) / 100,
   };
+}
+
+/** Months that have quotations (newest first), for the month filter and the report picker. */
+export async function listQuotationMonths(client: PoolClient) {
+  const result = await client.query<{ month: string; count: number }>(
+    `SELECT to_char(quotation_date, 'YYYY-MM') AS month, count(*)::int AS count
+     FROM quotations WHERE quotation_date IS NOT NULL
+     GROUP BY 1 ORDER BY 1 DESC`,
+  );
+  return result.rows;
 }
 
 // LPO pending: Pending or Approved quotations still waiting to be invoiced in ERP / ORION.
