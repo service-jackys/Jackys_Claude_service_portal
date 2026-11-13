@@ -14680,7 +14680,14 @@ ${bodyHtml}
               ' item(s) not in the latest file (kept)</p>'
             : '') +
           '<p><button class="button dl-pill" type="button" data-sm-dl>Download Excel</button></p>' +
-          '<p class="form-note" data-sm-dl-msg role="status"></p>'
+          '<p class="form-note" data-sm-dl-msg role="status"></p>' +
+          '<h4>Brand supplier details for the sales team ' +
+          tipHtml(
+            'An Excel template with one row per MDA and SDA brand in this stock master. The sales team fills in the warranty, supplier and service center contacts so the service team can follow up complaints on brands that carry the manufacturer or supplier warranty.',
+          ) +
+          '</h4>' +
+          '<p><button class="button dl-pill" type="button" data-sm-tpl>Download brand template</button></p>' +
+          '<p class="form-note" data-sm-tpl-msg role="status"></p>'
         : '<p class="form-note">No upload yet.</p>') +
       '</section>' +
       '<section class="detail-action-card"><h4>Upload ERP Item Listing ' +
@@ -14720,6 +14727,25 @@ ${bodyHtml}
           note.textContent = error.message || 'The download failed.';
         } finally {
           download.disabled = false;
+        }
+      });
+    }
+    const template = root.querySelector('[data-sm-tpl]');
+    if (template) {
+      template.addEventListener('click', async () => {
+        const note = root.querySelector('[data-sm-tpl-msg]');
+        template.disabled = true;
+        note.textContent = 'Preparing the template…';
+        try {
+          note.textContent = await downloadMasterFile(
+            '/api/stock/supplier-template',
+            'Brand_supplier_details_template.xlsx',
+            '.',
+          );
+        } catch (error) {
+          note.textContent = error.message || 'The download failed.';
+        } finally {
+          template.disabled = false;
         }
       });
     }

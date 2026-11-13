@@ -5210,6 +5210,24 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #262 — Brand supplier-details template for the sales team (Stock Master)
+
+**Date:** 2026-11-13
+
+**Why.** For brands that carry the manufacturer's or supplier's own warranty (Nikai, Akai, Super General and others) the service team gets complaint requests but has no contact, call center, service center email, supplier contact or complaint registration link, so the sales team handles them and customers wait. The sales team needs a template to supply these details brand by brand.
+
+**What changed.**
+
+- Stock Master page (Admin): new "Download brand template" button. It builds an Excel from the live Stock Master: one row per brand supplied in the MDA and SDA categories, with the category, the product groups and the item count already filled in.
+- Sheets: "Read me" (why, who fills, how, the minimum needed), "Brand details" (the form) and "Products by brand" (reference: brand, product group, sub group, item count).
+- The form has six bands: From the portal (locked grey), Warranty, Supplier / distributor, Brand service center, Complaint registration, Sales sign off. Drop-downs for brand type, who provides the warranty and how to register a complaint. A Status column shows Not started, Partly filled or Complete (Complete once warranty provider, supplier company, supplier phone, service center phone, service center email and registration method are filled). Venus and Thomson are marked Own brand; Philips carries a note (own brand for air conditioners only).
+- New API: GET /api/stock/supplier-template (needs stock.write); audited as stock.brand_template_downloaded. No migration.
+- Test: tests/integration/brand-supplier-template.test.ts.
+
+**Files.** packages/db/src/stock-master.ts, apps/api/src/stock-master/supplier-template.ts, apps/api/src/stock-master/service.ts, apps/api/src/stock-master/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/brand-supplier-template.test.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh, open Stock Master and click Download brand template.
+
 ## Modification #261 — Quotations list: month filter, management report, ORION Ref column
 
 **Date:** 2026-11-13

@@ -249,6 +249,55 @@ export async function stockFacets(db: Queryable): Promise<{
   return { brands: brands.rows, groups: groups.rows };
 }
 
+/** Brands supplied in the service-relevant main groups (MDA, SDA), one row per brand,
+ *  with the product groups behind them -- feeds the brand supplier-details template. */
+export type BrandCatalogueRow = {
+  brand: string;
+  mainGroups: string[];
+  groups: string[];
+  itemCount: number;
+};
+export type BrandProductRow = {
+  brand: string;
+  mainGroup: string;
+  groupName: string | null;
+  subGroup: string | null;
+  itemCount: number;
+};
+
+export async function brandCatalogue(
+  db: Queryable,
+): Promise<{ brands: BrandCatalogueRow[]; products: BrandProductRow[] }> {
+  const groups = [...STOCK_SEARCH_GROUPS];
+  const products = await db.query<BrandProductRow>(
+    `SELECT upper(trim(brand)) AS brand, upper(trim(main_group)) AS "mainGroup",
+            NULLIF(trim(group_name), '') AS "groupName", NULLIF(trim(sub_group), '') AS "subGroup",
+            count(*)::int AS "itemCount"
+       FROM stock_master
+      WHERE NULLIF(trim(brand), '') IS NOT NULL AND upper(trim(main_group)) = ANY($1::text[])
+      GROUP BY 1, 2, 3, 4
+      ORDER BY 1, 2, 3, 4`,
+    [groups],
+  );
+  const byBrand = new Map<string, BrandCatalogueRow>();
+  for (const row of products.rows) {
+    const entry = byBrand.get(row.brand) ?? {
+      brand: row.brand,
+      mainGroups: [],
+      groups: [],
+      itemCount: 0,
+    };
+    if (!entry.mainGroups.includes(row.mainGroup)) entry.mainGroups.push(row.mainGroup);
+    if (row.groupName && !entry.groups.includes(row.groupName)) entry.groups.push(row.groupName);
+    entry.itemCount += row.itemCount;
+    byBrand.set(row.brand, entry);
+  }
+  return {
+    brands: [...byBrand.values()].sort((a, b) => a.brand.localeCompare(b.brand)),
+    products: products.rows,
+  };
+}
+
 export async function stockStatus(db: Queryable): Promise<{
   lastUpload: StockUploadSummary | null;
   totalItems: number;

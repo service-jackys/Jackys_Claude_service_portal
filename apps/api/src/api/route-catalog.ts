@@ -3300,6 +3300,18 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
+        path: '/api/stock/supplier-template',
+        operationId: 'downloadBrandSupplierTemplate',
+        tags: ['Stock Master'],
+        summary:
+          'Download the brand warranty and service-contact template (one row per MDA / SDA brand) for the sales team to fill in',
+        security: 'bearerAuth' as const,
+        responseContentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        responses: [200, 401, 403, 404, 500],
+        handlers: stockMasterHandlers.supplierTemplate,
+      },
+      {
+        method: 'get' as const,
         path: '/api/stock/status',
         operationId: 'getStockMasterStatus',
         tags: ['Stock Master'],
