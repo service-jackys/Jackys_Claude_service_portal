@@ -224,6 +224,13 @@ export const REVENUE_DIMENSIONS = {
   billingCode: "COALESCE(NULLIF(billing_code, ''), 'UNKNOWN')",
   jobStatus: "COALESCE(NULLIF(job_sheet_status, ''), 'UNKNOWN')",
   orderStatus: "COALESCE(NULLIF(csosc_status, ''), 'UNKNOWN')",
+  // CSIJO only (NULL for every other job type, so it never shows in other
+  // breakdowns). A label, not a rule: it mirrors the "Actual ERP job value"
+  // basis in pricing-logic.ts and changes no revenue figure.
+  csijoBasis: `(CASE WHEN upper(job_type) = 'CSIJO' THEN
+      CASE WHEN COALESCE(original_job_value, 0) > 0 AND abs(revenue - qty * unit_price) > 0.01
+        THEN 'Original invoice' ELSE 'Channel-billed' END
+    END)`,
 } as const;
 
 export type RevenueDimension = keyof typeof REVENUE_DIMENSIONS;
@@ -435,6 +442,7 @@ export async function revenueSummary(client: PoolClient, batchId: string, filter
       jobTypes: await distinct('jobType'),
       channels: await distinct('channel'),
       costStatuses: await distinct('costStatus'),
+      csijoBases: await distinct('csijoBasis'),
     },
   };
 }
@@ -446,6 +454,7 @@ const lineColumns = `
   csosc_status AS "orderStatus", job_sheet_status AS "jobSheetStatus",
   sales_person AS "salesPerson", qty, unit_price AS "unitPrice", revenue,
   original_job_value AS "originalJobValue", billing_code AS "billingCode",
+  ${REVENUE_DIMENSIONS.csijoBasis} AS "csijoBasis",
   sales_channel AS "salesChannel", cost_status AS "costStatus", remarks,
   COALESCE(NULLIF(ref_doc_no, ''), pricing->>'refDocNo') AS "refDocNo", ref_doc_dt AS "refDocDt",
   COALESCE(NULLIF(cust_code, ''), pricing->>'custCode') AS "custCode",

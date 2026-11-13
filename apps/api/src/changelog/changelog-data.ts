@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 263,
+    "title": "Service Revenue Dashboard: CSIJO original invoice vs channel-billed",
+    "area": "Service Revenue Dashboard",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "CSIJO is now shown in two parts on every tab: jobs with an actual ERP invoice value, and zero-value jobs priced by rate and billed to the sales channel. It is a label only; no revenue figure changes.",
+    "changes": [
+      "Overview: split cards, proportion bar, two-tint monthly chart and sub-rows in the job type breakdown.",
+      "Explorer: CSIJO basis filter, Basis column and two extra KPI cards.",
+      "Reports: new CSIJO split view by month and by sales channel; both Excel exports get a CSIJO basis column.",
+      "Logic applied: a card explaining both ways a CSIJO job is valued."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "packages/db/src/revenue-dashboard.ts, apps/web/src/app.js"
+  },
+  {
     "id": 262,
     "title": "Brand supplier-details template for the sales team (Stock Master)",
     "area": "Stock Master",

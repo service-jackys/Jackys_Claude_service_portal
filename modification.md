@@ -5129,7 +5129,6 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull and restart the API. No migration. Merge after PR #164 (it builds on it).
 
-
 ## Modification #246 — Ask AI can look up exact revenue figures for any date, month or filter
 
 **Date:** 2026-11-10
@@ -5146,7 +5145,6 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/ai/revenue-lookup.ts (new), apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md.
 
 **Needs you:** pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).
-
 
 ## Modification #247 — Ask AI can answer from Net Sale Current, CSIDI, CSIDO and CSIII
 
@@ -5167,7 +5165,6 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then **upload the master workbook once again** (the sheets are only read at upload time). No new permission.
 
-
 ## Modification #248 — Ask AI understands the delivery-charge lines and can search by part of a value
 
 **Date:** 2026-11-10
@@ -5183,7 +5180,6 @@ Display only; no pricing formulas, API or database changes.
 **Files.** apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, tests, modification.md.
 
 **Needs you:** pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.
-
 
 ## Modification #249 — Transport rules: 2-trip daily cap with portal-wide admin toggles
 
@@ -5209,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #263 — Service Revenue Dashboard: CSIJO original invoice vs channel-billed
+
+**Date:** 2026-11-13
+
+**Why.** CSIJO (Non-Warranty Repairs) has two kinds of job: jobs with an actual ERP value (the original invoice, revenue is that value) and jobs with 0 in ERP that are priced by the rate card (or the flat BER / RWR charge) and billed to the sales channel. Management wanted to see the two separately.
+
+**What changed.**
+
+- New label "CSIJO basis" with two values: Original invoice (ERP value above 0 and revenue is not rate x quantity, the same test as the existing "Actual ERP job value" basis) and Channel-billed (everything else in CSIJO). Other job types carry no basis. It is a label only: no revenue figure, rate, channel rule or total changes.
+- Overview: CSIJO split cards (revenue, share, jobs, units), a proportion bar, a monthly chart in two tints, and two sub-rows under CSIJO in the Job type breakdown.
+- Explorer: two extra KPI cards, a Basis column on the job list and the basis in the job detail.
+- Reports: new "CSIJO split" view (by month and by sales channel, with totals and channel share).
+- Logic applied: a CSIJO card explaining both ways a job is valued, with live figures.
+- New "CSIJO basis" filter on every tab; it also works as a drill-down breakdown. Both Excel exports (full report and "Download this view") get a CSIJO basis column.
+- Tests: tests/integration/csijo-basis.test.ts (split adds up to CSIJO, grand total unchanged, filter, matrix, job list).
+
+**Files.** packages/db/src/revenue-dashboard.ts, packages/contracts/src/index.ts, apps/api/src/api/route-catalog.ts, apps/api/src/revenue-dashboard/export.ts, apps/api/src/revenue-dashboard/view-export.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
 
 ## Modification #262 — Brand supplier-details template for the sales team (Stock Master)
 

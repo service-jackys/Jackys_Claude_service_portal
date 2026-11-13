@@ -301,6 +301,13 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     },
     { h: 'Rule applied', w: 34, group: 'Revenue', core: true, get: ruleApplied },
     {
+      h: 'CSIJO basis',
+      w: 15,
+      group: 'Revenue',
+      core: true,
+      get: (x: Row) => (x.line.csijoBasis as string | null) ?? '',
+    },
+    {
       h: 'Revenue (AED)',
       w: 14,
       fmt: MONEY,

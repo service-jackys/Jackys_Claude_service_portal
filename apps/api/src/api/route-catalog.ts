@@ -187,6 +187,7 @@ const revenueFilterParameters: object[] = [
     'billingCode',
     'jobStatus',
     'orderStatus',
+    'csijoBasis',
   ].map((name) => ({ name, in: 'query', schema: { type: 'string', maxLength: 200 } })),
   {
     name: 'exception',
@@ -220,6 +221,7 @@ const revenueDimensionEnum = [
   'billingCode',
   'jobStatus',
   'orderStatus',
+  'csijoBasis',
 ];
 
 const appointmentListParameters: object[] = [

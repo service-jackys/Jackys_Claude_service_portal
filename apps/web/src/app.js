@@ -25169,6 +25169,80 @@ ${bodyHtml}
   function rdJobLabel(code) {
     return RD_JOB_LABELS[code] ? RD_JOB_LABELS[code] : code;
   }
+  // CSIJO basis (original invoice vs channel-billed): a label only, it never changes a figure.
+  const RD_CSIJO = { orig: 'Original invoice', chan: 'Channel-billed' };
+  const RD_CSIJO_COLORS = { [RD_CSIJO.orig]: '#e0475f', [RD_CSIJO.chan]: '#f4a3b2' };
+  function rdBasisChip(basis) {
+    if (!basis) return '';
+    const cls = basis === RD_CSIJO.orig ? 'orig' : 'chan';
+    return '<span class="rd-basis ' + cls + '"><i></i>' + escapeHtml(basis) + '</span>';
+  }
+  // Pull the two CSIJO bases out of a grouped result: { orig:{revenue,jobs,qty}, chan:{...}, total }.
+  function rdCsijoSplit(group) {
+    const pick = (name) =>
+      (group.rows || []).find((r) => r.key === name) || { revenue: 0, jobs: 0, qty: 0 };
+    const orig = pick(RD_CSIJO.orig);
+    const chan = pick(RD_CSIJO.chan);
+    return {
+      orig,
+      chan,
+      revenue: orig.revenue + chan.revenue,
+      jobs: orig.jobs + chan.jobs,
+      qty: orig.qty + chan.qty,
+    };
+  }
+  function rdCsijoCards(split) {
+    const card = (cls, title, tag, row, why) =>
+      '<div class="cs-card ' +
+      cls +
+      '"><div class="t"><span>' +
+      title +
+      '</span>' +
+      rdBasisChip(tag) +
+      '</div><div class="big">\u20C3 ' +
+      rdMoney2(row.revenue) +
+      '</div><div style="font-size:.78rem;color:var(--muted)">' +
+      rdPercent(row.revenue, split.revenue) +
+      ' of CSIJO revenue</div><div class="row"><div><b>' +
+      rdMoney(row.jobs) +
+      '</b>jobs</div><div><b>' +
+      rdMoney(row.qty) +
+      '</b>units</div></div><div class="why">' +
+      why +
+      '</div></div>';
+    const w = split.revenue ? (split.orig.revenue / split.revenue) * 100 : 0;
+    return (
+      '<div class="cs-grid">' +
+      card(
+        'orig',
+        'Original invoice',
+        RD_CSIJO.orig,
+        split.orig,
+        'The ERP carries an actual job value. Revenue is that value, not rate x quantity.',
+      ) +
+      card(
+        'chan',
+        'Channel-billed',
+        RD_CSIJO.chan,
+        split.chan,
+        'Zero value in ERP. Priced by the rate card (or the flat BER / RWR charge) and billed to the sales channel.',
+      ) +
+      '</div><div class="cs-bar"><span style="width:' +
+      w.toFixed(1) +
+      '%;background:' +
+      RD_CSIJO_COLORS[RD_CSIJO.orig] +
+      '"></span><span style="width:' +
+      (100 - w).toFixed(1) +
+      '%;background:' +
+      RD_CSIJO_COLORS[RD_CSIJO.chan] +
+      '"></span></div>' +
+      '<div class="cs-bar-cap"><span>Original invoice ' +
+      rdPercent(split.orig.revenue, split.revenue) +
+      '</span><span>Channel-billed ' +
+      rdPercent(split.chan.revenue, split.revenue) +
+      '</span></div>'
+    );
+  }
   function rdSortJobTypes(codes) {
     return [...codes].sort((a, b) => {
       const ia = RD_JOB_ORDER.indexOf(a);
@@ -25202,6 +25276,7 @@ ${bodyHtml}
     billingCode: 'Billing code',
     jobStatus: 'Job status',
     orderStatus: 'Order status',
+    csijoBasis: 'CSIJO basis',
     exception: 'Exception',
   };
 
@@ -25753,9 +25828,9 @@ ${bodyHtml}
           rowDimension === 'period' ? rdLabel('period', r) : rdLabel(rowDimension, r),
         ),
         datasets: types.map((type, i) => ({
-          label: rdJobLabel(type),
+          label: options.labelFor ? options.labelFor(type) : rdJobLabel(type),
           data: rows.map((r) => lookup.get(r + '|' + type) || 0),
-          backgroundColor: rdJtColor(type, i),
+          backgroundColor: options.colors?.[type] || rdJtColor(type, i),
           borderRadius: options.borderRadius ?? 4,
           stack: 'stack',
           barPercentage: options.barPercentage ?? 0.8,
@@ -26789,7 +26864,7 @@ ${bodyHtml}
   function rdJobsTable(lines) {
     if (!lines.length) return '<p class="form-note rd-pad">No jobs match the selected filters.</p>';
     return (
-      '<div class="table-wrap"><table class="rc-table rd-jobs-table"><thead><tr><th>Date</th><th>Wk</th><th>Type</th><th>Inv/Del no</th><th>CSOSC order</th><th>Customer</th><th>Channel</th><th>Salesperson</th><th>ERP parent brand</th><th>Billing code</th><th>Cost status</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Revenue</th></tr></thead><tbody>' +
+      '<div class="table-wrap"><table class="rc-table rd-jobs-table"><thead><tr><th>Date</th><th>Wk</th><th>Type</th><th>Basis</th><th>Inv/Del no</th><th>CSOSC order</th><th>Customer</th><th>Channel</th><th>Salesperson</th><th>ERP parent brand</th><th>Billing code</th><th>Cost status</th><th class="num">Qty</th><th class="num">Unit</th><th class="num">Revenue</th></tr></thead><tbody>' +
       lines
         .map(
           (r, i) =>
@@ -26801,6 +26876,8 @@ ${bodyHtml}
             escapeHtml(r.weekNo ?? '') +
             '</td><td>' +
             escapeHtml(r.jobType) +
+            '</td><td>' +
+            rdBasisChip(r.csijoBasis) +
             '</td><td>' +
             escapeHtml(r.invDelNo || '') +
             '</td><td>' +
@@ -26826,13 +26903,22 @@ ${bodyHtml}
             '</td></tr>' +
             '<tr class="rd-detail" data-rd-detail="' +
             i +
-            '" hidden><td colspan="14"><div class="rd-detail-grid"><div><strong>Description</strong> ' +
+            '" hidden><td colspan="15"><div class="rd-detail-grid"><div><strong>Description</strong> ' +
             escapeHtml(r.description || '-') +
             '</div><div><strong>Job status</strong> ' +
             escapeHtml(r.jobSheetStatus || '-') +
             '</div>' +
             (r.refDocNo
               ? '<div><strong>Ref doc no</strong> ' + refDocPill(r.refDocNo) + '</div>'
+              : '') +
+            (r.csijoBasis
+              ? '<div><strong>CSIJO basis</strong> ' +
+                escapeHtml(
+                  r.csijoBasis === RD_CSIJO.orig
+                    ? 'Original invoice \u2014 actual ERP job value, not rate x quantity'
+                    : 'Channel-billed \u2014 zero in ERP, priced by rate and billed to the sales channel',
+                ) +
+                '</div>'
               : '') +
             '<div><strong>Original job value</strong> \u20C3 ' +
             rdMoney2(r.originalJobValue) +
@@ -26878,7 +26964,15 @@ ${bodyHtml}
 
   async function renderRevenueDashboard(root) {
     rdDestroyCharts(root);
-    const F = { year: '', month: '', week: '', jobType: '', channel: '', costStatus: '' };
+    const F = {
+      year: '',
+      month: '',
+      week: '',
+      jobType: '',
+      channel: '',
+      costStatus: '',
+      csijoBasis: '',
+    };
     const allowedTabs = revenueTabs();
     // Transport rules tab (#251): for everyone who can open the dashboard; switches are admin only.
     // Rate card tab (#254): the rates and the workbook check, moved out of Logic applied.
@@ -26910,6 +27004,7 @@ ${bodyHtml}
       if (F.jobType) parts.push(F.jobType);
       if (F.channel) parts.push(F.channel);
       if (F.costStatus) parts.push(F.costStatus);
+      if (F.csijoBasis) parts.push('CSIJO: ' + F.csijoBasis);
       return parts.length ? parts.join(' / ') : 'All periods';
     }
 
@@ -26978,6 +27073,7 @@ ${bodyHtml}
         sel('jobType', 'Job type', options.jobTypes, (v) => rdLabel('jobType', v)) +
         sel('channel', 'Sales channel', options.channels) +
         sel('costStatus', 'Cost status', options.costStatuses) +
+        sel('csijoBasis', 'CSIJO basis', Object.values(RD_CSIJO)) +
         '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-rd-reset>Reset filters</button></div></div></div>';
       barEl.querySelectorAll('[data-rd-filter]').forEach((select) => {
         select.addEventListener('change', () => {
@@ -27002,21 +27098,31 @@ ${bodyHtml}
 
     // ---------------------------------------------------------------- Overview
     async function drawOverview(sum) {
-      const [monthly, weekly, byType, byChannel, byCustomer, bySales] = await Promise.all([
-        rdApi('matrix', {
-          ...F,
-          month: '',
-          week: '',
-          rowDimension: 'period',
-          columnDimension: 'jobType',
-        }),
-        rdApi('matrix', { ...F, week: '', rowDimension: 'yearWeek', columnDimension: 'jobType' }),
-        rdApi('group', { ...F, dimension: 'jobType' }),
-        rdApi('group', { ...F, dimension: 'channel' }),
-        rdApi('group', { ...F, dimension: 'customer' }),
-        rdApi('group', { ...F, dimension: 'salesPerson' }),
-      ]);
+      const [monthly, weekly, byType, byChannel, byCustomer, bySales, byBasis, basisMonthly] =
+        await Promise.all([
+          rdApi('matrix', {
+            ...F,
+            month: '',
+            week: '',
+            rowDimension: 'period',
+            columnDimension: 'jobType',
+          }),
+          rdApi('matrix', { ...F, week: '', rowDimension: 'yearWeek', columnDimension: 'jobType' }),
+          rdApi('group', { ...F, dimension: 'jobType' }),
+          rdApi('group', { ...F, dimension: 'channel' }),
+          rdApi('group', { ...F, dimension: 'customer' }),
+          rdApi('group', { ...F, dimension: 'salesPerson' }),
+          rdApi('group', { ...F, dimension: 'csijoBasis' }),
+          rdApi('matrix', {
+            ...F,
+            month: '',
+            week: '',
+            rowDimension: 'period',
+            columnDimension: 'csijoBasis',
+          }),
+        ]);
       const t = sum.summary.totals;
+      const split = rdCsijoSplit(byBasis.data);
       const types = byType.data.rows;
       const rates = Object.fromEntries((sum.summary.rates || []).map((r) => [r.jobType, r.price]));
       const topType = types[0];
@@ -27036,6 +27142,14 @@ ${bodyHtml}
             topType ? rdPercent(topType.revenue, t.revenue) + ' of revenue' : '',
           ],
         ]) +
+        (split.jobs
+          ? rdSection(
+              'CSIJO &mdash; original invoice vs billed to sales channel',
+              rdCsijoCards(split) +
+                '<div class="rd-chart-pad"><div class="rd-chart-box short"><canvas id="rdc-csijo-monthly"></canvas></div></div>',
+              'Non-Warranty Repairs &middot; ' + escapeHtml(periodLabel()),
+            )
+          : '') +
         rdSection(
           'Monthly revenue by job type (value in \u20C3)',
           '<div class="rd-chart-pad"><div class="rd-chart-box"><canvas id="rdc-monthly"></canvas></div>' +
@@ -27093,7 +27207,34 @@ ${bodyHtml}
                   rdMoney2(r.revenue) +
                   ' (' +
                   rdPercent(r.revenue, t.revenue) +
-                  ')</td></tr>',
+                  ')</td></tr>' +
+                  (r.key === 'CSIJO' && split.jobs
+                    ? [
+                        [RD_CSIJO.orig, split.orig, 'actual'],
+                        [
+                          RD_CSIJO.chan,
+                          split.chan,
+                          rates.CSIJO !== undefined ? rdMoney2(rates.CSIJO) : '--',
+                        ],
+                      ]
+                        .map(
+                          ([name, row, rate]) =>
+                            '<tr class="sub-row"><td><span class="tree">&#9492;</span>' +
+                            rdBasisChip(name) +
+                            '</td><td class="num">' +
+                            rate +
+                            '</td><td class="num">' +
+                            rdMoney(row.qty) +
+                            '</td><td class="num">' +
+                            rdMoney(row.jobs) +
+                            '</td><td class="num">' +
+                            rdMoney2(row.revenue) +
+                            ' (' +
+                            rdPercent(row.revenue, t.revenue) +
+                            ')</td></tr>',
+                        )
+                        .join('')
+                    : ''),
               )
               .join('') +
             '</tbody></table></div>' +
@@ -27106,6 +27247,15 @@ ${bodyHtml}
         '</div>';
 
       const c = (id) => body.querySelector('#' + id);
+      if (c('rdc-csijo-monthly'))
+        await rdDrawChart(
+          c('rdc-csijo-monthly'),
+          rdStackedConfig(basisMonthly.data, 'period', 'revenue', {
+            labels: true,
+            colors: RD_CSIJO_COLORS,
+            labelFor: (v) => 'CSIJO \u00B7 ' + v,
+          }),
+        );
       await rdDrawChart(
         c('rdc-monthly'),
         rdStackedConfig(monthly.data, 'period', 'revenue', { labels: true }),
@@ -27166,12 +27316,14 @@ ${bodyHtml}
 
     // ---------------------------------------------------------------- Explorer
     async function drawExplorer(sum) {
-      const [months, byType, byCustomer, lines] = await Promise.all([
+      const [months, byType, byCustomer, lines, byBasis] = await Promise.all([
         rdApi('group', { ...F, month: '', week: '', dimension: 'month' }),
         rdApi('group', { ...F, dimension: 'jobType' }),
         rdApi('group', { ...F, dimension: 'customer' }),
         rdApi('lines', { ...F, search: explorer.search, page: explorer.page, pageSize: 50 }),
+        rdApi('group', { ...F, dimension: 'csijoBasis' }),
       ]);
+      const split = rdCsijoSplit(byBasis.data);
       const t = sum.summary.totals;
       const withData = new Set(months.data.rows.map((r) => Number(r.key)));
       const counts = RD_MONTHS.map(
@@ -27212,6 +27364,24 @@ ${bodyHtml}
             '\u20C3 ' + rdMoney(t.jobs ? t.revenue / t.jobs : 0),
             'Selected period',
           ],
+          ...(split.jobs
+            ? [
+                [
+                  'CSIJO original invoice',
+                  '\u20C3 ' + rdMoney(split.orig.revenue),
+                  rdMoney(split.orig.jobs) +
+                    ' jobs \u00B7 ' +
+                    rdPercent(split.orig.revenue, split.revenue),
+                ],
+                [
+                  'CSIJO channel-billed',
+                  '\u20C3 ' + rdMoney(split.chan.revenue),
+                  rdMoney(split.chan.jobs) +
+                    ' jobs \u00B7 ' +
+                    rdPercent(split.chan.revenue, split.revenue),
+                ],
+              ]
+            : []),
         ]) +
         '<div class="rd-two-col">' +
         rdSection(
@@ -27328,6 +27498,7 @@ ${bodyHtml}
       'costStatus',
       'billingCode',
       'jobStatus',
+      'csijoBasis',
     ];
 
     function drillFilters() {
@@ -27344,6 +27515,7 @@ ${bodyHtml}
       if (F.jobType) used.add('jobType');
       if (F.channel) used.add('channel');
       if (F.costStatus) used.add('costStatus');
+      if (F.csijoBasis) used.add('csijoBasis');
       if (F.month || F.week) used.add('period');
       return used;
     }
@@ -27889,6 +28061,85 @@ ${bodyHtml}
             .map((r) => ({ key: r.key, label: r.key, value: r.revenue, color: '#9C8DF2' })),
         ),
       );
+    }
+
+    // CSIJO original invoice vs channel-billed, by month and by sales channel.
+    async function drawCsijoSplit() {
+      const [byMonth, byChannel] = await Promise.all([
+        rdApi('matrix', { ...F, rowDimension: 'period', columnDimension: 'csijoBasis' }),
+        rdApi('matrix', { ...F, rowDimension: 'channel', columnDimension: 'csijoBasis' }),
+      ]);
+      const build = (matrix, rowDim) => {
+        const keys = [...new Set(matrix.data.cells.map((x) => x.row))].sort();
+        const at = (row, col, metric) =>
+          (matrix.data.cells.find((x) => x.row === row && x.col === col) || {})[metric] || 0;
+        const rows = keys.map((k) => ({
+          key: k,
+          oj: at(k, RD_CSIJO.orig, 'jobs'),
+          orv: at(k, RD_CSIJO.orig, 'revenue'),
+          cj: at(k, RD_CSIJO.chan, 'jobs'),
+          crv: at(k, RD_CSIJO.chan, 'revenue'),
+        }));
+        const tot = rows.reduce(
+          (a, r) => ({ oj: a.oj + r.oj, orv: a.orv + r.orv, cj: a.cj + r.cj, crv: a.crv + r.crv }),
+          { oj: 0, orv: 0, cj: 0, crv: 0 },
+        );
+        return { rows, tot, rowDim };
+      };
+      const table = (d, title) =>
+        '<div class="table-wrap"><table class="rc-table"><thead><tr><th>' +
+        title +
+        '</th><th class="num">' +
+        rdBasisChip(RD_CSIJO.orig) +
+        ' jobs</th><th class="num">Original (\u20C3)</th><th class="num">' +
+        rdBasisChip(RD_CSIJO.chan) +
+        ' jobs</th><th class="num">Channel-billed (\u20C3)</th><th class="num">CSIJO total (\u20C3)</th><th class="num">Channel share</th></tr></thead><tbody>' +
+        d.rows
+          .map(
+            (r) =>
+              '<tr><td>' +
+              escapeHtml(rdLabel(d.rowDim, r.key)) +
+              '</td><td class="num">' +
+              rdMoney(r.oj) +
+              '</td><td class="num">' +
+              rdMoney2(r.orv) +
+              '</td><td class="num">' +
+              rdMoney(r.cj) +
+              '</td><td class="num">' +
+              rdMoney2(r.crv) +
+              '</td><td class="num"><strong>' +
+              rdMoney2(r.orv + r.crv) +
+              '</strong></td><td class="num">' +
+              rdPercent(r.crv, r.orv + r.crv) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody><tfoot><tr><td>Total</td><td class="num">' +
+        rdMoney(d.tot.oj) +
+        '</td><td class="num">' +
+        rdMoney2(d.tot.orv) +
+        '</td><td class="num">' +
+        rdMoney(d.tot.cj) +
+        '</td><td class="num">' +
+        rdMoney2(d.tot.crv) +
+        '</td><td class="num">' +
+        rdMoney2(d.tot.orv + d.tot.crv) +
+        '</td><td class="num">' +
+        rdPercent(d.tot.crv, d.tot.orv + d.tot.crv) +
+        '</td></tr></tfoot></table></div>';
+      const m = build(byMonth, 'period');
+      const ch = build(byChannel, 'channel');
+      reportBody.innerHTML = m.rows.length
+        ? rdSection(
+            'CSIJO split &mdash; original invoice vs channel-billed, by month',
+            '<p class="form-note rd-pad">Both are CSIJO (Non-Warranty Repairs). The split is a label: it does not change any revenue figure.</p>' +
+              table(m, 'Month'),
+            'Non-Warranty Repairs',
+          ) + rdSection('CSIJO by sales channel', table(ch, 'Sales channel'))
+        : rdSection(
+            'CSIJO split',
+            '<p class="form-note rd-pad">No CSIJO jobs match the selected filters.</p>',
+          );
     }
 
     // Quotations marked Invoiced against the invoice numbers in the master workbook.
@@ -28524,6 +28775,7 @@ ${bodyHtml}
           channels: drawChannels,
           exceptions: drawExceptions,
           invoicecheck: drawInvoiceCheck,
+          csijosplit: drawCsijoSplit,
         };
         await views[reportView]();
         rdLogActivity('viewed', 'reports:' + reportView, periodLabel());
@@ -28590,6 +28842,7 @@ ${bodyHtml}
         ['channels', 'Channel & sales'],
         ['exceptions', 'Exceptions'],
         ['invoicecheck', 'Invoice check'],
+        ['csijosplit', 'CSIJO split'],
       ];
       body.innerHTML =
         rdKpis([
@@ -29238,6 +29491,20 @@ ${bodyHtml}
           )
         : '';
 
+      let csijoHtml = '';
+      try {
+        const cg = await rdApi('group', { jobType: 'CSIJO', dimension: 'csijoBasis' });
+        const cs = rdCsijoSplit(cg.data);
+        if (cs.jobs)
+          csijoHtml = rdSection(
+            'CSIJO &mdash; Non-Warranty Repairs: two ways a job is valued',
+            rdCsijoCards(cs) +
+              '<p class="form-note rd-pad"><strong>Original invoice:</strong> the ERP carries an actual job value above 0, so revenue is that value (sales channel 3PTY for GEMS, Westminster and Winchester customers; otherwise the remarks decide). <strong>Channel-billed:</strong> the ERP value is 0, so revenue is the rate-card rate &times; quantity, or the flat BER / RWR charge, billed to HAA or INS. Both are the same job type. The split is a label only: it does not change any revenue figure, so totals still match the workbook. Use the <em>CSIJO basis</em> filter on any tab to see one kind alone.</p>',
+            'All periods',
+          );
+      } catch {
+        csijoHtml = '';
+      }
       const footNote =
         '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
       if (ratesOnly) {
@@ -29291,6 +29558,7 @@ ${bodyHtml}
             '</div>'
           : '<p class="form-note">This workbook uses the earlier per-line rules. The rates below are read from it; the Revenue Logic sheet of the Excel export lists the detail.</p>') +
         rdSection(zeroTitle, zeroHtml) +
+        csijoHtml +
         exampleHtml +
         '<p class="form-note rl-foot">The rate card (job-type rates, volume discounts, delivery + installation and installation-only rates, once-per-invoice charges) and the workbook check are on the Rate card tab.</p>';
 
