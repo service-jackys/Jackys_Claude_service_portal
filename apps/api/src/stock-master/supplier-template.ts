@@ -254,6 +254,7 @@ export async function buildBrandSupplierTemplate(
     };
     st.border = { bottom: thin };
     st.font = { bold: true };
+    st.alignment = { vertical: 'top' };
   }
   const statusRange = `${letter(statusCol - 1)}${dataStart}:${letter(statusCol - 1)}${dataEnd}`;
   sheet.addConditionalFormatting({
