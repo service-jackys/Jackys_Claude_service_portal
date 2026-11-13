@@ -4361,6 +4361,12 @@ export function createRouteCatalog(
             schema: { type: 'string', enum: ['low', 'medium', 'high', 'urgent'] },
           },
           { name: 'search', in: 'query', schema: { type: 'string', minLength: 1, maxLength: 200 } },
+          {
+            name: 'recordType',
+            in: 'query',
+            schema: { type: 'string', enum: ['quotation', 'inspection', 'job_card'] },
+          },
+          { name: 'recordId', in: 'query', schema: { type: 'string', pattern: '^\\d+$' } },
         ],
         responses: [200, 400, 401, 403, 500],
         handlers: roiHandlers.list,

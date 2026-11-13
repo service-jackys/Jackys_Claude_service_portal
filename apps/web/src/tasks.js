@@ -232,6 +232,32 @@
         ? '<span class="tk-kind tk-kind-' + kind + '">' + esc(Roi.KIND_LABELS[kind]) + '</span>'
         : '';
     }
+    // The record a task follows up (quotation, inspection or job card): a coloured chip that opens it.
+    const RECORD_META = {
+      quotation: { label: 'Quotation', section: 'Records', permission: 'quotation.read' },
+      inspection: { label: 'Inspection', section: 'Records', permission: 'inspection.read' },
+      job_card: { label: 'Job card', section: 'Service desk', permission: 'service_job_card.read' },
+    };
+    function recordChip(t) {
+      if (!t || !t.recordType || !RECORD_META[t.recordType]) return '';
+      return (
+        '<button type="button" class="tk-rec tk-rec-' +
+        t.recordType +
+        '" data-tk-record data-rtype="' +
+        esc(t.recordType) +
+        '" data-rid="' +
+        esc(t.recordId) +
+        '" title="Open this ' +
+        esc(RECORD_META[t.recordType].label.toLowerCase()) +
+        '"><span class="tk-rec-kind">' +
+        esc(RECORD_META[t.recordType].label) +
+        '</span><span class="tk-rec-ref">' +
+        esc(t.recordLabel || '#' + t.recordId) +
+        '</span>' +
+        icon('link') +
+        '</button>'
+      );
+    }
     function progressBar(t) {
       return (
         '<span class="tk-progress" aria-hidden="true"><span class="tk-progress-fill tk-s-' +
@@ -283,6 +309,11 @@
         '<button class="button button-outline tk-btn" type="button" data-tk-import>' +
         icon('upload') +
         'Import</button>' +
+        (recordTypesAllowed().length
+          ? '<button class="button button-outline tk-btn tk-from-rec" type="button" data-tk-from-record title="Follow up a quotation, inspection or job card">' +
+            icon('record') +
+            'Add from a record</button>'
+          : '') +
         '<button class="button button-primary tk-btn" type="button" data-tk-new>' +
         icon('plus') +
         'New task</button>' +
@@ -324,6 +355,7 @@
       // click would fire once per visit.
       if (!root.dataset.tkWired) {
         wire(root);
+        wirePicker(root);
         root.dataset.tkWired = '1';
       }
       draw();
@@ -332,6 +364,11 @@
 
     // Dashboard kanban asks for one task to be opened in the full editor.
     function openPending() {
+      if (st.pendingNew && st.root) {
+        const link = st.pendingNew;
+        st.pendingNew = null;
+        return openFromRecord(link);
+      }
       if (!st.pendingOpen || !st.root) return;
       const task = st.tasks.find((t) => t.id === st.pendingOpen);
       st.pendingOpen = null;
@@ -356,6 +393,10 @@
         clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
         calendar:
           '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+        link: '<path d="M7 17 17 7"/><path d="M8 7h9v9"/>',
+        search: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+        record:
+          '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
       };
       return (
         '<svg class="tk-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">' +
@@ -481,6 +522,7 @@
         esc(t.title) +
         '</button>' +
         kindChip(t.kind) +
+        recordChip(t) +
         '</td>' +
         '<td><select class="tk-inline tk-p-' +
         t.priority +
@@ -590,6 +632,7 @@
               esc(t.title) +
               '</button>' +
               kindChip(t.kind) +
+              recordChip(t) +
               '</td><td class="tk-c-date">' +
               esc(t.completedAt ? fmtDate(Roi.dubaiDay(t.completedAt)) : '') +
               '</td><td class="tk-c-remarks">' +
@@ -661,6 +704,7 @@
             '</span>'
           : '') +
         '</div>' +
+        (t.recordType ? '<div class="tk-card-rec">' + recordChip(t) + '</div>' : '') +
         (t.remarks ? '<p class="tk-card-remarks">' + esc(t.remarks) + '</p>' : '') +
         '<div class="tk-card-foot">' +
         progressBar(t) +
@@ -772,6 +816,7 @@
             esc(t.title) +
             '</button>' +
             kindChip(t.kind) +
+            recordChip(t) +
             '<span class="tk-tl-sub">' +
             esc([fmtDate(t.startDate), fmtDate(t.dueDate)].filter(Boolean).join(' → ')) +
             '</span></div>' +
@@ -867,6 +912,13 @@
         '<div class="tk-field"><label for="tkTitle">Title</label><textarea id="tkTitle" name="title" rows="2" maxlength="500" required>' +
         esc(t.title) +
         '</textarea></div>' +
+        (t.recordType
+          ? '<div class="tk-field"><span class="tk-label">Linked record</span><div class="tk-rec-row">' +
+            recordChip(t) +
+            '<span class="tk-hint">Follow-up for this ' +
+            esc(RECORD_META[t.recordType].label.toLowerCase()) +
+            '. Select the chip to open it.</span></div></div>'
+          : '') +
         '<div class="tk-field"><span class="tk-label">Type</span><div class="tk-seg tk-seg-wide" role="radiogroup" aria-label="Type">' +
         KINDS.map(
           (k) =>
@@ -998,6 +1050,10 @@
         notes: get('notes') || null,
       };
       if (body.status === 'completed' && get('completedOn')) body.completedOn = get('completedOn');
+      if (st.panel.mode === 'new' && st.panel.task.recordType && st.panel.task.recordId) {
+        body.recordType = st.panel.task.recordType;
+        body.recordId = String(st.panel.task.recordId);
+      }
       const fail = (m) => {
         errorEl.textContent = m;
         errorEl.hidden = false;
@@ -1036,6 +1092,248 @@
       }
     }
 
+    // ------------------------------------------------- add a task from a record
+    const PICKER_SOURCES = {
+      quotation: {
+        path: '/api/quotations',
+        key: 'quotations',
+        ref: 'quotationReference',
+        note: (r) => r.quotationStatus || '',
+      },
+      inspection: {
+        path: '/api/inspections',
+        key: 'inspections',
+        ref: 'inspectionReference',
+        note: (r) => String(r.inspectionDate || '').slice(0, 10),
+      },
+      job_card: {
+        path: '/api/job-cards',
+        key: 'jobCards',
+        ref: 'jobCardReference',
+        note: (r) => r.jobCardStatus || r.status || '',
+      },
+    };
+    function recordTypesAllowed() {
+      return Object.keys(RECORD_META).filter(
+        (k) => !deps.can || deps.can(RECORD_META[k].permission),
+      );
+    }
+    function openRecord(type, id) {
+      if (deps.openRecord && type && id) deps.openRecord(type, id);
+    }
+    function pickerHtml(pk) {
+      const allowed = recordTypesAllowed();
+      const sections = ['Records', 'Service desk'].filter((name) =>
+        allowed.some((k) => RECORD_META[k].section === name),
+      );
+      const types = allowed.filter((k) => RECORD_META[k].section === pk.section);
+      const source = pk.type && PICKER_SOURCES[pk.type];
+      let list = '';
+      if (pk.loading) list = '<p class="tk-pk-empty">Searching&hellip;</p>';
+      else if (pk.error) list = '<p class="tk-pk-empty tk-error">' + esc(pk.error) + '</p>';
+      else if (!pk.rows.length)
+        list =
+          '<p class="tk-pk-empty">' +
+          (pk.q ? 'Nothing matches that search.' : 'Nothing here yet.') +
+          '</p>';
+      else
+        list =
+          '<ul class="tk-pk-list">' +
+          pk.rows
+            .map((r, i) => {
+              const ref = r[source.ref] || '#' + r.id;
+              const note = source.note(r);
+              return (
+                '<li><button type="button" class="tk-pk-row tk-rec-' +
+                pk.type +
+                '" data-pk-pick="' +
+                i +
+                '"><span class="tk-pk-ref">' +
+                esc(ref) +
+                '</span><span class="tk-pk-cust">' +
+                esc(r.customerName || 'No customer') +
+                '</span>' +
+                (note ? '<span class="tk-pk-note">' + esc(note) + '</span>' : '') +
+                '</button></li>'
+              );
+            })
+            .join('') +
+          '</ul>';
+      return (
+        '<div class="tk-backdrop" data-pk-close></div>' +
+        '<aside class="tk-panel tk-picker" role="dialog" aria-modal="true" aria-labelledby="tkPkTitle">' +
+        '<header><h4 id="tkPkTitle">Add a task from a record</h4>' +
+        '<button type="button" class="tk-x" data-pk-close aria-label="Close">' +
+        icon('close') +
+        '</button></header><div class="tk-panel-body">' +
+        '<div class="tk-field"><span class="tk-label">1. Section</span><div class="tk-seg tk-seg-wide" role="radiogroup" aria-label="Section">' +
+        sections
+          .map(
+            (name) =>
+              '<button type="button" role="radio" aria-checked="' +
+              (pk.section === name) +
+              '" class="' +
+              (pk.section === name ? 'active' : '') +
+              '" data-pk-section="' +
+              esc(name) +
+              '">' +
+              esc(name) +
+              '</button>',
+          )
+          .join('') +
+        '</div></div>' +
+        '<div class="tk-field"><span class="tk-label">2. Record type</span><div class="tk-pk-types">' +
+        types
+          .map(
+            (k) =>
+              '<button type="button" class="tk-pk-type tk-rec-' +
+              k +
+              (pk.type === k ? ' active' : '') +
+              '" data-pk-type="' +
+              k +
+              '" aria-pressed="' +
+              (pk.type === k) +
+              '">' +
+              esc(RECORD_META[k].label) +
+              '</button>',
+          )
+          .join('') +
+        '</div></div>' +
+        (pk.type
+          ? '<div class="tk-field"><label for="tkPkSearch">3. Pick the ' +
+            esc(RECORD_META[pk.type].label.toLowerCase()) +
+            '</label><div class="tk-pk-search">' +
+            icon('search') +
+            '<input id="tkPkSearch" type="search" data-pk-search autocomplete="off" placeholder="Search by reference or customer" value="' +
+            esc(pk.q) +
+            '"></div><div data-pk-results>' +
+            list +
+            '</div></div>'
+          : '<p class="tk-hint">Choose a record type to search for it.</p>') +
+        '</div></aside>'
+      );
+    }
+    function drawPicker(keepFocus) {
+      const host = st.root && st.root.querySelector('[data-tk-overlay]');
+      if (!host || !st.picker) return;
+      const had =
+        keepFocus && document.activeElement && document.activeElement.matches('[data-pk-search]');
+      const pos = had ? document.activeElement.selectionStart : 0;
+      host.innerHTML = pickerHtml(st.picker);
+      const input = host.querySelector('[data-pk-search]');
+      if (input && (had || st.picker.focusSearch)) {
+        st.picker.focusSearch = false;
+        input.focus();
+        input.setSelectionRange(pos || input.value.length, pos || input.value.length);
+      }
+    }
+    function closePicker() {
+      const host = st.root && st.root.querySelector('[data-tk-overlay]');
+      if (host && st.picker) host.innerHTML = '';
+      st.picker = null;
+    }
+    function openRecordPicker() {
+      const allowed = recordTypesAllowed();
+      if (!allowed.length) return;
+      const section = RECORD_META[allowed[0]].section;
+      st.picker = { section, type: '', q: '', rows: [], loading: false, error: '', seq: 0 };
+      drawPicker();
+    }
+    async function pickerSearch() {
+      const pk = st.picker;
+      if (!pk || !pk.type) return;
+      const seq = ++pk.seq;
+      const source = PICKER_SOURCES[pk.type];
+      pk.loading = true;
+      pk.error = '';
+      drawPicker(true);
+      try {
+        const params = new URLSearchParams({ page: '1', pageSize: '8' });
+        if (pk.q.trim()) params.set('search', pk.q.trim());
+        const result = await deps.apiRequest(source.path + '?' + params);
+        if (st.picker !== pk || seq !== pk.seq) return;
+        pk.rows = result[source.key] || [];
+      } catch (error) {
+        if (st.picker !== pk || seq !== pk.seq) return;
+        pk.rows = [];
+        pk.error = error.message || 'Could not search.';
+      }
+      pk.loading = false;
+      drawPicker(true);
+    }
+    function wirePicker(root) {
+      let timer = null;
+      root.addEventListener('click', (event) => {
+        const el = event.target.closest(
+          '[data-pk-close],[data-pk-section],[data-pk-type],[data-pk-pick]',
+        );
+        if (!el || !st.picker) return;
+        const pk = st.picker;
+        if (el.matches('[data-pk-close]')) return closePicker();
+        if (el.matches('[data-pk-section]')) {
+          pk.section = el.dataset.pkSection;
+          pk.type = '';
+          pk.rows = [];
+          pk.q = '';
+          return drawPicker();
+        }
+        if (el.matches('[data-pk-type]')) {
+          pk.type = el.dataset.pkType;
+          pk.rows = [];
+          pk.q = '';
+          pk.focusSearch = true;
+          drawPicker();
+          return pickerSearch();
+        }
+        const row = pk.rows[Number(el.dataset.pkPick)];
+        if (!row) return;
+        const type = pk.type;
+        const source = PICKER_SOURCES[type];
+        closePicker();
+        openFromRecord({
+          type,
+          id: row.id,
+          reference: row[source.ref],
+          customer: row.customerName,
+          note: source.note(row),
+        });
+      });
+      root.addEventListener('input', (event) => {
+        if (!event.target.matches('[data-pk-search]') || !st.picker) return;
+        st.picker.q = event.target.value;
+        window.clearTimeout(timer);
+        timer = window.setTimeout(pickerSearch, 250);
+      });
+      root.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && st.picker) closePicker();
+      });
+    }
+    // Opens the normal New task panel, filled in for one record.
+    function openFromRecord(link) {
+      if (!link || !RECORD_META[link.type] || !link.id) return;
+      const meta = RECORD_META[link.type];
+      const label =
+        link.label || [link.reference, link.customer].filter(Boolean).join(' · ') || '#' + link.id;
+      const notes = [meta.label + ': ' + label]
+        .concat(link.note ? ['Status: ' + link.note] : [], link.notes ? [link.notes] : [])
+        .join('\n');
+      openPanel(
+        {
+          title: 'Follow up: ' + label,
+          notes,
+          recordType: link.type,
+          recordId: String(link.id),
+          recordLabel: label,
+        },
+        'new',
+      );
+    }
+    // Called from a quotation, inspection or job card page: open Tasks with the form ready.
+    function newFromRecord(link) {
+      st.pendingNew = link;
+      st.owner = 'me';
+    }
+
     // ----------------------------------------------------------------- events
     function wire(root) {
       root.addEventListener('click', async (event) => {
@@ -1058,6 +1356,9 @@
         }
         if (target.matches('[data-tk-discuss]') && st.panel && deps.openChatRecord)
           return deps.openChatRecord('task', st.panel.task.id);
+        if (target.matches('[data-tk-record]'))
+          return openRecord(target.dataset.rtype, target.dataset.rid);
+        if (target.matches('[data-tk-from-record]')) return openRecordPicker();
         if (target.matches('[data-tk-new]')) return openPanel(null, 'new');
         if (target.matches('[data-tk-send-roi]')) return openComposer({ source: 'tasks' });
         if (target.matches('[data-tk-import]')) return openImport();
@@ -1791,6 +2092,7 @@
             '</span>'
           : '') +
         '</div>' +
+        (t.recordType ? '<div class="tkl-rec">' + recordChip(t) + '</div>' : '') +
         (t.remarks ? '<p class="tkl-remarks">' + esc(t.remarks) + '</p>' : '') +
         '<div class="tkl-ctrl">' +
         '<label class="tkl-range"><span class="sr-only">Progress</span><input type="range" min="0" max="100" step="5" value="' +
@@ -1889,6 +2191,8 @@
       let dragId = null;
       host.addEventListener('click', (e) => {
         if (e.target.closest('[data-lane-page]')) return deps.openTask && deps.openTask(null);
+        const rec = e.target.closest('[data-tk-record]');
+        if (rec) return openRecord(rec.dataset.rtype, rec.dataset.rid);
         const open = e.target.closest('[data-lane-open]');
         const card = e.target.closest('[data-lane-id]');
         if (open && card && deps.openTask) deps.openTask(card.dataset.laneId);
@@ -2024,7 +2328,7 @@
       return d.toISOString().slice(0, 10);
     }
 
-    return { renderPage, openComposer, openTask, renderBoardLane, askSnapshot };
+    return { renderPage, openComposer, openTask, newFromRecord, renderBoardLane, askSnapshot };
   }
 
   window.JdTasks = { create };

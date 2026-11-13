@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 264,
+    "title": "Tasks: add a task from a quotation, inspection or job card",
+    "area": "Tasks",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "Tasks has an Add from a record button: pick a quotation, inspection or job card and the New task panel opens filled in. The task keeps a coloured link that opens the record, and the three record pages get an Add to tasks button.",
+    "changes": [
+      "Picker: section (Records or Service desk), type, search, pick one record; title defaults to Follow up: reference and customer, record details go in the notes.",
+      "Coloured record chip with a link on List, Board, Timeline, the Dashboard task lane and the task panel.",
+      "Quotation, inspection and job card pages show their follow-up tasks and an Add to tasks button.",
+      "One record per task; creating a task for a record you cannot read is refused."
+    ],
+    "needsYou": "pull, run npm run db:migrate (migration 098), restart the API, hard-refresh.",
+    "migrations": ["098_roi_task_record_link.sql"],
+    "files": "packages/db/src/roi-tasks.ts, apps/api/src/roi-tasks/service.ts, apps/web/src/tasks.js, apps/web/src/app.js"
+  },
+  {
     "id": 263,
     "title": "Service Revenue Dashboard: CSIJO original invoice vs channel-billed",
     "area": "Service Revenue Dashboard",
