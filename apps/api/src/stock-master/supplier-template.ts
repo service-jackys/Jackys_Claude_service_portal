@@ -6,7 +6,6 @@ import type {
 
 const NAVY = 'FF1F3A5F';
 const GREY = 'FFEEF2F7';
-const YELLOW = 'FFFFF8E1';
 
 /** Brands the company owns, pre-filled as "Own brand". Philips is own only for air conditioners,
  *  so it carries a note instead of a value. */
@@ -22,13 +21,6 @@ type Column = {
 
 const OWNERSHIP = ['Own brand', 'Supplier brand'];
 const WARRANTY_BY = ["Jacky's (own brand)", 'Manufacturer', 'Supplier / distributor'];
-const CHANNELS = [
-  'Phone / call center',
-  'Email',
-  'Online portal',
-  'WhatsApp',
-  'Walk in to service center',
-];
 
 /** Columns the sales team fills, in sheet order. The first four are pre-filled from the portal. */
 const COLUMNS: Column[] = [
@@ -113,12 +105,6 @@ const COLUMNS: Column[] = [
     tip: 'Number customers or we call to register a complaint.',
   },
   {
-    header: 'WhatsApp number',
-    band: 'Brand service center',
-    width: 20,
-    tip: 'If the brand accepts complaints on WhatsApp.',
-  },
-  {
     header: 'Service center email',
     band: 'Brand service center',
     width: 30,
@@ -137,37 +123,11 @@ const COLUMNS: Column[] = [
     tip: 'Web page where the complaint is registered, if the brand has one.',
   },
   {
-    header: 'How to register a complaint',
-    band: 'Complaint registration',
-    width: 24,
-    tip: 'Main way the brand takes complaints.',
-    list: CHANNELS,
-  },
-  {
-    header: 'Documents needed',
-    band: 'Complaint registration',
-    width: 28,
-    tip: 'For example invoice copy, serial number, photo of the fault.',
-  },
-  {
-    header: 'Normal response time (days)',
-    band: 'Complaint registration',
-    width: 14,
-    tip: 'How long the brand usually takes to respond.',
-  },
-  {
-    header: 'Escalation contact',
-    band: 'Complaint registration',
-    width: 28,
-    tip: 'Name and number to call when a case is delayed.',
-  },
-  {
     header: 'Filled by (sales person)',
     band: 'Sales sign off',
     width: 24,
     tip: 'Name of the person who gave these details.',
   },
-  { header: 'Date', band: 'Sales sign off', width: 13, tip: 'Date the details were confirmed.' },
   {
     header: 'Remarks',
     band: 'Sales sign off',
@@ -182,7 +142,6 @@ const KEY_HEADERS = [
   'Supplier contact phone',
   'Service / call center phone',
   'Service center email',
-  'How to register a complaint',
 ];
 
 function letter(index: number): string {
@@ -211,79 +170,11 @@ export async function buildBrandSupplierTemplate(
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "Jacky's Service Portal";
   workbook.created = generatedOn;
-  const dateText = generatedOn.toLocaleDateString('en-GB', { timeZone: 'Asia/Dubai' });
-
-  // ---- Instructions ----
-  const info = workbook.addWorksheet('Read me', { views: [{ showGridLines: false }] });
-  info.columns = [{ width: 4 }, { width: 38 }, { width: 100 }];
-  info.mergeCells('B1:C1');
-  info.getCell('B1').value = 'Brand warranty & service contact details';
-  info.getCell('B1').font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
-  info.getCell('B1').fill = fill(NAVY);
-  info.getRow(1).height = 36;
-  const lines: [string, string][] = [
-    [
-      'Why we need this',
-      "For brands that carry the manufacturer's or supplier's own warranty, the service team cannot follow up customer complaints without the brand's contact and complaint registration details. Please fill in one row per brand.",
-    ],
-    [
-      'Who fills it',
-      'Sales team, brand by brand. Ask the supplier or distributor if you are not sure.',
-    ],
-    [
-      'What is already filled',
-      `${brands.length} brands in the MDA and SDA categories, taken from the portal's Stock Master on ${dateText}. Do not change the grey columns (Brand, Category, Product groups, Items). If a brand is missing, add it in the empty rows at the bottom.`,
-    ],
-    [
-      'How to fill',
-      'Use the white cells on the "Brand details" sheet. Several columns have a drop-down list. Write phone numbers with the country code (for example +971 4 123 4567). Leave a cell empty if it does not apply.',
-    ],
-    [
-      'Minimum we need',
-      `At least: ${KEY_HEADERS.join(', ')}. The Status column turns to Complete when these are filled.`,
-    ],
-    [
-      'Own brands',
-      'Venus and Thomson are marked as own brands. Philips is own brand for air conditioners only; for every other Philips product, please fill in the details like any other supplier brand.',
-    ],
-    [
-      'When you are done',
-      'Save the file and send it back to the service team. Please do not change the sheet names or the header rows.',
-    ],
-  ];
-  lines.forEach(([k, v], i) => {
-    const row = 3 + i;
-    info.getCell(`B${row}`).value = k;
-    info.getCell(`B${row}`).font = { bold: true, color: { argb: NAVY } };
-    info.getCell(`B${row}`).alignment = { vertical: 'top' };
-    info.getCell(`C${row}`).value = v;
-    info.getCell(`C${row}`).alignment = { wrapText: true, vertical: 'top' };
-    info.getRow(row).height = Math.max(32, Math.ceil(v.length / 95) * 17 + 6);
-  });
-  info.getCell('B11').value = 'Columns';
-  info.getCell('B11').font = { bold: true, color: { argb: NAVY } };
-  COLUMNS.forEach((c, i) => {
-    const row = 12 + i;
-    info.getCell(`B${row}`).value = c.header;
-    info.getCell(`B${row}`).font = { bold: true };
-    info.getCell(`C${row}`).value = c.tip;
-  });
-
-  info.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
 
   // ---- Brand details ----
   const sheet = workbook.addWorksheet('Brand details');
   sheet.columns = COLUMNS.map((c) => ({ width: c.width }));
-  const lastCol = letter(COLUMNS.length);
-  sheet.mergeCells(`A1:${lastCol}1`);
-  const title = sheet.getCell('A1');
-  title.value = `Brand details for service follow up   |   Jacky's   |   ${dateText}`;
-  title.font = { size: 15, bold: true, color: { argb: 'FFFFFFFF' } };
-  title.fill = fill(NAVY);
-  title.alignment = { vertical: 'middle', indent: 1 };
-  sheet.getRow(1).height = 30;
-
-  // Band row (row 2): merged group labels.
+  // Band row (row 1): merged group labels.
   let start = 0;
   const palette: Record<string, string> = {
     'From the portal (do not change)': 'FF64748B',
@@ -296,18 +187,18 @@ export async function buildBrandSupplierTemplate(
   while (start < COLUMNS.length) {
     let end = start;
     while (end + 1 < COLUMNS.length && COLUMNS[end + 1]!.band === COLUMNS[start]!.band) end += 1;
-    if (end > start) sheet.mergeCells(`${letter(start)}2:${letter(end)}2`);
-    const cell = sheet.getCell(`${letter(start)}2`);
+    if (end > start) sheet.mergeCells(`${letter(start)}1:${letter(end)}1`);
+    const cell = sheet.getCell(`${letter(start)}1`);
     cell.value = COLUMNS[start]!.band;
     cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, size: 10 };
     cell.fill = fill(palette[COLUMNS[start]!.band] ?? NAVY);
     cell.alignment = { horizontal: 'center', vertical: 'middle' };
     for (let c = start; c <= end; c += 1)
-      sheet.getCell(`${letter(c)}2`).fill = fill(palette[COLUMNS[start]!.band] ?? NAVY);
+      sheet.getCell(`${letter(c)}1`).fill = fill(palette[COLUMNS[start]!.band] ?? NAVY);
     start = end + 1;
   }
-  sheet.getRow(2).height = 20;
-  const headerRow = sheet.getRow(3);
+  sheet.getRow(1).height = 20;
+  const headerRow = sheet.getRow(2);
   COLUMNS.forEach((c, i) => (headerRow.getCell(i + 1).value = c.header));
   headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
   headerRow.fill = fill(NAVY);
@@ -322,7 +213,7 @@ export async function buildBrandSupplierTemplate(
   statusCell.alignment = { vertical: 'middle' };
 
   const spare = 30;
-  const dataStart = 4;
+  const dataStart = 3;
   const dataEnd = dataStart + brands.length - 1 + spare;
   const keyIdx = KEY_HEADERS.map((h) => COLUMNS.findIndex((c) => c.header === h));
   const own = (b: BrandCatalogueRow) =>
@@ -400,16 +291,15 @@ export async function buildBrandSupplierTemplate(
       },
     ],
   });
-  sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 3 }];
-  sheet.autoFilter = { from: { row: 3, column: 1 }, to: { row: 3, column: statusCol } };
+  sheet.views = [{ state: 'frozen', xSplit: 1, ySplit: 2 }];
+  sheet.autoFilter = { from: { row: 2, column: 1 }, to: { row: 2, column: statusCol } };
   sheet.pageSetup = {
     orientation: 'landscape',
     fitToPage: true,
     fitToWidth: 1,
     fitToHeight: 0,
-    printTitlesRow: '1:3',
+    printTitlesRow: '1:2',
   };
-  void YELLOW;
 
   // ---- Products by brand (reference) ----
   const ref = workbook.addWorksheet('Products by brand');

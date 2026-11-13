@@ -24,8 +24,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     "summary": "The Stock Master page can download an Excel template with one row per MDA and SDA brand, for the sales team to fill in the warranty, supplier and service center contacts the service team needs to follow up complaints.",
     "changes": [
       "Pre-filled from the live Stock Master: brand, category, product groups and item count.",
-      "Columns for warranty provider, supplier contact, brand service center and call center, complaint registration link and method, and sales sign-off, with drop-downs and a Status column.",
-      "Read me sheet explains how to fill it; Products by brand sheet is a reference."
+      "Columns for warranty provider, supplier contact, brand service center and call center, complaint registration link and sales sign-off, with drop-downs and a Status column.",
+      "Products by brand sheet is a reference."
     ],
     "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
