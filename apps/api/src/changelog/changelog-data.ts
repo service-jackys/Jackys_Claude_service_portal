@@ -24,7 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "summary": "Records → Quotations can be filtered by month, downloads a management Excel report for a month or all months, shows the ORION invoice number in its own column, and the Job cards column shows the unit count until the quotation is Approved and Invoiced.",
     "changes": [
       "Month filter next to the search box; works with the search and the ERP / ORION filter.",
-      "Download report: Summary sheet (totals and counts by status) and a Quotations sheet with every table column, plus subtotal and VAT.",
+      "Download report: Summary sheet (totals by status) and a Quotations sheet with the table columns plus subtotal and VAT; totals follow Excel filters.",
       "Units column removed; Job cards shows the unit count until Approved and Invoiced, then the job card progress.",
       "New ORION Ref column shows the ERP / ORION invoice number."
     ],

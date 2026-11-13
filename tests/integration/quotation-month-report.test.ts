@@ -109,7 +109,7 @@ test(
       );
       const sheet = book.getWorksheet('Quotations')!;
       const headers = (sheet.getRow(1).values as unknown[]).slice(1);
-      assert.ok(!headers.includes('Units') || headers.includes('ORION Ref'));
+      assert.ok(!headers.includes('Job cards') && !headers.includes('Customer approval'));
       assert.ok(headers.includes('ORION Ref'));
       const col = (name: string) => headers.indexOf(name) + 1;
       // Header + 2 quotations + total row.
@@ -118,13 +118,13 @@ test(
         .map((r) => sheet.getRow(r))
         .find((r) => r.getCell(col('ORION Ref')).value);
       assert.equal(invoiced!.getCell(col('ORION Ref')).value, `ORN-${tag}`);
-      // Approved + Invoiced shows job card progress; Pending shows just the units.
-      assert.equal(invoiced!.getCell(col('Job cards')).value, '0 of 1 created');
-      const pending = [2, 3]
-        .map((r) => sheet.getRow(r))
-        .find((r) => !r.getCell(col('ORION Ref')).value);
-      assert.equal(pending!.getCell(col('Job cards')).value, '1 unit');
-      assert.equal(sheet.getRow(4).getCell(col('Subtotal (AED)')).value, 300);
+      // The total row is a SUBTOTAL formula, so it follows an Excel filter.
+      const total = sheet.getRow(4).getCell(col('Subtotal (AED)')).value as {
+        formula: string;
+        result: number;
+      };
+      assert.match(total.formula, /^SUBTOTAL\(109,/);
+      assert.equal(total.result, 300);
 
       const all = await read({ search: tag });
       assert.equal(all.report.fileName, 'quotations-report-all-months.xlsx');

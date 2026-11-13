@@ -5219,7 +5219,7 @@ Display only; no pricing formulas, API or database changes.
 **What changed.**
 
 - Records → Quotations: a month filter next to the search box (All months, or any month that has quotations, newest first, with the count). It works together with the search and the ERP / ORION filter, and the totals bar follows it.
-- New "Download report" button: an Excel report for the selected month, or all months. A Summary sheet (period, totals, and counts by quotation status, ERP / ORION status and customer type) and a Quotations sheet with every column of the table plus subtotal and VAT, a total row, filters and a frozen header, set up to print landscape.
+- New "Download report" button: an Excel report for the selected month, or all months. A Summary sheet (overall total, and counts and amounts by quotation status with a Total row) and a Quotations sheet with Reference, date, customer, contact, type, units, subtotal, VAT, total, status, ERP / ORION and ORION Ref. The total row and the Summary use SUBTOTAL formulas, so they change when the list is filtered in Excel; the portal's search and ERP / ORION filter also narrow what is downloaded.
 - The Units column is removed. The Job cards column shows the unit count (for example "8 units") until the quotation is Approved and Invoiced in ERP / ORION; from then on it shows the job card progress ("0 of 8 created", "All 8 created") as before.
 - New "ORION Ref" column shows the quotation's ERP / ORION invoice number, or a dash when there is none.
 - New API: GET /api/quotations/months, GET /api/quotations/export, and a `month` (YYYY-MM) parameter on GET /api/quotations. No migration.
