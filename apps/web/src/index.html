@@ -1815,6 +1815,140 @@
         font-size: 0.74rem;
         color: var(--muted);
       }
+      .rd-basis {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.12rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        white-space: nowrap;
+        border: 1px solid;
+      }
+      .rd-basis i {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+      }
+      .rd-basis.orig {
+        background: #fde8ec;
+        border-color: #f6b8c4;
+        color: #9f1f3a;
+      }
+      .rd-basis.orig i {
+        background: #e0475f;
+      }
+      .rd-basis.chan {
+        background: #fff1f3;
+        border-color: #f7cfd6;
+        color: #b4546a;
+      }
+      .rd-basis.chan i {
+        background: #f4a3b2;
+      }
+      .cs-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 1rem 1.1rem 0.4rem;
+      }
+      .cs-card {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 1rem 1.15rem;
+        background: var(--surface);
+        position: relative;
+        overflow: hidden;
+      }
+      .cs-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+      }
+      .cs-card.orig::before {
+        background: #e0475f;
+      }
+      .cs-card.chan::before {
+        background: #f4a3b2;
+      }
+      .cs-card .t {
+        font-size: 0.7rem;
+        font-weight: 800;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        color: var(--muted);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .cs-card .big {
+        font-family: ui-monospace, Consolas, monospace;
+        font-size: 1.7rem;
+        font-weight: 700;
+        margin: 0.35rem 0 0.1rem;
+        color: var(--ink);
+      }
+      .cs-card .row {
+        display: flex;
+        gap: 1.4rem;
+        margin-top: 0.55rem;
+        font-size: 0.74rem;
+        color: var(--muted);
+      }
+      .cs-card .row b {
+        display: block;
+        color: var(--ink);
+        font-size: 0.95rem;
+        font-family: ui-monospace, Consolas, monospace;
+      }
+      .cs-card .why {
+        font-size: 0.72rem;
+        color: var(--muted);
+        margin-top: 0.65rem;
+        line-height: 1.4;
+        border-top: 1px dashed var(--line);
+        padding-top: 0.55rem;
+      }
+      .cs-bar {
+        margin: 0.2rem 1.1rem 1rem;
+        display: flex;
+        height: 14px;
+        border-radius: 7px;
+        overflow: hidden;
+        background: #eee;
+      }
+      .cs-bar span {
+        display: block;
+        height: 100%;
+      }
+      .cs-bar-cap {
+        display: flex;
+        justify-content: space-between;
+        margin: -0.6rem 1.1rem 1rem;
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .sub-row td {
+        background: #fbf6f7;
+        font-size: 0.82rem;
+      }
+      .sub-row td:first-child {
+        padding-left: 2.1rem;
+      }
+      .sub-row .tree {
+        color: #c7a0a8;
+        margin-right: 0.35rem;
+      }
+      @media (max-width: 760px) {
+        .cs-grid {
+          grid-template-columns: 1fr;
+        }
+      }
       .rd-kpi-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));

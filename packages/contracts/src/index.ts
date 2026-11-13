@@ -1108,6 +1108,7 @@ export const revenueDimensions = [
   'billingCode',
   'jobStatus',
   'orderStatus',
+  'csijoBasis',
 ] as const;
 export const revenueDimensionSchema = z.enum(revenueDimensions);
 
@@ -1168,6 +1169,10 @@ export const revenueFilterQuerySchema = z
     billingCode: z.preprocess(emptyToUndefined, filterText),
     jobStatus: z.preprocess(emptyToUndefined, filterText),
     orderStatus: z.preprocess(emptyToUndefined, filterText),
+    csijoBasis: z.preprocess(
+      emptyToUndefined,
+      z.enum(['Original invoice', 'Channel-billed']).optional(),
+    ),
     exception: z.preprocess(emptyToUndefined, z.enum(revenueExceptionKeys).optional()),
     search: z.preprocess(emptyToUndefined, filterText),
   })

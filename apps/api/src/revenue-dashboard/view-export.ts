@@ -65,6 +65,7 @@ const DIMENSION_NAMES: Record<string, string> = {
   billingCode: 'Billing code',
   jobStatus: 'Job status',
   orderStatus: 'Order status',
+  csijoBasis: 'CSIJO basis',
   search: 'Search text',
   exception: 'Exception',
 };
@@ -447,6 +448,7 @@ function addJobs(wb: ExcelJS.Workbook, data: RevenueViewData) {
   const cols: JobCol[] = [
     { h: 'Date', w: 12, fmt: 'dd-mmm-yyyy', get: (l) => date(l.orderDate) },
     { h: 'Job type', w: 10, get: (l) => l.jobType },
+    { h: 'CSIJO basis', w: 15, get: (l) => l.csijoBasis ?? '' },
     { h: 'Inv / Del no', w: 14, get: (l) => l.invDelNo },
     { h: 'CSOSC order', w: 14, get: (l) => l.csoscOrderNo },
     { h: 'Ref doc no', w: 18, get: (l) => l.refDocNo },
