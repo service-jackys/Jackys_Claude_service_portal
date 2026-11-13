@@ -76,7 +76,7 @@ test(
       await setRules(true, false, true, 2);
 
       // Four identical Delivery + Installation notes (2 units each: each carries one regional trip).
-      const made = [];
+      const made: Array<Awaited<ReturnType<typeof jobs.complete>>['job']> = [];
       for (const n of [1, 2, 3, 4]) {
         const created = await jobs.create(
           {

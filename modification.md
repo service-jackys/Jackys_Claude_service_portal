@@ -5210,6 +5210,25 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #261 — Quotations list: month filter, management report, ORION Ref column
+
+**Date:** 2026-11-13
+
+**Why.** Management wanted to review quotations month by month and receive a weekly report, and the Units column duplicated what the Job cards column should show.
+
+**What changed.**
+
+- Records → Quotations: a month filter next to the search box (All months, or any month that has quotations, newest first, with the count). It works together with the search and the ERP / ORION filter, and the totals bar follows it.
+- New "Download report" button: an Excel report for the selected month, or all months. A Summary sheet (period, totals, and counts by quotation status, ERP / ORION status and customer type) and a Quotations sheet with every column of the table plus subtotal and VAT, a total row, filters and a frozen header, set up to print landscape.
+- The Units column is removed. The Job cards column shows the unit count (for example "8 units") until the quotation is Approved and Invoiced in ERP / ORION; from then on it shows the job card progress ("0 of 8 created", "All 8 created") as before.
+- New "ORION Ref" column shows the quotation's ERP / ORION invoice number, or a dash when there is none.
+- New API: GET /api/quotations/months, GET /api/quotations/export, and a `month` (YYYY-MM) parameter on GET /api/quotations. No migration.
+- Tests: tests/integration/quotation-month-report.test.ts, new cases in tests/e2e/quotation-units.spec.ts.
+
+**Files.** packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/quotations/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/quotation-month-report.test.ts, tests/e2e/quotation-units.spec.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh the browser. No migration.
+
 ## Modification #260 — Delivery & Installation gets its own Transport rules tab
 
 **Date:** 2026-11-13

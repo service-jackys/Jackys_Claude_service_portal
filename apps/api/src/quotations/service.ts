@@ -1,15 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool } from 'pg';
+import ExcelJS from 'exceljs';
 import { z } from 'zod';
 import {
   quotationWriteSchema,
   quotationListQuerySchema,
+  quotationReportQuerySchema,
   computeQuotationTotals,
   type QuotationWriteInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
   findQuotationById,
   insertQuotation,
+  listQuotationMonths,
   listQuotations,
   updateQuotation,
   type QuotationContent,
@@ -210,12 +213,199 @@ export function createQuotationService(pool: Pool) {
         quotationStatus: data.quotationStatus,
         erpStatus: data.erpStatus,
         customerType: data.customerType,
+        month: data.month,
         page: data.page,
         pageSize: data.pageSize,
       });
     } finally {
       client.release();
     }
+  }
+
+  async function months() {
+    const client = await pool.connect();
+    try {
+      return listQuotationMonths(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  /** Management report: every quotation in the chosen month (or all), as a formatted Excel workbook. */
+  async function exportReport(query: Record<string, unknown>) {
+    const data = quotationReportQuerySchema.parse(query);
+    const client = await pool.connect();
+    let result;
+    try {
+      result = await listQuotations(client, { ...data, page: 1, pageSize: 100000 });
+    } finally {
+      client.release();
+    }
+    // Oldest first reads better in a report than most recently edited first.
+    const rows = [...result.items].sort((a, b) =>
+      `${a.quotationDate ?? ''}${a.quotationReference}`.localeCompare(
+        `${b.quotationDate ?? ''}${b.quotationReference}`,
+      ),
+    );
+    const money = '#,##0.00';
+    const navy = 'FF1F3A5F';
+    const periodLabel = data.month
+      ? new Date(`${data.month}-01T00:00:00Z`).toLocaleDateString('en-GB', {
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'UTC',
+        })
+      : 'All months';
+    const jobCards = (q: (typeof rows)[number]) =>
+      q.quotationStatus === 'Approved' && q.erpStatus === 'Invoiced'
+        ? `${q.jobCardCount} of ${q.unitCount} created`
+        : `${q.unitCount} unit${q.unitCount === 1 ? '' : 's'}`;
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = "Jacky's Service Portal";
+    workbook.created = new Date();
+
+    // Sheet 1: management summary.
+    const summary = workbook.addWorksheet('Summary', { views: [{ showGridLines: false }] });
+    summary.columns = [{ width: 34 }, { width: 14 }, { width: 20 }, { width: 26 }];
+    summary.mergeCells('A1:D1');
+    const title = summary.getCell('A1');
+    title.value = 'Service Quotations Report';
+    title.font = { size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+    title.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+    title.alignment = { vertical: 'middle', indent: 1 };
+    summary.getRow(1).height = 34;
+    const meta: [string, string][] = [
+      ['Period', periodLabel],
+      ['Generated', new Date().toLocaleString('en-GB', { timeZone: 'Asia/Dubai' }) + ' (Dubai)'],
+    ];
+    if (data.search) meta.push(['Search', data.search]);
+    if (data.quotationStatus) meta.push(['Quotation status', data.quotationStatus]);
+    if (data.erpStatus) meta.push(['ERP / ORION status', data.erpStatus]);
+    if (data.customerType) meta.push(['Customer type', data.customerType]);
+    let r = 3;
+    for (const [k, v] of meta) {
+      summary.getCell(`A${r}`).value = k;
+      summary.getCell(`A${r}`).font = { bold: true, color: { argb: 'FF475569' } };
+      summary.getCell(`B${r}`).value = v;
+      r += 1;
+    }
+    r += 1;
+    const sectionHeader = (label: string, cols: string[]) => {
+      cols.forEach((c, i) => {
+        const cell = summary.getCell(r, i + 1);
+        cell.value = i === 0 ? label : c;
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+        cell.alignment = { horizontal: i === 0 ? 'left' : 'right' };
+      });
+      r += 1;
+    };
+    const group = (label: string, keyOf: (q: (typeof rows)[number]) => string) => {
+      sectionHeader(label, ['', 'Quotations', 'Subtotal (AED)', 'Total incl. VAT (AED)']);
+      const map = new Map<string, { n: number; sub: number; tot: number }>();
+      for (const q of rows) {
+        const k = keyOf(q);
+        const m = map.get(k) ?? { n: 0, sub: 0, tot: 0 };
+        m.n += 1;
+        m.sub += Number(q.subtotalAmount);
+        m.tot += Number(q.grandTotal);
+        map.set(k, m);
+      }
+      for (const [k, m] of [...map.entries()].sort()) {
+        summary.getCell(r, 1).value = k;
+        summary.getCell(r, 2).value = m.n;
+        summary.getCell(r, 3).value = Math.round(m.sub * 100) / 100;
+        summary.getCell(r, 4).value = Math.round(m.tot * 100) / 100;
+        summary.getCell(r, 3).numFmt = money;
+        summary.getCell(r, 4).numFmt = money;
+        r += 1;
+      }
+      r += 1;
+    };
+    sectionHeader('Overall', ['', 'Quotations', 'Subtotal (AED)', 'Total incl. VAT (AED)']);
+    summary.getCell(r, 1).value = 'All quotations in this report';
+    summary.getCell(r, 1).font = { bold: true };
+    summary.getCell(r, 2).value = rows.length;
+    summary.getCell(r, 3).value = result.totalSubtotal;
+    summary.getCell(r, 4).value = result.totalAmount;
+    summary.getCell(r, 3).numFmt = money;
+    summary.getCell(r, 4).numFmt = money;
+    [2, 3, 4].forEach((c) => (summary.getCell(r, c).font = { bold: true }));
+    r += 2;
+    group('By quotation status', (q) => q.quotationStatus);
+    group('By ERP / ORION status', (q) => q.erpStatus);
+    group('By customer type', (q) => q.customerType ?? 'Not set');
+
+    // Sheet 2: the full list, same columns as the Records table.
+    const sheet = workbook.addWorksheet('Quotations');
+    const columns: [string, number, ((q: (typeof rows)[number]) => unknown)?, boolean?][] = [
+      ['Reference', 18, (q) => q.quotationReference],
+      ['Quotation date', 17, (q) => q.quotationDate],
+      ['Customer', 40, (q) => q.customerName],
+      ['Contact', 18, (q) => q.contactNumber],
+      ['Type', 16, (q) => q.customerType],
+      ['Units', 8, (q) => q.unitCount],
+      ['Subtotal (AED)', 16, (q) => Number(q.subtotalAmount), true],
+      ['VAT (AED)', 14, (q) => Number(q.vatAmount), true],
+      ['Total incl. VAT (AED)', 20, (q) => Number(q.grandTotal), true],
+      ['Status', 14, (q) => q.quotationStatus],
+      ['ERP / ORION', 16, (q) => q.erpStatus],
+      ['ORION Ref', 18, (q) => q.erpInvoiceNo ?? ''],
+      ['Job cards', 18, jobCards],
+      ['Customer approval', 20, (q) => q.approvalStatus ?? ''],
+    ];
+    sheet.columns = columns.map(([header, width]) => ({ header, width }));
+    const header = sheet.getRow(1);
+    header.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: navy } };
+    header.alignment = { vertical: 'middle', wrapText: true };
+    header.height = 30;
+    const hair = { style: 'hair' as const, color: { argb: 'FFCBD5E1' } };
+    rows.forEach((q, i) => {
+      const row = sheet.addRow(columns.map(([, , get]) => (get ? get(q) : '')));
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        cell.border = { bottom: hair };
+        if (i % 2 === 1) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF4F7FB' } };
+        }
+      });
+    });
+    columns.forEach(([h, , , isMoney], i) => {
+      const col = sheet.getColumn(i + 1);
+      col.alignment = {
+        vertical: 'middle',
+        horizontal: isMoney || h === 'Units' ? 'right' : 'left',
+        indent: 1,
+      };
+    });
+    columns.forEach(([, , , isMoney], i) => {
+      if (isMoney) sheet.getColumn(i + 1).numFmt = money;
+    });
+    const totalRow = sheet.addRow(
+      columns.map(([h]) =>
+        h === 'Reference'
+          ? 'Total'
+          : h === 'Units'
+            ? rows.reduce((n, q) => n + q.unitCount, 0)
+            : h === 'Subtotal (AED)'
+              ? result.totalSubtotal
+              : h === 'VAT (AED)'
+                ? Math.round((result.totalAmount - result.totalSubtotal) * 100) / 100
+                : h === 'Total incl. VAT (AED)'
+                  ? result.totalAmount
+                  : '',
+      ),
+    );
+    totalRow.font = { bold: true };
+    totalRow.border = { top: { style: 'thin' } };
+    sheet.views = [{ state: 'frozen', ySplit: 1 }];
+    sheet.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: columns.length } };
+    sheet.pageSetup = { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 };
+    summary.pageSetup = { orientation: 'portrait', fitToPage: true, fitToWidth: 1 };
+
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const fileName = `quotations-report-${data.month ?? 'all-months'}.xlsx`;
+    return { buffer, fileName, rows: rows.length };
   }
 
   async function detail(id: string) {
@@ -229,7 +419,7 @@ export function createQuotationService(pool: Pool) {
     }
   }
 
-  return { create, update, list, detail };
+  return { create, update, list, detail, months, exportReport };
 }
 
 export type QuotationService = ReturnType<typeof createQuotationService>;

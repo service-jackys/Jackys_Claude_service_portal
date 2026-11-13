@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 261,
+    "title": "Quotations list: month filter, management report, ORION Ref column",
+    "area": "Quotations",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "Records → Quotations can be filtered by month, downloads a management Excel report for a month or all months, shows the ORION invoice number in its own column, and the Job cards column shows the unit count until the quotation is Approved and Invoiced.",
+    "changes": [
+      "Month filter next to the search box; works with the search and the ERP / ORION filter.",
+      "Download report: Summary sheet (totals and counts by status) and a Quotations sheet with every table column, plus subtotal and VAT.",
+      "Units column removed; Job cards shows the unit count until Approved and Invoiced, then the job card progress.",
+      "New ORION Ref column shows the ERP / ORION invoice number."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
+    "migrations": [],
+    "files": "packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/quotations/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/quotation-month-report.test.ts, tests/e2e/quotation-units.spec.ts, modification.md."
+  },
+  {
     "id": 260,
     "title": "Delivery & Installation gets its own Transport rules tab",
     "area": "Revenue",
