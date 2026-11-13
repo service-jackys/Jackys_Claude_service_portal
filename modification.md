@@ -5214,7 +5214,7 @@ Display only; no pricing formulas, API or database changes.
 **What changed.**
 
 - New label "CSIJO basis" with two values: Original invoice (ERP value above 0 and revenue is not rate x quantity, the same test as the existing "Actual ERP job value" basis) and Channel-billed (everything else in CSIJO). Other job types carry no basis. It is a label only: no revenue figure, rate, channel rule or total changes.
-- Overview: CSIJO split cards (revenue, share, jobs, units), a proportion bar, a monthly chart in two tints, and two sub-rows under CSIJO in the Job type breakdown.
+- Overview: when the Job type filter is CSIJO, the CSIJO split cards (revenue, share, jobs, units), a proportion bar and a monthly chart in two tints; two sub-rows under CSIJO in the Job type breakdown. Nothing else on Overview changes.
 - Explorer: two extra KPI cards, a Basis column on the job list and the basis in the job detail.
 - Reports: new "CSIJO split" view (by month and by sales channel, with totals and channel share).
 - Logic applied: a CSIJO card explaining both ways a job is valued, with live figures.

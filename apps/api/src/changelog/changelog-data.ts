@@ -23,10 +23,10 @@ export const CHANGELOG: ChangelogEntry[] = [
     "status": null,
     "summary": "CSIJO is now shown in two parts on every tab: jobs with an actual ERP invoice value, and zero-value jobs priced by rate and billed to the sales channel. It is a label only; no revenue figure changes.",
     "changes": [
-      "Overview: split cards, proportion bar, two-tint monthly chart and sub-rows in the job type breakdown.",
+      "Overview: when Job type is CSIJO, split cards, proportion bar and two-tint monthly chart; sub-rows in the job type breakdown.",
       "Explorer: CSIJO basis filter, Basis column and two extra KPI cards.",
       "Reports: new CSIJO split view by month and by sales channel; both Excel exports get a CSIJO basis column.",
-      "Logic applied: a card explaining both ways a CSIJO job is valued."
+      "Logic applied: a CSIJO card inside Worked example, shown only when its Job type is CSIJO."
     ],
     "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
