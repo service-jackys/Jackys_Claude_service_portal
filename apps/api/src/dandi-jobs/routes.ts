@@ -136,6 +136,13 @@ export function createDiJobHandlers(
       requirePermission('di_jobs.compare'),
       wrap((request) => service.workedExample(request.query)),
     ],
+    transportRules: [requirePermission('di_jobs.read'), wrap(() => service.transportRules())],
+    saveTransportRules: [
+      requirePermission('di_jobs.configure'),
+      wrap((request, response) =>
+        service.saveTransportRules(request.body, profile(response), requestId(request)),
+      ),
+    ],
     updateSettings: [
       requirePermission('di_jobs.configure'),
       wrap((request, response) =>

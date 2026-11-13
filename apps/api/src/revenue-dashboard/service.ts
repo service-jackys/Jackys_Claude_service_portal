@@ -336,6 +336,7 @@ export function createRevenueDashboardService(pool: Pool) {
         exceptions: await revenueExceptions(client, batch.id, filters),
         lines: await revenueExportLines(client, batch.id, filters),
         flatRates: ((await pricing.get('dandi_pricing')).payload as DandiPricingInput).flatRates,
+        cappedTrips: await cappedTrips(client, batch.id),
       };
       const workbook = await buildRevenueReportWorkbook(data);
       if (profileId) {
@@ -723,6 +724,18 @@ export function createRevenueDashboardService(pool: Pool) {
     } finally {
       client.release();
     }
+  }
+
+  // Invoices whose trip charge the daily cap leaves uncharged, under the saved rules: the report
+  // export says so instead of listing them as a difference from the rate card (the rate card has no cap).
+  async function cappedTrips(client: import('pg').PoolClient, batchId: string) {
+    const out = new Map<string, number>();
+    const rows = await listSheetRows(client, batchId, 'CSIDI');
+    if (!rows.length) return out;
+    const rules = await getTransportRules(client);
+    for (const i of computeTransport(rows, rules).invoices)
+      if (i.rank !== null && !i.charged && i.charge > 0) out.set(String(i.invoice), i.charge);
+    return out;
   }
 
   // Transport status of the invoices of a worked example (#252), under the saved rules.

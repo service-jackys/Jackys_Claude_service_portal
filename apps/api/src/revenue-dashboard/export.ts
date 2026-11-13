@@ -35,6 +35,8 @@ export type RevenueReportData = {
   lines: Record<string, unknown>[];
   /** Flat job-type rates from D+I Admin Entry; they replace the workbook's. */
   flatRates?: Parameters<typeof applyFlatRates>[1];
+  /** Invoice -> transport charge the 2-trip daily cap leaves uncharged, under the saved rules. */
+  cappedTrips?: Map<string, number>;
 };
 
 const NAVY = 'FF10233F';
@@ -200,6 +202,15 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       originalJobValue: Number(line.originalJobValue ?? 0),
       pricing,
     });
+    // The rate card has no daily cap: a trip the cap left uncharged is not a pricing error.
+    const cap = data.cappedTrips?.get(String(line.invDelNo ?? ''));
+    if (
+      cap !== undefined &&
+      e.reconcileDiff !== null &&
+      Math.abs(e.reconcileDiff + cap) <= 0.01 &&
+      (e.diffCause === 'CSIDI transport' || e.diffCause === 'CSIDO flat charge')
+    )
+      e.diffCause = 'Daily trip cap';
     return { line, pricing, e };
   });
 
