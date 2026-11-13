@@ -5210,6 +5210,42 @@ Display only; no pricing formulas, API or database changes.
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
 
+## Modification #260 — Delivery & Installation gets its own Transport rules tab
+
+**Date:** 2026-11-13
+
+**Why.** After #258 Billing, the comparison and Budget vs Actual followed the Service Revenue Dashboard's Transport rules, so changing a toggle to test the dashboard also changed what Billing charges. Delivery & Installation now has its own settings.
+
+**What changed.**
+
+- New "Transport rules" tab on the Delivery & Installation screen with the same switches as the dashboard: Daily trip cap, Delivery-only cap (needs the daily cap), Mixed-invoice transport and Trips a day. Everyone with D&I access sees it; only users with di_jobs.configure (admin) can save. Help is in (i) tooltips.
+- The tab shows what the rules do to Completed jobs: trips not charged, transport not charged, and an expandable list of the salesperson-days over the cap (job, delivery note, trip, charge, Charged / Not charged).
+- Migration 097 adds `di_transport_rules` (one row, seeded from the dashboard's current setting, so nothing changes on migration) and points the trip cap view at it. Billing, Portal vs Excel comparison and Budget vs Actual read these settings, live on the next page load; jobs themselves are not changed.
+- Service Revenue Dashboard: unchanged, keeps its own rules.
+- New API: GET and PUT /api/di-jobs/transport-rules; saves are audited (di_job.transport_rules_changed).
+- Tests: tests/integration/dandi-trip-cap.test.ts (own rules, dashboard rules do not move Billing, save and impact), tests/e2e/di-transport-rules.spec.ts.
+
+**Files.** packages/db/migrations/097_di_transport_rules.sql, packages/db/src/di-transport-rules.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/dandi-trip-cap.test.ts, tests/e2e/di-transport-rules.spec.ts, modification.md.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 097), restart the API, hard-refresh the browser.
+
+## Modification #259 — Report export: "Why they differ" no longer lists capped trips as pricing differences
+
+**Date:** 2026-11-13
+
+**Why.** The rate card has no daily trip cap, so in the Service Revenue Report export a trip the 2-trip cap left uncharged showed as a "CSIDI transport" difference, as if the workbook had missed the transport.
+
+**What changed.**
+
+- In the Excel export, when the difference on a line is exactly the transport charge the daily cap leaves uncharged (under the saved Transport rules), "Why they differ" now says "Daily trip cap". Other differences keep their own cause.
+- The same wording is used in the export's Logic sheet "Check against the workbook" section and in the worked example.
+- Dashboard figures and the Service Revenue Dashboard itself are unchanged.
+- Test: tests/unit/revenue-export-sheets.test.ts.
+
+**Files.** apps/api/src/revenue-dashboard/service.ts, export.ts, logic-sheet.ts, logic-summary.ts, tests/unit/revenue-export-sheets.test.ts, modification.md.
+
+**Needs you:** pull, restart the API. No migration needed.
+
 ## Modification #258 — Delivery & Installation: 2-trip daily cap applied in Billing, comparison and Budget vs Actual
 
 **Date:** 2026-11-12

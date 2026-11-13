@@ -285,6 +285,7 @@ const CAUSE_TEXT: Record<string, string> = {
   'CSIDO flat charge':
     'a delivery-only line kept at an older amount than the current rule (flat charge, or regional transport when the invoice also has a delivery + installation line)',
   'CSIDI transport': 'the once-per-invoice transport is missing from the workbook row',
+  'Daily trip cap': 'the trip charge was left uncharged by the daily trip cap',
   'Rate or quantity': 'a locked row kept at an older rate or quantity',
 };
 

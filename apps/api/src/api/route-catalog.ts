@@ -471,6 +471,8 @@ export function createRouteCatalog(
     'compare',
     'workedExample',
     'updateSettings',
+    'transportRules',
+    'saveTransportRules',
   ] as const;
   const diJobHandlers: Record<(typeof diJobHandlerKeys)[number], RequestHandler[]> = pool
     ? (createDiJobHandlers(createDiJobService(pool), requirePermission, (response, permission) => {
@@ -2046,6 +2048,28 @@ export function createRouteCatalog(
         requestBody: 'diPriceNote' as const,
         responses: [200, 400, 401, 403, 500],
         handlers: diJobHandlers.price,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/di-jobs/transport-rules',
+        operationId: 'getDiJobTransportRules',
+        tags: ['Delivery & installation'],
+        summary:
+          'Delivery & Installation transport rules (2-trip daily cap toggles) and what they do to the Completed jobs',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: diJobHandlers.transportRules,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/di-jobs/transport-rules',
+        operationId: 'saveDiJobTransportRules',
+        tags: ['Delivery & installation'],
+        summary:
+          'Save the Delivery & Installation transport rule toggles (admin); Billing, the comparison and Budget vs Actual follow at once',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: diJobHandlers.saveTransportRules,
       },
       {
         method: 'patch' as const,

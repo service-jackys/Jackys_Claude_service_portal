@@ -92,3 +92,63 @@ test('export splits jobs into repair and delivery & install sheets', async () =>
   assert.equal(jobs.getRow(3).getCell(refCol(jobs)).value, 'CSOSC - 16100001');
   assert.equal(di.getRow(3).getCell(refCol(di)).value, 'CSOSC - 16100003');
 });
+
+test('export: a trip the daily cap left uncharged is not listed as a transport pricing difference', async () => {
+  const { enrichLine } = await import('../../apps/api/src/revenue-dashboard/pricing-logic.js');
+  const { DEFAULT_PRICING_RULES } =
+    await import('../../apps/api/src/revenue-dashboard/pricing-logic.js');
+  const rules = { ...DEFAULT_PRICING_RULES, logicVersion: 3 as const };
+  const pricing = {
+    erpCategory: 'Refrigerator',
+    applianceCategory: 'Freestanding Refrigerator',
+    invoiceCsidiQty: 2,
+    invoiceHasCsido: false,
+    invoiceHasCsidi: true,
+    firstOfType: true,
+    transportCharge: 0,
+    refDocNo: 'CSOSC - 1',
+    before: {},
+  };
+  const base = {
+    jobType: 'CSIDI',
+    qty: 2,
+    unitPrice: 0,
+    revenue: 0,
+    remarks: null,
+    billingCode: null,
+    pricing,
+  } as never;
+  const full = enrichLine(rules, base);
+  assert.ok(full.rebuilt !== null && full.transport !== null && full.transport > 0);
+  // The workbook row has the labour but no transport (the cap left it uncharged).
+  const revenue = full.rebuilt - full.transport;
+  const lines = [
+    line({ jobType: 'CSIDI', invDelNo: '77', qty: 2, unitPrice: 0, revenue, pricing }),
+  ];
+  const mk = (cappedTrips?: Map<string, number>) =>
+    ({
+      batch: { fileName: 'x.xlsm', uploadedAt: new Date(), summary: { pricingRules: rules } },
+      filters: {},
+      total: group(revenue, 1),
+      monthly: { totals: group(revenue, 1).totals, cells: [] },
+      weekly: { totals: group(revenue, 1).totals, cells: [] },
+      channel: group(revenue, 1),
+      salesPerson: group(revenue, 1),
+      customer: group(revenue, 1),
+      billingCode: group(revenue, 1),
+      exceptions: { totals: group(revenue, 1).totals, exceptions: [] },
+      lines,
+      cappedTrips,
+    }) as unknown as RevenueReportData;
+  const cause = async (data: RevenueReportData) => {
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load((await buildRevenueReportWorkbook(data)) as unknown as ArrayBuffer);
+    const di = wb.getWorksheet('Delivery & Install')!;
+    const col = (di.getRow(2).values as unknown[]).slice(1).indexOf('Why they differ') + 1;
+    return di.getRow(3).getCell(col).value;
+  };
+  assert.equal(await cause(mk()), 'CSIDI transport');
+  assert.equal(await cause(mk(new Map([['77', full.transport!]]))), 'Daily trip cap');
+  // A capped invoice whose difference is something else keeps its own cause.
+  assert.equal(await cause(mk(new Map([['77', full.transport! + 50]]))), 'CSIDI transport');
+});

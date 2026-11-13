@@ -398,6 +398,8 @@ function buildInvoiceLevelLogicSheet(
       'Delivery-only invoices that still carry an older amount than the current rule (flat charge, or regional transport on a mixed invoice).',
     'CSIDI transport':
       'Multi-unit installation invoices where the workbook transport is missing or charged against the rule.',
+    'Daily trip cap':
+      'The trip charge was left uncharged by the daily trip cap (the rate card itself has no cap).',
     'Rate or quantity': 'A locked row kept at an older rate or quantity.',
   };
   paragraph(

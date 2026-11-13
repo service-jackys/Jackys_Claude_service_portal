@@ -10,6 +10,11 @@ import {
 import { listActiveBillingRules } from '../../../../packages/db/src/billing-rules.js';
 import { settingsMap, setSetting } from '../../../../packages/db/src/budget-variance.js';
 import {
+  diTransportImpact,
+  getDiTransportRules,
+  saveDiTransportRules,
+} from '../../../../packages/db/src/di-transport-rules.js';
+import {
   findDiItem,
   findDiJob,
   findDiJobIdsByNote,
@@ -659,6 +664,52 @@ export function createDiJobService(pool: Pool) {
     });
   }
 
+  const transportRulesSchema = z.object({
+    dailyCap: z.boolean(),
+    deliveryOnlyCap: z.boolean(),
+    mixedInvoiceTransport: z.boolean(),
+    maxTrips: z.number().int().min(1).max(10).optional(),
+  });
+
+  /** The Delivery & Installation transport rules and what they do to the Completed jobs. */
+  async function transportRules() {
+    const client = await pool.connect();
+    try {
+      const stored = await getDiTransportRules(client);
+      const { updatedAt, updatedByName, ...rules } = stored;
+      return { rules, updatedAt, updatedByName, impact: await diTransportImpact(client) };
+    } finally {
+      client.release();
+    }
+  }
+
+  async function saveTransportRules(
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const data = transportRulesSchema.parse(input);
+    await withTransaction(pool, async (client) => {
+      const current = await getDiTransportRules(client);
+      const next = {
+        dailyCap: data.dailyCap,
+        deliveryOnlyCap: data.dailyCap && data.deliveryOnlyCap,
+        mixedInvoiceTransport: data.mixedInvoiceTransport,
+        maxTrips: data.maxTrips ?? current.maxTrips,
+      };
+      await saveDiTransportRules(client, next, profileId);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'di_job.transport_rules_changed',
+        targetType: 'di_transport_rules',
+        targetId: '1',
+        metadata: { ...next },
+        requestId,
+      });
+    });
+    return transportRules();
+  }
+
   return {
     options,
     customers,
@@ -674,6 +725,8 @@ export function createDiJobService(pool: Pool) {
     compare,
     workedExample,
     updateSettings,
+    transportRules,
+    saveTransportRules,
   };
 }
 

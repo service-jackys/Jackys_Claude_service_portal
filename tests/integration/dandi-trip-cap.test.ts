@@ -30,10 +30,10 @@ test(
     const group = `CAP KETTLES ${tag}`;
     const fridge = `DTF-${tag}`;
     const kettle = `DTK-${tag}`;
-    const savedRules = await pool.query(`SELECT * FROM revenue_transport_rules WHERE id = 1`);
+    const savedRules = await pool.query(`SELECT * FROM di_transport_rules WHERE id = 1`);
     const setRules = (cap: boolean, deliveryCap: boolean, mixed: boolean, trips: number) =>
       pool.query(
-        `INSERT INTO revenue_transport_rules (id, daily_cap, delivery_only_cap, mixed_invoice_transport, max_trips)
+        `INSERT INTO di_transport_rules (id, daily_cap, delivery_only_cap, mixed_invoice_transport, max_trips)
          VALUES (1, $1, $2, $3, $4)
          ON CONFLICT (id) DO UPDATE SET daily_cap = $1, delivery_only_cap = $2,
            mixed_invoice_transport = $3, max_trips = $4`,
@@ -101,7 +101,10 @@ test(
 
       const full = made[0]!.totalRevenue;
       assert.ok(full > 0);
-      assert.ok(made.every((j) => j.totalRevenue === full), 'stored figures are the same full price');
+      assert.ok(
+        made.every((j) => j.totalRevenue === full),
+        'stored figures are the same full price',
+      );
 
       const billed = async () => {
         const ledger = await invoices.ledger({ ...range, billTo: channel });
@@ -152,6 +155,41 @@ test(
       await setRules(true, true, true, 2);
       ({ byRef } = await billed());
       assert.equal(cents(byRef.get(`${tag}-D`)!), cents(deliveryDone.totalRevenue));
+
+      // Own rules: the Service Revenue Dashboard's rules do not change Billing.
+      await setRules(true, false, true, 2);
+      const dash = await pool.query(`SELECT * FROM revenue_transport_rules WHERE id = 1`);
+      await pool.query(`UPDATE revenue_transport_rules SET daily_cap = false WHERE id = 1`);
+      try {
+        ({ byRef } = await billed());
+        assert.ok(
+          byRef.get(`${tag}-3`)! < full,
+          'D&I cap still applies when the dashboard cap is off',
+        );
+      } finally {
+        await pool.query(`UPDATE revenue_transport_rules SET daily_cap = $1 WHERE id = 1`, [
+          dash.rows[0]?.daily_cap ?? true,
+        ]);
+      }
+
+      // The service: read, save (delivery-only cap needs the daily cap), impact lists the day.
+      const before = await jobs.transportRules();
+      assert.equal(before.rules.maxTrips, 2);
+      const overDay = before.impact.days.find((d) =>
+        d.trips.some((t) => t.reference === made[0]!.reference),
+      );
+      assert.ok(overDay, 'the salesperson-day over the cap is listed');
+      assert.equal(overDay!.trips.filter((t) => !t.charged).length, 2);
+      assert.ok(before.impact.tripsNotCharged >= 2);
+      const saved = await jobs.saveTransportRules(
+        { dailyCap: false, deliveryOnlyCap: true, mixedInvoiceTransport: true },
+        profileId,
+      );
+      assert.equal(saved.rules.dailyCap, false);
+      assert.equal(saved.rules.deliveryOnlyCap, false);
+      ({ byRef } = await billed());
+      for (const n of [1, 2, 3, 4]) assert.equal(cents(byRef.get(`${tag}-${n}`)!), cents(full));
+      await assert.rejects(() => jobs.saveTransportRules({ dailyCap: 'yes' }, profileId));
     } finally {
       await pool.query(`DELETE FROM di_jobs WHERE customer_name = $1`, [branchName]);
       await pool.query(`DELETE FROM b2b_branches WHERE cust_code = $1`, [custCode]);
@@ -171,7 +209,7 @@ test(
         | undefined;
       if (r) {
         await pool.query(
-          `UPDATE revenue_transport_rules SET daily_cap = $1, delivery_only_cap = $2,
+          `UPDATE di_transport_rules SET daily_cap = $1, delivery_only_cap = $2,
              mixed_invoice_transport = $3, max_trips = $4 WHERE id = 1`,
           [r.daily_cap, r.delivery_only_cap, r.mixed_invoice_transport, r.max_trips],
         );

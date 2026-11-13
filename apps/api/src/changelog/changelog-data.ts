@@ -15,6 +15,39 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 260,
+    "title": "Delivery & Installation gets its own Transport rules tab",
+    "area": "Revenue",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "Billing, the Portal vs Excel comparison and Budget vs Actual now follow their own Delivery & Installation transport switches instead of the Service Revenue Dashboard's.",
+    "changes": [
+      "New Transport rules tab on the Delivery & Installation screen: Daily trip cap, Delivery-only cap, Mixed-invoice transport and Trips a day. Only an admin can save.",
+      "Shows how many trips are not charged and lists the salesperson-days over the cap.",
+      "Seeded from the dashboard's current setting, so nothing changes on migration; the Service Revenue Dashboard keeps its own rules."
+    ],
+    "needsYou": "pull, run npm run db:migrate (migration 097), restart the API, hard-refresh the browser.",
+    "migrations": ["097_di_transport_rules.sql"],
+    "files": "packages/db/migrations/097_di_transport_rules.sql, packages/db/src/di-transport-rules.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/dandi-trip-cap.test.ts, tests/e2e/di-transport-rules.spec.ts, modification.md."
+  },
+  {
+    "id": 259,
+    "title": "Report export: \"Why they differ\" no longer lists capped trips as pricing differences",
+    "area": "Revenue",
+    "date": "2026-11-13",
+    "approxDate": false,
+    "status": null,
+    "summary": "In the Service Revenue Report export a trip the daily cap left uncharged now says \"Daily trip cap\" instead of \"CSIDI transport\".",
+    "changes": [
+      "Applies when the difference is exactly the transport the cap leaves uncharged under the saved Transport rules; other differences keep their cause.",
+      "Same wording in the export's Logic sheet check and in the worked example."
+    ],
+    "needsYou": "pull, restart the API.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/service.ts, export.ts, logic-sheet.ts, logic-summary.ts, tests/unit/revenue-export-sheets.test.ts, modification.md."
+  },
+  {
     "id": 258,
     "title": "Delivery & Installation: 2-trip daily cap applied in Billing, comparison and Budget vs Actual",
     "area": "Revenue",

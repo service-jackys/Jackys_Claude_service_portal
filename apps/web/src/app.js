@@ -20655,6 +20655,7 @@ ${bodyHtml}
       (hasPermission('di_jobs.compare')
         ? '<button type="button" role="tab" class="ws-tab" data-di-tab="compare" aria-selected="false">Compare with Excel</button>'
         : '') +
+      '<button type="button" role="tab" class="ws-tab" data-di-tab="rules" aria-selected="false">Transport rules</button>' +
       '</div><div data-di-body></div>';
     const body = root.querySelector('[data-di-body]');
     const q = (selector) => root.querySelector(selector);
@@ -20681,6 +20682,7 @@ ${bodyHtml}
         syncTabs();
         if (state.tab === 'job') drawJob();
         else if (state.tab === 'compare') loadCompare();
+        else if (state.tab === 'rules') loadRules();
         else loadJobs();
       });
     });
@@ -21458,6 +21460,163 @@ ${bodyHtml}
     }
 
     // ---------------- Compare with the master Excel ----------------
+    // ---------------- Transport rules (own settings, apart from the Service Revenue Dashboard) ----------------
+    const DI_RULE_TOGGLES = [
+      {
+        key: 'dailyCap',
+        label: 'Daily trip cap',
+        on: 'Each salesperson pays transport for at most the number of installation trips below on one service date: the highest charges. Further trips that day pay no transport but keep their unit prices.',
+        off: 'No daily limit. Every delivery note pays its transport.',
+      },
+      {
+        key: 'deliveryOnlyCap',
+        label: 'Delivery-only cap',
+        note: 'Only works when the daily trip cap is ON.',
+        on: 'Delivery-only notes count toward the daily trips. Beyond the limit their fee is not charged. (Strictest)',
+        off: 'Delivery-only notes always pay their fee and never use one of the daily trips.',
+      },
+      {
+        key: 'mixedInvoiceTransport',
+        label: 'Mixed-invoice transport',
+        on: 'A note with 1 installed unit plus delivery-only items pays the regional transport for the extra items.',
+        off: 'These notes pay no transport: the installed unit\u2019s standard rate covers the delivery-only items too.',
+      },
+    ];
+
+    async function loadRules() {
+      body.innerHTML = '<p class="form-note">Loading…</p>';
+      let data;
+      try {
+        data = await apiRequest('/api/di-jobs/transport-rules');
+      } catch (error) {
+        body.innerHTML = '<p class="di-issue-error">' + escapeHtml(error.message) + '</p>';
+        return;
+      }
+      drawRules(data);
+    }
+
+    function drawRules(data) {
+      const r = data.rules;
+      const impact = data.impact;
+      const money = (v) => '\u20C3 ' + fmt(v || 0);
+      const toggles = DI_RULE_TOGGLES.map((t) => {
+        const value = !!r[t.key];
+        const help = 'ON: ' + t.on + ' OFF: ' + t.off + (t.note ? ' ' + t.note : '');
+        return (
+          '<div class="rd-rule-toggle"><label class="rd-switch"><input type="checkbox" data-di-rule="' +
+          t.key +
+          '"' +
+          (value ? ' checked' : '') +
+          (canConfigure ? '' : ' disabled') +
+          ' /><span>' +
+          escapeHtml(t.label) +
+          '</span>' +
+          tipHtml(help) +
+          '<b class="rd-rule-state">' +
+          (value ? 'ON' : 'OFF') +
+          '</b></label></div>'
+        );
+      }).join('');
+      const days = impact.days.length
+        ? '<details class="rd-rules-days"><summary>Salesperson-days over the cap (' +
+          impact.days.length +
+          ')</summary><div class="table-wrap"><table class="rc-table"><thead><tr><th>Date</th><th>Salesperson</th><th>Job</th><th>Delivery note</th><th>Trip</th><th class="num">Charge</th><th>Status</th></tr></thead><tbody>' +
+          impact.days
+            .flatMap((d) =>
+              d.trips.map(
+                (t, i) =>
+                  '<tr><td>' +
+                  (i ? '' : escapeHtml(d.date)) +
+                  '</td><td>' +
+                  (i ? '' : escapeHtml(d.salesman)) +
+                  '</td><td>' +
+                  escapeHtml(t.reference) +
+                  '</td><td>' +
+                  escapeHtml(t.deliveryNoteRef || '') +
+                  '</td><td>' +
+                  (t.kind === 'delivery'
+                    ? 'Delivery-only'
+                    : t.carrier === 'CSIDO'
+                      ? 'Mixed'
+                      : 'Installation') +
+                  '</td><td class="num">' +
+                  money(t.charge) +
+                  '</td><td>' +
+                  (t.charged
+                    ? 'Charged (' + t.rank + ')'
+                    : '<span class="rd-rules-dropped">Not charged (' + t.rank + ')</span>') +
+                  '</td></tr>',
+              ),
+            )
+            .join('') +
+          '</tbody></table></div></details>'
+        : '';
+      body.innerHTML =
+        '<div class="rc-section rd-rules-card"><div class="rc-section-head"><span>Transport rules for Delivery &amp; Installation ' +
+        tipHtml(
+          'These settings decide how much transport Billing, Compare with Excel and Budget vs Actual charge on Completed Delivery & Installation jobs. They are separate from the Service Revenue Dashboard, which keeps its own rules. The figures saved on each job do not change; the rules apply when the figures are read, so a change shows at once.',
+        ) +
+        '</span></div><div class="rd-pad"><p class="rd-rules-summary">Under these rules <b>' +
+        impact.tripsNotCharged +
+        '</b> trip(s) are not charged on <b>' +
+        impact.daysOverCap +
+        '</b> salesperson-day(s); transport not charged <b>' +
+        money(impact.transportNotCharged) +
+        '</b>.</p><div class="rd-rule-toggles">' +
+        toggles +
+        '<div class="rd-rule-toggle"><label class="rd-switch"><span>Trips a day</span>' +
+        tipHtml(
+          'The number of installation trips per salesperson per service date that pay transport.',
+        ) +
+        '<input type="number" min="1" max="10" step="1" data-di-rule-trips value="' +
+        r.maxTrips +
+        '"' +
+        (canConfigure ? '' : ' disabled') +
+        ' style="width:4.5rem;margin-left:auto" /></label></div></div>' +
+        (canConfigure
+          ? '<div class="rd-rule-actions"><button type="button" class="button" data-di-rules-save>Save</button><span class="form-note" data-di-rules-msg></span></div>'
+          : '<p class="form-note">Only an administrator can change these settings.' +
+            (data.updatedByName ? ' Last changed by ' + escapeHtml(data.updatedByName) + '.' : '') +
+            '</p>') +
+        days +
+        '</div></div>';
+      if (!canConfigure) return;
+      const box = (k) => body.querySelector('[data-di-rule="' + k + '"]');
+      const sync = () => {
+        box('deliveryOnlyCap').disabled = !box('dailyCap').checked;
+        body.querySelectorAll('[data-di-rule]').forEach((el) => {
+          el.closest('.rd-rule-toggle').querySelector('.rd-rule-state').textContent = el.checked
+            ? 'ON'
+            : 'OFF';
+        });
+      };
+      sync();
+      body.querySelectorAll('[data-di-rule]').forEach((el) => el.addEventListener('change', sync));
+      body.querySelector('[data-di-rules-save]').addEventListener('click', async (event) => {
+        const button = event.currentTarget;
+        const msg = body.querySelector('[data-di-rules-msg]');
+        button.disabled = true;
+        msg.textContent = 'Saving…';
+        try {
+          const saved = await apiRequest('/api/di-jobs/transport-rules', {
+            method: 'PUT',
+            body: JSON.stringify({
+              dailyCap: box('dailyCap').checked,
+              deliveryOnlyCap: box('dailyCap').checked && box('deliveryOnlyCap').checked,
+              mixedInvoiceTransport: box('mixedInvoiceTransport').checked,
+              maxTrips: Number(body.querySelector('[data-di-rule-trips]').value) || r.maxTrips,
+            }),
+          });
+          drawRules(saved);
+          const done = body.querySelector('[data-di-rules-msg]');
+          if (done) done.textContent = 'Saved.';
+        } catch (error) {
+          msg.textContent = error.message;
+          button.disabled = false;
+        }
+      });
+    }
+
     async function loadCompare() {
       const c = state.compare;
       body.innerHTML = '<p class="form-note">Loading…</p>';
