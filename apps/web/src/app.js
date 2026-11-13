@@ -27142,7 +27142,7 @@ ${bodyHtml}
             topType ? rdPercent(topType.revenue, t.revenue) + ' of revenue' : '',
           ],
         ]) +
-        (split.jobs
+        (F.jobType === 'CSIJO' && split.jobs
           ? rdSection(
               'CSIJO &mdash; original invoice vs billed to sales channel',
               rdCsijoCards(split) +
@@ -29256,6 +29256,7 @@ ${bodyHtml}
           '<div class="th-field rl-grow"><label for="rlPaste">Or paste invoice number(s)</label><span class="rl-paste-row"><input id="rlPaste" type="text" data-rl-paste placeholder="e.g. 16101083, 16101084" autocomplete="off" /><button type="button" class="button button-primary" data-rl-load>Load</button></span></div>' +
           '</div>' +
           '<div class="rl-live-foot"><p class="form-note rl-live-msg" data-rl-msg></p><button type="button" class="button button-outline rl-show-all" data-rl-all hidden>Show all listed invoices</button></div></div>' +
+          '<div class="rl-csijo" data-rl-csijo hidden></div>' +
           '<div data-rl-out class="rl-out">' +
           (example ? exampleTable(example) : '') +
           '</div>',
@@ -29491,20 +29492,6 @@ ${bodyHtml}
           )
         : '';
 
-      let csijoHtml = '';
-      try {
-        const cg = await rdApi('group', { jobType: 'CSIJO', dimension: 'csijoBasis' });
-        const cs = rdCsijoSplit(cg.data);
-        if (cs.jobs)
-          csijoHtml = rdSection(
-            'CSIJO &mdash; Non-Warranty Repairs: two ways a job is valued',
-            rdCsijoCards(cs) +
-              '<p class="form-note rd-pad"><strong>Original invoice:</strong> the ERP carries an actual job value above 0, so revenue is that value (sales channel 3PTY for GEMS, Westminster and Winchester customers; otherwise the remarks decide). <strong>Channel-billed:</strong> the ERP value is 0, so revenue is the rate-card rate &times; quantity, or the flat BER / RWR charge, billed to HAA or INS. Both are the same job type. The split is a label only: it does not change any revenue figure, so totals still match the workbook. Use the <em>CSIJO basis</em> filter on any tab to see one kind alone.</p>',
-            'All periods',
-          );
-      } catch {
-        csijoHtml = '';
-      }
       const footNote =
         '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
       if (ratesOnly) {
@@ -29558,7 +29545,6 @@ ${bodyHtml}
             '</div>'
           : '<p class="form-note">This workbook uses the earlier per-line rules. The rates below are read from it; the Revenue Logic sheet of the Excel export lists the detail.</p>') +
         rdSection(zeroTitle, zeroHtml) +
-        csijoHtml +
         exampleHtml +
         '<p class="form-note rl-foot">The rate card (job-type rates, volume discounts, delivery + installation and installation-only rates, once-per-invoice charges) and the workbook check are on the Rate card tab.</p>';
 
@@ -29570,6 +29556,37 @@ ${bodyHtml}
       const lf = { year: '', month: '', week: '', jobType: '', salesPerson: '', search: '' };
       const spSel = body.querySelector('[data-rl-f="salesPerson"]');
       const allButton = body.querySelector('[data-rl-all]');
+      // CSIJO split panel: only while the job type picked here is CSIJO, for the period chosen here.
+      const csijoPanel = body.querySelector('[data-rl-csijo]');
+      let csijoToken = 0;
+      const refreshCsijo = async () => {
+        const token = ++csijoToken;
+        if (lf.jobType !== 'CSIJO') {
+          csijoPanel.hidden = true;
+          csijoPanel.innerHTML = '';
+          return;
+        }
+        try {
+          const cg = await rdApi('group', {
+            jobType: 'CSIJO',
+            dimension: 'csijoBasis',
+            year: lf.year,
+            month: lf.month,
+            week: lf.week,
+            salesPerson: lf.salesPerson,
+          });
+          if (token !== csijoToken) return;
+          const cs = rdCsijoSplit(cg.data);
+          csijoPanel.innerHTML = cs.jobs
+            ? '<div class="rl-csijo-head"><span>CSIJO &mdash; Non-Warranty Repairs: two ways a job is valued</span></div>' +
+              rdCsijoCards(cs) +
+              '<p class="form-note rl-csijo-note"><strong>Original invoice:</strong> the ERP carries an actual job value above 0, so revenue is that value (sales channel 3PTY for GEMS, Westminster and Winchester customers; otherwise the remarks decide). <strong>Channel-billed:</strong> the ERP value is 0, so revenue is the rate-card rate &times; quantity, or the flat BER / RWR charge, billed to HAA or INS. Both are the same job type. The split is a label only: it does not change any revenue figure, so totals still match the workbook.</p>'
+            : '<p class="form-note rd-pad">No CSIJO jobs for the period chosen above.</p>';
+          csijoPanel.hidden = false;
+        } catch {
+          if (token === csijoToken) csijoPanel.hidden = true;
+        }
+      };
       let listed = [];
       let countMsg = '';
       // Sales person choices follow the other filters (#253); keep the choice when still listed.
@@ -29986,6 +30003,7 @@ ${bodyHtml}
             lf.week = '';
           }
           loadPicker();
+          refreshCsijo();
         };
         if (control.tagName === 'INPUT')
           control.addEventListener('input', () => {
