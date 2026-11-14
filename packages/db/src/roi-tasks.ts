@@ -16,9 +16,52 @@ export type RoiTaskRecord = {
   completedAt: Date | null;
   archivedAt: Date | null;
   sortOrder: number;
+  recordType: string | null;
+  recordId: string | null;
+  recordLabel: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
+
+export type RoiTaskRecordLink = { type: 'quotation' | 'inspection' | 'job_card'; id: string };
+
+// The record a task points at: its reference and customer, and the permission needed to open it.
+export type RoiLinkedRecord = { label: string; permission: string };
+
+const recordSpecs = {
+  quotation: {
+    sql: `SELECT quotation_reference AS reference, customer_name AS customer
+            FROM quotations WHERE id = $1`,
+    permission: 'quotation.read',
+  },
+  inspection: {
+    sql: `SELECT inspection_reference AS reference, customer_name AS customer
+            FROM inspections WHERE id = $1`,
+    permission: 'inspection.read',
+  },
+  job_card: {
+    sql: `SELECT job_card_reference AS reference, customer_name AS customer
+            FROM service_job_cards WHERE id = $1`,
+    permission: 'service_job_card.read',
+  },
+} as const;
+
+export async function findRoiLinkedRecord(
+  client: PoolClient,
+  link: RoiTaskRecordLink,
+): Promise<RoiLinkedRecord | null> {
+  const spec = recordSpecs[link.type];
+  if (!spec || !/^\d+$/.test(link.id)) return null;
+  const result = await client.query<{ reference: string; customer: string | null }>(spec.sql, [
+    link.id,
+  ]);
+  const row = result.rows[0];
+  if (!row) return null;
+  return {
+    label: row.customer?.trim() ? `${row.reference} \u00B7 ${row.customer.trim()}` : row.reference,
+    permission: spec.permission,
+  };
+}
 
 export type RoiTaskWrite = {
   title?: string;
@@ -36,6 +79,8 @@ export type RoiTaskWrite = {
   completedOn?: string | null;
   // Completed tasks only: true moves it to the archive, false restores it.
   archived?: boolean;
+  // Optional link to one quotation, inspection or job card (set when the task is created).
+  record?: (RoiTaskRecordLink & { label: string }) | null;
 };
 
 // Dates travel as plain YYYY-MM-DD strings, never as JS Dates, so a Dubai
@@ -47,6 +92,7 @@ const columns = `
   to_char(t.due_date, 'YYYY-MM-DD') AS "dueDate",
   t.percent_complete AS "percentComplete", t.remarks,
   t.completed_at AS "completedAt", t.archived_at AS "archivedAt", t.sort_order AS "sortOrder",
+  t.record_type AS "recordType", t.record_id::text AS "recordId", t.record_label AS "recordLabel",
   t.created_at AS "createdAt", t.updated_at AS "updatedAt"
 `;
 const from = `FROM roi_tasks t JOIN profiles p ON p.id = t.owner_profile_id`;
@@ -57,6 +103,8 @@ export type RoiTaskFilters = {
   kind?: string;
   priority?: string;
   search?: string;
+  recordType?: string;
+  recordId?: string;
 };
 
 export async function listRoiTasks(
@@ -73,6 +121,10 @@ export async function listRoiTasks(
   if (filters.status) where.push(`t.status = ${add(filters.status)}`);
   if (filters.kind) where.push(`t.kind = ${add(filters.kind)}`);
   if (filters.priority) where.push(`t.priority = ${add(filters.priority)}`);
+  if (filters.recordType && filters.recordId) {
+    where.push(`t.record_type = ${add(filters.recordType)}`);
+    where.push(`t.record_id = ${add(filters.recordId)}::bigint`);
+  }
   if (filters.search) {
     const like = add(`%${filters.search.replace(/[\\%_]/g, '\\$&')}%`);
     where.push(`(t.title ILIKE ${like} OR t.remarks ILIKE ${like} OR t.notes ILIKE ${like})`);
@@ -109,11 +161,13 @@ export async function insertRoiTask(
   const percent = status === 'completed' ? 100 : (input.percentComplete ?? 0);
   const result = await client.query<{ id: string }>(
     `INSERT INTO roi_tasks (owner_profile_id, title, notes, kind, status, priority, start_date,
-                            due_date, percent_complete, remarks, completed_at, sort_order)
+                            due_date, percent_complete, remarks, completed_at, sort_order,
+                            record_type, record_id, record_label)
      VALUES ($1, $2, $3, COALESCE($4, 'task'), $5, COALESCE($6, 'medium'), $7::date, $8::date, $9,
              $10, CASE WHEN $5 = 'completed' THEN COALESCE($12::date + time '12:00', now()) END,
              COALESCE($11, (SELECT COALESCE(max(sort_order), 0) + 10 FROM roi_tasks
-                            WHERE owner_profile_id = $1)))
+                            WHERE owner_profile_id = $1)),
+             $13, $14::bigint, $15)
      RETURNING id`,
     [
       ownerProfileId,
@@ -128,6 +182,9 @@ export async function insertRoiTask(
       input.remarks ?? null,
       input.sortOrder ?? null,
       input.completedOn ?? null,
+      input.record?.type ?? null,
+      input.record?.id ?? null,
+      input.record?.label ?? null,
     ],
   );
   return result.rows[0].id;

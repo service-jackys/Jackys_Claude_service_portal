@@ -2018,6 +2018,7 @@ export type TaxInvoiceUpdateInput = z.infer<typeof taxInvoiceUpdateSchema>;
 // (modification.md #107).
 export const roiTaskKinds = ['task', 'issue', 'innovation', 'request'] as const;
 export const roiTaskStatuses = ['not_started', 'in_progress', 'on_hold', 'completed'] as const;
+export const roiTaskRecordTypes = ['quotation', 'inspection', 'job_card'] as const;
 export const roiTaskPriorities = ['low', 'medium', 'high', 'urgent'] as const;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date.');
@@ -2037,8 +2038,15 @@ export const roiTaskWriteSchema = z
     completedOn: isoDate.nullish(),
     // Administrators may create or move a task for another user.
     ownerProfileId: z.string().regex(/^\d+$/).optional(),
+    // Optional link to one quotation, inspection or job card (set when the task is created).
+    recordType: z.enum(roiTaskRecordTypes).optional(),
+    recordId: z.string().regex(/^\d+$/).optional(),
   })
   .strict()
+  .refine((value) => (value.recordType === undefined) === (value.recordId === undefined), {
+    message: 'Pick the record type and the record together.',
+    path: ['recordId'],
+  })
   .refine((value) => !value.startDate || !value.dueDate || value.dueDate >= value.startDate, {
     message: 'The end date cannot be before the start date.',
     path: ['dueDate'],
@@ -2074,6 +2082,9 @@ export const roiTaskListQuerySchema = z
     kind: z.enum(roiTaskKinds).optional(),
     priority: z.enum(roiTaskPriorities).optional(),
     search: z.string().trim().min(1).max(200).optional(),
+    // Tasks linked to one record, for the chip on the quotation / inspection / job card.
+    recordType: z.enum(roiTaskRecordTypes).optional(),
+    recordId: z.string().regex(/^\d+$/).optional(),
   })
   .strict();
 

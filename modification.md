@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #264 — Tasks: add a task from a quotation, inspection or job card
+
+**Date:** 2026-11-13
+
+**Why.** Follow-ups on quotations, inspections and job cards were typed into Tasks by hand, with no link back to the record. Staff wanted to pick the record and have it carried into the task.
+
+**What changed.**
+
+- Tasks has a new "Add from a record" button beside New task. Pick the section (Records or Service desk), then the type (Records: Quotation, Inspection; Service desk: Job card), search by reference or customer and pick one record. The normal New task panel opens filled in: title "Follow up: QO-... · customer" (editable), the record details in the private notes. Everything after that works exactly as New task.
+- One record per task. The task keeps a coloured record chip (blue Quotation, green Inspection, orange Job card) that opens the record. It shows in the List, Board, Timeline, archive list, Dashboard task lane and in the task panel.
+- Quotation, inspection and job card pages show a follow-up strip under the heading: the open tasks that follow the record (select one to open it) and an "Add to tasks" button (or "Add another follow-up"). It appears only for people with the Tasks permission.
+- A record chip only opens for people who may read that record; creating a task for a record you cannot read is refused. Only Quotations, Inspections and Job Cards for now.
+- Tests: tests/integration/roi-task-record-link.test.ts, tests/e2e/task-record-link.spec.ts.
+
+**Files.** packages/db/migrations/098_roi_task_record_link.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/service.ts, apps/api/src/api/route-catalog.ts, apps/web/src/tasks.js, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 098), restart the API, hard-refresh.
+
 ## Modification #263 — Service Revenue Dashboard: CSIJO original invoice vs channel-billed
 
 **Date:** 2026-11-13

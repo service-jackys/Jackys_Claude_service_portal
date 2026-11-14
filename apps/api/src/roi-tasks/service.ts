@@ -17,6 +17,7 @@ import {
   findRoiTask,
   importRoiTasks,
   insertRoiReport,
+  findRoiLinkedRecord,
   insertRoiTask,
   listRoiOwners,
   listRoiReports,
@@ -38,6 +39,7 @@ export class RoiServiceError extends Error {
   }
 }
 
+type RoiTaskWriteRecord = Parameters<typeof insertRoiTask>[2]['record'];
 const isAdmin = (auth: ApplicationAuth) => auth.permissions.includes('*');
 
 export type UploadedSheet = { originalname: string; size: number; buffer: Buffer };
@@ -174,7 +176,18 @@ export function createRoiService(pool: Pool) {
       owner = data.ownerProfileId;
     }
     return withTransaction(pool, async (client) => {
-      const id = await insertRoiTask(client, owner, data);
+      let record: RoiTaskWriteRecord = null;
+      if (data.recordType && data.recordId) {
+        const found = await findRoiLinkedRecord(client, {
+          type: data.recordType,
+          id: data.recordId,
+        });
+        if (!found) throw new RoiServiceError('not-found', 'That record was not found.');
+        if (!isAdmin(auth) && !auth.permissions.includes(found.permission))
+          throw new RoiServiceError('forbidden', 'You cannot open that record.');
+        record = { type: data.recordType, id: data.recordId, label: found.label };
+      }
+      const id = await insertRoiTask(client, owner, { ...data, record });
       return (await findRoiTask(client, id))!;
     });
   }

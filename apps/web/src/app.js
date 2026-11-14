@@ -5110,6 +5110,7 @@ ${bodyHtml}
       $('#quotationJobCardCreatePanel').hidden = true;
       renderQuotationMeta(result.quotation);
       renderQuotationApprovalLine(result.quotation);
+      renderRecordFollowUp('quotation', result.quotation);
       $('#createJobCardFromQuotationButton').hidden = true;
       $('#quotationJobUnits').hidden = true;
       const approved = result.quotation.quotationStatus === 'Approved';
@@ -5272,6 +5273,7 @@ ${bodyHtml}
       $('#inspectionDetailHeading').textContent = result.inspection.inspectionReference;
       fillInspectionForm('iqe', result.inspection);
       $('#saveInspectionButton').hidden = !hasPermission('inspection.write');
+      renderRecordFollowUp('inspection', result.inspection);
       $('#inspectionDetail').hidden = false;
       $('#inspectionDetail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     } catch (error) {
@@ -7797,6 +7799,7 @@ ${bodyHtml}
       renderClosureApproval(jobCard);
       $('#jobCardDetailHeading').textContent =
         jobCard.jobCardReference || 'Service job card details';
+      renderRecordFollowUp('job_card', jobCard);
       $('#jobCardDetailStatus').innerHTML =
         `<span class="status ${statusClass(jobCard.jobFinalStatus)}">${escapeHtml(jobCard.jobFinalStatus)}</span>` +
         (jobCard.finalStatus
@@ -19905,6 +19908,83 @@ ${bodyHtml}
     getChatUi().openRecord(type, id);
   }
 
+  // A task's record chip, and the follow-up strip on a record page, open the record itself.
+  function openTaskRecord(type, id) {
+    if (type === 'quotation') {
+      setWorkspaceMode('quotations');
+      loadQuotationDetail(id);
+    } else if (type === 'inspection') {
+      setWorkspaceMode('inspections');
+      loadInspectionDetail(id);
+    } else if (type === 'job_card') {
+      setWorkspaceMode('job-cards');
+      loadJobCardDetail(id);
+    }
+  }
+  // Follow-up strip under the heading of a quotation, inspection or job card: the tasks that
+  // follow it up (coloured chips that open the task) and an "Add to tasks" button.
+  async function renderRecordFollowUp(type, record) {
+    const host = document.querySelector('[data-rec-follow="' + type + '"]');
+    if (!host) return;
+    host.innerHTML = '';
+    if (!record || !record.id || !hasPermission('tasks.use')) return;
+    const reference =
+      record.quotationReference || record.inspectionReference || record.jobCardReference || '';
+    const label = [reference, record.customerName].filter(Boolean).join(' \u00b7 ');
+    const status = record.quotationStatus || record.jobCardStatus || '';
+    let tasks = [];
+    try {
+      const params = new URLSearchParams({ recordType: type, recordId: String(record.id) });
+      tasks = (await apiRequest('/api/roi/tasks?' + params)).tasks || [];
+    } catch {
+      /* the button still works without the list */
+    }
+    // The page may have moved on to another record while the list loaded.
+    const current = {
+      quotation: currentQuotation,
+      inspection: currentInspection,
+      job_card: currentJobCard,
+    }[type];
+    if (!current || String(current.id) !== String(record.id)) return;
+    const open = tasks.filter((t) => t.status !== 'completed');
+    host.innerHTML =
+      (open.length
+        ? '<span class="rec-follow-label">Follow-up</span>' +
+          open
+            .map(
+              (t) =>
+                '<button type="button" class="tk-rec tk-rec-' +
+                type +
+                '" data-follow-task="' +
+                escapeHtml(t.id) +
+                '" title="Open this task"><span class="tk-rec-kind">Task</span><span class="tk-rec-ref">' +
+                escapeHtml(t.title) +
+                '</span></button>',
+            )
+            .join('')
+        : '') +
+      '<button type="button" class="button button-outline rec-follow-add" data-follow-add>' +
+      (open.length ? 'Add another follow-up' : 'Add to tasks') +
+      '</button>';
+    host.querySelector('[data-follow-add]').addEventListener('click', () => {
+      getTasksUi().newFromRecord({
+        type,
+        id: record.id,
+        reference,
+        customer: record.customerName,
+        note: status,
+        label,
+      });
+      setWorkspaceMode('tasks');
+    });
+    host.querySelectorAll('[data-follow-task]').forEach((button) =>
+      button.addEventListener('click', () => {
+        setWorkspaceMode('tasks');
+        getTasksUi().openTask(button.dataset.followTask);
+      }),
+    );
+  }
+
   let tasksUi = null;
   function getTasksUi() {
     if (!tasksUi) {
@@ -19917,6 +19997,8 @@ ${bodyHtml}
         getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
         canSummary: () => hasPermission('revenue_dashboard.read'),
         openChatRecord: (type, id) => discussRecord(type, id),
+        can: (permission) => Boolean(hasPermission(permission)),
+        openRecord: openTaskRecord,
         canAsk: () => askAiCanAsk('tasks'),
         askAbout: (title, context) => askAiAbout(title, context),
         loadSummary: roiSummaryData,
