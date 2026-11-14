@@ -105,12 +105,15 @@ function masterRows(w: Writer, label: string, m: PricingMaster) {
 // Revenue Logic sheet for the invoice-level rules (workbook revision of
 // 15 Oct 2026): four short sections written for accounts. The full
 // explanation, with live figures, is the portal's "Logic applied" tab.
+export type LogicTransport = { banner: string; detail: string };
+
 function buildInvoiceLevelLogicSheet(
   wb: ExcelJS.Workbook,
   rules: PricingRules,
   lines: LogicLine[],
   batchFile: string,
   filterText: string,
+  transport?: LogicTransport,
 ) {
   const ws = wb.addWorksheet('Revenue Logic', { properties: { tabColor: { argb: NAVY } } });
   const widths = [2, 34, 14, 16, 16, 16, 14, 62];
@@ -177,6 +180,14 @@ function buildInvoiceLevelLogicSheet(
     ws.getRow(row).height = heightFor(text, 150);
     row += 1;
   };
+  if (transport) {
+    paragraph(transport.banner, true);
+    paragraph(
+      transport.detail +
+        ' These switches decide which trips are charged, so the figures in this report follow them.',
+    );
+    row += 1;
+  }
   const section = (num: number, text: string) => {
     ws.mergeCells(row, 2, row, LAST);
     const c = ws.getCell(row, 2);
@@ -470,9 +481,10 @@ export function buildLogicSheet(
   lines: LogicLine[],
   batchFile: string,
   filterText: string,
+  transportRules?: LogicTransport,
 ) {
   if (rules.logicVersion === 3) {
-    buildInvoiceLevelLogicSheet(wb, rules, lines, batchFile, filterText);
+    buildInvoiceLevelLogicSheet(wb, rules, lines, batchFile, filterText, transportRules);
     return;
   }
   const ws = wb.addWorksheet('Revenue Logic');
@@ -497,6 +509,7 @@ export function buildLogicSheet(
   w.note(
     'Revenue is not an ERP posting. Orion ERP does not give the portal the structured fields the pricing model needs, so the master workbook derives them from free-text Remarks and temporary default assumptions. Every figure marked "assumption" below is only as good as that assumption.',
   );
+  if (transportRules) w.note(`${transportRules.banner}. ${transportRules.detail}`);
   if (!sheetLines.length) {
     w.note(
       'The CSIDI-sheet pricing columns are not stored for this upload. Upload the Service Dashboard workbook again (after migration 025) to fill the extra Jobs columns and the exposure figures.',

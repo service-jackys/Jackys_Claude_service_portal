@@ -37,7 +37,25 @@ export type RevenueReportData = {
   flatRates?: Parameters<typeof applyFlatRates>[1];
   /** Invoice -> transport charge the 2-trip daily cap leaves uncharged, under the saved rules. */
   cappedTrips?: Map<string, number>;
+  /** The saved transport rules, so the report says which rules its figures follow. */
+  transportRules?: {
+    label: string;
+    dailyCap: boolean;
+    deliveryOnlyCap: boolean;
+    mixedInvoiceTransport: boolean;
+    maxTrips: number;
+  };
 };
+
+/** One plain sentence on the saved transport switches, for the Summary and Logic sheets. */
+export function transportRulesDetail(r: NonNullable<RevenueReportData['transportRules']>) {
+  const on = (v: boolean) => (v ? 'on' : 'off');
+  return (
+    `Daily trip cap ${on(r.dailyCap)}` +
+    (r.dailyCap ? ` (at most ${r.maxTrips} trips per salesperson per day are charged)` : '') +
+    `; delivery-only cap ${on(r.deliveryOnlyCap)}; mixed-invoice transport ${on(r.mixedInvoiceTransport)}.`
+  );
+}
 
 const NAVY = 'FF10233F';
 const MONEY = '#,##0.00';
@@ -215,6 +233,29 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   });
 
   type Row = (typeof enriched)[number];
+
+  // Transport the daily cap leaves uncharged, shown once per invoice (on its first job line)
+  // so a subtotal does not count the same trip twice. Display only: no figure changes.
+  const unchargedByRow = new Map<Row, number>();
+  {
+    const seen = new Set<string>();
+    for (const x of enriched) {
+      const inv = String(x.line.invDelNo ?? '');
+      const amount = data.cappedTrips?.get(inv);
+      if (!inv || amount === undefined || seen.has(inv)) continue;
+      seen.add(inv);
+      unchargedByRow.set(x, amount);
+    }
+  }
+  if (data.transportRules) {
+    const total = [...unchargedByRow.values()].reduce((a, b) => a + b, 0);
+    summary.addRow(['Transport rules', data.transportRules.label]);
+    summary.addRow(['Transport rule switches', transportRulesDetail(data.transportRules)]);
+    summary.addRow([
+      'Transport left uncharged by the cap (AED)',
+      `${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} on ${unchargedByRow.size} invoice${unchargedByRow.size === 1 ? '' : 's'} in this report. Revenue above already excludes it.`,
+    ]);
+  }
   type Col = {
     h: string;
     w: number;
@@ -403,6 +444,14 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       get: E('reconcileDiff'),
     },
     { h: 'Why they differ', w: 22, group: 'Check', get: E('diffCause') },
+    {
+      h: 'Transport not charged (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Check',
+      sum: true,
+      get: (x: Row) => unchargedByRow.get(x),
+    },
     { h: 'Revenue basis', w: 44, group: 'Explain', get: E('basis') },
     { h: 'Invoice CSIDI qty', w: 10, group: 'Explain', get: P((p) => p.invoiceCsidiQty) },
     {
@@ -604,7 +653,17 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     pricing: x.pricing,
     e: x.e,
   }));
-  buildLogicSheet(wb, rules, logicLines, data.batch.fileName, filterLabel);
+  buildLogicSheet(
+    wb,
+    rules,
+    logicLines,
+    data.batch.fileName,
+    filterLabel,
+    data.transportRules && {
+      banner: data.transportRules.label,
+      detail: transportRulesDetail(data.transportRules),
+    },
+  );
 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }

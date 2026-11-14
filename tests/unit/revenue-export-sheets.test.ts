@@ -152,3 +152,77 @@ test('export: a trip the daily cap left uncharged is not listed as a transport p
   // A capped invoice whose difference is something else keeps its own cause.
   assert.equal(await cause(mk(new Map([['77', full.transport! + 50]]))), 'CSIDI transport');
 });
+
+test('export: Summary and Logic say which transport rules apply, and capped transport is listed once per invoice', async () => {
+  const { DEFAULT_PRICING_RULES } =
+    await import('../../apps/api/src/revenue-dashboard/pricing-logic.js');
+  const rules = { ...DEFAULT_PRICING_RULES, logicVersion: 3 as const };
+  const pricing = {
+    erpCategory: 'Refrigerator',
+    applianceCategory: 'Freestanding Refrigerator',
+    invoiceCsidiQty: 2,
+    invoiceHasCsido: false,
+    invoiceHasCsidi: true,
+    firstOfType: true,
+    transportCharge: 0,
+    refDocNo: 'CSOSC - 1',
+    before: {},
+  };
+  // Invoice 77 has two job lines and 60 of transport left uncharged; invoice 78 is not capped.
+  const lines = [
+    line({ jobType: 'CSIDI', invDelNo: '77', qty: 1, unitPrice: 100, revenue: 100, pricing }),
+    line({ jobType: 'CSIDI', invDelNo: '77', qty: 1, unitPrice: 100, revenue: 100, pricing }),
+    line({ jobType: 'CSIDI', invDelNo: '78', qty: 1, unitPrice: 100, revenue: 100, pricing }),
+  ];
+  const data = {
+    batch: { fileName: 'x.xlsm', uploadedAt: new Date(), summary: { pricingRules: rules } },
+    filters: {},
+    total: group(300, 3),
+    monthly: { totals: group(300, 3).totals, cells: [] },
+    weekly: { totals: group(300, 3).totals, cells: [] },
+    channel: group(300, 3),
+    salesPerson: group(300, 3),
+    customer: group(300, 3),
+    billingCode: group(300, 3),
+    exceptions: { totals: group(300, 3).totals, exceptions: [] },
+    lines,
+    cappedTrips: new Map([['77', 60]]),
+    transportRules: {
+      label: 'Transport rules: new master logic (2-trip daily cap, delivery-only outside the cap)',
+      dailyCap: true,
+      deliveryOnlyCap: false,
+      mixedInvoiceTransport: true,
+      maxTrips: 2,
+    },
+  } as unknown as RevenueReportData;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load((await buildRevenueReportWorkbook(data)) as unknown as ArrayBuffer);
+
+  const summary = wb.getWorksheet('Summary')!;
+  const text = (sheet: ExcelJS.Worksheet) => {
+    const out: string[] = [];
+    sheet.eachRow((row) =>
+      out.push(String(row.values ? (row.values as unknown[]).join(' | ') : '')),
+    );
+    return out.join('\n');
+  };
+  assert.match(text(summary), /Transport rules \| Transport rules: new master logic/);
+  assert.match(
+    text(summary),
+    /Daily trip cap on \(at most 2 trips per salesperson per day are charged\)/,
+  );
+  assert.match(text(summary), /60\.00 on 1 invoice in this report/);
+  // Revenue rows keep their place (rows 9 and 10 are formatted as money).
+  assert.equal(summary.getCell('A9').value, 'Revenue (AED)');
+
+  const di = wb.getWorksheet('Delivery & Install')!;
+  const col =
+    (di.getRow(2).values as unknown[]).slice(1).indexOf('Transport not charged (AED)') + 1;
+  assert.ok(col > 0, 'job sheet has the Transport not charged column');
+  const values = [3, 4, 5].map((r) => di.getRow(r).getCell(col).value);
+  // Once on the first line of invoice 77, not again on its second line, nothing on invoice 78.
+  assert.deepEqual(values, [60, null, null]);
+
+  assert.match(text(wb.getWorksheet('Revenue Logic')!), /2-trip daily cap/);
+  assert.match(text(wb.getWorksheet('Revenue Logic')!), /Daily trip cap on/);
+});

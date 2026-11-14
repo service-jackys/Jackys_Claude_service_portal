@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #266 — Service Revenue Dashboard export: transport rules banner and "Transport not charged" column
+
+**Date:** 2026-11-14
+
+**Why.** The Export report (.xlsx) already followed the 2-trip daily cap (its revenue comes from the same saved lines as the dashboard, and #259 made "Why they differ" say "Daily trip cap"), but the file did not say which transport rules it followed, nor how much transport the cap left uncharged.
+
+**What changed (display only; no revenue figure, rule or total changes).**
+
+- Summary sheet: three new rows after Limitation: Transport rules (new master / old master / custom), the switches in plain words (daily cap and max trips, delivery-only cap, mixed-invoice transport) and the total transport left uncharged by the cap with the number of invoices, for the rows in that report.
+- Revenue Logic sheet: the same rules banner and switch sentence at the top.
+- Delivery & Install sheet: new column "Transport not charged (AED)" beside "Why they differ", shown once per invoice (on its first job line) so the subtotal never counts a trip twice; it follows Excel filters like the other money columns and is dropped when no job has a value.
+- "Download this view" is unchanged.
+- Tests: tests/unit/revenue-export-sheets.test.ts (new case).
+
+**Files.** apps/api/src/revenue-dashboard/export.ts, logic-sheet.ts, service.ts, tests/unit/revenue-export-sheets.test.ts.
+
+**Needs you:** pull, restart the API. No migration, no browser refresh needed.
+
 ## Modification #265 — Tasks: add a task from an issued AMC contract, Thomson quote or VAS sale
 
 **Date:** 2026-11-14
