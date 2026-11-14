@@ -5216,6 +5216,8 @@ Display only; no pricing formulas, API or database changes.
 - Summary sheet: three new rows after Limitation: Transport rules (new master / old master / custom), the switches in plain words (daily cap and max trips, delivery-only cap, mixed-invoice transport) and the total transport left uncharged by the cap with the number of invoices, for the rows in that report.
 - Revenue Logic sheet: the same rules banner and switch sentence at the top.
 - Delivery & Install sheet: new column "Transport not charged (AED)" beside "Why they differ", shown once per invoice (on its first job line) so the subtotal never counts a trip twice; it follows Excel filters like the other money columns and is dropped when no job has a value.
+- Delivery & Install sheet: two more columns, "Trip no. of day" (the invoice's rank among that salesperson's trips of the day, highest charge first, ties by ERP Ref Inv) and "Transport note" ("Trip 3 of 3 that day: transport AED 60 not charged (only the 2 highest charges a day are charged)."), both on the first line of each invoice.
+- Delivery & Install sheet trimmed for accounts review: 20 technical columns moved to the Source detail sheet (Parent subcategory, Parent item(s), Billing item code(s), Raw ERP lines, Appliance category/Pricing type/Discount/Base rate/Net rate/Transport/Billing qty of the "before" group, Rebuilt from rules (AED), Revenue basis, Invoice CSIDI qty, Invoice has CSIDO, Invoice has CSIDI, First line of its type on invoice, Data source, Pricing status, Remarks flags). Nothing is deleted. "Workbook minus rules" and "Why they differ" stay because they explain the cap.
 - "Download this view" is unchanged.
 - Tests: tests/unit/revenue-export-sheets.test.ts (new case).
 

@@ -187,6 +187,10 @@ test('export: Summary and Logic say which transport rules apply, and capped tran
     exceptions: { totals: group(300, 3).totals, exceptions: [] },
     lines,
     cappedTrips: new Map([['77', 60]]),
+    tripInfo: new Map([
+      ['77', { rank: 3, trips: 3, charge: 60, charged: false }],
+      ['78', { rank: 1, trips: 1, charge: 90, charged: true }],
+    ]),
     transportRules: {
       label: 'Transport rules: new master logic (2-trip daily cap, delivery-only outside the cap)',
       dailyCap: true,
@@ -222,6 +226,33 @@ test('export: Summary and Logic say which transport rules apply, and capped tran
   const values = [3, 4, 5].map((r) => di.getRow(r).getCell(col).value);
   // Once on the first line of invoice 77, not again on its second line, nothing on invoice 78.
   assert.deepEqual(values, [60, null, null]);
+
+  // Trip number and note: on the first line of each invoice only.
+  const tripCol = (di.getRow(2).values as unknown[]).slice(1).indexOf('Trip no. of day') + 1;
+  const noteCol = (di.getRow(2).values as unknown[]).slice(1).indexOf('Transport note') + 1;
+  assert.ok(tripCol > 0 && noteCol > 0, 'job sheet has the trip number and note columns');
+  assert.deepEqual(
+    [3, 4, 5].map((r) => di.getRow(r).getCell(tripCol).value),
+    [3, '', 1],
+  );
+  assert.equal(
+    di.getRow(3).getCell(noteCol).value,
+    'Trip 3 of 3 that day: transport AED 60 not charged (only the 2 highest charges a day are charged).',
+  );
+  assert.equal(
+    di.getRow(5).getCell(noteCol).value,
+    'Trip 1 of 1 that day: transport AED 90 charged.',
+  );
+
+  // Technical columns moved to Source detail: not on the review sheet, still one lookup away.
+  const headers = (sheet: ExcelJS.Worksheet) => (sheet.getRow(2).values as unknown[]).slice(1);
+  const detail = wb.getWorksheet('Source detail')!;
+  for (const h of ['Revenue basis', 'Rebuilt from rules (AED)', 'Invoice has CSIDO']) {
+    assert.ok(!headers(di).includes(h), `${h} is not on Delivery & Install`);
+    assert.ok(headers(detail).includes(h), `${h} is on Source detail`);
+  }
+  for (const h of ['Why they differ', 'Workbook minus rules (AED)', 'Revenue (AED)', 'Remarks'])
+    assert.ok(headers(di).includes(h), `${h} stays on Delivery & Install`);
 
   assert.match(text(wb.getWorksheet('Revenue Logic')!), /2-trip daily cap/);
   assert.match(text(wb.getWorksheet('Revenue Logic')!), /Daily trip cap on/);
