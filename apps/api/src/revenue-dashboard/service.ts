@@ -336,7 +336,7 @@ export function createRevenueDashboardService(pool: Pool) {
         exceptions: await revenueExceptions(client, batch.id, filters),
         lines: await revenueExportLines(client, batch.id, filters),
         flatRates: ((await pricing.get('dandi_pricing')).payload as DandiPricingInput).flatRates,
-        cappedTrips: await cappedTrips(client, batch.id),
+        ...(await tripDetails(client, batch.id)),
         transportRules: await exportTransportRules(client),
       };
       const workbook = await buildRevenueReportWorkbook(data);
@@ -741,14 +741,35 @@ export function createRevenueDashboardService(pool: Pool) {
 
   // Invoices whose trip charge the daily cap leaves uncharged, under the saved rules: the report
   // export says so instead of listing them as a difference from the rate card (the rate card has no cap).
-  async function cappedTrips(client: import('pg').PoolClient, batchId: string) {
-    const out = new Map<string, number>();
+  // Also the trip number of each invoice within its salesperson's day, for the export's
+  // "Trip no. of day" and "Transport note" columns.
+  async function tripDetails(client: import('pg').PoolClient, batchId: string) {
+    const cappedTrips = new Map<string, number>();
+    const tripInfo = new Map<
+      string,
+      { rank: number; trips: number; charge: number; charged: boolean }
+    >();
     const rows = await listSheetRows(client, batchId, 'CSIDI');
-    if (!rows.length) return out;
+    if (!rows.length) return { cappedTrips, tripInfo };
     const rules = await getTransportRules(client);
-    for (const i of computeTransport(rows, rules).invoices)
-      if (i.rank !== null && !i.charged && i.charge > 0) out.set(String(i.invoice), i.charge);
-    return out;
+    const invoices = computeTransport(rows, rules).invoices;
+    const perDay = new Map<string, number>();
+    for (const i of invoices)
+      if (i.rank !== null) {
+        const k = i.date + '|' + i.salesperson;
+        perDay.set(k, (perDay.get(k) ?? 0) + 1);
+      }
+    for (const i of invoices) {
+      if (i.rank === null) continue;
+      tripInfo.set(String(i.invoice), {
+        rank: i.rank,
+        trips: perDay.get(i.date + '|' + i.salesperson) ?? 1,
+        charge: i.charge,
+        charged: i.charged,
+      });
+      if (!i.charged && i.charge > 0) cappedTrips.set(String(i.invoice), i.charge);
+    }
+    return { cappedTrips, tripInfo };
   }
 
   // Transport status of the invoices of a worked example (#252), under the saved rules.

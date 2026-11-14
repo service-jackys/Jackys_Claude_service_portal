@@ -37,6 +37,8 @@ export type RevenueReportData = {
   flatRates?: Parameters<typeof applyFlatRates>[1];
   /** Invoice -> transport charge the 2-trip daily cap leaves uncharged, under the saved rules. */
   cappedTrips?: Map<string, number>;
+  /** Invoice -> its trip number within the salesperson's day (ranked by charge) and that day's trips. */
+  tripInfo?: Map<string, { rank: number; trips: number; charge: number; charged: boolean }>;
   /** The saved transport rules, so the report says which rules its figures follow. */
   transportRules?: {
     label: string;
@@ -237,14 +239,26 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   // Transport the daily cap leaves uncharged, shown once per invoice (on its first job line)
   // so a subtotal does not count the same trip twice. Display only: no figure changes.
   const unchargedByRow = new Map<Row, number>();
+  const tripByRow = new Map<Row, { rank: number; note: string }>();
   {
     const seen = new Set<string>();
+    const maxTrips = data.transportRules?.maxTrips ?? 2;
+    const aed = (n: number) => `AED ${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
     for (const x of enriched) {
       const inv = String(x.line.invDelNo ?? '');
+      if (!inv || seen.has(inv)) continue;
       const amount = data.cappedTrips?.get(inv);
-      if (!inv || amount === undefined || seen.has(inv)) continue;
+      const trip = data.tripInfo?.get(inv);
+      if (amount === undefined && !trip) continue;
       seen.add(inv);
-      unchargedByRow.set(x, amount);
+      if (amount !== undefined) unchargedByRow.set(x, amount);
+      if (trip)
+        tripByRow.set(x, {
+          rank: trip.rank,
+          note: trip.charged
+            ? `Trip ${trip.rank} of ${trip.trips} that day: transport ${aed(trip.charge)} charged.`
+            : `Trip ${trip.rank} of ${trip.trips} that day: transport ${aed(trip.charge)} not charged (only the ${maxTrips} highest charges a day are charged).`,
+        });
     }
   }
   if (data.transportRules) {
@@ -366,19 +380,8 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     ...status('Job'),
     { h: 'Qty', w: 7, group: 'Job', core: true, sum: true, get: L('qty') },
     { h: 'Parent category', w: 22, group: 'ERP', get: P((p) => p.erpCategory) },
-    { h: 'Parent subcategory', w: 22, group: 'ERP', get: P((p) => p.erpSubcategory) },
     { h: 'Brand', w: 16, group: 'ERP', get: P((p) => p.erpBrand) },
     { h: 'Model(s)', w: 26, group: 'ERP', get: P((p) => p.erpModels) },
-    { h: 'Parent item(s)', w: 26, group: 'ERP', get: P((p) => p.erpParentItems) },
-    { h: 'Billing item code(s)', w: 26, group: 'ERP', get: P((p) => p.erpBillingCodes) },
-    { h: 'Raw ERP lines', w: 9, group: 'ERP', get: P((p) => p.erpLineCount) },
-    { h: 'Appliance category', w: 24, group: 'Before', get: P((p) => p.before.applianceCategory) },
-    { h: 'Pricing type', w: 11, group: 'Before', get: P((p) => p.before.pricingType) },
-    { h: 'Discount', w: 9, fmt: '0%', group: 'Before', get: P((p) => p.before.discountRate) },
-    { h: 'Base rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.baseUnitRate) },
-    { h: 'Net rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.netUnitRate) },
-    { h: 'Transport', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.transport) },
-    { h: 'Billing qty', w: 9, group: 'Before', get: P((p) => p.before.billingQty) },
     {
       h: 'Revenue before (AED)',
       w: 13,
@@ -428,14 +431,6 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     },
     { h: 'Revenue per unit (AED)', w: 13, fmt: MONEY, group: 'Final', get: E('revenuePerUnit') },
     {
-      h: 'Rebuilt from rules (AED)',
-      w: 14,
-      fmt: MONEY,
-      group: 'Check',
-      sum: true,
-      get: E('rebuilt'),
-    },
-    {
       h: 'Workbook minus rules (AED)',
       w: 14,
       fmt: MONEY,
@@ -445,12 +440,50 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     },
     { h: 'Why they differ', w: 22, group: 'Check', get: E('diffCause') },
     {
+      h: 'Trip no. of day',
+      w: 9,
+      group: 'Check',
+      get: (x: Row) => tripByRow.get(x)?.rank,
+    },
+    {
+      h: 'Transport note',
+      w: 52,
+      group: 'Check',
+      get: (x: Row) => tripByRow.get(x)?.note,
+    },
+    {
       h: 'Transport not charged (AED)',
       w: 14,
       fmt: MONEY,
       group: 'Check',
       sum: true,
       get: (x: Row) => unchargedByRow.get(x),
+    },
+    { h: 'Review note', w: 44, group: 'Explain', get: P((p) => p.reviewNote) },
+    { h: 'Remarks', w: 60, group: 'Explain', core: true, get: L('remarks') },
+  ];
+
+  // Technical columns accounts rarely need: kept on the Source detail sheet, one lookup away by
+  // invoice number, so the Delivery & Install sheet stays readable.
+  const movedCols: Col[] = [
+    { h: 'Parent subcategory', w: 22, group: 'ERP', get: P((p) => p.erpSubcategory) },
+    { h: 'Parent item(s)', w: 26, group: 'ERP', get: P((p) => p.erpParentItems) },
+    { h: 'Billing item code(s)', w: 26, group: 'ERP', get: P((p) => p.erpBillingCodes) },
+    { h: 'Raw ERP lines', w: 9, group: 'ERP', get: P((p) => p.erpLineCount) },
+    { h: 'Appliance category', w: 24, group: 'Before', get: P((p) => p.before.applianceCategory) },
+    { h: 'Pricing type', w: 11, group: 'Before', get: P((p) => p.before.pricingType) },
+    { h: 'Discount', w: 9, fmt: '0%', group: 'Before', get: P((p) => p.before.discountRate) },
+    { h: 'Base rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.baseUnitRate) },
+    { h: 'Net rate', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.netUnitRate) },
+    { h: 'Transport', w: 10, fmt: MONEY, group: 'Before', get: P((p) => p.before.transport) },
+    { h: 'Billing qty', w: 9, group: 'Before', get: P((p) => p.before.billingQty) },
+    {
+      h: 'Rebuilt from rules (AED)',
+      w: 14,
+      fmt: MONEY,
+      group: 'Check',
+      sum: true,
+      get: E('rebuilt'),
     },
     { h: 'Revenue basis', w: 44, group: 'Explain', get: E('basis') },
     { h: 'Invoice CSIDI qty', w: 10, group: 'Explain', get: P((p) => p.invoiceCsidiQty) },
@@ -483,9 +516,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       ),
     },
     { h: 'Pricing status', w: 30, group: 'Explain', get: P((p) => p.pricingStatus) },
-    { h: 'Review note', w: 44, group: 'Explain', get: P((p) => p.reviewNote) },
     { h: 'Remarks flags', w: 44, group: 'Explain', get: E('remarkFlags') },
-    { h: 'Remarks', w: 60, group: 'Explain', core: true, get: L('remarks') },
   ];
 
   // Raw columns of the workbook's CSIDI sheet that accounts rarely need, kept
@@ -533,6 +564,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       group: 'Source',
       get: P((p) => p.erpJobReferences),
     },
+    ...movedCols,
   ];
 
   const GROUP_FILL: Record<string, string> = {

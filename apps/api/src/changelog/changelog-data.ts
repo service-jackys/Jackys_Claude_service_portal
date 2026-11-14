@@ -25,7 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     "changes": [
       "Summary sheet: transport rules, the switches in plain words and the total transport left uncharged by the cap.",
       "Revenue Logic sheet: the same rules banner at the top.",
-      "Delivery & Install sheet: new Transport not charged (AED) column, once per invoice."
+      "Delivery & Install sheet: new Trip no. of day and Transport note columns (first line of each invoice) and Transport not charged (AED).",
+      "Delivery & Install sheet trimmed for accounts review: 20 technical columns moved to the Source detail sheet (nothing deleted)."
     ],
     "needsYou": "pull and restart the API. No migration.",
     "migrations": [],
