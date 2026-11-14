@@ -10006,6 +10006,33 @@
       .rec-follow .tk-rec {
         margin-left: 0;
       }
+      tr.rec-flash td {
+        animation: rec-flash 3.5s ease-out;
+      }
+      @keyframes rec-flash {
+        0%,
+        60% {
+          background: #fef3c7;
+        }
+        100% {
+          background: transparent;
+        }
+      }
+      .tk-rec-amc_contract {
+        --rec-bg: #f5f3ff;
+        --rec-edge: #ddd6fe;
+        --rec-ink: #6d28d9;
+      }
+      .tk-rec-thomson_sale {
+        --rec-bg: #ecfeff;
+        --rec-edge: #a5f3fc;
+        --rec-ink: #0e7490;
+      }
+      .tk-rec-vas_sale {
+        --rec-bg: #fdf2f8;
+        --rec-edge: #fbcfe8;
+        --rec-ink: #be185d;
+      }
       .rec-follow-label {
         color: #5b6b7c;
         font-size: 0.75rem;

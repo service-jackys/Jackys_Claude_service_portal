@@ -19919,7 +19919,61 @@ ${bodyHtml}
     } else if (type === 'job_card') {
       setWorkspaceMode('job-cards');
       loadJobCardDetail(id);
+    } else if (CALCULATOR_RECORDS[type]) {
+      openCalculatorRecord(type, id);
     }
+  }
+  // Issued AMC contracts, Thomson quotes and VAS sales are rows in their calculator's Issued
+  // tab, not pages of their own: open that tab and highlight the row.
+  const CALCULATOR_RECORDS = {
+    amc_contract: { path: '/api/amc-contracts/', key: 'amcContract', ref: 'amcContractReference' },
+    thomson_sale: { path: '/api/thomson-sales/', key: 'thomsonSale', ref: 'thomsonSaleReference' },
+    vas_sale: { path: '/api/vas-sales/', key: 'vasSale', ref: 'vasSaleReference' },
+  };
+  async function openCalculatorRecord(type, id) {
+    const spec = CALCULATOR_RECORDS[type];
+    let record;
+    try {
+      record = (await apiRequest(spec.path + encodeURIComponent(id)))[spec.key];
+    } catch (error) {
+      notifyDialog('Could not open it', error.message || 'That record could not be opened.');
+      return;
+    }
+    if (!record) return;
+    const target = {
+      amc_contract:
+        record.pricingModel === 'v2'
+          ? { mode: 'amc-calc-v2', tab: '[data-v2-tab="issued"]' }
+          : { mode: 'amc-calc', tab: '[data-ac-tab="issued"]' },
+      thomson_sale: { mode: 'thomson-calc', tab: '[data-th-tab="issued"]' },
+      vas_sale: { mode: 'vas-calc', tab: '[data-vc-tab="issued"]' },
+    }[type];
+    setWorkspaceMode(target.mode);
+    const reference = record[spec.ref];
+    // The calculator page loads its rates first, so wait for the Issued tab and its rows.
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      tries += 1;
+      const workspace = document.getElementById(
+        {
+          'amc-calc-v2': 'amcCalcV2Workspace',
+          'amc-calc': 'amcCalcWorkspace',
+          'thomson-calc': 'thomsonCalcWorkspace',
+          'vas-calc': 'vasCalcWorkspace',
+        }[target.mode],
+      );
+      const tab = workspace && workspace.querySelector(target.tab);
+      if (tab && tab.getAttribute('aria-selected') !== 'true') tab.click();
+      const row = [...(workspace ? workspace.querySelectorAll('table tbody tr') : [])].find(
+        (tr) => tr.offsetParent && tr.textContent.includes(reference),
+      );
+      if (row) {
+        window.clearInterval(timer);
+        row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        row.classList.add('rec-flash');
+        window.setTimeout(() => row.classList.remove('rec-flash'), 3500);
+      } else if (tries > 30) window.clearInterval(timer);
+    }, 250);
   }
   // Follow-up strip under the heading of a quotation, inspection or job card: the tasks that
   // follow it up (coloured chips that open the task) and an "Add to tasks" button.

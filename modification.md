@@ -5205,6 +5205,23 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #265 — Tasks: add a task from an issued AMC contract, Thomson quote or VAS sale
+
+**Date:** 2026-11-14
+
+**Why.** After #264 worked for quotations, inspections and job cards, the same follow-up was wanted for the saved quotes of the quote calculators.
+
+**What changed.**
+
+- "Add from a record" has a third section, **Quote calculators**, with AMC contract (both calculators), Thomson quote and VAS sale. Pick one from the issued list; the New task panel opens filled in ("Follow up: AC-... · client"). Everything else is as in #264.
+- The task chip (purple AMC, teal Thomson, pink VAS) opens that calculator's Issued tab, switches to the right AMC calculator (New or original) and highlights the row for a few seconds. These records are rows in an Issued list, not pages of their own.
+- A type only shows for people who can read it (amc_contract.read, thomson_sale.read, vas_sale.read); creating a task for one you cannot read is refused.
+- Tests: tests/integration/roi-task-record-link.test.ts (extended), tests/e2e/task-record-link.spec.ts (new case).
+
+**Files.** packages/db/migrations/099_roi_task_record_calculators.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/web/src/tasks.js, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run `npm run db:migrate` (migration 099), restart the API, hard-refresh.
+
 ## Modification #264 — Tasks: add a task from a quotation, inspection or job card
 
 **Date:** 2026-11-13
