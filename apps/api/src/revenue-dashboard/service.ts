@@ -337,6 +337,7 @@ export function createRevenueDashboardService(pool: Pool) {
         lines: await revenueExportLines(client, batch.id, filters),
         flatRates: ((await pricing.get('dandi_pricing')).payload as DandiPricingInput).flatRates,
         cappedTrips: await cappedTrips(client, batch.id),
+        transportRules: await exportTransportRules(client),
       };
       const workbook = await buildRevenueReportWorkbook(data);
       if (profileId) {
@@ -724,6 +725,18 @@ export function createRevenueDashboardService(pool: Pool) {
     } finally {
       client.release();
     }
+  }
+
+  // The saved transport switches and their plain-English label, for the report's banner.
+  async function exportTransportRules(client: import('pg').PoolClient) {
+    const rules = await getTransportRules(client);
+    return {
+      label: bannerOf(presetOf(rules), null).label,
+      dailyCap: rules.dailyCap,
+      deliveryOnlyCap: rules.deliveryOnlyCap,
+      mixedInvoiceTransport: rules.mixedInvoiceTransport,
+      maxTrips: rules.maxTrips,
+    };
   }
 
   // Invoices whose trip charge the daily cap leaves uncharged, under the saved rules: the report

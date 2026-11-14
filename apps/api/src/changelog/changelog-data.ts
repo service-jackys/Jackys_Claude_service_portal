@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 266,
+    "title": "Revenue export: transport rules banner and Transport not charged column",
+    "area": "Service Revenue Dashboard",
+    "date": "2026-11-14",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Export report (.xlsx) now says which transport rules its figures follow and how much transport the 2-trip daily cap left uncharged. Display only; no figure changes.",
+    "changes": [
+      "Summary sheet: transport rules, the switches in plain words and the total transport left uncharged by the cap.",
+      "Revenue Logic sheet: the same rules banner at the top.",
+      "Delivery & Install sheet: new Transport not charged (AED) column, once per invoice."
+    ],
+    "needsYou": "pull and restart the API. No migration.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/export.ts, logic-sheet.ts, service.ts"
+  },
+  {
     "id": 265,
     "title": "Tasks: add a task from an issued AMC contract, Thomson quote or VAS sale",
     "area": "Tasks",
