@@ -78,6 +78,56 @@ test(
         RoiServiceError,
       );
       await assert.rejects(service.create(full, { title: 'x', recordType: 'quotation' }));
+
+      // Issued quote-calculator records: AMC contract, Thomson quote and VAS sale.
+      const suffix = String(Math.floor(Math.random() * 99999)).padStart(5, '0');
+      const amc = await pool.query<{ id: string }>(
+        `INSERT INTO amc_contracts (amc_contract_reference, client_name, appliances, plans)
+         VALUES ($1, 'Al Noor Hotel', '[]', '[]') RETURNING id`,
+        [`AC-2099-${suffix}`],
+      );
+      const thomson = await pool.query<{ id: string }>(
+        `INSERT INTO thomson_sales (thomson_sale_reference, client_name, line_items)
+         VALUES ($1, 'Gems School', '[]') RETURNING id`,
+        [`TH-2099-${suffix}`],
+      );
+      const vas = await pool.query<{ id: string }>(
+        `INSERT INTO vas_sales (vas_sale_reference, customer_name, plan_key, vas_product)
+         VALUES ($1, 'Sara Khan', 'ew1', 'Extended warranty') RETURNING id`,
+        [`VS-2099-${suffix}`],
+      );
+      const calc = authFor(me, [
+        'tasks.use',
+        'amc_contract.read',
+        'thomson_sale.read',
+        'vas_sale.read',
+      ]);
+      const amcTask = await service.create(calc, {
+        title: 'Follow up AMC',
+        recordType: 'amc_contract',
+        recordId: amc.rows[0].id,
+      });
+      assert.equal(amcTask.recordLabel, `AC-2099-${suffix} \u00B7 Al Noor Hotel`);
+      const thomsonTask = await service.create(calc, {
+        title: 'Follow up Thomson',
+        recordType: 'thomson_sale',
+        recordId: thomson.rows[0].id,
+      });
+      assert.equal(thomsonTask.recordLabel, `TH-2099-${suffix} \u00B7 Gems School`);
+      const vasTask = await service.create(calc, {
+        title: 'Follow up VAS',
+        recordType: 'vas_sale',
+        recordId: vas.rows[0].id,
+      });
+      assert.equal(vasTask.recordLabel, `VS-2099-${suffix} \u00B7 Sara Khan`);
+      await assert.rejects(
+        service.create(full, { title: 'x', recordType: 'amc_contract', recordId: amc.rows[0].id }),
+        /cannot open that record/,
+      );
+      await pool.query(`DELETE FROM roi_tasks WHERE owner_profile_id = $1`, [me]);
+      await pool.query(`DELETE FROM amc_contracts WHERE id = $1`, [amc.rows[0].id]);
+      await pool.query(`DELETE FROM thomson_sales WHERE id = $1`, [thomson.rows[0].id]);
+      await pool.query(`DELETE FROM vas_sales WHERE id = $1`, [vas.rows[0].id]);
       await assert.rejects(
         service.create(full, { title: 'x', recordType: 'invoice', recordId: q }),
       );

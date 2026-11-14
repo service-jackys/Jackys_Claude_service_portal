@@ -2018,7 +2018,14 @@ export type TaxInvoiceUpdateInput = z.infer<typeof taxInvoiceUpdateSchema>;
 // (modification.md #107).
 export const roiTaskKinds = ['task', 'issue', 'innovation', 'request'] as const;
 export const roiTaskStatuses = ['not_started', 'in_progress', 'on_hold', 'completed'] as const;
-export const roiTaskRecordTypes = ['quotation', 'inspection', 'job_card'] as const;
+export const roiTaskRecordTypes = [
+  'quotation',
+  'inspection',
+  'job_card',
+  'amc_contract',
+  'thomson_sale',
+  'vas_sale',
+] as const;
 export const roiTaskPriorities = ['low', 'medium', 'high', 'urgent'] as const;
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a YYYY-MM-DD date.');

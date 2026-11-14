@@ -237,7 +237,26 @@
       quotation: { label: 'Quotation', section: 'Records', permission: 'quotation.read' },
       inspection: { label: 'Inspection', section: 'Records', permission: 'inspection.read' },
       job_card: { label: 'Job card', section: 'Service desk', permission: 'service_job_card.read' },
+      amc_contract: {
+        label: 'AMC',
+        longLabel: 'AMC contract',
+        section: 'Quote calculators',
+        permission: 'amc_contract.read',
+      },
+      thomson_sale: {
+        label: 'Thomson',
+        longLabel: 'Thomson quote',
+        section: 'Quote calculators',
+        permission: 'thomson_sale.read',
+      },
+      vas_sale: {
+        label: 'VAS',
+        longLabel: 'VAS sale',
+        section: 'Quote calculators',
+        permission: 'vas_sale.read',
+      },
     };
+    const recordName = (type) => RECORD_META[type].longLabel || RECORD_META[type].label;
     function recordChip(t) {
       if (!t || !t.recordType || !RECORD_META[t.recordType]) return '';
       return (
@@ -248,7 +267,7 @@
         '" data-rid="' +
         esc(t.recordId) +
         '" title="Open this ' +
-        esc(RECORD_META[t.recordType].label.toLowerCase()) +
+        esc(recordName(t.recordType).toLowerCase()) +
         '"><span class="tk-rec-kind">' +
         esc(RECORD_META[t.recordType].label) +
         '</span><span class="tk-rec-ref">' +
@@ -916,7 +935,7 @@
           ? '<div class="tk-field"><span class="tk-label">Linked record</span><div class="tk-rec-row">' +
             recordChip(t) +
             '<span class="tk-hint">Follow-up for this ' +
-            esc(RECORD_META[t.recordType].label.toLowerCase()) +
+            esc(recordName(t.recordType).toLowerCase()) +
             '. Select the chip to open it.</span></div></div>'
           : '') +
         '<div class="tk-field"><span class="tk-label">Type</span><div class="tk-seg tk-seg-wide" role="radiogroup" aria-label="Type">' +
@@ -1098,21 +1117,47 @@
         path: '/api/quotations',
         key: 'quotations',
         ref: 'quotationReference',
+        customer: (r) => r.customerName,
         note: (r) => r.quotationStatus || '',
       },
       inspection: {
         path: '/api/inspections',
         key: 'inspections',
         ref: 'inspectionReference',
+        customer: (r) => r.customerName,
         note: (r) => String(r.inspectionDate || '').slice(0, 10),
       },
       job_card: {
         path: '/api/job-cards',
         key: 'jobCards',
         ref: 'jobCardReference',
+        customer: (r) => r.customerName,
         note: (r) => r.jobCardStatus || r.status || '',
       },
     };
+    Object.assign(PICKER_SOURCES, {
+      amc_contract: {
+        path: '/api/amc-contracts',
+        key: 'amcContracts',
+        ref: 'amcContractReference',
+        customer: (r) => r.clientName,
+        note: (r) => r.status || '',
+      },
+      thomson_sale: {
+        path: '/api/thomson-sales',
+        key: 'thomsonSales',
+        ref: 'thomsonSaleReference',
+        customer: (r) => r.clientName,
+        note: (r) => r.status || '',
+      },
+      vas_sale: {
+        path: '/api/vas-sales',
+        key: 'vasSales',
+        ref: 'vasSaleReference',
+        customer: (r) => r.customerName,
+        note: (r) => r.vasProduct || '',
+      },
+    });
     function recordTypesAllowed() {
       return Object.keys(RECORD_META).filter(
         (k) => !deps.can || deps.can(RECORD_META[k].permission),
@@ -1123,7 +1168,7 @@
     }
     function pickerHtml(pk) {
       const allowed = recordTypesAllowed();
-      const sections = ['Records', 'Service desk'].filter((name) =>
+      const sections = ['Records', 'Service desk', 'Quote calculators'].filter((name) =>
         allowed.some((k) => RECORD_META[k].section === name),
       );
       const types = allowed.filter((k) => RECORD_META[k].section === pk.section);
@@ -1151,7 +1196,7 @@
                 '"><span class="tk-pk-ref">' +
                 esc(ref) +
                 '</span><span class="tk-pk-cust">' +
-                esc(r.customerName || 'No customer') +
+                esc(source.customer(r) || 'No customer') +
                 '</span>' +
                 (note ? '<span class="tk-pk-note">' + esc(note) + '</span>' : '') +
                 '</button></li>'
@@ -1194,14 +1239,14 @@
               '" aria-pressed="' +
               (pk.type === k) +
               '">' +
-              esc(RECORD_META[k].label) +
+              esc(recordName(k)) +
               '</button>',
           )
           .join('') +
         '</div></div>' +
         (pk.type
           ? '<div class="tk-field"><label for="tkPkSearch">3. Pick the ' +
-            esc(RECORD_META[pk.type].label.toLowerCase()) +
+            esc(recordName(pk.type).toLowerCase()) +
             '</label><div class="tk-pk-search">' +
             icon('search') +
             '<input id="tkPkSearch" type="search" data-pk-search autocomplete="off" placeholder="Search by reference or customer" value="' +
@@ -1294,7 +1339,7 @@
           type,
           id: row.id,
           reference: row[source.ref],
-          customer: row.customerName,
+          customer: source.customer(row),
           note: source.note(row),
         });
       });
@@ -1311,10 +1356,9 @@
     // Opens the normal New task panel, filled in for one record.
     function openFromRecord(link) {
       if (!link || !RECORD_META[link.type] || !link.id) return;
-      const meta = RECORD_META[link.type];
       const label =
         link.label || [link.reference, link.customer].filter(Boolean).join(' · ') || '#' + link.id;
-      const notes = [meta.label + ': ' + label]
+      const notes = [recordName(link.type) + ': ' + label]
         .concat(link.note ? ['Status: ' + link.note] : [], link.notes ? [link.notes] : [])
         .join('\n');
       openPanel(

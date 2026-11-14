@@ -23,7 +23,10 @@ export type RoiTaskRecord = {
   updatedAt: Date;
 };
 
-export type RoiTaskRecordLink = { type: 'quotation' | 'inspection' | 'job_card'; id: string };
+export type RoiTaskRecordLink = {
+  type: 'quotation' | 'inspection' | 'job_card' | 'amc_contract' | 'thomson_sale' | 'vas_sale';
+  id: string;
+};
 
 // The record a task points at: its reference and customer, and the permission needed to open it.
 export type RoiLinkedRecord = { label: string; permission: string };
@@ -43,6 +46,21 @@ const recordSpecs = {
     sql: `SELECT job_card_reference AS reference, customer_name AS customer
             FROM service_job_cards WHERE id = $1`,
     permission: 'service_job_card.read',
+  },
+  amc_contract: {
+    sql: `SELECT amc_contract_reference AS reference, client_name AS customer
+            FROM amc_contracts WHERE id = $1`,
+    permission: 'amc_contract.read',
+  },
+  thomson_sale: {
+    sql: `SELECT thomson_sale_reference AS reference, client_name AS customer
+            FROM thomson_sales WHERE id = $1`,
+    permission: 'thomson_sale.read',
+  },
+  vas_sale: {
+    sql: `SELECT vas_sale_reference AS reference, customer_name AS customer
+            FROM vas_sales WHERE id = $1`,
+    permission: 'vas_sale.read',
   },
 } as const;
 
@@ -79,7 +97,7 @@ export type RoiTaskWrite = {
   completedOn?: string | null;
   // Completed tasks only: true moves it to the archive, false restores it.
   archived?: boolean;
-  // Optional link to one quotation, inspection or job card (set when the task is created).
+  // Optional link to one quotation, inspection, job card or issued calculator quote (set when the task is created).
   record?: (RoiTaskRecordLink & { label: string }) | null;
 };
 

@@ -125,3 +125,82 @@ test('Service desk offers job cards only', async ({ page }) => {
   await page.locator('.tk-pk-row').first().click();
   await expect(page.locator('#tkTitle')).toHaveValue('Follow up: JBC-2026-00101 · Omar Haddad');
 });
+
+test('Quote calculators section follows up an issued Thomson quote', async ({ page }) => {
+  const requested: string[] = [];
+  const posted: Record<string, unknown>[] = [];
+  const stored: Record<string, unknown>[] = [];
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    const json = (body: unknown, status = 200) =>
+      route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(body) });
+    requested.push(url.pathname);
+    if (url.pathname === '/api/auth/login') return json({ token: 'test-token' });
+    if (url.pathname === '/api/auth/me') {
+      return json({
+        user: {
+          name: 'Vysakh Raju',
+          email: 'finance@jackys.com',
+          role: 'staff',
+          permissions: ['tasks.use', 'amc_contract.read', 'thomson_sale.read', 'vas_sale.read'],
+        },
+      });
+    }
+    if (url.pathname === '/api/roi/tasks' && route.request().method() === 'POST') {
+      const body = route.request().postDataJSON();
+      posted.push(body);
+      const task = {
+        id: '51',
+        ownerProfileId: '1',
+        kind: 'task',
+        status: 'not_started',
+        priority: 'medium',
+        percentComplete: 0,
+        completedAt: null,
+        archivedAt: null,
+        recordLabel: 'TH-2026-00009 · Gems School',
+        ...body,
+      };
+      stored.push(task);
+      return json({ task }, 201);
+    }
+    if (url.pathname === '/api/roi/tasks') return json({ tasks: stored, owners: [] });
+    if (url.pathname === '/api/thomson-sales') {
+      return json({
+        thomsonSales: [
+          {
+            id: '9',
+            thomsonSaleReference: 'TH-2026-00009',
+            clientName: 'Gems School',
+            status: 'Sold',
+          },
+        ],
+      });
+    }
+    if (url.pathname === '/api/thomson-sales/9') {
+      return json({ thomsonSale: { id: '9', thomsonSaleReference: 'TH-2026-00009' } });
+    }
+    return json({});
+  });
+  await page.goto('/portal/');
+  await page.locator('#loginEmail').fill('finance@jackys.com');
+  await page.locator('#loginPassword').fill('a-long-test-password');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.locator('#tasksNav').dispatchEvent('click');
+  await page.locator('[data-tk-from-record]').click();
+  await page.locator('[data-pk-section="Quote calculators"]').click();
+  await expect(page.locator('[data-pk-type]')).toHaveText([
+    'AMC contract',
+    'Thomson quote',
+    'VAS sale',
+  ]);
+  await page.locator('[data-pk-type="thomson_sale"]').click();
+  await page.locator('.tk-pk-row').first().click();
+  await expect(page.locator('#tkTitle')).toHaveValue('Follow up: TH-2026-00009 · Gems School');
+  await page.locator('.tk-panel [type=submit]').click();
+  expect(posted[0]).toMatchObject({ recordType: 'thomson_sale', recordId: '9' });
+  const chip = page.locator('.tk-row .tk-rec-thomson_sale');
+  await expect(chip).toContainText('TH-2026-00009');
+  await chip.click();
+  await expect.poll(() => requested.includes('/api/thomson-sales/9')).toBe(true);
+});

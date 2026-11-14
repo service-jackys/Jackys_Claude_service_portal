@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 265,
+    "title": "Tasks: add a task from an issued AMC contract, Thomson quote or VAS sale",
+    "area": "Tasks",
+    "date": "2026-11-14",
+    "approxDate": false,
+    "status": null,
+    "summary": "Add from a record now also covers the issued quotes of the quote calculators. The task keeps a coloured link that opens the calculator's Issued tab with the quote highlighted.",
+    "changes": [
+      "New Quote calculators section in the picker: AMC contract, Thomson quote, VAS sale.",
+      "Purple, teal and pink record chips; the link opens the right calculator's Issued tab and highlights the row.",
+      "Shown only to people who can read that kind of record."
+    ],
+    "needsYou": "pull, run npm run db:migrate (migration 099), restart the API, hard-refresh.",
+    "migrations": ["099_roi_task_record_calculators.sql"],
+    "files": "packages/db/src/roi-tasks.ts, apps/web/src/tasks.js, apps/web/src/app.js"
+  },
+  {
     "id": 264,
     "title": "Tasks: add a task from a quotation, inspection or job card",
     "area": "Tasks",
