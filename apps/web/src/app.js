@@ -20820,6 +20820,8 @@ ${bodyHtml}
     const canWrite = hasPermission('di_jobs.write');
     const canReopen = hasPermission('di_jobs.reopen');
     const canConfigure = hasPermission('di_jobs.configure');
+    const canSeeRules = hasPermission('di_jobs.transport_rules.read');
+    const canChangeRules = hasPermission('di_jobs.transport_rules.write');
     const fmt = (value) =>
       (Number(value) || 0).toLocaleString('en-AE', {
         minimumFractionDigits: 2,
@@ -20892,7 +20894,9 @@ ${bodyHtml}
       (hasPermission('di_jobs.compare')
         ? '<button type="button" role="tab" class="ws-tab" data-di-tab="compare" aria-selected="false">Compare with Excel</button>'
         : '') +
-      '<button type="button" role="tab" class="ws-tab" data-di-tab="rules" aria-selected="false">Transport rules</button>' +
+      (canSeeRules
+        ? '<button type="button" role="tab" class="ws-tab" data-di-tab="rules" aria-selected="false">Transport rules</button>'
+        : '') +
       '</div><div data-di-body></div>';
     const body = root.querySelector('[data-di-body]');
     const q = (selector) => root.querySelector(selector);
@@ -21744,7 +21748,7 @@ ${bodyHtml}
           t.key +
           '"' +
           (value ? ' checked' : '') +
-          (canConfigure ? '' : ' disabled') +
+          (canChangeRules ? '' : ' disabled') +
           ' /><span>' +
           escapeHtml(t.label) +
           '</span>' +
@@ -21808,16 +21812,16 @@ ${bodyHtml}
         '<input type="number" min="1" max="10" step="1" data-di-rule-trips value="' +
         r.maxTrips +
         '"' +
-        (canConfigure ? '' : ' disabled') +
+        (canChangeRules ? '' : ' disabled') +
         ' style="width:4.5rem;margin-left:auto" /></label></div></div>' +
-        (canConfigure
+        (canChangeRules
           ? '<div class="rd-rule-actions"><button type="button" class="button" data-di-rules-save>Save</button><span class="form-note" data-di-rules-msg></span></div>'
-          : '<p class="form-note">Only an administrator can change these settings.' +
+          : '<p class="form-note">You can view these settings; changing them needs the "change Transport rules" permission.' +
             (data.updatedByName ? ' Last changed by ' + escapeHtml(data.updatedByName) + '.' : '') +
             '</p>') +
         days +
         '</div></div>';
-      if (!canConfigure) return;
+      if (!canChangeRules) return;
       const box = (k) => body.querySelector('[data-di-rule="' + k + '"]');
       const sync = () => {
         box('deliveryOnlyCap').disabled = !box('dailyCap').checked;

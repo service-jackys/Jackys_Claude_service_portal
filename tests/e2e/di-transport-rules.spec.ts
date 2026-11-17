@@ -86,7 +86,11 @@ async function open(page: Page, permissions: string[], puts: unknown[]) {
 
 test('admin changes the Delivery & Installation daily cap on its own tab', async ({ page }) => {
   const puts: unknown[] = [];
-  await open(page, ['di_jobs.read', 'di_jobs.configure'], puts);
+  await open(
+    page,
+    ['di_jobs.read', 'di_jobs.transport_rules.read', 'di_jobs.transport_rules.write'],
+    puts,
+  );
   const card = page.locator('.rd-rules-card');
   await expect(card.locator('.rd-rules-summary')).toContainText(
     '2 trip(s) are not charged on 1 salesperson-day(s)',
@@ -103,9 +107,35 @@ test('admin changes the Delivery & Installation daily cap on its own tab', async
 });
 
 test('others see the Delivery & Installation rules read-only', async ({ page }) => {
-  await open(page, ['di_jobs.read'], []);
+  await open(page, ['di_jobs.read', 'di_jobs.transport_rules.read'], []);
   const card = page.locator('.rd-rules-card');
   await expect(card.locator('[data-di-rule="dailyCap"]')).toBeDisabled();
   await expect(card.locator('[data-di-rules-save]')).toHaveCount(0);
-  await expect(card).toContainText('Only an administrator can change these settings');
+  await expect(card).toContainText('changing them needs the "change Transport rules" permission');
+});
+
+test('a role without the view permission does not see the Transport rules tab', async ({
+  page,
+}) => {
+  await page.route('**/api/**', async (route) => {
+    const url = new URL(route.request().url());
+    const json = (body: unknown) =>
+      route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) });
+    if (url.pathname === '/api/auth/login') return json({ token: 't' });
+    if (url.pathname === '/api/auth/me')
+      return json({
+        user: { name: 'User', email: 'u@jackys.com', role: 'staff', permissions: ['di_jobs.read'] },
+      });
+    if (url.pathname === '/api/di-jobs/options')
+      return json({ salesmen: [], regions: ['Dubai'], erpInvMandatory: false });
+    return route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+  });
+  await page.goto('/portal/');
+  await page.locator('#loginEmail').fill('u@jackys.com');
+  await page.locator('#loginPassword').fill('local-password-1234');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.locator('#staff-workspace')).toBeVisible();
+  await page.evaluate(() => document.getElementById('deliveryInstallNav')?.click());
+  await expect(page.locator('[data-di-tab="jobs"]')).toBeVisible();
+  await expect(page.locator('[data-di-tab="rules"]')).toHaveCount(0);
 });
