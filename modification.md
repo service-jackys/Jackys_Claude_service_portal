@@ -5205,6 +5205,23 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #267 — Delivery & Installation: permissions for the Transport rules tab
+
+**Date:** 2026-11-17
+
+**Why.** The D&I Transport rules tab was visible to everyone who can read D&I jobs, and only changing it was admin-only. The admin asked to control it from Roles & permissions.
+
+**What changed.**
+
+- Two new permissions under DI JOBS: `di_jobs.transport_rules.read` (see the Transport rules tab) and `di_jobs.transport_rules.write` (change the daily cap, delivery-only cap, mixed-invoice switch and trips a day). The tab is hidden without the view permission, and the API refuses both calls without the matching permission.
+- Defaults keep today's behaviour: every role that has `di_jobs.read` gets the view permission, every role that has `di_jobs.configure` (admin) gets the change permission. Untick a role in Roles & permissions to restrict it, or tick change for another role to let it edit.
+- A role that can view but not change sees the settings read-only with a short note.
+- Tests: tests/unit/dandi-job-routes.test.ts, tests/e2e/di-transport-rules.spec.ts (new case: tab hidden without view permission).
+
+**Files.** packages/db/migrations/100_di_transport_rules_permissions.sql, apps/api/src/dandi-jobs/routes.ts, apps/web/src/app.js.
+
+**Needs you:** pull, `npm run db:migrate` (migration 100), restart the API, hard-refresh. Then open Roles & permissions > DI JOBS to see the two new rows.
+
 ## Modification #266 — Service Revenue Dashboard export: transport rules banner and "Transport not charged" column
 
 **Date:** 2026-11-14

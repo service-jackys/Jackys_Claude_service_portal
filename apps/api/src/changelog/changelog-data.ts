@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 267,
+    "title": "Delivery & Installation: permissions for the Transport rules tab",
+    "area": "Delivery & Installation",
+    "date": "2026-11-17",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Transport rules tab now has its own view and change permissions under DI JOBS in Roles & permissions, so an admin can hide it from, or open it to, other roles.",
+    "changes": [
+      "New permissions di_jobs.transport_rules.read (see the tab) and di_jobs.transport_rules.write (change the rules).",
+      "Defaults keep today's behaviour: roles that read D&I jobs can view, admin can change.",
+      "The tab is hidden without the view permission and the API refuses both calls without the matching permission."
+    ],
+    "needsYou": "pull, run npm run db:migrate (migration 100), restart the API and hard-refresh.",
+    "migrations": ["100_di_transport_rules_permissions.sql"],
+    "files": "packages/db/migrations/100_di_transport_rules_permissions.sql, apps/api/src/dandi-jobs/routes.ts, apps/web/src/app.js"
+  },
+  {
     "id": 266,
     "title": "Revenue export: transport rules banner and Transport not charged column",
     "area": "Service Revenue Dashboard",
