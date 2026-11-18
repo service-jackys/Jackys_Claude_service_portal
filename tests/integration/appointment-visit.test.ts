@@ -146,6 +146,38 @@ test(
         service.removeDraft(draft.id),
         (error: unknown) => error instanceof AppointmentServiceError && error.code === 'not-found',
       );
+
+      // Repeat-customer lookup: same customer found by phone in any format, or by name start.
+      const phoneForm = '+971 50 987 6543';
+      const known = await service.create(
+        {
+          customerType: 'B2C',
+          customerName: 'Lookupname Customer',
+          contactNumber: phoneForm,
+          faultDescription: 'Earlier job',
+          appointmentDate: '2099-05-01',
+          brand: 'Siemens',
+        },
+        profileId,
+      );
+      const byPhone = await service.customerLookup({ phone: '050-987-6543' });
+      assert.ok(byPhone.some((entry) => entry.id === known.id));
+      const byName = await service.customerLookup({ name: 'lookupname' });
+      assert.ok(byName.some((entry) => entry.id === known.id));
+      assert.equal(byName.find((entry) => entry.id === known.id)?.brand, 'Siemens');
+      assert.deepEqual(await service.customerLookup({ phone: '12345', name: 'lo' }), []);
+      assert.deepEqual(await service.customerLookup({ name: '%%%' }), []);
+      await pool.query('UPDATE appointments SET status = $1, closed_at = now() WHERE id = $2', [
+        'Cancelled',
+        known.id,
+      ]);
+      assert.ok(
+        (await service.customerLookup({ phone: phoneForm })).some((entry) => entry.id === known.id),
+      );
+      await pool.query('DELETE FROM appointment_status_history WHERE appointment_id = $1', [
+        known.id,
+      ]);
+      await pool.query('DELETE FROM appointments WHERE id = $1', [known.id]);
     } finally {
       await pool.query(
         `DELETE FROM appointment_status_history WHERE appointment_id IN (SELECT id FROM appointments WHERE technician_id = $1)`,

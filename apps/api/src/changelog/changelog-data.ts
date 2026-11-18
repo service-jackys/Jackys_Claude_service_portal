@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 278,
+    "title": "Repeat-customer lookup on New request",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "Typing a phone number or the start of a name on New request shows that customer's earlier appointments, with Use this customer, Copy item and Same appliance again.",
+    "changes": [
+      "Looks up by phone (any format) or the start of the name, after a short pause in typing.",
+      "Shows earlier appointments of every status, newest first.",
+      "Use this customer fills in the customer details; Copy item adds the appliance as an item.",
+      "Two new indexes keep the lookup light."
+    ],
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
+    "migrations": [
+      "103_appointment_customer_lookup_indexes.sql"
+    ],
+    "files": "packages/db/*, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html"
+  },
+  {
     "id": 277,
     "title": "Duplicate an appointment as a new request",
     "area": "Appointments",

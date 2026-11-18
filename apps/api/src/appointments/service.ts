@@ -21,6 +21,7 @@ import {
   findAppointmentById,
   insertAppointment,
   insertAppointmentHistory,
+  lookupCustomerAppointments,
   insertVisitGroup,
   listAppointmentHistory,
   insertAppointmentMessage,
@@ -162,6 +163,18 @@ export function createAppointmentService(pool: Pool) {
       );
       return (await findVisitDraft(client, newId))!;
     });
+  }
+
+  async function customerLookup(input: { phone?: unknown; name?: unknown }) {
+    const client = await pool.connect();
+    try {
+      return await lookupCustomerAppointments(client, {
+        phone: typeof input.phone === 'string' ? input.phone.slice(0, 40) : undefined,
+        name: typeof input.name === 'string' ? input.name.slice(0, 80) : undefined,
+      });
+    } finally {
+      client.release();
+    }
   }
 
   async function listDrafts() {
@@ -698,6 +711,7 @@ export function createAppointmentService(pool: Pool) {
     create,
     createVisit,
     saveVisitDraft,
+    customerLookup,
     listDrafts,
     removeDraft,
     list,
