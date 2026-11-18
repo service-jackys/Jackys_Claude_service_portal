@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 270,
+    "title": "Appointment sheet print: smaller fonts",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The printed appointment sheet uses smaller type and tighter rows. Print layout only.",
+    "changes": [
+      "Summary card names, table text, labels and section headers are smaller."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js"
+  },
+  {
     "id": 269,
     "title": "Appointment sheet print: summary-cards layout",
     "area": "Appointments",

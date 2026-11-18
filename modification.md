@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #270 — Appointment sheet print: smaller fonts
+
+**Date:** 2026-11-18
+
+**Why.** After printing the #269 layout the fonts looked too big.
+
+**What changed (print layout only).** Smaller type and tighter row spacing on the appointment sheet: summary card name 13.5px (was 17px), table text 10.5px (was 12px), labels 9.5px, section headers 8.5px. Nothing else changes.
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #269 — Appointment sheet print: switched to the summary-cards layout
 
 **Date:** 2026-11-18
