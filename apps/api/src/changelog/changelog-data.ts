@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 272,
+    "title": "Appointments: \"All appointments\" list follows the calendar and date filters",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The All appointments list and its count now follow the month or week shown in the calendar, or the From/To dates when set, and show the true total instead of stopping at 50.",
+    "changes": [
+      "Moving the calendar (Previous, Next, Today, Month, Week) reloads the list for that period.",
+      "From/To dates override the calendar period; moving the calendar clears them.",
+      "The count is the real total for the period and filters, and every page is loaded.",
+      "The heading shows the period, for example November 2026."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts"
+  },
+  {
     "id": 271,
     "title": "Appointment sheet print: low-ink look and slightly larger type",
     "area": "Appointments",

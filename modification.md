@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #272 — Appointments: "All appointments" list follows the calendar and date filters
+
+**Date:** 2026-11-18
+
+**Why.** The "All appointments" count stayed at 50 whatever you chose. The list only fetched the first 50 rows and showed how many it had received, and moving the calendar to another month or week did not reload the list at all.
+
+**What changed.**
+
+- The list now follows the calendar: the month or week you are viewing (Previous, Next, Today, Month, Week, and "+n more") decides which appointments are listed.
+- If you set From/To dates, those are used instead. Moving the calendar afterwards clears the dates so the list follows the new period.
+- The count is the true total for that period and filters (search, status, technician), not the page size. The list loads every page (100 at a time), so nothing is cut off at 50.
+- The heading shows the period next to the count, for example "All appointments 23 · November 2026".
+- Tests: tests/e2e/phase4-scheduling.spec.ts (new test for month, week, next, date filter, then calendar move).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #271 — Appointment sheet print: low-ink look and slightly larger type
 
 **Date:** 2026-11-18
