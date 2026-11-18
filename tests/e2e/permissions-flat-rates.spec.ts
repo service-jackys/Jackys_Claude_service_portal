@@ -80,11 +80,11 @@ test.describe('Invoices, Billing and Quote Calculators permissions', () => {
 test('D+I Admin Entry edits the flat job-type rates and saves them with the entry', async ({
   page,
 }) => {
-  let saved: { flatRates?: Record<string, number> } | null = null;
+  const captured: { saved: { flatRates?: Record<string, number> } | null } = { saved: null };
   await mockApi(page, ['pricing_config.read', 'pricing_config.write'], (url, method, body) => {
     if (url.pathname === '/api/pricing-config/dandi_pricing') {
       if (method === 'PUT' || method === 'POST') {
-        saved = body as typeof saved;
+        captured.saved = body as typeof captured.saved;
         return { domain: 'dandi_pricing', payload: body, isOverride: true };
       }
       return { domain: 'dandi_pricing', payload: dandiPricingDefault, isOverride: false };
@@ -103,6 +103,6 @@ test('D+I Admin Entry edits the flat job-type rates and saves them with the entr
   await expect(page.locator('[data-pc-path="flatRates.RWR"]')).toHaveValue('60');
   await csijo.fill('119');
   await page.getByRole('button', { name: /^Save/ }).first().click();
-  await expect.poll(() => saved?.flatRates?.CSIJO).toBe(119);
-  expect(saved?.flatRates).toMatchObject({ CSIJW: 100, CSIDO: 100, RWR: 60 });
+  await expect.poll(() => captured.saved?.flatRates?.CSIJO).toBe(119);
+  expect(captured.saved?.flatRates).toMatchObject({ CSIJW: 100, CSIDO: 100, RWR: 60 });
 });
