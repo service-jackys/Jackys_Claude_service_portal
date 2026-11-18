@@ -1,11 +1,13 @@
 import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
+import type { z } from 'zod';
 import { createAppointmentIcs } from './ics.js';
 import { buildMessageDrafts, canSendMessages, messageLink } from './messages.js';
 import {
   appointmentAssignmentSchema,
   appointmentMessageCreateSchema,
   appointmentCreateSchema,
+  appointmentVisitCreateSchema,
   appointmentListQuerySchema,
   appointmentScheduleUpdateSchema,
   appointmentStatusSchema,
@@ -18,6 +20,7 @@ import {
   findAppointmentById,
   insertAppointment,
   insertAppointmentHistory,
+  insertVisitGroup,
   listAppointmentHistory,
   insertAppointmentMessage,
   appointmentWasRescheduled,
@@ -92,7 +95,55 @@ function complaintStatusForAppointment(
 export function createAppointmentService(pool: Pool) {
   async function create(input: unknown, profileId: string, requestId: string = randomUUID()) {
     const data = appointmentCreateSchema.parse(input);
+    return withTransaction(pool, (client) =>
+      createWithClient(client, data, profileId, requestId, null),
+    );
+  }
+
+  // One customer visit with several items: every item is its own appointment
+  // (own number, own job card later) and they share a visit group. All or
+  // nothing: one full technician or invalid item rolls the whole visit back.
+  async function createVisit(input: unknown, profileId: string, requestId: string = randomUUID()) {
+    const visit = appointmentVisitCreateSchema.parse(input);
     return withTransaction(pool, async (client) => {
+      const visitGroupId = await insertVisitGroup(client, profileId);
+      const created = [];
+      for (const [index, item] of visit.items.entries()) {
+        const { items: _items, ...shared } = visit;
+        const data = appointmentCreateSchema.parse({
+          ...shared,
+          ...Object.fromEntries(Object.entries(item).filter(([, value]) => value !== undefined)),
+        });
+        try {
+          created.push(await createWithClient(client, data, profileId, requestId, visitGroupId));
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            throw new AppointmentServiceError(
+              error.code,
+              `Item ${index + 1} of ${visit.items.length}: ${error.message}`,
+            );
+          }
+          throw error;
+        }
+      }
+      // Re-read so every item carries its final "Visit n of N" position.
+      const items = [];
+      for (const appointment of created) {
+        const fresh = await findAppointmentById(client, appointment.id);
+        if (fresh) items.push(fresh);
+      }
+      return { visitGroupId, items };
+    });
+  }
+
+  async function createWithClient(
+    client: PoolClient,
+    data: z.infer<typeof appointmentCreateSchema>,
+    profileId: string,
+    requestId: string,
+    visitGroupId: string | null,
+  ) {
+    {
       let complaint = null;
       if (data.complaintId) {
         complaint = await findComplaintById(client, data.complaintId, true);
@@ -173,6 +224,7 @@ export function createAppointmentService(pool: Pool) {
           ...input,
           appointmentReference: reference,
           createdBy: profileId,
+          visitGroupId,
         });
       } catch (error) {
         if (isAppointmentReferenceViolation(error)) {
@@ -236,7 +288,7 @@ export function createAppointmentService(pool: Pool) {
         });
       }
       return appointment;
-    });
+    }
   }
 
   async function list(input: unknown) {
@@ -597,6 +649,7 @@ export function createAppointmentService(pool: Pool) {
 
   return {
     create,
+    createVisit,
     list,
     detail,
     history,

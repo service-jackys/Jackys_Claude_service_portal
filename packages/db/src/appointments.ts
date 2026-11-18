@@ -34,6 +34,10 @@ export type AppointmentRecord = {
   subGroup: string | null;
   salesman: string | null;
   complaintSource: string | null;
+  // Items booked together share a visit group; position and size are read-only values.
+  visitGroupId: string | null;
+  visitItemNo: number | null;
+  visitItemCount: number | null;
   appointmentDate: string;
   status: AppointmentStatus;
   closedAt: Date | null;
@@ -79,6 +83,14 @@ const columns = `
   appointments.sub_group AS "subGroup",
   appointments.salesman,
   appointments.complaint_source AS "complaintSource",
+  appointments.visit_group_id AS "visitGroupId",
+  CASE WHEN appointments.visit_group_id IS NULL THEN NULL ELSE (
+    SELECT count(*)::int FROM appointments v
+    WHERE v.visit_group_id = appointments.visit_group_id AND v.id <= appointments.id
+  ) END AS "visitItemNo",
+  CASE WHEN appointments.visit_group_id IS NULL THEN NULL ELSE (
+    SELECT count(*)::int FROM appointments v WHERE v.visit_group_id = appointments.visit_group_id
+  ) END AS "visitItemCount",
   appointments.appointment_date::text AS "appointmentDate",
   appointments.status,
   appointments.closed_at AS "closedAt",
@@ -104,8 +116,8 @@ export async function insertAppointment(
       customer_type, customer_name, contact_number, customer_email, address, region,
       brand, model, item_code, fault_description, job_warranty, sales_order_number,
       b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
-      salesman, appointment_date, created_by, complaint_source
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26)
+      salesman, appointment_date, created_by, complaint_source, visit_group_id
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
     RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [
       input.appointmentReference,
@@ -134,9 +146,18 @@ export async function insertAppointment(
       input.appointmentDate,
       input.createdBy ?? null,
       input.complaintSource ?? null,
+      input.visitGroupId ?? null,
     ],
   );
   return result.rows[0];
+}
+
+export async function insertVisitGroup(client: PoolClient, createdBy: string | null) {
+  const result = await client.query<{ id: string }>(
+    'INSERT INTO visit_groups (created_by) VALUES ($1) RETURNING id',
+    [createdBy],
+  );
+  return result.rows[0].id;
 }
 
 export async function findAppointmentById(

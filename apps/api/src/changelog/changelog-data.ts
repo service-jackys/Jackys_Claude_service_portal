@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 274,
+    "title": "Multi-item visit: book several items for one customer in one go",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "New request can now book several items for one customer visit. Each item gets its own appointment number and job card, and the list shows a Visit tag.",
+    "changes": [
+      "Add another item to the visit on New request; the button becomes Book all n items.",
+      "Each item is its own appointment with its own number; the list shows Visit 1/2.",
+      "Changing an item's date or technician shows a reminder that all items are the same customer and location.",
+      "Book all stops and books nothing if a technician is full that day."
+    ],
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
+    "migrations": [
+      "101_appointment_visits.sql"
+    ],
+    "files": "packages/db/*, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/web/src/app.js, apps/web/src/index.html"
+  },
+  {
     "id": 273,
     "title": "Schedules: Appointments, New request and Daily schedule in one page",
     "area": "Appointments",

@@ -1372,6 +1372,44 @@ export const appointmentCreateSchema = z
     }
   });
 
+// One customer visit with several items (modification #274). Customer fields are
+// shared; each item is its own appointment and may override date/technician.
+const appointmentVisitItemSchema = z
+  .object({
+    brand: optionalText(120),
+    model: optionalText(120),
+    itemCode: optionalText(120),
+    subGroup: optionalText(120),
+    faultDescription: z.string().trim().min(1).max(10000).optional(),
+    jobWarranty: optionalText(120),
+    salesOrderNumber: optionalText(120),
+    technicianId: z.string().regex(/^\d+$/).optional(),
+    appointmentDate: dateSchema.optional(),
+  })
+  .strict();
+
+export const appointmentVisitCreateSchema = z
+  .object({
+    branchId: z.string().regex(/^\d+$/).optional(),
+    customerId: z.string().regex(/^\d+$/).optional(),
+    technicianId: z.string().regex(/^\d+$/).optional(),
+    customerType: customerTypeSchema,
+    customerName: z.string().trim().min(1).max(200),
+    contactNumber: z.string().trim().min(1).max(50).optional(),
+    customerEmail: z.string().trim().email().max(320).optional(),
+    address: optionalText(500),
+    region: optionalText(120),
+    b2bBranchSchool: optionalText(500),
+    schoolContactPerson: optionalText(500),
+    schoolContactNumber: optionalText(100),
+    customerNumber: optionalText(100),
+    salesman: optionalText(200),
+    complaintSource: complaintSourceSchema.optional(),
+    appointmentDate: dateSchema,
+    items: z.array(appointmentVisitItemSchema).min(2).max(20),
+  })
+  .strict();
+
 export const appointmentAssignmentSchema = z
   .object({
     technicianId: z.string().regex(/^\d+$/).nullable(),
