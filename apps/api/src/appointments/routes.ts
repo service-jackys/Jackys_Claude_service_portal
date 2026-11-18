@@ -70,6 +70,48 @@ export function createAppointmentHandlers(
         }
       },
     ],
+    listVisitDrafts: [
+      requirePermission('appointments.read'),
+      async (_request, response, next) => {
+        try {
+          response.json({ drafts: await service.listDrafts() });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    saveVisitDraft: [
+      requirePermission('appointments.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const id = request.params.id ? String(request.params.id) : undefined;
+          const draft = await service.saveVisitDraft(request.body, auth.profileId, id);
+          response.status(id ? 200 : 201).json({ draft });
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    deleteVisitDraft: [
+      requirePermission('appointments.write'),
+      async (request, response, next) => {
+        try {
+          await service.removeDraft(String(request.params.id));
+          response.status(204).end();
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     createVisit: [
       requirePermission('appointments.write'),
       async (request, response, next) => {

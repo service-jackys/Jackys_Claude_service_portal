@@ -28,6 +28,33 @@ async function installStaffApi(
   const scheduleDetail = options.scheduleDetail || '';
   const scheduleBodies: unknown[] = [];
   const visitBodies: unknown[] = [];
+  const draftCalls: { method: string; path: string; body?: Record<string, any> }[] = [];
+  let drafts: Record<string, any>[] = [
+    {
+      id: '71',
+      payload: {
+        customerName: 'Late Customer',
+        contactNumber: '0501111111',
+        customerType: 'B2C',
+        appointmentDate: '2026-10-20',
+        items: [{ brand: 'LG', model: 'Washer', faultDescription: 'Noise' }, { brand: 'Bosch' }],
+      },
+      customerName: 'Late Customer',
+      itemCount: 2,
+      createdByName: 'CCE One',
+      createdAt: '2026-10-10T08:00:00Z',
+      ageDays: 3,
+    },
+    {
+      id: '72',
+      payload: { customerName: 'Warn Customer', items: [{ brand: 'Sharp' }] },
+      customerName: 'Warn Customer',
+      itemCount: 1,
+      createdByName: 'CCE Two',
+      createdAt: '2026-10-11T08:00:00Z',
+      ageDays: 2,
+    },
+  ];
   const listUrls: string[] = [];
   let detailRequests = 0;
 
@@ -95,6 +122,50 @@ async function installStaffApi(
       });
       return;
     }
+    if (url.pathname.startsWith('/api/appointments/visit-drafts')) {
+      const id = url.pathname.split('/')[4];
+      const method = request.method();
+      const body = method === 'GET' || method === 'DELETE' ? undefined : request.postDataJSON();
+      draftCalls.push({ method, path: url.pathname, body });
+      if (method === 'GET') {
+        await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ drafts }) });
+      } else if (method === 'DELETE') {
+        drafts = drafts.filter((entry) => entry.id !== id);
+        await route.fulfill({ status: 204 });
+      } else {
+        const saved = {
+          id: id || '99',
+          payload: body,
+          customerName: body?.customerName,
+          itemCount: body?.items.length,
+          createdByName: 'Scheduler',
+          createdAt: new Date().toISOString(),
+          ageDays: 0,
+        };
+        drafts = [...drafts.filter((entry) => entry.id !== saved.id), saved];
+        await route.fulfill({
+          status: id ? 200 : 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ draft: saved }),
+        });
+      }
+      return;
+    }
+    if (url.pathname === '/api/appointments' && request.method() === 'POST') {
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          appointment: {
+            id: '700',
+            appointmentReference: 'APT-2026-00700',
+            appointmentDate: '2026-10-20',
+          },
+          warnings: [],
+        }),
+      });
+      return;
+    }
     if (url.pathname === '/api/appointments/visit' && request.method() === 'POST') {
       visitBodies.push(request.postDataJSON());
       await route.fulfill({
@@ -145,6 +216,7 @@ async function installStaffApi(
   return {
     scheduleBodies,
     visitBodies,
+    draftCalls,
     listUrls,
     get detailRequests() {
       return detailRequests;
@@ -247,9 +319,10 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await expect(page.locator('#schedulesNav')).toHaveAttribute('aria-current', 'page');
     const tabs = page.locator('#schedulesTabs');
     await expect(tabs.getByRole('tab')).toHaveText([
-      'Appointments',
-      'New request',
-      'Daily schedule',
+      /^\s*Appointments\s*$/,
+      /^\s*New request\s*$/,
+      /^\s*Daily schedule\s*$/,
+      /^\s*Awaiting/,
     ]);
     await expect(tabs.getByRole('tab', { name: 'Appointments' })).toHaveAttribute(
       'aria-selected',
@@ -327,6 +400,64 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await expect(page.locator('#newComplaintReference')).toHaveText(
       'APT-2026-00601, APT-2026-00602',
     );
+  });
+
+  test('Awaiting tab lists saved visit drafts with age colours and finishes one', async ({
+    page,
+  }) => {
+    const api = await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    const tabs = page.locator('#schedulesTabs');
+    await expect(tabs.getByRole('tab', { name: /Awaiting/ })).toBeVisible();
+    await expect(page.locator('#visitDraftsTabCount')).toHaveText('2');
+
+    await tabs.getByRole('tab', { name: /Awaiting/ }).click();
+    await expect(page.locator('#visitDraftsWorkspace')).toBeVisible();
+    await expect(
+      page.locator('#visitDraftsWorkspace tr[data-draft-id="71"] .draft-age'),
+    ).toHaveClass(/age-late/);
+    await expect(
+      page.locator('#visitDraftsWorkspace tr[data-draft-id="72"] .draft-age'),
+    ).toHaveClass(/age-warn/);
+
+    // Finish draft 71: both items land in the form.
+    await page.locator('tr[data-draft-id="71"] [data-draft-open]').click();
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Late Customer');
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('LG');
+    await expect(page.locator('#visitExtraItems .visit-item')).toHaveCount(1);
+    await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book all 2 items');
+    await page.locator('#newComplaintSource').selectOption('Phone');
+
+    // Book item 1 now and keep item 2 as a draft.
+    await page.locator('#visitExtraItems [data-visit-later]').check();
+    await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book item 1 now');
+    await page.locator('#submitNewComplaintButton').click();
+    await expect.poll(() => api.draftCalls.filter((call) => call.method === 'PUT').length).toBe(1);
+    const put = api.draftCalls.find((call) => call.method === 'PUT')!;
+    expect(put.path).toBe('/api/appointments/visit-drafts/71');
+    expect(put.body?.items).toHaveLength(1);
+    expect(put.body?.items[0]).toMatchObject({ brand: 'Bosch' });
+    await expect(page.locator('#newComplaintSuccessNote')).toContainText('kept as a draft');
+  });
+
+  test('Save visit as draft stores the form and opens the Awaiting tab', async ({ page }) => {
+    const api = await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'New request' }).click();
+    await page.locator('#saveVisitDraftButton').click();
+    await expect(page.locator('[data-error-for="newComplaintCustomerName"]')).toContainText(
+      'customer name',
+    );
+    await page.locator('#newComplaintCustomerName').fill('Later Customer');
+    await page.locator('#newComplaintBrand').fill('Philips');
+    await page.locator('#addVisitItemButton').click();
+    await page.locator('#visitExtraItems [data-v="brand"]').fill('Venus');
+    await page.locator('#saveVisitDraftButton').click();
+    await expect(page.locator('#visitDraftsWorkspace')).toBeVisible();
+    const post = api.draftCalls.find((call) => call.method === 'POST')!;
+    expect(post.body).toMatchObject({ customerName: 'Later Customer' });
+    expect(post.body?.items).toEqual([{ brand: 'Philips' }, { brand: 'Venus' }]);
+    await expect(page.locator('#visitDraftsWorkspace tr[data-draft-id="99"]')).toBeVisible();
   });
 
   test('reschedules through the accessible form and refreshes authoritative state', async ({
