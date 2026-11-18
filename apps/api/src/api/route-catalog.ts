@@ -2419,6 +2419,20 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
+        path: '/api/appointments/customer-lookup',
+        operationId: 'lookupAppointmentCustomer',
+        tags: ['Appointments'],
+        summary: "Find a customer's earlier appointments by phone number or the start of the name",
+        security: 'bearerAuth' as const,
+        parameters: [
+          { name: 'phone', in: 'query', schema: { type: 'string', maxLength: 40 } },
+          { name: 'name', in: 'query', schema: { type: 'string', maxLength: 80 } },
+        ],
+        responses: [200, 401, 403, 500],
+        handlers: appointmentHandlers.customerLookup,
+      },
+      {
+        method: 'get' as const,
         path: '/api/appointments/visit-drafts',
         operationId: 'listAppointmentVisitDrafts',
         tags: ['Appointments'],

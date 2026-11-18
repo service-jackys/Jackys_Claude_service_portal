@@ -258,6 +258,40 @@ export async function listAppointmentHistory(
   return result.rows;
 }
 
+// Earlier appointments of one customer, any status, newest first. Matches by phone
+// (last 9 digits) and/or the start of the name; both are indexed (migration 103).
+export async function lookupCustomerAppointments(
+  client: PoolClient,
+  query: { phone?: string; name?: string },
+  limit = 20,
+) {
+  const values: unknown[] = [];
+  const filters: string[] = [];
+  const digits = (query.phone ?? '').replace(/\D/g, '');
+  if (digits.length >= 6) {
+    values.push(digits.slice(-9));
+    filters.push(
+      `right(regexp_replace(appointments.contact_number, '\\D', '', 'g'), 9) = $${values.length}`,
+    );
+  }
+  const name = (query.name ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\\%_]/g, '');
+  if (name.length >= 3) {
+    values.push(`${name}%`);
+    filters.push(`lower(appointments.customer_name) LIKE $${values.length}`);
+  }
+  if (!filters.length) return [];
+  values.push(limit);
+  const result = await client.query<AppointmentRecord>(
+    `SELECT ${columns} FROM appointments WHERE (${filters.join(' OR ')})
+     ORDER BY appointments.appointment_date DESC, appointments.id DESC LIMIT $${values.length}`,
+    values,
+  );
+  return result.rows;
+}
+
 export async function listAppointments(client: PoolClient, query: Record<string, unknown>) {
   const values: unknown[] = [];
   const filters: string[] = [];

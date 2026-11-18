@@ -5205,6 +5205,27 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #278 — Repeat-customer lookup on New request
+
+**Date:** 2026-11-18
+
+**Why.** A customer who has called before should not be typed in again, and their earlier appliances should be one click away.
+
+**What changed.**
+
+- On Schedules > New request, typing a phone number (6 or more digits) or the start of a name (3 or more letters) looks up that customer's earlier appointments. It waits for a short pause in typing, so it does not search on every key.
+- Phone matches ignore spaces, dashes and +971: 050 123 4567, +971 50 123 4567 and 0501234567 find the same customer. Name matches on the start of the name.
+- A panel shows each customer found (up to 3) with their earlier appointments (up to 5 each), of every status including cancelled, newest first.
+- **Use this customer** fills in the customer, address, region and B2B details. Date and technician stay blank.
+- **Copy item** adds that appliance as item 1 if the form has no item yet, otherwise as another item of the visit. **Same appliance again** does the same and starts the issue with "Repeat visit (previous APT-…):".
+- Light on the database: migration 103 adds two indexes (phone last 9 digits, name start), the search only runs after a pause, asks once per distinct search, returns at most 20 rows, and a failure never blocks the form.
+- New API: `GET /api/appointments/customer-lookup?phone=&name=` (appointments view permission).
+- Tests: tests/integration/appointment-visit.test.ts, tests/e2e/phase4-scheduling.spec.ts.
+
+**Files.** packages/db/migrations/103_appointment_customer_lookup_indexes.sql, packages/db/src/appointments.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
 ## Modification #277 — Duplicate an appointment as a new request
 
 **Date:** 2026-11-18

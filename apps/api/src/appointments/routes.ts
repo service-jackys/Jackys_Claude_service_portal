@@ -70,6 +70,21 @@ export function createAppointmentHandlers(
         }
       },
     ],
+    customerLookup: [
+      requirePermission('appointments.read'),
+      async (request, response, next) => {
+        try {
+          response.json({
+            appointments: await service.customerLookup({
+              phone: request.query.phone,
+              name: request.query.name,
+            }),
+          });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     listVisitDrafts: [
       requirePermission('appointments.read'),
       async (_request, response, next) => {
