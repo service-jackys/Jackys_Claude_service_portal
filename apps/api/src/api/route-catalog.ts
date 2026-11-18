@@ -131,6 +131,7 @@ export type RouteDefinition = {
     | 'taxInvoiceIssue'
     | 'taxInvoiceUpdate'
     | 'appointment'
+    | 'appointmentVisit'
     | 'appointmentAssignment'
     | 'appointmentMessage'
     | 'appointmentSchedule'
@@ -2403,6 +2404,17 @@ export function createRouteCatalog(
         requestBody: 'appointment' as const,
         responses: [201, 400, 401, 403, 409, 500],
         handlers: appointmentHandlers.create,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/appointments/visit',
+        operationId: 'createAppointmentVisit',
+        tags: ['Appointments'],
+        summary: 'Create one visit with several items, each its own appointment',
+        security: 'bearerAuth' as const,
+        requestBody: 'appointmentVisit' as const,
+        responses: [201, 400, 401, 403, 409, 500],
+        handlers: appointmentHandlers.createVisit,
       },
       {
         method: 'get' as const,

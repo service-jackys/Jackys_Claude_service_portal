@@ -5852,6 +5852,8 @@ ${bodyHtml}
 
   function resetNewComplaintForm() {
     $('#newComplaintForm').reset();
+    $('#visitExtraItems').innerHTML = '';
+    updateVisitSubmitLabel();
     clearItemPickerMarks($('#newComplaintForm'));
     clearErrors($('#newComplaintForm'));
     applyNewComplaintCustomerTypeGating();
@@ -6051,20 +6053,181 @@ ${bodyHtml}
     updateNewRequestSourceWarning();
   });
 
+  // ---- Multi-item visit (modification #274). The main form is item 1; each
+  // extra item below is its own appointment sharing the customer and address.
+  let visitItemSequence = 0;
+
+  function updateVisitSubmitLabel() {
+    const extras = $('#visitExtraItems').children.length;
+    $('#submitNewComplaintButton').textContent =
+      extras > 0 ? `Book all ${extras + 1} items` : 'Book appointment';
+    document.querySelectorAll('#visitExtraItems .visit-item').forEach((card, index) => {
+      card.querySelector('[data-visit-title]').textContent = `Item ${index + 2}`;
+    });
+  }
+
+  function addVisitItem() {
+    const id = ++visitItemSequence;
+    const technicianOptions = $('#newComplaintTechnician').innerHTML;
+    const card = document.createElement('div');
+    card.className = 'visit-item';
+    card.dataset.visitItem = String(id);
+    card.innerHTML = `
+      <div class="visit-item-head"><span data-visit-title>Item</span>
+        <button class="button-link" type="button" data-visit-remove>Remove</button></div>
+      <div class="visit-grid">
+        <div><label>Brand</label><input data-v="brand" maxlength="120" /></div>
+        <div><label>Model</label><input data-v="model" maxlength="120" /></div>
+        <div><label>Serial number or item code</label><input data-v="itemCode" maxlength="120" /></div>
+        <div><label>Warranty status</label><select data-v="jobWarranty">
+          <option value="">Not known yet</option>
+          <option value="In Warranty">In Warranty (invoice within 1 year)</option>
+          <option value="Out Warranty">Out of Warranty</option></select></div>
+        <div><label>Date</label><input data-v="appointmentDate" type="date" /></div>
+        <div><label>Technician</label><select data-v="technicianId">${technicianOptions}</select></div>
+        <div class="wide"><label>Describe the issue <span class="required">*</span></label>
+          <textarea data-v="faultDescription" maxlength="10000"></textarea>
+          <span class="field-error" data-visit-error></span></div>
+      </div>
+      <div class="visit-notice" data-visit-notice hidden>
+        All items in this visit are for the same customer and the same location. You changed the
+        date or technician for this item only. Do this only if this item really needs a different
+        visit.</div>`;
+    $('#visitExtraItems').appendChild(card);
+    card.querySelector('[data-v="appointmentDate"]').value = $(
+      '#newComplaintAppointmentDate',
+    ).value;
+    card.querySelector('[data-v="technicianId"]').value = $('#newComplaintTechnician').value;
+    attachItemPicker({
+      brand: card.querySelector('[data-v="brand"]'),
+      model: card.querySelector('[data-v="model"]'),
+    });
+    updateVisitSubmitLabel();
+  }
+
+  function refreshVisitNotice(card) {
+    const dateChanged =
+      card.querySelector('[data-v="appointmentDate"]').value !==
+      $('#newComplaintAppointmentDate').value;
+    const techChanged =
+      card.querySelector('[data-v="technicianId"]').value !== $('#newComplaintTechnician').value;
+    card.dataset.overridden = dateChanged || techChanged ? '1' : '';
+    card.querySelector('[data-visit-notice]').hidden = !(dateChanged || techChanged);
+  }
+
+  $('#addVisitItemButton').addEventListener('click', addVisitItem);
+
+  $('#visitExtraItems').addEventListener('click', (event) => {
+    if (!event.target.closest('[data-visit-remove]')) return;
+    event.target.closest('.visit-item').remove();
+    updateVisitSubmitLabel();
+  });
+
+  $('#visitExtraItems').addEventListener('change', (event) => {
+    const card = event.target.closest('.visit-item');
+    if (card && event.target.matches('[data-v="appointmentDate"], [data-v="technicianId"]'))
+      refreshVisitNotice(card);
+  });
+
+  // Main date/technician flow into extra items that were not changed on their own.
+  for (const [selector, key] of [
+    ['#newComplaintAppointmentDate', 'appointmentDate'],
+    ['#newComplaintTechnician', 'technicianId'],
+  ]) {
+    $(selector).addEventListener('change', () => {
+      document.querySelectorAll('#visitExtraItems .visit-item').forEach((card) => {
+        const input = card.querySelector(`[data-v="${key}"]`);
+        if (!card.dataset.overridden || input.dataset.touched !== '1') {
+          input.value = $(selector).value;
+        }
+        refreshVisitNotice(card);
+      });
+    });
+  }
+  $('#visitExtraItems').addEventListener('input', (event) => {
+    if (event.target.matches('[data-v="appointmentDate"]')) event.target.dataset.touched = '1';
+  });
+  $('#visitExtraItems').addEventListener('change', (event) => {
+    if (event.target.matches('[data-v="technicianId"]')) event.target.dataset.touched = '1';
+  });
+
+  function visitExtraItemsData() {
+    return [...document.querySelectorAll('#visitExtraItems .visit-item')].map((card) => {
+      const item = {};
+      card.querySelectorAll('[data-v]').forEach((input) => {
+        const value = input.value.trim();
+        if (value) item[input.dataset.v] = value;
+      });
+      return item;
+    });
+  }
+
+  function validateVisitItems() {
+    let valid = true;
+    document.querySelectorAll('#visitExtraItems .visit-item').forEach((card) => {
+      const description = card.querySelector('[data-v="faultDescription"]').value.trim();
+      const error = card.querySelector('[data-visit-error]');
+      error.textContent = description ? '' : 'Describe the issue.';
+      if (!description) valid = false;
+    });
+    return valid;
+  }
+
   $('#newComplaintForm').addEventListener('submit', async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const data = newComplaintFormData();
     setMessage('#newComplaintMessage', '', false);
     if (!validateNewComplaintForm(data, form)) return;
+    if (!validateVisitItems()) return;
+    const extras = visitExtraItemsData();
     const button = $('#submitNewComplaintButton');
     setBusy(button, true, 'Booking…');
     try {
-      const result = await apiRequest('/api/appointments', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      });
+      let result;
+      if (extras.length > 0) {
+        const itemKeys = [
+          'brand',
+          'model',
+          'itemCode',
+          'faultDescription',
+          'jobWarranty',
+          'salesOrderNumber',
+        ];
+        const shared = Object.fromEntries(
+          Object.entries(data).filter(([key]) => !itemKeys.includes(key)),
+        );
+        const first = Object.fromEntries(
+          Object.entries(data).filter(([key]) => itemKeys.includes(key)),
+        );
+        const salesOrder = data.salesOrderNumber;
+        const items = [
+          first,
+          ...extras.map((item) => (salesOrder ? { salesOrderNumber: salesOrder, ...item } : item)),
+        ];
+        const visit = await apiRequest('/api/appointments/visit', {
+          method: 'POST',
+          body: JSON.stringify({ ...shared, items }),
+        });
+        result = { appointment: visit.items[0], visit, warnings: [] };
+      } else {
+        result = await apiRequest('/api/appointments', {
+          method: 'POST',
+          body: JSON.stringify(data),
+        });
+      }
       const appointment = result.appointment || {};
+      if (result.visit) {
+        const refs = result.visit.items.map((item) => item.appointmentReference);
+        $('#newComplaintReference').textContent = refs.join(', ');
+        $('#openNewComplaintInInboxButton').dataset.appointmentId = appointment.id || '';
+        $('#newComplaintSuccessNote').textContent =
+          `${refs.length} appointments booked for this visit, each with its own number.`;
+        $('#newComplaintWarning').hidden = true;
+        $('#newComplaintSuccess').hidden = false;
+        $('#newComplaintFields').hidden = true;
+        return;
+      }
       $('#newComplaintReference').textContent =
         appointment.appointmentReference || 'Reference created';
       $('#openNewComplaintInInboxButton').dataset.appointmentId = appointment.id || '';
@@ -8409,7 +8572,7 @@ ${bodyHtml}
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)}/${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = total ? String(total) : '';

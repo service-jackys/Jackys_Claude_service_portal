@@ -13022,6 +13022,70 @@
       .amc-plan-table td:nth-child(n + 2) {
         text-align: right;
       }
+
+      .visit-extra {
+        margin: 16px 0 0;
+        padding: 12px 14px;
+        border: 1px dashed var(--border, #cbd5e1);
+        border-radius: 10px;
+      }
+      .visit-extra-head {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 10px;
+      }
+      .visit-item {
+        border: 1px solid var(--border, #e2e8f0);
+        border-radius: 10px;
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        background: var(--surface, #fff);
+      }
+      .visit-item-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+        font-weight: 600;
+      }
+      .visit-item .visit-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 10px;
+      }
+      .visit-item .visit-grid .wide {
+        grid-column: 1 / -1;
+      }
+      .visit-item label {
+        display: block;
+        font-size: 12px;
+        margin-bottom: 2px;
+      }
+      .visit-item input,
+      .visit-item select,
+      .visit-item textarea {
+        width: 100%;
+      }
+      .visit-notice {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 8px;
+        background: #fef3c7;
+        color: #92400e;
+        font-size: 13px;
+      }
+      .visit-tag {
+        display: inline-block;
+        margin-left: 6px;
+        padding: 1px 7px;
+        border-radius: 999px;
+        background: #e0e7ff;
+        color: #3730a3;
+        font-size: 11px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
     </style>
   </head>
   <body>
@@ -16171,6 +16235,19 @@
                         ></textarea>
                         <span class="field-error" data-error-for="newComplaintDescription"></span>
                       </div>
+                    </div>
+                    <div class="visit-extra" id="visitExtraWrap">
+                      <div class="visit-extra-head">
+                        <strong>More items in this visit</strong>
+                        <span class="muted"
+                          >Same customer and address. Each item gets its own appointment number and
+                          becomes its own job card.</span
+                        >
+                      </div>
+                      <div id="visitExtraItems"></div>
+                      <button class="button button-outline" type="button" id="addVisitItemButton">
+                        + Add another item to this visit
+                      </button>
                     </div>
                     <div class="form-footer">
                       <button

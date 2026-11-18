@@ -27,6 +27,7 @@ async function installStaffApi(
   const scheduleStatus = options.scheduleStatus || 200;
   const scheduleDetail = options.scheduleDetail || '';
   const scheduleBodies: unknown[] = [];
+  const visitBodies: unknown[] = [];
   const listUrls: string[] = [];
   let detailRequests = 0;
 
@@ -94,6 +95,21 @@ async function installStaffApi(
       });
       return;
     }
+    if (url.pathname === '/api/appointments/visit' && request.method() === 'POST') {
+      visitBodies.push(request.postDataJSON());
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          visitGroupId: '9',
+          items: [
+            { id: '601', appointmentReference: 'APT-2026-00601', appointmentDate: '2026-10-12' },
+            { id: '602', appointmentReference: 'APT-2026-00602', appointmentDate: '2026-10-13' },
+          ],
+        }),
+      });
+      return;
+    }
     if (url.pathname === '/api/technicians' && request.method() === 'GET') {
       await route.fulfill({
         contentType: 'application/json',
@@ -128,6 +144,7 @@ async function installStaffApi(
 
   return {
     scheduleBodies,
+    visitBodies,
     listUrls,
     get detailRequests() {
       return detailRequests;
@@ -257,6 +274,59 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await page.locator('#dashboardNav').dispatchEvent('click');
     await expect(page.locator('#schedulesTabs')).toBeHidden();
     await expect(page.locator('#schedulesNav')).toHaveAttribute('aria-current', 'false');
+  });
+
+  test('New request books several items as one visit and warns when an item changes date', async ({
+    page,
+  }) => {
+    const api = await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'New request' }).click();
+    await page.locator('#newComplaintSource').selectOption('Phone');
+    await page.locator('#newComplaintAppointmentDate').fill('2026-10-12');
+    await page.locator('#newComplaintCustomerType').selectOption('B2C');
+    await page.locator('#newComplaintCustomerName').fill('Visit Customer');
+    await page.locator('#newComplaintContactNumber').fill('0500000001');
+    await page.locator('#newComplaintBrand').fill('LG');
+    await page.locator('#newComplaintDescription').fill('Washer not spinning');
+    await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book appointment');
+
+    await page.locator('#addVisitItemButton').click();
+    await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book all 2 items');
+    const item = page.locator('#visitExtraItems .visit-item').first();
+    await expect(item.locator('[data-v="appointmentDate"]')).toHaveValue('2026-10-12');
+    await expect(item.locator('[data-visit-notice]')).toBeHidden();
+
+    // The item needs its own issue text.
+    await page.locator('#submitNewComplaintButton').click();
+    await expect(item.locator('[data-visit-error]')).toHaveText('Describe the issue.');
+    expect(api.visitBodies).toHaveLength(0);
+
+    await item.locator('[data-v="model"]').fill('Fridge');
+    await item.locator('[data-v="faultDescription"]').fill('Fridge not cooling');
+    await item.locator('[data-v="appointmentDate"]').fill('2026-10-13');
+    await item.locator('[data-v="appointmentDate"]').dispatchEvent('change');
+    await expect(item.locator('[data-visit-notice]')).toBeVisible();
+    await expect(item.locator('[data-visit-notice]')).toContainText('same customer');
+
+    await page.locator('#submitNewComplaintButton').click();
+    await expect.poll(() => api.visitBodies.length).toBe(1);
+    const body = api.visitBodies[0] as Record<string, any>;
+    expect(body).toMatchObject({
+      customerName: 'Visit Customer',
+      appointmentDate: '2026-10-12',
+      complaintSource: 'Phone',
+    });
+    expect(body.items).toHaveLength(2);
+    expect(body.items[0]).toMatchObject({ brand: 'LG', faultDescription: 'Washer not spinning' });
+    expect(body.items[1]).toMatchObject({
+      model: 'Fridge',
+      faultDescription: 'Fridge not cooling',
+      appointmentDate: '2026-10-13',
+    });
+    await expect(page.locator('#newComplaintReference')).toHaveText(
+      'APT-2026-00601, APT-2026-00602',
+    );
   });
 
   test('reschedules through the accessible form and refreshes authoritative state', async ({

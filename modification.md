@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #274 — Multi-item visit: book several items for one customer in one go
+
+**Date:** 2026-11-18
+
+**Why.** One customer visit often covers several items (a washer and a fridge). Booking them meant filling the whole New request form again for each item. The old portal had "Duplicate as Awaiting Jobs" for this; the new portal now has a proper version.
+
+**What changed.**
+
+- On Schedules > New request, below the item, **+ Add another item to this visit** adds an item (brand, model, serial or item code, warranty, issue, date, technician). Item 1 is the normal form. The button becomes **Book all n items**.
+- Each item is its own appointment with its own appointment number, and becomes its own job card later. The items are linked as one visit, and the appointments list shows a **Visit 1/2** tag next to the number.
+- Items start with the same date and technician. If you change an item's date or technician, a notice reminds you that all items are the same customer and location. It only shows when you change one of those two.
+- Book all is all-or-nothing. If a technician is full on a day, nothing is booked and the message names the item ("Item 2 of 2: Assignment limit for the day reached ...").
+- New API: `POST /api/appointments/visit` (needs the same permission as booking an appointment). Single appointments are unchanged.
+- Drafts (Save visit as draft, Awaiting tab, dashboard card) come next as a separate step.
+- Tests: tests/integration/appointment-visit.test.ts; tests/e2e/phase4-scheduling.spec.ts (new visit test).
+
+**Files.** packages/db/migrations/101_appointment_visits.sql, packages/db/src/appointments.ts, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
 ## Modification #273 — Schedules: Appointments, New request and Daily schedule in one page
 
 **Date:** 2026-11-18

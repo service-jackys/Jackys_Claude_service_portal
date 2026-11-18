@@ -70,6 +70,26 @@ export function createAppointmentHandlers(
         }
       },
     ],
+    createVisit: [
+      requirePermission('appointments.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const visit = await service.createVisit(
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.status(201).json(visit);
+        } catch (error) {
+          if (error instanceof AppointmentServiceError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     detail: [
       requirePermission('appointments.read'),
       async (request, response, next) => {
