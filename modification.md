@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #277 — Duplicate an appointment as a new request
+
+**Date:** 2026-11-18
+
+**Why.** For a customer who calls again, the CCE should not re-type everything. The old portal had "Duplicate as Awaiting Jobs" on an existing request; the new portal now has its own version.
+
+**What changed.**
+
+- Appointment details have **Duplicate as new request**, and every row of the appointments list has a **Duplicate** button. It works for any status (completed, cancelled, scheduled).
+- It opens Schedules > New request pre-filled with the customer: type, name, contact, email, address, region, B2B school and contacts, customer number and sales order no.
+- The date and technician are left blank so you choose them fresh. How the request reached you (source) is also left for you to pick.
+- A strip at the top says "Copied from APT-… · item · status" with two choices: **New item** (brand, model, serial and issue empty) or **Same appliance, repeat visit** (brand, model, serial and warranty copied, and the issue starts with "Repeat visit (previous APT-…):").
+- From there it is the normal form: add more items, save as draft, or book.
+- Needs the same permission as booking an appointment. No migration, no API change.
+- Test: tests/e2e/phase4-scheduling.spec.ts.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #276 — Multi-item visit and Awaiting: professional restyle
 
 **Date:** 2026-11-18

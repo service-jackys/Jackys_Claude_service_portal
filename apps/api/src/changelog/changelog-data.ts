@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 277,
+    "title": "Duplicate an appointment as a new request",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "Any appointment can be duplicated into a pre-filled New request, with a choice of a new item or the same appliance for a repeat visit.",
+    "changes": [
+      "Duplicate as new request on the appointment details, and a Duplicate button on each list row.",
+      "Customer and address are copied; date, technician and source are left for you to choose.",
+      "New item or Same appliance, repeat visit, with the previous appointment noted in the issue."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html"
+  },
+  {
     "id": 276,
     "title": "Multi-item visit and Awaiting: professional restyle",
     "area": "Appointments",

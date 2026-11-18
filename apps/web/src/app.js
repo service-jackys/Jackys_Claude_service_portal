@@ -5860,6 +5860,8 @@ ${bodyHtml}
   function resetNewComplaintForm() {
     $('#newComplaintForm').reset();
     $('#visitExtraItems').innerHTML = '';
+    $('#duplicateStrip').hidden = true;
+    duplicateSource = null;
     currentVisitDraftId = null;
     updateVisitSubmitLabel();
     clearItemPickerMarks($('#newComplaintForm'));
@@ -6238,6 +6240,93 @@ ${bodyHtml}
     });
     return valid;
   }
+
+  // ---- Duplicate an appointment as a new request (modification #277).
+  // Shared helpers also serve the repeat-customer lookup.
+  function setNewRequestValue(selector, value) {
+    const el = $(selector);
+    if (!el) return;
+    el.value = value === undefined || value === null ? '' : value;
+  }
+
+  function fillNewRequestCustomer(rec) {
+    setNewRequestValue('#newComplaintCustomerType', rec.customerType || '');
+    applyNewComplaintCustomerTypeGating();
+    setNewRequestValue('#newComplaintCustomerName', rec.customerName);
+    setNewRequestValue('#newComplaintContactNumber', rec.contactNumber);
+    setNewRequestValue('#newComplaintCustomerEmail', rec.customerEmail);
+    setNewRequestValue('#newComplaintAddress', rec.address);
+    setNewRequestValue('#newComplaintRegion', rec.region);
+    setNewRequestValue('#newComplaintB2bBranchSchool', rec.b2bBranchSchool);
+    setNewRequestValue('#newComplaintSchoolContactPerson', rec.schoolContactPerson);
+    setNewRequestValue('#newComplaintSchoolContactNumber', rec.schoolContactNumber);
+    setNewRequestValue('#newComplaintCustomerNumber', rec.customerNumber);
+    setNewRequestValue('#newComplaintSalesOrderNumber', rec.salesOrderNumber);
+  }
+
+  // Item 1 is the main form; any further appliance becomes an extra item card.
+  function newRequestItemIsBlank() {
+    return ['#newComplaintBrand', '#newComplaintModel', '#newComplaintDescription'].every(
+      (selector) => !$(selector).value.trim(),
+    );
+  }
+
+  function fillNewRequestItem(rec, repeat) {
+    setNewRequestValue('#newComplaintBrand', rec.brand);
+    setNewRequestValue('#newComplaintModel', rec.model);
+    setNewRequestValue('#newComplaintSerialOrItemCode', rec.itemCode);
+    setNewRequestValue('#newComplaintWarranty', rec.jobWarranty);
+    setNewRequestValue(
+      '#newComplaintDescription',
+      repeat && rec.appointmentReference
+        ? `Repeat visit (previous ${rec.appointmentReference}): `
+        : '',
+    );
+  }
+
+  function clearNewRequestItem() {
+    ['#newComplaintBrand', '#newComplaintModel', '#newComplaintSerialOrItemCode'].forEach(
+      (selector) => setNewRequestValue(selector, ''),
+    );
+    setNewRequestValue('#newComplaintWarranty', '');
+    setNewRequestValue('#newComplaintDescription', '');
+  }
+
+  let duplicateSource = null;
+
+  function applyDuplicateMode(mode) {
+    if (!duplicateSource) return;
+    if (mode === 'same') fillNewRequestItem(duplicateSource, true);
+    else clearNewRequestItem();
+    document.querySelectorAll('#duplicateStrip [data-dup-mode]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.dupMode === mode);
+    });
+  }
+
+  function duplicateAppointmentAsRequest(appointment) {
+    if (!appointment || !hasPermission('appointments.write')) return;
+    setWorkspaceMode('new-request');
+    resetNewComplaintForm();
+    duplicateSource = appointment;
+    fillNewRequestCustomer(appointment);
+    $('#duplicateStripTitle').textContent =
+      `Copied from ${appointment.appointmentReference}` +
+      ([appointment.brand, appointment.model].filter(Boolean).length
+        ? ` · ${[appointment.brand, appointment.model].filter(Boolean).join(' ')}`
+        : '') +
+      ` · ${appointment.status}`;
+    $('#duplicateStrip').hidden = false;
+    applyDuplicateMode('new');
+    $('#newComplaintAppointmentDate').focus();
+  }
+
+  $('#duplicateStrip').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-dup-mode]');
+    if (button) applyDuplicateMode(button.dataset.dupMode);
+  });
+  $('#duplicateAppointmentButton').addEventListener('click', () =>
+    duplicateAppointmentAsRequest(currentAppointment),
+  );
 
   // ---- Visit drafts (modification #275).
   let currentVisitDraftId = null;
@@ -8843,7 +8932,7 @@ ${bodyHtml}
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}${canMessage ? `<button class="button button-outline ap-msg-btn ap-dup-btn" type="button" data-appointment-duplicate="${escapeHtml(appointment.id)}" title="Duplicate as new request" aria-label="Duplicate as new request for ${escapeHtml(appointment.customerName)}">Duplicate</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = total ? String(total) : '';
@@ -8855,6 +8944,15 @@ ${bodyHtml}
       .forEach((button) =>
         button.addEventListener('click', () =>
           loadAppointmentDetail(button.dataset.appointmentMessage, { focusMessages: true }),
+        ),
+      );
+    body
+      .querySelectorAll('[data-appointment-duplicate]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          duplicateAppointmentAsRequest(
+            appointments.find((entry) => entry.id === button.dataset.appointmentDuplicate),
+          ),
         ),
       );
     body
@@ -9307,6 +9405,7 @@ ${bodyHtml}
       currentAppointmentId = appointment.id;
       currentAppointment = appointment;
       $('#createJobCardButton').hidden = true;
+      $('#duplicateAppointmentButton').hidden = !hasPermission('appointments.write');
       renderAppointmentActions(appointment);
       $('#appointmentDetailHeading').textContent =
         appointment.appointmentReference || 'Appointment details';
