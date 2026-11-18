@@ -5205,6 +5205,47 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #278 — Repeat-customer lookup on New request
+
+**Date:** 2026-11-18
+
+**Why.** A customer who has called before should not be typed in again, and their earlier appliances should be one click away.
+
+**What changed.**
+
+- On Schedules > New request, typing a phone number (6 or more digits) or the start of a name (3 or more letters) looks up that customer's earlier appointments. It waits for a short pause in typing, so it does not search on every key.
+- Phone matches ignore spaces, dashes and +971: 050 123 4567, +971 50 123 4567 and 0501234567 find the same customer. Name matches on the start of the name.
+- A panel shows each customer found (up to 3) with their earlier appointments (up to 5 each), of every status including cancelled, newest first.
+- **Use this customer** fills in the customer, address, region and B2B details. Date and technician stay blank.
+- **Copy item** adds that appliance as item 1 if the form has no item yet, otherwise as another item of the visit. **Same appliance again** does the same and starts the issue with "Repeat visit (previous APT-…):".
+- Light on the database: migration 103 adds two indexes (phone last 9 digits, name start), the search only runs after a pause, asks once per distinct search, returns at most 20 rows, and a failure never blocks the form.
+- New API: `GET /api/appointments/customer-lookup?phone=&name=` (appointments view permission).
+- Tests: tests/integration/appointment-visit.test.ts, tests/e2e/phase4-scheduling.spec.ts.
+
+**Files.** packages/db/migrations/103_appointment_customer_lookup_indexes.sql, packages/db/src/appointments.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
+## Modification #277 — Duplicate an appointment as a new request
+
+**Date:** 2026-11-18
+
+**Why.** For a customer who calls again, the CCE should not re-type everything. The old portal had "Duplicate as Awaiting Jobs" on an existing request; the new portal now has its own version.
+
+**What changed.**
+
+- Appointment details have **Duplicate as new request**, and every row of the appointments list has a **Duplicate** button. It works for any status (completed, cancelled, scheduled).
+- It opens Schedules > New request pre-filled with the customer: type, name, contact, email, address, region, B2B school and contacts, customer number and sales order no.
+- The date and technician are left blank so you choose them fresh. How the request reached you (source) is also left for you to pick.
+- A strip at the top says "Copied from APT-… · item · status" with two choices: **New item** (brand, model, serial and issue empty) or **Same appliance, repeat visit** (brand, model, serial and warranty copied, and the issue starts with "Repeat visit (previous APT-…):").
+- From there it is the normal form: add more items, save as draft, or book.
+- Needs the same permission as booking an appointment. No migration, no API change.
+- Test: tests/e2e/phase4-scheduling.spec.ts.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #276 — Multi-item visit and Awaiting: professional restyle
 
 **Date:** 2026-11-18

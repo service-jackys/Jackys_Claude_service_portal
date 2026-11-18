@@ -28,6 +28,7 @@ async function installStaffApi(
   const scheduleDetail = options.scheduleDetail || '';
   const scheduleBodies: unknown[] = [];
   const visitBodies: unknown[] = [];
+  const lookupUrls: string[] = [];
   const draftCalls: { method: string; path: string; body?: Record<string, any> }[] = [];
   let drafts: Record<string, any>[] = [
     {
@@ -166,6 +167,45 @@ async function installStaffApi(
       });
       return;
     }
+    if (url.pathname === '/api/appointments/customer-lookup') {
+      lookupUrls.push(request.url());
+      const rec = {
+        customerType: 'B2C',
+        customerName: 'Sara Khan',
+        contactNumber: '050 123 4567',
+        address: 'Villa 12, Marina',
+        region: 'Dubai',
+      };
+      await route.fulfill({
+        contentType: 'application/json',
+        body: JSON.stringify({
+          appointments: [
+            {
+              ...rec,
+              id: '417',
+              appointmentReference: 'APT-2026-00417',
+              status: 'Completed',
+              appointmentDate: '2026-10-14',
+              brand: 'LG',
+              model: 'Washer',
+              itemCode: 'SN-1',
+              faultDescription: 'Seal replaced',
+            },
+            {
+              ...rec,
+              id: '188',
+              appointmentReference: 'APT-2026-00188',
+              status: 'Cancelled',
+              appointmentDate: '2026-08-02',
+              brand: 'Bosch',
+              model: 'Fridge',
+              faultDescription: 'Thermostat',
+            },
+          ],
+        }),
+      });
+      return;
+    }
     if (url.pathname === '/api/appointments/visit' && request.method() === 'POST') {
       visitBodies.push(request.postDataJSON());
       await route.fulfill({
@@ -216,6 +256,7 @@ async function installStaffApi(
   return {
     scheduleBodies,
     visitBodies,
+    lookupUrls,
     draftCalls,
     listUrls,
     get detailRequests() {
@@ -458,6 +499,92 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     expect(post.body).toMatchObject({ customerName: 'Later Customer' });
     expect(post.body?.items).toEqual([{ brand: 'Philips' }, { brand: 'Venus' }]);
     await expect(page.locator('#visitDraftsWorkspace tr[data-draft-id="99"]')).toBeVisible();
+  });
+
+  test('Duplicate as new request copies the customer, leaves date blank, and can repeat the appliance', async ({
+    page,
+  }) => {
+    await installStaffApi(page, {
+      appointment: {
+        ...appointment,
+        status: 'Completed',
+        brand: 'LG',
+        model: 'FWM 8kg Washer',
+        address: 'Villa 12, Marina',
+        customerType: 'B2C',
+        itemCode: 'SN-123',
+        jobWarranty: 'Out Warranty',
+      } as typeof appointment,
+    });
+    await signInAndOpenAppointments(page);
+    await page.locator('[data-appointment-id="501"]').click();
+    await page.locator('#duplicateAppointmentButton').click();
+
+    await expect(page.locator('#newComplaintWorkspace')).toBeVisible();
+    await expect(page.locator('#duplicateStrip')).toBeVisible();
+    await expect(page.locator('#duplicateStripTitle')).toContainText('APT-2026-00001');
+    await expect(page.locator('#duplicateStripTitle')).toContainText('LG FWM 8kg Washer');
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+    await expect(page.locator('#newComplaintAddress')).toHaveValue('Villa 12, Marina');
+    await expect(page.locator('#newComplaintAppointmentDate')).toHaveValue('');
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('');
+
+    await page.locator('[data-dup-mode="same"]').click();
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('LG');
+    await expect(page.locator('#newComplaintSerialOrItemCode')).toHaveValue('SN-123');
+    await expect(page.locator('#newComplaintDescription')).toHaveValue(
+      /Repeat visit \(previous APT-2026-00001\)/,
+    );
+    await page.locator('[data-dup-mode="new"]').click();
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('');
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+
+    // Also from the list row.
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'Appointments' }).click();
+    await page.locator('[data-appointment-duplicate="501"]').click();
+    await expect(page.locator('#duplicateStrip')).toBeVisible();
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+  });
+
+  test('New request finds a repeat customer by phone and copies the customer and appliances', async ({
+    page,
+  }) => {
+    const api = await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'New request' }).click();
+
+    // Too short: no request.
+    await page.locator('#newComplaintContactNumber').fill('0501');
+    await page.waitForTimeout(700);
+    expect(api.lookupUrls).toHaveLength(0);
+
+    await page.locator('#newComplaintContactNumber').fill('0501234567');
+    await expect(page.locator('#repeatLookup')).toContainText('1 customer found');
+    expect(api.lookupUrls).toHaveLength(1);
+    expect(api.lookupUrls[0]).toContain('phone=0501234567');
+    await expect(page.locator('#repeatLookup')).toContainText('APT-2026-00417');
+    await expect(page.locator('#repeatLookup')).toContainText('Cancelled');
+
+    await page.locator('[data-rl-use]').click();
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Sara Khan');
+    await expect(page.locator('#newComplaintAddress')).toHaveValue('Villa 12, Marina');
+    await expect(page.locator('#newComplaintAppointmentDate')).toHaveValue('');
+
+    // First appliance goes to item 1, the next one becomes another item of the visit.
+    await page.locator('[data-rl-copy="417"]').click();
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('LG');
+    await expect(page.locator('#visitExtraItems .visit-item')).toHaveCount(0);
+    await page.locator('[data-rl-same="188"]').click();
+    await expect(page.locator('#visitExtraItems .visit-item')).toHaveCount(1);
+    const item = page.locator('#visitExtraItems .visit-item').first();
+    await expect(item.locator('[data-v="brand"]')).toHaveValue('Bosch');
+    await expect(item.locator('[data-v="faultDescription"]')).toHaveValue(
+      /Repeat visit \(previous APT-2026-00188\)/,
+    );
+    await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book all 2 items');
+
+    await page.locator('[data-rl-close]').click();
+    await expect(page.locator('#repeatLookupField')).toBeHidden();
   });
 
   test('reschedules through the accessible form and refreshes authoritative state', async ({

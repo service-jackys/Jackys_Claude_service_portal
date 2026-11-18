@@ -5860,6 +5860,9 @@ ${bodyHtml}
   function resetNewComplaintForm() {
     $('#newComplaintForm').reset();
     $('#visitExtraItems').innerHTML = '';
+    $('#duplicateStrip').hidden = true;
+    duplicateSource = null;
+    repeatLookupHide();
     currentVisitDraftId = null;
     updateVisitSubmitLabel();
     clearItemPickerMarks($('#newComplaintForm'));
@@ -6238,6 +6241,257 @@ ${bodyHtml}
     });
     return valid;
   }
+
+  // ---- Duplicate an appointment as a new request (modification #277).
+  // Shared helpers also serve the repeat-customer lookup.
+  function setNewRequestValue(selector, value) {
+    const el = $(selector);
+    if (!el) return;
+    el.value = value === undefined || value === null ? '' : value;
+  }
+
+  function fillNewRequestCustomer(rec) {
+    setNewRequestValue('#newComplaintCustomerType', rec.customerType || '');
+    applyNewComplaintCustomerTypeGating();
+    setNewRequestValue('#newComplaintCustomerName', rec.customerName);
+    setNewRequestValue('#newComplaintContactNumber', rec.contactNumber);
+    setNewRequestValue('#newComplaintCustomerEmail', rec.customerEmail);
+    setNewRequestValue('#newComplaintAddress', rec.address);
+    setNewRequestValue('#newComplaintRegion', rec.region);
+    setNewRequestValue('#newComplaintB2bBranchSchool', rec.b2bBranchSchool);
+    setNewRequestValue('#newComplaintSchoolContactPerson', rec.schoolContactPerson);
+    setNewRequestValue('#newComplaintSchoolContactNumber', rec.schoolContactNumber);
+    setNewRequestValue('#newComplaintCustomerNumber', rec.customerNumber);
+    setNewRequestValue('#newComplaintSalesOrderNumber', rec.salesOrderNumber);
+  }
+
+  // Item 1 is the main form; any further appliance becomes an extra item card.
+  function newRequestItemIsBlank() {
+    return ['#newComplaintBrand', '#newComplaintModel', '#newComplaintDescription'].every(
+      (selector) => !$(selector).value.trim(),
+    );
+  }
+
+  function fillNewRequestItem(rec, repeat) {
+    setNewRequestValue('#newComplaintBrand', rec.brand);
+    setNewRequestValue('#newComplaintModel', rec.model);
+    setNewRequestValue('#newComplaintSerialOrItemCode', rec.itemCode);
+    setNewRequestValue('#newComplaintWarranty', rec.jobWarranty);
+    setNewRequestValue(
+      '#newComplaintDescription',
+      repeat && rec.appointmentReference
+        ? `Repeat visit (previous ${rec.appointmentReference}): `
+        : '',
+    );
+  }
+
+  function clearNewRequestItem() {
+    ['#newComplaintBrand', '#newComplaintModel', '#newComplaintSerialOrItemCode'].forEach(
+      (selector) => setNewRequestValue(selector, ''),
+    );
+    setNewRequestValue('#newComplaintWarranty', '');
+    setNewRequestValue('#newComplaintDescription', '');
+  }
+
+  let duplicateSource = null;
+
+  function applyDuplicateMode(mode) {
+    if (!duplicateSource) return;
+    if (mode === 'same') fillNewRequestItem(duplicateSource, true);
+    else clearNewRequestItem();
+    document.querySelectorAll('#duplicateStrip [data-dup-mode]').forEach((button) => {
+      button.classList.toggle('is-active', button.dataset.dupMode === mode);
+    });
+  }
+
+  function duplicateAppointmentAsRequest(appointment) {
+    if (!appointment || !hasPermission('appointments.write')) return;
+    setWorkspaceMode('new-request');
+    resetNewComplaintForm();
+    duplicateSource = appointment;
+    fillNewRequestCustomer(appointment);
+    $('#duplicateStripTitle').textContent =
+      `Copied from ${appointment.appointmentReference}` +
+      ([appointment.brand, appointment.model].filter(Boolean).length
+        ? ` · ${[appointment.brand, appointment.model].filter(Boolean).join(' ')}`
+        : '') +
+      ` · ${appointment.status}`;
+    $('#duplicateStrip').hidden = false;
+    applyDuplicateMode('new');
+    $('#newComplaintAppointmentDate').focus();
+  }
+
+  $('#duplicateStrip').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-dup-mode]');
+    if (button) applyDuplicateMode(button.dataset.dupMode);
+  });
+  $('#duplicateAppointmentButton').addEventListener('click', () =>
+    duplicateAppointmentAsRequest(currentAppointment),
+  );
+
+  // ---- Repeat-customer lookup on New request (modification #278). Looks up earlier
+  // appointments by phone (last 9 digits) or the start of the name; waits for a pause in
+  // typing, asks only once per distinct search, and the API uses indexed lookups.
+  let repeatLookupTimer = null;
+  let repeatLookupSequence = 0;
+  let repeatLookupKey = '';
+  let repeatLookupRecords = [];
+
+  function repeatLookupHide() {
+    $('#repeatLookupField').hidden = true;
+    $('#repeatLookup').innerHTML = '';
+    repeatLookupKey = '';
+    repeatLookupRecords = [];
+  }
+
+  function scheduleRepeatLookup() {
+    clearTimeout(repeatLookupTimer);
+    repeatLookupTimer = setTimeout(runRepeatLookup, 450);
+  }
+
+  async function runRepeatLookup() {
+    if (!hasPermission('appointments.read')) return;
+    const phone = $('#newComplaintContactNumber').value.trim();
+    const name = $('#newComplaintCustomerName').value.trim();
+    const phoneOk = phone.replace(/\D/g, '').length >= 6;
+    const nameOk = name.length >= 3;
+    if (!phoneOk && !nameOk) {
+      repeatLookupHide();
+      return;
+    }
+    const params = new URLSearchParams();
+    if (phoneOk) params.set('phone', phone);
+    if (nameOk) params.set('name', name);
+    const key = params.toString();
+    if (key === repeatLookupKey) return;
+    repeatLookupKey = key;
+    const sequence = ++repeatLookupSequence;
+    try {
+      const result = await apiRequest('/api/appointments/customer-lookup?' + key);
+      if (sequence !== repeatLookupSequence) return;
+      repeatLookupRecords = result.appointments || [];
+      renderRepeatLookup();
+    } catch {
+      /* the lookup is a convenience; never block the form */
+    }
+  }
+
+  function repeatLookupGroups() {
+    const groups = new Map();
+    for (const rec of repeatLookupRecords) {
+      const tail = String(rec.contactNumber || '')
+        .replace(/\D/g, '')
+        .slice(-9);
+      const groupKey = tail.length >= 6 ? 'p' + tail : 'n' + String(rec.customerName).toLowerCase();
+      if (!groups.has(groupKey)) groups.set(groupKey, []);
+      groups.get(groupKey).push(rec);
+    }
+    return [...groups.values()].slice(0, 3);
+  }
+
+  function renderRepeatLookup() {
+    const groups = repeatLookupGroups();
+    const field = $('#repeatLookupField');
+    if (!groups.length) {
+      repeatLookupHide();
+      return;
+    }
+    const initials = (name) =>
+      String(name)
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0].toUpperCase())
+        .join('');
+    const statusClass = (status) =>
+      status === 'Cancelled' ? 'is-cancelled' : status === 'Completed' ? '' : 'is-open';
+    const total = groups.reduce((sum, group) => sum + group.length, 0);
+    $('#repeatLookup').innerHTML =
+      `<div class="rl-head"><strong>${groups.length} customer${groups.length === 1 ? '' : 's'} found</strong><span>${total} earlier appointment${total === 1 ? '' : 's'}</span><button class="button-link rl-close" type="button" data-rl-close>Dismiss</button></div>` +
+      groups
+        .map((group) => {
+          const first = group[0];
+          const place = [first.address, first.region, first.customerType]
+            .filter(Boolean)
+            .join(' · ');
+          return `<div class="rl-cust"><div class="rl-av" aria-hidden="true">${escapeHtml(initials(first.customerName))}</div><div class="rl-cust-info"><strong>${escapeHtml(first.customerName)}</strong><small>${escapeHtml(first.contactNumber || '')}${place ? ' · ' + escapeHtml(place) : ''}</small></div><button class="button button-primary" type="button" data-rl-use="${escapeHtml(first.id)}">Use this customer</button></div><div class="rl-hist">${group
+            .slice(0, 5)
+            .map((rec) => {
+              const item = [rec.brand, rec.model].filter(Boolean).join(' ') || 'Item not recorded';
+              const issue = String(rec.faultDescription || '');
+              const canCopy = rec.brand || rec.model || rec.itemCode;
+              return `<div class="rl-item"><span class="rl-status ${statusClass(rec.status)}">${escapeHtml(rec.status)}</span><div class="rl-item-info"><strong>${escapeHtml(item)}</strong><small>${escapeHtml(rec.appointmentReference)} · ${escapeHtml(rec.appointmentDate)}${issue ? ' · ' + escapeHtml(issue.length > 50 ? issue.slice(0, 47) + '…' : issue) : ''}</small></div><div class="rl-actions">${canCopy ? `<button class="button button-outline" type="button" data-rl-copy="${escapeHtml(rec.id)}">Copy item</button><button class="button-link" type="button" data-rl-same="${escapeHtml(rec.id)}">Same appliance again</button>` : ''}</div></div>`;
+            })
+            .join('')}</div>`;
+        })
+        .join('');
+    field.hidden = false;
+  }
+
+  // Adds the appliance of an earlier appointment as an item: item 1 if the form has
+  // no item yet, otherwise as another item of the visit.
+  function addApplianceFromRecord(rec, repeat) {
+    if (newRequestItemIsBlank()) {
+      fillNewRequestItem(rec, repeat);
+      return 'item 1';
+    }
+    addVisitItem();
+    const card = $('#visitExtraItems').lastElementChild;
+    const set = (key, value) => {
+      const input = card.querySelector(`[data-v="${key}"]`);
+      if (input && value) input.value = value;
+    };
+    set('brand', rec.brand);
+    set('model', rec.model);
+    set('itemCode', rec.itemCode);
+    set('jobWarranty', rec.jobWarranty);
+    if (repeat) set('faultDescription', `Repeat visit (previous ${rec.appointmentReference}): `);
+    updateVisitCardSummary(card);
+    return `item ${$('#visitExtraItems').children.length + 1}`;
+  }
+
+  function repeatLookupNote(text) {
+    const note = $('#repeatLookup').querySelector('.rl-note');
+    if (note) note.remove();
+    $('#repeatLookup').insertAdjacentHTML(
+      'beforeend',
+      `<div class="rl-note" role="status">✓ ${escapeHtml(text)}</div>`,
+    );
+  }
+
+  $('#repeatLookup').addEventListener('click', (event) => {
+    if (event.target.closest('[data-rl-close]')) {
+      repeatLookupHide();
+      return;
+    }
+    const find = (attr) => {
+      const button = event.target.closest(`[${attr}]`);
+      return button
+        ? repeatLookupRecords.find((rec) => rec.id === button.getAttribute(attr))
+        : null;
+    };
+    const use = find('data-rl-use');
+    if (use) {
+      fillNewRequestCustomer(use);
+      repeatLookupNote(`Customer details filled in from ${use.appointmentReference}.`);
+      return;
+    }
+    const copy = find('data-rl-copy');
+    if (copy) {
+      repeatLookupNote(
+        `${[copy.brand, copy.model].filter(Boolean).join(' ') || 'Item'} added as ${addApplianceFromRecord(copy, false)}.`,
+      );
+      return;
+    }
+    const same = find('data-rl-same');
+    if (same) {
+      repeatLookupNote(
+        `${[same.brand, same.model].filter(Boolean).join(' ') || 'Item'} added as ${addApplianceFromRecord(same, true)}, marked as a repeat visit.`,
+      );
+    }
+  });
+  $('#newComplaintContactNumber').addEventListener('input', scheduleRepeatLookup);
+  $('#newComplaintCustomerName').addEventListener('input', scheduleRepeatLookup);
 
   // ---- Visit drafts (modification #275).
   let currentVisitDraftId = null;
@@ -8843,7 +9097,7 @@ ${bodyHtml}
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}${canMessage ? `<button class="button button-outline ap-msg-btn ap-dup-btn" type="button" data-appointment-duplicate="${escapeHtml(appointment.id)}" title="Duplicate as new request" aria-label="Duplicate as new request for ${escapeHtml(appointment.customerName)}">Duplicate</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = total ? String(total) : '';
@@ -8855,6 +9109,15 @@ ${bodyHtml}
       .forEach((button) =>
         button.addEventListener('click', () =>
           loadAppointmentDetail(button.dataset.appointmentMessage, { focusMessages: true }),
+        ),
+      );
+    body
+      .querySelectorAll('[data-appointment-duplicate]')
+      .forEach((button) =>
+        button.addEventListener('click', () =>
+          duplicateAppointmentAsRequest(
+            appointments.find((entry) => entry.id === button.dataset.appointmentDuplicate),
+          ),
         ),
       );
     body
@@ -9307,6 +9570,7 @@ ${bodyHtml}
       currentAppointmentId = appointment.id;
       currentAppointment = appointment;
       $('#createJobCardButton').hidden = true;
+      $('#duplicateAppointmentButton').hidden = !hasPermission('appointments.write');
       renderAppointmentActions(appointment);
       $('#appointmentDetailHeading').textContent =
         appointment.appointmentReference || 'Appointment details';
