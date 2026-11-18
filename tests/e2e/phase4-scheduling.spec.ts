@@ -207,6 +207,45 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     expect(api.detailRequests).toBeGreaterThanOrEqual(2);
   });
 
+  test('prints the appointment sheet in grouped sections and flags missing required details', async ({
+    page,
+  }) => {
+    await installStaffApi(page, {
+      appointment: {
+        ...appointment,
+        customerType: 'B2B',
+        technicianName: 'Aisha Technician',
+        address: 'RAK',
+        brand: 'VENUS',
+        model: 'VM655 Fridge',
+        jobWarranty: 'Out Warranty',
+        faultDescription: 'Fridge not cooling',
+      } as typeof appointment,
+    });
+    await signInAndOpenAppointments(page);
+    await page.getByRole('button', { name: 'APT-2026-00001' }).click();
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('#printAppointmentButton').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState();
+    const sections = popup.locator('.apt-sec h3');
+    await expect(sections).toHaveText([
+      /Customer details/,
+      /Product details/,
+      /Appointment & technician/,
+      /Other references/,
+    ]);
+    // Required and entered: bold cell; required and missing: red "Not entered".
+    await expect(popup.locator('td.req', { hasText: 'Calendar Customer' })).toBeVisible();
+    await expect(popup.locator('td.req', { hasText: 'VENUS' })).toBeVisible();
+    await expect(popup.locator('td.gap')).toHaveCount(2); // sub group and item code
+    await expect(popup.locator('td.gap').first()).toHaveText(
+      'Not entered \u2014 confirm with customer',
+    );
+    await expect(popup.locator('.block', { hasText: 'Fridge not cooling' })).toBeVisible();
+    await expect(popup.locator('input[type="checkbox"]')).toHaveCount(0);
+  });
+
   test('hides rescheduling for terminal appointments', async ({ page }) => {
     await installStaffApi(page, { appointment: { ...appointment, status: 'Completed' } });
     await signInAndOpenAppointments(page);
