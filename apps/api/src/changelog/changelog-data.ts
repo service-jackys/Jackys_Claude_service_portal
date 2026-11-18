@@ -15,6 +15,22 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 273,
+    "title": "Schedules: Appointments, New request and Daily schedule in one page",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "Service desk now has one Schedules page with three tabs: Appointments, New request and Daily schedule, replacing three separate menu items.",
+    "changes": [
+      "One Schedules menu item with tabs Appointments, New request and Daily schedule.",
+      "The old three menu items are removed; the pages and permissions are unchanged."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/*"
+  },
+  {
     "id": 272,
     "title": "Appointments: \"All appointments\" list follows the calendar and date filters",
     "area": "Appointments",
