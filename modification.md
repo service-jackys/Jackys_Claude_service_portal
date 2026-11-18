@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #276 — Multi-item visit and Awaiting: professional restyle
+
+**Date:** 2026-11-18
+
+**Why.** The first versions of the multi-item visit (#274) and drafts (#275) worked, but looked plain. You asked for a more professional finish.
+
+**What changed.** Look only, nothing changes in how booking works.
+
+- The "More items in this visit" section is a card with a header and an item count.
+- Each extra item is a card with a numbered badge, a one-line summary (brand and model, issue, date) and a status pill ("Different date or technician", "Book later"). **Collapse** and **Edit** fold an item down to its summary. The amber reminder about same customer and location stays.
+- A summary bar under the form says how many appointments are booked now and how many items are kept as a draft, next to **Save visit as draft** and the main **Book** button.
+- Awaiting tab: the waiting pill shows an icon and words (overdue, due soon, Today) so it still reads on a black and white print. Dashboard card tiles are Visits waiting, Waiting 2 days and Overdue (3+ days).
+- The appointments list tag now reads "Visit 1 of 3".
+- Tests: existing e2e tests updated and passing.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #275 — Visit drafts: save a visit for later, Awaiting tab and dashboard card
 
 **Date:** 2026-11-18

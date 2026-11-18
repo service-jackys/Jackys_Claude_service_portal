@@ -13023,44 +13023,128 @@
         text-align: right;
       }
 
+      /* Multi-item visit (modification #276 restyle). Uses the portal tokens. */
       .visit-extra {
-        margin: 16px 0 0;
-        padding: 12px 14px;
-        border: 1px dashed var(--border, #cbd5e1);
-        border-radius: 10px;
+        margin: 20px 0 0;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow:
+          0 1px 2px rgb(16 43 78 / 8%),
+          0 8px 24px rgb(16 43 78 / 5%);
+        overflow: hidden;
       }
       .visit-extra-head {
         display: flex;
-        flex-direction: column;
-        gap: 2px;
-        margin-bottom: 10px;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        background: linear-gradient(#f7fafd, #f1f6fb);
+        border-bottom: 1px solid var(--line);
+      }
+      .visit-extra-head p {
+        margin: 2px 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .visit-extra-head .visit-count {
+        margin-left: auto;
+        padding: 3px 11px;
+        border-radius: 999px;
+        background: var(--blue);
+        color: #fff;
+        font-size: 0.8rem;
+        font-weight: 700;
+      }
+      #visitExtraItems {
+        display: grid;
+        gap: 12px;
+        padding: 14px 18px 0;
+      }
+      #visitExtraItems:empty {
+        padding: 0;
       }
       .visit-item {
-        border: 1px solid var(--border, #e2e8f0);
-        border-radius: 10px;
-        padding: 10px 12px;
-        margin-bottom: 10px;
-        background: var(--surface, #fff);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        transition:
+          border-color 0.15s,
+          box-shadow 0.15s;
+      }
+      .visit-item:focus-within {
+        border-color: #9cc3e3;
+        box-shadow: 0 0 0 3px rgb(23 105 170 / 10%);
       }
       .visit-item-head {
         display: flex;
-        justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
-        font-weight: 600;
+        gap: 12px;
+        padding: 12px 14px;
+      }
+      .visit-num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+      .visit-item-title {
+        font-weight: 700;
+        line-height: 1.25;
+      }
+      .visit-item-sub {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .visit-item-head .visit-spacer {
+        flex: 1;
+      }
+      .visit-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 2px 10px;
+        border: 1px solid #d3dfeb;
+        border-radius: 999px;
+        background: #eef3f8;
+        color: #3b5775;
+        font-size: 0.78rem;
+        font-weight: 700;
+      }
+      .visit-pill.is-diff {
+        border-color: #f1c27a;
+        background: #fff4e0;
+        color: #8a4a00;
+      }
+      .visit-pill[hidden] {
+        display: none;
       }
       .visit-item .visit-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px 14px;
+        padding: 14px;
+        border-top: 1px dashed var(--line);
+      }
+      .visit-item.is-collapsed .visit-grid,
+      .visit-item.is-collapsed .visit-later,
+      .visit-item.is-collapsed .visit-notice {
+        display: none;
       }
       .visit-item .visit-grid .wide {
         grid-column: 1 / -1;
       }
       .visit-item label {
         display: block;
-        font-size: 12px;
-        margin-bottom: 2px;
+        margin-bottom: 3px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #4b5b6c;
       }
       .visit-item input,
       .visit-item select,
@@ -13068,69 +13152,134 @@
         width: 100%;
       }
       .visit-notice {
-        margin-top: 8px;
-        padding: 8px 10px;
-        border-radius: 8px;
-        background: #fef3c7;
-        color: #92400e;
-        font-size: 13px;
+        margin: 0 14px 14px;
+        padding: 9px 12px;
+        border: 1px solid #f1c27a;
+        border-left: 4px solid #e08a00;
+        border-radius: 10px;
+        background: #fff4e0;
+        color: #6b3b00;
+        font-size: 0.88rem;
+      }
+      .visit-item .visit-later {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        margin: 0 14px 14px;
+        font-size: 0.9rem;
+        font-weight: 400;
+        color: #33475f;
+      }
+      .visit-item .visit-later input {
+        width: auto;
+      }
+      .visit-add {
+        display: block;
+        width: calc(100% - 36px);
+        margin: 14px 18px 18px;
+        padding: 12px;
+        border: 1.5px dashed #9cb4cc;
+        border-radius: 12px;
+        background: #fafcff;
+        color: var(--blue);
+        font-weight: 700;
+      }
+      .visit-add:hover {
+        background: var(--blue-soft);
+      }
+      .visit-bar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-top: 16px;
+        padding: 14px 18px;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: #f7fafd;
+      }
+      .visit-bar .visit-summary {
+        flex: 1 1 260px;
+        font-size: 0.9rem;
+        color: #33475f;
+      }
+      .visit-bar .visit-summary strong {
+        color: var(--ink);
+      }
+      .visit-bar .form-footer {
+        margin: 0;
+        padding: 0;
+        border: 0;
+        display: flex;
+        flex-direction: row-reverse;
+        gap: 10px;
+      }
+      #submitNewComplaintButton {
+        padding: 10px 20px;
+        box-shadow: 0 2px 6px rgb(23 105 170 / 27%);
+      }
+      #saveVisitDraftButton {
+        border-color: transparent;
+        background: transparent;
+        color: var(--blue);
       }
       .visit-tag {
         display: inline-block;
         margin-left: 6px;
-        padding: 1px 7px;
+        padding: 1px 8px;
+        border: 1px solid #bcd8ee;
         border-radius: 999px;
-        background: #e0e7ff;
-        color: #3730a3;
-        font-size: 11px;
-        font-weight: 600;
+        background: var(--blue-soft);
+        color: #124a78;
+        font-size: 0.75rem;
+        font-weight: 700;
         white-space: nowrap;
       }
-
       .tab-count {
         display: inline-block;
         min-width: 18px;
         margin-left: 4px;
         padding: 0 6px;
         border-radius: 999px;
-        background: #e0e7ff;
-        color: #3730a3;
-        font-size: 11px;
+        background: var(--blue);
+        color: #fff;
+        font-size: 0.75rem;
         font-weight: 700;
         text-align: center;
       }
+      /* Waiting age: icon plus words, so it still reads on a black and white print. */
       .draft-age {
-        display: inline-block;
-        padding: 2px 9px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 10px;
+        border: 1px solid #b5e0c7;
         border-radius: 999px;
-        font-size: 12px;
-        font-weight: 600;
-        background: #dcfce7;
-        color: #166534;
+        background: #e4f6ec;
+        color: #157347;
+        font-size: 0.8rem;
+        font-weight: 700;
       }
       .draft-age.age-warn {
-        background: #fef08a;
-        color: #854d0e;
+        border-color: #e6b730;
+        background: #fff6cc;
+        color: #7a5b00;
       }
       .draft-age.age-late {
-        background: #fecaca;
-        color: #991b1b;
+        border-color: #e69a96;
+        background: #fde8e7;
+        color: #a3201a;
+      }
+      #dashVisitDraftGroup {
+        border-top: 4px solid var(--accent-warranty);
       }
       .dashboard-tile.tile-warn {
-        border-color: #eab308;
+        border-color: #e6b730;
+        background: #fffbea;
       }
       .dashboard-tile.tile-late {
-        border-color: #dc2626;
-      }
-      .visit-item .visit-later {
-        display: flex;
-        gap: 6px;
-        align-items: center;
-        margin-top: 8px;
-        font-size: 13px;
-      }
-      .visit-item .visit-later input {
-        width: auto;
+        border-color: #d9534f;
+        background: #fff1f0;
       }
     </style>
   </head>
@@ -16315,28 +16464,38 @@
                     </div>
                     <div class="visit-extra" id="visitExtraWrap">
                       <div class="visit-extra-head">
-                        <strong>More items in this visit</strong>
-                        <span class="muted"
-                          >Same customer and address. Each item gets its own appointment number and
-                          becomes its own job card.</span
-                        >
+                        <div>
+                          <strong>More items in this visit</strong>
+                          <p>
+                            Same customer and address. Each item gets its own appointment number and
+                            becomes its own job card.
+                          </p>
+                        </div>
+                        <span class="visit-count" id="visitCount" hidden></span>
                       </div>
                       <div id="visitExtraItems"></div>
-                      <button class="button button-outline" type="button" id="addVisitItemButton">
+                      <button class="visit-add" type="button" id="addVisitItemButton">
                         + Add another item to this visit
                       </button>
                     </div>
-                    <div class="form-footer">
-                      <button
-                        class="button button-primary"
-                        type="submit"
-                        id="submitNewComplaintButton"
-                      >
-                        Book appointment
-                      </button>
-                      <button class="button button-outline" type="button" id="saveVisitDraftButton">
-                        Save visit as draft
-                      </button>
+                    <div class="visit-bar">
+                      <span class="visit-summary" id="visitSummary"></span>
+                      <div class="form-footer">
+                        <button
+                          class="button button-primary"
+                          type="submit"
+                          id="submitNewComplaintButton"
+                        >
+                          Book appointment
+                        </button>
+                        <button
+                          class="button button-outline"
+                          type="button"
+                          id="saveVisitDraftButton"
+                        >
+                          Save visit as draft
+                        </button>
+                      </div>
                     </div>
                   </form>
                 </div>

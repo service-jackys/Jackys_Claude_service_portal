@@ -6077,9 +6077,38 @@ ${bodyHtml}
           : now === 1
             ? 'Book item 1 now'
             : `Book ${now} items now`;
+    const count = $('#visitCount');
+    count.hidden = extras === 0;
+    count.textContent = `${extras + 1} items`;
+    $('#visitSummary').innerHTML =
+      extras === 0
+        ? ''
+        : `<strong>${now} appointment${now === 1 ? '' : 's'}</strong> booked now` +
+          (later
+            ? ` · <strong>${later} item${later === 1 ? '' : 's'}</strong> kept as a draft`
+            : '');
     document.querySelectorAll('#visitExtraItems .visit-item').forEach((card, index) => {
-      card.querySelector('[data-visit-title]').textContent = `Item ${index + 2}`;
+      card.querySelector('[data-visit-num]').textContent = String(index + 2);
+      updateVisitCardSummary(card);
     });
+  }
+
+  // One-line summary and status pill on each item card (also shown when collapsed).
+  function updateVisitCardSummary(card) {
+    const value = (key) => card.querySelector(`[data-v="${key}"]`).value.trim();
+    const name = [value('brand'), value('model')].filter(Boolean).join(' · ');
+    card.querySelector('[data-visit-title]').textContent = name || 'New item';
+    const issue = value('faultDescription');
+    card.querySelector('[data-visit-sub]').textContent =
+      [issue.length > 60 ? issue.slice(0, 57) + '…' : issue, value('appointmentDate')]
+        .filter(Boolean)
+        .join(' · ') || 'Fill in the item below';
+    const pill = card.querySelector('[data-visit-pill]');
+    const later = card.querySelector('[data-visit-later]').checked;
+    const changed = card.dataset.overridden === '1';
+    pill.hidden = !later && !changed;
+    pill.classList.toggle('is-diff', changed && !later);
+    pill.textContent = later ? 'Book later' : changed ? 'Different date or technician' : '';
   }
 
   function addVisitItem() {
@@ -6089,7 +6118,13 @@ ${bodyHtml}
     card.className = 'visit-item';
     card.dataset.visitItem = String(id);
     card.innerHTML = `
-      <div class="visit-item-head"><span data-visit-title>Item</span>
+      <div class="visit-item-head">
+        <span class="visit-num" data-visit-num>2</span>
+        <div><div class="visit-item-title" data-visit-title>New item</div>
+          <div class="visit-item-sub" data-visit-sub>Fill in the item below</div></div>
+        <span class="visit-spacer"></span>
+        <span class="visit-pill is-diff" data-visit-pill hidden></span>
+        <button class="button-link" type="button" data-visit-toggle aria-expanded="true">Collapse</button>
         <button class="button-link" type="button" data-visit-remove>Remove</button></div>
       <div class="visit-grid">
         <div><label>Brand</label><input data-v="brand" maxlength="120" /></div>
@@ -6130,11 +6165,20 @@ ${bodyHtml}
       card.querySelector('[data-v="technicianId"]').value !== $('#newComplaintTechnician').value;
     card.dataset.overridden = dateChanged || techChanged ? '1' : '';
     card.querySelector('[data-visit-notice]').hidden = !(dateChanged || techChanged);
+    updateVisitCardSummary(card);
   }
 
   $('#addVisitItemButton').addEventListener('click', addVisitItem);
 
   $('#visitExtraItems').addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-visit-toggle]');
+    if (toggle) {
+      const card = toggle.closest('.visit-item');
+      const collapsed = card.classList.toggle('is-collapsed');
+      toggle.textContent = collapsed ? 'Edit' : 'Collapse';
+      toggle.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      return;
+    }
     if (!event.target.closest('[data-visit-remove]')) return;
     event.target.closest('.visit-item').remove();
     updateVisitSubmitLabel();
@@ -6163,6 +6207,8 @@ ${bodyHtml}
     });
   }
   $('#visitExtraItems').addEventListener('input', (event) => {
+    const card = event.target.closest('.visit-item');
+    if (card) updateVisitCardSummary(card);
     if (event.target.matches('[data-v="appointmentDate"]')) event.target.dataset.touched = '1';
   });
   $('#visitExtraItems').addEventListener('change', (event) => {
@@ -6257,12 +6303,12 @@ ${bodyHtml}
     const warn = visitDraftCache.filter((d) => d.ageDays === 2).length;
     const late = visitDraftCache.filter((d) => d.ageDays >= 3).length;
     $('#dashVisitDraftTiles').innerHTML =
-      dashboardTileHtml('Visits waiting to be booked', visitDraftCache.length, 'visitDrafts:all') +
+      dashboardTileHtml('Visits waiting', visitDraftCache.length, 'visitDrafts:all') +
       dashboardTileHtml('Waiting 2 days', warn, 'visitDrafts:all').replace(
         'dashboard-tile',
         'dashboard-tile tile-warn',
       ) +
-      dashboardTileHtml('Waiting 3+ days', late, 'visitDrafts:all').replace(
+      dashboardTileHtml('Overdue \u00B7 3+ days', late, 'visitDrafts:all').replace(
         'dashboard-tile',
         'dashboard-tile tile-late',
       );
@@ -6287,7 +6333,14 @@ ${bodyHtml}
     root.innerHTML = `<table class="data-table"><thead><tr><th>Customer</th><th>Items</th><th>Saved by</th><th>Saved</th><th>Waiting</th><th></th></tr></thead><tbody>${visitDraftCache
       .map((draft) => {
         const days = draft.ageDays;
-        const label = days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'}`;
+        const label =
+          days >= 3
+            ? `\u25B2 ${days} days \u00B7 overdue`
+            : days === 2
+              ? '\u25CF 2 days \u00B7 due soon'
+              : days === 0
+                ? '\u2713 Today'
+                : `\u2713 ${days} day`;
         return `<tr data-draft-id="${escapeHtml(draft.id)}"><td><strong>${escapeHtml(draft.customerName)}</strong>${draft.payload.contactNumber ? `<br><small>${escapeHtml(draft.payload.contactNumber)}</small>` : ''}</td><td>${escapeHtml(String(draft.itemCount))} · <small>${escapeHtml(visitDraftItemsText(draft))}</small></td><td>${escapeHtml(draft.createdByName || '—')}</td><td>${escapeHtml(formatDate(draft.createdAt))}</td><td><span class="draft-age ${visitDraftAgeClass(days)}">${label}</span></td><td>${canWrite ? '<button class="button button-primary" type="button" data-draft-open>Finish and book</button> <button class="button-link" type="button" data-draft-delete>Delete</button>' : ''}</td></tr>`;
       })
       .join('')}</tbody></table>`;
@@ -8790,7 +8843,7 @@ ${bodyHtml}
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)}/${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = total ? String(total) : '';

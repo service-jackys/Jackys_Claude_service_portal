@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 276,
+    "title": "Multi-item visit and Awaiting: professional restyle",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The multi-item visit form, the Awaiting tab and the dashboard card have a cleaner, more professional look. Booking works the same.",
+    "changes": [
+      "Item cards with a numbered badge, one-line summary, status pill, and Collapse or Edit.",
+      "A summary bar shows how many appointments are booked now and how many stay as a draft.",
+      "Waiting pills show an icon and words so they read on a black and white print.",
+      "The list tag reads Visit 1 of 3."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html"
+  },
+  {
     "id": 275,
     "title": "Visit drafts: save a visit for later, Awaiting tab and dashboard card",
     "area": "Appointments",
