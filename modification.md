@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #271 — Appointment sheet print: low-ink look and slightly larger type
+
+**Date:** 2026-11-18
+
+**Why.** Sheets are printed in black and white; the dark navy section bars used a lot of ink, and the smaller type from #270 was a little too small.
+
+**What changed (print layout only).**
+
+- Section headers (Customer details, Product details, Reference) are a light grey band with dark text inside a thin outlined box, instead of solid navy. The summary cards have thin borders and no tinted background; warranty and status print as plain text.
+- Type is between the #269 and #270 sizes: table text 11.25px, card name and date 15px, labels 10px.
+- A required detail with no value prints as a dashed-outline cell: red text on a pale red background on a colour printer, a light grey cell with a dashed black outline in black and white. The legend reads "Dashed box = required but not entered".
+- Required details keep the red asterisk (grey in B&W) and bold values.
+- Tests: tests/e2e/phase4-scheduling.spec.ts (unchanged, still passes).
+
+**Files.** apps/web/src/app.js.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #270 — Appointment sheet print: smaller fonts
 
 **Date:** 2026-11-18

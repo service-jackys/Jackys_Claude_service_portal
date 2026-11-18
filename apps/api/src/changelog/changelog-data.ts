@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 271,
+    "title": "Appointment sheet print: low-ink look and slightly larger type",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The printed appointment sheet uses light grey section headers with thin borders instead of dark bars, and slightly larger type. A missing required detail prints in a dashed box. Print layout only.",
+    "changes": [
+      "Light grey section headers with a thin border; no solid dark bars.",
+      "Type slightly larger than the previous version.",
+      "A missing required detail prints in a dashed box (red on a colour printer, grey in black and white)."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js"
+  },
+  {
     "id": 270,
     "title": "Appointment sheet print: smaller fonts",
     "area": "Appointments",
