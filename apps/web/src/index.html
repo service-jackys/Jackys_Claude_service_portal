@@ -16357,6 +16357,7 @@
                 role="tab"
                 class="ws-tab"
                 data-schedules-tab="appointments"
+                title="Calendar and list of every appointment. Open one to assign a technician, reschedule, change status or create the job card."
                 aria-selected="false"
               >
                 Appointments
@@ -16366,6 +16367,7 @@
                 role="tab"
                 class="ws-tab"
                 data-schedules-tab="new-request"
+                title="Book a new appointment for a request that came by email, WhatsApp, phone or a salesman. Several appliances for the same customer can be booked as one visit."
                 aria-selected="false"
               >
                 New request
@@ -16375,6 +16377,7 @@
                 role="tab"
                 class="ws-tab"
                 data-schedules-tab="daily-list"
+                title="The jobs of one day or date range for each technician or branch, ready to print as a list or as appointment sheets."
                 aria-selected="false"
               >
                 Daily schedule
@@ -16384,6 +16387,7 @@
                 role="tab"
                 class="ws-tab"
                 data-schedules-tab="visit-drafts"
+                title="Visits saved as drafts because they were not ready to book. The oldest come first: yellow after 2 days, red after 3 (72-hour target)."
                 aria-selected="false"
               >
                 Awaiting <span class="tab-count" id="visitDraftsTabCount" hidden>0</span>
@@ -16425,10 +16429,20 @@
                       </p>
                     </div>
                     <div class="dup-strip-actions">
-                      <button class="button button-primary" type="button" data-dup-mode="new">
+                      <button
+                        class="button button-primary"
+                        type="button"
+                        data-dup-mode="new"
+                        title="Keep the customer and address and enter a different appliance."
+                      >
                         New item
                       </button>
-                      <button class="button button-outline" type="button" data-dup-mode="same">
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        data-dup-mode="same"
+                        title="Also copy the appliance, and start the issue with “Repeat visit (previous APT…)”."
+                      >
                         Same appliance, repeat visit
                       </button>
                     </div>
@@ -16449,7 +16463,14 @@
                     <div class="field-grid">
                       <div class="field">
                         <label for="newComplaintSource"
-                          >Complaint source <span class="required">*</span></label
+                          >Complaint source <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >How the request reached us. Choose Salesman when a salesman sent it,
+                              then pick who.</span
+                            ></span
+                          ></label
                         >
                         <select id="newComplaintSource" required>
                           <option value="">How did it reach us?</option>
@@ -16462,7 +16483,14 @@
                       </div>
                       <div class="field" id="newComplaintSalesmanField" hidden>
                         <label for="newComplaintSalesman"
-                          >Salesman <span class="required">*</span></label
+                          >Salesman <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The salesman who sent this request. Their sales channel is linked
+                              automatically.</span
+                            ></span
+                          ></label
                         >
                         <select id="newComplaintSalesman">
                           <option value="">Select a salesman</option>
@@ -16471,7 +16499,14 @@
                       </div>
                       <div class="field">
                         <label for="newComplaintAppointmentDate"
-                          >Appointment date <span class="required">*</span></label
+                          >Appointment date <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The day the technician will visit. A technician who is already full
+                              that day cannot be booked.</span
+                            ></span
+                          ></label
                         >
                         <input id="newComplaintAppointmentDate" type="date" required />
                         <span
@@ -16500,7 +16535,14 @@
                       ></div>
                       <div class="field">
                         <label for="newComplaintCustomerType"
-                          >Customer type <span class="required">*</span></label
+                          >Customer type <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >B2C is a private customer. B2B is a company, school or branch from
+                              the B2B list.</span
+                            ></span
+                          ></label
                         >
                         <select id="newComplaintCustomerType" required>
                           <option value="">Select a type</option>
@@ -16511,7 +16553,15 @@
                       </div>
                       <div class="field">
                         <label for="newComplaintCustomerName"
-                          >Customer / Company name <span class="required">*</span></label
+                          >Customer / Company name <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The customer name as it should appear on the appointment and the job
+                              card. Typing a phone number or name also looks up earlier
+                              visits.</span
+                            ></span
+                          ></label
                         >
                         <input
                           id="newComplaintCustomerName"
@@ -16539,16 +16589,39 @@
                         <div class="rl" id="repeatLookup" aria-live="polite"></div>
                       </div>
                       <div class="field">
-                        <label for="newComplaintCustomerEmail">Email address</label>
+                        <label for="newComplaintCustomerEmail"
+                          >Email address<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Optional. Only needed if the customer should receive emails about
+                              this appointment.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintCustomerEmail" type="email" maxlength="320" />
                         <span class="field-error" data-error-for="newComplaintCustomerEmail"></span>
                       </div>
                       <div class="field field-wide">
-                        <label for="newComplaintAddress">Address</label>
+                        <label for="newComplaintAddress"
+                          >Address<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Where the technician must go. Add the building, area and a
+                              landmark.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintAddress" maxlength="500" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintRegion">Region</label>
+                        <label for="newComplaintRegion"
+                          >Region<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The emirate or area. It helps group visits by region.</span
+                            ></span
+                          ></label
+                        >
                         <select id="newComplaintRegion">
                           <option value="">— Select region —</option>
                           <option>Dubai</option>
@@ -16585,35 +16658,95 @@
                       ></ul>
                       <p id="newComplaintB2bBranchSearchMessage" class="form-note field-wide"></p>
                       <div class="field">
-                        <label for="newComplaintB2bBranchSchool">B2B Branch / School</label>
+                        <label for="newComplaintB2bBranchSchool"
+                          >B2B Branch / School<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The branch or school selected above. It fills in the contact and
+                              customer details for you.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintB2bBranchSchool" placeholder="Or type it directly" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintSchoolContactPerson">Site contact person</label>
+                        <label for="newComplaintSchoolContactPerson"
+                          >Site contact person<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The person on site who will meet the technician.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintSchoolContactPerson" maxlength="500" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintSchoolContactNumber">Site contact number</label>
+                        <label for="newComplaintSchoolContactNumber"
+                          >Site contact number<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Phone number of the person on site.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintSchoolContactNumber" type="tel" maxlength="100" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintCustomerNumber">Customer number</label>
+                        <label for="newComplaintCustomerNumber"
+                          >Customer number<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The customer code from ERP. Filled in automatically for B2B
+                              branches.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintCustomerNumber" maxlength="100" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintSalesOrderNumber">Sales order no.</label>
+                        <label for="newComplaintSalesOrderNumber"
+                          >Sales order no.<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The sales order or invoice number of the purchase, if the customer
+                              has it. It helps confirm the warranty.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintSalesOrderNumber" maxlength="100" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintBrand">Brand</label>
+                        <label for="newComplaintBrand"
+                          >Brand<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The brand of the appliance.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintBrand" maxlength="120" />
                       </div>
                       <div class="field">
-                        <label for="newComplaintModel">Model</label>
+                        <label for="newComplaintModel"
+                          >Model<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The model as printed on the appliance label.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintModel" maxlength="120" />
                       </div>
                       <div class="field field-wide">
-                        <label for="newComplaintSerialOrItemCode">Serial number or item code</label>
+                        <label for="newComplaintSerialOrItemCode"
+                          >Serial number or item code<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The serial number or ERP item code from the label. Used to look up
+                              the warranty.</span
+                            ></span
+                          ></label
+                        >
                         <input id="newComplaintSerialOrItemCode" maxlength="120" />
                       </div>
                       <div class="field">
@@ -16634,7 +16767,14 @@
                       </div>
                       <div class="field field-wide">
                         <label for="newComplaintDescription"
-                          >Describe the issue <span class="required">*</span></label
+                          >Describe the issue <span class="required">*</span
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >What is wrong, in the customer’s words. The technician reads this on
+                              the appointment sheet.</span
+                            ></span
+                          ></label
                         >
                         <textarea
                           id="newComplaintDescription"
@@ -16647,7 +16787,16 @@
                     <div class="visit-extra" id="visitExtraWrap">
                       <div class="visit-extra-head">
                         <div>
-                          <strong>More items in this visit</strong>
+                          <strong>More items in this visit</strong
+                          ><span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >Use this when the same customer has more than one appliance for the
+                              same visit. Each item gets its own appointment number and becomes its
+                              own job card. Items can go to a different day or technician. Tick Book
+                              this item later to leave one out for now.</span
+                            ></span
+                          >
                           <p>
                             Same customer and address. Each item gets its own appointment number and
                             becomes its own job card.
@@ -16656,7 +16805,12 @@
                         <span class="visit-count" id="visitCount" hidden></span>
                       </div>
                       <div id="visitExtraItems"></div>
-                      <button class="visit-add" type="button" id="addVisitItemButton">
+                      <button
+                        class="visit-add"
+                        type="button"
+                        id="addVisitItemButton"
+                        title="Add another appliance for the same customer and address."
+                      >
                         + Add another item to this visit
                       </button>
                     </div>
@@ -16667,6 +16821,7 @@
                           class="button button-primary"
                           type="submit"
                           id="submitNewComplaintButton"
+                          title="Books the appointment now, or every item together as one visit. The technician’s daily limit is checked first."
                         >
                           Book appointment
                         </button>
@@ -16674,6 +16829,7 @@
                           class="button button-outline"
                           type="button"
                           id="saveVisitDraftButton"
+                          title="Saves what you have entered without booking. It appears in the Awaiting tab and on the dashboard. Only the customer name and one item are needed."
                         >
                           Save visit as draft
                         </button>
@@ -17944,37 +18100,49 @@
                   <label class="visually-hidden" for="appointmentSearch">Search appointments</label
                   ><input
                     id="appointmentSearch"
+                    title="Type part of the appointment number, customer name or phone number."
                     type="search"
                     placeholder="Search reference or customer"
                   /><label class="visually-hidden" for="appointmentStatusFilter"
                     >Filter appointment status</label
-                  ><select id="appointmentStatusFilter">
+                  ><select
+                    id="appointmentStatusFilter"
+                    title="Show only appointments with this status."
+                  >
                     <option value="">All statuses</option>
                     <option>Scheduled</option>
                     <option>In Progress</option>
                     <option>Completed</option>
                     <option>Cancelled</option></select
                   ><label class="visually-hidden" for="appointmentFrom">Appointments from</label
-                  ><input id="appointmentFrom" type="date" /><label
-                    class="visually-hidden"
-                    for="appointmentTo"
-                    >Appointments to</label
-                  ><input id="appointmentTo" type="date" /><label
-                    class="visually-hidden"
-                    for="appointmentTechnicianFilter"
+                  ><input
+                    id="appointmentFrom"
+                    title="Show appointments from this date. Leave both dates empty to follow the calendar month or week."
+                    type="date"
+                  /><label class="visually-hidden" for="appointmentTo">Appointments to</label
+                  ><input
+                    id="appointmentTo"
+                    title="Show appointments up to this date."
+                    type="date"
+                  /><label class="visually-hidden" for="appointmentTechnicianFilter"
                     >Filter by technician</label
-                  ><select id="appointmentTechnicianFilter">
+                  ><select
+                    id="appointmentTechnicianFilter"
+                    title="Show one technician’s appointments."
+                  >
                     <option value="">All technicians</option></select
                   ><button
                     class="button button-outline"
                     type="button"
                     id="appointmentPrintListButton"
+                    title="Prints the list of scheduled appointments for the dates and technician chosen."
                   >
                     Print list</button
                   ><button
                     class="button button-outline"
                     type="button"
                     id="appointmentPrintSheetsButton"
+                    title="Prints one appointment sheet per scheduled appointment for the dates and technician chosen."
                   >
                     Print sheets
                   </button>
@@ -18010,7 +18178,12 @@
                       >
                         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
                       </button>
-                      <button class="cal-today" type="button" id="calendarTodayButton">
+                      <button
+                        class="cal-today"
+                        type="button"
+                        id="calendarTodayButton"
+                        title="Jump to today."
+                      >
                         Today
                       </button>
                     </div>
@@ -18020,6 +18193,7 @@
                         class="cal-seg-btn is-active"
                         type="button"
                         id="calendarMonthButton"
+                        title="Show the whole month. The list below follows the month."
                         aria-pressed="true"
                       >
                         Month
@@ -18028,6 +18202,7 @@
                         class="cal-seg-btn"
                         type="button"
                         id="calendarWeekButton"
+                        title="Show one week. The list below follows the week."
                         aria-pressed="false"
                       >
                         Week
@@ -18040,7 +18215,15 @@
                 </div>
                 <h3 class="cal-list-title">
                   All appointments <span class="ap-count" id="appointmentListCount"></span>
-                  <span class="ap-range" id="appointmentListRange"></span>
+                  <span class="ap-range" id="appointmentListRange"></span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Every appointment for the month or week shown in the calendar, or for the
+                      From and To dates when you set them. Click a calendar day to see only that
+                      day. Items of one visit carry a Visit n of N tag.</span
+                    ></span
+                  >
                 </h3>
                 <div class="ap-daybar" id="appointmentDayBar" hidden>
                   <span id="appointmentDayLabel" aria-live="polite"></span>
@@ -18048,6 +18231,7 @@
                     class="button button-outline"
                     type="button"
                     id="appointmentDayClearButton"
+                    title="Remove the day you clicked and show every date in the list again."
                   >
                     Show all dates
                   </button>
@@ -18097,6 +18281,7 @@
                         class="button button-outline"
                         type="button"
                         id="discussAppointmentButton"
+                        title="Open a chat thread about this appointment for the team."
                         hidden
                       >
                         Discuss
@@ -18105,6 +18290,7 @@
                         class="button button-outline"
                         type="button"
                         id="duplicateAppointmentButton"
+                        title="Copy this customer and appliance into a new request. Works for any status."
                         hidden
                       >
                         Duplicate as new request
@@ -18113,6 +18299,7 @@
                         class="button button-outline"
                         type="button"
                         id="printAppointmentButton"
+                        title="Print the appointment sheet for the technician."
                       >
                         Print
                       </button>
@@ -18120,6 +18307,7 @@
                         class="button button-outline"
                         type="button"
                         id="closeAppointmentDetailButton"
+                        title="Close the details."
                       >
                         Close details
                       </button>
@@ -18138,7 +18326,15 @@
                       </p>
                       <form id="appointmentAssignmentForm" novalidate>
                         <div class="field">
-                          <label for="appointmentTechnician">Technician</label>
+                          <label for="appointmentTechnician"
+                            >Technician<span class="tooltip" tabindex="0"
+                              ><span class="tooltip-icon" aria-hidden="true">i</span
+                              ><span class="tooltip-bubble" role="tooltip"
+                                >Only technicians who are not full on the appointment date can be
+                                assigned.</span
+                              ></span
+                            ></label
+                          >
                           <select id="appointmentTechnician" name="technicianId">
                             <option value="">Loading technicians…</option>
                           </select>
@@ -18149,6 +18345,7 @@
                             class="button button-outline"
                             type="button"
                             id="unassignAppointmentButton"
+                            title="Remove the technician. The appointment stays scheduled and needs a technician before it can be printed."
                           >
                             Unassign
                           </button>
@@ -18174,7 +18371,14 @@
                       </p>
                       <form id="appointmentScheduleForm" novalidate>
                         <div class="field">
-                          <label for="appointmentRescheduleDate">Date</label>
+                          <label for="appointmentRescheduleDate"
+                            >Date<span class="tooltip" tabindex="0"
+                              ><span class="tooltip-icon" aria-hidden="true">i</span
+                              ><span class="tooltip-bubble" role="tooltip"
+                                >The new visit date. The technician’s daily limit is checked.</span
+                              ></span
+                            ></label
+                          >
                           <input
                             id="appointmentRescheduleDate"
                             name="appointmentDate"
@@ -18207,13 +18411,28 @@
                       <p>Choose the next status allowed by the appointment workflow.</p>
                       <form id="appointmentStatusForm" novalidate>
                         <div class="field">
-                          <label for="appointmentNextStatus">Next status</label>
+                          <label for="appointmentNextStatus"
+                            >Next status<span class="tooltip" tabindex="0"
+                              ><span class="tooltip-icon" aria-hidden="true">i</span
+                              ><span class="tooltip-bubble" role="tooltip"
+                                >Appointments move forward only: Scheduled, In Progress, then
+                                Completed. Cancel needs a reason.</span
+                              ></span
+                            ></label
+                          >
                           <select id="appointmentNextStatus" name="status"></select>
                           <span class="field-error" data-error-for="appointmentNextStatus"></span>
                         </div>
                         <div class="field">
                           <label for="appointmentStatusReason"
-                            >Reason <span class="visually-hidden">(optional)</span></label
+                            >Reason <span class="visually-hidden">(optional)</span
+                            ><span class="tooltip" tabindex="0"
+                              ><span class="tooltip-icon" aria-hidden="true">i</span
+                              ><span class="tooltip-bubble" role="tooltip"
+                                >Required when cancelling. It is kept in the appointment
+                                history.</span
+                              ></span
+                            ></label
                           >
                           <textarea
                             id="appointmentStatusReason"
@@ -18241,6 +18460,7 @@
                       class="button button-outline"
                       type="button"
                       id="createJobCardButton"
+                      title="Create the service job card from this appointment so the technician can record the work."
                       hidden
                     >
                       Create service job card
@@ -18249,6 +18469,7 @@
                       class="button button-outline"
                       type="button"
                       id="downloadAppointmentIcsButton"
+                      title="Download a calendar file (.ics) to add the visit to Outlook or a phone calendar."
                     >
                       Download calendar file
                     </button>

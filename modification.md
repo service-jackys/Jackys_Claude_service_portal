@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #280 — Tooltips across the Schedules tabs
+
+**Date:** 2026-11-18
+
+**Why.** After the day's changes the Schedules page has four tabs and many fields. Anyone should be able to hover and learn what a tab, field or button does, so nobody is left guessing.
+
+**What changed.**
+
+- **Tabs:** each of Appointments, New request, Daily schedule and Awaiting has a hover description.
+- **New request:** (i) tooltips on Complaint source, Salesman, Appointment date, Customer type, Customer name, Email, Address, Region, B2B Branch / School, Site contact person and number, Customer number, Sales order no., Brand, Model, Serial number or item code and Describe the issue. The "More items in this visit" heading explains visits; the buttons explain themselves (Add another item, Book appointment, Save visit as draft, New item, Same appliance repeat visit).
+- **Appointments:** hover text on the search, status, date and technician filters, Print list and Print sheets, the calendar buttons, Show all dates, the detail buttons (Discuss, Duplicate, Print, Unassign, Create service job card, Download calendar file) and the row Message button; (i) tooltips on the All appointments heading, the Assign technician, Reschedule date, Next status and cancel reason fields.
+- **Daily schedule:** (i) tooltips on From, To, Group by, Show visits and Technician; hover text on Today, Tomorrow, Print list, Print appointment sheets and each Sheet button.
+- **Awaiting:** (i) tooltips on Items and Waiting (what green, yellow and red mean); hover text on Finish and book and Delete.
+- No behaviour change, no migration. Tests: tests/e2e/tooltips.spec.ts.
+
+**Files.** apps/web/src/index.html, apps/web/src/app.js, tests/e2e/tooltips.spec.ts.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #279 — Daily schedule: show visits grouped (optional)
 
 **Date:** 2026-11-18
