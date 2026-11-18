@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #269 — Appointment sheet print: switched to the summary-cards layout
+
+**Date:** 2026-11-18
+
+**Why.** After printing the #268 layout the user preferred the earlier "Sample B" look, without tick boxes.
+
+**What changed (print layout only).**
+
+- Two summary cards at the top: Customer (name, contact, region, type) and Visit (appointment date, technician, warranty, status).
+- Below them, three label/value tables: Customer details, Product details and Reference. Fault reported, Work done, Parts used and the signature boxes are unchanged.
+- Required details keep the red asterisk and bold values; a required detail with no value prints in red as "Not entered".
+- Warranty now sits in the Visit card; Salesman and Sales order sit under Product details.
+- Tests: tests/e2e/phase4-scheduling.spec.ts (print case updated).
+
+**Files.** apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #268 — Appointment sheet print: grouped sections with required details highlighted
 
 **Date:** 2026-11-18

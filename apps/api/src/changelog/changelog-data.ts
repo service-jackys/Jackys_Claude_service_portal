@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 269,
+    "title": "Appointment sheet print: summary-cards layout",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The appointment sheet print now opens with two summary cards (customer and visit) followed by Customer, Product and Reference tables. Required details are marked and missing ones print in red. Print layout only.",
+    "changes": [
+      "Customer and Visit summary cards at the top.",
+      "Customer details, Product details and Reference tables, no tick boxes.",
+      "Required details carry a red asterisk and bold values; a missing one prints as Not entered in red."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts"
+  },
+  {
     "id": 268,
     "title": "Appointment sheet print: grouped sections with required details highlighted",
     "area": "Appointments",
