@@ -796,10 +796,12 @@
     $('#inspectionsNav').hidden = !hasPermission('inspection.read');
     $('#warrantyApprovalsNav').hidden = !hasPermission('warranty_approval.read');
     $('#dashboardNav').hidden = !hasPermission('dashboard.read');
-    $('#appointmentsNav').hidden = !hasPermission('appointments.read');
+    $('#schedulesNav').hidden = !hasPermission('appointments.read');
+    // Appointments, New request and Daily schedule are now tabs of Schedules.
+    $('#appointmentsNav').hidden = true;
     $('#techniciansNav').hidden = !hasPermission('technicians.read');
     $('#teamAccountsNav').hidden = !hasPermission('admin.users');
-    $('#newRequestNav').hidden = !hasPermission('appointments.write');
+    $('#newRequestNav').hidden = true;
     $('#masterDataNav').hidden = !hasPermission('salesmen.write');
     const canReadPricingConfig = hasPermission('pricing_config.read');
     $('#vasAdminNav').hidden = !canReadPricingConfig;
@@ -846,7 +848,7 @@
     );
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
-    $('#dailyListNav').hidden = !hasPermission('appointments.read');
+    $('#dailyListNav').hidden = true;
     $('#deliveryInstallNav').hidden = !hasPermission('di_jobs.read');
     $('#invoicesNav').hidden = !hasPermission('invoices.read');
     $('#billingNav').hidden = !hasPermission('billing.read');
@@ -919,6 +921,7 @@
     returningFromLink = true;
     try {
       activateWorkspaceMode(target.mode);
+      syncSchedulesTabs(target.mode);
     } finally {
       returningFromLink = false;
     }
@@ -975,10 +978,59 @@
       if (navTrail.length > 6) navTrail.shift();
     }
     activateWorkspaceMode(mode);
+    syncSchedulesTabs(mode);
     drawReturnBar();
     // A link far down a long table opens the next page at its top, where the way back is.
     if (drillIn && mode !== from) window.scrollTo({ top: 0 });
   }
+
+  // Schedules (modification #273): Appointments, New request and Daily schedule
+  // are three tabs of one sidebar page. The pages themselves are unchanged; one
+  // shared tab bar is moved to the top of whichever of them is showing.
+  const SCHEDULES_TABS = {
+    appointments: {
+      host: '#appointmentWorkspace > .card-body',
+      description: 'Review scheduled service visits and update their operations status.',
+    },
+    'new-request': {
+      host: '#newComplaintWorkspace > .card-body',
+      description: 'Book a new appointment manually for a customer.',
+    },
+    'daily-list': {
+      host: '#dailyListWorkspace > .card-body',
+      description: 'Appointments by day, grouped by technician or branch, with print.',
+    },
+  };
+  function syncSchedulesTabs(mode) {
+    const nav = document.getElementById('schedulesNav');
+    const bar = document.getElementById('schedulesTabs');
+    if (!nav || !bar) return;
+    const tab = SCHEDULES_TABS[mode];
+    nav.setAttribute('aria-current', tab ? 'page' : 'false');
+    if (!tab) {
+      bar.hidden = true;
+      return;
+    }
+    ['appointmentsNav', 'newRequestNav', 'dailyListNav'].forEach((id) =>
+      document.getElementById(id)?.setAttribute('aria-current', 'false'),
+    );
+    const host = document.querySelector(tab.host);
+    if (host && bar.parentElement !== host) host.prepend(bar);
+    bar.hidden = false;
+    bar.querySelectorAll('[data-schedules-tab]').forEach((button) => {
+      const key = button.dataset.schedulesTab;
+      const active = key === mode;
+      button.classList.toggle('is-active', active);
+      button.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (key === 'new-request') button.hidden = !hasPermission('appointments.write');
+    });
+    $('#workspace-heading').textContent = 'Schedules';
+    $('#workspaceDescription').textContent = tab.description;
+  }
+  document.getElementById('schedulesTabs')?.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-schedules-tab]');
+    if (button) setWorkspaceMode(button.dataset.schedulesTab);
+  });
 
   let keepQuotationJobPanel = false;
   function activateWorkspaceMode(mode) {
@@ -10129,6 +10181,7 @@ ${bodyHtml}
   $('#quotationsNav').addEventListener('click', () => setWorkspaceMode('quotations'));
   $('#inspectionsNav').addEventListener('click', () => setWorkspaceMode('inspections'));
   $('#appointmentsNav').addEventListener('click', () => setWorkspaceMode('appointments'));
+  $('#schedulesNav').addEventListener('click', () => setWorkspaceMode('appointments'));
   $('#techniciansNav').addEventListener('click', () => setWorkspaceMode('technicians'));
   $('#teamAccountsNav').addEventListener('click', () => setWorkspaceMode('team-accounts'));
   $('#newRequestNav').addEventListener('click', () => setWorkspaceMode('new-request'));
@@ -12937,6 +12990,7 @@ ${bodyHtml}
       'warrantyApprovalsNav',
       'dashboardNav',
       'appointmentsNav',
+      'schedulesNav',
       'techniciansNav',
       'teamAccountsNav',
       'newRequestNav',
@@ -20528,6 +20582,7 @@ ${bodyHtml}
       'warrantyApprovalsNav',
       'dashboardNav',
       'appointmentsNav',
+      'schedulesNav',
       'techniciansNav',
       'teamAccountsNav',
       'newRequestNav',

@@ -6984,6 +6984,9 @@
         color: var(--blue);
         border-bottom-color: var(--blue);
       }
+      .schedules-tabs[hidden] {
+        display: none;
+      }
       .ws-tab[hidden] {
         display: none;
       }
@@ -13809,6 +13812,20 @@
                     <button
                       class="dashboard-link"
                       type="button"
+                      id="schedulesNav"
+                      hidden
+                      aria-label="Schedules"
+                      title="Schedules: appointments, new requests and the daily schedule"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calendar"></use>
+                      </svg>
+                      <span class="nav-label">Schedules</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
                       id="dailyListNav"
                       hidden
                       aria-label="Daily schedule"
@@ -15885,6 +15902,41 @@
               </div>
             </div>
 
+            <div
+              class="ws-tabs schedules-tabs"
+              role="tablist"
+              id="schedulesTabs"
+              aria-label="Schedules"
+              hidden
+            >
+              <button
+                type="button"
+                role="tab"
+                class="ws-tab"
+                data-schedules-tab="appointments"
+                aria-selected="false"
+              >
+                Appointments
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class="ws-tab"
+                data-schedules-tab="new-request"
+                aria-selected="false"
+              >
+                New request
+              </button>
+              <button
+                type="button"
+                role="tab"
+                class="ws-tab"
+                data-schedules-tab="daily-list"
+                aria-selected="false"
+              >
+                Daily schedule
+              </button>
+            </div>
             <div class="card" id="newComplaintWorkspace" hidden>
               <div class="card-body">
                 <div id="newComplaintMessage" class="notice notice-error" role="alert" hidden></div>

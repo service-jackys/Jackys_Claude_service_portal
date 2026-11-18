@@ -142,7 +142,7 @@ async function signInAndOpenAppointments(page: import('@playwright/test').Page) 
   await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.locator('#complaintsNav').dispatchEvent('click');
-  await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+  await page.locator('#schedulesNav').click();
 }
 
 test.describe('Phase4 appointment calendar and recovery', () => {
@@ -150,7 +150,7 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     const api = await installStaffApi(page);
     await signInAndOpenAppointments(page);
 
-    await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Schedules', exact: true })).toBeVisible();
     // Month grids are whole weeks (35 or 42 cells depending on the real month).
     await expect
       .poll(async () => {
@@ -217,6 +217,46 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await page.getByRole('button', { name: 'Next' }).click();
     await expect(page.locator('#appointmentFrom')).toHaveValue('');
     await expect.poll(() => last().get('from')).not.toBe('2026-03-05');
+  });
+
+  test('Schedules is one sidebar page with Appointments, New request and Daily schedule tabs', async ({
+    page,
+  }) => {
+    await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    await expect(page.locator('#appointmentsNav')).toBeHidden();
+    await expect(page.locator('#newRequestNav')).toBeHidden();
+    await expect(page.locator('#dailyListNav')).toBeHidden();
+    await expect(page.locator('#schedulesNav')).toHaveAttribute('aria-current', 'page');
+    const tabs = page.locator('#schedulesTabs');
+    await expect(tabs.getByRole('tab')).toHaveText([
+      'Appointments',
+      'New request',
+      'Daily schedule',
+    ]);
+    await expect(tabs.getByRole('tab', { name: 'Appointments' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
+    await expect(page.locator('#appointmentWorkspace')).toBeVisible();
+
+    await tabs.getByRole('tab', { name: 'New request' }).click();
+    await expect(page.locator('#newComplaintWorkspace')).toBeVisible();
+    await expect(page.locator('#appointmentWorkspace')).toBeHidden();
+    await expect(page.locator('#newComplaintWorkspace #schedulesTabs')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Schedules', exact: true })).toBeVisible();
+
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'Daily schedule' }).click();
+    await expect(page.locator('#dailyListWorkspace')).toBeVisible();
+    await expect(page.locator('#dailyListWorkspace #schedulesTabs')).toBeVisible();
+    await expect(page.locator('#schedulesNav')).toHaveAttribute('aria-current', 'page');
+
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'Appointments' }).click();
+    await expect(page.locator('#appointmentWorkspace')).toBeVisible();
+
+    await page.locator('#dashboardNav').dispatchEvent('click');
+    await expect(page.locator('#schedulesTabs')).toBeHidden();
+    await expect(page.locator('#schedulesNav')).toHaveAttribute('aria-current', 'false');
   });
 
   test('reschedules through the accessible form and refreshes authoritative state', async ({

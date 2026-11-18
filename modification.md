@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #273 — Schedules: Appointments, New request and Daily schedule in one page
+
+**Date:** 2026-11-18
+
+**Why.** Service desk had three separate menu items for the same work (New request, Daily schedule, Appointments).
+
+**What changed.**
+
+- One menu item, **Schedules**, in Service desk. It opens with three tabs: **Appointments**, **New request** and **Daily schedule**.
+- The three old menu items are gone from the sidebar. The pages themselves are unchanged and everything that links to an appointment or the daily schedule still lands on the right tab.
+- The page heading reads Schedules; the line under it describes the tab you are on.
+- Permissions are unchanged: Schedules needs the appointments view permission, and the New request tab shows only for people who can create appointments.
+- Tests: tests/e2e/phase4-scheduling.spec.ts (new tab test); other e2e specs updated to open Schedules.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/*.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #272 — Appointments: "All appointments" list follows the calendar and date filters
 
 **Date:** 2026-11-18

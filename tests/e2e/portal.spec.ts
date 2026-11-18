@@ -540,9 +540,9 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.locator('#complaintsNav').dispatchEvent('click');
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
 
-    await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Schedules', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'APT-2026-00001' })).toBeVisible();
     await page.locator('#appointmentSearch').fill('APT-2026');
     await page.locator('#appointmentStatusFilter').selectOption('Scheduled');
@@ -690,7 +690,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.locator('#complaintsNav').dispatchEvent('click');
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
 
     await page.locator('#appointmentTechnician').selectOption('8');
@@ -792,7 +792,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.locator('#complaintsNav').dispatchEvent('click');
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
 
     await expect(page.locator('#appointmentNextStatus')).toHaveValue('');
@@ -879,7 +879,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.locator('#complaintsNav').dispatchEvent('click');
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     const downloadPromise = page.waitForEvent('download');
     await page.getByRole('button', { name: 'Download calendar file' }).click();
@@ -950,7 +950,7 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('readonly@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('heading', { name: 'Appointments', exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Schedules', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await expect(page.locator('#appointmentActions')).toBeHidden();
     await expect(page.getByRole('button', { name: 'Download calendar file' })).toBeVisible();
@@ -1003,7 +1003,7 @@ test.describe('staff access boundary', () => {
     await page.locator('#loginEmail').fill('user@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await expect(page.getByRole('button', { name: 'Appointments', exact: true })).toBeHidden();
+    await expect(page.locator('#schedulesNav')).toBeHidden();
     expect(appointmentRequests).toBe(0);
   });
 
@@ -1097,7 +1097,7 @@ test.describe('staff access boundary', () => {
     await page.getByRole('button', { name: 'Sign in' }).click();
     await expect(page.locator('#staff-workspace')).toBeVisible();
     await page.locator('#complaintsNav').dispatchEvent('click');
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.locator('#appointmentTechnician').selectOption('8');
     await page.getByRole('button', { name: 'Save assignment' }).click();
@@ -1210,7 +1210,7 @@ test.describe('staff access boundary', () => {
       await expect(
         page.getByRole('button', { name: 'Service requests', exact: true }),
       ).toBeVisible();
-      await expect(page.getByRole('button', { name: 'Appointments', exact: true })).toBeVisible();
+      await expect(page.locator('#schedulesNav')).toBeVisible();
       expect(complaintListRequests).toHaveLength(1);
       expect(appointmentListRequests).toHaveLength(0);
     });
@@ -1264,7 +1264,7 @@ test.describe('staff access boundary', () => {
 
     await expect(page.getByRole('button', { name: 'Complaint inbox', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Service requests', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Appointments', exact: true })).toBeVisible();
+    await expect(page.locator('#schedulesNav')).toBeVisible();
   });
 
   test('shows a clear no-access state without protected list requests', async ({ page }) => {
@@ -1750,7 +1750,7 @@ test.describe('service job-card workspace', () => {
     await page.locator('#loginEmail').fill('appointments@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.getByRole('button', { name: 'Create service job card' }).click();
 
@@ -1978,7 +1978,7 @@ test.describe('service job-card workspace', () => {
     await page.locator('#loginEmail').fill('appointments@jackys.com');
     await page.locator('#loginPassword').fill('local-password-1234');
     await page.getByRole('button', { name: 'Sign in' }).click();
-    await page.getByRole('button', { name: 'Appointments', exact: true }).click();
+    await page.locator('#schedulesNav').click();
     await page.getByRole('button', { name: 'APT-2026-00001' }).click();
     await page.getByRole('button', { name: 'Create service job card' }).click();
 
