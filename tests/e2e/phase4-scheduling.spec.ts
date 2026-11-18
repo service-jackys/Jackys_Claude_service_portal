@@ -460,6 +460,51 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await expect(page.locator('#visitDraftsWorkspace tr[data-draft-id="99"]')).toBeVisible();
   });
 
+  test('Duplicate as new request copies the customer, leaves date blank, and can repeat the appliance', async ({
+    page,
+  }) => {
+    await installStaffApi(page, {
+      appointment: {
+        ...appointment,
+        status: 'Completed',
+        brand: 'LG',
+        model: 'FWM 8kg Washer',
+        address: 'Villa 12, Marina',
+        customerType: 'B2C',
+        itemCode: 'SN-123',
+        jobWarranty: 'Out Warranty',
+      } as typeof appointment,
+    });
+    await signInAndOpenAppointments(page);
+    await page.locator('[data-appointment-id="501"]').click();
+    await page.locator('#duplicateAppointmentButton').click();
+
+    await expect(page.locator('#newComplaintWorkspace')).toBeVisible();
+    await expect(page.locator('#duplicateStrip')).toBeVisible();
+    await expect(page.locator('#duplicateStripTitle')).toContainText('APT-2026-00001');
+    await expect(page.locator('#duplicateStripTitle')).toContainText('LG FWM 8kg Washer');
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+    await expect(page.locator('#newComplaintAddress')).toHaveValue('Villa 12, Marina');
+    await expect(page.locator('#newComplaintAppointmentDate')).toHaveValue('');
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('');
+
+    await page.locator('[data-dup-mode="same"]').click();
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('LG');
+    await expect(page.locator('#newComplaintSerialOrItemCode')).toHaveValue('SN-123');
+    await expect(page.locator('#newComplaintDescription')).toHaveValue(
+      /Repeat visit \(previous APT-2026-00001\)/,
+    );
+    await page.locator('[data-dup-mode="new"]').click();
+    await expect(page.locator('#newComplaintBrand')).toHaveValue('');
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+
+    // Also from the list row.
+    await page.locator('#schedulesTabs').getByRole('tab', { name: 'Appointments' }).click();
+    await page.locator('[data-appointment-duplicate="501"]').click();
+    await expect(page.locator('#duplicateStrip')).toBeVisible();
+    await expect(page.locator('#newComplaintCustomerName')).toHaveValue('Calendar Customer');
+  });
+
   test('reschedules through the accessible form and refreshes authoritative state', async ({
     page,
   }) => {

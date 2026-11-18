@@ -13281,6 +13281,40 @@
         border-color: #d9534f;
         background: #fff1f0;
       }
+      .dup-strip {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+        padding: 12px 16px;
+        border: 1px solid #bcd8ee;
+        border-radius: 12px;
+        background: #f3f9fe;
+      }
+      .dup-strip[hidden] {
+        display: none;
+      }
+      .dup-strip strong {
+        color: #124a78;
+      }
+      .dup-strip p {
+        margin: 2px 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .dup-strip-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .dup-strip-actions .is-active {
+        box-shadow: 0 0 0 3px rgb(23 105 170 / 20%);
+      }
+      .ap-dup-btn {
+        margin-left: 6px;
+      }
     </style>
   </head>
   <body>
@@ -16254,6 +16288,23 @@
                   </div>
                 </div>
                 <div id="newComplaintFields">
+                  <div class="dup-strip" id="duplicateStrip" hidden>
+                    <div>
+                      <strong id="duplicateStripTitle"></strong>
+                      <p>
+                        Customer and address are filled in. Date and technician are left blank for
+                        you to choose.
+                      </p>
+                    </div>
+                    <div class="dup-strip-actions">
+                      <button class="button button-primary" type="button" data-dup-mode="new">
+                        New item
+                      </button>
+                      <button class="button button-outline" type="button" data-dup-mode="same">
+                        Same appliance, repeat visit
+                      </button>
+                    </div>
+                  </div>
                   <div class="card-help">
                     <span>About this page</span
                     ><span class="tooltip" tabindex="0"
@@ -17918,6 +17969,14 @@
                         hidden
                       >
                         Discuss
+                      </button>
+                      <button
+                        class="button button-outline"
+                        type="button"
+                        id="duplicateAppointmentButton"
+                        hidden
+                      >
+                        Duplicate as new request
                       </button>
                       <button
                         class="button button-outline"
