@@ -30,6 +30,10 @@ export type DailyListRow = {
   subGroup: string | null;
   salesman: string | null;
   complaintSource: string | null;
+  // Items booked together as one visit share a group; position and size are read-only.
+  visitGroupId: string | null;
+  visitItemNo: number | null;
+  visitItemCount: number | null;
 };
 
 export const DAILY_LIST_LIMIT = 1000;
@@ -65,7 +69,15 @@ export async function listDailyAppointments(
             a.customer_number AS "customerNumber",
             a.sub_group AS "subGroup",
             a.salesman,
-            a.complaint_source AS "complaintSource"
+            a.complaint_source AS "complaintSource",
+            a.visit_group_id::text AS "visitGroupId",
+            CASE WHEN a.visit_group_id IS NULL THEN NULL ELSE (
+              SELECT count(*)::int FROM appointments v
+              WHERE v.visit_group_id = a.visit_group_id AND v.id <= a.id
+            ) END AS "visitItemNo",
+            CASE WHEN a.visit_group_id IS NULL THEN NULL ELSE (
+              SELECT count(*)::int FROM appointments v WHERE v.visit_group_id = a.visit_group_id
+            ) END AS "visitItemCount"
      FROM appointments a
      LEFT JOIN technicians t ON t.id = a.technician_id
      LEFT JOIN branches b ON b.id = a.branch_id
