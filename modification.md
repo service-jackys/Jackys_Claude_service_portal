@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #268 — Appointment sheet print: grouped sections with required details highlighted
+
+**Date:** 2026-11-18
+
+**Why.** Technicians and users asked for a more professional appointment sheet in which the details above "Fault reported" can be read and verified quickly.
+
+**What changed (print layout only; no data or rules change).**
+
+- The details are grouped into four boxes: Customer details (one table), Product details, Appointment & technician, and Other references.
+- Required details carry a red asterisk and bold values: customer name, contact number, region, address, brand, model, sub group, item code, warranty, appointment date and technician. A required detail with no value prints as a red "Not entered — confirm with customer" cell.
+- Applies to every appointment sheet print: the single Print button on an appointment, and the Daily schedule "appointment sheets" batch print. "Fault reported", "Work done", "Parts used" and the signature boxes are unchanged.
+- Trial layout: the user will print it and say whether it needs revising.
+- Tests: tests/e2e/phase4-scheduling.spec.ts (new print case).
+
+**Files.** apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart.
+
 ## Modification #267 — Delivery & Installation: permissions for the Transport rules tab
 
 **Date:** 2026-11-17

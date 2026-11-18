@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 268,
+    "title": "Appointment sheet print: grouped sections with required details highlighted",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The printed appointment sheet now groups the details into Customer, Product, Appointment & technician and Other references, highlights required details and flags missing ones in red. Print layout only.",
+    "changes": [
+      "Customer details in one table; product, appointment and technician, and other references in their own boxes.",
+      "Required details (customer name, contact, region, address, brand, model, sub group, item code, warranty, date, technician) are marked with an asterisk and bold; a missing one prints as a red Not entered cell.",
+      "Applies to the single Print button and the Daily schedule appointment sheets batch print."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts"
+  },
+  {
     "id": 267,
     "title": "Delivery & Installation: permissions for the Transport rules tab",
     "area": "Delivery & Installation",
