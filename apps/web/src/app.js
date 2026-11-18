@@ -6585,7 +6585,7 @@ ${bodyHtml}
       return;
     }
     const canWrite = hasPermission('appointments.write');
-    root.innerHTML = `<table class="data-table"><thead><tr><th>Customer</th><th>Items</th><th>Saved by</th><th>Saved</th><th>Waiting</th><th></th></tr></thead><tbody>${visitDraftCache
+    root.innerHTML = `<table class="data-table"><thead><tr><th>Customer</th><th>Items${tipHtml('The appliances saved in this draft. Each one becomes its own appointment and job card when booked.')}</th><th>Saved by</th><th>Saved</th><th>Waiting${tipHtml('How long the draft has been waiting. Green is under 2 days, yellow is 2 days, red is 3 days or more, because the target is to book within 72 hours. The wording is shown too, so it still reads on a black and white print.')}</th><th></th></tr></thead><tbody>${visitDraftCache
       .map((draft) => {
         const days = draft.ageDays;
         const label =
@@ -6596,7 +6596,7 @@ ${bodyHtml}
               : days === 0
                 ? '\u2713 Today'
                 : `\u2713 ${days} day`;
-        return `<tr data-draft-id="${escapeHtml(draft.id)}"><td><strong>${escapeHtml(draft.customerName)}</strong>${draft.payload.contactNumber ? `<br><small>${escapeHtml(draft.payload.contactNumber)}</small>` : ''}</td><td>${escapeHtml(String(draft.itemCount))} · <small>${escapeHtml(visitDraftItemsText(draft))}</small></td><td>${escapeHtml(draft.createdByName || '—')}</td><td>${escapeHtml(formatDate(draft.createdAt))}</td><td><span class="draft-age ${visitDraftAgeClass(days)}">${label}</span></td><td>${canWrite ? '<button class="button button-primary" type="button" data-draft-open>Finish and book</button> <button class="button-link" type="button" data-draft-delete>Delete</button>' : ''}</td></tr>`;
+        return `<tr data-draft-id="${escapeHtml(draft.id)}"><td><strong>${escapeHtml(draft.customerName)}</strong>${draft.payload.contactNumber ? `<br><small>${escapeHtml(draft.payload.contactNumber)}</small>` : ''}</td><td>${escapeHtml(String(draft.itemCount))} · <small>${escapeHtml(visitDraftItemsText(draft))}</small></td><td>${escapeHtml(draft.createdByName || '—')}</td><td>${escapeHtml(formatDate(draft.createdAt))}</td><td><span class="draft-age ${visitDraftAgeClass(days)}">${label}</span></td><td>${canWrite ? '<button class="button button-primary" type="button" data-draft-open title="Opens the draft on New request so you can add the date and technician and book it. Items marked Book this item later stay in the draft.">Finish and book</button> <button class="button-link" type="button" data-draft-delete title="Deletes this draft. Nothing has been booked from it.">Delete</button>' : ''}</td></tr>`;
       })
       .join('')}</tbody></table>`;
   }
@@ -9098,7 +9098,7 @@ ${bodyHtml}
         const tech = appointment.technicianName
           ? `<span class="ap-tech"><b aria-hidden="true">${escapeHtml(initials(appointment.technicianName))}</b>${escapeHtml(appointment.technicianName)}</span>`
           : '<span class="ap-none">Unassigned</span>';
-        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}${canMessage ? `<button class="button button-outline ap-msg-btn ap-dup-btn" type="button" data-appointment-duplicate="${escapeHtml(appointment.id)}" title="Duplicate as new request" aria-label="Duplicate as new request for ${escapeHtml(appointment.customerName)}">Duplicate</button>` : ''}</td></tr>`;
+        return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button>${appointment.visitGroupId ? `<span class="visit-tag" title="Booked together with the other items of this visit">Visit ${escapeHtml(appointment.visitItemNo)} of ${escapeHtml(appointment.visitItemCount)}</span>` : ''}</td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" title="Send the customer a WhatsApp or email about this appointment" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}${canMessage ? `<button class="button button-outline ap-msg-btn ap-dup-btn" type="button" data-appointment-duplicate="${escapeHtml(appointment.id)}" title="Duplicate as new request" aria-label="Duplicate as new request for ${escapeHtml(appointment.customerName)}">Duplicate</button>` : ''}</td></tr>`;
       })
       .join('');
     $('#appointmentListCount').textContent = total ? String(total) : '';
@@ -24674,32 +24674,48 @@ ${bodyHtml}
 
     function drawBar() {
       bar.innerHTML =
-        '<div class="th-field"><label>From<input type="date" data-dl="from" value="' +
+        '<div class="th-field"><label>From' +
+        tipHtml('First day to list. Only Scheduled appointments appear: visits still to happen.') +
+        '<input type="date" data-dl="from" value="' +
         state.from +
-        '" /></label></div><div class="th-field"><label>To<input type="date" data-dl="to" value="' +
+        '" /></label></div><div class="th-field"><label>To' +
+        tipHtml('Last day to list. Use the same date as From for a single day.') +
+        '<input type="date" data-dl="to" value="' +
         state.to +
         '" /></label></div>' +
-        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="0">Today</button></div>' +
-        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="1">Tomorrow</button></div>' +
-        '<div class="th-field"><label>Group by<select data-dl="by"><option value="technician"' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="0" title="Show today only">Today</button></div>' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-day="1" title="Show tomorrow only">Tomorrow</button></div>' +
+        '<div class="th-field"><label>Group by' +
+        tipHtml(
+          'Technician makes one list per technician per day, to hand to each technician. Branch makes one list per branch or school.',
+        ) +
+        '<select data-dl="by"><option value="technician"' +
         (state.by === 'technician' ? ' selected' : '') +
         '>Technician</option><option value="branch"' +
         (state.by === 'branch' ? ' selected' : '') +
         '>Branch</option></select></label></div>' +
-        '<div class="th-field"><label>Show visits<select data-dl="visits"><option value="separate"' +
+        '<div class="th-field"><label>Show visits' +
+        tipHtml(
+          'Separate rows lists every appointment on its own line. Grouped together shows items booked as one visit in one block, with the customer and address once, because the technician goes once. Printing follows this setting.',
+        ) +
+        '<select data-dl="visits"><option value="separate"' +
         (state.visits === 'separate' ? ' selected' : '') +
         '>Separate rows</option><option value="grouped"' +
         (state.visits === 'grouped' ? ' selected' : '') +
         '>Grouped together</option></select></label></div>' +
-        '<div class="th-field"><label>Technician<select data-dl="technician">' +
+        '<div class="th-field"><label>Technician' +
+        tipHtml(
+          'Show one technician only. Choose Unassigned to find appointments that still need a technician.',
+        ) +
+        '<select data-dl="technician">' +
         dlTechnicianOptions(state.rows, state.technician) +
         '</select></label></div>' +
-        '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" data-dl-print-list' +
+        '<div class="th-field rd-filter-actions"><button class="button button-primary" type="button" title="Prints one list per technician (or branch) per day. Prints the ticked rows, or every row shown when none are ticked. Every appointment needs a technician first." data-dl-print-list' +
         (visibleRows().length ? '' : ' disabled') +
         '>Print list (' +
         printScopeLabel() +
         ')</button></div>' +
-        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" data-dl-print-sheets' +
+        '<div class="th-field rd-filter-actions"><button class="button button-outline" type="button" title="Prints the full appointment sheet for each appointment, one per page. Prints the ticked rows, or every row shown when none are ticked." data-dl-print-sheets' +
         (visibleRows().length ? '' : ' disabled') +
         '>Print appointment sheets (' +
         printScopeLabel() +
@@ -24802,7 +24818,7 @@ ${bodyHtml}
               statusClass(row.status) +
               '">' +
               escapeHtml(row.status) +
-              '</span></td><td><button class="button-link" type="button" data-dl-sheet="' +
+              '</span></td><td><button class="button-link" type="button" title="Print the appointment sheet for this one appointment" data-dl-sheet="' +
               escapeHtml(row.id) +
               '">Sheet</button></td></tr>';
             const lines = dlClusters(group.rows, state.visits === 'grouped')

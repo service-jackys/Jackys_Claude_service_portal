@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 280,
+    "title": "Tooltips across the Schedules tabs",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "Every Schedules tab, field and key button now explains itself on hover, so nobody is left guessing.",
+    "changes": [
+      "Hover descriptions on the four tabs: Appointments, New request, Daily schedule and Awaiting.",
+      "(i) tooltips on the New request fields and the visit section; hover text on its buttons.",
+      "Hover text on the Appointments filters, calendar, detail buttons and list actions.",
+      "Tooltips on the Daily schedule filters and print buttons, and on the Awaiting columns and buttons."
+    ],
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, apps/web/src/app.js, tests/e2e/tooltips.spec.ts."
+  },
+  {
     "id": 279,
     "title": "Daily schedule: show visits grouped (optional)",
     "area": "Appointments",
