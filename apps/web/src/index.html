@@ -13086,6 +13086,52 @@
         font-weight: 600;
         white-space: nowrap;
       }
+
+      .tab-count {
+        display: inline-block;
+        min-width: 18px;
+        margin-left: 4px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #e0e7ff;
+        color: #3730a3;
+        font-size: 11px;
+        font-weight: 700;
+        text-align: center;
+      }
+      .draft-age {
+        display: inline-block;
+        padding: 2px 9px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        background: #dcfce7;
+        color: #166534;
+      }
+      .draft-age.age-warn {
+        background: #fef08a;
+        color: #854d0e;
+      }
+      .draft-age.age-late {
+        background: #fecaca;
+        color: #991b1b;
+      }
+      .dashboard-tile.tile-warn {
+        border-color: #eab308;
+      }
+      .dashboard-tile.tile-late {
+        border-color: #dc2626;
+      }
+      .visit-item .visit-later {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+        margin-top: 8px;
+        font-size: 13px;
+      }
+      .visit-item .visit-later input {
+        width: auto;
+      }
     </style>
   </head>
   <body>
@@ -13886,6 +13932,19 @@
                       </svg>
                       <span class="nav-label">Schedules</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="visitDraftsNav"
+                      hidden
+                      aria-label="Awaiting visits"
+                      title="Awaiting visits"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calendar"></use>
+                      </svg>
+                      <span class="nav-label">Awaiting visits</span>
                     </button>
                     <button
                       class="dashboard-link"
@@ -15091,6 +15150,15 @@
                         </div>
                         <div
                           class="dashboard-tile-group"
+                          id="dashVisitDraftGroup"
+                          style="--group-accent: var(--accent-warranty)"
+                          hidden
+                        >
+                          <h4>Awaiting schedule jobs</h4>
+                          <div class="dashboard-tiles" id="dashVisitDraftTiles"></div>
+                        </div>
+                        <div
+                          class="dashboard-tile-group"
                           id="dashOutOfWarrantyGroup"
                           style="--group-accent: var(--accent-warranty)"
                           hidden
@@ -16000,6 +16068,15 @@
               >
                 Daily schedule
               </button>
+              <button
+                type="button"
+                role="tab"
+                class="ws-tab"
+                data-schedules-tab="visit-drafts"
+                aria-selected="false"
+              >
+                Awaiting <span class="tab-count" id="visitDraftsTabCount" hidden>0</span>
+              </button>
             </div>
             <div class="card" id="newComplaintWorkspace" hidden>
               <div class="card-body">
@@ -16256,6 +16333,9 @@
                         id="submitNewComplaintButton"
                       >
                         Book appointment
+                      </button>
+                      <button class="button button-outline" type="button" id="saveVisitDraftButton">
+                        Save visit as draft
                       </button>
                     </div>
                   </form>
@@ -17176,6 +17256,10 @@
                   <p class="form-note" data-calc-loading>Loading&hellip;</p>
                 </div>
               </div>
+            </div>
+
+            <div class="card" id="visitDraftsWorkspace" hidden>
+              <div class="card-body"><div data-calc-root></div></div>
             </div>
 
             <div class="card" id="dailyListWorkspace" hidden>

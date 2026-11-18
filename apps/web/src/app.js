@@ -849,6 +849,8 @@
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
     $('#dailyListNav').hidden = true;
+    $('#visitDraftsNav').hidden = true;
+    refreshVisitDraftCount();
     $('#deliveryInstallNav').hidden = !hasPermission('di_jobs.read');
     $('#invoicesNav').hidden = !hasPermission('invoices.read');
     $('#billingNav').hidden = !hasPermission('billing.read');
@@ -1000,6 +1002,11 @@
       host: '#dailyListWorkspace > .card-body',
       description: 'Appointments by day, grouped by technician or branch, with print.',
     },
+    'visit-drafts': {
+      host: '#visitDraftsWorkspace > .card-body',
+      description:
+        'Visits saved as drafts, waiting to be booked. Drafts older than 2 days need attention.',
+    },
   };
   function syncSchedulesTabs(mode) {
     const nav = document.getElementById('schedulesNav');
@@ -1011,7 +1018,7 @@
       bar.hidden = true;
       return;
     }
-    ['appointmentsNav', 'newRequestNav', 'dailyListNav'].forEach((id) =>
+    ['appointmentsNav', 'newRequestNav', 'dailyListNav', 'visitDraftsNav'].forEach((id) =>
       document.getElementById(id)?.setAttribute('aria-current', 'false'),
     );
     const host = document.querySelector(tab.host);
@@ -5853,6 +5860,7 @@ ${bodyHtml}
   function resetNewComplaintForm() {
     $('#newComplaintForm').reset();
     $('#visitExtraItems').innerHTML = '';
+    currentVisitDraftId = null;
     updateVisitSubmitLabel();
     clearItemPickerMarks($('#newComplaintForm'));
     clearErrors($('#newComplaintForm'));
@@ -6059,8 +6067,16 @@ ${bodyHtml}
 
   function updateVisitSubmitLabel() {
     const extras = $('#visitExtraItems').children.length;
+    const later = document.querySelectorAll('#visitExtraItems [data-visit-later]:checked').length;
+    const now = extras + 1 - later;
     $('#submitNewComplaintButton').textContent =
-      extras > 0 ? `Book all ${extras + 1} items` : 'Book appointment';
+      extras === 0
+        ? 'Book appointment'
+        : later === 0
+          ? `Book all ${now} items`
+          : now === 1
+            ? 'Book item 1 now'
+            : `Book ${now} items now`;
     document.querySelectorAll('#visitExtraItems .visit-item').forEach((card, index) => {
       card.querySelector('[data-visit-title]').textContent = `Item ${index + 2}`;
     });
@@ -6089,6 +6105,7 @@ ${bodyHtml}
           <textarea data-v="faultDescription" maxlength="10000"></textarea>
           <span class="field-error" data-visit-error></span></div>
       </div>
+      <label class="visit-later"><input type="checkbox" data-visit-later /> Book this item later (keep it as a draft)</label>
       <div class="visit-notice" data-visit-notice hidden>
         All items in this visit are for the same customer and the same location. You changed the
         date or technician for this item only. Do this only if this item really needs a different
@@ -6124,6 +6141,7 @@ ${bodyHtml}
   });
 
   $('#visitExtraItems').addEventListener('change', (event) => {
+    if (event.target.matches('[data-visit-later]')) updateVisitSubmitLabel();
     const card = event.target.closest('.visit-item');
     if (card && event.target.matches('[data-v="appointmentDate"], [data-v="technicianId"]'))
       refreshVisitNotice(card);
@@ -6158,13 +6176,15 @@ ${bodyHtml}
         const value = input.value.trim();
         if (value) item[input.dataset.v] = value;
       });
-      return item;
+      return { item, later: card.querySelector('[data-visit-later]').checked };
     });
   }
 
   function validateVisitItems() {
     let valid = true;
     document.querySelectorAll('#visitExtraItems .visit-item').forEach((card) => {
+      // Items kept for later may stay unfinished.
+      if (card.querySelector('[data-visit-later]').checked) return;
       const description = card.querySelector('[data-v="faultDescription"]').value.trim();
       const error = card.querySelector('[data-visit-error]');
       error.textContent = description ? '' : 'Describe the issue.';
@@ -6172,6 +6192,196 @@ ${bodyHtml}
     });
     return valid;
   }
+
+  // ---- Visit drafts (modification #275).
+  let currentVisitDraftId = null;
+  const VISIT_ITEM_KEYS = [
+    'brand',
+    'model',
+    'itemCode',
+    'faultDescription',
+    'jobWarranty',
+    'salesOrderNumber',
+  ];
+
+  function splitVisitData(data) {
+    return {
+      shared: Object.fromEntries(
+        Object.entries(data).filter(([key]) => !VISIT_ITEM_KEYS.includes(key)),
+      ),
+      first: Object.fromEntries(
+        Object.entries(data).filter(([key]) => VISIT_ITEM_KEYS.includes(key)),
+      ),
+    };
+  }
+
+  async function storeVisitDraft(payload) {
+    const path = currentVisitDraftId
+      ? `/api/appointments/visit-drafts/${currentVisitDraftId}`
+      : '/api/appointments/visit-drafts';
+    const result = await apiRequest(path, {
+      method: currentVisitDraftId ? 'PUT' : 'POST',
+      body: JSON.stringify(payload),
+    });
+    currentVisitDraftId = result.draft.id;
+    return result.draft;
+  }
+
+  let visitDraftCache = [];
+  // Days waiting: 2 days is yellow, 3 or more is red (72 hour turnaround).
+  function visitDraftAgeClass(days) {
+    return days >= 3 ? 'age-late' : days >= 2 ? 'age-warn' : '';
+  }
+
+  async function refreshVisitDraftCount() {
+    if (!hasPermission('appointments.read')) return;
+    try {
+      const result = await apiRequest('/api/appointments/visit-drafts');
+      visitDraftCache = result.drafts || [];
+    } catch {
+      return;
+    }
+    const badge = $('#visitDraftsTabCount');
+    badge.textContent = String(visitDraftCache.length);
+    badge.hidden = visitDraftCache.length === 0;
+    renderDashVisitDrafts();
+  }
+
+  function renderDashVisitDrafts() {
+    const group = $('#dashVisitDraftGroup');
+    if (!group) return;
+    if (!visitDraftCache.length) {
+      group.hidden = true;
+      return;
+    }
+    const warn = visitDraftCache.filter((d) => d.ageDays === 2).length;
+    const late = visitDraftCache.filter((d) => d.ageDays >= 3).length;
+    $('#dashVisitDraftTiles').innerHTML =
+      dashboardTileHtml('Visits waiting to be booked', visitDraftCache.length, 'visitDrafts:all') +
+      dashboardTileHtml('Waiting 2 days', warn, 'visitDrafts:all').replace(
+        'dashboard-tile',
+        'dashboard-tile tile-warn',
+      ) +
+      dashboardTileHtml('Waiting 3+ days', late, 'visitDrafts:all').replace(
+        'dashboard-tile',
+        'dashboard-tile tile-late',
+      );
+    group.hidden = false;
+  }
+
+  function visitDraftItemsText(draft) {
+    return (draft.payload.items || [])
+      .map((item) => [item.brand, item.model].filter(Boolean).join(' ') || 'Item')
+      .join(', ');
+  }
+
+  async function renderVisitDrafts(root) {
+    root.innerHTML = '<p class="form-note">Loading drafts&hellip;</p>';
+    await refreshVisitDraftCount();
+    if (!visitDraftCache.length) {
+      root.innerHTML =
+        '<p class="empty-state">No visits are waiting. Use "Save visit as draft" on New request to keep one for later.</p>';
+      return;
+    }
+    const canWrite = hasPermission('appointments.write');
+    root.innerHTML = `<table class="data-table"><thead><tr><th>Customer</th><th>Items</th><th>Saved by</th><th>Saved</th><th>Waiting</th><th></th></tr></thead><tbody>${visitDraftCache
+      .map((draft) => {
+        const days = draft.ageDays;
+        const label = days === 0 ? 'Today' : `${days} day${days === 1 ? '' : 's'}`;
+        return `<tr data-draft-id="${escapeHtml(draft.id)}"><td><strong>${escapeHtml(draft.customerName)}</strong>${draft.payload.contactNumber ? `<br><small>${escapeHtml(draft.payload.contactNumber)}</small>` : ''}</td><td>${escapeHtml(String(draft.itemCount))} · <small>${escapeHtml(visitDraftItemsText(draft))}</small></td><td>${escapeHtml(draft.createdByName || '—')}</td><td>${escapeHtml(formatDate(draft.createdAt))}</td><td><span class="draft-age ${visitDraftAgeClass(days)}">${label}</span></td><td>${canWrite ? '<button class="button button-primary" type="button" data-draft-open>Finish and book</button> <button class="button-link" type="button" data-draft-delete>Delete</button>' : ''}</td></tr>`;
+      })
+      .join('')}</tbody></table>`;
+  }
+
+  function fillVisitDraftIntoForm(draft) {
+    setWorkspaceMode('new-request');
+    resetNewComplaintForm();
+    currentVisitDraftId = draft.id;
+    const p = draft.payload;
+    const set = (selector, value) => {
+      if (value !== undefined && value !== null) $(selector).value = value;
+    };
+    set('#newComplaintSource', p.complaintSource || '');
+    applyNewComplaintSourceGating();
+    set('#newComplaintSalesman', p.salesman || '');
+    set('#newComplaintAppointmentDate', p.appointmentDate || '');
+    set('#newComplaintTechnician', p.technicianId || '');
+    set('#newComplaintCustomerType', p.customerType || '');
+    applyNewComplaintCustomerTypeGating();
+    set('#newComplaintCustomerName', p.customerName);
+    set('#newComplaintContactNumber', p.contactNumber || '');
+    set('#newComplaintCustomerEmail', p.customerEmail || '');
+    set('#newComplaintAddress', p.address || '');
+    set('#newComplaintRegion', p.region || '');
+    set('#newComplaintB2bBranchSchool', p.b2bBranchSchool || '');
+    set('#newComplaintSchoolContactPerson', p.schoolContactPerson || '');
+    set('#newComplaintSchoolContactNumber', p.schoolContactNumber || '');
+    set('#newComplaintCustomerNumber', p.customerNumber || '');
+    const [first, ...rest] = p.items;
+    set('#newComplaintBrand', first.brand || '');
+    set('#newComplaintModel', first.model || '');
+    set('#newComplaintSerialOrItemCode', first.itemCode || '');
+    set('#newComplaintWarranty', first.jobWarranty || '');
+    set('#newComplaintDescription', first.faultDescription || '');
+    set('#newComplaintSalesOrderNumber', first.salesOrderNumber || '');
+    for (const item of rest) {
+      addVisitItem();
+      const card = $('#visitExtraItems').lastElementChild;
+      for (const [key, value] of Object.entries(item)) {
+        const input = card.querySelector(`[data-v="${key}"]`);
+        if (input) input.value = value;
+      }
+      refreshVisitNotice(card);
+    }
+    setMessage(
+      '#newComplaintMessage',
+      'Finishing a saved draft. Book it, or save it as a draft again.',
+      true,
+    );
+  }
+
+  $('#visitDraftsWorkspace').addEventListener('click', async (event) => {
+    const row = event.target.closest('[data-draft-id]');
+    if (!row) return;
+    const draft = visitDraftCache.find((entry) => entry.id === row.dataset.draftId);
+    if (!draft) return;
+    if (event.target.closest('[data-draft-open]')) {
+      fillVisitDraftIntoForm(draft);
+    } else if (event.target.closest('[data-draft-delete]')) {
+      if (!window.confirm(`Delete the draft visit for ${draft.customerName}?`)) return;
+      try {
+        await apiRequest(`/api/appointments/visit-drafts/${draft.id}`, { method: 'DELETE' });
+      } catch (error) {
+        window.alert(error.message);
+      }
+      renderVisitDrafts($('#visitDraftsWorkspace [data-calc-root]'));
+    }
+  });
+
+  $('#saveVisitDraftButton').addEventListener('click', async () => {
+    const form = $('#newComplaintForm');
+    const data = newComplaintFormData();
+    clearErrors(form);
+    if (!data.customerName) {
+      showFieldError(form, 'newComplaintCustomerName', 'Enter the customer name to save a draft.');
+      return;
+    }
+    const { shared, first } = splitVisitData(data);
+    const items = [first, ...visitExtraItemsData().map((entry) => entry.item)];
+    const button = $('#saveVisitDraftButton');
+    setBusy(button, true, 'Saving…');
+    try {
+      await storeVisitDraft({ ...shared, items });
+      currentVisitDraftId = null;
+      resetNewComplaintForm();
+      await refreshVisitDraftCount();
+      setWorkspaceMode('visit-drafts');
+    } catch (error) {
+      setMessage('#newComplaintMessage', error.message);
+    } finally {
+      setBusy(button, false);
+    }
+  });
 
   $('#newComplaintForm').addEventListener('submit', async (event) => {
     event.preventDefault();
@@ -6181,33 +6391,19 @@ ${bodyHtml}
     if (!validateNewComplaintForm(data, form)) return;
     if (!validateVisitItems()) return;
     const extras = visitExtraItemsData();
+    const bookedExtras = extras.filter((entry) => !entry.later).map((entry) => entry.item);
+    const keptExtras = extras.filter((entry) => entry.later).map((entry) => entry.item);
     const button = $('#submitNewComplaintButton');
     setBusy(button, true, 'Booking…');
     try {
       let result;
-      if (extras.length > 0) {
-        const itemKeys = [
-          'brand',
-          'model',
-          'itemCode',
-          'faultDescription',
-          'jobWarranty',
-          'salesOrderNumber',
-        ];
-        const shared = Object.fromEntries(
-          Object.entries(data).filter(([key]) => !itemKeys.includes(key)),
-        );
-        const first = Object.fromEntries(
-          Object.entries(data).filter(([key]) => itemKeys.includes(key)),
-        );
-        const salesOrder = data.salesOrderNumber;
-        const items = [
-          first,
-          ...extras.map((item) => (salesOrder ? { salesOrderNumber: salesOrder, ...item } : item)),
-        ];
+      const { shared, first } = splitVisitData(data);
+      const withOrder = (item) =>
+        data.salesOrderNumber ? { salesOrderNumber: data.salesOrderNumber, ...item } : item;
+      if (bookedExtras.length > 0) {
         const visit = await apiRequest('/api/appointments/visit', {
           method: 'POST',
-          body: JSON.stringify({ ...shared, items }),
+          body: JSON.stringify({ ...shared, items: [first, ...bookedExtras.map(withOrder)] }),
         });
         result = { appointment: visit.items[0], visit, warnings: [] };
       } else {
@@ -6216,13 +6412,31 @@ ${bodyHtml}
           body: JSON.stringify(data),
         });
       }
+      // The booking worked. Keep the draft in step: items booked later stay
+      // as a draft, otherwise a draft this form came from is removed.
+      let draftNote = '';
+      try {
+        if (keptExtras.length > 0) {
+          await storeVisitDraft({ ...shared, items: keptExtras.map(withOrder) });
+          draftNote = ` ${keptExtras.length} item${keptExtras.length === 1 ? ' is' : 's are'} kept as a draft in Awaiting.`;
+        } else if (currentVisitDraftId) {
+          await apiRequest(`/api/appointments/visit-drafts/${currentVisitDraftId}`, {
+            method: 'DELETE',
+          });
+        }
+      } catch {
+        draftNote =
+          ' The booking worked, but the draft could not be updated. Check the Awaiting tab.';
+      }
+      currentVisitDraftId = null;
+      refreshVisitDraftCount();
       const appointment = result.appointment || {};
       if (result.visit) {
         const refs = result.visit.items.map((item) => item.appointmentReference);
         $('#newComplaintReference').textContent = refs.join(', ');
         $('#openNewComplaintInInboxButton').dataset.appointmentId = appointment.id || '';
         $('#newComplaintSuccessNote').textContent =
-          `${refs.length} appointments booked for this visit, each with its own number.`;
+          `${refs.length} appointments booked for this visit, each with its own number.${draftNote}`;
         $('#newComplaintWarning').hidden = true;
         $('#newComplaintSuccess').hidden = false;
         $('#newComplaintFields').hidden = true;
@@ -6234,6 +6448,7 @@ ${bodyHtml}
       $('#newComplaintSuccessNote').textContent = appointment.appointmentDate
         ? `Booked for ${appointment.appointmentDate}${appointment.technicianName ? ' with ' + appointment.technicianName : ', technician not assigned yet'}.`
         : '';
+      if (draftNote) $('#newComplaintSuccessNote').textContent += draftNote;
       const warnings = result.warnings || [];
       $('#newComplaintWarning').hidden = warnings.length === 0;
       $('#newComplaintWarning').textContent = warnings.join(' ');
@@ -7221,6 +7436,7 @@ ${bodyHtml}
     outOfWarranty: () => setWorkspaceMode('invoices'),
     rateCardSales: () => setWorkspaceMode('reports'),
     thomsonSales: () => setWorkspaceMode('thomson-calc'),
+    visitDrafts: () => setWorkspaceMode('visit-drafts'),
   };
 
   // Delegated click handling survives each re-render (innerHTML swap) since
@@ -7236,6 +7452,7 @@ ${bodyHtml}
     ['dashAmcContractTiles', null],
     ['dashRateCardSaleTiles', null],
     ['dashThomsonSaleTiles', null],
+    ['dashVisitDraftTiles', 'visitDrafts'],
   ].forEach(([containerId, section]) => {
     $('#' + containerId).addEventListener('click', (event) => {
       const tile = event.target.closest('[data-tile-key]');
@@ -7322,6 +7539,7 @@ ${bodyHtml}
     );
     $('#dashJobCardBars').innerHTML = dashboardBarsHtml(summary.jobCards.byStatus);
     renderOutOfWarrantyTiles();
+    refreshVisitDraftCount();
     $('#dashQuotationInspectionTiles').innerHTML = dashboardTilesHtml({}, [
       ['Quotations (total)', summary.quotations.total, 'quotations:total'],
       ['Quotations (this month)', summary.quotations.thisMonth, 'quotations:month'],
@@ -20662,6 +20880,16 @@ ${bodyHtml}
       domains: [],
       load: (root) => renderDailyList(root),
     },
+    'visit-drafts': {
+      navId: 'visitDraftsNav',
+      workspaceId: 'visitDraftsWorkspace',
+      heading: 'Schedules',
+      description: 'Visits saved as drafts, waiting to be booked.',
+      permission: 'appointments.read',
+      hideCurrencyNote: true,
+      domains: [],
+      load: (root) => renderVisitDrafts(root),
+    },
     'awaiting-drafts': {
       navId: 'awaitingDraftsNav',
       workspaceId: 'awaitingDraftsWorkspace',
@@ -31753,6 +31981,7 @@ ${bodyHtml}
   $('#walkInNav')?.addEventListener('click', () => setWorkspaceMode('walk-in'));
   initItemPickers();
   $('#dailyListNav')?.addEventListener('click', () => setWorkspaceMode('daily-list'));
+  $('#visitDraftsNav')?.addEventListener('click', () => setWorkspaceMode('visit-drafts'));
   $('#deliveryInstallNav')?.addEventListener('click', () => setWorkspaceMode('delivery-install'));
   $('#invoicesNav')?.addEventListener('click', () => setWorkspaceMode('invoices'));
   $('#billingNav')?.addEventListener('click', () => setWorkspaceMode('billing'));

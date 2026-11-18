@@ -5205,6 +5205,27 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #275 — Visit drafts: save a visit for later, Awaiting tab and dashboard card
+
+**Date:** 2026-11-18
+
+**Why.** A CCE often knows the customer and the items but not yet the date or technician. They need to keep the visit and finish it later, as the old portal's "Awaiting schedule jobs" did.
+
+**What changed.**
+
+- New request has **Save visit as draft**. Only the customer name is needed. The draft keeps every item as entered.
+- Schedules has a fourth tab, **Awaiting**, with a count. It lists the drafts, oldest first, with who saved them and how long they have waited: green under 2 days, **yellow at 2 days**, **red at 3 days or more** (72 hour turnaround).
+- **Finish and book** loads the draft into New request with all its items. Book it as a normal visit, or tick **Book this item later** on some items: the rest are booked now and the later ones stay in the draft.
+- Booking a draft removes it. Delete removes a draft you no longer need.
+- The Dashboard has an **Awaiting schedule jobs** card (waiting visits, waiting 2 days, waiting 3+ days). It shows only when drafts exist, and a click opens the Awaiting tab.
+- Drafts do not use up technician capacity; the daily limit is checked when the visit is booked.
+- New API: `GET/POST /api/appointments/visit-drafts`, `PUT/DELETE /api/appointments/visit-drafts/{id}` (view and booking permissions of appointments).
+- Tests: tests/integration/appointment-visit.test.ts (drafts), tests/e2e/phase4-scheduling.spec.ts (two new tests).
+
+**Files.** packages/db/migrations/102_visit_drafts.sql, packages/db/src/visit-drafts.ts, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.
+
 ## Modification #274 — Multi-item visit: book several items for one customer in one go
 
 **Date:** 2026-11-18

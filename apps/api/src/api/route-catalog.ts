@@ -132,6 +132,7 @@ export type RouteDefinition = {
     | 'taxInvoiceUpdate'
     | 'appointment'
     | 'appointmentVisit'
+    | 'appointmentVisitDraft'
     | 'appointmentAssignment'
     | 'appointmentMessage'
     | 'appointmentSchedule'
@@ -2415,6 +2416,50 @@ export function createRouteCatalog(
         requestBody: 'appointmentVisit' as const,
         responses: [201, 400, 401, 403, 409, 500],
         handlers: appointmentHandlers.createVisit,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/appointments/visit-drafts',
+        operationId: 'listAppointmentVisitDrafts',
+        tags: ['Appointments'],
+        summary: 'List saved visit drafts, oldest first, with their age in days',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: appointmentHandlers.listVisitDrafts,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/appointments/visit-drafts',
+        operationId: 'createAppointmentVisitDraft',
+        tags: ['Appointments'],
+        summary: 'Save a visit as a draft to book later',
+        security: 'bearerAuth' as const,
+        requestBody: 'appointmentVisitDraft' as const,
+        responses: [201, 400, 401, 403, 500],
+        handlers: appointmentHandlers.saveVisitDraft,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/appointments/visit-drafts/{id}',
+        operationId: 'updateAppointmentVisitDraft',
+        tags: ['Appointments'],
+        summary: 'Update a saved visit draft',
+        security: 'bearerAuth' as const,
+        requestBody: 'appointmentVisitDraft' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: appointmentHandlers.saveVisitDraft,
+      },
+      {
+        method: 'delete' as const,
+        path: '/api/appointments/visit-drafts/{id}',
+        operationId: 'deleteAppointmentVisitDraft',
+        tags: ['Appointments'],
+        summary: 'Delete a saved visit draft',
+        security: 'bearerAuth' as const,
+        parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+        responses: [204, 401, 403, 404, 500],
+        handlers: appointmentHandlers.deleteVisitDraft,
       },
       {
         method: 'get' as const,

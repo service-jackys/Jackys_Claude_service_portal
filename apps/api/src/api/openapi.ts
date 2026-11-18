@@ -294,6 +294,14 @@ const requestBodies = {
       },
     },
   },
+  appointmentVisitDraft: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/AppointmentVisitDraftRequest' },
+      },
+    },
+  },
   appointmentAssignment: {
     required: true,
     content: {
@@ -988,6 +996,27 @@ export function createOpenApiDocument(routes: RouteDefinition[]) {
                   endsAt: { type: 'string', pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' },
                 },
               },
+            },
+          },
+        },
+        AppointmentVisitDraftRequest: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['customerName', 'items'],
+          properties: {
+            customerName: { type: 'string', minLength: 1, maxLength: 200 },
+            customerType: { type: 'string', enum: ['B2C', 'B2B', 'B2B-SalesChannel'] },
+            contactNumber: { type: 'string', maxLength: 50 },
+            customerEmail: { type: 'string', maxLength: 320 },
+            address: { type: 'string', maxLength: 500 },
+            region: { type: 'string', maxLength: 120 },
+            appointmentDate: { type: 'string', format: 'date' },
+            technicianId: { type: 'string' },
+            items: {
+              type: 'array',
+              minItems: 1,
+              maxItems: 20,
+              items: { type: 'object' },
             },
           },
         },

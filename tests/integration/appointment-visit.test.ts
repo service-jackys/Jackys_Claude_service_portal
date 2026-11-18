@@ -111,6 +111,41 @@ test(
         service.createVisit({ ...base, items: [{ faultDescription: 'x' }] }, profileId),
         (error: unknown) => error instanceof ZodError,
       );
+
+      // Drafts: save with only a name and one item, list, update, age, delete.
+      const draft = await service.saveVisitDraft(
+        { customerName: 'Draft Customer', items: [{ brand: 'Bosch' }] },
+        profileId,
+      );
+      assert.equal(draft.itemCount, 1);
+      assert.equal(draft.ageDays, 0);
+      const updated = await service.saveVisitDraft(
+        {
+          customerName: 'Draft Customer',
+          appointmentDate: '2099-04-01',
+          items: [{ brand: 'Bosch' }, { brand: 'Siemens', faultDescription: 'Leaks' }],
+        },
+        profileId,
+        draft.id,
+      );
+      assert.equal(updated.itemCount, 2);
+      assert.equal(updated.payload.appointmentDate, '2099-04-01');
+      assert.ok((await service.listDrafts()).some((entry) => entry.id === draft.id));
+      await pool.query(
+        `UPDATE visit_drafts SET created_at = now() - interval '3 days' WHERE id = $1`,
+        [draft.id],
+      );
+      const aged = (await service.listDrafts()).find((entry) => entry.id === draft.id);
+      assert.equal(aged?.ageDays, 3);
+      await assert.rejects(
+        service.saveVisitDraft({ customerName: 'x', items: [] }, profileId),
+        (error: unknown) => error instanceof ZodError,
+      );
+      await service.removeDraft(draft.id);
+      await assert.rejects(
+        service.removeDraft(draft.id),
+        (error: unknown) => error instanceof AppointmentServiceError && error.code === 'not-found',
+      );
     } finally {
       await pool.query(
         `DELETE FROM appointment_status_history WHERE appointment_id IN (SELECT id FROM appointments WHERE technician_id = $1)`,
@@ -118,6 +153,7 @@ test(
       );
       await pool.query('DELETE FROM appointments WHERE technician_id = $1', [technicianId]);
       await pool.query('DELETE FROM visit_groups WHERE created_by = $1', [profileId]);
+      await pool.query('DELETE FROM visit_drafts WHERE created_by = $1', [profileId]);
       await pool.end();
     }
   },

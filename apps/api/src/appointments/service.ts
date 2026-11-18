@@ -8,6 +8,7 @@ import {
   appointmentMessageCreateSchema,
   appointmentCreateSchema,
   appointmentVisitCreateSchema,
+  appointmentVisitDraftSchema,
   appointmentListQuerySchema,
   appointmentScheduleUpdateSchema,
   appointmentStatusSchema,
@@ -42,6 +43,13 @@ import {
   countTechnicianAppointmentsOnDate,
   findTechnicianById,
 } from '../../../../packages/db/src/technicians.js';
+import {
+  deleteVisitDraft,
+  findVisitDraft,
+  insertVisitDraft,
+  listVisitDrafts,
+  updateVisitDraft,
+} from '../../../../packages/db/src/visit-drafts.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class AppointmentServiceError extends Error {
@@ -134,6 +142,45 @@ export function createAppointmentService(pool: Pool) {
       }
       return { visitGroupId, items };
     });
+  }
+
+  async function saveVisitDraft(input: unknown, profileId: string, id?: string) {
+    const data = appointmentVisitDraftSchema.parse(input);
+    return withTransaction(pool, async (client) => {
+      if (id) {
+        if (!(await findVisitDraft(client, id, true)))
+          throw new AppointmentServiceError('not-found', 'The draft was not found.');
+        await updateVisitDraft(client, id, data, data.customerName, data.items.length);
+        return (await findVisitDraft(client, id))!;
+      }
+      const newId = await insertVisitDraft(
+        client,
+        data,
+        data.customerName,
+        data.items.length,
+        profileId,
+      );
+      return (await findVisitDraft(client, newId))!;
+    });
+  }
+
+  async function listDrafts() {
+    const client = await pool.connect();
+    try {
+      return await listVisitDrafts(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  async function removeDraft(id: string) {
+    const client = await pool.connect();
+    try {
+      if (!(await deleteVisitDraft(client, id)))
+        throw new AppointmentServiceError('not-found', 'The draft was not found.');
+    } finally {
+      client.release();
+    }
   }
 
   async function createWithClient(
@@ -650,6 +697,9 @@ export function createAppointmentService(pool: Pool) {
   return {
     create,
     createVisit,
+    saveVisitDraft,
+    listDrafts,
+    removeDraft,
     list,
     detail,
     history,

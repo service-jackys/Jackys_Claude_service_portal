@@ -1410,6 +1410,48 @@ export const appointmentVisitCreateSchema = z
   })
   .strict();
 
+// A saved visit draft (modification #275): same shape as a visit, but only the
+// customer name and one item are needed to save it; the rest is checked when
+// the visit is booked.
+export const appointmentVisitDraftSchema = z
+  .object({
+    branchId: z.string().regex(/^\d+$/).optional(),
+    customerId: z.string().regex(/^\d+$/).optional(),
+    technicianId: z.string().regex(/^\d+$/).optional(),
+    customerType: customerTypeSchema.optional(),
+    customerName: z.string().trim().min(1).max(200),
+    contactNumber: z.string().trim().min(1).max(50).optional(),
+    customerEmail: z.string().trim().max(320).optional(),
+    address: optionalText(500),
+    region: optionalText(120),
+    b2bBranchSchool: optionalText(500),
+    schoolContactPerson: optionalText(500),
+    schoolContactNumber: optionalText(100),
+    customerNumber: optionalText(100),
+    salesman: optionalText(200),
+    complaintSource: complaintSourceSchema.optional(),
+    appointmentDate: dateSchema.optional(),
+    items: z
+      .array(
+        z
+          .object({
+            brand: optionalText(120),
+            model: optionalText(120),
+            itemCode: optionalText(120),
+            subGroup: optionalText(120),
+            faultDescription: z.string().trim().max(10000).optional(),
+            jobWarranty: optionalText(120),
+            salesOrderNumber: optionalText(120),
+            technicianId: z.string().regex(/^\d+$/).optional(),
+            appointmentDate: dateSchema.optional(),
+          })
+          .strict(),
+      )
+      .min(1)
+      .max(20),
+  })
+  .strict();
+
 export const appointmentAssignmentSchema = z
   .object({
     technicianId: z.string().regex(/^\d+$/).nullable(),

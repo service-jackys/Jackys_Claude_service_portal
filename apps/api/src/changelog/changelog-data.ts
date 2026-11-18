@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 275,
+    "title": "Visit drafts: save a visit for later, Awaiting tab and dashboard card",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "A visit can be saved as a draft and finished later from a new Awaiting tab in Schedules or from the Dashboard card. Drafts turn yellow at 2 days and red at 3 days.",
+    "changes": [
+      "Save visit as draft on New request keeps the customer and all items.",
+      "New Awaiting tab in Schedules with a count, oldest first, yellow at 2 days and red at 3+ days.",
+      "Finish and book loads the draft into New request; items marked Book this item later stay in the draft.",
+      "Dashboard card Awaiting schedule jobs shows the waiting visits and opens the Awaiting tab."
+    ],
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
+    "migrations": [
+      "102_visit_drafts.sql"
+    ],
+    "files": "packages/db/*, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/web/src/app.js, apps/web/src/index.html"
+  },
+  {
     "id": 274,
     "title": "Multi-item visit: book several items for one customer in one go",
     "area": "Appointments",
