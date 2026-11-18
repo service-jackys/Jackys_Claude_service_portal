@@ -1221,6 +1221,44 @@
     return { start, end: shiftDate(start, weeks * 7 - 1) };
   }
 
+  // The list under the calendar follows the From/To filters when set,
+  // otherwise the month/week the calendar is showing.
+  function appointmentListRange() {
+    const from = $('#appointmentFrom').value;
+    const to = $('#appointmentTo').value;
+    if (from || to) return { from, to, source: 'filter' };
+    if (calendarView === 'week') {
+      const start = shiftDate(calendarCursor, -calendarCursor.getDay());
+      return {
+        from: dateInputValue(start),
+        to: dateInputValue(shiftDate(start, 6)),
+        source: 'calendar',
+      };
+    }
+    const first = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+    const last = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 0);
+    return { from: dateInputValue(first), to: dateInputValue(last), source: 'calendar' };
+  }
+
+  function appointmentListRangeLabel(range) {
+    const fmt = (value) => localDate(value).toLocaleDateString('en-GB', { dateStyle: 'medium' });
+    if (range.source === 'calendar' && calendarView === 'month') {
+      return calendarCursor.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+    if (range.from && range.to) {
+      return range.from === range.to ? fmt(range.from) : `${fmt(range.from)} – ${fmt(range.to)}`;
+    }
+    if (range.from) return `from ${fmt(range.from)}`;
+    return `up to ${fmt(range.to)}`;
+  }
+
+  // Calendar navigation chooses a new period, so it replaces any date filter.
+  function navigateCalendar() {
+    $('#appointmentFrom').value = '';
+    $('#appointmentTo').value = '';
+    loadAppointments();
+  }
+
   function calendarTitle(range) {
     if (calendarView === 'week') {
       return `${range.start.toLocaleDateString(undefined, { dateStyle: 'medium' })} – ${range.end.toLocaleDateString(undefined, { dateStyle: 'medium' })}`;
@@ -8300,7 +8338,7 @@ ${bodyHtml}
       `${label}: ${count} appointment${count === 1 ? '' : 's'}`;
   }
 
-  function renderAppointments(appointments) {
+  function renderAppointments(appointments, total = appointments.length, rangeLabel = '') {
     const body = $('#appointmentsBody');
     const canMessage = hasPermission('appointments.write');
     const initials = (name) =>
@@ -8322,9 +8360,10 @@ ${bodyHtml}
         return `<tr class="row-${key}"><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(appointment.id)}">${escapeHtml(appointment.appointmentReference)}</button></td><td><span class="ap-name">${escapeHtml(appointment.customerName)}</span>${appointment.contactNumber ? `<span class="ap-sub">${escapeHtml(appointment.contactNumber)}</span>` : ''}</td><td class="ap-date">${escapeHtml(appointmentDateTime(appointment))}</td><td>${tech}</td><td><span class="ap-pill st-${key}">${escapeHtml(appointment.status)}</span></td><td>${escapeHtml(appointment.region || '—')}</td><td class="ap-actions">${messageable ? `<button class="button button-outline ap-msg-btn" type="button" data-appointment-message="${escapeHtml(appointment.id)}" aria-label="Send WhatsApp or email to ${escapeHtml(appointment.customerName)}">Message</button>` : ''}</td></tr>`;
       })
       .join('');
-    $('#appointmentListCount').textContent = appointments.length ? String(appointments.length) : '';
+    $('#appointmentListCount').textContent = total ? String(total) : '';
+    $('#appointmentListRange').textContent = rangeLabel ? `· ${rangeLabel}` : '';
     $('#appointmentsEmpty').hidden = appointments.length > 0;
-    updateAppointmentDayBar(appointments.length);
+    updateAppointmentDayBar(total);
     body
       .querySelectorAll('[data-appointment-message]')
       .forEach((button) =>
@@ -8440,7 +8479,7 @@ ${bodyHtml}
       button.addEventListener('click', () => {
         calendarCursor = localDate(button.dataset.calMore);
         calendarView = 'week';
-        loadCalendar();
+        navigateCalendar();
       }),
     );
     calendar.querySelectorAll('[data-calendar-date]').forEach((cell) => {
@@ -8567,11 +8606,12 @@ ${bodyHtml}
     if (!hasPermission('appointments.read')) return;
     clearWorkspaceRecovery();
     loadAppointmentTechnicianFilter();
-    const params = new URLSearchParams({ page: '1', pageSize: '50' });
+    const params = new URLSearchParams({ page: '1', pageSize: '100' });
     const search = $('#appointmentSearch').value.trim();
     const status = $('#appointmentStatusFilter').value;
-    const from = $('#appointmentFrom').value;
-    const to = $('#appointmentTo').value;
+    const listRange = appointmentListRange();
+    const from = listRange.from;
+    const to = listRange.to;
     const technicianId = $('#appointmentTechnicianFilter').value;
     if (technicianId) params.set('technicianId', technicianId);
     if (search) params.set('search', search);
@@ -8582,8 +8622,19 @@ ${bodyHtml}
     $('#appointmentsBody').innerHTML =
       '<tr><td colspan="7" class="empty-state">Loading appointments…</td></tr>';
     try {
-      const result = await apiRequest('/api/appointments?' + params);
-      renderAppointments(result.appointments || []);
+      const appointments = [];
+      let total = 0;
+      let page = 1;
+      do {
+        params.set('page', String(page));
+        const result = await apiRequest('/api/appointments?' + params);
+        const rows = result.appointments || [];
+        appointments.push(...rows);
+        total = Number(result.pagination?.total ?? appointments.length);
+        page += 1;
+        if (!rows.length) break;
+      } while (appointments.length < total && page <= 50);
+      renderAppointments(appointments, total, appointmentListRangeLabel(listRange));
       await loadCalendar();
     } catch (error) {
       if (error.status === 401) {
@@ -10229,26 +10280,26 @@ ${bodyHtml}
       calendarView === 'week'
         ? shiftDate(calendarCursor, -7)
         : new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1);
-    loadCalendar();
+    navigateCalendar();
   });
   $('#calendarTodayButton').addEventListener('click', () => {
     calendarCursor = new Date();
-    loadCalendar();
+    navigateCalendar();
   });
   $('#calendarNextButton').addEventListener('click', () => {
     calendarCursor =
       calendarView === 'week'
         ? shiftDate(calendarCursor, 7)
         : new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1);
-    loadCalendar();
+    navigateCalendar();
   });
   $('#calendarMonthButton').addEventListener('click', () => {
     calendarView = 'month';
-    loadCalendar();
+    navigateCalendar();
   });
   $('#calendarWeekButton').addEventListener('click', () => {
     calendarView = 'week';
-    loadCalendar();
+    navigateCalendar();
   });
   $('#retryWorkspaceButton').addEventListener('click', () => workspaceRetryAction?.());
   $('#returnAppointmentsButton').addEventListener('click', () => {

@@ -6298,6 +6298,12 @@
         color: var(--muted);
         vertical-align: middle;
       }
+      .ap-range {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--muted, #6b7280);
+        margin-left: 4px;
+      }
       .ap-count:empty {
         display: none;
       }
@@ -17480,6 +17486,7 @@
                 </div>
                 <h3 class="cal-list-title">
                   All appointments <span class="ap-count" id="appointmentListCount"></span>
+                  <span class="ap-range" id="appointmentListRange"></span>
                 </h3>
                 <div class="ap-daybar" id="appointmentDayBar" hidden>
                   <span id="appointmentDayLabel" aria-live="polite"></span>

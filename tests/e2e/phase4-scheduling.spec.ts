@@ -175,6 +175,50 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await expect(page.locator('#appointmentCalendar')).toBeVisible();
   });
 
+  test('keeps the All appointments list in step with the calendar period and date filters', async ({
+    page,
+  }) => {
+    const api = await installStaffApi(page);
+    await signInAndOpenAppointments(page);
+    await expect(page.locator('#appointmentListRange')).toContainText(
+      new Date().toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
+    );
+    const listCalls = () =>
+      api.listUrls
+        .map((url) => new URL(url))
+        .filter((url) => url.searchParams.get('pageSize') === '100');
+    const last = () => listCalls().at(-1)!.searchParams;
+
+    // Month view: the list is requested for the whole calendar month, not a fixed 50.
+    expect(last().get('from')).toMatch(/^\d{4}-\d{2}-01$/);
+
+    await page.getByRole('button', { name: 'Week' }).click();
+    await expect
+      .poll(() => {
+        const from = last().get('from')!;
+        const to = last().get('to')!;
+        return (new Date(to).getTime() - new Date(from).getTime()) / 86_400_000;
+      })
+      .toBe(6);
+
+    const before = last().get('from');
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect.poll(() => last().get('from')).not.toBe(before);
+
+    // A manual date filter wins over the calendar period.
+    await page.locator('#appointmentFrom').fill('2026-03-05');
+    await page.locator('#appointmentTo').fill('2026-03-09');
+    await page.locator('#appointmentTo').dispatchEvent('change');
+    await expect.poll(() => last().get('from')).toBe('2026-03-05');
+    expect(last().get('to')).toBe('2026-03-09');
+    await expect(page.locator('#appointmentListRange')).toContainText('5 Mar 2026');
+
+    // Moving the calendar replaces the filter with the new period.
+    await page.getByRole('button', { name: 'Next' }).click();
+    await expect(page.locator('#appointmentFrom')).toHaveValue('');
+    await expect.poll(() => last().get('from')).not.toBe('2026-03-05');
+  });
+
   test('reschedules through the accessible form and refreshes authoritative state', async ({
     page,
   }) => {
