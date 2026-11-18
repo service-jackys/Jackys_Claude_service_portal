@@ -7,6 +7,7 @@ import {
   createAppointmentService,
 } from '../../apps/api/src/appointments/service.js';
 import { createDbPool } from '../../packages/db/src/client.js';
+import { listDailyAppointments } from '../../packages/db/src/daily-list.js';
 import { migrate } from '../../packages/db/src/migrate.js';
 
 const databaseUrl = process.env.DATABASE_URL;
@@ -62,6 +63,22 @@ test(
       assert.equal(second!.visitItemCount, 2);
       assert.equal(second!.model, 'Fridge');
       assert.equal(first!.customerName, 'Visit Customer');
+
+      // The Daily schedule list carries each item's visit position so it can group them.
+      const daily = await pool.connect();
+      try {
+        const list = await listDailyAppointments(daily, '2099-03-04', '2099-03-04');
+        const mine = list.rows.filter((row) => row.visitGroupId === visit.visitGroupId);
+        assert.deepEqual(
+          mine.map((row) => [row.visitItemNo, row.visitItemCount]),
+          [
+            [1, 2],
+            [2, 2],
+          ],
+        );
+      } finally {
+        daily.release();
+      }
 
       // A single appointment stays outside any visit.
       const single = await service.create(

@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #279 — Daily schedule: show visits grouped (optional)
+
+**Date:** 2026-11-18
+
+**Why.** Items booked together as one visit are one stop for the technician, but the Daily schedule listed them as unrelated rows.
+
+**What changed.**
+
+- New **Show visits** setting on Schedules > Daily schedule: **Separate rows** (the default, exactly as before) or **Grouped together**. The choice is remembered per browser.
+- Grouped: items of the same visit that are on the same day and under the same technician (or branch) appear in one block. A header shows the customer, phone and address once, with a "Visit · n items" tag; each item keeps its own appointment number, status, tick box and Sheet button. Ticking the header ticks all its items.
+- An item moved to another day or technician is not pulled into the block; it stays a normal row under its own day and technician.
+- **Print list** follows the setting: a grey band "VISIT — customer · phone · address · n items, one stop", then the items marked "(visit 1/n)" and "Same stop". Low-ink, readable in black and white.
+- The daily list data now carries each item's visit group, position and size. No migration.
+- Tests: tests/e2e/printing.spec.ts, tests/integration/appointment-visit.test.ts.
+
+**Files.** packages/db/src/daily-list.ts, apps/web/src/app.js, apps/web/src/index.html.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
+
 ## Modification #278 — Repeat-customer lookup on New request
 
 **Date:** 2026-11-18

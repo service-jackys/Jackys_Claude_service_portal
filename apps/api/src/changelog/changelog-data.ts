@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 279,
+    "title": "Daily schedule: show visits grouped (optional)",
+    "area": "Appointments",
+    "date": "2026-11-18",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Daily schedule can show items booked as one visit together as one stop, on screen and in the printed list. Separate rows stay the default.",
+    "changes": [
+      "New Show visits setting: Separate rows (default) or Grouped together, remembered per browser.",
+      "A visit block shows the customer, phone and address once, with each item keeping its own number, status and tick box.",
+      "Items moved to another day or technician stay as normal rows.",
+      "The printed list shows a grey VISIT band for grouped items, low ink for black and white."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "packages/db/src/daily-list.ts, apps/web/src/app.js, apps/web/src/index.html."
+  },
+  {
     "id": 278,
     "title": "Repeat-customer lookup on New request",
     "area": "Appointments",

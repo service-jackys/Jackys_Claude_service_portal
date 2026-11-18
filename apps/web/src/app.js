@@ -3549,6 +3549,7 @@
   table { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
   th, td { border: 1px solid #ccc; padding: 4px 6px; font-size: 11px; text-align: left; }
   th { background: #f0f2f5; }
+  tr.visit-band td { background: #e9edf2; border: 1px solid #888; font-size: 11px; padding: 5px 6px; }
   td.num, th.num { text-align: right; }
   table.compact th, table.compact td { padding: 3px 5px; font-size: 10.5px; }
   table.compact tr { page-break-inside: avoid; }
@@ -21424,6 +21425,57 @@ ${bodyHtml}
     );
   }
 
+  // Per-viewer convenience only: the Daily schedule starts with separate rows.
+  function dlLoadVisitsMode() {
+    try {
+      return localStorage.getItem('dlVisitsMode') === 'grouped' ? 'grouped' : 'separate';
+    } catch (error) {
+      return 'separate';
+    }
+  }
+  function dlSaveVisitsMode(mode) {
+    try {
+      localStorage.setItem('dlVisitsMode', mode);
+    } catch (error) {
+      /* storage may be blocked; the choice then lasts for this screen only */
+    }
+  }
+
+  // "Show visits" on the Daily schedule: items booked as one visit and still in the same
+  // group (same day and technician or branch) can be drawn as one block. Anything else,
+  // including a visit item moved to another day or technician, stays a plain row.
+  function dlClusters(rows, grouped) {
+    if (!grouped) return rows.map((row) => ({ rows: [row], visit: false }));
+    const counts = new Map();
+    rows.forEach((row) => {
+      if (row.visitGroupId) counts.set(row.visitGroupId, (counts.get(row.visitGroupId) || 0) + 1);
+    });
+    const out = [];
+    const seen = new Set();
+    rows.forEach((row) => {
+      if (!row.visitGroupId || counts.get(row.visitGroupId) < 2) {
+        out.push({ rows: [row], visit: false });
+        return;
+      }
+      if (seen.has(row.visitGroupId)) return;
+      seen.add(row.visitGroupId);
+      out.push({
+        rows: rows
+          .filter((entry) => entry.visitGroupId === row.visitGroupId)
+          .sort((a, b) => (a.visitItemNo || 0) - (b.visitItemNo || 0)),
+        visit: true,
+      });
+    });
+    return out;
+  }
+
+  function dlVisitSummary(rows) {
+    const first = rows[0];
+    return [first.contactNumber, [first.address, first.region].filter(Boolean).join(', ')]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
   // Printing sends a technician out, so every appointment being printed must
   // have one. When some do not, a pop-up lists them; clicking one opens it so a
   // technician can be assigned, and the print is not done.
@@ -21500,35 +21552,59 @@ ${bodyHtml}
     return from === to ? dlDayLabel(from) : dlDayLabel(from) + ' to ' + dlDayLabel(to);
   }
 
-  function dlPrintList(rows, by, from, to) {
+  function dlPrintList(rows, by, from, to, grouped) {
     const groups = dlGroups(rows, by);
     const body = groups
       .map((group, index) => {
-        const lines = group.rows
-          .map(
-            (row, i) =>
-              '<tr><td>' +
-              (i + 1) +
-              '</td><td>' +
-              escapeHtml(row.appointmentReference) +
-              '</td><td><strong>' +
+        let counter = 0;
+        const rowHtml = (row, i, inVisit) =>
+          '<tr><td>' +
+          i +
+          '</td><td>' +
+          escapeHtml(row.appointmentReference) +
+          '</td><td>' +
+          (inVisit
+            ? '(visit ' + row.visitItemNo + '/' + row.visitItemCount + ')'
+            : '<strong>' +
               escapeHtml(row.customerName) +
               '</strong><br>' +
-              escapeHtml(row.contactNumber || '') +
-              '</td><td>' +
-              escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—') +
-              '</td><td>' +
-              escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
-              '</td><td>' +
-              escapeHtml(row.faultDescription) +
-              '</td><td>' +
-              escapeHtml(row.jobWarranty || '—') +
-              '</td><td>' +
-              escapeHtml(
-                by === 'branch' ? row.technicianName || 'Unassigned' : row.branchName || '—',
-              ) +
-              '</td><td style="width:44px"></td></tr>',
-          )
+              escapeHtml(row.contactNumber || '')) +
+          '</td><td>' +
+          (inVisit
+            ? 'Same stop'
+            : escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—')) +
+          '</td><td>' +
+          escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
+          '</td><td>' +
+          escapeHtml(row.faultDescription) +
+          '</td><td>' +
+          escapeHtml(row.jobWarranty || '—') +
+          '</td><td>' +
+          escapeHtml(by === 'branch' ? row.technicianName || 'Unassigned' : row.branchName || '—') +
+          '</td><td style="width:44px"></td></tr>';
+        const lines = dlClusters(group.rows, grouped)
+          .map((cluster) => {
+            if (!cluster.visit) {
+              counter += 1;
+              return rowHtml(cluster.rows[0], counter, false);
+            }
+            const head = cluster.rows[0];
+            return (
+              '<tr class="visit-band"><td colspan="9"><strong>VISIT &mdash; ' +
+              escapeHtml(head.customerName) +
+              '</strong> &middot; ' +
+              escapeHtml(dlVisitSummary(cluster.rows)) +
+              ' &middot; ' +
+              cluster.rows.length +
+              ' items, one stop</td></tr>' +
+              cluster.rows
+                .map((row) => {
+                  counter += 1;
+                  return rowHtml(row, counter, true);
+                })
+                .join('')
+            );
+          })
           .join('');
         return (
           '<div' +
@@ -24566,6 +24642,7 @@ ${bodyHtml}
       from: today,
       to: today,
       by: 'technician',
+      visits: dlLoadVisitsMode(),
       technician: '',
       selected: new Set(),
       rows: [],
@@ -24609,6 +24686,11 @@ ${bodyHtml}
         '>Technician</option><option value="branch"' +
         (state.by === 'branch' ? ' selected' : '') +
         '>Branch</option></select></label></div>' +
+        '<div class="th-field"><label>Show visits<select data-dl="visits"><option value="separate"' +
+        (state.visits === 'separate' ? ' selected' : '') +
+        '>Separate rows</option><option value="grouped"' +
+        (state.visits === 'grouped' ? ' selected' : '') +
+        '>Grouped together</option></select></label></div>' +
         '<div class="th-field"><label>Technician<select data-dl="technician">' +
         dlTechnicianOptions(state.rows, state.technician) +
         '</select></label></div>' +
@@ -24643,6 +24725,11 @@ ${bodyHtml}
         drawResults();
         drawBar();
       });
+      control('visits').addEventListener('change', (event) => {
+        state.visits = event.target.value === 'grouped' ? 'grouped' : 'separate';
+        dlSaveVisitsMode(state.visits);
+        drawResults();
+      });
       control('technician').addEventListener('change', (event) => {
         state.technician = event.target.value;
         drawBar();
@@ -24650,7 +24737,8 @@ ${bodyHtml}
       });
       bar.querySelector('[data-dl-print-list]')?.addEventListener('click', () => {
         const rows = printableRows();
-        if (dlPrintAllowed(rows)) dlPrintList(rows, state.by, state.from, state.to);
+        if (dlPrintAllowed(rows))
+          dlPrintList(rows, state.by, state.from, state.to, state.visits === 'grouped');
       });
       bar.querySelector('[data-dl-print-sheets]')?.addEventListener('click', () => {
         const rows = printableRows();
@@ -24683,43 +24771,62 @@ ${bodyHtml}
         groups
           .map((group) => {
             const open = group.label === 'Unassigned' || group.label === 'No branch';
-            const lines = group.rows
-              .map(
-                (row) =>
-                  '<tr><td><input type="checkbox" data-dl-pick="' +
-                  escapeHtml(row.id) +
-                  '" aria-label="Select ' +
-                  escapeHtml(row.appointmentReference) +
-                  '"' +
-                  (state.selected.has(row.id) ? ' checked' : '') +
-                  ' /></td><td>' +
-                  escapeHtml(row.appointmentReference) +
-                  '</td><td><strong>' +
-                  escapeHtml(row.customerName) +
-                  '</strong><br>' +
-                  escapeHtml(row.contactNumber || '') +
-                  '</td><td>' +
-                  escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—') +
-                  '</td><td>' +
-                  escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
-                  '</td><td class="pg-cell" title="' +
-                  escapeHtml(row.faultDescription) +
-                  '">' +
-                  escapeHtml(row.faultDescription) +
-                  '</td><td>' +
-                  escapeHtml(
-                    state.by === 'branch'
-                      ? row.technicianName || 'Unassigned'
-                      : row.branchName || '—',
-                  ) +
-                  '</td><td><span class="status ' +
-                  statusClass(row.status) +
-                  '">' +
-                  escapeHtml(row.status) +
-                  '</span></td><td><button class="button-link" type="button" data-dl-sheet="' +
-                  escapeHtml(row.id) +
-                  '">Sheet</button></td></tr>',
-              )
+            const rowLine = (row, inVisit) =>
+              '<tr' +
+              (inVisit ? ' class="dl-visit-item"' : '') +
+              '><td><input type="checkbox" data-dl-pick="' +
+              escapeHtml(row.id) +
+              '" aria-label="Select ' +
+              escapeHtml(row.appointmentReference) +
+              '"' +
+              (state.selected.has(row.id) ? ' checked' : '') +
+              ' /></td><td>' +
+              escapeHtml(row.appointmentReference) +
+              '</td><td><strong>' +
+              escapeHtml(row.customerName) +
+              '</strong><br>' +
+              escapeHtml(row.contactNumber || '') +
+              '</td><td>' +
+              escapeHtml([row.address, row.region].filter(Boolean).join(', ') || '—') +
+              '</td><td>' +
+              escapeHtml([row.brand, row.model].filter(Boolean).join(' ') || '—') +
+              '</td><td class="pg-cell" title="' +
+              escapeHtml(row.faultDescription) +
+              '">' +
+              escapeHtml(row.faultDescription) +
+              '</td><td>' +
+              escapeHtml(
+                state.by === 'branch' ? row.technicianName || 'Unassigned' : row.branchName || '—',
+              ) +
+              '</td><td><span class="status ' +
+              statusClass(row.status) +
+              '">' +
+              escapeHtml(row.status) +
+              '</span></td><td><button class="button-link" type="button" data-dl-sheet="' +
+              escapeHtml(row.id) +
+              '">Sheet</button></td></tr>';
+            const lines = dlClusters(group.rows, state.visits === 'grouped')
+              .map((cluster) => {
+                if (!cluster.visit) return rowLine(cluster.rows[0], false);
+                const head = cluster.rows[0];
+                const ids = cluster.rows.map((row) => row.id);
+                return (
+                  '<tr class="dl-visit-head"><td><input type="checkbox" data-dl-pick-group="' +
+                  escapeHtml(ids.join(',')) +
+                  '" aria-label="Select all ' +
+                  cluster.rows.length +
+                  ' items of this visit"' +
+                  (ids.every((id) => state.selected.has(id)) ? ' checked' : '') +
+                  ' /></td><td colspan="8"><strong>Visit &middot; ' +
+                  escapeHtml(head.customerName) +
+                  '</strong> <span class="dl-visit-sub">' +
+                  escapeHtml(dlVisitSummary(cluster.rows)) +
+                  '</span> <span class="dl-visit-tag" title="These items were booked together as one visit, so they are one stop. Tick the box to select all of them.">Visit &middot; ' +
+                  cluster.rows.length +
+                  ' items</span></td></tr>' +
+                  cluster.rows.map((row) => rowLine(row, true)).join('')
+                );
+              })
               .join('');
             return (
               '<section class="dl-group' +

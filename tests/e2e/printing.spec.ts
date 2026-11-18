@@ -32,6 +32,9 @@ const rows = [
   subGroup: null,
   salesman: 'Sam',
   complaintSource: 'Phone',
+  visitGroupId: null as string | null,
+  visitItemNo: null as number | null,
+  visitItemCount: null as number | null,
 }));
 
 const jobCard = {
@@ -150,6 +153,49 @@ test.describe('printing', () => {
     expect(html).not.toContain('APT-2026-00003');
     expect(html).toContain('class="logo"');
     expect(html).toContain('Complaint source');
+  });
+
+  test('daily schedule: visits stay separate rows until grouped, then print as one stop', async ({
+    page,
+  }) => {
+    const visit = [1, 2].map((n) => ({
+      ...rows[0]!,
+      id: 'v' + n,
+      appointmentReference: 'APT-VISIT-0' + n,
+      customerName: 'Sara Visit',
+      visitGroupId: 'g1',
+      visitItemNo: n,
+      visitItemCount: 2,
+    }));
+    await signIn(page, [rows[1]!, ...visit]);
+    await page.locator('#dailyListNav').dispatchEvent('click');
+
+    // Default: separate rows, no visit header.
+    await expect(page.locator('[data-dl="visits"]')).toHaveValue('separate');
+    await expect(page.locator('[data-dl-pick]')).toHaveCount(3);
+    await expect(page.locator('.dl-visit-head')).toHaveCount(0);
+
+    // Grouped: one visit header, each item keeps its own tick box.
+    await page.locator('[data-dl="visits"]').selectOption('grouped');
+    await expect(page.locator('.dl-visit-head')).toHaveCount(1);
+    await expect(page.locator('.dl-visit-head')).toContainText('Sara Visit');
+    await expect(page.locator('.dl-visit-head')).toContainText('2 items');
+    await expect(page.locator('[data-dl-pick]')).toHaveCount(3);
+
+    // The visit tick box selects both items.
+    await page.locator('.dl-visit-head [data-dl-pick-group]').check();
+    await expect(page.locator('[data-dl-print-list]')).toContainText('2 selected');
+
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('[data-dl-print-list]').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState('load').catch(() => {});
+    const html = await popup.content();
+    expect(html).toContain('VISIT');
+    expect(html).toContain('2 items, one stop');
+    expect(html).toContain('(visit 1/2)');
+    expect(html).toContain('APT-VISIT-02');
+    expect(html).not.toContain('APT-2026-00002');
   });
 
   test('printing is blocked until every appointment has a technician', async ({ page }) => {
