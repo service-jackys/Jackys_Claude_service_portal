@@ -17,7 +17,11 @@ const core = mod.exports as {
   visitBreakdown(cfg: any): Record<string, number>;
   exampleRate(cfg: unknown, refValue: number, age: number): any;
   discountFor(cfg: unknown, qty: number): number;
-  callOutTerms(cfg: unknown, totalQty?: number): Record<'basic' | 'standard' | 'premium', string>;
+  callOutTerms(
+    cfg: unknown,
+    totalQty?: number,
+    opts?: { roundPoolTo10?: boolean },
+  ): Record<'basic' | 'standard' | 'premium', string>;
   computeQuote(cfg: unknown, lines: unknown[], age: number): any;
   computeOld(old: unknown, qty: number, value: number): any[];
 };
