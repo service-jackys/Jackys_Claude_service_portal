@@ -84,6 +84,13 @@ test.describe('quotations workspace', () => {
         )
       )
         return;
+      if (url.pathname === '/api/quotations/months') {
+        await route.fulfill({
+          contentType: 'application/json',
+          body: JSON.stringify({ months: [] }),
+        });
+        return;
+      }
       if (url.pathname === '/api/quotations' && request.method() === 'GET') {
         await route.fulfill({
           contentType: 'application/json',
@@ -111,18 +118,21 @@ test.describe('quotations workspace', () => {
     });
 
     await signIn(page, 'sales@jackys.com');
-    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
+    await page.locator('#quotationsNav').dispatchEvent('click');
     await expect(page.getByRole('heading', { name: 'Quotations' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'QTN-2026-00001' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'New quotation' }).click();
     await expect(page.locator('#quotationCreatePanel')).toBeVisible();
     await page.locator('#qtcCustomerName').fill('Quotation Customer');
+    await page.locator('#qtcCustomerType').selectOption('B2C');
     await page.locator('#qtcErpStatus').selectOption('Pending invoice');
     await page
       .locator('#quotationCreatePanel')
       .getByRole('button', { name: 'Save quotation' })
       .click();
+    // Saving asks for the quotation status first; keep the default (Pending).
+    await page.locator('#qStatusOk').click();
 
     await expect(page.locator('#workspaceMessage')).toHaveText('Quotation QTN-2026-00001 created.');
     await expect(page.locator('#quotationDetailHeading')).toHaveText('QTN-2026-00001');
@@ -209,13 +219,14 @@ test.describe('inspections workspace', () => {
     });
 
     await signIn(page, 'inspector@jackys.com');
-    await page.getByRole('button', { name: 'Inspections', exact: true }).click();
+    await page.locator('#inspectionsNav').dispatchEvent('click');
     await expect(page.getByRole('heading', { name: 'Inspections' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'INS-2026-00001' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'New inspection' }).click();
     await expect(page.locator('#inspectionCreatePanel')).toBeVisible();
     await page.locator('#iqcCustomerName').fill('Inspection Customer');
+    await page.locator('#iqcCustomerType').selectOption('B2C');
     await page
       .locator('#inspectionCreatePanel')
       .getByRole('button', { name: 'Save inspection' })
@@ -322,7 +333,7 @@ test.describe('warranty approvals workspace', () => {
     });
 
     await signIn(page, 'warranty@jackys.com');
-    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
+    await page.locator('#warrantyApprovalsNav').dispatchEvent('click');
     await page.getByRole('tab', { name: 'New approval request' }).click();
 
     await page.locator('#waJobCardRef').fill('JBC-2026-00701');
@@ -380,7 +391,7 @@ test.describe('warranty approvals workspace', () => {
     });
 
     await signIn(page, 'warranty@jackys.com');
-    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
+    await page.locator('#warrantyApprovalsNav').dispatchEvent('click');
     await expect(page.getByRole('heading', { name: 'Warranty approvals' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'New approval request' }).click();
@@ -459,7 +470,7 @@ test.describe('warranty approvals workspace', () => {
     });
 
     await signIn(page, 'warranty2@jackys.com');
-    await page.getByRole('button', { name: 'Warranty approvals', exact: true }).click();
+    await page.locator('#warrantyApprovalsNav').dispatchEvent('click');
     await page.getByRole('tab', { name: 'New approval request' }).click();
     await page.locator('#waJobCardId').evaluate((el) => ((el as HTMLInputElement).value = '701'));
     await page.locator('#waCustomerName').fill('Warranty Customer');
@@ -887,7 +898,7 @@ test.describe('customer approval workflow', () => {
       await route.continue();
     });
     await signIn(page, 'quotes@jackys.com');
-    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
+    await page.locator('#quotationsNav').dispatchEvent('click');
     await expect(page.locator('#quotationsBody')).toContainText('Approved');
     await page.getByRole('button', { name: 'QO-2026-00095' }).click();
     await expect(page.locator('#quotationApprovalStatus')).toContainText('Approved');
@@ -953,7 +964,7 @@ test.describe('quotation and inspection forms', () => {
     });
     await signIn(page, 'sales@jackys.com');
 
-    await page.getByRole('button', { name: 'Quotations', exact: true }).click();
+    await page.locator('#quotationsNav').dispatchEvent('click');
     await page.getByRole('tab', { name: 'New quotation' }).click();
     await page.locator('#qtcProjectName').fill('GEMS');
     await expect(page.locator('#qtcProjectList option')).toHaveCount(2);
@@ -970,7 +981,7 @@ test.describe('quotation and inspection forms', () => {
     await page.locator('#qtcAddGeneralChargeButton').click();
     await expect(page.locator('#qtcGeneralCharges [data-charge]').first()).toBeVisible();
 
-    await page.getByRole('button', { name: 'Inspections', exact: true }).click();
+    await page.locator('#inspectionsNav').dispatchEvent('click');
     await page.getByRole('tab', { name: /New inspection/ }).click();
     await page.locator('#iqcProjectName').fill('GEMS');
     await expect(page.locator('#iqcProjectList option')).toHaveCount(2);
