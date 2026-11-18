@@ -3463,28 +3463,32 @@
   .totals tr.grand td { font-weight: 700; border-top: 1.5px solid #17324d; padding-top: 4px; }
   .sign-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 32px; }
   .sign-box { border-top: 1px solid #333; padding-top: 4px; font-size: 11px; color: #444; }
-  .apt-legend { font-size: 10px; color: #5b6b7b; margin: 0 0 10px; }
-  .apt-legend b { color: #b42318; }
-  .apt-sec { margin-bottom: 12px; border: 1px solid #b9c7d6; border-radius: 5px; overflow: hidden; break-inside: avoid; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-  .apt-sec h3 { margin: 0; padding: 5px 10px; background: #17324d; color: #fff; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center; }
-  .apt-sec h3 small { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 10.5px; opacity: .9; }
+  .apt-sheet { --apt-ink: #0f2a43; --apt-navy: #17324d; --apt-line: #d3dce6; --apt-soft: #eef2f7; --apt-tint: #f5f9fd; --apt-muted: #5b6b7b; --apt-alert: #b42318; --apt-alert-bg: #fdecea; }
+  .apt-sheet, .apt-sheet * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .apt-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 10px; }
+  .apt-card { border: 1px solid var(--apt-line); border-left: 4px solid var(--apt-navy); border-radius: 6px; padding: 9px 13px 10px; background: var(--apt-tint); break-inside: avoid; }
+  .apt-card .apt-kicker { font-size: 9px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; color: var(--apt-navy); padding-bottom: 4px; margin-bottom: 6px; border-bottom: 1px solid var(--apt-line); }
+  .apt-card .apt-title { font-size: 17px; font-weight: 800; color: var(--apt-ink); line-height: 1.2; margin-bottom: 4px; }
+  .apt-card .apt-title.gap { color: var(--apt-alert); font-size: 13px; }
+  .apt-line { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-size: 12px; padding: 2px 0; }
+  .apt-line .k { color: var(--apt-muted); }
+  .apt-line .k.req::after { content: " *"; color: var(--apt-alert); font-weight: 700; }
+  .apt-line .v { font-weight: 700; color: var(--apt-ink); text-align: right; }
+  .apt-line .v.gap { color: var(--apt-alert); }
+  .apt-legend { font-size: 10px; color: var(--apt-muted); margin: 0 0 8px; }
+  .apt-legend b { color: var(--apt-alert); }
+  .apt-sec { margin-bottom: 10px; border: 1px solid var(--apt-line); border-radius: 6px; overflow: hidden; break-inside: avoid; }
+  .apt-sec h3 { margin: 0; padding: 5px 12px; background: var(--apt-navy); color: #fff; font-size: 10px; letter-spacing: .12em; text-transform: uppercase; font-weight: 700; }
   table.apt-d { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
-  table.apt-d th, table.apt-d td { padding: 6px 9px; border: 0; border-bottom: 1px solid #dde4eb; text-align: left; vertical-align: top; font-size: 12px; background: transparent; }
+  table.apt-d th, table.apt-d td { padding: 5px 12px; border: 0; border-bottom: 1px solid var(--apt-line); text-align: left; vertical-align: middle; font-size: 12px; background: transparent; }
   table.apt-d tr:last-child th, table.apt-d tr:last-child td { border-bottom: 0; }
-  table.apt-d th { width: 15%; background: #eef2f6; color: #33475b; font-size: 10px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; border-right: 1px solid #dde4eb; }
-  table.apt-d td + th { border-left: 1px solid #dde4eb; }
-  table.apt-d td { width: 35%; }
-  table.apt-d.two th { width: 42%; font-size: 9.5px; }
-  table.apt-d.two td { width: 58%; }
-  table.apt-d th.req::after { content: " *"; color: #b42318; }
-  table.apt-d td.req { font-weight: 700; color: #0d2740; background: #f7fafd; }
-  table.apt-d td.gap { background: #fdecea; color: #b42318; font-weight: 700; }
-  .apt-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
-  .apt-cols .apt-sec { margin-bottom: 0; display: flex; flex-direction: column; }
-  .apt-cols .apt-sec table { flex: 1; height: 100%; }
+  table.apt-d th { width: 26%; background: var(--apt-soft); color: #33475b; font-size: 11px; font-weight: 700; border-right: 1px solid var(--apt-line); }
+  table.apt-d th.req::after { content: " *"; color: var(--apt-alert); }
+  table.apt-d td.req { font-weight: 700; color: var(--apt-ink); background: var(--apt-tint); }
+  table.apt-d td.gap { background: var(--apt-alert-bg); color: var(--apt-alert); font-weight: 700; letter-spacing: .02em; }
   .apt-pill { display: inline-block; padding: 1px 9px; border-radius: 10px; font-size: 11px; font-weight: 700; }
   .apt-pill.warn { background: #fff4e5; color: #9a5b00; }
-  .apt-pill.done { background: #e3edf7; color: #17324d; }
+  .apt-pill.done { background: #e3edf7; color: var(--apt-navy); }
   @media print { .no-print { display: none !important; } }
 </style>
 </head>
@@ -20746,32 +20750,51 @@ ${bodyHtml}
     );
   }
 
-  // Appointment sheet print: details grouped into Customer, Product, Appointment & technician and
-  // Other references. Required details carry a red asterisk and bold values; a required detail with
-  // no value prints as a red "Not entered" cell so the technician confirms it with the customer.
+  // Appointment sheet print: two summary cards (customer, visit) followed by Customer, Product
+  // and Reference detail tables. Required details carry a red asterisk and bold values; a required
+  // detail with no value prints in red as "Not entered" so the technician confirms it with the
+  // customer before starting.
   function dlSheetBody(row, first) {
-    const cell = (label, value, required, opts = {}) => {
-      const text = value == null ? '' : String(value).trim();
-      const missing = required && !text;
-      const span = opts.colspan ? ' colspan="' + opts.colspan + '"' : '';
+    const NOT_ENTERED = 'Not entered — confirm with customer';
+    const trimmed = (value) => (value == null ? '' : String(value).trim());
+    const cell = (label, value, required) => {
+      const text = trimmed(value);
       const th = '<th class="' + (required ? 'req' : '') + '">' + escapeHtml(label) + '</th>';
-      if (missing) {
-        return th + '<td class="gap"' + span + '>Not entered — confirm with customer</td>';
-      }
-      const inner = opts.html ? opts.html : escapeHtml(text || '—');
-      return th + '<td class="' + (required ? 'req' : '') + '"' + span + '>' + inner + '</td>';
+      if (required && !text) return th + '<td class="gap">' + NOT_ENTERED + '</td>';
+      return (
+        th + '<td class="' + (required ? 'req' : '') + '">' + escapeHtml(text || '—') + '</td>'
+      );
     };
-    const pairs = (items) => {
-      let out = '';
-      for (let i = 0; i < items.length; i += 2) {
-        const left = items[i];
-        const right = items[i + 1];
-        out += '<tr>' + cell(...left) + (right ? cell(...right) : '<th></th><td></td>') + '</tr>';
-      }
-      return out;
+    const table = (title, items) =>
+      '<div class="apt-sec"><h3>' +
+      escapeHtml(title) +
+      '</h3><table class="apt-d">' +
+      items.map((item) => '<tr>' + cell(...item) + '</tr>').join('') +
+      '</table></div>';
+    const line = (label, value, required, html) => {
+      const text = trimmed(value);
+      const missing = required && !text;
+      return (
+        '<div class="apt-line"><span class="k' +
+        (required ? ' req' : '') +
+        '">' +
+        escapeHtml(label) +
+        '</span><span class="v' +
+        (missing ? ' gap' : '') +
+        '">' +
+        (missing ? 'Not entered' : html || escapeHtml(text || '—')) +
+        '</span></div>'
+      );
     };
-    const single = (items) => items.map((item) => '<tr>' + cell(...item) + '</tr>').join('');
-    const warranty = (row.jobWarranty || '').trim();
+    const title = (value, required) => {
+      const text = trimmed(value);
+      return text
+        ? '<div class="apt-title">' + escapeHtml(text) + '</div>'
+        : required
+          ? '<div class="apt-title gap">' + NOT_ENTERED + '</div>'
+          : '<div class="apt-title">—</div>';
+    };
+    const warranty = trimmed(row.jobWarranty);
     const warrantyHtml = warranty
       ? '<span class="apt-pill' +
         (/^out/i.test(warranty) ? ' warn' : '') +
@@ -20786,50 +20809,44 @@ ${bodyHtml}
       .filter(Boolean)
       .join(' · ');
     return (
-      '<div' +
+      '<div class="apt-sheet"' +
       (first ? '' : ' style="page-break-before:always"') +
       '>' +
       printDocHeadWithLogo('Appointment sheet', row.appointmentReference) +
+      '<div class="apt-hero"><div class="apt-card"><div class="apt-kicker">Customer</div>' +
+      title(row.customerName, true) +
+      line('Contact', row.contactNumber, true) +
+      line('Region', row.region, true) +
+      line('Type', row.customerType, false) +
+      '</div><div class="apt-card"><div class="apt-kicker">Visit</div>' +
+      title(row.appointmentDate ? dlDayLabel(row.appointmentDate) : '', true) +
+      line('Technician', row.technicianName, true) +
+      line('Warranty', warranty, true, warrantyHtml) +
+      line('Status', row.status, false, statusHtml) +
+      '</div></div>' +
       '<div class="apt-legend">* Required details &nbsp;|&nbsp; <b>Red</b> = required but not entered: confirm with the customer before starting</div>' +
-      '<div class="apt-sec"><h3>Customer details' +
-      (row.customerType ? '<small>' + escapeHtml(row.customerType) + ' customer</small>' : '') +
-      '</h3><table class="apt-d">' +
-      pairs([
+      table('Customer details', [
         ['Customer name', row.customerName, true],
-        ['Customer type', row.customerType, false],
         ['Contact number', row.contactNumber, true],
+        ['Address', row.address, true],
+        ['Region', row.region, true],
         ['Email', row.customerEmail, false],
         ['Customer number', row.customerNumber, false],
-        ['Region', row.region, true],
         ['Branch / school', row.branchName, false],
         ['School contact', schoolContact, false],
       ]) +
-      '<tr>' +
-      cell('Address', row.address, true, { colspan: 3 }) +
-      '</tr></table></div>' +
-      '<div class="apt-cols"><div class="apt-sec"><h3>Product details</h3><table class="apt-d two">' +
-      single([
+      table('Product details', [
         ['Brand', row.brand, true],
         ['Model', row.model, true],
         ['Sub group', row.subGroup, true],
         ['Item code', row.itemCode, true],
-        ['Warranty', warranty, true, { html: warrantyHtml }],
-      ]) +
-      '</table></div><div class="apt-sec"><h3>Appointment &amp; technician</h3><table class="apt-d two">' +
-      single([
-        ['Appointment date', row.appointmentDate ? dlDayLabel(row.appointmentDate) : '', true],
-        ['Technician', row.technicianName, true],
-        ['Status', row.status, false, { html: statusHtml }],
-        ['Salesman', row.salesman, false],
         ['Sales order', row.salesOrderNumber, false],
+        ['Salesman', row.salesman, false],
       ]) +
-      '</table></div></div>' +
-      '<div class="apt-sec"><h3>Other references</h3><table class="apt-d">' +
-      pairs([
+      table('Reference', [
         ['Complaint source', row.complaintSource, false],
         ['Complaint ref', row.complaintReference, false],
       ]) +
-      '</table></div>' +
       '<div class="block-label">Fault reported</div><div class="block">' +
       escapeHtml(row.faultDescription) +
       '</div><div class="block-label">Work done</div><div class="block" style="min-height:90px"></div>' +

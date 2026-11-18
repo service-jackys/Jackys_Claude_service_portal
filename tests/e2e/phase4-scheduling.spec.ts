@@ -228,13 +228,12 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await page.locator('#printAppointmentButton').click();
     const popup = await popupPromise;
     await popup.waitForLoadState();
-    const sections = popup.locator('.apt-sec h3');
-    await expect(sections).toHaveText([
-      /Customer details/,
-      /Product details/,
-      /Appointment & technician/,
-      /Other references/,
+    await expect(popup.locator('.apt-sec h3')).toHaveText([
+      'Customer details',
+      'Product details',
+      'Reference',
     ]);
+    await expect(popup.locator('.apt-card .apt-kicker')).toHaveText(['Customer', 'Visit']);
     // Required and entered: bold cell; required and missing: red "Not entered".
     await expect(popup.locator('td.req', { hasText: 'Calendar Customer' })).toBeVisible();
     await expect(popup.locator('td.req', { hasText: 'VENUS' })).toBeVisible();
