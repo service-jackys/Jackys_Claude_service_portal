@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #281 — Unit stickers: print a sticker from a service job card (Zebra GK420t)
+
+**Date:** 2026-11-19
+
+**Why.** The service centre wants a printed sticker on every repaired unit (and later every installed unit) so the status, job card number and contact line travel with the unit. Requested by the Customer Service & Documentation Clerk and approved after mock-ups.
+
+**What changed.**
+
+- New **Print unit sticker** button on the job card detail, beside Print. The sticker shows a boxed status (REPAIRED, BER, REJECTED, SPARE PENDING, IN SERVICE and so on, readable in black and white), a Code 128 barcode of the job card number, model, serial, owner, warranty, received date and technician, work done, parts and the line "For service enquiries contact: +971 4 336 1695 · service@jackys.com".
+- New **Label settings** window: layout **A** (two stickers on one 4 x 6 in label, a unit copy and a customer copy with a dashed line; the default) or layout **B** (one sticker per 100 x 75 mm label), a small left/right and up/down shift, and **Print a test sticker**. Saved per computer, so no code change is needed after the first print test.
+- If a required detail is missing, a pop-up "Sticker cannot be printed yet" lists each required field as Missing or Done.
+- The barcode bar is 0.25 mm (2 printer dots at 203 dpi) so the GK420t prints it crisply. Printing goes through the normal Windows driver of the PC the printer is attached to; nothing is configured inside the portal.
+- No API, database or pricing change.
+- Tests: tests/unit/label-core.test.ts (barcode checked against a reference encoder and a decoder).
+
+**Files.** apps/web/src/label-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/label-core.test.ts.
+
+**Needs you:** pull, hard-refresh. No migration, no API restart. Then open Label settings and print a test sticker; set the Windows paper size to 100 x 150 mm (or 100 x 75 mm for layout B), scale 100%.
+
 ## Modification #280 — Tooltips across the Schedules tabs
 
 **Date:** 2026-11-18

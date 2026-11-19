@@ -4465,6 +4465,136 @@ ${bodyHtml}
     printWindow.addEventListener('load', () => printWindow.print());
   }
 
+  // ---- Unit stickers (Zebra GK420t, 4 x 6 in) -- pure helpers live in label-core.js (JdLabel)
+  const LABEL_SETTINGS_KEY = 'jdLabelSettings';
+  function loadLabelSettings() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(LABEL_SETTINGS_KEY) || '{}');
+      return {
+        layout: saved.layout === 'B' ? 'B' : 'A',
+        offsetX: Number(saved.offsetX) || 0,
+        offsetY: Number(saved.offsetY) || 0,
+      };
+    } catch {
+      return { layout: 'A', offsetX: 0, offsetY: 0 };
+    }
+  }
+  function saveLabelSettings(settings) {
+    try {
+      localStorage.setItem(LABEL_SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      /* private window or blocked storage: settings last for this page only */
+    }
+  }
+
+  function printStickers(items) {
+    openPrintWindow(window.JdLabel.labelDocument(items, loadLabelSettings()));
+  }
+
+  // The "Sticker cannot be printed yet" pop-up.
+  function showMissingStickerDetails(allFields, missing) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog print-choice';
+      const rows = allFields
+        .map((label) => {
+          const isMissing = missing.includes(label);
+          return `<li style="display:flex;gap:10px;align-items:center;border:1px solid ${isMissing ? '#e8c9c9' : '#d9e2eb'};${isMissing ? 'background:#fdf3f3;' : ''}border-radius:10px;padding:8px 12px;margin-bottom:6px"><strong style="color:${isMissing ? '#a02828' : '#176b4d'}">${isMissing ? 'Missing' : 'Done'}</strong> ${escapeHtml(label)}</li>`;
+        })
+        .join('');
+      dialog.innerHTML =
+        '<h3>Sticker cannot be printed yet</h3>' +
+        '<p>These fields are required for sticker printing. Fill them in on the job, then print again.</p>' +
+        `<ul style="list-style:none;margin:0 0 12px;padding:0">${rows}</ul>` +
+        '<div class="form-footer"><button type="button" class="button" data-sticker-close>Close</button></div>';
+      dialog.addEventListener('click', (event) => {
+        if (event.target.closest('[data-sticker-close]')) dialog.close();
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve();
+      });
+      document.body.appendChild(dialog);
+      dialog.showModal();
+    });
+  }
+
+  const REPAIR_STICKER_FIELDS = [
+    'Job card number',
+    'Model or item description',
+    'Customer name',
+    'Job card date',
+  ];
+
+  function repairStickerData(jobCard) {
+    const partsText = (jobCard.parts || [])
+      .filter((part) => part.partNo || part.description)
+      .map((part) =>
+        [part.partNo || part.description, part.qty ? `x${part.qty}` : ''].filter(Boolean).join(' '),
+      )
+      .join(' · ');
+    return {
+      reference: jobCard.jobCardReference,
+      status: jobCard.jobFinalStatus || jobCard.status,
+      model: jobCard.modelNo,
+      itemDesc: jobCard.itemDescription,
+      serial: jobCard.serialNo,
+      customerName: jobCard.customerName,
+      customerPhone: jobCard.customerContact,
+      warranty: jobCard.finalWarrantyStatus || jobCard.warrantyStatus,
+      receivedDate: jobCard.jobCardDate,
+      technician: jobCard.technicianName || jobCard.appointmentTechnicianName,
+      serviceRendered: jobCard.serviceRendered,
+      parts: partsText,
+      printDate: new Date().toISOString().slice(0, 10),
+    };
+  }
+
+  async function printRepairSticker(jobCard) {
+    if (!jobCard) return;
+    const data = repairStickerData(jobCard);
+    const missing = window.JdLabel.missingDetails('repair', data);
+    if (missing.length) {
+      await showMissingStickerDetails(REPAIR_STICKER_FIELDS, missing);
+      return;
+    }
+    printStickers([{ kind: 'repair', data }]);
+  }
+
+  function openLabelSettings() {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'pw-dialog print-choice';
+    const settings = loadLabelSettings();
+    dialog.innerHTML = `<h3>Label settings</h3>
+      <p>Saved on this computer only. Printer: Zebra GK420t, direct thermal. In the Windows printer settings set the paper to the label size below and the print scale to 100%.</p>
+      <label class="field"><span>Layout</span><select data-ls-layout>
+        <option value="A">A: two stickers on one 4 x 6 in label (unit copy + customer copy)</option>
+        <option value="B">B: one sticker per 100 x 75 mm label</option></select></label>
+      <label class="field"><span>Shift right (mm, negative = left)</span><input type="number" step="0.5" data-ls-x></label>
+      <label class="field"><span>Shift down (mm, negative = up)</span><input type="number" step="0.5" data-ls-y></label>
+      <div class="form-footer"><button type="button" class="button button-outline" data-ls-close>Close</button><button type="button" class="button button-outline" data-ls-test>Print a test sticker</button><button type="button" class="button" data-ls-save>Save</button></div>`;
+    dialog.querySelector('[data-ls-layout]').value = settings.layout;
+    dialog.querySelector('[data-ls-x]').value = settings.offsetX;
+    dialog.querySelector('[data-ls-y]').value = settings.offsetY;
+    const read = () => ({
+      layout: dialog.querySelector('[data-ls-layout]').value === 'B' ? 'B' : 'A',
+      offsetX: Number(dialog.querySelector('[data-ls-x]').value) || 0,
+      offsetY: Number(dialog.querySelector('[data-ls-y]').value) || 0,
+    });
+    dialog.addEventListener('click', (event) => {
+      if (event.target.closest('[data-ls-save]')) {
+        saveLabelSettings(read());
+        dialog.close();
+      } else if (event.target.closest('[data-ls-test]')) {
+        saveLabelSettings(read());
+        printStickers([window.JdLabel.testItem()]);
+      } else if (event.target.closest('[data-ls-close]')) dialog.close();
+    });
+    dialog.addEventListener('close', () => dialog.remove());
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  }
+
   // Small "which copy?" chooser used before printing. Resolves to the chosen
   // value, or null when the user cancels.
   function askPrintVariant(title, choices) {
@@ -11003,6 +11133,8 @@ ${bodyHtml}
   $('#closeJobCardDetailButton').addEventListener('click', () => {
     $('#jobCardDetail').hidden = true;
   });
+  $('#printUnitStickerButton').addEventListener('click', () => printRepairSticker(currentJobCard));
+  $('#labelSettingsButton').addEventListener('click', openLabelSettings);
   $('#printJobCardButton').addEventListener('click', async () => {
     if (!currentJobCard) return;
     const variant = await askPrintVariant('Print service job card', [

@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 281,
+    "title": "Unit stickers: print from a service job card",
+    "area": "Job cards",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "A repaired unit can now carry a printed sticker (status box, barcode, details and the service contact line) from a Zebra GK420t label printer.",
+    "changes": [
+      "Print unit sticker button on the job card: boxed status, Code 128 barcode, model, serial, owner, warranty, dates, work done and parts.",
+      "Label settings window: layout A (two stickers on a 4 x 6 in label) or B (one 100 x 75 mm sticker), small position shift and a test sticker, saved per computer.",
+      "Pop-up listing any required detail still missing before a sticker can print."
+    ],
+    "needsYou": "Pull, hard-refresh. No migration, no API restart. Print a test sticker from Label settings.",
+    "migrations": [],
+    "files": "apps/web/src/label-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/label-core.test.ts. No API or database change."
+  },
+  {
     "id": 280,
     "title": "Tooltips across the Schedules tabs",
     "area": "Appointments",
