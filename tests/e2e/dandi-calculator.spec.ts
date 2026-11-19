@@ -56,14 +56,14 @@ test('D+I Quote Calculator prices a batch, blocks short trips and prints per uni
   await expect(root.locator('[data-dc-status]')).toHaveText('Ready to quote');
 
   // Installation Only has its own rates and a Yes/No transport choice.
-  await root.locator('[data-dc-mode]').selectOption('install');
+  await root.locator('[data-dc-mode-btn="install"]').click();
   await expect(root.locator('[data-dc-transport-wrap]')).toBeVisible();
 
   // The proposal prints one price per unit (and a client name typed on the page).
   await root.locator('[data-dc-client]').fill('Acme Hotel');
   const [popup] = await Promise.all([
-    page.waitForEvent('popup'),
-    root.locator('[data-dc-print]').click(),
+    page.context().waitForEvent('page'),
+    root.locator('[data-dc-print]').click({ noWaitAfter: true }),
   ]);
   await expect(popup.locator('body')).toContainText('Acme Hotel');
   await expect(popup.locator('body')).toContainText('Unit price');
@@ -82,4 +82,41 @@ test('D+I Quote Calculator shows the internal cost view to a pricing admin', asy
   await root.locator('[data-dc-qty="fridge"]').fill('10');
   await root.locator('[data-dc-internal] summary').click();
   await expect(root.locator('[data-dc-internal-body]')).toContainText('Margin');
+});
+
+test('D+I Quote Calculator hides the special discount from non-admins', async ({ page }) => {
+  await open(page, ['quote_calculators.use', 'pricing_config.read']);
+  await expect(page.locator('#dandiCalcWorkspace [data-dc-admin]')).toHaveCount(0);
+});
+
+test('D+I Quote Calculator gives an admin an extra discount that stops at the minimum charge', async ({
+  page,
+}) => {
+  await open(page, ['quote_calculators.use', 'pricing_config.write']);
+  const root = page.locator('#dandiCalcWorkspace');
+  await root.locator('[data-dc-qty="fridge"]').fill('10');
+  // 10 fridges at 54 = 540 + 60 transport = 600; room under the 35 minimum = 190.
+  await expect(root.locator('[data-dc-xcheck]')).toContainText('Maximum allowed');
+  await expect(root.locator('[data-dc-xcheck]')).toContainText('190.00');
+
+  await root.locator('[data-dc-xvalue]').fill('10');
+  await expect(root.locator('[data-dc-xcheck]')).toContainText('Discount OK');
+  await expect(root.locator('[data-dc-total]')).toContainText('546.00');
+  await expect(root.locator('[data-dc-review]')).toContainText('Special discount');
+
+  await root.locator('[data-dc-xvalue]').fill('50');
+  await expect(root.locator('[data-dc-xcheck]')).toContainText('Limited to the minimum charge');
+  await expect(root.locator('[data-dc-total]')).toContainText('410.00');
+  await expect(root.locator('[data-dc-unit="fridge"]')).toContainText('35.00');
+
+  await root.locator('[data-dc-xclear]').click();
+  await expect(root.locator('[data-dc-total]')).toContainText('600.00');
+  await root.locator('[data-dc-xmax]').click();
+  await expect(root.locator('[data-dc-total]')).toContainText('410.00');
+
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    root.locator('[data-dc-print]').click(),
+  ]);
+  await expect(popup.locator('body')).toContainText('Special discount');
 });

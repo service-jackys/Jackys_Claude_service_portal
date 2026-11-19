@@ -240,3 +240,98 @@ test('the maximum units per quote can be any whole number from 1 to 500', () => 
   for (const bad of [0, 501, 12.5, -5, '100'])
     assert.throws(() => dandiPricingSchema.parse({ ...cfg, maxUnits: bad }), String(bad));
 });
+
+const base = {
+  mode: 'dandi',
+  region: 'Dubai',
+  grouping: SAME,
+  sites: 1,
+  plannedTrips: 1,
+  crew: 2,
+};
+
+test('an extra discount comes off the appliance charges, not the transport', () => {
+  const r = core.compute(cfg, {
+    ...base,
+    qty: { fridge: 10, washer: 0, cooker: 0 },
+    extra: { type: 'percent', value: 10 },
+  });
+  // 10 fridges at 54 = 540; 10% = 54 off; transport 60 stays.
+  close(r.extra.requested, 54);
+  close(r.extra.applied, 54);
+  assert.equal(r.extra.capped, false);
+  close(r.totalCharge, 540 - 54 + 60);
+  close(r.lines[0].netUnit, 48.6);
+  close(r.extra.lowestNetUnit, 48.6);
+  // The same discount as an AED amount gives the same total.
+  const amount = core.compute(cfg, {
+    ...base,
+    qty: { fridge: 10, washer: 0, cooker: 0 },
+    extra: { type: 'amount', value: 54 },
+  });
+  close(amount.totalCharge, r.totalCharge);
+});
+
+test('an extra discount is cut back so no unit price goes below the minimum charge', () => {
+  // Room = 10 x (54 - 35) = 190, however much is asked for.
+  const r = core.compute(cfg, {
+    ...base,
+    qty: { fridge: 10, washer: 0, cooker: 0 },
+    extra: { type: 'amount', value: 300 },
+  });
+  close(r.extra.max, 190);
+  close(r.extra.applied, 190);
+  assert.equal(r.extra.capped, true);
+  close(r.extra.lowestNetUnit, 35);
+  close(r.totalCharge, 540 - 190 + 60);
+  // By percentage: 50% of 540 = 270 is over the room as well.
+  const pct = core.compute(cfg, {
+    ...base,
+    qty: { fridge: 10, washer: 0, cooker: 0 },
+    extra: { type: 'percent', value: 50 },
+  });
+  close(pct.extra.applied, 190);
+  assert.equal(pct.extra.capped, true);
+});
+
+test('the discount is shared by room across lines and every unit stays at or above the minimum', () => {
+  for (const ask of [0, 20, 100, 400, 5000]) {
+    const r = core.compute(cfg, {
+      ...base,
+      plannedTrips: 2,
+      qty: { fridge: 10, washer: 5, cooker: 4 },
+      extra: { type: 'amount', value: ask },
+    });
+    const shared = r.lines.reduce((s: number, l: any) => s + l.extraDiscount, 0);
+    close(shared, r.extra.applied);
+    for (const l of r.lines.filter((x: any) => x.qty > 0))
+      assert.ok(l.netUnit >= 35 - 1e-9, `${ask}`);
+    close(r.totalCharge, r.crewAdjusted - r.extra.applied + r.transport);
+  }
+});
+
+test('no room under the minimum means no extra discount', () => {
+  const tight = { ...cfg, minUnitRate: 100 };
+  const r = core.compute(tight, {
+    ...base,
+    qty: { fridge: 1, washer: 0, cooker: 0 },
+    extra: { type: 'percent', value: 5 },
+  });
+  assert.equal(r.extra.max, 0);
+  assert.equal(r.extra.applied, 0);
+  assert.equal(r.extra.capped, true);
+  close(r.totalCharge, 100);
+});
+
+test('no extra discount is the default and a quote that is not ready stays at zero', () => {
+  const plain = core.compute(cfg, { ...base, qty: { fridge: 10, washer: 0, cooker: 0 } });
+  assert.equal(plain.extra.applied, 0);
+  assert.equal(plain.extra.capped, false);
+  close(plain.totalCharge, 600);
+  const blocked = core.compute(cfg, {
+    ...base,
+    qty: { fridge: 51, washer: 0, cooker: 0 },
+    extra: { type: 'percent', value: 10 },
+  });
+  assert.equal(blocked.totalCharge, 0);
+});

@@ -4454,6 +4454,449 @@
       .tq-note:empty {
         display: none;
       }
+      /* D+I Quote Calculator: cards, even field rows, navy summary panel. */
+      .dc-wrap {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 21.5rem;
+        gap: 1.1rem;
+        align-items: start;
+      }
+      .dc-main {
+        display: grid;
+        gap: 1rem;
+        min-width: 0;
+      }
+      .dc-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 1.05rem 1.2rem 1.2rem;
+        box-shadow: var(--shadow);
+      }
+      .dc-card-head {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 0.95rem;
+        padding-bottom: 0.75rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .dc-card-head h4 {
+        margin: 0;
+        font-size: 1rem;
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .dc-card-head p {
+        margin: 0.1rem 0 0;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .dc-num {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 1.7rem;
+        height: 1.7rem;
+        border-radius: 8px;
+        background: var(--navy);
+        color: #fff;
+        font-size: 0.85rem;
+        font-weight: 700;
+      }
+      .dc-badge {
+        padding: 0.1rem 0.5rem;
+        border-radius: 999px;
+        background: #fff4d6;
+        color: #8a5a00;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+      }
+      .dc-service {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.6rem 1rem;
+        margin-bottom: 1rem;
+      }
+      .dc-service-label {
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        display: inline-flex;
+        align-items: center;
+        gap: 0.3rem;
+      }
+      .dc-seg {
+        display: inline-flex;
+        gap: 2px;
+        padding: 3px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--surface-soft);
+      }
+      .dc-seg button {
+        border: 0;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 0.88rem;
+        font-weight: 600;
+        padding: 0.45rem 1.1rem;
+        border-radius: 999px;
+        cursor: pointer;
+        transition:
+          background 0.15s ease,
+          color 0.15s ease;
+      }
+      .dc-seg button:hover {
+        color: var(--ink);
+      }
+      .dc-seg button.is-active {
+        background: var(--navy);
+        color: #fff;
+        box-shadow: 0 1px 3px rgb(11 31 58 / 30%);
+      }
+      .dc-fields {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem 1.1rem;
+      }
+      .dc-fields.dc-fields-2 {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      .dc-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.35rem;
+        min-width: 0;
+        position: relative;
+      }
+      .dc-field[hidden] {
+        display: none;
+      }
+      /* Label text on the left, the (i) always on the right edge: the controls
+         start on the same line in every column and card. */
+      .dc-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.4rem;
+        min-height: 1.3rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .dc-label > span:first-child {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .dc-label .tooltip,
+      .dc-service-label .tooltip,
+      .dc-table .tooltip {
+        margin-left: 0;
+      }
+      .dc-field input,
+      .dc-field select {
+        width: 100%;
+        height: 2.6rem;
+        box-sizing: border-box;
+        padding: 0 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--ink);
+        font: inherit;
+      }
+      .dc-field input:focus,
+      .dc-field select:focus {
+        outline: 2px solid var(--blue);
+        outline-offset: 1px;
+        border-color: var(--blue);
+      }
+      .dc-tip .tooltip-bubble {
+        left: auto;
+        right: -0.4rem;
+        width: 15rem;
+        max-width: 70vw;
+      }
+      .dc-tip .tooltip-bubble::after {
+        left: auto;
+        right: 0.6rem;
+      }
+      .dc-limit {
+        margin: 0 0 0.8rem;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .dc-qty-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem 1.1rem;
+      }
+      .dc-qty {
+        padding: 0.8rem 0.9rem 0.7rem;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--surface-soft);
+      }
+      .dc-qty .dc-field input {
+        font-size: 1.15rem;
+        font-weight: 700;
+        text-align: right;
+      }
+      .dc-qty-price {
+        margin-top: 0.5rem;
+        min-height: 1.2rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .dc-qty-price strong {
+        color: var(--ink);
+      }
+      .dc-qty-price s {
+        margin-left: 0.35rem;
+        opacity: 0.7;
+      }
+      .dc-admin {
+        border-left: 4px solid #d99a00;
+      }
+      .dc-xcheck {
+        margin: 0.9rem 0 0.7rem;
+        padding: 0.65rem 0.8rem;
+        border-radius: 8px;
+        border: 1px solid var(--line);
+        background: var(--surface-soft);
+        color: var(--ink);
+        font-size: 0.86rem;
+        line-height: 1.45;
+      }
+      .dc-xcheck.is-ok {
+        background: #e3f5ea;
+        border-color: #a9dcc0;
+        color: #0f5d39;
+      }
+      .dc-xcheck.is-warn {
+        background: #fff4d6;
+        border-color: #ecd08a;
+        color: #6b4700;
+      }
+      .dc-xactions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+      .dc-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-variant-numeric: tabular-nums;
+      }
+      .dc-table th {
+        padding: 0.55rem 0.7rem;
+        text-align: left;
+        font-size: 0.72rem;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+        color: var(--muted);
+        border-bottom: 2px solid var(--line);
+        white-space: nowrap;
+      }
+      .dc-table td {
+        padding: 0.65rem 0.7rem;
+        border-bottom: 1px solid var(--line);
+      }
+      .dc-table .num {
+        text-align: right;
+      }
+      .dc-table th .tooltip {
+        text-transform: none;
+        letter-spacing: normal;
+      }
+      .dc-table .dc-sub td {
+        color: var(--muted);
+      }
+      .dc-table .dc-disc td {
+        color: #147a4a;
+        font-weight: 600;
+      }
+      .dc-table tfoot td {
+        padding: 0.8rem 0.7rem;
+        border-bottom: 0;
+        background: var(--navy);
+        color: #fff;
+        font-size: 1.05rem;
+        font-weight: 700;
+      }
+      .dc-table tfoot td:first-child {
+        border-radius: 0 0 0 8px;
+      }
+      .dc-table tfoot td:last-child {
+        border-radius: 0 0 8px 0;
+      }
+      .dc-print {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 1rem;
+      }
+      .dc-print .form-note {
+        margin: 0;
+      }
+      .dc-summary {
+        position: sticky;
+        top: 1rem;
+        padding: 1.2rem 1.25rem;
+        border-radius: var(--radius);
+        background: linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
+        color: #eaf1ff;
+        box-shadow: 0 10px 28px rgb(11 31 58 / 28%);
+      }
+      .dc-summary-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        font-size: 0.74rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #a9c3ea;
+      }
+      .dc-total {
+        margin: 0.5rem 0 0.4rem;
+        font-size: 2.5rem;
+        font-weight: 800;
+        line-height: 1.1;
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+      }
+      .dc-total small {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: #a9c3ea;
+      }
+      .dc-total.is-updating {
+        animation: dc-pop 0.25s ease;
+      }
+      @keyframes dc-pop {
+        from {
+          opacity: 0.4;
+          transform: translateY(3px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .dc-summary .dc-status.is-ready {
+        background: #1d6b46;
+        color: #d8f5e5;
+      }
+      .dc-summary .dc-status.is-blocked {
+        background: #7a2a24;
+        color: #ffe1de;
+      }
+      .dc-summary .dc-blocked {
+        margin: 0.2rem 0 0.8rem;
+        background: rgb(180 35 24 / 22%);
+        border-left-color: #ff8a80;
+        color: #ffe1de;
+      }
+      .dc-facts {
+        display: grid;
+        gap: 0;
+        margin: 0.6rem 0 0;
+        font-size: 0.85rem;
+      }
+      .dc-facts div {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.8rem;
+        padding: 0.42rem 0;
+        border-top: 1px solid rgb(255 255 255 / 12%);
+      }
+      .dc-facts dt {
+        color: #a9c3ea;
+      }
+      .dc-facts dd {
+        margin: 0;
+        font-weight: 700;
+        color: #fff;
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+      .dc-facts .is-hl dd {
+        color: #8ff0bb;
+      }
+      .dc-note {
+        margin: 0.8rem 0 0;
+        font-size: 0.78rem;
+        color: #a9c3ea;
+      }
+      [data-theme='dark'] .dc-badge {
+        background: #4a3a10;
+        color: #ffd77a;
+      }
+      [data-theme='dark'] .dc-xcheck.is-ok {
+        background: #12382a;
+        border-color: #1f6a49;
+        color: #8ff0bb;
+      }
+      [data-theme='dark'] .dc-xcheck.is-warn {
+        background: #3d3010;
+        border-color: #7a5f1a;
+        color: #ffd77a;
+      }
+      [data-theme='dark'] .dc-table .dc-disc td {
+        color: #6fdca3;
+      }
+      @media (max-width: 1100px) {
+        .dc-wrap {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .dc-summary {
+          position: static;
+          order: -1;
+        }
+      }
+      @media (max-width: 720px) {
+        .dc-fields,
+        .dc-qty-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+      @media (max-width: 480px) {
+        .dc-fields,
+        .dc-fields.dc-fields-2,
+        .dc-qty-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .dc-card {
+          padding: 0.9rem;
+        }
+        .dc-total {
+          font-size: 2.1rem;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .dc-total.is-updating {
+          animation: none;
+        }
+      }
       @media (max-width: 980px) {
         .tq-layout {
           grid-template-columns: minmax(0, 1fr);

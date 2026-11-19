@@ -18124,15 +18124,25 @@ ${bodyHtml}
     return '⃃ ' + moneyGrouped(value);
   }
 
+  function dcTip(text) {
+    return (
+      '<span class="tooltip tooltip-below dc-tip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
+      text +
+      '</span></span>'
+    );
+  }
+
+  // One field: a fixed-height label row (text left, tooltip always at the right
+  // edge) above the control, so every field in every card lines up the same way.
   function dandiCalcField(label, tip, inputHtml, extraAttrs) {
     return (
-      '<label' +
+      '<label class="dc-field"' +
       (extraAttrs ? ' ' + extraAttrs : '') +
-      '>' +
+      '><span class="dc-label"><span>' +
       escapeHtml(label) +
-      ' ' +
-      tipHtml(tip) +
-      '<br />' +
+      '</span>' +
+      dcTip(tip) +
+      '</span>' +
       inputHtml +
       '</label>'
     );
@@ -18155,6 +18165,17 @@ ${bodyHtml}
           '</td></tr>',
       )
       .join('');
+    const extraApplied = calc.extra ? calc.extra.applied : 0;
+    const specialRow =
+      extraApplied > 0.004
+        ? '<tr><td colspan="3">Special discount' +
+          (calc.extra.type === 'percent' && !calc.extra.capped
+            ? ' (' + Number(calc.extra.value) + '%)'
+            : '') +
+          '</td><td class="num">&minus; ' +
+          dandiCalcMoney(extraApplied) +
+          '</td></tr>'
+        : '';
     const transportRow =
       calc.transport > 0
         ? '<tr><td colspan="3">Transport &amp; logistics (' +
@@ -18191,6 +18212,7 @@ ${bodyHtml}
       '<h2>Quotation lines</h2>' +
       '<table><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead><tbody>' +
       rows +
+      specialRow +
       transportRow +
       '</tbody><tfoot><tr><td><strong>Total</strong></td><td class="num"><strong>' +
       unitsTotal +
@@ -18223,6 +18245,8 @@ ${bodyHtml}
     let cfg = data;
     // Our labour cost is only sent to people who may read the pricing configuration.
     const canSeeInternal = hasPermission('pricing_config.read');
+    // The extra discount on the total is for admins (people who may change the rates).
+    const canDiscount = hasPermission('pricing_config.write');
     const state = {
       mode: 'dandi',
       region: '',
@@ -18232,6 +18256,7 @@ ${bodyHtml}
       crew: 2,
       transport: 'No',
       qty: { fridge: 0, washer: 0, cooker: 0 },
+      extra: { type: 'percent', value: 0 },
     };
     let last = null;
 
@@ -18248,37 +18273,47 @@ ${bodyHtml}
             '</option>',
         )
         .join('');
-    const modeOptions = () =>
+    const modeButtons = () =>
       ['dandi', 'install']
         .map(
           (key) =>
-            '<option value="' +
+            '<button type="button" role="radio" class="' +
+            (key === state.mode ? 'is-active' : '') +
+            '" aria-checked="' +
+            (key === state.mode) +
+            '" data-dc-mode-btn="' +
             key +
-            '"' +
-            (key === state.mode ? ' selected' : '') +
-            '>' +
+            '">' +
             escapeHtml(cfg.modes[key].label) +
-            '</option>',
+            '</button>',
         )
         .join('');
     const crewKeys = () => Object.keys(cfg.crewFactors).sort();
+    const cardHead = (num, title, sub) =>
+      '<header class="dc-card-head"><span class="dc-num">' +
+      num +
+      '</span><div><h4>' +
+      title +
+      '</h4>' +
+      (sub ? '<p>' + sub + '</p>' : '') +
+      '</div></header>';
 
     container.innerHTML =
       '<div class="card-help"><span>About this section</span>' +
       tipHtml(
-        'Work down the numbered steps: quote inputs, appliance quantities, client details, review, print. The total on the right updates as you go. Rates, discounts, regions and factors all come from D+I Admin Entry, and all prices include VAT.',
+        'Work down the cards: job details, quantities, client, then check the breakdown and print. The total on the right updates as you go. Rates, discounts, regions and factors all come from D+I Admin Entry, and all prices include VAT.',
       ) +
       '</div>' +
-      '<section data-dc-panel>' +
-      '<div class="tq-layout">' +
-      '<div class="tq-steps">' +
-      '<section class="tq-step"><h4><span class="tq-num">1</span>Quote inputs</h4>' +
-      '<div class="field-grid">' +
-      dandiCalcField(
-        'Service type',
+      '<section data-dc-panel><div class="dc-wrap">' +
+      '<div class="dc-main">' +
+      '<section class="dc-card">' +
+      cardHead(1, 'Job details', 'What is being quoted, and where') +
+      '<div class="dc-service"><span class="dc-service-label">Service type ' +
+      dcTip(
         'Delivery + Installation, or Installation Only. Each has its own rates and quantity discounts in D+I Admin Entry.',
-        '<select data-dc-mode>' + modeOptions() + '</select>',
       ) +
+      '</span><div class="dc-seg" role="radiogroup" aria-label="Service type" data-dc-mode-group></div></div>' +
+      '<div class="dc-fields">' +
       dandiCalcField(
         'Region',
         'Where the job is. It sets the round-trip transport cost per trip.',
@@ -18311,19 +18346,49 @@ ${bodyHtml}
         'data-dc-transport-wrap',
       ) +
       '</div></section>' +
-      '<section class="tq-step"><h4><span class="tq-num">2</span>Appliance quantities</h4>' +
-      '<p class="tq-hint" data-dc-limit></p>' +
-      '<div class="field-grid">' +
-      core.KINDS.map((k) =>
-        dandiCalcField(
-          k.label,
-          'Number of ' + k.label.toLowerCase() + ' units in this quote.',
-          '<input type="number" min="0" step="1" value="0" data-dc-qty="' + k.key + '" />',
-        ),
+      '<section class="dc-card">' +
+      cardHead(2, 'Appliance quantities', '') +
+      '<p class="dc-limit" data-dc-limit></p>' +
+      '<div class="dc-qty-grid">' +
+      core.KINDS.map(
+        (k) =>
+          '<div class="dc-qty">' +
+          dandiCalcField(
+            k.label,
+            'Number of ' + k.label.toLowerCase() + ' units in this quote.',
+            '<input type="number" min="0" step="1" value="0" data-dc-qty="' + k.key + '" />',
+          ) +
+          '<div class="dc-qty-price" data-dc-unit="' +
+          k.key +
+          '">&nbsp;</div></div>',
       ).join('') +
       '</div></section>' +
-      '<section class="tq-step"><h4><span class="tq-num">3</span>Client details</h4>' +
-      '<div class="field-grid">' +
+      (canDiscount
+        ? '<section class="dc-card dc-admin" data-dc-admin>' +
+          cardHead(
+            3,
+            'Special discount <span class="dc-badge">Admin</span>',
+            'Take an extra amount off the total. It can never push a unit below the minimum charge.',
+          ) +
+          '<div class="dc-fields dc-fields-2">' +
+          dandiCalcField(
+            'Discount type',
+            'Give the extra discount as a percentage of the appliance charges, or as a fixed amount in ⃃. Transport is never discounted.',
+            '<select data-dc-xtype><option value="percent">Percentage (%)</option><option value="amount">Amount (⃃)</option></select>',
+          ) +
+          dandiCalcField(
+            'Discount value',
+            'How much to take off. If it is more than the maximum allowed, the portal cuts it back to the maximum.',
+            '<input type="number" min="0" step="any" value="0" data-dc-xvalue />',
+          ) +
+          '</div>' +
+          '<div class="dc-xcheck" data-dc-xcheck role="status"></div>' +
+          '<div class="dc-xactions"><button type="button" class="button" data-dc-xmax>Use maximum allowed</button><button type="button" class="button" data-dc-xclear>Clear discount</button></div>' +
+          '</section>'
+        : '') +
+      '<section class="dc-card">' +
+      cardHead(canDiscount ? 4 : 3, 'Client details', 'Shown on the printed proposal only') +
+      '<div class="dc-fields">' +
       dandiCalcField(
         'Client',
         'Shown on the printed proposal only. Nothing is saved.',
@@ -18340,29 +18405,31 @@ ${bodyHtml}
         '<input type="text" data-dc-location />',
       ) +
       '</div></section>' +
-      '<section class="tq-step"><h4><span class="tq-num">4</span>Review</h4>' +
+      '<section class="dc-card">' +
+      cardHead(
+        canDiscount ? 5 : 4,
+        'Price breakdown',
+        'Every line, the discounts and the transport',
+      ) +
       '<div data-dc-review></div>' +
       (canSeeInternal
         ? '<details class="tq-internal" data-dc-internal><summary>Internal view: cost and margin (not for the customer)</summary><div data-dc-internal-body></div></details>'
         : '') +
-      '</section>' +
-      '<section class="tq-step"><h4><span class="tq-num">5</span>Print</h4>' +
-      '<p class="form-note">Prints a customer proposal with the price per unit. Nothing is saved.</p>' +
-      '<div class="form-footer"><button class="button button-primary rm-btn" type="button" data-dc-print>Print proposal</button></div>' +
+      '<div class="dc-print"><p class="form-note">Prints a customer proposal with the price per unit. Nothing is saved.</p>' +
+      '<button class="button button-primary rm-btn" type="button" data-dc-print>Print proposal</button></div>' +
       '</section>' +
       '</div>' +
-      '<aside class="tq-summary" aria-label="Quote summary">' +
-      '<div class="card-row-header"><h4>Quote total</h4><span class="dc-status" data-dc-status></span></div>' +
-      '<div class="tq-total" data-dc-total>0.00 <small>⃃</small></div>' +
+      '<aside class="dc-summary" aria-label="Quote summary">' +
+      '<div class="dc-summary-head"><span>Quote total</span><span class="dc-status" data-dc-status></span></div>' +
+      '<div class="dc-total" data-dc-total>0.00 <small>⃃</small></div>' +
       '<p class="dc-blocked" data-dc-blocked role="status"></p>' +
-      '<dl class="tq-facts" data-dc-facts></dl>' +
-      '<p class="tq-note">Prices include VAT. Rates come from D+I Admin Entry.</p>' +
+      '<dl class="dc-facts" data-dc-facts></dl>' +
+      '<p class="dc-note">Prices include VAT. Rates come from D+I Admin Entry.</p>' +
       '</aside>' +
-      '</div>' +
-      '</section>';
+      '</div></section>';
 
     const $q = (selector) => container.querySelector(selector);
-    const modeSelect = $q('[data-dc-mode]');
+    const modeGroup = $q('[data-dc-mode-group]');
     const regionSelect = $q('[data-dc-region]');
     const groupingSelect = $q('[data-dc-grouping]');
     const sitesInput = $q('[data-dc-sites]');
@@ -18371,6 +18438,8 @@ ${bodyHtml}
     const transportSelect = $q('[data-dc-transport]');
     const transportWrap = $q('[data-dc-transport-wrap]');
     const qtyInputs = Array.from(container.querySelectorAll('[data-dc-qty]'));
+    const xType = $q('[data-dc-xtype]');
+    const xValue = $q('[data-dc-xvalue]');
 
     function fillSelects() {
       const keepRegion = regionSelect.value || state.region;
@@ -18388,11 +18457,10 @@ ${bodyHtml}
       crewSelect.innerHTML = optionList(crewKeys(), state.crew);
       if (!crewKeys().includes(String(crewSelect.value))) crewSelect.value = crewKeys()[0];
       state.crew = Number(crewSelect.value);
-      modeSelect.innerHTML = modeOptions();
+      modeGroup.innerHTML = modeButtons();
     }
 
     function readInputs() {
-      state.mode = modeSelect.value;
       state.region = regionSelect.value;
       state.grouping = groupingSelect.value;
       state.sites = Number(sitesInput.value) || 0;
@@ -18402,15 +18470,91 @@ ${bodyHtml}
       qtyInputs.forEach((input) => {
         state.qty[input.dataset.dcQty] = Math.max(0, Math.floor(Number(input.value) || 0));
       });
+      if (canDiscount) {
+        state.extra = {
+          type: xType.value === 'amount' ? 'amount' : 'percent',
+          value: Math.max(0, Number(xValue.value) || 0),
+        };
+      }
+    }
+
+    // The discount control: how much is allowed, and whether any unit price
+    // would end up below the Minimum charge per unit.
+    function renderDiscountCheck(calc) {
+      const box = $q('[data-dc-xcheck]');
+      if (!box) return;
+      const x = calc.extra;
+      const min = dandiCalcMoney(x.minUnitRate);
+      let cls = 'is-idle';
+      let html;
+      if (!calc.total || calc.total > cfg.maxUnits || x.max <= 0) {
+        html = calc.total
+          ? '<strong>No room for an extra discount.</strong> Every unit is already at the minimum charge of ' +
+            min +
+            '.'
+          : 'Enter appliance quantities to see how much discount is allowed.';
+      } else {
+        const maxLine =
+          'Maximum allowed: <strong>' +
+          dandiCalcMoney(x.max) +
+          '</strong> (' +
+          x.maxPercent.toFixed(1) +
+          '% of the appliance charges).';
+        if (x.requested <= 0) {
+          html = maxLine + ' Lowest unit price now: ' + dandiCalcMoney(x.lowestNetUnit) + '.';
+        } else if (x.capped) {
+          cls = 'is-warn';
+          html =
+            '<strong>Limited to the minimum charge.</strong> You asked for ' +
+            dandiCalcMoney(x.requested) +
+            '; only ' +
+            dandiCalcMoney(x.applied) +
+            ' is applied so no unit goes below ' +
+            min +
+            '. Lowest unit price: ' +
+            dandiCalcMoney(x.lowestNetUnit) +
+            '.';
+        } else {
+          cls = 'is-ok';
+          html =
+            '<strong>Discount OK.</strong> ' +
+            dandiCalcMoney(x.applied) +
+            ' off. Lowest unit price after discount: ' +
+            dandiCalcMoney(x.lowestNetUnit) +
+            ' (minimum ' +
+            min +
+            '). ' +
+            maxLine;
+        }
+      }
+      box.className = 'dc-xcheck ' + cls;
+      box.innerHTML = html;
     }
 
     function render() {
       readInputs();
       transportWrap.hidden = state.mode !== 'install';
+      modeGroup.querySelectorAll('[data-dc-mode-btn]').forEach((btn) => {
+        const on = btn.dataset.dcModeBtn === state.mode;
+        btn.classList.toggle('is-active', on);
+        btn.setAttribute('aria-checked', String(on));
+      });
       const calc = core.compute(cfg, state);
       last = calc;
       $q('[data-dc-limit]').textContent =
         'Maximum total: ' + cfg.maxUnits + ' units per quote. Current total: ' + calc.total + '.';
+      calc.lines.forEach((l) => {
+        const cell = $q('[data-dc-unit="' + l.key + '"]');
+        if (!cell) return;
+        const hasDisc = l.extraDiscount > 0.004;
+        cell.innerHTML =
+          calc.total && !calc.blocked.startsWith('Maximum')
+            ? 'Unit price <strong>' +
+              dandiCalcMoney(hasDisc ? l.netUnit : l.chargedUnit) +
+              '</strong>' +
+              (hasDisc ? ' <s>' + dandiCalcMoney(l.chargedUnit) + '</s>' : '')
+            : '&nbsp;';
+      });
       const status = $q('[data-dc-status]');
       status.textContent = calc.valid ? 'Ready to quote' : 'Not ready';
       status.className = 'dc-status ' + (calc.valid ? 'is-ready' : 'is-blocked');
@@ -18422,8 +18566,15 @@ ${bodyHtml}
       const blocked = $q('[data-dc-blocked]');
       blocked.textContent = calc.blocked;
       blocked.hidden = !calc.blocked;
-      const fact = (k, v) =>
-        '<div><dt>' + escapeHtml(k) + '</dt><dd>' + escapeHtml(String(v)) + '</dd></div>';
+      const fact = (k, v, cls) =>
+        '<div' +
+        (cls ? ' class="' + cls + '"' : '') +
+        '><dt>' +
+        escapeHtml(k) +
+        '</dt><dd>' +
+        escapeHtml(String(v)) +
+        '</dd></div>';
+      const extraOn = calc.valid && calc.extra.applied > 0.004;
       $q('[data-dc-facts]').innerHTML =
         fact('Service type', calc.modeLabel) +
         fact('Region', calc.region ? calc.region.name : '—') +
@@ -18431,6 +18582,9 @@ ${bodyHtml}
         fact('Quantity tier', calc.discount.label) +
         fact('Discount applied', Math.round(Number(calc.discount.rate) * 100) + '%') +
         fact('Total discount', calc.valid ? dandiCalcMoney(calc.discountAmount) : '—') +
+        (extraOn
+          ? fact('Special discount', '− ' + dandiCalcMoney(calc.extra.applied), 'is-hl')
+          : '') +
         fact('Required trips', calc.requiredTrips) +
         fact('Planned trips', calc.plannedTrips) +
         fact('Transport charge', calc.valid ? dandiCalcMoney(calc.transport) : '—') +
@@ -18438,15 +18592,17 @@ ${bodyHtml}
           'Average per unit',
           calc.valid && calc.total ? dandiCalcMoney(calc.averagePerUnit) : '—',
         );
+      renderDiscountCheck(calc);
       const lines = calc.lines.filter((l) => l.qty > 0);
+      const showExtra = lines.length && calc.extra.applied > 0.004;
       $q('[data-dc-review]').innerHTML = lines.length
-        ? '<div class="table-wrap"><table class="tq-table"><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">' +
+        ? '<div class="table-wrap"><table class="dc-table"><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">' +
           'List rate ' +
-          tipHtml(
+          dcTip(
             'The standard rate, or the batch rate when the units are for one customer at one site.',
           ) +
           '</th><th class="num">Unit price ' +
-          tipHtml(
+          dcTip(
             'Price of one unit after the quantity discount and crew factor, never below the minimum unit rate.',
           ) +
           '</th><th class="num">Line total</th></tr></thead><tbody>' +
@@ -18466,6 +18622,15 @@ ${bodyHtml}
                 '</td></tr>',
             )
             .join('') +
+          (showExtra
+            ? '<tr class="dc-sub"><td colspan="4">Subtotal</td><td class="num">' +
+              dandiCalcMoney(calc.crewAdjusted) +
+              '</td></tr><tr class="dc-disc"><td colspan="4">Special discount' +
+              (calc.extra.capped ? ' (limited to the minimum charge)' : '') +
+              '</td><td class="num">− ' +
+              dandiCalcMoney(calc.extra.applied) +
+              '</td></tr>'
+            : '') +
           (calc.transport > 0
             ? '<tr><td colspan="4">Transport &amp; logistics (' +
               escapeHtml(calc.region.name) +
@@ -18476,7 +18641,13 @@ ${bodyHtml}
               dandiCalcMoney(calc.transport) +
               '</td></tr>'
             : '') +
-          '</tbody></table></div>'
+          '</tbody>' +
+          (calc.valid
+            ? '<tfoot><tr><td colspan="4">Total</td><td class="num">' +
+              dandiCalcMoney(calc.totalCharge) +
+              '</td></tr></tfoot>'
+            : '') +
+          '</table></div>'
         : '<p class="form-note">Enter appliance quantities to see the lines.</p>';
       const internal = $q('[data-dc-internal-body]');
       if (internal) {
@@ -18494,6 +18665,24 @@ ${bodyHtml}
     fillSelects();
     container.addEventListener('input', render);
     container.addEventListener('change', render);
+    container.addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-dc-mode-btn]');
+      if (btn) {
+        state.mode = btn.dataset.dcModeBtn;
+        render();
+        return;
+      }
+      if (event.target.closest('[data-dc-xmax]')) {
+        readInputs();
+        const probe = core.compute(cfg, { ...state, extra: { type: 'amount', value: 0 } });
+        xType.value = 'amount';
+        xValue.value = String(Math.floor(probe.extra.max * 100) / 100);
+        render();
+      } else if (event.target.closest('[data-dc-xclear]')) {
+        xValue.value = '0';
+        render();
+      }
+    });
     $q('[data-dc-print]').addEventListener('click', () => {
       render();
       if (!last || !last.valid) {

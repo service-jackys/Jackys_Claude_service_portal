@@ -15,144 +15,180 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
-    "id": 287,
-    "title": "D+I Admin Entry: discount ranges follow the maximum units",
-    "area": "Pricing admin",
+    "id": 288,
+    "title": "D+I Quote Calculator: professional layout and an admin special discount",
+    "area": "Permissions",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "Changing Maximum units per quote now re-splits the D+I and Installation Only discount tables and fills the new discounts up to the Minimum charge per unit limit.",
+    "summary": "The first D+I Quote Calculator looked like a copy of the old portal, its fields and tooltips did not line up, and there was no way to give an extra discount on the total.",
     "changes": [
-      "A bigger maximum adds 10-unit ranges (50 to 100 adds 51-60 up to 91-100) with a discount that rises 2 points a range and stops where the Minimum charge per unit is still kept.",
-      "A smaller maximum drops the ranges beyond it and trims the last one.",
-      "Maximum units per quote is now any whole number from 1 to 500 (a number box instead of 50 / 60 / 100).",
-      "Percentages and custom labels you set are kept; every % stays editable and ranges optional."
+      "New layout. Numbered cards (Job details, Appliance quantities, Special discount, Client details, Price breakdown) with a navy summary panel that stays in view and shows the total, status and key facts. Service type is a two-button switch.…",
+      "Special discount (admin only, needs pricing_config.write). Choose a percentage or an amount, type the value. The box shows the maximum allowed and checks the result against the Minimum charge per unit (35 today): green \"Discount OK\" with…",
+      "Users without pricing_config.write do not see the discount box and get the same prices as before."
     ],
-    "needsYou": "Pull and hard-refresh. No migration or API restart.",
+    "needsYou": "pull and hard-refresh. No API restart, no migration.",
     "migrations": [],
-    "files": "apps/web/src/dandi-tiers.js, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts, tests/e2e/permissions-flat-rates.spec.ts."
+    "files": "apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-calc-core.test.ts, tests/e2e/dandi-calculator.spec.ts."
+  },
+  {
+    "id": 287,
+    "title": "D+I Admin Entry: discount ranges follow the maximum units",
+    "area": "Permissions",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "Changing \"Maximum units per quote\" from 50 to 100 left the quantity-discount tables ending at 41–50, so every quote of 51 to 100 units silently used the 41–50 discount and the ranges had to be typed by hand.",
+    "changes": [
+      "In D+I Admin Entry, changing the maximum now re-splits the discount table of both D+I and Installation Only: - A bigger maximum adds ranges after the last tier, 10 units wide (50 to 100 adds 51–60, 61–70, 71–80, 81–90 and 91–100) and…",
+      "Maximum units per quote is now a number box (any whole number from 1 to 500) instead of the 50 / 60 / 100 list; saved values of 50, 60 and 100 stay valid. A value that is not a whole number from 1 goes back to the last good one.",
+      "Ranges can still be edited, added or removed; extra tiers stay optional.",
+      "Nothing changes until Save; Reset to defaults and History / Restore work as before."
+    ],
+    "needsYou": "pull, hard-refresh (no API restart, no migration). Then set the maximum to 100, check the new percentages (edit any you want) and Save.",
+    "migrations": [],
+    "files": "apps/web/src/dandi-tiers.js (new), packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts (new), tests/e2e/permissions-flat-rates.spec.ts."
   },
   {
     "id": 286,
-    "title": "D+I Quote Calculator",
-    "area": "Quote calculators",
+    "title": "D+I Quote Calculator (new page under Quote Calculators)",
+    "area": "Pricing & rates",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "A new calculator under Quote Calculators prices Delivery + Installation and Installation Only jobs from the rates in D+I Admin Entry and prints a customer proposal with a price per unit.",
+    "summary": "The old Apps Script portal had a D+I Installation Pricing Calculator; the new portal only had the D+I Admin Entry page (the rates) and no calculator, so sales could not price a Delivery + Installation or Installation Only job.",
     "changes": [
-      "New page Quote Calculators > D+I Quote Calculator, separate from the other calculators.",
-      "Same pricing rules as the old portal's D+I calculator: batch rates, quantity discount, minimum unit rate, crew factor, transport per trip.",
-      "Print proposal in the Thomson quotation layout with the price per unit; nothing is saved.",
-      "Cost and margin view only for users who can read the pricing configuration."
+      "New page Quote Calculators > D+I Quote Calculator, separate from the Thomson, AMC and VAS calculators. It reads its rates from D+I Admin Entry, so there is still one place to change prices, and has \"Refresh rates\" like the other…",
+      "Inputs as in the old calculator: service type (D+I or Installation Only), region, customer grouping, customer sites, planned trips, crew size, include transportation (Installation Only), and quantities for Refrigerator, Washing Machine…",
+      "The pricing rules are the old calculator's, kept exactly: batch rate and quantity discount only for one customer at one site with more than one unit; unit price never below the minimum unit rate; crew factor on the labour; transport per…",
+      "Print proposal in the Thomson quotation layout, one price per unit: appliance, qty, unit price, line total, a transport line, total box, quantity-discount note, signatures and terms. Nothing is saved (no quote number is stored; the print…",
+      "An Internal view: cost and margin (D+I only) is shown only to users with pricing_config.read.",
+      "API: dandi_pricing can now be read with quote_calculators.use, but for anyone without pricing_config.read the internal labour cost inputs (cost per hour, minutes per unit) come back as zero.",
+      "No Ask AI button on this page yet (it needs a new section on the Ask AI side)."
     ],
-    "needsYou": "Pull, restart the API and hard-refresh. No migration.",
+    "needsYou": "pull, restart the API, hard-refresh. No migration. Users who should use it need the Quote calculators permission (the same one as the other calculators).",
     "migrations": [],
-    "files": "apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/pricing-config/routes.ts, tests/unit/dandi-calc-core.test.ts, tests/e2e/dandi-calculator.spec.ts."
+    "files": "apps/web/src/dandi-calc-core.js (new), apps/web/src/app.js, apps/web/src/index.html, apps/api/src/pricing-config/routes.ts, tests/unit/dandi-calc-core.test.ts (new)…"
   },
   {
     "id": 285,
     "title": "Sheet sync: bring appointments and job cards up to date from the old sheet",
-    "area": "Migration",
-    "date": "2026-11-19",
-    "approxDate": false,
-    "status": null,
-    "summary": "Adds appointments and job cards that are new in the old sheet and updates existing ones only where a reviewed file says take the sheet.",
-    "changes": [
-      "New sync mode of the sheet import (--sync --decisions): creates new records and changes only reviewed fields.",
-      "Portal work (delivery dates, Delivered, charges, invoice numbers, billing) is never overwritten.",
-      "Dry run rolls back and lists every change; a second run changes nothing.",
-      "Quotations, inspections, Thomson, AMC, VAS and complaints are not touched."
-    ],
-    "needsYou": "Pull, then run the dry run and apply steps from the chat.",
-    "migrations": [],
-    "files": "packages/db/src/legacy-import/sync.ts, packages/db/src/import-sheets.ts, tests/integration/legacy-sync.test.ts."
-  },
-  {
-    "id": 284,
-    "title": "Sticker attached confirmation before Delivered",
     "area": "Job cards",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "A job card cannot be marked Delivered until staff tick that the unit sticker is attached.",
+    "summary": "The old Google Sheet kept being used after the 2 Nov import (until 19 Nov), while the portal added delivery dates, Delivered status, charges and invoice numbers of its own. A normal import only adds new records and a replace would erase the portal's work. Only Schedules (appointments) and Service job cards are…",
     "changes": [
-      "New Sticker attached tick on the job card edit form.",
-      "Delivered is refused (pop-up and API) until the tick is ticked.",
-      "Job cards imported from the old sheet are exempt; already Delivered cards are unchanged.",
-      "Who ticked it and when is recorded."
+      "npm run import:sheets has a new sync mode (--sync --decisions <reviewed file>): - Appointments and job cards that are new in the sheet are created (same rules as before; APT numbers continue after the highest). - Existing ones change only…",
+      "The decision file is the reviewed migration_review.csv (the Group column says \"take the sheet\" or \"keep the portal\"); unknown fields, bad values and duplicates are refused.",
+      "Tests: tests/integration/legacy-sync.test.ts (new records added, take/keep respected, portal charge and Delivered untouched, second run no-op)."
     ],
-    "needsYou": "Pull, run npm.cmd run db:migrate, restart the API, hard-refresh.",
-    "migrations": ["105_job_card_sticker_attached.sql"],
-    "files": "packages/db/migrations/105_job_card_sticker_attached.sql, packages/db/src/job-cards.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration (Delivered tests)."
+    "needsYou": "after merging, pull, then run the dry run and the apply steps given in the chat. No migration, no API restart before the apply.",
+    "migrations": [],
+    "files": "packages/db/src/legacy-import/sync.ts, packages/db/src/import-sheets.ts, tests/integration/legacy-sync.test.ts, modification.md."
+  },
+  {
+    "id": 284,
+    "title": "\"Sticker attached\" confirmation before Delivered",
+    "area": "General",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "Every repaired unit should leave with its printed sticker. Management asked that staff confirm the sticker is on the unit before a job card can be marked Delivered.",
+    "changes": [
+      "New tick Sticker attached on the job card edit form, below Final status. Tick it after printing the unit sticker (Print unit sticker) and sticking it on the unit.",
+      "A job card cannot be set to Delivered (final status Delivered, or completing it from the status flow) until the tick is ticked. The portal shows a pop-up \"Sticker not attached\" and the API refuses with the same message.",
+      "Job cards imported from the old sheet are exempt, so old records are not blocked. Job cards already Delivered are untouched.",
+      "The tick records who ticked it and when (kept in the database).",
+      "Nothing else changes: billing, invoice and payment gates work as before.",
+      "Migration 105 adds the sticker columns to job cards.",
+      "Tests: tests/integration/job-status.test.ts (Delivered is refused without the tick); the existing Delivered tests now tick it."
+    ],
+    "needsYou": "pull, run npm.cmd run db:migrate (migration 105), restart the API, hard-refresh. Tell the team: print the sticker, stick it, tick \"Sticker attached\", then mark Delivered.",
+    "migrations": [
+      "105_job_card_sticker_attached.sql"
+    ],
+    "files": "packages/db/migrations/105_job_card_sticker_attached.sql, packages/db/src/job-cards.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration…"
   },
   {
     "id": 283,
     "title": "Scan a unit and repeat-repair warning",
-    "area": "Job cards",
+    "area": "General",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "A scan box finds a job card or an installed unit from its sticker barcode, and warns when the same serial comes back for repair within 90 days.",
+    "summary": "With stickers on repaired and installed units, the warehouse and service team need to scan a sticker and see the unit at once, and be warned when the same unit comes back for repair.",
     "changes": [
-      "Scan a unit button at the top of the portal: type or scan a job card number or a delivery note unit code.",
-      "Job card result with Open job card and Reprint sticker; unit result with brand, model, install date and warranty start.",
-      "Amber repeat-repair warning when another job card has the same serial within the previous 90 days.",
-      "Job cards search also finds a serial number."
+      "New Scan a unit button (barcode icon) at the top of the portal, next to the account menu. It opens a box that a USB barcode scanner types into like a keyboard (or type the code and press Enter). It shows for anyone who can read job cards…",
+      "A job card number (for example JBC-2026-00412) shows the unit, owner, warranty, received date, technician, work done and parts, with Open job card and Reprint sticker.",
+      "A unit code from a Delivery and Install sticker (for example 16101023-1) shows the brand, model, description, customer, installed (or delivered) date and the warranty start date.",
+      "Repeat repair warning: if another job card has the same serial number within the 90 days before this one, an amber box says it is the 2nd (3rd, and so on) job on that serial and names the previous one. It is checked only where a serial…",
+      "The Job cards list search now also finds a serial number.",
+      "No database change, no pricing or billing change.",
+      "Tests: tests/e2e/scan-lookup.spec.ts."
     ],
-    "needsYou": "Pull, restart the API, hard-refresh. No migration.",
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html, packages/db/src/job-cards.ts, tests/e2e/scan-lookup.spec.ts. No database change."
+    "files": "apps/web/src/app.js, apps/web/src/index.html, packages/db/src/job-cards.ts, tests/e2e/scan-lookup.spec.ts."
   },
   {
     "id": 282,
     "title": "Delivery and Install: B2C customers and unit stickers",
-    "area": "Delivery & Installation",
+    "area": "Complaints",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "Delivery and Install jobs can be for B2B or B2C customers, and every unit can get a warranty sticker printed from the saved job.",
+    "summary": "Installed units should carry a sticker (brand, model, install date, warranty start) so a unit that returns for repair shows its warranty start straight away. Delivery and Install also needed to take individual (B2C) customers, not only B2B branches.",
     "changes": [
-      "Customer type on a job: B2B (lookup, the default) or B2C (typed name and phone).",
-      "Optional technician field, printed on the sticker.",
-      "Unit stickers: print all, or per item, from the job or the Jobs list; one sticker per unit with install date and warranty start.",
-      "Pop-up listing any missing detail before a sticker can print.",
-      "Pricing, trip cap, billing and revenue are unchanged."
+      "New Customer type on a Delivery and Install job: B2B (the customer lookup, as before; this stays the default) or B2C (customer name and phone typed in). A B2C job cannot be completed without a name and a phone number.",
+      "New optional Technician field, printed on the sticker.",
+      "New Unit stickers panel on a saved job: Print all stickers (n) and Print stickers for this item; the Jobs list has a Stickers button on every row. One sticker per unit. The sticker has the brand, model or item code, description, category…",
+      "If a required detail is missing, the same \"Sticker cannot be printed yet\" pop-up lists it.",
+      "Nothing else changes: pricing, the 2-trip cap, billing and revenue read the same lines as before. B2B jobs behave exactly as before. In the billing ledger a B2C job now shows customer type B2C (B2B jobs still show B2B).",
+      "Migration 104 adds customer type (default B2B), customer phone and technician to Delivery and Install jobs.",
+      "Tests: tests/integration/dandi-b2c.test.ts (a B2C job prices and completes to the same revenue as the same B2B job), tests/e2e/delivery-installation.spec.ts; the existing pricing, trip-cap, billing, compare and transport tests pass…"
     ],
-    "needsYou": "Pull, run npm.cmd run db:migrate, restart the API, hard-refresh.",
-    "migrations": ["104_di_job_customer_type.sql"],
-    "files": "packages/db/migrations/104_di_job_customer_type.sql, packages/db/src/di-jobs.ts, packages/db/src/billing-ledger.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-b2c.test.ts, tests/e2e/delivery-installation.spec.ts."
+    "needsYou": "pull, run npm.cmd run db:migrate (migration 104), restart the API, hard-refresh.",
+    "migrations": [
+      "104_di_job_customer_type.sql"
+    ],
+    "files": "packages/db/migrations/104_di_job_customer_type.sql, packages/db/src/di-jobs.ts, packages/db/src/billing-ledger.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js…"
   },
   {
     "id": 281,
-    "title": "Unit stickers: print from a service job card",
-    "area": "Job cards",
+    "title": "Unit stickers: print a sticker from a service job card (Zebra GK420t)",
+    "area": "Invoices & billing",
     "date": "2026-11-19",
     "approxDate": false,
     "status": null,
-    "summary": "A repaired unit can now carry a printed sticker (status box, barcode, details and the service contact line) from a Zebra GK420t label printer.",
+    "summary": "The service centre wants a printed sticker on every repaired unit (and later every installed unit) so the status, job card number and contact line travel with the unit. Requested by the Customer Service & Documentation Clerk and approved after mock-ups.",
     "changes": [
-      "Print unit sticker button on the job card: boxed status, Code 128 barcode, model, serial, owner, warranty, dates, work done and parts.",
-      "Label settings window: layout A (two stickers on a 4 x 6 in label) or B (one 100 x 75 mm sticker), small position shift and a test sticker, saved per computer.",
-      "Pop-up listing any required detail still missing before a sticker can print."
+      "New Print unit sticker button on the job card detail, beside Print. The sticker shows a boxed status (REPAIRED, BER, REJECTED, SPARE PENDING, IN SERVICE and so on, readable in black and white), a Code 128 barcode of the job card number…",
+      "New Label settings window: layout A (two stickers on one 4 x 6 in label, a unit copy and a customer copy with a dashed line; the default) or layout B (one sticker per 100 x 75 mm label), a small left/right and up/down shift, and Print a…",
+      "If a required detail is missing, a pop-up \"Sticker cannot be printed yet\" lists each required field as Missing or Done.",
+      "The barcode bar is 0.25 mm (2 printer dots at 203 dpi) so the GK420t prints it crisply. Printing goes through the normal Windows driver of the PC the printer is attached to; nothing is configured inside the portal.",
+      "No API, database or pricing change.",
+      "Tests: tests/unit/label-core.test.ts (barcode checked against a reference encoder and a decoder)."
     ],
-    "needsYou": "Pull, hard-refresh. No migration, no API restart. Print a test sticker from Label settings.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart. Then open Label settings and print a test sticker; set the Windows paper size to 100 x 150 mm (or 100 x 75 mm for layout B), scale 100%.",
     "migrations": [],
-    "files": "apps/web/src/label-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/label-core.test.ts. No API or database change."
+    "files": "apps/web/src/label-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/label-core.test.ts."
   },
   {
     "id": 280,
     "title": "Tooltips across the Schedules tabs",
-    "area": "Appointments",
+    "area": "Scheduler",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "Every Schedules tab, field and key button now explains itself on hover, so nobody is left guessing.",
+    "summary": "After the day's changes the Schedules page has four tabs and many fields. Anyone should be able to hover and learn what a tab, field or button does, so nobody is left guessing.",
     "changes": [
-      "Hover descriptions on the four tabs: Appointments, New request, Daily schedule and Awaiting.",
-      "(i) tooltips on the New request fields and the visit section; hover text on its buttons.",
-      "Hover text on the Appointments filters, calendar, detail buttons and list actions.",
-      "Tooltips on the Daily schedule filters and print buttons, and on the Awaiting columns and buttons."
+      "Tabs: each of Appointments, New request, Daily schedule and Awaiting has a hover description.",
+      "New request: (i) tooltips on Complaint source, Salesman, Appointment date, Customer type, Customer name, Email, Address, Region, B2B Branch / School, Site contact person and number, Customer number, Sales order no., Brand, Model, Serial…",
+      "Appointments: hover text on the search, status, date and technician filters, Print list and Print sheets, the calendar buttons, Show all dates, the detail buttons (Discuss, Duplicate, Print, Unassign, Create service job card, Download…",
+      "Daily schedule: (i) tooltips on From, To, Group by, Show visits and Technician; hover text on Today, Tomorrow, Print list, Print appointment sheets and each Sheet button.",
+      "Awaiting: (i) tooltips on Items and Waiting (what green, yellow and red mean); hover text on Finish and book and Delete.",
+      "No behaviour change, no migration. Tests: tests/e2e/tooltips.spec.ts."
     ],
     "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
@@ -161,16 +197,18 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 279,
     "title": "Daily schedule: show visits grouped (optional)",
-    "area": "Appointments",
+    "area": "Scheduler",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The Daily schedule can show items booked as one visit together as one stop, on screen and in the printed list. Separate rows stay the default.",
+    "summary": "Items booked together as one visit are one stop for the technician, but the Daily schedule listed them as unrelated rows.",
     "changes": [
-      "New Show visits setting: Separate rows (default) or Grouped together, remembered per browser.",
-      "A visit block shows the customer, phone and address once, with each item keeping its own number, status and tick box.",
-      "Items moved to another day or technician stay as normal rows.",
-      "The printed list shows a grey VISIT band for grouped items, low ink for black and white."
+      "New Show visits setting on Schedules > Daily schedule: Separate rows (the default, exactly as before) or Grouped together. The choice is remembered per browser.",
+      "Grouped: items of the same visit that are on the same day and under the same technician (or branch) appear in one block. A header shows the customer, phone and address once, with a \"Visit · n items\" tag; each item keeps its own…",
+      "An item moved to another day or technician is not pulled into the block; it stays a normal row under its own day and technician.",
+      "Print list follows the setting: a grey band \"VISIT — customer · phone · address · n items, one stop\", then the items marked \"(visit 1/n)\" and \"Same stop\". Low-ink, readable in black and white.",
+      "The daily list data now carries each item's visit group, position and size. No migration.",
+      "Tests: tests/e2e/printing.spec.ts, tests/integration/appointment-visit.test.ts."
     ],
     "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
@@ -179,351 +217,381 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 278,
     "title": "Repeat-customer lookup on New request",
-    "area": "Appointments",
+    "area": "Complaints",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "Typing a phone number or the start of a name on New request shows that customer's earlier appointments, with Use this customer, Copy item and Same appliance again.",
+    "summary": "A customer who has called before should not be typed in again, and their earlier appliances should be one click away.",
     "changes": [
-      "Looks up by phone (any format) or the start of the name, after a short pause in typing.",
-      "Shows earlier appointments of every status, newest first.",
-      "Use this customer fills in the customer details; Copy item adds the appliance as an item.",
-      "Two new indexes keep the lookup light."
+      "On Schedules > New request, typing a phone number (6 or more digits) or the start of a name (3 or more letters) looks up that customer's earlier appointments. It waits for a short pause in typing, so it does not search on every key.",
+      "Phone matches ignore spaces, dashes and +971: 050 123 4567, +971 50 123 4567 and 0501234567 find the same customer. Name matches on the start of the name.",
+      "A panel shows each customer found (up to 3) with their earlier appointments (up to 5 each), of every status including cancelled, newest first.",
+      "Use this customer fills in the customer, address, region and B2B details. Date and technician stay blank.",
+      "Copy item adds that appliance as item 1 if the form has no item yet, otherwise as another item of the visit. Same appliance again does the same and starts the issue with \"Repeat visit (previous APT-…):\".",
+      "Light on the database: migration 103 adds two indexes (phone last 9 digits, name start), the search only runs after a pause, asks once per distinct search, returns at most 20 rows, and a failure never blocks the form.",
+      "New API: GET /api/appointments/customer-lookup?phone=&name= (appointments view permission).",
+      "Tests: tests/integration/appointment-visit.test.ts, tests/e2e/phase4-scheduling.spec.ts."
     ],
     "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
     "migrations": [
       "103_appointment_customer_lookup_indexes.sql"
     ],
-    "files": "packages/db/*, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html"
+    "files": "packages/db/migrations/103_appointment_customer_lookup_indexes.sql, packages/db/src/appointments.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts, apps/web/src/app.js…"
   },
   {
     "id": 277,
     "title": "Duplicate an appointment as a new request",
-    "area": "Appointments",
+    "area": "Scheduler",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "Any appointment can be duplicated into a pre-filled New request, with a choice of a new item or the same appliance for a repeat visit.",
+    "summary": "For a customer who calls again, the CCE should not re-type everything. The old portal had \"Duplicate as Awaiting Jobs\" on an existing request; the new portal now has its own version.",
     "changes": [
-      "Duplicate as new request on the appointment details, and a Duplicate button on each list row.",
-      "Customer and address are copied; date, technician and source are left for you to choose.",
-      "New item or Same appliance, repeat visit, with the previous appointment noted in the issue."
+      "Appointment details have Duplicate as new request, and every row of the appointments list has a Duplicate button. It works for any status (completed, cancelled, scheduled).",
+      "It opens Schedules > New request pre-filled with the customer: type, name, contact, email, address, region, B2B school and contacts, customer number and sales order no.",
+      "The date and technician are left blank so you choose them fresh. How the request reached you (source) is also left for you to pick.",
+      "A strip at the top says \"Copied from APT-… · item · status\" with two choices: New item (brand, model, serial and issue empty) or Same appliance, repeat visit (brand, model, serial and warranty copied, and the issue starts with \"Repeat…",
+      "From there it is the normal form: add more items, save as draft, or book.",
+      "Needs the same permission as booking an appointment. No migration, no API change.",
+      "Test: tests/e2e/phase4-scheduling.spec.ts."
     ],
     "needsYou": "pull and hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html"
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts."
   },
   {
     "id": 276,
     "title": "Multi-item visit and Awaiting: professional restyle",
-    "area": "Appointments",
+    "area": "Portal look & feel",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The multi-item visit form, the Awaiting tab and the dashboard card have a cleaner, more professional look. Booking works the same.",
+    "summary": "The first versions of the multi-item visit (#274) and drafts (#275) worked, but looked plain. You asked for a more professional finish.",
     "changes": [
-      "Item cards with a numbered badge, one-line summary, status pill, and Collapse or Edit.",
-      "A summary bar shows how many appointments are booked now and how many stay as a draft.",
-      "Waiting pills show an icon and words so they read on a black and white print.",
-      "The list tag reads Visit 1 of 3."
+      "What changed: Look only, nothing changes in how booking works."
     ],
     "needsYou": "pull and hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html"
+    "files": "apps/web/src/app.js, apps/web/src/index.html."
   },
   {
     "id": 275,
     "title": "Visit drafts: save a visit for later, Awaiting tab and dashboard card",
-    "area": "Appointments",
+    "area": "Portal look & feel",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "A visit can be saved as a draft and finished later from a new Awaiting tab in Schedules or from the Dashboard card. Drafts turn yellow at 2 days and red at 3 days.",
+    "summary": "A CCE often knows the customer and the items but not yet the date or technician. They need to keep the visit and finish it later, as the old portal's \"Awaiting schedule jobs\" did.",
     "changes": [
-      "Save visit as draft on New request keeps the customer and all items.",
-      "New Awaiting tab in Schedules with a count, oldest first, yellow at 2 days and red at 3+ days.",
-      "Finish and book loads the draft into New request; items marked Book this item later stay in the draft.",
-      "Dashboard card Awaiting schedule jobs shows the waiting visits and opens the Awaiting tab."
+      "New request has Save visit as draft. Only the customer name is needed. The draft keeps every item as entered.",
+      "Schedules has a fourth tab, Awaiting, with a count. It lists the drafts, oldest first, with who saved them and how long they have waited: green under 2 days, yellow at 2 days, red at 3 days or more (72 hour turnaround).",
+      "Finish and book loads the draft into New request with all its items. Book it as a normal visit, or tick Book this item later on some items: the rest are booked now and the later ones stay in the draft.",
+      "Booking a draft removes it. Delete removes a draft you no longer need.",
+      "The Dashboard has an Awaiting schedule jobs card (waiting visits, waiting 2 days, waiting 3+ days). It shows only when drafts exist, and a click opens the Awaiting tab.",
+      "Drafts do not use up technician capacity; the daily limit is checked when the visit is booked.",
+      "New API: GET/POST /api/appointments/visit-drafts, PUT/DELETE /api/appointments/visit-drafts/{id} (view and booking permissions of appointments).",
+      "Tests: tests/integration/appointment-visit.test.ts (drafts), tests/e2e/phase4-scheduling.spec.ts (two new tests)."
     ],
     "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
     "migrations": [
       "102_visit_drafts.sql"
     ],
-    "files": "packages/db/*, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/web/src/app.js, apps/web/src/index.html"
+    "files": "packages/db/migrations/102_visit_drafts.sql, packages/db/src/visit-drafts.ts, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts…"
   },
   {
     "id": 274,
     "title": "Multi-item visit: book several items for one customer in one go",
-    "area": "Appointments",
+    "area": "Complaints",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "New request can now book several items for one customer visit. Each item gets its own appointment number and job card, and the list shows a Visit tag.",
+    "summary": "One customer visit often covers several items (a washer and a fridge). Booking them meant filling the whole New request form again for each item. The old portal had \"Duplicate as Awaiting Jobs\" for this; the new portal now has a proper version.",
     "changes": [
-      "Add another item to the visit on New request; the button becomes Book all n items.",
-      "Each item is its own appointment with its own number; the list shows Visit 1/2.",
-      "Changing an item's date or technician shows a reminder that all items are the same customer and location.",
-      "Book all stops and books nothing if a technician is full that day."
+      "On Schedules > New request, below the item, + Add another item to this visit adds an item (brand, model, serial or item code, warranty, issue, date, technician). Item 1 is the normal form. The button becomes Book all n items.",
+      "Each item is its own appointment with its own appointment number, and becomes its own job card later. The items are linked as one visit, and the appointments list shows a Visit 1/2 tag next to the number.",
+      "Items start with the same date and technician. If you change an item's date or technician, a notice reminds you that all items are the same customer and location. It only shows when you change one of those two.",
+      "Book all is all-or-nothing. If a technician is full on a day, nothing is booked and the message names the item (\"Item 2 of 2: Assignment limit for the day reached ...\").",
+      "New API: POST /api/appointments/visit (needs the same permission as booking an appointment). Single appointments are unchanged.",
+      "Drafts (Save visit as draft, Awaiting tab, dashboard card) come next as a separate step.",
+      "Tests: tests/integration/appointment-visit.test.ts; tests/e2e/phase4-scheduling.spec.ts (new visit test)."
     ],
     "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh.",
     "migrations": [
       "101_appointment_visits.sql"
     ],
-    "files": "packages/db/*, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/web/src/app.js, apps/web/src/index.html"
+    "files": "packages/db/migrations/101_appointment_visits.sql, packages/db/src/appointments.ts, packages/contracts/src/index.ts, apps/api/src/appointments/*, apps/api/src/api/route-catalog.ts…"
   },
   {
     "id": 273,
     "title": "Schedules: Appointments, New request and Daily schedule in one page",
-    "area": "Appointments",
+    "area": "Scheduler",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "Service desk now has one Schedules page with three tabs: Appointments, New request and Daily schedule, replacing three separate menu items.",
+    "summary": "Service desk had three separate menu items for the same work (New request, Daily schedule, Appointments).",
     "changes": [
-      "One Schedules menu item with tabs Appointments, New request and Daily schedule.",
-      "The old three menu items are removed; the pages and permissions are unchanged."
+      "One menu item, Schedules, in Service desk. It opens with three tabs: Appointments, New request and Daily schedule.",
+      "The three old menu items are gone from the sidebar. The pages themselves are unchanged and everything that links to an appointment or the daily schedule still lands on the right tab.",
+      "The page heading reads Schedules; the line under it describes the tab you are on.",
+      "Permissions are unchanged: Schedules needs the appointments view permission, and the New request tab shows only for people who can create appointments.",
+      "Tests: tests/e2e/phase4-scheduling.spec.ts (new tab test); other e2e specs updated to open Schedules."
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/*"
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/*."
   },
   {
     "id": 272,
     "title": "Appointments: \"All appointments\" list follows the calendar and date filters",
-    "area": "Appointments",
+    "area": "Scheduler",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The All appointments list and its count now follow the month or week shown in the calendar, or the From/To dates when set, and show the true total instead of stopping at 50.",
+    "summary": "The \"All appointments\" count stayed at 50 whatever you chose. The list only fetched the first 50 rows and showed how many it had received, and moving the calendar to another month or week did not reload the list at all.",
     "changes": [
-      "Moving the calendar (Previous, Next, Today, Month, Week) reloads the list for that period.",
-      "From/To dates override the calendar period; moving the calendar clears them.",
-      "The count is the real total for the period and filters, and every page is loaded.",
-      "The heading shows the period, for example November 2026."
+      "The list now follows the calendar: the month or week you are viewing (Previous, Next, Today, Month, Week, and \"+n more\") decides which appointments are listed.",
+      "If you set From/To dates, those are used instead. Moving the calendar afterwards clears the dates so the list follows the new period.",
+      "The count is the true total for that period and filters (search, status, technician), not the page size. The list loads every page (100 at a time), so nothing is cut off at 50.",
+      "The heading shows the period next to the count, for example \"All appointments 23 · November 2026\".",
+      "Tests: tests/e2e/phase4-scheduling.spec.ts (new test for month, week, next, date filter, then calendar move)."
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts"
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/phase4-scheduling.spec.ts."
   },
   {
     "id": 271,
     "title": "Appointment sheet print: low-ink look and slightly larger type",
-    "area": "Appointments",
+    "area": "Invoices & billing",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The printed appointment sheet uses light grey section headers with thin borders instead of dark bars, and slightly larger type. A missing required detail prints in a dashed box. Print layout only.",
+    "summary": "Sheets are printed in black and white; the dark navy section bars used a lot of ink, and the smaller type from #270 was a little too small.",
     "changes": [
-      "Light grey section headers with a thin border; no solid dark bars.",
-      "Type slightly larger than the previous version.",
-      "A missing required detail prints in a dashed box (red on a colour printer, grey in black and white)."
+      "What changed (print layout only)"
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js"
+    "files": "apps/web/src/app.js."
   },
   {
     "id": 270,
     "title": "Appointment sheet print: smaller fonts",
-    "area": "Appointments",
+    "area": "Invoices & billing",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The printed appointment sheet uses smaller type and tighter rows. Print layout only.",
+    "summary": "After printing the #269 layout the fonts looked too big.",
     "changes": [
-      "Summary card names, table text, labels and section headers are smaller."
+      "What changed (print layout only): Smaller type and tighter row spacing on the appointment sheet: summary card name 13.5px (was 17px), table text 10.5px (was 12px), labels 9.5px, section headers 8.5px. Nothing else changes."
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js"
+    "files": "apps/web/src/app.js."
   },
   {
     "id": 269,
-    "title": "Appointment sheet print: summary-cards layout",
-    "area": "Appointments",
+    "title": "Appointment sheet print: switched to the summary-cards layout",
+    "area": "Invoices & billing",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The appointment sheet print now opens with two summary cards (customer and visit) followed by Customer, Product and Reference tables. Required details are marked and missing ones print in red. Print layout only.",
+    "summary": "After printing the #268 layout the user preferred the earlier \"Sample B\" look, without tick boxes.",
     "changes": [
-      "Customer and Visit summary cards at the top.",
-      "Customer details, Product details and Reference tables, no tick boxes.",
-      "Required details carry a red asterisk and bold values; a missing one prints as Not entered in red."
+      "What changed (print layout only)"
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts"
+    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts."
   },
   {
     "id": 268,
     "title": "Appointment sheet print: grouped sections with required details highlighted",
-    "area": "Appointments",
+    "area": "Invoices & billing",
     "date": "2026-11-18",
     "approxDate": false,
     "status": null,
-    "summary": "The printed appointment sheet now groups the details into Customer, Product, Appointment & technician and Other references, highlights required details and flags missing ones in red. Print layout only.",
+    "summary": "Technicians and users asked for a more professional appointment sheet in which the details above \"Fault reported\" can be read and verified quickly.",
     "changes": [
-      "Customer details in one table; product, appointment and technician, and other references in their own boxes.",
-      "Required details (customer name, contact, region, address, brand, model, sub group, item code, warranty, date, technician) are marked with an asterisk and bold; a missing one prints as a red Not entered cell.",
-      "Applies to the single Print button and the Daily schedule appointment sheets batch print."
+      "What changed (print layout only; no data or rules change)"
     ],
-    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "needsYou": "pull, hard-refresh. No migration, no API restart.",
     "migrations": [],
-    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts"
+    "files": "apps/web/src/app.js, tests/e2e/phase4-scheduling.spec.ts."
   },
   {
     "id": 267,
     "title": "Delivery & Installation: permissions for the Transport rules tab",
-    "area": "Delivery & Installation",
+    "area": "Permissions",
     "date": "2026-11-17",
     "approxDate": false,
     "status": null,
-    "summary": "The Transport rules tab now has its own view and change permissions under DI JOBS in Roles & permissions, so an admin can hide it from, or open it to, other roles.",
+    "summary": "The D&I Transport rules tab was visible to everyone who can read D&I jobs, and only changing it was admin-only. The admin asked to control it from Roles & permissions.",
     "changes": [
-      "New permissions di_jobs.transport_rules.read (see the tab) and di_jobs.transport_rules.write (change the rules).",
-      "Defaults keep today's behaviour: roles that read D&I jobs can view, admin can change.",
-      "The tab is hidden without the view permission and the API refuses both calls without the matching permission."
+      "Two new permissions under DI JOBS: di_jobs.transport_rules.read (see the Transport rules tab) and di_jobs.transport_rules.write (change the daily cap, delivery-only cap, mixed-invoice switch and trips a day). The tab is hidden without the…",
+      "Defaults keep today's behaviour: every role that has di_jobs.read gets the view permission, every role that has di_jobs.configure (admin) gets the change permission. Untick a role in Roles & permissions to restrict it, or tick change for…",
+      "A role that can view but not change sees the settings read-only with a short note.",
+      "Tests: tests/unit/dandi-job-routes.test.ts, tests/e2e/di-transport-rules.spec.ts (new case: tab hidden without view permission)."
     ],
-    "needsYou": "pull, run npm run db:migrate (migration 100), restart the API and hard-refresh.",
-    "migrations": ["100_di_transport_rules_permissions.sql"],
-    "files": "packages/db/migrations/100_di_transport_rules_permissions.sql, apps/api/src/dandi-jobs/routes.ts, apps/web/src/app.js"
+    "needsYou": "pull, npm run db:migrate (migration 100), restart the API, hard-refresh. Then open Roles & permissions > DI JOBS to see the two new rows.",
+    "migrations": [
+      "100_di_transport_rules_permissions.sql"
+    ],
+    "files": "packages/db/migrations/100_di_transport_rules_permissions.sql, apps/api/src/dandi-jobs/routes.ts, apps/web/src/app.js."
   },
   {
     "id": 266,
-    "title": "Revenue export: transport rules banner and Transport not charged column",
-    "area": "Service Revenue Dashboard",
+    "title": "Service Revenue Dashboard export: transport rules banner and \"Transport not charged\" column",
+    "area": "Revenue",
     "date": "2026-11-14",
     "approxDate": false,
     "status": null,
-    "summary": "The Export report (.xlsx) now says which transport rules its figures follow and how much transport the 2-trip daily cap left uncharged. Display only; no figure changes.",
+    "summary": "The Export report (.xlsx) already followed the 2-trip daily cap (its revenue comes from the same saved lines as the dashboard, and #259 made \"Why they differ\" say \"Daily trip cap\"), but the file did not say which transport rules it followed, nor how much transport the cap left uncharged.",
     "changes": [
-      "Summary sheet: transport rules, the switches in plain words and the total transport left uncharged by the cap.",
-      "Revenue Logic sheet: the same rules banner at the top.",
-      "Delivery & Install sheet: new Trip no. of day and Transport note columns (first line of each invoice) and Transport not charged (AED).",
-      "Delivery & Install sheet trimmed for accounts review: 20 technical columns moved to the Source detail sheet (nothing deleted)."
+      "What changed (display only; no revenue figure, rule or total changes)"
     ],
-    "needsYou": "pull and restart the API. No migration.",
+    "needsYou": "pull, restart the API. No migration, no browser refresh needed.",
     "migrations": [],
-    "files": "apps/api/src/revenue-dashboard/export.ts, logic-sheet.ts, service.ts"
+    "files": "apps/api/src/revenue-dashboard/export.ts, logic-sheet.ts, service.ts, tests/unit/revenue-export-sheets.test.ts."
   },
   {
     "id": 265,
     "title": "Tasks: add a task from an issued AMC contract, Thomson quote or VAS sale",
-    "area": "Tasks",
+    "area": "Pricing & rates",
     "date": "2026-11-14",
     "approxDate": false,
     "status": null,
-    "summary": "Add from a record now also covers the issued quotes of the quote calculators. The task keeps a coloured link that opens the calculator's Issued tab with the quote highlighted.",
+    "summary": "After #264 worked for quotations, inspections and job cards, the same follow-up was wanted for the saved quotes of the quote calculators.",
     "changes": [
-      "New Quote calculators section in the picker: AMC contract, Thomson quote, VAS sale.",
-      "Purple, teal and pink record chips; the link opens the right calculator's Issued tab and highlights the row.",
-      "Shown only to people who can read that kind of record."
+      "\"Add from a record\" has a third section, Quote calculators, with AMC contract (both calculators), Thomson quote and VAS sale. Pick one from the issued list; the New task panel opens filled in (\"Follow up: AC-... · client\"). Everything…",
+      "The task chip (purple AMC, teal Thomson, pink VAS) opens that calculator's Issued tab, switches to the right AMC calculator (New or original) and highlights the row for a few seconds. These records are rows in an Issued list, not pages of…",
+      "A type only shows for people who can read it (amc_contract.read, thomson_sale.read, vas_sale.read); creating a task for one you cannot read is refused.",
+      "Tests: tests/integration/roi-task-record-link.test.ts (extended), tests/e2e/task-record-link.spec.ts (new case)."
     ],
     "needsYou": "pull, run npm run db:migrate (migration 099), restart the API, hard-refresh.",
-    "migrations": ["099_roi_task_record_calculators.sql"],
-    "files": "packages/db/src/roi-tasks.ts, apps/web/src/tasks.js, apps/web/src/app.js"
+    "migrations": [
+      "099_roi_task_record_calculators.sql"
+    ],
+    "files": "packages/db/migrations/099_roi_task_record_calculators.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/web/src/tasks.js, apps/web/src/app.js, apps/web/src/index.html."
   },
   {
     "id": 264,
     "title": "Tasks: add a task from a quotation, inspection or job card",
-    "area": "Tasks",
+    "area": "Job cards",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "Tasks has an Add from a record button: pick a quotation, inspection or job card and the New task panel opens filled in. The task keeps a coloured link that opens the record, and the three record pages get an Add to tasks button.",
+    "summary": "Follow-ups on quotations, inspections and job cards were typed into Tasks by hand, with no link back to the record. Staff wanted to pick the record and have it carried into the task.",
     "changes": [
-      "Picker: section (Records or Service desk), type, search, pick one record; title defaults to Follow up: reference and customer, record details go in the notes.",
-      "Coloured record chip with a link on List, Board, Timeline, the Dashboard task lane and the task panel.",
-      "Quotation, inspection and job card pages show their follow-up tasks and an Add to tasks button.",
-      "One record per task; creating a task for a record you cannot read is refused."
+      "Tasks has a new \"Add from a record\" button beside New task. Pick the section (Records or Service desk), then the type (Records: Quotation, Inspection; Service desk: Job card), search by reference or customer and pick one record. The…",
+      "One record per task. The task keeps a coloured record chip (blue Quotation, green Inspection, orange Job card) that opens the record. It shows in the List, Board, Timeline, archive list, Dashboard task lane and in the task panel.",
+      "Quotation, inspection and job card pages show a follow-up strip under the heading: the open tasks that follow the record (select one to open it) and an \"Add to tasks\" button (or \"Add another follow-up\"). It appears only for people with…",
+      "A record chip only opens for people who may read that record; creating a task for a record you cannot read is refused. Only Quotations, Inspections and Job Cards for now.",
+      "Tests: tests/integration/roi-task-record-link.test.ts, tests/e2e/task-record-link.spec.ts."
     ],
     "needsYou": "pull, run npm run db:migrate (migration 098), restart the API, hard-refresh.",
-    "migrations": ["098_roi_task_record_link.sql"],
-    "files": "packages/db/src/roi-tasks.ts, apps/api/src/roi-tasks/service.ts, apps/web/src/tasks.js, apps/web/src/app.js"
+    "migrations": [
+      "098_roi_task_record_link.sql"
+    ],
+    "files": "packages/db/migrations/098_roi_task_record_link.sql, packages/db/src/roi-tasks.ts, packages/contracts/src/index.ts, apps/api/src/roi-tasks/service.ts, apps/api/src/api/route-catalog.ts…"
   },
   {
     "id": 263,
     "title": "Service Revenue Dashboard: CSIJO original invoice vs channel-billed",
-    "area": "Service Revenue Dashboard",
+    "area": "Revenue",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "CSIJO is now shown in two parts on every tab: jobs with an actual ERP invoice value, and zero-value jobs priced by rate and billed to the sales channel. It is a label only; no revenue figure changes.",
+    "summary": "CSIJO (Non-Warranty Repairs) has two kinds of job: jobs with an actual ERP value (the original invoice, revenue is that value) and jobs with 0 in ERP that are priced by the rate card (or the flat BER / RWR charge) and billed to the sales channel. Management wanted to see the two separately.",
     "changes": [
-      "Overview: when Job type is CSIJO, split cards, proportion bar and two-tint monthly chart; sub-rows in the job type breakdown.",
-      "Explorer: CSIJO basis filter, Basis column and two extra KPI cards.",
-      "Reports: new CSIJO split view by month and by sales channel; both Excel exports get a CSIJO basis column.",
-      "Logic applied: a CSIJO card inside Worked example, shown only when its Job type is CSIJO."
+      "New label \"CSIJO basis\" with two values: Original invoice (ERP value above 0 and revenue is not rate x quantity, the same test as the existing \"Actual ERP job value\" basis) and Channel-billed (everything else in CSIJO). Other job types…",
+      "Overview: when the Job type filter is CSIJO, the CSIJO split cards (revenue, share, jobs, units), a proportion bar and a monthly chart in two tints; two sub-rows under CSIJO in the Job type breakdown. Nothing else on Overview changes.",
+      "Explorer: two extra KPI cards, a Basis column on the job list and the basis in the job detail.",
+      "Reports: new \"CSIJO split\" view (by month and by sales channel, with totals and channel share).",
+      "Logic applied: a CSIJO card explaining both ways a job is valued, with live figures.",
+      "New \"CSIJO basis\" filter on every tab; it also works as a drill-down breakdown. Both Excel exports (full report and \"Download this view\") get a CSIJO basis column.",
+      "Tests: tests/integration/csijo-basis.test.ts (split adds up to CSIJO, grand total unchanged, filter, matrix, job list)."
     ],
     "needsYou": "pull, restart the API, hard-refresh. No migration.",
     "migrations": [],
-    "files": "packages/db/src/revenue-dashboard.ts, apps/web/src/app.js"
+    "files": "packages/db/src/revenue-dashboard.ts, packages/contracts/src/index.ts, apps/api/src/api/route-catalog.ts, apps/api/src/revenue-dashboard/export.ts, apps/api/src/revenue-dashboard/view-export.ts…"
   },
   {
     "id": 262,
     "title": "Brand supplier-details template for the sales team (Stock Master)",
-    "area": "Stock Master",
+    "area": "Permissions",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "The Stock Master page can download an Excel template with one row per MDA and SDA brand, for the sales team to fill in the warranty, supplier and service center contacts the service team needs to follow up complaints.",
+    "summary": "For brands that carry the manufacturer's or supplier's own warranty (Nikai, Akai, Super General and others) the service team gets complaint requests but has no contact, call center, service center email, supplier contact or complaint registration link, so the sales team handles them and customers wait. The sales team…",
     "changes": [
-      "Pre-filled from the live Stock Master: brand, category, product groups and item count.",
-      "Columns for warranty provider, supplier contact, brand service center and call center, complaint registration link and sales sign-off, with drop-downs and a Status column.",
-      "Products by brand sheet is a reference."
+      "Stock Master page (Admin): new \"Download brand template\" button. It builds an Excel from the live Stock Master: one row per brand supplied in the MDA and SDA categories, with the category, the product groups and the item count already…",
+      "Sheets: \"Brand details\" (the form) and \"Products by brand\" (reference: brand, product group, sub group, item count). No title row and no Read me sheet.",
+      "The form has six bands: From the portal (grey), Warranty, Supplier / distributor, Brand service center, Complaint registration (link), Sales sign off (filled by, remarks). Drop-downs for brand type and who provides the warranty. A Status…",
+      "New API: GET /api/stock/supplier-template (needs stock.write); audited as stock.brand_template_downloaded. No migration.",
+      "Test: tests/integration/brand-supplier-template.test.ts."
     ],
-    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "needsYou": "pull, restart the API, hard-refresh, open Stock Master and click Download brand template.",
     "migrations": [],
-    "files": "packages/db/src/stock-master.ts, apps/api/src/stock-master/supplier-template.ts, apps/api/src/stock-master/service.ts, apps/api/src/stock-master/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/brand-supplier-template.test.ts, modification.md."
+    "files": "packages/db/src/stock-master.ts, apps/api/src/stock-master/supplier-template.ts, apps/api/src/stock-master/service.ts, apps/api/src/stock-master/routes.ts, apps/api/src/api/route-catalog.ts…"
   },
   {
     "id": 261,
     "title": "Quotations list: month filter, management report, ORION Ref column",
-    "area": "Quotations",
+    "area": "Portal look & feel",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "Records → Quotations can be filtered by month, downloads a management Excel report for a month or all months, shows the ORION invoice number in its own column, and the Job cards column shows the unit count until the quotation is Approved and Invoiced.",
+    "summary": "Management wanted to review quotations month by month and receive a weekly report, and the Units column duplicated what the Job cards column should show.",
     "changes": [
-      "Month filter next to the search box; works with the search and the ERP / ORION filter.",
-      "Download report: Summary sheet (totals by status) and a Quotations sheet with the table columns plus subtotal and VAT; totals follow Excel filters.",
-      "Units column removed; Job cards shows the unit count until Approved and Invoiced, then the job card progress.",
-      "New ORION Ref column shows the ERP / ORION invoice number."
+      "Records → Quotations: a month filter next to the search box (All months, or any month that has quotations, newest first, with the count). It works together with the search and the ERP / ORION filter, and the totals bar follows it.",
+      "New \"Download report\" button: an Excel report for the selected month, or all months. A Summary sheet (overall total, and counts and amounts by quotation status with a Total row) and a Quotations sheet with Reference, date, customer…",
+      "The Units column is removed. The Job cards column shows the unit count (for example \"8 units\") until the quotation is Approved and Invoiced in ERP / ORION; from then on it shows the job card progress (\"0 of 8 created\", \"All 8 created\") as…",
+      "New \"ORION Ref\" column shows the quotation's ERP / ORION invoice number, or a dash when there is none.",
+      "New API: GET /api/quotations/months, GET /api/quotations/export, and a month (YYYY-MM) parameter on GET /api/quotations. No migration.",
+      "Tests: tests/integration/quotation-month-report.test.ts, new cases in tests/e2e/quotation-units.spec.ts."
     ],
     "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
     "migrations": [],
-    "files": "packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/quotations/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/quotation-month-report.test.ts, tests/e2e/quotation-units.spec.ts, modification.md."
+    "files": "packages/contracts/src/index.ts, packages/db/src/quotations.ts, apps/api/src/quotations/service.ts, apps/api/src/quotations/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js…"
   },
   {
     "id": 260,
     "title": "Delivery & Installation gets its own Transport rules tab",
-    "area": "Revenue",
+    "area": "General",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "Billing, the Portal vs Excel comparison and Budget vs Actual now follow their own Delivery & Installation transport switches instead of the Service Revenue Dashboard's.",
+    "summary": "After #258 Billing, the comparison and Budget vs Actual followed the Service Revenue Dashboard's Transport rules, so changing a toggle to test the dashboard also changed what Billing charges. Delivery & Installation now has its own settings.",
     "changes": [
-      "New Transport rules tab on the Delivery & Installation screen: Daily trip cap, Delivery-only cap, Mixed-invoice transport and Trips a day. Only an admin can save.",
-      "Shows how many trips are not charged and lists the salesperson-days over the cap.",
-      "Seeded from the dashboard's current setting, so nothing changes on migration; the Service Revenue Dashboard keeps its own rules."
+      "New \"Transport rules\" tab on the Delivery & Installation screen with the same switches as the dashboard: Daily trip cap, Delivery-only cap (needs the daily cap), Mixed-invoice transport and Trips a day. Everyone with D&I access sees it…",
+      "The tab shows what the rules do to Completed jobs: trips not charged, transport not charged, and an expandable list of the salesperson-days over the cap (job, delivery note, trip, charge, Charged / Not charged).",
+      "Migration 097 adds di_transport_rules (one row, seeded from the dashboard's current setting, so nothing changes on migration) and points the trip cap view at it. Billing, Portal vs Excel comparison and Budget vs Actual read these…",
+      "Service Revenue Dashboard: unchanged, keeps its own rules.",
+      "New API: GET and PUT /api/di-jobs/transport-rules; saves are audited (di_job.transport_rules_changed).",
+      "Tests: tests/integration/dandi-trip-cap.test.ts (own rules, dashboard rules do not move Billing, save and impact), tests/e2e/di-transport-rules.spec.ts."
     ],
     "needsYou": "pull, run npm run db:migrate (migration 097), restart the API, hard-refresh the browser.",
-    "migrations": ["097_di_transport_rules.sql"],
-    "files": "packages/db/migrations/097_di_transport_rules.sql, packages/db/src/di-transport-rules.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, tests/integration/dandi-trip-cap.test.ts, tests/e2e/di-transport-rules.spec.ts, modification.md."
+    "migrations": [
+      "097_di_transport_rules.sql"
+    ],
+    "files": "packages/db/migrations/097_di_transport_rules.sql, packages/db/src/di-transport-rules.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/api/src/dandi-jobs/routes.ts…"
   },
   {
     "id": 259,
     "title": "Report export: \"Why they differ\" no longer lists capped trips as pricing differences",
-    "area": "Revenue",
+    "area": "Pricing & rates",
     "date": "2026-11-13",
     "approxDate": false,
     "status": null,
-    "summary": "In the Service Revenue Report export a trip the daily cap left uncharged now says \"Daily trip cap\" instead of \"CSIDI transport\".",
+    "summary": "The rate card has no daily trip cap, so in the Service Revenue Report export a trip the 2-trip cap left uncharged showed as a \"CSIDI transport\" difference, as if the workbook had missed the transport.",
     "changes": [
-      "Applies when the difference is exactly the transport the cap leaves uncharged under the saved Transport rules; other differences keep their cause.",
-      "Same wording in the export's Logic sheet check and in the worked example."
+      "In the Excel export, when the difference on a line is exactly the transport charge the daily cap leaves uncharged (under the saved Transport rules), \"Why they differ\" now says \"Daily trip cap\". Other differences keep their own cause.",
+      "The same wording is used in the export's Logic sheet \"Check against the workbook\" section and in the worked example.",
+      "Dashboard figures and the Service Revenue Dashboard itself are unchanged.",
+      "Test: tests/unit/revenue-export-sheets.test.ts."
     ],
-    "needsYou": "pull, restart the API.",
+    "needsYou": "pull, restart the API. No migration needed.",
     "migrations": [],
     "files": "apps/api/src/revenue-dashboard/service.ts, export.ts, logic-sheet.ts, logic-summary.ts, tests/unit/revenue-export-sheets.test.ts, modification.md."
   },
@@ -534,130 +602,147 @@ export const CHANGELOG: ChangelogEntry[] = [
     "date": "2026-11-12",
     "approxDate": false,
     "status": null,
-    "summary": "Billing now charges installation transport under the same 2-trip daily cap as the Service Revenue Dashboard, using the portal service date; the dashboard itself is unchanged.",
+    "summary": "The Service Revenue Dashboard caps installation transport at 2 trips per salesperson per day, but the Delivery & Installation figures frozen at completion had no cap, so Billing could charge more transport than the master workbook logic. The dashboard itself must keep reading the master workbook only and is not…",
     "changes": [
-      "Per salesperson per service date the highest transport charges are charged first; equal charges are ordered by the ERP delivery note (Ref Inv); delivery-only notes stay outside the cap unless that toggle is on.",
-      "Billing shows the capped amount with a note for transport not charged, and the Excel export adds Transport Not Charged and Transport Note columns.",
-      "The Portal vs Excel comparison and Budget vs Actual use the capped figures; figures frozen on completed jobs are not changed."
+      "New database views di_job_trip_cap and di_line_effective (migration 096) apply the same Transport rules the dashboard uses (daily cap, delivery-only cap, mixed-invoice transport, max trips) when figures are read. Cap groups by the portal…",
+      "Figures frozen on a completed job are not changed (they stay the full price); the uncharged transport is taken off the line that carries it when read.",
+      "Billing shows the capped amount, with a note under the amount (\"Transport AED N not charged: trip R of the day for SALESMAN (M-trip daily cap)\"). Rows whose whole amount was transport stay visible. The Billing Excel export gains…",
+      "The Portal vs Excel comparison and Budget vs Actual (portal D&I feed) use the capped figures.",
+      "Delivery & Installation job screen: the frozen-price note says Billing may charge less transport where the daily cap applies.",
+      "Service Revenue Dashboard: unchanged.",
+      "Test: tests/integration/dandi-trip-cap.test.ts (4 trips for one salesperson on one date, cap off, 3 trips, delivery-only outside the cap). Existing D&I and billing integration tests pass."
     ],
     "needsYou": "pull, run npm run db:migrate (migration 096), restart the API, hard-refresh the browser.",
-    "migrations": ["096_dandi_trip_cap_view.sql"],
-    "files": "packages/db/migrations/096_dandi_trip_cap_view.sql, packages/db/src/billing-ledger.ts, packages/db/src/di-compare.ts, packages/db/src/budget-variance.ts, apps/api/src/invoices/service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-trip-cap.test.ts, modification.md."
+    "migrations": [
+      "096_dandi_trip_cap_view.sql"
+    ],
+    "files": "packages/db/migrations/096_dandi_trip_cap_view.sql, packages/db/src/billing-ledger.ts, packages/db/src/di-compare.ts, packages/db/src/budget-variance.ts, apps/api/src/invoices/service.ts…"
   },
   {
     "id": 257,
     "title": "Sales person view: a Show group lists all its invoices; tinted figure tiles",
-    "area": "Revenue",
+    "area": "Invoices & billing",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "In Logic applied > Worked example, clicking All, Not charged, Charged, Delivery only or No transport lists every invoice of that group below for checking.",
+    "summary": "Vysakh asked that clicking a Show group (All, Not charged, Charged, Delivery only, No transport) loads every invoice of that group below for checking, instead of opening them one by one from the Invoice list, and that the three figure tiles get a light colour each.",
     "changes": [
-      "Invoices load oldest first, 20 at a time, each with its pricing and Transport note; the Invoice list stays for single checks.",
-      "The three figure tiles have a thin border and a light teal, amber and indigo shade."
+      "Clicking a Show group lists all its invoices below, oldest first, each with its pricing and Transport note, under a heading such as \"Charged invoices · RENEESH JOSE · November 2026 — Showing 7 of 7 · oldest first\". Large groups load 20 at…",
+      "The Invoice list and paste box stay for checking a single invoice; choosing one replaces the list with that invoice. Changing the year, month, week or job type keeps the chosen group and lists it again.",
+      "The \"Show all invoices of <name>\" button is no longer shown when the sales person panel is open (the groups do the same).",
+      "The three figure tiles are separate cards with a thin border and a light shade: teal for trips charged, amber for trips not charged, indigo for days over the cap (dark theme included)."
     ],
-    "needsYou": "pull and hard-refresh the browser.",
+    "needsYou": "pull and hard-refresh the browser. No migration, no API restart.",
     "migrations": [],
     "files": "apps/web/src/app.js, apps/web/src/index.html, modification.md."
   },
   {
     "id": 256,
     "title": "Worked example: no \"transport missing\" warning for trips the cap left uncharged",
-    "area": "Revenue",
+    "area": "General",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "With the new master, invoices whose transport the 2-trip daily cap left uncharged no longer show \"the once-per-invoice transport is missing from the workbook row\".",
+    "summary": "After uploading the new master (saved in Excel), invoice 16101431 still showed \"Rules give AED 174; the workbook shows AED 114 — the once-per-invoice transport is missing from the workbook row\". The workbook is right: it was the 3rd installation trip of the day and the 2-trip daily cap leaves it uncharged. The worked…",
     "changes": [
-      "The line warning is dropped when the difference is exactly the trip the cap left uncharged.",
-      "The Transport bullet says the charge would be added once but the 2-trip daily cap leaves it uncharged."
+      "When the Transport note says the trip was not charged under the daily cap, the line's warning is removed if the difference is exactly that trip charge.",
+      "The \"Transport:\" bullet now reads: \"AED 60 would be added once for this invoice (more than 1 unit), but the 2-trip daily cap leaves it uncharged (see below).\" For a mixed invoice (charge on the delivery-only line) the bullet says the same…",
+      "Other differences (older rates, missing charges unrelated to the cap) still show their warning.",
+      "Example lines carry the rules-minus-workbook amount and cause of a warning (checkDiff, checkCause) for this comparison."
     ],
-    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
     "migrations": [],
     "files": "apps/api/src/revenue-dashboard/logic-summary.ts, apps/api/src/revenue-dashboard/service.ts, modification.md."
   },
   {
     "id": 255,
     "title": "Sales person transport view in the worked example",
-    "area": "Revenue",
+    "area": "Portal look & feel",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "Pick a sales person under Logic applied > Worked example to see trips charged, trips not charged under the daily cap and the days over the cap, and to open or download the not-charged invoices.",
+    "summary": "With many invoices per sales person, management could not easily find the invoices whose transport the 2-trip daily cap left uncharged. Vysakh approved the mock-up (version 2, clean dashboard style, only the essential details).",
     "changes": [
-      "Three figures, a Show switch (All, Not charged, Charged, Delivery only, No transport) and a day table with charged and not-charged invoices.",
-      "Not-charged list as an Excel download; not-charged invoices are marked in the Invoice list.",
-      "Shorter Transport note under each invoice."
+      "Logic applied > Worked example: choosing a sales person opens a \"Transport · <name> · <period>\" panel for the year / month / week / job type chosen: - Three figures: installation trips charged (of all installation trips, with a bar)…",
+      "The Transport note under each invoice is shorter: a bold status (\"Transport charged ⃃ 60\", \"Transport not charged\", \"No transport\", \"Delivery-only fee ⃃ 100 charged\") and one sentence; the rules name moved to its tooltip.",
+      "New API routes (revenue_dashboard.tab_logic): GET /api/revenue-dashboard/logic/salesperson-transport and /export. These figures name customers, so they are not passed to Ask AI.",
+      "Checked on the real 22 Oct master: SHIVA, August 2026: 35 of 42 trips charged, 7 not charged (AED 420), 6 days over the cap; matches the mock-up."
     ],
-    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
     "migrations": [],
     "files": "apps/api/src/revenue-dashboard/service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
   },
   {
     "id": 254,
     "title": "Rate card moved to its own tab",
-    "area": "Revenue",
+    "area": "Pricing & rates",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "The rates, volume discounts, once-per-invoice charges and the workbook check now have their own Rate card tab between Logic applied and Transport rules.",
+    "summary": "Vysakh asked to move the rate card out of Logic applied into its own tab between Logic applied and Transport rules, so Logic applied ends with the worked example.",
     "changes": [
-      "Logic applied ends with the worked example.",
-      "Once-per-invoice charges shows the daily trip cap in force.",
-      "The workbook check compares the figures before the trip cap and states the cap separately (it had shown the capped trips as differences)."
+      "New \"Rate card\" tab between Logic applied and Transport rules (same access as Logic applied). It holds Job-type rates, Volume discount, the CSIDI and CSIII rate cards, Once-per-invoice charges and \"How the workbook compares with these…",
+      "Logic applied now ends with \"Worked example — pick any invoice\" (a one-line pointer to the Rate card tab below it).",
+      "Once-per-invoice charges has a \"Daily trip cap\" row from the transport rules in force (2 trips, delivery-only outside the cap; or Off), and a Mixed-invoice transport row when that switch is off.",
+      "Fix: since #249 the workbook check compared the dashboard figures (after the trip cap) with the rate card, so it reported the 15 capped trips (-900) as \"locked rows kept at an older rate\". It now compares the figures before the cap (all…",
+      "Pricing Masters flat-rate note now points to the Rate card tab."
     ],
-    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
     "migrations": [],
     "files": "apps/web/src/app.js, apps/api/src/revenue-dashboard/service.ts, modification.md."
   },
   {
     "id": 253,
     "title": "Worked example: pick by sales person",
-    "area": "Revenue",
+    "area": "General",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "Logic applied > Worked example has a Sales person box: see that person's invoices for the chosen year, month or week, one at a time or all together.",
+    "summary": "Vysakh asked to look at the worked example by sales person for a chosen year, month or week, besides picking one invoice or pasting numbers.",
     "changes": [
-      "Sales person choices follow the year, month, week and job type; the invoice list shows the sales person of each invoice.",
-      "Show all invoices of a sales person (latest 20, oldest first) with the Transport note on each, to see a day's trips."
+      "New \"Sales person\" box in Logic applied > Worked example, next to Job type. Its choices follow the year, month, week and job type chosen (\"No sales person\" for lines without one). The Invoice list then shows only that sales person's…",
+      "\"Show all N invoices of <name>\" button (with a sales person chosen and more than one invoice): opens all the listed invoices at once, oldest first, at most the latest 20, each with its pricing and Transport note. Choosing a week shows a…",
+      "The \"N invoices match\" line stays visible after an invoice is opened.",
+      "API: GET /api/revenue-dashboard/logic/invoices accepts salesPerson (already part of the revenue filters) and also returns salesPersons for the other filters."
     ],
-    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "needsYou": "with #252: pull, restart the API, hard-refresh the browser.",
     "migrations": [],
     "files": "packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
   },
   {
     "id": 252,
     "title": "Worked example says why transport was or was not charged",
-    "area": "Revenue",
+    "area": "General",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "Under Logic applied > Worked example, every invoice now ends with a Transport note explaining the transport under the current rules.",
+    "summary": "Vysakh asked that management and users checking an invoice under Logic applied > Worked example can see why transport was or was not charged under the new rule.",
     "changes": [
-      "Charged trips show their rank for the salesperson's day; trips over the 2-trip cap say the charge was dropped and show the workbook and dashboard totals.",
-      "Single-unit, delivery-only, mixed-invoice and installation-only invoices each say why no transport (or only the delivery fee) applies.",
-      "Line amounts are the uploaded workbook figures; the dashboard figure appears in the note when it differs."
+      "Every invoice in the worked example now ends with a Transport note (green when charged or not applicable, amber when the rules removed a charge): - Charged: \"AED 90 charged: trip 1 of 3 for RENEESH JOSE on 2026-11-10 (only the 2 highest…",
+      "The line amounts are the uploaded workbook figures again (they had shown the dashboard figure since #249, while the text explained the workbook pricing); the dashboard figure appears in the note when it differs.",
+      "Checked on the real 22 Oct master in the browser (invoices 16101431 over the cap, 16101450 single unit, 16101452 delivery only, 16101559 charged, 16101172 installation only)."
     ],
-    "needsYou": "pull, restart the API, hard-refresh the browser.",
+    "needsYou": "pull, restart the API, hard-refresh the browser. No migration.",
     "migrations": [],
     "files": "apps/api/src/revenue-dashboard/service.ts, packages/db/src/revenue-dashboard.ts, apps/web/src/app.js, apps/web/src/index.html, modification.md."
   },
   {
     "id": 251,
     "title": "Transport rules moved to their own tab",
-    "area": "Revenue",
+    "area": "General",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "The Transport rules panel now has its own tab after Logic applied, instead of sitting at the top of every tab.",
+    "summary": "Vysakh asked to move the Transport rules panel from the top of every tab to its own tab after Logic applied, to keep the dashboard tidy.",
     "changes": [
-      "New Transport rules tab with the full panel and the admin switches; the month filter applies to it.",
-      "Other tabs show a one-line notice with an Open Transport rules button only when the rules need attention."
+      "New tab \"Transport rules\" after Logic applied on the Service Revenue Dashboard, for everyone who can open the dashboard. It holds the full panel (banner, flags, totals, revenue split with Transport as its own line, salesperson-days over…",
+      "The other tabs no longer show the panel. A one-line notice appears above the tabs only when the rules need attention (not the new master logic, figures differ from the uploaded workbook, not yet applied to the upload, or a warning such as…",
+      "The job type notes on Overview and Reports stay.",
+      "e2e: tests/e2e/transport-rules.spec.ts updated (panel only on the new tab; notice opens the tab)."
     ],
-    "needsYou": "pull and hard-refresh the browser.",
+    "needsYou": "pull and hard-refresh the browser. No migration, no API restart needed.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/transport-rules.spec.ts, modification.md."
+    "files": "apps/web/src/app.js, apps/web/src/index.html (styles), tests/e2e/transport-rules.spec.ts, modification.md."
   },
   {
     "id": 250,
@@ -666,51 +751,56 @@ export const CHANGELOG: ChangelogEntry[] = [
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "Everyone sees the active transport rules at the top of the Service Revenue Dashboard, and an admin can switch the three toggles there to recalculate every figure (modification #249 holds the logic).",
+    "summary": "Step 3 of the transport plan: show the active transport rules to everyone and let an admin switch the three toggles from the dashboard itself, to show management the effect (modification #249 holds the logic).",
     "changes": [
-      "New Transport rules panel (all tabs): banner chip (new master, old master or custom rules), flags, workbook vs dashboard totals, revenue split with Transport as its own line, salesperson-days with more than 2 trips.",
-      "Admins get the three switches with ON / OFF explanations, New master / Old master shortcuts and Save and recalculate; everyone else sees them read-only.",
-      "Job type tables carry a note with the transport included under the active rules. The panel can never stop the dashboard."
+      "New \"Transport rules\" panel at the top of the Service Revenue Dashboard (all tabs), for everyone who can see the dashboard: - Banner chip: \"new master logic\", \"old master logic\" or \"Custom transport rules: figures differ from the master…",
+      "The three toggles with their ON / OFF explanations (tooltip and text under each): 2-trip daily cap, Delivery-only cap (disabled while the cap is off), Mixed-invoice transport. Admins (revenue_dashboard.transport_rules) get the switches…",
+      "Job type tables (Overview \"Job type breakdown\" and Reports \"Job type detail\"): a note with the transport included under the active rules.",
+      "The panel can never stop the dashboard: an error or unexpected answer just hides it.",
+      "e2e: tests/e2e/transport-rules.spec.ts (admin saves cap off; read-only for others). Checked in a browser against the local API with the real 22 Oct master: every dashboard figure follows the toggles (default 112,050; cap off 112,950)."
     ],
     "needsYou": "with #249: pull, migrate, restart, hard-refresh the browser.",
     "migrations": [],
-    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/transport-rules.spec.ts, modification.md."
+    "files": "apps/web/src/app.js, apps/web/src/index.html (styles), tests/e2e/transport-rules.spec.ts, modification.md."
   },
   {
     "id": 249,
-    "title": "Transport rules: 2-trip daily cap with admin toggles for the whole dashboard",
-    "area": "Revenue",
+    "title": "Transport rules: 2-trip daily cap with portal-wide admin toggles",
+    "area": "Permissions",
     "date": "2026-11-11",
     "approxDate": false,
     "status": null,
-    "summary": "The master workbook now charges at most 2 installation transport trips per salesperson per day. The portal follows it, and an admin can recalculate the whole Service Revenue Dashboard with three toggles, including a full revert to the old logic.",
+    "summary": "Decided with the Head of Service (Project doc claude/transport-trip-logic-plan-2026-11-10.md): transport was charged per invoice, so one salesperson could pay transport many times a day although Service runs only 2 delivery rounds, which can make sales GP negative. The master workbook now carries the new rule…",
     "changes": [
-      "Three toggles for the whole portal (admin only): 2-trip daily cap, Delivery-only cap, Mixed-invoice transport.",
-      "Every dashboard figure follows the toggles; the uploaded workbook revenue is kept unchanged alongside.",
-      "Default toggles equal the new master (112,050.25 on the 22 Oct file); cap off equals the old figures (112,950.25)."
+      "Three toggles, stored once for the whole portal (table revenue_transport_rules), changed only with the new permission revenue_dashboard.transport_rules (admin): - 2-trip daily cap - ON: at most 2 charged installation trips per salesperson…",
+      "revenue_lines.workbook_revenue (new) keeps the revenue exactly as uploaded; revenue_lines.revenue is the figure under the toggles, so every existing report (job types, months, salespeople, budget, exports, Ask AI) follows the toggles…",
+      "Works with both masters: the new master's \"Transport Before Cap\" / \"Revenue Before Cap\" columns give the old figures; an older master's Transport Charge / Proposed Revenue are the old figures.",
+      "GET /api/revenue-dashboard/transport-rules (revenue_dashboard.read): active toggles, preset (new_master / old_master / custom), banner text, whether it matches the uploaded workbook, whether Excel recalculated the file, workbook vs…",
+      "Migration 095. Replaces the read-only test endpoint of PR #170 (never merged).",
+      "Checked through the normal upload with both real masters: default toggles 112,050.25 (= the new Excel); cap OFF 112,950.25 (= old figures); strict 105,840.25; mixed OFF 111,060.25; a new master not saved in Excel is flagged and still…"
     ],
-    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, upload the new master saved in Excel.",
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.",
     "migrations": [
       "095_revenue_transport_rules.sql"
     ],
-    "files": "packages/db/migrations/095_revenue_transport_rules.sql, packages/db/src/revenue-transport-rules.ts, apps/api/src/revenue-dashboard/transport-rules.ts, service.ts, routes.ts, route-catalog.ts, tests, modification.md."
+    "files": "packages/db/migrations/095_revenue_transport_rules.sql, packages/db/src/revenue-transport-rules.ts, apps/api/src/revenue-dashboard/transport-rules.ts (new), service.ts, routes.ts…"
   },
   {
     "id": 248,
     "title": "Ask AI understands the delivery-charge lines and can search by part of a value",
-    "area": "Revenue",
+    "area": "Portal look & feel",
     "date": "2026-11-10",
     "approxDate": false,
     "status": null,
-    "summary": "Asked for delivery-charge lines and totals by sales person, the AI said it could not see descriptions or sales persons. The data was stored, but the AI had no hint where the charge lines are, and lookups matched exact values only.",
+    "summary": "Asked \"how many lines with delivery charges today, and the total by sales person?\", the AI said it could not see line descriptions or sales person names. Checked against the workbook: the data is stored, but (a) the AI had no hint that in Net Sale Current the delivery / installation charge lines are the rows whose…",
     "changes": [
-      "Each extra sheet carries a short description for the AI: in Net Sale Current the charge lines are the rows whose Invi Item Code starts with SERV, Sm Name is the sales person and Proposed Revenue holds the workbook charge.",
-      "Lookups can also ask for text that contains a value (case-insensitive).",
-      "If the last upload predates the stored sheets, the AI says the workbook must be uploaded again."
+      "Each extra sheet now carries a short description for the AI (what a row is, which column is the sales person, which holds the charge).",
+      "Lookups can also ask for text contains (case-insensitive, for text columns), for example Invi Item Code contains \"SERV\".",
+      "If the last upload was made before sheets were stored, the AI is told to ask for the workbook to be uploaded again, instead of just saying it cannot see the data."
     ],
     "needsYou": "pull and restart the API. No migration. If Ask AI still says it cannot see sales persons, upload the master workbook again.",
     "migrations": [],
-    "files": "apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, apps/api/src/ai/workbook.ts, tests, modification.md."
+    "files": "apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, workbook.ts, tests, modification.md."
   },
   {
     "id": 247,
@@ -719,18 +809,20 @@ export const CHANGELOG: ChangelogEntry[] = [
     "date": "2026-11-10",
     "approxDate": false,
     "status": null,
-    "summary": "The AI could only see the Revenue Source sheet of the daily master workbook, so it could not answer questions from the other sheets.",
+    "summary": "The AI could only see the \"Revenue Source\" sheet of the daily master workbook (as summaries, a day table and lookups). Questions about the other sheets (net sales by brand or group, the CSIDI / CSIDO / CSIII invoice sheets with their status, trips, discount tier and so on) could not be answered.",
     "changes": [
-      "The daily master workbook upload now also keeps the Net Sale Current, CSIDI, CSIDO and CSIII sheets. No extra step.",
-      "Customer name, customer code, TRN number and the Remarks text are dropped when the file is read and never stored. Everything else is kept.",
-      "With Also read the uploaded workbook data ticked, the AI is told which sheets and columns exist and can ask for lookups on them (grouped, filtered, summed, by date range). The server checks every name and runs read-only queries.",
-      "Revenue lookups are capped at 60 rows (the request cleaner keeps only 60 items of any list)."
+      "When the master workbook (.xlsm) is uploaded on the Service Revenue Dashboard, the portal now also keeps the Net Sale Current, CSIDI, CSIDO and CSIII sheets (all columns, every row) with that upload. There is no extra step: the same daily…",
+      "Dropped when the file is read, never stored: customer name, customer code, TRN number and the free-text Remarks column. Everything else, including sales person, is kept, as Vysakh decided.",
+      "With \"Also read the uploaded workbook data\" ticked and revenue access, the AI is told which sheets and columns exist. It can ask for lookups on them (group by up to 2 columns, equality filters, up to 3 numeric sums, a date range on the…",
+      "Fix found on the way: revenue lookups could ask for 150 rows but the request cleaner keeps only 60 items of any list, so the cap is now 60.",
+      "Next sheets (masters) can be added by one line in EXTRA_SHEETS.",
+      "Tests: sheet reader (customer columns dropped), lookup checks, lookup SQL on stored rows; real workbook checked (Net Sale Current 102 rows, CSIDI 689, CSIDO 311, CSIII 40; no customer name present)."
     ],
-    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook once again (the sheets are only read at upload time).",
+    "needsYou": "pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook once again (the sheets are only read at upload time). No new permission.",
     "migrations": [
       "094_workbook_sheet_rows.sql"
     ],
-    "files": "packages/db/migrations/094_workbook_sheet_rows.sql, packages/db/src/workbook-sheets.ts, apps/api/src/revenue-dashboard/extra-sheets.ts, apps/api/src/ai/sheet-lookup.ts, apps/api/src/ai/service.ts, apps/api/src/ai/workbook.ts, tests, modification.md."
+    "files": "packages/db/migrations/094_workbook_sheet_rows.sql, packages/db/src/workbook-sheets.ts, apps/api/src/revenue-dashboard/extra-sheets.ts, parser.ts, service.ts, apps/api/src/ai/sheet-lookup.ts…"
   },
   {
     "id": 246,
@@ -739,15 +831,16 @@ export const CHANGELOG: ChangelogEntry[] = [
     "date": "2026-11-10",
     "approxDate": false,
     "status": null,
-    "summary": "The day-by-day table covers the latest 240 dates only, so the AI could not answer other combinations such as an older date, or a date range by channel.",
+    "summary": "The day-by-day table (#245) covers the latest 240 dates only, and the AI could not answer other combinations (an older date, a date range by channel, a billing code in one month).",
     "changes": [
-      "With Also read the uploaded workbook data ticked, Ask AI now first proposes a small lookup plan (at most 3 lookups, grouped by up to 2 of date, period, job type, channel and similar). The server checks it against a fixed list, runs it read-only and gives the results back to the AI to answer.",
-      "Each result has lines, distinct invoices, units and revenue, up to 150 rows. Customers, sales people and invoice numbers can not be asked for.",
-      "An invalid plan or any failure falls back to the normal answer. This costs one extra AI call per question in this mode."
+      "On the Service Revenue Dashboard, when Also read the uploaded workbook data is ticked and the person has revenue access, Ask AI now works in two steps. First the AI is asked for a small lookup plan (at most 3 lookups: group by up to 2 of…",
+      "Each result row has lines, distinct invoices, units and revenue. At most 150 rows per lookup.",
+      "Customers, sales people and invoice or order numbers can not be asked for or returned. A plan that is invalid, or any failure, just means the AI answers from the summaries as before.",
+      "Costs one extra provider call per question in this mode."
     ],
     "needsYou": "pull and restart the API. No migration. Merge after PR #165 (it builds on it; #164 first).",
     "migrations": [],
-    "files": "apps/api/src/ai/revenue-lookup.ts, apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts, modification.md."
+    "files": "apps/api/src/ai/revenue-lookup.ts (new), apps/api/src/ai/service.ts, tests/unit/ai-revenue-lookup-plan.test.ts, tests/integration/ai-revenue-lookup.test.ts, tests/integration/ai-settings.test.ts…"
   },
   {
     "id": 245,
@@ -787,23 +880,20 @@ export const CHANGELOG: ChangelogEntry[] = [
     "files": "apps/api/src/quotations/routes.ts, apps/web/src/app.js, tests/unit/quotation-date-auto.test.ts, tests/e2e/quotation-units.spec.ts, modification.md."
   },
   {
-    id: 243,
-    title:
-      'Fix: a new quotation could not be saved when the ERP / ORION status is "Pending invoice"',
-    area: 'Invoices & billing',
-    date: '2026-11-10',
-    approxDate: false,
-    status: null,
-    summary:
-      'Creating a new quotation with ERP / ORION status "Pending invoice" (quotation status Pending) failed with "The request is invalid: erpInvoiceNo: String must contain at least 1 character(s)".',
-    changes: [
-      'The quotation form sends a blank ERP invoice number whenever the status is not Invoiced (the number only applies to Invoiced quotations). The API rule for that field refused a blank value. It now accepts blank; the number is still…',
-      'New unit test covers the blank number and the 60-character cap.',
+    "id": 243,
+    "title": "Fix: a new quotation could not be saved when the ERP / ORION status is \"Pending invoice\"",
+    "area": "Invoices & billing",
+    "date": "2026-11-10",
+    "approxDate": false,
+    "status": null,
+    "summary": "Creating a new quotation with ERP / ORION status \"Pending invoice\" (quotation status Pending) failed with \"The request is invalid: erpInvoiceNo: String must contain at least 1 character(s)\".",
+    "changes": [
+      "The quotation form sends a blank ERP invoice number whenever the status is not Invoiced (the number only applies to Invoiced quotations). The API rule for that field refused a blank value. It now accepts blank; the number is still…",
+      "New unit test covers the blank number and the 60-character cap."
     ],
-    needsYou: 'pull and restart the API. No migration.',
-    migrations: [],
-    files:
-      'packages/contracts/src/index.ts, tests/unit/quotation-erp-invoice-empty.test.ts, modification.md.',
+    "needsYou": "pull and restart the API. No migration.",
+    "migrations": [],
+    "files": "packages/contracts/src/index.ts, tests/unit/quotation-erp-invoice-empty.test.ts, modification.md."
   },
   {
     "id": 242,
@@ -1299,31 +1389,30 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 217,
     "title": "Send ROI: LPO pending block under the Management Summary",
-    "area": "Revenue dashboard",
+    "area": "Tasks",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "The weekly ROI now shows the quotations still waiting to be invoiced, by the month they were created.",
+    "summary": "Management should see which quotations are still waiting to be invoiced, how long they have waited, and which month they came from, in the weekly ROI itself.",
     "changes": [
-      "What changed: the Management Summary ends with Quotations awaiting invoice (LPO pending): waiting value, number of quotations, amount carried forward, a table by the month each quotation was created with oldest age, the oldest 8 quotations to follow up, and the Invoice check result.",
-      "New API route GET /api/revenue-dashboard/lpo-pending-detail. Same figures in the plain-text version; left out when nothing is pending."
+      "What changed: The ROI Management Summary now ends with \"Quotations awaiting invoice (LPO pending)\" for the month the ROI week falls in:"
     ],
     "needsYou": "pull, restart the API, hard-refresh, open Send ROI.",
     "migrations": [],
-    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard, apps/web/src/roi-core.js, apps/web/src/app.js, tests. No database change."
+    "files": "packages/db/src/quotations.ts, apps/api/src/revenue-dashboard/*, apps/api/src/api/route-catalog.ts (new GET /api/revenue-dashboard/lpo-pending-detail), apps/web/src/roi-core.js, apps/web/src/app.js…"
   },
   {
     "id": 216,
-    "title": "Dirham sign in email previews, Invoice check help, styled quotations total bar",
-    "area": "Quotations",
+    "title": "Dirham sign in the ROI and email previews, Invoice check help, styled quotations total bar",
+    "area": "Invoices & billing",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "The ROI and Formatted email previews show the Dirham sign, the quotations total bar matches the page, and the Invoice check pill explains itself.",
+    "summary": "The email previews still showed \"AED\"; the new quotations total bar needed to match the page; management needed a plain-language explanation of the Invoice check.",
     "changes": [
-      "Previews: the Send ROI email preview and the Reports Formatted email preview show amounts with the Dirham sign. The email itself still says AED, because the recipient's mail app may not have a font with the new sign.",
-      "Quotations total bar: the ERP / ORION selector and the total are a bordered bar in the page's colours, with Total incl. VAT, Excl. VAT and the quotation count. It stacks on a phone and is hidden on the New quotation tab.",
-      "Invoice check: hovering the pill or the About this view tip explains the check in plain words."
+      "Previews: the Send ROI email preview and the Reports \"Formatted email\" preview show amounts with the Dirham sign. The email that is copied, downloaded or sent still says \"AED\", because the recipient's mail app may not have a font with the…",
+      "Quotations total bar: the ERP / ORION selector and the total under the Created quotations table are now a bordered bar in the page's own colours: the selector on the left, and Total incl. VAT (large), Excl. VAT and Quotations on the…",
+      "Invoice check help: hovering the Invoice check pill, or the About this view tip, explains the check in plain words."
     ],
     "needsYou": "pull, hard-refresh.",
     "migrations": [],
@@ -1332,34 +1421,39 @@ export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 215,
     "title": "ERP / ORION invoice number, Invoice check, and a total under the quotations list",
-    "area": "Quotations",
+    "area": "Invoices & billing",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "A quotation marked Invoiced now needs its invoice number, Reports checks it against the master workbook, and the quotations list shows a total you can filter by ERP / ORION status.",
+    "summary": "An Invoiced status was only a manual choice, so a quotation could be marked Invoiced with no invoice in ERP and nobody would notice. Management also wanted the quotations list to show a total.",
     "changes": [
-      "Invoice number: required when the status is Invoiced, cleared when it goes back to Pending invoice. Quotations already Invoiced before this change can still be edited without one.",
-      "Invoice check (Reports): matches each Invoiced quotation's invoice number to the master workbook. Not found within 7 days (setting invoice_check_grace_days) is flagged red; an amount that differs is flagged. Older Invoiced quotations are counted as not checked.",
-      "Quotations list: a selector (All, Invoiced, Pending invoice) filters the list and shows the total of every matching quotation, incl. and excl. VAT. No styling changed."
+      "Invoice number: when the ERP / ORION status is Invoiced the quotation now needs the ERP / ORION invoice number (shown only for Invoiced, with a tooltip). It is cleared if the status goes back to Pending invoice. Quotations already…",
+      "Invoice check (Reports, new pill): each Invoiced quotation's invoice number is matched against the invoice numbers (Inv/Del no.) in the active master workbook. Not found within 7 days of being marked Invoiced is flagged red; within 7 days…",
+      "Quotations list total: under the Created quotations table, a selector (All quotations / Invoiced / Pending invoice) filters the list and shows the total of every matching quotation (incl. and excl. VAT, and the count), not just the 50 on…"
     ],
-    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
-    "migrations": ["075_quotation_erp_invoice_no.sql"],
-    "files": "packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, apps/api/src/quotations, apps/api/src/revenue-dashboard, apps/web/src/app.js, apps/web/src/index.html, tests."
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. Upload the master workbook as usual; the Invoice check reads the active upload.",
+    "migrations": [
+      "075_quotation_erp_invoice_no.sql"
+    ],
+    "files": "packages/db/migrations/075_quotation_erp_invoice_no.sql, packages/db/src/quotations.ts, packages/contracts/src/index.ts, apps/api/src/quotations/_, apps/api/src/revenue-dashboard/_…"
   },
   {
     "id": 214,
     "title": "LPO pending carries forward to the current month",
-    "area": "Revenue dashboard",
+    "area": "General",
     "date": "2026-11-09",
     "approxDate": false,
     "status": null,
-    "summary": "Quotations still waiting to be invoiced stay visible in later months instead of dropping out after their quotation month.",
+    "summary": "LPO pending was counted in the month the quotation was created, so a quotation still waiting to be invoiced dropped out of sight in later months. Management wants to keep seeing what is pending.",
     "changes": [
-      "What changed: LPO pending now shows every Pending / Approved quotation whose ERP / ORION status is Pending invoice, from its quotation month until it is marked Invoiced. The current month is split into raised this month and carried forward, with the oldest age in days.",
-      "Past months show the position at that month-end using a new Invoiced date, stamped automatically when the status becomes Invoiced. Older Invoiced quotations have no date and stay out. It is information only and never added to revenue."
+      "Carry-forward: a Pending / Approved quotation whose ERP / ORION status is Pending invoice now shows in every month from its quotation month until it is marked Invoiced. The current month shows everything still open, split into \"raised…",
+      "Past months: show the position at that month-end, using a new Invoiced date (invoiced_at) that is stamped automatically (Dubai date) when the status becomes Invoiced and cleared if it is set back. Quotations already Invoiced before this…",
+      "Screens: the Total revenue card and the Budget vs Actual chart tooltip show the carried-forward split. It is information only and is never added to revenue."
     ],
-    "needsYou": "pull, run db:migrate, restart the API, hard-refresh.",
-    "migrations": ["074_quotation_invoiced_at.sql"],
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh.",
+    "migrations": [
+      "074_quotation_invoiced_at.sql"
+    ],
     "files": "packages/db/migrations/074_quotation_invoiced_at.sql, packages/db/src/quotations.ts, apps/web/src/app.js, tests/integration/quotation-lpo-pending.test.ts, tests/e2e/lpo-pending-report.spec.ts."
   },
   {
