@@ -820,6 +820,7 @@
     $('#archiveNav').hidden = !hasPermission('archive.view');
     $('#amcCalcV2Nav').hidden = !canUseCalculators;
     $('#thomsonCalcNav').hidden = !canUseCalculators;
+    $('#dandiCalcNav').hidden = !canUseCalculators;
     const canReadRevenue = hasPermission('revenue_dashboard.read');
     $('#revenueDashNav').hidden = !revenueTabs().length;
     $('#budgetDashNav').hidden = !hasPermission('revenue_dashboard.budget_actual');
@@ -18076,6 +18077,432 @@ ${bodyHtml}
     openPrintWindow(printDocumentShell(title, buildThomsonSaleCertificateBody(sale)));
   }
 
+  // --- D+I Quote Calculator -------------------------------------------------
+  // Delivery + Installation and Installation Only quotes, priced from the rates
+  // in D+I Admin Entry (the "dandi_pricing" domain). The maths lives in
+  // dandi-calc-core.js (JdDandiCalc, the same rules as the original calculator);
+  // this builds the page, the on-screen review and the printed proposal.
+  // Nothing is saved: it computes a price and prints a customer proposal.
+  function dandiCalcMoney(value) {
+    return '⃃ ' + moneyGrouped(value);
+  }
+
+  function dandiCalcField(label, tip, inputHtml, extraAttrs) {
+    return (
+      '<label' +
+      (extraAttrs ? ' ' + extraAttrs : '') +
+      '>' +
+      escapeHtml(label) +
+      ' ' +
+      tipHtml(tip) +
+      '<br />' +
+      inputHtml +
+      '</label>'
+    );
+  }
+
+  function buildDandiProposalBody(calc, client, quoteNo) {
+    const core = window.JdDandiCalc;
+    const lines = calc.lines.filter((l) => l.qty > 0);
+    const rows = lines
+      .map(
+        (l) =>
+          '<tr><td>' +
+          escapeHtml(l.label) +
+          '</td><td class="num">' +
+          l.qty +
+          '</td><td class="num">' +
+          dandiCalcMoney(l.chargedUnit) +
+          '</td><td class="num">' +
+          dandiCalcMoney(l.lineTotal) +
+          '</td></tr>',
+      )
+      .join('');
+    const transportRow =
+      calc.transport > 0
+        ? '<tr><td colspan="3">Transport &amp; logistics (' +
+          escapeHtml(calc.region.name) +
+          ', ' +
+          calc.plannedTrips +
+          (calc.plannedTrips === 1 ? ' trip' : ' trips') +
+          ')</td><td class="num">' +
+          dandiCalcMoney(calc.transport) +
+          '</td></tr>'
+        : '';
+    const unitsTotal = lines.reduce((t, l) => t + l.qty, 0);
+    const discountNote =
+      calc.eligible && Number(calc.discount.rate) > 0
+        ? '<p style="font-size:11px;color:#444;">Quantity discount of ' +
+          Math.round(Number(calc.discount.rate) * 100) +
+          '% applied (' +
+          escapeHtml(calc.discount.label) +
+          '), because the units are for one customer at one site.</p>'
+        : '';
+    return (
+      printDocHeadWithLogo(calc.modeLabel + ' Quotation', quoteNo) +
+      '<h2>Quotation details</h2>' +
+      printFieldGrid([
+        ['Quotation date', formatDate(new Date().toISOString())],
+        ['Client', client.name],
+        ['Contact number', client.contact],
+        ['Site / location', client.location],
+        ['Service', calc.modeLabel],
+        ['Region', calc.region.name],
+        ['Customer sites', String(calc.sites)],
+        ['Total units', String(unitsTotal)],
+      ]) +
+      '<h2>Quotation lines</h2>' +
+      '<table><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead><tbody>' +
+      rows +
+      transportRow +
+      '</tbody><tfoot><tr><td><strong>Total</strong></td><td class="num"><strong>' +
+      unitsTotal +
+      '</strong></td><td></td><td class="num"><strong>' +
+      dandiCalcMoney(calc.totalCharge) +
+      '</strong></td></tr></tfoot></table>' +
+      '<div class="cert-feebox"><div class="fee">' +
+      dandiCalcMoney(calc.totalCharge) +
+      '</div><div>Total ' +
+      escapeHtml(calc.modeLabel) +
+      ' price' +
+      (core && calc.total
+        ? ' &middot; average ' + dandiCalcMoney(calc.averagePerUnit) + ' per unit'
+        : '') +
+      '</div></div>' +
+      discountNote +
+      '<h2>Signatures</h2>' +
+      '<p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation\'s scope and pricing.</p>' +
+      '<div class="sign-row">' +
+      '<div class="sign-box">For Jacky\'s Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>' +
+      '<div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>' +
+      '</div>' +
+      '<p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky\'s Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in ⃃ and include VAT. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>'
+    );
+  }
+
+  function renderDandiCalc(container, data) {
+    const core = window.JdDandiCalc;
+    // `data` is replaced when rates are refreshed (attachCalcRefresh below).
+    let cfg = data;
+    // Our labour cost is only sent to people who may read the pricing configuration.
+    const canSeeInternal = hasPermission('pricing_config.read');
+    const state = {
+      mode: 'dandi',
+      region: '',
+      grouping: core.SAME_SITE,
+      sites: 1,
+      plannedTrips: 1,
+      crew: 2,
+      transport: 'No',
+      qty: { fridge: 0, washer: 0, cooker: 0 },
+    };
+    let last = null;
+
+    const optionList = (items, selected) =>
+      items
+        .map(
+          (value) =>
+            '<option value="' +
+            escapeHtml(String(value)) +
+            '"' +
+            (String(value) === String(selected) ? ' selected' : '') +
+            '>' +
+            escapeHtml(String(value)) +
+            '</option>',
+        )
+        .join('');
+    const modeOptions = () =>
+      ['dandi', 'install']
+        .map(
+          (key) =>
+            '<option value="' +
+            key +
+            '"' +
+            (key === state.mode ? ' selected' : '') +
+            '>' +
+            escapeHtml(cfg.modes[key].label) +
+            '</option>',
+        )
+        .join('');
+    const crewKeys = () => Object.keys(cfg.crewFactors).sort();
+
+    container.innerHTML =
+      '<div class="card-help"><span>About this section</span>' +
+      tipHtml(
+        'Work down the numbered steps: quote inputs, appliance quantities, client details, review, print. The total on the right updates as you go. Rates, discounts, regions and factors all come from D+I Admin Entry, and all prices include VAT.',
+      ) +
+      '</div>' +
+      '<section data-dc-panel>' +
+      '<div class="tq-layout">' +
+      '<div class="tq-steps">' +
+      '<section class="tq-step"><h4><span class="tq-num">1</span>Quote inputs</h4>' +
+      '<div class="field-grid">' +
+      dandiCalcField(
+        'Service type',
+        'Delivery + Installation, or Installation Only. Each has its own rates and quantity discounts in D+I Admin Entry.',
+        '<select data-dc-mode>' + modeOptions() + '</select>',
+      ) +
+      dandiCalcField(
+        'Region',
+        'Where the job is. It sets the round-trip transport cost per trip.',
+        '<select data-dc-region></select>',
+      ) +
+      dandiCalcField(
+        'Customer grouping',
+        'The batch rate and the quantity discount apply only when the units are for the same customer at the same site (with more than one unit).',
+        '<select data-dc-grouping></select>',
+      ) +
+      dandiCalcField(
+        'Customer sites',
+        'How many different customer sites the units are delivered to. The quantity discount needs exactly one.',
+        '<input type="number" min="1" step="1" value="1" data-dc-sites />',
+      ) +
+      dandiCalcField(
+        'Planned trips',
+        'Trips the team will make. Transport is charged per trip at the region cost. For Delivery + Installation, up to 17 units need 1 trip and more need 2.',
+        '<input type="number" min="0" step="1" value="1" data-dc-trips />',
+      ) +
+      dandiCalcField(
+        'Crew size',
+        'Technicians on the job. The crew factor from D+I Admin Entry multiplies the labour charge.',
+        '<select data-dc-crew></select>',
+      ) +
+      dandiCalcField(
+        'Include transportation?',
+        'Installation Only: charge transport for the planned trips (Yes) or not (No). Delivery + Installation always charges it when there is more than one unit.',
+        '<select data-dc-transport><option value="No">No</option><option value="Yes">Yes</option></select>',
+        'data-dc-transport-wrap',
+      ) +
+      '</div></section>' +
+      '<section class="tq-step"><h4><span class="tq-num">2</span>Appliance quantities</h4>' +
+      '<p class="tq-hint" data-dc-limit></p>' +
+      '<div class="field-grid">' +
+      core.KINDS.map((k) =>
+        dandiCalcField(
+          k.label,
+          'Number of ' + k.label.toLowerCase() + ' units in this quote.',
+          '<input type="number" min="0" step="1" value="0" data-dc-qty="' + k.key + '" />',
+        ),
+      ).join('') +
+      '</div></section>' +
+      '<section class="tq-step"><h4><span class="tq-num">3</span>Client details</h4>' +
+      '<div class="field-grid">' +
+      dandiCalcField(
+        'Client',
+        'Shown on the printed proposal only. Nothing is saved.',
+        '<input type="text" data-dc-client />',
+      ) +
+      dandiCalcField(
+        'Contact number',
+        'Shown on the printed proposal only.',
+        '<input type="text" data-dc-contact />',
+      ) +
+      dandiCalcField(
+        'Site / location',
+        'Shown on the printed proposal only.',
+        '<input type="text" data-dc-location />',
+      ) +
+      '</div></section>' +
+      '<section class="tq-step"><h4><span class="tq-num">4</span>Review</h4>' +
+      '<div data-dc-review></div>' +
+      (canSeeInternal
+        ? '<details class="tq-internal" data-dc-internal><summary>Internal view: cost and margin (not for the customer)</summary><div data-dc-internal-body></div></details>'
+        : '') +
+      '</section>' +
+      '<section class="tq-step"><h4><span class="tq-num">5</span>Print</h4>' +
+      '<p class="form-note">Prints a customer proposal with the price per unit. Nothing is saved.</p>' +
+      '<div class="form-footer"><button class="button button-primary rm-btn" type="button" data-dc-print>Print proposal</button></div>' +
+      '</section>' +
+      '</div>' +
+      '<aside class="tq-summary" aria-label="Quote summary">' +
+      '<div class="card-row-header"><h4>Quote total</h4><span class="dc-status" data-dc-status></span></div>' +
+      '<div class="tq-total" data-dc-total>0.00 <small>⃃</small></div>' +
+      '<p class="dc-blocked" data-dc-blocked role="status"></p>' +
+      '<dl class="tq-facts" data-dc-facts></dl>' +
+      '<p class="tq-note">Prices include VAT. Rates come from D+I Admin Entry.</p>' +
+      '</aside>' +
+      '</div>' +
+      '</section>';
+
+    const $q = (selector) => container.querySelector(selector);
+    const modeSelect = $q('[data-dc-mode]');
+    const regionSelect = $q('[data-dc-region]');
+    const groupingSelect = $q('[data-dc-grouping]');
+    const sitesInput = $q('[data-dc-sites]');
+    const tripsInput = $q('[data-dc-trips]');
+    const crewSelect = $q('[data-dc-crew]');
+    const transportSelect = $q('[data-dc-transport]');
+    const transportWrap = $q('[data-dc-transport-wrap]');
+    const qtyInputs = Array.from(container.querySelectorAll('[data-dc-qty]'));
+
+    function fillSelects() {
+      const keepRegion = regionSelect.value || state.region;
+      regionSelect.innerHTML = optionList(
+        cfg.regions.map((r) => r.name),
+        keepRegion,
+      );
+      if (!cfg.regions.some((r) => r.name === regionSelect.value))
+        regionSelect.value = cfg.regions[0] ? cfg.regions[0].name : '';
+      state.region = regionSelect.value;
+      groupingSelect.innerHTML = optionList(cfg.groupings, state.grouping);
+      if (!cfg.groupings.includes(groupingSelect.value))
+        groupingSelect.value = cfg.groupings[0] || '';
+      state.grouping = groupingSelect.value;
+      crewSelect.innerHTML = optionList(crewKeys(), state.crew);
+      if (!crewKeys().includes(String(crewSelect.value))) crewSelect.value = crewKeys()[0];
+      state.crew = Number(crewSelect.value);
+      modeSelect.innerHTML = modeOptions();
+    }
+
+    function readInputs() {
+      state.mode = modeSelect.value;
+      state.region = regionSelect.value;
+      state.grouping = groupingSelect.value;
+      state.sites = Number(sitesInput.value) || 0;
+      state.plannedTrips = Number(tripsInput.value) || 0;
+      state.crew = Number(crewSelect.value) || 2;
+      state.transport = transportSelect.value;
+      qtyInputs.forEach((input) => {
+        state.qty[input.dataset.dcQty] = Math.max(0, Math.floor(Number(input.value) || 0));
+      });
+    }
+
+    function render() {
+      readInputs();
+      transportWrap.hidden = state.mode !== 'install';
+      const calc = core.compute(cfg, state);
+      last = calc;
+      $q('[data-dc-limit]').textContent =
+        'Maximum total: ' + cfg.maxUnits + ' units per quote. Current total: ' + calc.total + '.';
+      const status = $q('[data-dc-status]');
+      status.textContent = calc.valid ? 'Ready to quote' : 'Not ready';
+      status.className = 'dc-status ' + (calc.valid ? 'is-ready' : 'is-blocked');
+      const total = $q('[data-dc-total]');
+      total.innerHTML = (calc.valid ? moneyGrouped(calc.totalCharge) : '—') + ' <small>⃃</small>';
+      total.classList.remove('is-updating');
+      void total.offsetWidth;
+      if (calc.valid) total.classList.add('is-updating');
+      const blocked = $q('[data-dc-blocked]');
+      blocked.textContent = calc.blocked;
+      blocked.hidden = !calc.blocked;
+      const fact = (k, v) =>
+        '<div><dt>' + escapeHtml(k) + '</dt><dd>' + escapeHtml(String(v)) + '</dd></div>';
+      $q('[data-dc-facts]').innerHTML =
+        fact('Service type', calc.modeLabel) +
+        fact('Region', calc.region ? calc.region.name : '—') +
+        fact('Total units', calc.total) +
+        fact('Quantity tier', calc.discount.label) +
+        fact('Discount applied', Math.round(Number(calc.discount.rate) * 100) + '%') +
+        fact('Total discount', calc.valid ? dandiCalcMoney(calc.discountAmount) : '—') +
+        fact('Required trips', calc.requiredTrips) +
+        fact('Planned trips', calc.plannedTrips) +
+        fact('Transport charge', calc.valid ? dandiCalcMoney(calc.transport) : '—') +
+        fact(
+          'Average per unit',
+          calc.valid && calc.total ? dandiCalcMoney(calc.averagePerUnit) : '—',
+        );
+      const lines = calc.lines.filter((l) => l.qty > 0);
+      $q('[data-dc-review]').innerHTML = lines.length
+        ? '<div class="table-wrap"><table class="tq-table"><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">' +
+          'List rate ' +
+          tipHtml(
+            'The standard rate, or the batch rate when the units are for one customer at one site.',
+          ) +
+          '</th><th class="num">Unit price ' +
+          tipHtml(
+            'Price of one unit after the quantity discount and crew factor, never below the minimum unit rate.',
+          ) +
+          '</th><th class="num">Line total</th></tr></thead><tbody>' +
+          lines
+            .map(
+              (l) =>
+                '<tr><td>' +
+                escapeHtml(l.label) +
+                '</td><td class="num">' +
+                l.qty +
+                '</td><td class="num">' +
+                dandiCalcMoney(l.listRate) +
+                '</td><td class="num">' +
+                dandiCalcMoney(l.chargedUnit) +
+                '</td><td class="num">' +
+                dandiCalcMoney(l.lineTotal) +
+                '</td></tr>',
+            )
+            .join('') +
+          (calc.transport > 0
+            ? '<tr><td colspan="4">Transport &amp; logistics (' +
+              escapeHtml(calc.region.name) +
+              ', ' +
+              calc.plannedTrips +
+              (calc.plannedTrips === 1 ? ' trip' : ' trips') +
+              ')</td><td class="num">' +
+              dandiCalcMoney(calc.transport) +
+              '</td></tr>'
+            : '') +
+          '</tbody></table></div>'
+        : '<p class="form-note">Enter appliance quantities to see the lines.</p>';
+      const internal = $q('[data-dc-internal-body]');
+      if (internal) {
+        internal.innerHTML =
+          calc.modeKey === 'dandi'
+            ? '<dl class="tq-facts">' +
+              fact('Estimated cost', dandiCalcMoney(calc.estimatedCost)) +
+              fact('Margin', dandiCalcMoney(calc.margin)) +
+              fact('Margin %', (calc.marginPct * 100).toFixed(1) + '%') +
+              '</dl>'
+            : '<p class="form-note">Cost and margin are shown for Delivery + Installation only.</p>';
+      }
+    }
+
+    fillSelects();
+    container.addEventListener('input', render);
+    container.addEventListener('change', render);
+    $q('[data-dc-print]').addEventListener('click', () => {
+      render();
+      if (!last || !last.valid) {
+        showToast(
+          last && last.blocked ? last.blocked : 'Complete the quote before printing.',
+          'error',
+        );
+        return;
+      }
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, '0');
+      const quoteNo =
+        'DIQ-' +
+        String(now.getFullYear()).slice(2) +
+        pad(now.getMonth() + 1) +
+        pad(now.getDate()) +
+        '-' +
+        pad(now.getHours()) +
+        pad(now.getMinutes());
+      const client = {
+        name: $q('[data-dc-client]').value.trim(),
+        contact: $q('[data-dc-contact]').value.trim(),
+        location: $q('[data-dc-location]').value.trim(),
+      };
+      openPrintWindow(
+        printDocumentShell(
+          last.modeLabel + ' Quotation ' + quoteNo,
+          buildDandiProposalBody(last, client, quoteNo),
+        ),
+      );
+    });
+    render();
+
+    attachCalcRefresh(container, {
+      key: 'dandi-calc',
+      panelSelector: '[data-dc-panel]',
+      domains: ['dandi_pricing'],
+      initial: { dandi_pricing: data },
+      apply(fresh) {
+        cfg = fresh.dandi_pricing;
+        fillSelects();
+        render();
+      },
+    });
+  }
+
   function renderThomsonCalc(container, data) {
     // `data` is replaced when rates are refreshed (attachCalcRefresh below).
     const regions = data.regions.filter((r) => r.active !== false);
@@ -21352,6 +21779,16 @@ ${bodyHtml}
       description: 'Stand-alone quote calculator, reading Thomson Pricing Admin’s admin data.',
       domains: ['thomson_pricing'],
       render: (root, dataByDomain) => renderThomsonCalc(root, dataByDomain.thomson_pricing),
+    },
+    'dandi-calc': {
+      navId: 'dandiCalcNav',
+      workspaceId: 'dandiCalcWorkspace',
+      heading: 'D+I Quote Calculator',
+      permission: 'quote_calculators.use',
+      description:
+        'Delivery + Installation and Installation Only quote calculator, reading D+I Admin Entry. It does not save anything; it computes a price and prints a customer proposal.',
+      domains: ['dandi_pricing'],
+      render: (root, dataByDomain) => renderDandiCalc(root, dataByDomain.dandi_pricing),
     },
     chat: {
       navId: 'chatNav',
@@ -32927,6 +33364,7 @@ ${bodyHtml}
   $('#amcCalcNav')?.addEventListener('click', () => setWorkspaceMode('amc-calc'));
   $('#amcCalcV2Nav')?.addEventListener('click', () => setWorkspaceMode('amc-calc-v2'));
   $('#thomsonCalcNav')?.addEventListener('click', () => setWorkspaceMode('thomson-calc'));
+  $('#dandiCalcNav')?.addEventListener('click', () => setWorkspaceMode('dandi-calc'));
 
   initJobCardForms();
   initQuotationForms();

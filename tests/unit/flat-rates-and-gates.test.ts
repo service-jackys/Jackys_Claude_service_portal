@@ -6,6 +6,7 @@ import { dandiPricingDefault } from '../../packages/db/src/pricing-config-defaul
 import {
   createPricingConfigHandlers,
   QUOTE_CALCULATOR_DOMAINS,
+  redactForCalculator,
 } from '../../apps/api/src/pricing-config/routes.js';
 import { masterRates } from '../../apps/api/src/revenue-dashboard/logic-summary.js';
 import {
@@ -81,8 +82,27 @@ test('quote calculators can read only their own rate data without pricing_config
   };
   for (const domain of QUOTE_CALCULATOR_DOMAINS)
     assert.equal(await run(domain), 'pricing_config.read or quote_calculators.use', domain);
-  // The internal cost inputs and the rate card admin stay behind pricing_config.read.
-  assert.equal(await run('dandi_pricing'), 'pricing_config.read');
+  // The rate card admin stays behind pricing_config.read.
   assert.equal(await run('rate_card'), 'pricing_config.read');
   assert.equal(await run('not_a_domain'), 'pricing_config.read');
+});
+
+test('the D+I calculator gets the rates but not our labour cost unless it may read the config', () => {
+  const record = {
+    payload: {
+      minUnitRate: 35,
+      laborCostPerHour: 43.27,
+      laborMinutes: { fridge: 17.5, washer: 25, cooker: 25 },
+      modes: { dandi: { rates: { fridge: { standard: 100 } } } },
+    },
+  };
+  const redacted = redactForCalculator('dandi_pricing', record, false).payload as any;
+  assert.equal(redacted.laborCostPerHour, 0);
+  assert.deepEqual(redacted.laborMinutes, { fridge: 0, washer: 0, cooker: 0 });
+  assert.equal(redacted.minUnitRate, 35);
+  assert.equal(redacted.modes.dandi.rates.fridge.standard, 100);
+  // The original is untouched, and a config reader (or another domain) gets it as is.
+  assert.equal((record.payload as any).laborCostPerHour, 43.27);
+  assert.equal(redactForCalculator('dandi_pricing', record, true), record);
+  assert.equal(redactForCalculator('thomson_pricing', record, false), record);
 });

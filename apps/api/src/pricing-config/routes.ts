@@ -15,16 +15,35 @@ function parseDomain(value: string): PricingConfigDomain | null {
 
 // The Quote Calculators (modification.md #114) only need the rate data of their
 // own product. Holders of quote_calculators.use can read exactly these domains
-// without pricing_config.read; every other domain (D+I costs, rate card, ...)
-// still needs pricing_config.read.
+// without pricing_config.read; every other domain (the rate card, ...) still
+// needs pricing_config.read. The D+I Quote Calculator reads dandi_pricing, but
+// its internal labour-cost inputs are blanked for anyone without
+// pricing_config.read (see redactForCalculator).
 export const QUOTE_CALCULATOR_DOMAINS: readonly PricingConfigDomain[] = [
   'vas_price_bands',
   'vas_pricing_params',
   'amc_pricing',
   'amc_pricing_v2',
   'thomson_pricing',
+  'dandi_pricing',
   'appliance_master',
 ];
+
+// The D+I configuration carries our internal labour cost (cost per hour and
+// minutes per unit). A calculator user needs the rates, discounts, regions and
+// factors, not the cost, so those two inputs are zeroed unless the user may
+// read the pricing configuration.
+export function redactForCalculator<T extends { payload?: unknown }>(
+  domain: PricingConfigDomain,
+  record: T,
+  canReadConfig: boolean,
+): T {
+  if (domain !== 'dandi_pricing' || canReadConfig) return record;
+  const payload = { ...(record.payload as Record<string, unknown>) };
+  payload.laborCostPerHour = 0;
+  payload.laborMinutes = { fridge: 0, washer: 0, cooker: 0 };
+  return { ...record, payload };
+}
 
 export function createPricingConfigHandlers(
   service: PricingConfigService,
@@ -57,7 +76,11 @@ export function createPricingConfigHandlers(
             problem(response, 404, 'not-found', 'Not Found', 'Unknown pricing config domain.');
             return;
           }
-          response.json(await service.get(domain));
+          const auth = response.locals.auth as { permissions?: string[] } | undefined;
+          const canReadConfig =
+            !!auth?.permissions &&
+            (auth.permissions.includes('*') || auth.permissions.includes('pricing_config.read'));
+          response.json(redactForCalculator(domain, await service.get(domain), canReadConfig));
         } catch (error) {
           next(error);
         }

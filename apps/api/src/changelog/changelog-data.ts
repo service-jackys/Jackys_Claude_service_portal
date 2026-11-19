@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 286,
+    "title": "D+I Quote Calculator",
+    "area": "Quote calculators",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "A new calculator under Quote Calculators prices Delivery + Installation and Installation Only jobs from the rates in D+I Admin Entry and prints a customer proposal with a price per unit.",
+    "changes": [
+      "New page Quote Calculators > D+I Quote Calculator, separate from the other calculators.",
+      "Same pricing rules as the old portal's D+I calculator: batch rates, quantity discount, minimum unit rate, crew factor, transport per trip.",
+      "Print proposal in the Thomson quotation layout with the price per unit; nothing is saved.",
+      "Cost and margin view only for users who can read the pricing configuration."
+    ],
+    "needsYou": "Pull, restart the API and hard-refresh. No migration.",
+    "migrations": [],
+    "files": "apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/pricing-config/routes.ts, tests/unit/dandi-calc-core.test.ts, tests/e2e/dandi-calculator.spec.ts."
+  },
+  {
     "id": 285,
     "title": "Sheet sync: bring appointments and job cards up to date from the old sheet",
     "area": "Migration",
