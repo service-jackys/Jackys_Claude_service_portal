@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 287,
+    "title": "D+I Admin Entry: discount ranges follow the maximum units",
+    "area": "Pricing admin",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "Changing Maximum units per quote now re-splits the D+I and Installation Only discount tables and fills the new discounts up to the Minimum charge per unit limit.",
+    "changes": [
+      "A bigger maximum adds 10-unit ranges (50 to 100 adds 51-60 up to 91-100) with a discount that rises 2 points a range and stops where the Minimum charge per unit is still kept.",
+      "A smaller maximum drops the ranges beyond it and trims the last one.",
+      "Maximum units per quote is now any whole number from 1 to 500 (a number box instead of 50 / 60 / 100).",
+      "Percentages and custom labels you set are kept; every % stays editable and ranges optional."
+    ],
+    "needsYou": "Pull and hard-refresh. No migration or API restart.",
+    "migrations": [],
+    "files": "apps/web/src/dandi-tiers.js, packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts, tests/e2e/permissions-flat-rates.spec.ts."
+  },
+  {
     "id": 286,
     "title": "D+I Quote Calculator",
     "area": "Quote calculators",

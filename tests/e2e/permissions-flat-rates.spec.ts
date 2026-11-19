@@ -106,3 +106,52 @@ test('D+I Admin Entry edits the flat job-type rates and saves them with the entr
   await expect.poll(() => captured.saved?.flatRates?.CSIJO).toBe(119);
   expect(captured.saved?.flatRates).toMatchObject({ CSIJW: 100, CSIDO: 100, RWR: 60 });
 });
+
+test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved percentages', async ({
+  page,
+}) => {
+  const captured: { saved: { maxUnits?: number; modes?: any } | null } = { saved: null };
+  await mockApi(page, ['pricing_config.read', 'pricing_config.write'], (url, method, body) => {
+    if (url.pathname === '/api/pricing-config/dandi_pricing') {
+      if (method === 'PUT' || method === 'POST') {
+        captured.saved = body as typeof captured.saved;
+        return { domain: 'dandi_pricing', payload: body, isOverride: true };
+      }
+      return { domain: 'dandi_pricing', payload: dandiPricingDefault, isOverride: false };
+    }
+    if (url.pathname.startsWith('/api/pricing-config/') && url.pathname.endsWith('/history'))
+      return { history: [] };
+    return undefined;
+  });
+  await signIn(page);
+  await page.locator('#dandiAdminNav').dispatchEvent('click');
+  const maxUnits = page.locator('[data-pc-maxunits]');
+  await expect(maxUnits).toBeVisible();
+  const dandiNote = page.locator('[data-dandi-tier-note="dandi"]');
+  await maxUnits.fill('100');
+  await maxUnits.blur();
+  await expect(dandiNote).toContainText('5 ranges were added from 51 units');
+  await expect(dandiNote).toContainText('stops at 41%');
+  await expect(page.locator('[data-dandi-tier-note="install"]')).toContainText('stops at 36%');
+  // 10 + 5 new rows in each of the two discount tables: 7 + 5 = 12 rows each.
+  const dandiCard = page.locator('.detail-action-card', { hasText: 'D+I Rates' }).last();
+  await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(1);
+  // 22% on the last range of 41-50 rises 2 points a range: 24, 26, 28, 30, 32.
+  const lastRow = dandiCard.locator('tr', {
+    has: page.locator('input[value="91\u2013100 units"]'),
+  });
+  await expect(lastRow.locator('input').last()).toHaveValue('32');
+  // Any whole number works, not only 50, 60 or 100: 130 adds ranges up to 121-130.
+  await maxUnits.fill('130');
+  await maxUnits.blur();
+  await expect(dandiCard.locator('input[value="121\u2013130 units"]')).toHaveCount(1);
+  // A value that is not a whole number from 1 goes back to the last good one.
+  await maxUnits.fill('0');
+  await maxUnits.blur();
+  await expect(maxUnits).toHaveValue('130');
+  // Going back to 50 drops them again.
+  await maxUnits.fill('50');
+  await maxUnits.blur();
+  await expect(dandiNote).toContainText('Ranges now end at the maximum of 50 units');
+  await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(0);
+});

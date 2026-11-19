@@ -233,3 +233,10 @@ test('the internal view reports labour cost and margin for D+I', () => {
   close(r.estimatedCost, ((10 * 17.5) / 60) * cfg.laborCostPerHour + 60);
   close(r.margin, r.totalCharge - r.estimatedCost);
 });
+
+test('the maximum units per quote can be any whole number from 1 to 500', () => {
+  for (const ok of [1, 50, 60, 100, 130, 500])
+    assert.doesNotThrow(() => dandiPricingSchema.parse({ ...cfg, maxUnits: ok }), String(ok));
+  for (const bad of [0, 501, 12.5, -5, '100'])
+    assert.throws(() => dandiPricingSchema.parse({ ...cfg, maxUnits: bad }), String(bad));
+});

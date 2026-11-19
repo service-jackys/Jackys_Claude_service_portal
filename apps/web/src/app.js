@@ -12394,24 +12394,25 @@ ${bodyHtml}
       maxUnitsField.innerHTML =
         '<div class="field"><label>Maximum units per quote ' +
         '<span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span>' +
-        '<span class="tooltip-bubble" role="tooltip">Caps how many appliance units a single D&amp;I quote can cover.</span>' +
-        '</span></label><select data-pc-maxunits>' +
-        [50, 60, 100]
-          .map(
-            (n) =>
-              '<option value="' +
-              n +
-              '"' +
-              (data.maxUnits === n ? ' selected' : '') +
-              '>' +
-              n +
-              ' units</option>',
-          )
-          .join('') +
-        '</select></div>';
+        '<span class="tooltip-bubble" role="tooltip">Caps how many appliance units a single D&amp;I quote can cover (1 to 500). Changing it re-splits the discount tables below: new ranges get a discount up to the minimum charge per unit.</span>' +
+        '</span></label><input type="number" min="1" max="500" step="1" data-pc-maxunits value="' +
+        data.maxUnits +
+        '" /></div>';
       commonInputsHost.appendChild(maxUnitsField);
+      // Changing the maximum re-splits each quantity-discount table to match: new
+      // ranges are added (10 units wide) or the ones beyond the maximum are dropped.
+      // The new ranges start at the previous tier's discount; set the % yourself.
+      const tierUpdaters = [];
       maxUnitsField.querySelector('[data-pc-maxunits]').addEventListener('change', (event) => {
-        data.maxUnits = Number(event.target.value);
+        // Any whole number from 1 to 500; anything else goes back to the last good value.
+        const next = Math.floor(Number(event.target.value));
+        if (!Number.isFinite(next) || next < 1) {
+          event.target.value = String(data.maxUnits);
+          return;
+        }
+        data.maxUnits = Math.min(next, 500);
+        event.target.value = String(data.maxUnits);
+        tierUpdaters.forEach((update) => update());
         ctx.markDirty();
       });
       const scalarHost = document.createElement('div');
@@ -12647,6 +12648,10 @@ ${bodyHtml}
         const discountsHost = document.createElement('div');
         discountsHost.style.marginTop = '10px';
         modeHost.appendChild(discountsHost);
+        const tierNote = document.createElement('p');
+        tierNote.className = 'tq-hint';
+        tierNote.dataset.dandiTierNote = modeKey;
+        modeHost.appendChild(tierNote);
         const rerenderDiscounts = () =>
           pcRenderTable(
             discountsHost,
@@ -12672,6 +12677,38 @@ ${bodyHtml}
             },
           );
         rerenderDiscounts();
+        tierUpdaters.push(() => {
+          const batchRates = ['fridge', 'washer', 'cooker']
+            .map((key) => Number(mode.rates[key].batch))
+            .filter((rate) => rate > 0);
+          const lowestBatchRate = batchRates.length ? Math.min(...batchRates) : 0;
+          const result = window.JdDandiTiers.resplit(mode.discounts, data.maxUnits, {
+            minUnitRate: data.minUnitRate,
+            lowestBatchRate,
+          });
+          mode.discounts.splice(0, mode.discounts.length, ...result.tiers);
+          rerenderDiscounts();
+          const firstNew = result.tiers[result.tiers.length - result.added];
+          const capPct = Math.round((result.cap || 0) * 100);
+          tierNote.textContent = result.added
+            ? 'The maximum is now ' +
+              data.maxUnits +
+              ' units, so ' +
+              result.added +
+              (result.added === 1 ? ' range was' : ' ranges were') +
+              ' added from ' +
+              firstNew.min +
+              ' units. Their discount rises 2 points per range and stops at ' +
+              capPct +
+              '%, because the lowest batch rate (' +
+              lowestBatchRate +
+              ') less ' +
+              capPct +
+              '% is the minimum charge per unit (' +
+              data.minUnitRate +
+              '). Edit any % or remove a range if you prefer.'
+            : 'Ranges now end at the maximum of ' + data.maxUnits + ' units.';
+        });
       });
     },
     appliance_master(container, data, ctx) {
