@@ -12410,8 +12410,13 @@ ${bodyHtml}
           .join('') +
         '</select></div>';
       commonInputsHost.appendChild(maxUnitsField);
+      // Changing the maximum re-splits each quantity-discount table to match: new
+      // ranges are added (10 units wide) or the ones beyond the maximum are dropped.
+      // The new ranges start at the previous tier's discount; set the % yourself.
+      const tierUpdaters = [];
       maxUnitsField.querySelector('[data-pc-maxunits]').addEventListener('change', (event) => {
         data.maxUnits = Number(event.target.value);
+        tierUpdaters.forEach((update) => update());
         ctx.markDirty();
       });
       const scalarHost = document.createElement('div');
@@ -12647,6 +12652,10 @@ ${bodyHtml}
         const discountsHost = document.createElement('div');
         discountsHost.style.marginTop = '10px';
         modeHost.appendChild(discountsHost);
+        const tierNote = document.createElement('p');
+        tierNote.className = 'tq-hint';
+        tierNote.dataset.dandiTierNote = modeKey;
+        modeHost.appendChild(tierNote);
         const rerenderDiscounts = () =>
           pcRenderTable(
             discountsHost,
@@ -12672,6 +12681,22 @@ ${bodyHtml}
             },
           );
         rerenderDiscounts();
+        tierUpdaters.push(() => {
+          const result = window.JdDandiTiers.resplit(mode.discounts, data.maxUnits);
+          mode.discounts.splice(0, mode.discounts.length, ...result.tiers);
+          rerenderDiscounts();
+          const firstNew = result.tiers[result.tiers.length - result.added];
+          tierNote.textContent = result.added
+            ? 'The maximum is now ' +
+              data.maxUnits +
+              ' units, so ' +
+              result.added +
+              (result.added === 1 ? ' range was' : ' ranges were') +
+              ' added from ' +
+              firstNew.min +
+              ' units. Each starts at the previous tier\u2019s discount: set the % for every new range. Ranges can be edited or removed.'
+            : 'Ranges now end at the maximum of ' + data.maxUnits + ' units.';
+        });
       });
     },
     appliance_master(container, data, ctx) {

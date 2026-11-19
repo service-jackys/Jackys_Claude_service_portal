@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #287 — D+I Admin Entry: discount ranges follow the maximum units
+
+**Date:** 2026-11-19
+
+**Why.** Changing "Maximum units per quote" from 50 to 100 left the quantity-discount tables ending at 41–50, so every quote of 51 to 100 units silently used the 41–50 discount and the ranges had to be typed by hand.
+
+**What changed.**
+
+- In D+I Admin Entry, changing the maximum now re-splits the discount table of both D+I and Installation Only:
+  - A bigger maximum adds ranges after the last tier, 10 units wide (50 to 100 adds 51–60, 61–70, 71–80, 81–90 and 91–100). Each new range starts at the previous tier's discount, so saving without editing changes no price; the percentage of every new range is for you to set.
+  - A smaller maximum drops the tiers beyond it and trims the last one. Percentages and custom labels you set are kept.
+  - A note under each table says how many ranges were added and from which unit.
+- Ranges can still be edited, added or removed; extra tiers stay optional.
+- Nothing changes until Save; Reset to defaults and History / Restore work as before.
+
+**Files.** apps/web/src/dandi-tiers.js (new), apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts (new), tests/e2e/permissions-flat-rates.spec.ts.
+
+**Needs you:** pull, hard-refresh (no API restart, no migration). Then set the maximum to 100, fill in the new percentages and Save.
+
 ## Modification #286 — D+I Quote Calculator (new page under Quote Calculators)
 
 **Date:** 2026-11-19

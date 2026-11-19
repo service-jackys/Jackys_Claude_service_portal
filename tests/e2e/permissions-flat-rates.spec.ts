@@ -106,3 +106,36 @@ test('D+I Admin Entry edits the flat job-type rates and saves them with the entr
   await expect.poll(() => captured.saved?.flatRates?.CSIJO).toBe(119);
   expect(captured.saved?.flatRates).toMatchObject({ CSIJW: 100, CSIDO: 100, RWR: 60 });
 });
+
+test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved percentages', async ({
+  page,
+}) => {
+  const captured: { saved: { maxUnits?: number; modes?: any } | null } = { saved: null };
+  await mockApi(page, ['pricing_config.read', 'pricing_config.write'], (url, method, body) => {
+    if (url.pathname === '/api/pricing-config/dandi_pricing') {
+      if (method === 'PUT' || method === 'POST') {
+        captured.saved = body as typeof captured.saved;
+        return { domain: 'dandi_pricing', payload: body, isOverride: true };
+      }
+      return { domain: 'dandi_pricing', payload: dandiPricingDefault, isOverride: false };
+    }
+    if (url.pathname.startsWith('/api/pricing-config/') && url.pathname.endsWith('/history'))
+      return { history: [] };
+    return undefined;
+  });
+  await signIn(page);
+  await page.locator('#dandiAdminNav').dispatchEvent('click');
+  const maxUnits = page.locator('[data-pc-maxunits]');
+  await expect(maxUnits).toBeVisible();
+  const dandiNote = page.locator('[data-dandi-tier-note="dandi"]');
+  await maxUnits.selectOption('100');
+  await expect(dandiNote).toContainText('5 ranges were added from 51 units');
+  await expect(page.locator('[data-dandi-tier-note="install"]')).toContainText('5 ranges');
+  // 10 + 5 new rows in each of the two discount tables: 7 + 5 = 12 rows each.
+  const dandiCard = page.locator('.detail-action-card', { hasText: 'D+I Rates' }).last();
+  await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(1);
+  // Going back to 50 drops them again.
+  await maxUnits.selectOption('50');
+  await expect(dandiNote).toContainText('Ranges now end at the maximum of 50 units');
+  await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(0);
+});
