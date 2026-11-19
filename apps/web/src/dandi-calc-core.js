@@ -14,6 +14,13 @@
  *     (always for D+I with more than one unit; a Yes/No choice for
  *     Installation Only);
  *   - D+I needs enough planned trips (up to 17 units = 1 trip, more = 2).
+ *
+ * Extra discount (an admin option on the page, not part of the old calculator):
+ * a % or an AED amount off the appliance charges (never the transport). It is
+ * limited so that no unit price drops below the Minimum charge per unit: each
+ * line can give up at most qty x (unit price - minimum), the discount is shared
+ * across the lines in proportion to that room, and anything asked for beyond
+ * the total room is cut back to it (reported as capped).
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -102,17 +109,45 @@
       };
     });
 
+    var minRate = num(cfg.minUnitRate);
+    var subtotal = lines.reduce(function (s, l) {
+      return s + l.lineTotal;
+    }, 0);
+    lines.forEach(function (l) {
+      l.room = l.qty > 0 && l.chargedUnit > minRate ? l.qty * (l.chargedUnit - minRate) : 0;
+    });
+    var maxExtra = lines.reduce(function (s, l) {
+      return s + l.room;
+    }, 0);
+    var extraIn = input.extra || {};
+    var extraType = extraIn.type === 'amount' ? 'amount' : 'percent';
+    var extraValue = Math.max(0, num(extraIn.value));
+    var requested = extraType === 'percent' ? (subtotal * extraValue) / 100 : extraValue;
+    var applied = Math.min(requested, maxExtra);
+    var capped = requested > maxExtra + 1e-9;
+    lines.forEach(function (l) {
+      l.extraDiscount = maxExtra > 0 ? (applied * l.room) / maxExtra : 0;
+      l.netTotal = l.lineTotal - l.extraDiscount;
+      l.netUnit = l.qty ? l.netTotal / l.qty : 0;
+    });
+    var lowestNetUnit = lines
+      .filter(function (l) {
+        return l.qty > 0;
+      })
+      .reduce(function (m, l) {
+        return Math.min(m, l.netUnit);
+      }, Infinity);
+    if (!isFinite(lowestNetUnit)) lowestNetUnit = 0;
+
     var listTotal = lines.reduce(function (s, l) {
       return s + l.listTotal;
     }, 0);
-    var crewAdjusted = lines.reduce(function (s, l) {
-      return s + l.lineTotal;
-    }, 0);
+    var crewAdjusted = subtotal;
     var discountAmount = listTotal - crewAdjusted;
     var transport =
       region && transportYes && !overLimit ? plannedTrips * num(region.roundTripCost) : 0;
     var valid = !!region && total > 0 && !overLimit && tripsSufficient;
-    var totalCharge = valid ? crewAdjusted + transport : 0;
+    var totalCharge = valid ? crewAdjusted - applied + transport : 0;
 
     // Internal view (D+I only, as in the original): labour cost + transport.
     var labourMinutes = lines.reduce(function (s, l) {
@@ -152,6 +187,18 @@
       listTotal: listTotal,
       discountAmount: discountAmount,
       crewAdjusted: crewAdjusted,
+      extra: {
+        type: extraType,
+        value: extraValue,
+        requested: requested,
+        applied: applied,
+        max: maxExtra,
+        maxPercent: subtotal ? (maxExtra / subtotal) * 100 : 0,
+        capped: capped,
+        lowestNetUnit: lowestNetUnit,
+        minUnitRate: minRate,
+      },
+      netUnitsTotal: crewAdjusted - applied,
       transport: transport,
       totalCharge: totalCharge,
       averagePerUnit: valid && total ? totalCharge / total : 0,

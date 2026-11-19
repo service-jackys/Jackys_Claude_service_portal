@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #288 — D+I Quote Calculator: professional layout and an admin special discount
+
+**Date:** 2026-11-19
+
+**Why.** The first D+I Quote Calculator looked like a copy of the old portal, its fields and tooltips did not line up, and there was no way to give an extra discount on the total.
+
+**What changed.**
+
+- **New layout.** Numbered cards (Job details, Appliance quantities, Special discount, Client details, Price breakdown) with a navy summary panel that stays in view and shows the total, status and key facts. Service type is a two-button switch. Every field has the same label row, with its tooltip always at the right edge and the input on the same line in every column and card. Each appliance card shows the live unit price. Works in light and dark and on a phone (the summary moves to the top).
+- **Special discount (admin only, needs pricing_config.write).** Choose a percentage or an amount, type the value. The box shows the **maximum allowed** and checks the result against the **Minimum charge per unit** (35 today): green "Discount OK" with the lowest unit price after the discount, or amber "Limited to the minimum charge" when you asked for more, in which case only the allowed part is applied. "Use maximum allowed" and "Clear discount" buttons.
+  - The discount comes off the appliance charges only (transport is never discounted) and is shared across the lines by how much room each has above the minimum, so no unit price can go below it.
+  - It shows in the breakdown (Subtotal, Special discount, Transport, Total), in the summary panel, in the unit price on each appliance card, and as a "Special discount" row on the printed proposal. Nothing is saved.
+- Users without pricing_config.write do not see the discount box and get the same prices as before.
+
+**Files.** apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-calc-core.test.ts, tests/e2e/dandi-calculator.spec.ts.
+
+**Needs you:** pull and hard-refresh. No API restart, no migration.
+
 ## Modification #287 — D+I Admin Entry: discount ranges follow the maximum units
 
 **Date:** 2026-11-19
