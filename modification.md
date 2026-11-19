@@ -5214,7 +5214,7 @@ Display only; no pricing formulas, API or database changes.
 **What changed.**
 
 - In D+I Admin Entry, changing the maximum now re-splits the discount table of both D+I and Installation Only:
-  - A bigger maximum adds ranges after the last tier, 10 units wide (50 to 100 adds 51–60, 61–70, 71–80, 81–90 and 91–100). Each new range starts at the previous tier's discount, so saving without editing changes no price; the percentage of every new range is for you to set.
+  - A bigger maximum adds ranges after the last tier, 10 units wide (50 to 100 adds 51–60, 61–70, 71–80, 81–90 and 91–100) and **fills in their discount**: each range goes up 2 points on the one before and stops at the largest whole % that keeps the unit price at or above the Minimum charge per unit (lowest batch rate x (1 − discount) ≥ minimum; with minimum 35 that is 41% for D+I, lowest batch 60, and 36% for Installation Only, lowest batch 55). Every % can be edited afterwards.
   - A smaller maximum drops the tiers beyond it and trims the last one. Percentages and custom labels you set are kept.
   - A note under each table says how many ranges were added and from which unit.
 - Ranges can still be edited, added or removed; extra tiers stay optional.
@@ -5222,7 +5222,7 @@ Display only; no pricing formulas, API or database changes.
 
 **Files.** apps/web/src/dandi-tiers.js (new), apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts (new), tests/e2e/permissions-flat-rates.spec.ts.
 
-**Needs you:** pull, hard-refresh (no API restart, no migration). Then set the maximum to 100, fill in the new percentages and Save.
+**Needs you:** pull, hard-refresh (no API restart, no migration). Then set the maximum to 100, check the new percentages (edit any you want) and Save.
 
 ## Modification #286 — D+I Quote Calculator (new page under Quote Calculators)
 

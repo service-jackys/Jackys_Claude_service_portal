@@ -130,10 +130,16 @@ test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved
   const dandiNote = page.locator('[data-dandi-tier-note="dandi"]');
   await maxUnits.selectOption('100');
   await expect(dandiNote).toContainText('5 ranges were added from 51 units');
-  await expect(page.locator('[data-dandi-tier-note="install"]')).toContainText('5 ranges');
+  await expect(dandiNote).toContainText('stops at 41%');
+  await expect(page.locator('[data-dandi-tier-note="install"]')).toContainText('stops at 36%');
   // 10 + 5 new rows in each of the two discount tables: 7 + 5 = 12 rows each.
   const dandiCard = page.locator('.detail-action-card', { hasText: 'D+I Rates' }).last();
   await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(1);
+  // 22% on the last range of 41-50 rises 2 points a range: 24, 26, 28, 30, 32.
+  const lastRow = dandiCard.locator('tr', {
+    has: page.locator('input[value="91\u2013100 units"]'),
+  });
+  await expect(lastRow.locator('input').last()).toHaveValue('32');
   // Going back to 50 drops them again.
   await maxUnits.selectOption('50');
   await expect(dandiNote).toContainText('Ranges now end at the maximum of 50 units');

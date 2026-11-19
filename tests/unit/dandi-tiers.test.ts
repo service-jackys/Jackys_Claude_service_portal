@@ -8,10 +8,16 @@ const source = readFileSync(new URL('../../apps/web/src/dandi-tiers.js', import.
 const mod: { exports: Record<string, any> } = { exports: {} };
 new Function('module', source)(mod);
 const tiers = mod.exports as {
+  maxDiscount(minUnitRate: number, lowestBatchRate: number): number;
   resplit(
     rows: unknown[],
     maxUnits: number,
-  ): { tiers: { min: number; max: number; label: string; rate: number }[]; added: number };
+    opts?: { minUnitRate: number; lowestBatchRate: number },
+  ): {
+    tiers: { min: number; max: number; label: string; rate: number }[];
+    added: number;
+    cap: number | null;
+  };
 };
 
 const base = dandiPricingDefault.modes.dandi.discounts; // 1, 2-5, 6-10, 11-20, 21-30, 31-40, 41-50
@@ -112,4 +118,51 @@ test('the calculator uses the new ranges once the maximum is 100', () => {
   assert.equal(quote(55).discount.label, '51–60 units');
   assert.equal(quote(100).valid, true);
   assert.equal(quote(101).valid, false);
+});
+
+test('new ranges rise 2 points a range and stop where the minimum unit charge allows', () => {
+  // D+I default: lowest batch rate 60, minimum 35 -> the largest whole % is 41.
+  assert.equal(tiers.maxDiscount(35, 60), 0.41);
+  const di = tiers.resplit(base, 100, { minUnitRate: 35, lowestBatchRate: 60 });
+  assert.equal(di.cap, 0.41);
+  assert.deepEqual(
+    di.tiers.slice(-5).map((t) => t.rate),
+    [0.24, 0.26, 0.28, 0.3, 0.32],
+  );
+  // From a last tier of 25%, the five ranges reach 35%.
+  const from25 = base.map((t) => (t.min === 41 ? { ...t, rate: 0.25 } : t));
+  assert.deepEqual(
+    tiers
+      .resplit(from25, 100, { minUnitRate: 35, lowestBatchRate: 60 })
+      .tiers.slice(-5)
+      .map((t) => t.rate),
+    [0.27, 0.29, 0.31, 0.33, 0.35],
+  );
+  // Installation Only: lowest batch 55 -> cap 36%, reached and then held.
+  assert.equal(tiers.maxDiscount(35, 55), 0.36);
+  const inst = tiers.resplit(from25, 100, { minUnitRate: 35, lowestBatchRate: 55 });
+  assert.deepEqual(
+    inst.tiers.slice(-5).map((t) => t.rate),
+    [0.27, 0.29, 0.31, 0.33, 0.35],
+  );
+  const longer = tiers.resplit(from25, 150, { minUnitRate: 35, lowestBatchRate: 55 });
+  assert.deepEqual(
+    longer.tiers.slice(-10).map((t) => t.rate),
+    [0.27, 0.29, 0.31, 0.33, 0.35, 0.36, 0.36, 0.36, 0.36, 0.36],
+  );
+});
+
+test('a discount never leaves a unit price below the minimum charge', () => {
+  const rows = tiers.resplit(base, 500, { minUnitRate: 35, lowestBatchRate: 60 }).tiers;
+  for (const t of rows)
+    assert.ok((rows.length && t.rate <= 0.41) || t.min <= 50, JSON.stringify(t));
+  for (const t of rows.filter((x) => x.min > 50)) assert.ok(60 * (1 - t.rate) >= 35 - 1e-9);
+});
+
+test('no room under the minimum means no extra discount; a higher saved % is kept', () => {
+  assert.equal(tiers.maxDiscount(60, 60), 0);
+  assert.equal(tiers.maxDiscount(70, 60), 0);
+  const tight = tiers.resplit(base, 60, { minUnitRate: 50, lowestBatchRate: 60 });
+  // The cap is 16% but the saved last tier is already 22%: it is kept, not cut.
+  assert.equal(tight.tiers[tight.tiers.length - 1].rate, 0.22);
 });

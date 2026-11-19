@@ -12682,10 +12682,18 @@ ${bodyHtml}
           );
         rerenderDiscounts();
         tierUpdaters.push(() => {
-          const result = window.JdDandiTiers.resplit(mode.discounts, data.maxUnits);
+          const batchRates = ['fridge', 'washer', 'cooker']
+            .map((key) => Number(mode.rates[key].batch))
+            .filter((rate) => rate > 0);
+          const lowestBatchRate = batchRates.length ? Math.min(...batchRates) : 0;
+          const result = window.JdDandiTiers.resplit(mode.discounts, data.maxUnits, {
+            minUnitRate: data.minUnitRate,
+            lowestBatchRate,
+          });
           mode.discounts.splice(0, mode.discounts.length, ...result.tiers);
           rerenderDiscounts();
           const firstNew = result.tiers[result.tiers.length - result.added];
+          const capPct = Math.round((result.cap || 0) * 100);
           tierNote.textContent = result.added
             ? 'The maximum is now ' +
               data.maxUnits +
@@ -12694,7 +12702,15 @@ ${bodyHtml}
               (result.added === 1 ? ' range was' : ' ranges were') +
               ' added from ' +
               firstNew.min +
-              ' units. Each starts at the previous tier\u2019s discount: set the % for every new range. Ranges can be edited or removed.'
+              ' units. Their discount rises 2 points per range and stops at ' +
+              capPct +
+              '%, because the lowest batch rate (' +
+              lowestBatchRate +
+              ') less ' +
+              capPct +
+              '% is the minimum charge per unit (' +
+              data.minUnitRate +
+              '). Edit any % or remove a range if you prefer.'
             : 'Ranges now end at the maximum of ' + data.maxUnits + ' units.';
         });
       });
