@@ -1,8 +1,9 @@
 import 'dotenv/config';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { createDbPool } from './client.js';
 import { applyPlan, verifyParity } from './legacy-import/apply.js';
+import { applySync, parseDecisions } from './legacy-import/sync.js';
 import {
   SOURCE_NAME,
   buildPlan,
@@ -16,6 +17,10 @@ import {
 //   npm run import:sheets -- --file <export.xlsx>                       dry run (default, writes nothing)
 //   npm run import:sheets -- --file <export.xlsx> --apply --confirm <db> --as <admin email>
 //   npm run import:sheets -- --file <export.xlsx> --verify              compare the database with the file
+//
+//   npm run import:sheets -- --file <export.xlsx> --sync --decisions <review.csv> [--apply --confirm <db> --as <admin email>]
+//       sync mode: adds the appointments and job cards that are new in the sheet and changes existing ones only where
+//       the reviewed decision file says "take the sheet". Without --apply it runs inside a transaction that is rolled back.
 //
 // Real customer data must only be loaded into staging or production, never a
 // developer database. --apply therefore needs --confirm <database name> to
@@ -80,6 +85,88 @@ function print(plan: Plan) {
   for (const k of plan.skipped) console.log(`  ${k.sheet} (${k.rows} rows): ${k.reason}`);
 }
 
+async function runSync(plan: Plan, file: string, out: string, apply: boolean) {
+  const decisionsFile = arg('decisions');
+  if (!decisionsFile)
+    throw new Error('Sync mode needs --decisions <reviewed migration_review.csv>.');
+  const decisions = parseDecisions(await readFile(resolve(decisionsFile), 'utf8'));
+  const pool = createDbPool();
+  const client = await pool.connect();
+  try {
+    const dbName = (await client.query<{ n: string }>('SELECT current_database() AS n')).rows[0].n;
+    if (apply && arg('confirm') !== dbName)
+      throw new Error(
+        `Refusing to write: pass --confirm ${dbName} to confirm this is the database you mean to change.`,
+      );
+    if (plan.issues.some((i) => i.level === 'error'))
+      throw new Error('Blocking error(s) in the plan. Fix them or the sheet first.');
+    const email = arg('as');
+    if (apply && !email)
+      throw new Error('Pass --as <email of the admin user the sync is recorded under>.');
+    const profile = await client.query<{ id: string }>(
+      'SELECT id::text FROM profiles WHERE lower(email) = lower($1) ORDER BY id LIMIT 1',
+      [email ?? ''],
+    );
+    const fallback = await client.query<{ id: string }>(
+      'SELECT id::text FROM profiles ORDER BY id LIMIT 1',
+    );
+    const profileId = profile.rows[0]?.id ?? (apply ? undefined : fallback.rows[0]?.id);
+    if (!profileId) throw new Error(`No portal user with email ${email}.`);
+
+    await client.query('BEGIN');
+    try {
+      const result = await applySync(client, plan, decisions, { profileId, sourceFile: file });
+      const checks = await verifyParity(
+        client,
+        { ...plan, quotations: [], inspections: [], thomson: [] },
+        result.batchId,
+      );
+      if (!checks.every((c) => c.ok)) {
+        console.table(checks);
+        throw new Error('Parity check failed for the new records; rolled back.');
+      }
+      await mkdir(out, { recursive: true });
+      const rows = [
+        ['record', 'reference', 'field', 'before', 'after'],
+        ...result.changes.map((c) => [c.record, c.reference, c.field, c.before, c.after]),
+      ];
+      await writeFile(
+        join(out, 'sync-changes.csv'),
+        '\uFEFF' + rows.map((r) => r.map(csvCell).join(',')).join('\n'),
+      );
+      console.log(`\nSync against database "${dbName}"`);
+      console.table({
+        'created (new in sheet)': result.created,
+        'already in the portal': result.skippedExisting,
+      });
+      console.table({
+        'appointments updated': result.recordsUpdated.appointments,
+        'job cards updated': result.recordsUpdated.jobCards,
+        'field changes': result.changes.length,
+        'status changes': result.statusChanges,
+        'decisions "keep the portal"': decisions.filter((d) => !d.take).length,
+      });
+      if (!apply) {
+        await client.query('ROLLBACK');
+        console.log(
+          `\nDRY RUN: everything above was rolled back, nothing was written. Details: ${join(out, 'sync-changes.csv')}`,
+        );
+        return;
+      }
+      await client.query('COMMIT');
+      console.log(
+        `\nSYNCED "${dbName}". Details of every change: ${join(out, 'sync-changes.csv')}`,
+      );
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => undefined);
+      throw error;
+    }
+  } finally {
+    client.release();
+    await pool.end();
+  }
+}
+
 async function main() {
   const file = arg('file');
   if (!file) throw new Error('Pass the exported workbook with --file <path to .xlsx>.');
@@ -93,6 +180,11 @@ async function main() {
 
   print(plan);
   const errors = plan.issues.filter((i) => i.level === 'error');
+
+  if (flag('sync')) {
+    await runSync(plan, file, out, apply);
+    return;
+  }
 
   if (!apply && !verify) {
     await writeReports(out, plan, { mode: 'dry-run' });

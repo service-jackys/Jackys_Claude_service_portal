@@ -5205,6 +5205,27 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #285 — Sheet sync: bring appointments and job cards up to date from the old sheet
+
+**Date:** 2026-11-19
+
+**Why.** The old Google Sheet kept being used after the 2 Nov import (until 19 Nov), while the portal added delivery dates, Delivered status, charges and invoice numbers of its own. A normal import only adds new records and a replace would erase the portal's work. Only Schedules (appointments) and Service job cards are brought across; every other section stays untouched.
+
+**What changed.**
+
+- `npm run import:sheets` has a new **sync mode** (`--sync --decisions <reviewed file>`):
+  - Appointments and job cards that are new in the sheet are created (same rules as before; APT numbers continue after the highest).
+  - Existing ones change **only** in the fields the reviewed file marks "take the sheet". Fields marked "keep the portal", and everything not listed (delivery date, Delivered, charges, invoice numbers, sticker tick, billing), are left exactly as they are.
+  - A status change writes a status-history row ("Updated from Google Sheet (migration sync)"); a job card moves between Open and Completed by the same rule the import uses.
+  - Quotations, inspections, Thomson, AMC, VAS and complaints are never touched.
+  - Without `--apply` it runs inside a transaction that is rolled back, so the dry run shows the exact counts and writes `sync-changes.csv` (record, field, before, after). Re-running changes nothing.
+- The decision file is the reviewed `migration_review.csv` (the Group column says "take the sheet" or "keep the portal"); unknown fields, bad values and duplicates are refused.
+- Tests: tests/integration/legacy-sync.test.ts (new records added, take/keep respected, portal charge and Delivered untouched, second run no-op).
+
+**Files.** packages/db/src/legacy-import/sync.ts, packages/db/src/import-sheets.ts, tests/integration/legacy-sync.test.ts, modification.md.
+
+**Needs you:** after merging, pull, then run the dry run and the apply steps given in the chat. No migration, no API restart before the apply.
+
 ## Modification #284 — "Sticker attached" confirmation before Delivered
 
 **Date:** 2026-11-19
