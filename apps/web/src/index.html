@@ -4418,6 +4418,34 @@
         margin: 0;
         font-weight: 700;
       }
+      .dc-status {
+        padding: 0.15rem 0.55rem;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+        text-transform: uppercase;
+      }
+      .dc-status.is-ready {
+        background: #e3f5ea;
+        color: #147a4a;
+      }
+      .dc-status.is-blocked {
+        background: #fdeceb;
+        color: #b42318;
+      }
+      .dc-blocked {
+        margin: 0.3rem 0 0.6rem;
+        padding: 0.4rem 0.6rem;
+        border-left: 3px solid #b42318;
+        background: #fdeceb;
+        border-radius: 6px;
+        color: #7a1a12;
+        font-size: 0.85rem;
+      }
+      .dc-blocked:empty {
+        display: none;
+      }
       .tq-note {
         margin: 0.5rem 0 0;
         color: var(--muted);
@@ -14893,6 +14921,20 @@
                       <span class="nav-label">Thomson Quote Calculator</span>
                       <span class="nav-arrow" aria-hidden="true">→</span>
                     </button>
+                    <button
+                      class="dashboard-link"
+                      type="button"
+                      id="dandiCalcNav"
+                      hidden
+                      aria-label="D+I Quote Calculator"
+                      title="D+I Quote Calculator"
+                    >
+                      <svg class="nav-icon" aria-hidden="true">
+                        <use href="#icon-calculator"></use>
+                      </svg>
+                      <span class="nav-label">D+I Quote Calculator</span>
+                      <span class="nav-arrow" aria-hidden="true">→</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -17784,6 +17826,25 @@
               </div>
             </div>
 
+            <div class="card" id="dandiCalcWorkspace" hidden>
+              <div class="card-body">
+                <div class="card-help">
+                  <span>About this page</span
+                  ><span class="tooltip" tabindex="0"
+                    ><span class="tooltip-icon" aria-hidden="true">i</span
+                    ><span class="tooltip-bubble" role="tooltip"
+                      >Quote calculator for Delivery + Installation and Installation Only jobs,
+                      using the rates set in D+I Admin Entry. It does not save or create any record
+                      &mdash; it computes a price and prints a customer proposal.</span
+                    ></span
+                  >
+                </div>
+                <section class="detail-action-card pricing-config-card" data-calc-root="dandi-calc">
+                  <p class="form-note" data-calc-loading>Loading current values&hellip;</p>
+                </section>
+              </div>
+            </div>
+
             <div class="card" id="reportsWorkspace" hidden>
               <div class="card-body">
                 <div class="card-help">
@@ -18643,6 +18704,7 @@
     </footer>
     <script src="/portal/roi-core.js" defer></script>
     <script src="/portal/amc-v2-core.js" defer></script>
+    <script src="/portal/dandi-calc-core.js" defer></script>
     <script src="/portal/label-core.js" defer></script>
     <script src="/portal/thomson-schedule.js" defer></script>
     <script src="/portal/tasks.js" defer></script>

@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #286 — D+I Quote Calculator (new page under Quote Calculators)
+
+**Date:** 2026-11-19
+
+**Why.** The old Apps Script portal had a D+I Installation Pricing Calculator; the new portal only had the D+I Admin Entry page (the rates) and no calculator, so sales could not price a Delivery + Installation or Installation Only job.
+
+**What changed.**
+
+- New page **Quote Calculators > D+I Quote Calculator**, separate from the Thomson, AMC and VAS calculators. It reads its rates from D+I Admin Entry, so there is still one place to change prices, and has "Refresh rates" like the other calculators.
+- Inputs as in the old calculator: service type (D+I or Installation Only), region, customer grouping, customer sites, planned trips, crew size, include transportation (Installation Only), and quantities for Refrigerator, Washing Machine and Cooker (maximum from D+I Admin Entry). Every field has a tooltip. The total on the right updates live and shows a clear "Ready to quote / Not ready" state and the reason.
+- The pricing rules are the old calculator's, kept exactly: batch rate and quantity discount only for one customer at one site with more than one unit; unit price never below the minimum unit rate; crew factor on the labour; transport per planned trip at the region's round-trip cost; D+I needs enough trips (up to 17 units = 1, more = 2); over-limit quotes are blocked. A test compares 4,320 input combinations against a copy of the old logic: all equal.
+- **Print proposal** in the Thomson quotation layout, one price per unit: appliance, qty, unit price, line total, a transport line, total box, quantity-discount note, signatures and terms. Nothing is saved (no quote number is stored; the print carries a time-based DIQ number).
+- An **Internal view: cost and margin** (D+I only) is shown only to users with pricing_config.read.
+- API: `dandi_pricing` can now be read with quote_calculators.use, but for anyone without pricing_config.read the internal labour cost inputs (cost per hour, minutes per unit) come back as zero.
+- No Ask AI button on this page yet (it needs a new section on the Ask AI side).
+
+**Files.** apps/web/src/dandi-calc-core.js (new), apps/web/src/app.js, apps/web/src/index.html, apps/api/src/pricing-config/routes.ts, tests/unit/dandi-calc-core.test.ts (new), tests/unit/flat-rates-and-gates.test.ts, tests/e2e/dandi-calculator.spec.ts (new).
+
+**Needs you:** pull, restart the API, hard-refresh. No migration. Users who should use it need the Quote calculators permission (the same one as the other calculators).
+
 ## Modification #285 — Sheet sync: bring appointments and job cards up to date from the old sheet
 
 **Date:** 2026-11-19
