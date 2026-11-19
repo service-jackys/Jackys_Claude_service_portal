@@ -1,6 +1,23 @@
 import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
 import { z } from 'zod';
 import {
+  batchSummary,
+  getRateOverrides,
+  listRateLines,
+  markRateOverridesApplied,
+  saveRateOverrides,
+} from '../../../../packages/db/src/revenue-rate-overrides.js';
+import {
+  computeRevenue,
+  diffRates,
+  mastersFromRates,
+  overlayRates,
+  ratesFromMasters,
+  ratesOf,
+  totalsOf,
+  type RateSet,
+} from './rate-overrides.js';
+import {
   computeTransport,
   lineAdjustments,
   presetOf,
@@ -74,7 +91,15 @@ import { parseBudgetWorkbook, parseRevenueWorkbook, WorkbookParseError } from '.
 
 export class RevenueDashboardServiceError extends Error {
   constructor(
-    public readonly code: 'invalid-file' | 'no-data' | 'invalid-activity' | 'not-found',
+    public readonly code:
+      | 'invalid-file'
+      | 'no-data'
+      | 'invalid-activity'
+      | 'not-found'
+      | 'invalid-rates'
+      | 'no-upload'
+      | 'not-confirmed'
+      | 'no-custom-rates',
     message: string,
   ) {
     super(message);
@@ -948,18 +973,44 @@ export function createRevenueDashboardService(pool: Pool) {
 
   // Transport rules (2-trip daily cap), modification #249. The master workbook carries the rule; an
   // admin can switch three toggles that recalculate revenue_lines.revenue for the whole dashboard.
-  async function applyRulesToBatch(client: PoolClient, batchId: string) {
+  async function loadRevenueInputs(client: PoolClient, batchId: string) {
     const stored = await getTransportRules(client);
-    const rows = await listSheetRows(client, batchId, 'CSIDI');
-    const lines = await listTransportLines(client, batchId);
-    if (!rows.length) {
-      await applyTransportRevenue(client, batchId, []);
-      return { unmatched: 0, invoices: 0 };
-    }
-    const calc = computeTransport(rows, stored);
-    const { updates, unmatched } = lineAdjustments(calc, lines);
+    const lines = await listRateLines(client, batchId);
+    const transportLines = await listTransportLines(client, batchId);
+    const sheetRows = await listSheetRows(client, batchId, 'CSIDI');
+    const base = rulesOfBatch({ summary: await batchSummary(client, batchId) } as never);
+    return {
+      inputs: {
+        lines,
+        transportLines,
+        sheetRows,
+        transportRules: {
+          dailyCap: stored.dailyCap,
+          deliveryOnlyCap: stored.deliveryOnlyCap,
+          mixedInvoiceTransport: stored.mixedInvoiceTransport,
+          maxTrips: stored.maxTrips,
+        },
+      },
+      base,
+    };
+  }
+
+  async function applyRulesToBatch(client: PoolClient, batchId: string) {
+    const { inputs, base } = await loadRevenueInputs(client, batchId);
+    const custom = parseRateSet((await getRateOverrides(client)).payload);
+    const next = custom ? overlayRates(base, custom) : base;
+    const { revenue, unmatched } = computeRevenue(inputs, base, next);
+    const updates = inputs.lines
+      .map((l) => ({
+        id: l.id,
+        revenue: revenue.get(l.id) ?? l.workbookRevenue,
+        wb: l.workbookRevenue,
+      }))
+      .filter((u) => Math.abs(u.revenue - u.wb) >= 0.005)
+      .map(({ id, revenue: r }) => ({ id, revenue: r }));
     await applyTransportRevenue(client, batchId, updates);
-    return { unmatched, invoices: calc.invoices.length };
+    await markRateOverridesApplied(client, batchId);
+    return { unmatched, invoices: 0 };
   }
 
   const rulesInputSchema = z.object({
@@ -1109,6 +1160,242 @@ export function createRevenueDashboardService(pool: Pool) {
     return transportRules({});
   }
 
+  // ---- Custom rates (Rate card tab), modification #290 -------------------------------------------
+  const rate = z.number().finite().min(0).max(100000);
+  const categoryRates = z.object({
+    category: z.string().min(1).max(80),
+    batchRate: rate,
+    standardRate: rate,
+    minimumRate: rate,
+  });
+  const masterRates = z.object({
+    categories: z.array(categoryRates).min(1).max(20),
+    discounts: z.array(z.number().finite().min(0).max(0.95)).max(40),
+  });
+  const rateSetSchema = z.object({
+    jobRates: z.object({ CSIJW: rate, CSIJO: rate, CSIDO: rate, RWR: rate }),
+    transport: z.object({ Dubai: rate, Sharjah: rate }),
+    deliveryInstall: masterRates,
+    install: masterRates,
+  });
+
+  function parseRateSet(payload: unknown): RateSet | null {
+    if (!payload) return null;
+    const parsed = rateSetSchema.safeParse(payload);
+    return parsed.success ? parsed.data : null;
+  }
+
+  const JOB_LABELS: Record<string, string> = {
+    CSIJW: 'CSIJW - Warranty repairs',
+    CSIJO: 'CSIJO - Non-warranty repairs',
+    CSIDI: 'CSIDI - Delivery + installation',
+    CSIII: 'CSIII - Installation only',
+    CSIDO: 'CSIDO - Delivery only',
+  };
+
+  function impactOf(
+    inputs: Awaited<ReturnType<typeof loadRevenueInputs>>['inputs'],
+    base: ReturnType<typeof rulesOfBatch>,
+    custom: RateSet,
+  ) {
+    const next = overlayRates(base, custom);
+    const before = computeRevenue(inputs, base, base).revenue;
+    const after = computeRevenue(inputs, base, next).revenue;
+    const a = totalsOf(inputs.lines, before);
+    const b = totalsOf(inputs.lines, after);
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    const affected = new Map<string, number>();
+    for (const l of inputs.lines)
+      if (Math.abs((after.get(l.id) ?? 0) - (before.get(l.id) ?? 0)) >= 0.005)
+        affected.set(l.jobType, (affected.get(l.jobType) ?? 0) + 1);
+    const types = [...new Set([...a.byType.keys(), ...b.byType.keys()])].sort();
+    const byJobType = types.map((t) => ({
+      jobType: t,
+      label: JOB_LABELS[t] ?? t,
+      jobsAffected: affected.get(t) ?? 0,
+      workbookRates: r2(a.byType.get(t) ?? 0),
+      customRates: r2(b.byType.get(t) ?? 0),
+      change: r2((b.byType.get(t) ?? 0) - (a.byType.get(t) ?? 0)),
+    }));
+    const months = [...new Set([...a.byMonth.keys(), ...b.byMonth.keys()])].sort((x, y) => x - y);
+    const byMonth = months.map((m) => ({
+      month: m,
+      workbookRates: r2(a.byMonth.get(m) ?? 0),
+      customRates: r2(b.byMonth.get(m) ?? 0),
+      change: r2((b.byMonth.get(m) ?? 0) - (a.byMonth.get(m) ?? 0)),
+    }));
+    const sum = (k: 'workbookRates' | 'customRates') => r2(byJobType.reduce((t, x) => t + x[k], 0));
+    const workbookRates = sum('workbookRates');
+    const customRates = sum('customRates');
+    return {
+      workbookRates,
+      customRates,
+      change: r2(customRates - workbookRates),
+      changePct: workbookRates ? r2(((customRates - workbookRates) / workbookRates) * 100) : 0,
+      jobsAffected: [...affected.values()].reduce((t, v) => t + v, 0),
+      byJobType,
+      byMonth,
+    };
+  }
+
+  async function rateCard() {
+    const client = await pool.connect();
+    try {
+      const stored = await getRateOverrides(client);
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch) return { batch: null, workbook: null, custom: null, active: false };
+      const { inputs, base } = await loadRevenueInputs(client, batch.id);
+      const custom = parseRateSet(stored.payload);
+      const workbook = ratesOf(base);
+      const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+      const masters = ratesFromMasters(dandi, base);
+      return {
+        batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
+        workbook,
+        custom,
+        active: !!custom,
+        lockedAt: stored.lockedAt,
+        updatedByName: stored.updatedByName,
+        appliedToActive: stored.appliedBatchId === String(batch.id),
+        discountLabels: {
+          deliveryInstall: base.deliveryInstall.discounts.map((d) => d.tier),
+          install: base.install.discounts.map((d) => d.tier),
+        },
+        impact: custom ? impactOf(inputs, base, custom) : null,
+        masters,
+        // "Apply to Pricing Masters" is offered when the masters differ from the locked custom rates.
+        mastersDiffer: custom ? diffRates(masters, custom).length > 0 : false,
+        workbookDiffersFromMasters: diffRates(masters, workbook).length > 0,
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  function checkRateSet(base: ReturnType<typeof rulesOfBatch>, set: RateSet) {
+    const w = ratesOf(base);
+    for (const key of ['deliveryInstall', 'install'] as const) {
+      const names = w[key].categories.map((c) => c.category).join('|');
+      if (names !== set[key].categories.map((c) => c.category).join('|'))
+        throw new RevenueDashboardServiceError(
+          'invalid-rates',
+          'The rate card has changed since this screen was opened. Reload it and try again.',
+        );
+      if (w[key].discounts.length !== set[key].discounts.length)
+        throw new RevenueDashboardServiceError(
+          'invalid-rates',
+          'The volume discount tiers have changed. Reload the screen and try again.',
+        );
+    }
+  }
+
+  async function lockRateCard(body: unknown, profileId: string) {
+    const input = rateSetSchema.parse((body as { rates?: unknown } | null)?.rates);
+    await withTransaction(pool, async (client) => {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch)
+        throw new RevenueDashboardServiceError('no-upload', 'Upload the master workbook first.');
+      const { base } = await loadRevenueInputs(client, batch.id);
+      checkRateSet(base, input);
+      const changes = diffRates(ratesOf(base), input);
+      // Nothing differs from the workbook: that is the same as "back to workbook rates".
+      await saveRateOverrides(client, changes.length ? input : null, profileId);
+      await applyRulesToBatch(client, batch.id);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: changes.length
+          ? 'revenue_dashboard.rate_card_locked'
+          : 'revenue_dashboard.rate_card_reset',
+        targetType: 'revenue_rate_overrides',
+        targetId: '1',
+        metadata: { batchId: batch.id, changes },
+      });
+    });
+    return rateCard();
+  }
+
+  async function resetRateCard(profileId: string) {
+    await withTransaction(pool, async (client) => {
+      await saveRateOverrides(client, null, profileId);
+      const batch = await findActiveBatch(client, 'revenue');
+      if (batch) await applyRulesToBatch(client, batch.id);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.rate_card_reset',
+        targetType: 'revenue_rate_overrides',
+        targetId: '1',
+        metadata: { batchId: batch?.id ?? null },
+      });
+    });
+    return rateCard();
+  }
+
+  // Writes the locked custom rates into Pricing Masters (D+I Admin Entry). Both confirmation steps
+  // happen on screen; the server also wants the word APPLY so a stray call cannot change the masters.
+  async function applyRateCardToMasters(body: unknown, profileId: string, requestId: string) {
+    if ((body as { confirm?: unknown } | null)?.confirm !== 'APPLY')
+      throw new RevenueDashboardServiceError('not-confirmed', 'Type APPLY to confirm.');
+    const client = await pool.connect();
+    let current: DandiPricingInput;
+    let custom: RateSet | null;
+    let base;
+    try {
+      custom = parseRateSet((await getRateOverrides(client)).payload);
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!custom || !batch)
+        throw new RevenueDashboardServiceError(
+          'no-custom-rates',
+          'There are no locked custom rates to apply.',
+        );
+      base = (await loadRevenueInputs(client, batch.id)).base;
+      current = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+    } finally {
+      client.release();
+    }
+    const changes = diffRates(ratesFromMasters(current, base), custom);
+    const { payload, skipped } = mastersFromRates(current, custom, base);
+    await pricing.save('dandi_pricing', payload, profileId, requestId, {
+      source: 'revenue_rate_card',
+      changes,
+      skipped,
+    });
+    return { applied: changes.length, skipped };
+  }
+
+  // Puts the workbook's own rates back into Pricing Masters (the "Excel value" in its history).
+  async function restoreMastersToWorkbookRates(
+    body: unknown,
+    profileId: string,
+    requestId: string,
+  ) {
+    if ((body as { confirm?: unknown } | null)?.confirm !== 'RESTORE')
+      throw new RevenueDashboardServiceError('not-confirmed', 'Type RESTORE to confirm.');
+    const client = await pool.connect();
+    let current: DandiPricingInput;
+    let base;
+    let fileName = '';
+    try {
+      const batch = await findActiveBatch(client, 'revenue');
+      if (!batch)
+        throw new RevenueDashboardServiceError('no-upload', 'Upload the master workbook first.');
+      fileName = batch.fileName;
+      base = (await loadRevenueInputs(client, batch.id)).base;
+      current = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
+    } finally {
+      client.release();
+    }
+    const workbook = ratesOf(base);
+    const changes = diffRates(ratesFromMasters(current, base), workbook);
+    const { payload, skipped } = mastersFromRates(current, workbook, base);
+    await pricing.save('dandi_pricing', payload, profileId, requestId, {
+      source: 'workbook_rates',
+      workbookFile: fileName,
+      changes,
+      skipped,
+    });
+    return { restored: changes.length, skipped, fileName };
+  }
+
   return {
     importWorkbook,
     downloadBatch,
@@ -1133,6 +1420,11 @@ export function createRevenueDashboardService(pool: Pool) {
     recordActivity,
     transportRules,
     saveTransportRulesAndApply,
+    rateCard,
+    lockRateCard,
+    resetRateCard,
+    applyRateCardToMasters,
+    restoreMastersToWorkbookRates,
   };
 }
 

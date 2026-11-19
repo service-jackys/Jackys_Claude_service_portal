@@ -79,7 +79,12 @@ function invoiceBefore(a: string | number, b: string | number) {
   return String(a).toLowerCase() < String(b).toLowerCase();
 }
 
-export function computeTransport(rows: SheetRow[], rules: TransportRules) {
+export function computeTransport(
+  rows: SheetRow[],
+  rules: TransportRules,
+  /** Custom rates (#290): turns the charge the workbook made into the charge under the custom rates. */
+  mapCharge?: (kind: 'installation' | 'delivery', charge: number) => number,
+) {
   const ordered = [...rows].sort((a, b) => a.rowNo - b.rowNo);
   const workbookRule: 'new' | 'old' = ordered.some((r) => 'Revenue Before Cap' in r.data)
     ? 'new'
@@ -153,6 +158,8 @@ export function computeTransport(rows: SheetRow[], rules: TransportRules) {
       charge = csidoBefore;
       actual = csidoLines.reduce((s, l) => s + l.aRevenue, 0);
     }
+    if (mapCharge && charge > 0 && (kind === 'installation' || kind === 'delivery'))
+      charge = mapCharge(kind, charge);
     const mixedSingle = types.has('CSIDI') && types.has('CSIDO') && csidiQty <= 1;
     if (kind === 'installation' && mixedSingle && !rules.mixedInvoiceTransport) charge = 0;
     invoices.push({

@@ -88,6 +88,10 @@ export type PricingConfigHistoryEntry = {
   actorProfileId: string | null;
   payload: unknown;
   occurredAt: Date;
+  /** Where the change came from, when it was not a plain save in Pricing Masters. */
+  source: string | null;
+  /** What changed (rate card changes), when recorded. */
+  changes: unknown[] | null;
 };
 
 // History for one domain, newest first -- reads straight off audit_events
@@ -103,7 +107,7 @@ export async function listPricingConfigHistory(
     id: string;
     action: string;
     actor_profile_id: string | null;
-    metadata: { domain: string; payload: unknown };
+    metadata: { domain: string; payload: unknown; source?: string; changes?: unknown[] };
     occurred_at: Date;
   }>(
     `SELECT id, action, actor_profile_id, metadata, occurred_at
@@ -119,6 +123,8 @@ export async function listPricingConfigHistory(
     actorProfileId: row.actor_profile_id,
     payload: row.metadata?.payload,
     occurredAt: row.occurred_at,
+    source: row.metadata?.source ?? null,
+    changes: row.metadata?.changes ?? null,
   }));
 }
 
@@ -131,7 +137,7 @@ export async function getPricingConfigHistoryEntry(
     id: string;
     action: string;
     actor_profile_id: string | null;
-    metadata: { domain: string; payload: unknown };
+    metadata: { domain: string; payload: unknown; source?: string; changes?: unknown[] };
     occurred_at: Date;
   }>(
     `SELECT id, action, actor_profile_id, metadata, occurred_at
@@ -148,5 +154,7 @@ export async function getPricingConfigHistoryEntry(
     actorProfileId: row.actor_profile_id,
     payload: row.metadata?.payload,
     occurredAt: row.occurred_at,
+    source: row.metadata?.source ?? null,
+    changes: row.metadata?.changes ?? null,
   };
 }
