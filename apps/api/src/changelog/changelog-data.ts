@@ -25,7 +25,8 @@ export const CHANGELOG: ChangelogEntry[] = [
     "changes": [
       "New layout. Numbered cards (Job details, Appliance quantities, Special discount, Client details, Price breakdown) with a navy summary panel that stays in view and shows the total, status and key facts. Service type is a two-button switch.…",
       "Special discount (admin only, needs pricing_config.write). Choose a percentage or an amount, type the value. The box shows the maximum allowed and checks the result against the Minimum charge per unit (35 today): green \"Discount OK\" with…",
-      "Users without pricing_config.write do not see the discount box and get the same prices as before."
+      "Users without pricing_config.write do not see the discount box and get the same prices as before.",
+      "Follow-up polish: lighter, smaller fonts (labels, inputs, table, total); the summary panel no longer slides under the top bar when scrolling; card headings are readable in dark mode."
     ],
     "needsYou": "pull and hard-refresh. No API restart, no migration.",
     "migrations": [],

@@ -5218,6 +5218,7 @@ Display only; no pricing formulas, API or database changes.
   - The discount comes off the appliance charges only (transport is never discounted) and is shared across the lines by how much room each has above the minimum, so no unit price can go below it.
   - It shows in the breakdown (Subtotal, Special discount, Transport, Total), in the summary panel, in the unit price on each appliance card, and as a "Special discount" row on the printed proposal. Nothing is saved.
 - Users without pricing_config.write do not see the discount box and get the same prices as before.
+- Follow-up polish: lighter, smaller fonts (labels, inputs, table, total); the summary panel no longer slides under the top bar when scrolling; card headings are readable in dark mode.
 
 **Files.** apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-calc-core.test.ts, tests/e2e/dandi-calculator.spec.ts.
 
