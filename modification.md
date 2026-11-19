@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #283 — Scan a unit and repeat-repair warning
+
+**Date:** 2026-11-19
+
+**Why.** With stickers on repaired and installed units, the warehouse and service team need to scan a sticker and see the unit at once, and be warned when the same unit comes back for repair.
+
+**What changed.**
+
+- New **Scan a unit** button (barcode icon) at the top of the portal, next to the account menu. It opens a box that a USB barcode scanner types into like a keyboard (or type the code and press Enter). It shows for anyone who can read job cards or Delivery and Install.
+- A job card number (for example JBC-2026-00412) shows the unit, owner, warranty, received date, technician, work done and parts, with **Open job card** and **Reprint sticker**.
+- A unit code from a Delivery and Install sticker (for example 16101023-1) shows the brand, model, description, customer, installed (or delivered) date and the warranty start date.
+- **Repeat repair warning:** if another job card has the same serial number within the 90 days before this one, an amber box says it is the 2nd (3rd, and so on) job on that serial and names the previous one. It is checked only where a serial exists (repair jobs); installed units have no serial.
+- The Job cards list search now also finds a serial number.
+- No database change, no pricing or billing change.
+- Tests: tests/e2e/scan-lookup.spec.ts.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, packages/db/src/job-cards.ts, tests/e2e/scan-lookup.spec.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
+
 ## Modification #282 — Delivery and Install: B2C customers and unit stickers
 
 **Date:** 2026-11-19

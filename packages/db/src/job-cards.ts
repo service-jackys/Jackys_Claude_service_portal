@@ -572,7 +572,7 @@ export async function listServiceJobCards(
   if (query.search) {
     const parameter = add(`%${query.search}%`);
     filters.push(
-      `(service_job_cards.job_card_reference ILIKE ${parameter} OR appointments.appointment_reference ILIKE ${parameter} OR quotations.quotation_reference ILIKE ${parameter} OR service_job_cards.customer_name ILIKE ${parameter} OR service_job_cards.customer_contact ILIKE ${parameter})`,
+      `(service_job_cards.job_card_reference ILIKE ${parameter} OR appointments.appointment_reference ILIKE ${parameter} OR quotations.quotation_reference ILIKE ${parameter} OR service_job_cards.customer_name ILIKE ${parameter} OR service_job_cards.customer_contact ILIKE ${parameter} OR service_job_cards.serial_no ILIKE ${parameter})`,
     );
   }
   const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
