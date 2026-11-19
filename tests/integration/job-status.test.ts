@@ -83,7 +83,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           created.id,
-          { jobFinalStatus: 'Delivered' },
+          { jobFinalStatus: 'Delivered', stickerAttached: true },
           profileId,
           'job-status-early-delivery',
         ),
@@ -100,10 +100,25 @@ test(
       );
       assert.equal(repaired.jobFinalStatus, 'Repair Completed');
 
+      // The unit sticker must be confirmed as attached before the card can be Delivered.
+      await assert.rejects(
+        jobCardService.updateContent(
+          created.id,
+          { jobFinalStatus: 'Delivered' },
+          profileId,
+          'job-status-no-sticker',
+        ),
+        (error: unknown) =>
+          error instanceof ServiceJobCardError &&
+          error.code === 'invalid-transition' &&
+          /Sticker attached/.test(error.message),
+      );
+      assert.equal((await jobCardService.detail(created.id)).jobCard.stickerAttached, false);
+
       // Repair Completed -> Delivered works and fills the delivery date.
       const delivered = await jobCardService.updateContent(
         created.id,
-        { jobFinalStatus: 'Delivered' },
+        { jobFinalStatus: 'Delivered', stickerAttached: true },
         profileId,
         'job-status-delivered',
       );

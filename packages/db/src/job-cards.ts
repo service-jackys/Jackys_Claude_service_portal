@@ -81,6 +81,7 @@ export type ServiceJobCardRecord = {
   billToChannel: string | null;
   billToOverridden: boolean;
   billingJobType: string | null;
+  stickerAttached: boolean;
   invoiceDate: string | null;
   paymentMode: string | null;
   paymentReference: string | null;
@@ -239,6 +240,7 @@ const columns = `
   service_job_cards.bill_to_channel AS "billToChannel",
   service_job_cards.bill_to_overridden AS "billToOverridden",
   service_job_cards.billing_job_type AS "billingJobType",
+  service_job_cards.sticker_attached AS "stickerAttached",
   service_job_cards.invoice_date::text AS "invoiceDate",
   service_job_cards.payment_mode AS "paymentMode",
   service_job_cards.payment_reference AS "paymentReference",
@@ -867,6 +869,23 @@ export async function updateServiceJobCardBilling(
       billing.paymentConfirmed ?? null,
       profileId,
     ],
+  );
+}
+
+/** Records (or clears) that the printed unit sticker is on the unit (migration 105). */
+export async function setServiceJobCardStickerAttached(
+  client: PoolClient,
+  id: string,
+  attached: boolean,
+  profileId: string,
+): Promise<void> {
+  await client.query(
+    `UPDATE service_job_cards
+     SET sticker_attached = $2,
+         sticker_attached_at = CASE WHEN $2 THEN now() ELSE NULL END,
+         sticker_attached_by = CASE WHEN $2 THEN $3::bigint ELSE NULL END
+     WHERE id = $1`,
+    [id, attached, profileId],
   );
 }
 

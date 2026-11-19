@@ -171,7 +171,7 @@ test(
       assert.equal(await kindTotal('portal_job_csijo', true), jobBefore);
       await jobCardService.updateContent(
         card.id,
-        { jobFinalStatus: 'Delivered' },
+        { jobFinalStatus: 'Delivered', stickerAttached: true },
         profileId,
         `amc-rev-delivered-${randomUUID()}`,
       );

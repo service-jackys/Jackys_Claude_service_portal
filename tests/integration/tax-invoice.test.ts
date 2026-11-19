@@ -114,7 +114,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           card.id,
-          { jobFinalStatus: 'Delivered' },
+          { jobFinalStatus: 'Delivered', stickerAttached: true },
           profileId,
           'inv-deliver-unpaid',
         ),
@@ -147,7 +147,7 @@ test(
 
       const delivered = await jobCardService.updateContent(
         card.id,
-        { jobFinalStatus: 'Delivered' },
+        { jobFinalStatus: 'Delivered', stickerAttached: true },
         profileId,
         'inv-deliver-paid',
       );

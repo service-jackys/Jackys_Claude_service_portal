@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #284 — "Sticker attached" confirmation before Delivered
+
+**Date:** 2026-11-19
+
+**Why.** Every repaired unit should leave with its printed sticker. Management asked that staff confirm the sticker is on the unit before a job card can be marked Delivered.
+
+**What changed.**
+
+- New tick **Sticker attached** on the job card edit form, below Final status. Tick it after printing the unit sticker (Print unit sticker) and sticking it on the unit.
+- A job card cannot be set to **Delivered** (final status Delivered, or completing it from the status flow) until the tick is ticked. The portal shows a pop-up "Sticker not attached" and the API refuses with the same message.
+- Job cards imported from the old sheet are **exempt**, so old records are not blocked. Job cards already Delivered are untouched.
+- The tick records who ticked it and when (kept in the database).
+- Nothing else changes: billing, invoice and payment gates work as before.
+- Migration 105 adds the sticker columns to job cards.
+- Tests: tests/integration/job-status.test.ts (Delivered is refused without the tick); the existing Delivered tests now tick it.
+
+**Files.** packages/db/migrations/105_job_card_sticker_attached.sql, packages/db/src/job-cards.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration (Delivered tests).
+
+**Needs you:** pull, **run `npm.cmd run db:migrate`** (migration 105), restart the API, hard-refresh. Tell the team: print the sticker, stick it, tick "Sticker attached", then mark Delivered.
+
 ## Modification #283 — Scan a unit and repeat-repair warning
 
 **Date:** 2026-11-19
