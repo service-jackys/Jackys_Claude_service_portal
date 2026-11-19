@@ -128,7 +128,8 @@ test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved
   const maxUnits = page.locator('[data-pc-maxunits]');
   await expect(maxUnits).toBeVisible();
   const dandiNote = page.locator('[data-dandi-tier-note="dandi"]');
-  await maxUnits.selectOption('100');
+  await maxUnits.fill('100');
+  await maxUnits.blur();
   await expect(dandiNote).toContainText('5 ranges were added from 51 units');
   await expect(dandiNote).toContainText('stops at 41%');
   await expect(page.locator('[data-dandi-tier-note="install"]')).toContainText('stops at 36%');
@@ -140,8 +141,17 @@ test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved
     has: page.locator('input[value="91\u2013100 units"]'),
   });
   await expect(lastRow.locator('input').last()).toHaveValue('32');
+  // Any whole number works, not only 50, 60 or 100: 130 adds ranges up to 121-130.
+  await maxUnits.fill('130');
+  await maxUnits.blur();
+  await expect(dandiCard.locator('input[value="121\u2013130 units"]')).toHaveCount(1);
+  // A value that is not a whole number from 1 goes back to the last good one.
+  await maxUnits.fill('0');
+  await maxUnits.blur();
+  await expect(maxUnits).toHaveValue('130');
   // Going back to 50 drops them again.
-  await maxUnits.selectOption('50');
+  await maxUnits.fill('50');
+  await maxUnits.blur();
   await expect(dandiNote).toContainText('Ranges now end at the maximum of 50 units');
   await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(0);
 });

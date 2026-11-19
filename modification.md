@@ -5217,10 +5217,11 @@ Display only; no pricing formulas, API or database changes.
   - A bigger maximum adds ranges after the last tier, 10 units wide (50 to 100 adds 51–60, 61–70, 71–80, 81–90 and 91–100) and **fills in their discount**: each range goes up 2 points on the one before and stops at the largest whole % that keeps the unit price at or above the Minimum charge per unit (lowest batch rate x (1 − discount) ≥ minimum; with minimum 35 that is 41% for D+I, lowest batch 60, and 36% for Installation Only, lowest batch 55). Every % can be edited afterwards.
   - A smaller maximum drops the tiers beyond it and trims the last one. Percentages and custom labels you set are kept.
   - A note under each table says how many ranges were added and from which unit.
+- **Maximum units per quote is now a number box** (any whole number from 1 to 500) instead of the 50 / 60 / 100 list; saved values of 50, 60 and 100 stay valid. A value that is not a whole number from 1 goes back to the last good one.
 - Ranges can still be edited, added or removed; extra tiers stay optional.
 - Nothing changes until Save; Reset to defaults and History / Restore work as before.
 
-**Files.** apps/web/src/dandi-tiers.js (new), apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts (new), tests/e2e/permissions-flat-rates.spec.ts.
+**Files.** apps/web/src/dandi-tiers.js (new), packages/contracts/src/index.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-tiers.test.ts (new), tests/e2e/permissions-flat-rates.spec.ts.
 
 **Needs you:** pull, hard-refresh (no API restart, no migration). Then set the maximum to 100, check the new percentages (edit any you want) and Save.
 

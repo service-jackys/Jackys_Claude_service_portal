@@ -1754,7 +1754,7 @@ export const dandiFlatRateDefaults: DandiFlatRates = {
 
 export const dandiPricingSchema = z
   .object({
-    maxUnits: z.union([z.literal(50), z.literal(60), z.literal(100)]),
+    maxUnits: z.number().int().min(1).max(500),
     minUnitRate: nonNegSchema,
     regions: z.array(dandiRegionSchema).min(1),
     groupings: z.array(z.string().trim().min(1).max(120)).min(1),
