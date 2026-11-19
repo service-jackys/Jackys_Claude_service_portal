@@ -3169,6 +3169,62 @@
         min-width: 220px;
         max-width: 520px;
       }
+      #scanLookupButton[hidden] {
+        display: none;
+      }
+      .scan-dialog {
+        width: min(560px, 94vw);
+      }
+      .scan-row {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+      .scan-row input {
+        flex: 1;
+        min-height: 44px;
+        border: 2px solid var(--accent, #1769aa);
+        border-radius: 10px;
+        padding: 0 12px;
+        font-size: 16px;
+      }
+      .scan-card {
+        border: 1px solid #d9e2eb;
+        border-radius: 12px;
+        padding: 14px 16px;
+        margin-bottom: 8px;
+      }
+      .scan-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      .scan-status {
+        border: 2px solid currentColor;
+        border-radius: 8px;
+        padding: 2px 10px;
+        font-weight: 700;
+        font-size: 13px;
+      }
+      .scan-grid {
+        display: grid;
+        grid-template-columns: 110px 1fr;
+        row-gap: 4px;
+        font-size: 14px;
+      }
+      .scan-k {
+        color: #5e6d7e;
+      }
+      .scan-warn {
+        border: 1px solid #c9922a;
+        background: #fdf6e7;
+        color: #6b4600;
+        border-radius: 10px;
+        padding: 8px 12px;
+        margin-top: 10px;
+        font-size: 13px;
+      }
       .pw-dialog {
         border: 0;
         border-radius: 12px;
@@ -13846,6 +13902,26 @@
               ></button>
             </div>
           </div>
+          <button
+            class="icon-button"
+            type="button"
+            id="scanLookupButton"
+            aria-label="Scan a unit"
+            title="Scan a unit: type or scan a job card number or a unit code"
+            hidden
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M4 5v14M8 5v14M12 5v14M17 5v14M20 5v14" />
+            </svg>
+          </button>
           <div class="user-menu-wrap">
             <button
               class="icon-button user-menu-trigger"

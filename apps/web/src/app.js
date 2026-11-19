@@ -852,6 +852,9 @@
     $('#visitDraftsNav').hidden = true;
     refreshVisitDraftCount();
     $('#deliveryInstallNav').hidden = !hasPermission('di_jobs.read');
+    $('#scanLookupButton').hidden = !(
+      hasPermission('service_job_card.read') || hasPermission('di_jobs.read')
+    );
     $('#invoicesNav').hidden = !hasPermission('invoices.read');
     $('#billingNav').hidden = !hasPermission('billing.read');
     if (hasPermission('scheduler.read')) {
@@ -4593,6 +4596,155 @@ ${bodyHtml}
     dialog.addEventListener('close', () => dialog.remove());
     document.body.appendChild(dialog);
     dialog.showModal();
+  }
+
+  // ---- Scan a unit: a USB barcode scanner types into the box like a keyboard ----
+  const SCAN_REPEAT_DAYS = 90;
+  const normalSerial = (value) =>
+    String(value || '')
+      .replace(/\s+/g, '')
+      .toUpperCase();
+
+  // Another job on the same serial within 90 days before this job card (serials only exist on repair jobs).
+  async function findRepeatRepairs(jobCard) {
+    const serial = normalSerial(jobCard.serialNo);
+    if (!serial) return [];
+    const result = await apiRequest(
+      '/api/job-cards?pageSize=100&search=' + encodeURIComponent(jobCard.serialNo.trim()),
+    );
+    const thisDate = Date.parse(jobCard.jobCardDate || '');
+    return (result.jobCards || [])
+      .filter((other) => {
+        if (String(other.id) === String(jobCard.id)) return false;
+        if (normalSerial(other.serialNo) !== serial) return false;
+        if (other.status === 'Cancelled' || other.jobFinalStatus === 'Cancelled') return false;
+        const date = Date.parse(other.jobCardDate || '');
+        if (Number.isNaN(date) || Number.isNaN(thisDate)) return true;
+        const days = (thisDate - date) / 86400000;
+        return days >= 0 && days <= SCAN_REPEAT_DAYS;
+      })
+      .sort((a, b) => String(b.jobCardDate).localeCompare(String(a.jobCardDate)));
+  }
+
+  // Returns { kind: 'job_card', jobCard, repeats } or { kind: 'unit', job, unit } or null.
+  async function scanLookup(codeRaw) {
+    const code = String(codeRaw || '').trim();
+    if (!code) return null;
+    if (hasPermission('service_job_card.read') && /^JBC-\d{4}-\d{5}$/i.test(code)) {
+      const found = await apiRequest(
+        '/api/job-cards?pageSize=5&search=' + encodeURIComponent(code),
+      );
+      const match = (found.jobCards || []).find(
+        (card) => String(card.jobCardReference).toUpperCase() === code.toUpperCase(),
+      );
+      if (match) {
+        const detail = (await apiRequest('/api/job-cards/' + encodeURIComponent(match.id))).jobCard;
+        return { kind: 'job_card', jobCard: detail, repeats: await findRepeatRepairs(detail) };
+      }
+    }
+    const unitMatch = /^(.+)-(\d{1,4})$/.exec(code);
+    if (hasPermission('di_jobs.read') && unitMatch) {
+      const note = unitMatch[1].trim();
+      const unitNo = Number(unitMatch[2]);
+      const found = await apiRequest('/api/di-jobs?pageSize=50&search=' + encodeURIComponent(note));
+      const candidates = (found.jobs || []).filter(
+        (job) =>
+          job.status !== 'Cancelled' &&
+          String(job.deliveryNoteRef || '')
+            .trim()
+            .toLowerCase() === note.toLowerCase(),
+      );
+      for (const candidate of candidates) {
+        const job = (await apiRequest('/api/di-jobs/' + encodeURIComponent(candidate.id))).job;
+        let counter = 0;
+        for (const line of job.lines || []) {
+          const count = Math.max(1, Math.floor(Number(line.qty) || 1));
+          for (let i = 0; i < count; i += 1) {
+            counter += 1;
+            if (counter === unitNo)
+              return { kind: 'unit', job, unit: line, unitNo, unitCount: null };
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  function scanResultHtml(result) {
+    const row = (label, value) =>
+      value
+        ? `<div class="scan-k">${escapeHtml(label)}</div><div>${escapeHtml(String(value))}</div>`
+        : '';
+    if (result.kind === 'job_card') {
+      const c = result.jobCard;
+      const parts = (c.parts || [])
+        .filter((p) => p.partNo || p.description)
+        .map((p) => p.partNo || p.description)
+        .join(', ');
+      const repeat = result.repeats.length
+        ? `<div class="scan-warn"><strong>Repeat repair.</strong> This is job ${result.repeats.length + 1} on this serial in ${SCAN_REPEAT_DAYS} days (checked only where a serial exists). Previous: ${escapeHtml(result.repeats[0].jobCardReference)}, ${escapeHtml(result.repeats[0].jobCardDate || '')}${result.repeats[0].serviceRendered ? ', ' + escapeHtml(result.repeats[0].serviceRendered) : ''}.</div>`
+        : '';
+      return (
+        `<div class="scan-card"><div class="scan-head"><strong>${escapeHtml(c.jobCardReference)}</strong><span class="scan-status">${escapeHtml(c.jobFinalStatus || c.status || '')}</span></div>` +
+        `<div class="scan-grid">${row('Unit', [c.modelNo || c.itemDescription, c.serialNo ? 'SN ' + c.serialNo : ''].filter(Boolean).join(' · '))}${row('Owner', c.customerName)}${row('Warranty', c.finalWarrantyStatus || c.warrantyStatus)}${row('Received', c.jobCardDate)}${row('Technician', c.technicianName)}${row('Work done', c.serviceRendered)}${row('Parts', parts)}</div>` +
+        repeat +
+        '<div class="form-footer"><button type="button" class="button button-outline" data-scan-open>Open job card</button><button type="button" class="button button-outline" data-scan-sticker>Reprint sticker</button></div></div>'
+      );
+    }
+    const j = result.job;
+    const u = result.unit;
+    const status =
+      u.type === 'CSIDO' ? 'DELIVERED' : u.type === 'CSIII' ? 'INSTALLED' : 'DELIVERED + INSTALLED';
+    return (
+      `<div class="scan-card"><div class="scan-head"><strong>DN ${escapeHtml(j.deliveryNoteRef)} · unit ${result.unitNo}</strong><span class="scan-status">${status}</span></div>` +
+      `<div class="scan-grid">${row('Brand', u.brand)}${row('Model / code', u.itemCode)}${row('Description', u.itemDesc)}${row('Customer', j.customerName)}${row(u.type === 'CSIDO' ? 'Delivered on' : 'Installed on', j.serviceDate)}${row('Warranty starts', j.serviceDate)}${row('Technician', j.technicianName)}</div>` +
+      '<p class="form-note">Warranty: 1 year from the start date, unless a VAS plan was bought with the unit.</p></div>'
+    );
+  }
+
+  function openScanLookup() {
+    const dialog = document.createElement('dialog');
+    dialog.className = 'pw-dialog print-choice scan-dialog';
+    dialog.innerHTML =
+      '<h3>Scan a unit</h3>' +
+      '<form data-scan-form class="scan-row"><label for="scanInput" style="position:absolute;left:-9999px">Scan or type a job card number or unit code</label>' +
+      '<input id="scanInput" type="text" autocomplete="off" placeholder="Scan or type: JBC-2026-00412 or 16101023-1" />' +
+      '<button type="submit" class="button button-primary">Find</button></form>' +
+      '<div data-scan-result></div>' +
+      '<div class="form-footer"><button type="button" class="button button-outline" data-scan-close>Close</button></div>';
+    const resultBox = dialog.querySelector('[data-scan-result]');
+    let current = null;
+    dialog.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const code = dialog.querySelector('#scanInput').value;
+      resultBox.innerHTML = '<p class="form-note">Looking…</p>';
+      try {
+        current = await scanLookup(code);
+        resultBox.innerHTML = current
+          ? scanResultHtml(current)
+          : '<p class="form-note">Nothing found for that code. Check the number, or your access to that section.</p>';
+      } catch (error) {
+        resultBox.innerHTML = `<p class="form-note">${escapeHtml(error.message)}</p>`;
+      }
+      const input = dialog.querySelector('#scanInput');
+      input.focus();
+      input.select();
+    });
+    dialog.addEventListener('click', async (event) => {
+      if (event.target.closest('[data-scan-close]')) dialog.close();
+      else if (event.target.closest('[data-scan-open]') && current?.kind === 'job_card') {
+        const id = current.jobCard.id;
+        dialog.close();
+        setWorkspaceMode('job-cards');
+        loadJobCardDetail(id);
+      } else if (event.target.closest('[data-scan-sticker]') && current?.kind === 'job_card') {
+        await printRepairSticker(current.jobCard);
+      }
+    });
+    dialog.addEventListener('close', () => dialog.remove());
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    dialog.querySelector('#scanInput').focus();
   }
 
   // Small "which copy?" chooser used before printing. Resolves to the chosen
@@ -11135,6 +11287,7 @@ ${bodyHtml}
   });
   $('#printUnitStickerButton').addEventListener('click', () => printRepairSticker(currentJobCard));
   $('#labelSettingsButton').addEventListener('click', openLabelSettings);
+  $('#scanLookupButton').addEventListener('click', openScanLookup);
   $('#printJobCardButton').addEventListener('click', async () => {
     if (!currentJobCard) return;
     const variant = await askPrintVariant('Print service job card', [

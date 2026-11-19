@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 283,
+    "title": "Scan a unit and repeat-repair warning",
+    "area": "Job cards",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "A scan box finds a job card or an installed unit from its sticker barcode, and warns when the same serial comes back for repair within 90 days.",
+    "changes": [
+      "Scan a unit button at the top of the portal: type or scan a job card number or a delivery note unit code.",
+      "Job card result with Open job card and Reprint sticker; unit result with brand, model, install date and warranty start.",
+      "Amber repeat-repair warning when another job card has the same serial within the previous 90 days.",
+      "Job cards search also finds a serial number."
+    ],
+    "needsYou": "Pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, packages/db/src/job-cards.ts, tests/e2e/scan-lookup.spec.ts. No database change."
+  },
+  {
     "id": 282,
     "title": "Delivery and Install: B2C customers and unit stickers",
     "area": "Delivery & Installation",
