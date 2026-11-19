@@ -138,7 +138,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           card.id,
-          { jobFinalStatus: 'Delivered' },
+          { jobFinalStatus: 'Delivered', stickerAttached: true },
           profileId,
           'billing-deliver-no-invoice',
         ),
@@ -147,7 +147,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           card.id,
-          { jobFinalStatus: 'Delivered', invoiceNo: 'INV-BILL-1' },
+          { jobFinalStatus: 'Delivered', stickerAttached: true, invoiceNo: 'INV-BILL-1' },
           profileId,
           'billing-deliver-unpaid',
         ),
@@ -167,6 +167,7 @@ test(
         card.id,
         {
           jobFinalStatus: 'Delivered',
+          stickerAttached: true,
           invoiceNo: 'INV-BILL-1',
           invoiceDate: dayOffset(0),
           paymentMode: 'Bank transfer',
@@ -197,7 +198,7 @@ test(
       );
       const channelDelivered = await jobCardService.updateContent(
         channelCard.id,
-        { jobFinalStatus: 'Delivered' },
+        { jobFinalStatus: 'Delivered', stickerAttached: true },
         profileId,
         'billing-channel-delivered',
       );

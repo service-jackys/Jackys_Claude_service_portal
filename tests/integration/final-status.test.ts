@@ -106,7 +106,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           b2c.id,
-          { finalStatus: 'Delivered' },
+          { finalStatus: 'Delivered', stickerAttached: true },
           profileId,
           'outcome-b2c-no-reason',
         ),
@@ -116,7 +116,11 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           b2c.id,
-          { finalStatus: 'Delivered', finalStatusReason: 'Customer declined the quote' },
+          {
+            finalStatus: 'Delivered',
+            stickerAttached: true,
+            finalStatusReason: 'Customer declined the quote',
+          },
           profileId,
           'outcome-b2c-no-approval',
         ),
@@ -147,7 +151,12 @@ test(
       // After approval the CCE removes the spares and delivers; BER stays BER.
       const delivered = await jobCardService.updateContent(
         b2c.id,
-        { parts: [], finalStatus: 'Delivered', finalStatusReason: 'Customer declined the quote' },
+        {
+          parts: [],
+          finalStatus: 'Delivered',
+          stickerAttached: true,
+          finalStatusReason: 'Customer declined the quote',
+        },
         profileId,
         'outcome-b2c-deliver',
       );
@@ -179,7 +188,11 @@ test(
       assert.ok(b2bBer.billToChannel);
       const b2bDone = await jobCardService.updateContent(
         b2b.id,
-        { finalStatus: 'Delivered', finalStatusReason: 'Parts fitted, written off' },
+        {
+          finalStatus: 'Delivered',
+          stickerAttached: true,
+          finalStatusReason: 'Parts fitted, written off',
+        },
         profileId,
         'outcome-b2b-deliver',
       );
@@ -217,7 +230,11 @@ test(
       assert.equal(Number(cancelledJob.amountChargeable), 0);
       const cancelledDone = await jobCardService.updateContent(
         cancelled.id,
-        { finalStatus: 'Delivered', finalStatusReason: 'Duplicate job card' },
+        {
+          finalStatus: 'Delivered',
+          stickerAttached: true,
+          finalStatusReason: 'Duplicate job card',
+        },
         profileId,
         'outcome-cancel-deliver',
       );
@@ -254,7 +271,7 @@ test(
       await assert.rejects(
         jobCardService.updateContent(
           wip.id,
-          { finalStatus: 'Delivered' },
+          { finalStatus: 'Delivered', stickerAttached: true },
           profileId,
           'outcome-wip-deliver',
         ),

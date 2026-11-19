@@ -1556,6 +1556,7 @@
         <div class="field"><label for="${prefix}DeliveryDate">Delivery date ${tipHtml('Captured automatically on the day the job is saved as Delivered. Enter a date here only to record a different delivery day.')}</label><input type="date" id="${prefix}DeliveryDate"></div>
         <div class="field"><label for="${prefix}JobFinalStatus">Job status ${tipHtml('Where the job is right now. Customer approval pending waits for the customer to approve out-of-warranty work, then WIP. Use BER when the item cannot be repaired economically. Repair Completed when the work is finished.')}</label><select id="${prefix}JobFinalStatus">${jobFinalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
         <div class="field"><label for="${prefix}FinalStatus">Final status ${tipHtml('Delivered once the customer has the unit back. It can be chosen when the job status is Repair Completed, BER, Rejected or Cancelled. Leave it blank while the job is open. A BER, Rejected or Cancelled job asks for a reason. Delivered locks the card; only an admin can edit it after that.')}</label><select id="${prefix}FinalStatus"><option value="">Open (not delivered)</option>${finalStatusOptions.map((status) => `<option value="${status}">${status}</option>`).join('')}</select></div>
+        <div class="field" id="${prefix}StickerField"${prefix === 'jce' ? '' : ' hidden'}><label class="check-label" for="${prefix}StickerAttached"><input type="checkbox" id="${prefix}StickerAttached"> Sticker attached ${tipHtml('Tick when the printed unit sticker (Print unit sticker) is stuck on the unit. It is required before the job card can be marked Delivered. Job cards imported from the old sheet are exempt.')}</label></div>
         <div class="field" id="${prefix}FinalStatusReasonField" hidden><label for="${prefix}FinalStatusReason">Reason ${tipHtml('Why this BER, Rejected or Cancelled job is being delivered back.')}</label><select id="${prefix}FinalStatusReason"><option value="">Select a reason</option>${finalStatusReasonOptions.map((reason) => `<option value="${reason}">${reason}</option>`).join('')}</select><p class="field-hint is-warn" id="${prefix}FinalStatusWarning"></p></div>
       </div>
         </div>
@@ -2503,6 +2504,8 @@
       : '';
     $(`#${prefix}JobFinalStatus`).value = content.jobFinalStatus || 'WIP';
     $(`#${prefix}FinalStatus`).value = content.finalStatus || '';
+    const stickerBox = $(`#${prefix}StickerAttached`);
+    if (stickerBox) stickerBox.checked = Boolean(content.stickerAttached);
     $(`#${prefix}FinalStatusReason`).value = content.finalStatusReason || '';
     refreshFinalStatusReason(prefix);
     $(`#${prefix}FinalWarrantyStatus`).value = content.finalWarrantyStatus || '';
@@ -9267,6 +9270,19 @@ ${bodyHtml}
     if (!currentJobCardId) return;
     if (!(await demandSalesman('jce')) || !(await demandSalesmanChannel('jce'))) return;
     const payload = collectJobCardForm('jce');
+    payload.stickerAttached = $('#jceStickerAttached').checked;
+    if (
+      payload.finalStatus === 'Delivered' &&
+      currentJobCard?.finalStatus !== 'Delivered' &&
+      !currentJobCard?.legacyReference &&
+      !payload.stickerAttached
+    ) {
+      notifyDialog(
+        'Sticker not attached',
+        'Print the unit sticker (Print unit sticker), stick it on the unit, then tick "Sticker attached" before marking this job card Delivered.',
+      );
+      return;
+    }
     let approvalFile = null;
     if (
       currentJobCard?.jobFinalStatus === 'Customer approval pending' &&

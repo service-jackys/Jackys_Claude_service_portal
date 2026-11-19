@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 284,
+    "title": "Sticker attached confirmation before Delivered",
+    "area": "Job cards",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "A job card cannot be marked Delivered until staff tick that the unit sticker is attached.",
+    "changes": [
+      "New Sticker attached tick on the job card edit form.",
+      "Delivered is refused (pop-up and API) until the tick is ticked.",
+      "Job cards imported from the old sheet are exempt; already Delivered cards are unchanged.",
+      "Who ticked it and when is recorded."
+    ],
+    "needsYou": "Pull, run npm.cmd run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["105_job_card_sticker_attached.sql"],
+    "files": "packages/db/migrations/105_job_card_sticker_attached.sql, packages/db/src/job-cards.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/web/src/app.js, tests/integration (Delivered tests)."
+  },
+  {
     "id": 283,
     "title": "Scan a unit and repeat-repair warning",
     "area": "Job cards",

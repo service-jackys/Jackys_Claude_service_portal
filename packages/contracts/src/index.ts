@@ -556,6 +556,7 @@ export const serviceJobCardUpdateSchema = z
     ...jobCardContentFields,
     approvalMethod: z.enum(manualApprovalMethods).optional(),
     approvalNotes: optionalText(2000),
+    stickerAttached: z.boolean().optional(),
   })
   .strict();
 export type ServiceJobCardUpdateInput = z.infer<typeof serviceJobCardUpdateSchema>;

@@ -30,6 +30,7 @@ import {
   insertServiceJobCardHistory,
   listServiceJobCardHistory,
   listServiceJobCards,
+  setServiceJobCardStickerAttached,
   setServiceJobCardFinalStatus,
   setServiceJobCardJobStatus,
   setServiceJobCardClosureApproval,
@@ -542,6 +543,9 @@ function splitBilling<T extends Record<string, unknown>>(
     rest: rest as Omit<T, (typeof billingKeys)[number]>,
   };
 }
+
+const STICKER_REQUIRED_MESSAGE =
+  'Tick "Sticker attached" to confirm the unit sticker is on the unit before marking this job card Delivered.';
 
 /** Today's date in the business time zone (Dubai), as YYYY-MM-DD. */
 function businessToday(): string {
@@ -1212,7 +1216,7 @@ export function createServiceJobCardService(pool: Pool) {
   ) {
     const {
       billing,
-      rest: { approvalMethod, approvalNotes, ...rawOverrides },
+      rest: { approvalMethod, approvalNotes, stickerAttached, ...rawOverrides },
     } = splitBilling(serviceJobCardUpdateSchema.parse(input ?? {}));
     const overrides = normaliseStatusAlias(rawOverrides);
     return withTransaction(pool, async (client) => {
@@ -1247,6 +1251,14 @@ export function createServiceJobCardService(pool: Pool) {
           'invalid-transition',
           'Set the job status to Repair Completed or BER before marking it Delivered.',
         );
+      }
+      if (
+        nextFinal === 'Delivered' &&
+        current.finalStatus !== 'Delivered' &&
+        !current.legacyReference &&
+        !(stickerAttached ?? current.stickerAttached)
+      ) {
+        throw new ServiceJobCardError('invalid-transition', STICKER_REQUIRED_MESSAGE);
       }
       const content = mergeContent(
         {
@@ -1309,6 +1321,9 @@ export function createServiceJobCardService(pool: Pool) {
       );
       if (nextFinal === 'Delivered' && !content.deliveryDate) {
         content.deliveryDate = businessToday();
+      }
+      if (stickerAttached !== undefined && stickerAttached !== current.stickerAttached) {
+        await setServiceJobCardStickerAttached(client, id, stickerAttached, profileId);
       }
       const partsOnCard = (list: { partNo?: string; description?: string }[]) =>
         list.filter((part) => part.partNo || part.description).length;
@@ -1650,6 +1665,9 @@ export function createServiceJobCardService(pool: Pool) {
             : 'invalid-transition',
           `A job card in ${current.status} cannot transition to ${data.status}.`,
         );
+      }
+      if (data.status === 'Completed' && !current.legacyReference && !current.stickerAttached) {
+        throw new ServiceJobCardError('invalid-transition', STICKER_REQUIRED_MESSAGE);
       }
       if (data.status === 'Completed') {
         const reason = deliveryBlockReason({

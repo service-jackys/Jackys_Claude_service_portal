@@ -227,7 +227,7 @@ test(
       );
       const delivered = await jobCardService.updateContent(
         created.id,
-        { jobFinalStatus: 'Delivered', paymentBy: 'Sales channel' },
+        { jobFinalStatus: 'Delivered', stickerAttached: true, paymentBy: 'Sales channel' },
         profileId,
         'dd-del',
       );
