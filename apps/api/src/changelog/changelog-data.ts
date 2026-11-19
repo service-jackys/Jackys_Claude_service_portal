@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 285,
+    "title": "Sheet sync: bring appointments and job cards up to date from the old sheet",
+    "area": "Migration",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "Adds appointments and job cards that are new in the old sheet and updates existing ones only where a reviewed file says take the sheet.",
+    "changes": [
+      "New sync mode of the sheet import (--sync --decisions): creates new records and changes only reviewed fields.",
+      "Portal work (delivery dates, Delivered, charges, invoice numbers, billing) is never overwritten.",
+      "Dry run rolls back and lists every change; a second run changes nothing.",
+      "Quotations, inspections, Thomson, AMC, VAS and complaints are not touched."
+    ],
+    "needsYou": "Pull, then run the dry run and apply steps from the chat.",
+    "migrations": [],
+    "files": "packages/db/src/legacy-import/sync.ts, packages/db/src/import-sheets.ts, tests/integration/legacy-sync.test.ts."
+  },
+  {
     "id": 284,
     "title": "Sticker attached confirmation before Delivered",
     "area": "Job cards",
