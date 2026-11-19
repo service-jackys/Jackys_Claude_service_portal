@@ -85,7 +85,11 @@ const dateText = z
 export const diJobSaveSchema = z
   .object({
     serviceDate: dateText,
+    customerType: z.enum(['B2B', 'B2C']).default('B2B'),
     custCode: z.string().trim().max(100).nullish(),
+    customerName: z.string().trim().max(200).nullish(),
+    customerPhone: z.string().trim().max(50).nullish(),
+    technicianName: z.string().trim().max(200).nullish(),
     salesman: z.string().trim().max(200).nullish(),
     region: z.string().trim().min(1).max(50),
     deliveryNoteRef: z.string().trim().max(100).nullish(),
@@ -191,9 +195,14 @@ export function createDiJobService(pool: Pool) {
   ): Promise<DiJobHeaderInput> {
     let custCode: string | null = null;
     let customerName: string | null = null;
+    let customerPhone: string | null = null;
     let branchSalesman: string | null = null;
     const wantedCode = blankToNull(data.custCode);
-    if (wantedCode) {
+    if (data.customerType === 'B2C') {
+      // A person: the typed name and phone; no B2B customer list lookup.
+      customerName = blankToNull(data.customerName);
+      customerPhone = blankToNull(data.customerPhone);
+    } else if (wantedCode) {
       const branch = await findB2bBranchByCustCode(client, wantedCode);
       if (!branch) {
         throw new DiJobServiceError(
@@ -218,8 +227,11 @@ export function createDiJobService(pool: Pool) {
     }
     return {
       serviceDate: data.serviceDate,
+      customerType: data.customerType,
       custCode,
       customerName,
+      customerPhone,
+      technicianName: blankToNull(data.technicianName),
       salesman,
       salesChannel,
       region: data.region,
@@ -258,7 +270,8 @@ export function createDiJobService(pool: Pool) {
       }
       const rule = matchBillingRule(rules, {
         salesman: header.salesman,
-        b2bBranchSchool: header.customerName,
+        // Billing rules match B2B branches only; a typed B2C name must never match one.
+        b2bBranchSchool: header.customerType === 'B2C' ? null : header.customerName,
         brand: item.brand,
       });
       out.push({
@@ -374,7 +387,10 @@ export function createDiJobService(pool: Pool) {
         throw new DiJobServiceError('conflict', `${job.reference} is already ${job.status}.`);
       }
       const missing: string[] = [];
-      if (!job.custCode) missing.push('Choose the customer (B2B).');
+      if (job.customerType === 'B2C') {
+        if (!job.customerName) missing.push('Enter the customer name.');
+        if (!job.customerPhone) missing.push('Enter the customer phone number.');
+      } else if (!job.custCode) missing.push('Choose the customer (B2B).');
       if (!job.salesman) missing.push('Choose the salesman.');
       else if (!job.salesChannel) {
         missing.push(
@@ -391,8 +407,11 @@ export function createDiJobService(pool: Pool) {
       // Refresh the item facts and channels from the masters, then price.
       const header: DiJobHeaderInput = {
         serviceDate: job.serviceDate,
+        customerType: job.customerType,
         custCode: job.custCode,
         customerName: job.customerName,
+        customerPhone: job.customerPhone,
+        technicianName: job.technicianName,
         salesman: job.salesman,
         salesChannel: job.salesChannel,
         region: job.region,

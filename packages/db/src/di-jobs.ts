@@ -37,8 +37,11 @@ export type DiJobRecord = {
   reference: string;
   serviceDate: string;
   status: DiJobStatus;
+  customerType: 'B2B' | 'B2C';
   custCode: string | null;
   customerName: string | null;
+  customerPhone: string | null;
+  technicianName: string | null;
   salesman: string | null;
   salesChannel: string | null;
   region: string;
@@ -65,8 +68,11 @@ const jobColumns = `
   di_jobs.reference,
   to_char(di_jobs.service_date, 'YYYY-MM-DD') AS "serviceDate",
   di_jobs.status,
+  di_jobs.customer_type AS "customerType",
   di_jobs.cust_code AS "custCode",
   di_jobs.customer_name AS "customerName",
+  di_jobs.customer_phone AS "customerPhone",
+  di_jobs.technician_name AS "technicianName",
   di_jobs.salesman,
   di_jobs.sales_channel AS "salesChannel",
   di_jobs.region,
@@ -115,8 +121,11 @@ const lineColumns = `
 
 export type DiJobHeaderInput = {
   serviceDate: string;
+  customerType: 'B2B' | 'B2C';
   custCode: string | null;
   customerName: string | null;
+  customerPhone: string | null;
+  technicianName: string | null;
   salesman: string | null;
   salesChannel: string | null;
   region: string;
@@ -165,8 +174,9 @@ export async function insertDiJob(
   const result = await client.query<DiJobRecord>(
     `INSERT INTO di_jobs (
        reference, service_date, cust_code, customer_name, salesman, sales_channel, region,
-       delivery_note_ref, erp_inv_no, csosc_no, notes, created_by, updated_by
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
+       delivery_note_ref, erp_inv_no, csosc_no, notes, created_by, updated_by,
+       customer_type, customer_phone, technician_name
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12, $13, $14, $15)
      RETURNING ${jobColumns}`,
     [
       reference,
@@ -181,6 +191,9 @@ export async function insertDiJob(
       input.csoscNo,
       input.notes,
       profileId,
+      input.customerType,
+      input.customerPhone,
+      input.technicianName,
     ],
   );
   return result.rows[0]!;
@@ -196,7 +209,8 @@ export async function updateDiJobHeader(
     `UPDATE di_jobs SET
        service_date = $2, cust_code = $3, customer_name = $4, salesman = $5,
        sales_channel = $6, region = $7, delivery_note_ref = $8, erp_inv_no = $9,
-       csosc_no = $10, notes = $11, updated_at = now(), updated_by = $12
+       csosc_no = $10, notes = $11, updated_at = now(), updated_by = $12,
+       customer_type = $13, customer_phone = $14, technician_name = $15
      WHERE id = $1
      RETURNING ${jobColumns}`,
     [
@@ -212,6 +226,9 @@ export async function updateDiJobHeader(
       input.csoscNo,
       input.notes,
       profileId,
+      input.customerType,
+      input.customerPhone,
+      input.technicianName,
     ],
   );
   return result.rows[0] ?? null;

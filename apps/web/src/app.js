@@ -21292,7 +21292,7 @@ ${bodyHtml}
       workspaceId: 'deliveryInstallWorkspace',
       heading: 'Delivery & Installation',
       description:
-        'Enter delivery and installation jobs (CSIDI, CSIDO, CSIII) for B2B customers; the price shows live.',
+        'Enter delivery and installation jobs (CSIDI, CSIDO, CSIII) for B2B or B2C customers; the price shows live.',
       permission: 'di_jobs.read',
       hideCurrencyNote: true,
       domains: [],
@@ -21940,6 +21940,10 @@ ${bodyHtml}
     const blankForm = () => ({
       serviceDate: localToday(),
       region: 'Dubai',
+      customerType: 'B2B',
+      b2cName: '',
+      b2cPhone: '',
+      technician: '',
       salesman: '',
       deliveryNoteRef: '',
       erpInvNo: '',
@@ -22054,6 +22058,10 @@ ${bodyHtml}
       state.form = {
         serviceDate: job.serviceDate,
         region: job.region,
+        customerType: job.customerType === 'B2C' ? 'B2C' : 'B2B',
+        b2cName: job.customerType === 'B2C' ? job.customerName || '' : '',
+        b2cPhone: job.customerType === 'B2C' ? job.customerPhone || '' : '',
+        technician: job.technicianName || '',
         salesman: job.salesman || '',
         deliveryNoteRef: job.deliveryNoteRef || '',
         erpInvNo: job.erpInvNo || '',
@@ -22157,17 +22165,45 @@ ${bodyHtml}
         ' /></div>' +
         '</div></section>' +
         '<section class="detail-action-card"><h4>Customer and sales</h4><div class="field-grid">' +
+        '<div class="field"><label for="diCustType">Customer type <span class="required">*</span> ' +
+        tipHtml(
+          'B2B: a school or branch from the B2B customer list. B2C: an individual customer, typed in with a phone number.',
+        ) +
+        '</label><select id="diCustType"' +
+        dis +
+        '><option value="B2B"' +
+        (f.customerType === 'B2B' ? ' selected' : '') +
+        '>B2B (business / school)</option><option value="B2C"' +
+        (f.customerType === 'B2C' ? ' selected' : '') +
+        '>B2C (individual customer)</option></select></div>' +
+        '<div class="field" data-di-b2c><label for="diB2cName">Customer name <span class="required">*</span></label><input id="diB2cName" maxlength="200" value="' +
+        escapeHtml(f.b2cName) +
+        '"' +
+        dis +
+        ' /><span class="field-error" data-error-for="diB2cName"></span></div>' +
+        '<div class="field" data-di-b2c><label for="diB2cPhone">Customer phone <span class="required">*</span></label><input id="diB2cPhone" maxlength="50" inputmode="tel" value="' +
+        escapeHtml(f.b2cPhone) +
+        '"' +
+        dis +
+        ' /><span class="field-error" data-error-for="diB2cPhone"></span></div>' +
         (locked()
           ? ''
-          : '<div class="field"><label for="diCustLookup">Look up B2B customer</label><input id="diCustLookup" type="text" autocomplete="off" placeholder="Type a branch or school name, or its customer code (e.g. 191065)…" /></div>' +
-            '<ul id="diCustResults" class="b2b-branch-results field-wide" hidden></ul>') +
-        '<div class="field"><label>B2B customer <span class="required">*</span></label><div class="di-readonly" data-di-customer></div><span class="field-error" data-error-for="diCustLookup"></span></div>' +
+          : '<div class="field" data-di-b2b><label for="diCustLookup">Look up B2B customer</label><input id="diCustLookup" type="text" autocomplete="off" placeholder="Type a branch or school name, or its customer code (e.g. 191065)…" /></div>' +
+            '<ul id="diCustResults" class="b2b-branch-results field-wide" data-di-b2b hidden></ul>') +
+        '<div class="field" data-di-b2b><label>B2B customer <span class="required">*</span></label><div class="di-readonly" data-di-customer></div><span class="field-error" data-error-for="diCustLookup"></span></div>' +
         '<div class="field"><label for="diSalesman">Salesman <span class="required">*</span></label><select id="diSalesman"' +
         dis +
         '>' +
         salesmanOptions +
         '</select><span class="field-error" data-error-for="diSalesman"></span></div>' +
         '<div class="field"><label>Sales channel</label><div class="di-readonly" data-di-channel></div></div>' +
+        '<div class="field"><label for="diTechnician">Technician ' +
+        tipHtml('Who did the delivery or installation. Printed on the unit sticker.') +
+        '</label><input id="diTechnician" maxlength="200" value="' +
+        escapeHtml(f.technician) +
+        '"' +
+        dis +
+        ' /></div>' +
         '</div></section>' +
         '<section class="detail-action-card"><h4>Items</h4>' +
         (locked()
@@ -22188,11 +22224,24 @@ ${bodyHtml}
         escapeHtml(f.notes) +
         '</textarea></div></section>' +
         '<div class="form-footer" data-di-actions></div>' +
+        '<section class="detail-action-card" data-di-stickers hidden></section>' +
         '</form>'
       );
     }
 
+    // Shows the B2B lookup or the B2C name and phone, depending on the customer type.
+    function applyCustomerType() {
+      const b2c = state.form.customerType === 'B2C';
+      document.querySelectorAll('#diForm [data-di-b2b]').forEach((el) => {
+        if (el.id === 'diCustResults') {
+          if (b2c) el.hidden = true;
+        } else el.hidden = b2c;
+      });
+      document.querySelectorAll('#diForm [data-di-b2c]').forEach((el) => (el.hidden = !b2c));
+    }
+
     function drawCustomer() {
+      applyCustomerType();
       const box = q('[data-di-customer]');
       if (!box) return;
       box.textContent = state.custCode
@@ -22366,6 +22415,107 @@ ${bodyHtml}
       box.innerHTML = html;
     }
 
+    // ---- Unit stickers: one sticker per unit of every line ----
+    function stickerUnits(job) {
+      const units = [];
+      for (const line of job.lines || []) {
+        const count = Math.max(1, Math.floor(Number(line.qty) || 1));
+        for (let i = 0; i < count; i += 1) units.push({ line, lineNo: line.lineNo });
+      }
+      return units.map((unit, index) => ({
+        kind: 'install',
+        lineNo: unit.lineNo,
+        data: {
+          activity: unit.line.type,
+          deliveryNote: job.deliveryNoteRef,
+          unitNo: index + 1,
+          unitCount: units.length,
+          brand: unit.line.brand,
+          itemCode: unit.line.itemCode,
+          itemDesc: unit.line.itemDesc,
+          groupName: unit.line.groupName,
+          subGroup: unit.line.subGroup,
+          customerType: job.customerType,
+          customerName: job.customerName,
+          customerPhone: job.customerPhone,
+          technician: job.technicianName,
+          serviceDate: job.serviceDate,
+        },
+      }));
+    }
+
+    // Prints the stickers of a saved job (optionally only one line). If a required
+    // detail is missing, the "Sticker cannot be printed yet" pop-up lists it.
+    async function printDiStickers(job, onlyLineNo) {
+      let items = stickerUnits(job);
+      if (!items.length) {
+        notifyDialog('No items', 'Add at least one item to the job before printing stickers.');
+        return;
+      }
+      const required =
+        job.customerType === 'B2C'
+          ? [
+              'ERP delivery note',
+              'Customer name',
+              'Customer phone number',
+              'Item code or description',
+              'Brand',
+              'Service date',
+            ]
+          : [
+              'ERP delivery note',
+              'Customer name',
+              'Item code or description',
+              'Brand',
+              'Service date',
+            ];
+      const missing = [];
+      items.forEach((item) => {
+        window.JdLabel.missingDetails('install', item.data).forEach((label) => {
+          if (!missing.includes(label)) missing.push(label);
+        });
+      });
+      if (missing.length) {
+        await showMissingStickerDetails(required, missing);
+        return;
+      }
+      if (onlyLineNo != null) items = items.filter((item) => item.lineNo === onlyLineNo);
+      printStickers(items);
+    }
+
+    function drawStickers() {
+      const box = q('[data-di-stickers]');
+      if (!box) return;
+      const job = state.job;
+      if (!job || !job.lines || !job.lines.length) {
+        box.hidden = true;
+        return;
+      }
+      const total = stickerUnits(job).length;
+      box.hidden = false;
+      box.innerHTML =
+        '<h4>Unit stickers</h4><p class="form-note">One sticker per unit, to stick on the rear of the unit. The warranty starts on the service date. Save the job first; stickers print from the saved job.</p>' +
+        '<div class="form-footer"><button class="button button-primary" type="button" data-di-sticker-all>Print all stickers (' +
+        total +
+        ')</button></div>' +
+        '<ul class="di-sticker-list">' +
+        job.lines
+          .map(
+            (line) =>
+              '<li><span>' +
+              escapeHtml(line.itemCode) +
+              ' \u00b7 ' +
+              escapeHtml(line.itemDesc || '') +
+              ' \u00b7 qty ' +
+              escapeHtml(String(line.qty)) +
+              '</span> <button class="button button-outline" type="button" data-di-sticker-line="' +
+              escapeHtml(String(line.lineNo)) +
+              '">Print stickers for this item</button></li>',
+          )
+          .join('') +
+        '</ul>';
+    }
+
     function drawActions() {
       const box = q('[data-di-actions]');
       if (!box) return;
@@ -22439,6 +22589,7 @@ ${bodyHtml}
       drawLines();
       drawPrice();
       drawActions();
+      drawStickers();
       wireJob();
       schedulePrice();
     }
@@ -22448,6 +22599,10 @@ ${bodyHtml}
       if (!form) return;
       state.form.serviceDate = q('#diServiceDate').value;
       state.form.region = q('#diRegion').value;
+      state.form.customerType = q('#diCustType').value === 'B2C' ? 'B2C' : 'B2B';
+      state.form.b2cName = q('#diB2cName').value.trim();
+      state.form.b2cPhone = q('#diB2cPhone').value.trim();
+      state.form.technician = q('#diTechnician').value.trim();
       state.form.salesman = q('#diSalesman').value;
       state.form.deliveryNoteRef = q('#diDeliveryNote').value.trim();
       state.form.erpInvNo = q('#diErpInv').value.trim();
@@ -22460,7 +22615,11 @@ ${bodyHtml}
       const f = state.form;
       return {
         serviceDate: f.serviceDate,
-        custCode: state.custCode || null,
+        customerType: f.customerType,
+        custCode: f.customerType === 'B2B' ? state.custCode || null : null,
+        customerName: f.customerType === 'B2C' ? f.b2cName || null : null,
+        customerPhone: f.customerType === 'B2C' ? f.b2cPhone || null : null,
+        technicianName: f.technician || null,
         salesman: f.salesman || null,
         region: f.region,
         deliveryNoteRef: f.deliveryNoteRef || null,
@@ -22487,7 +22646,12 @@ ${bodyHtml}
         }
       };
       need(Boolean(state.form.serviceDate), 'diServiceDate', 'Enter the service date.');
-      need(Boolean(state.custCode), 'diCustLookup', 'Choose the B2B customer from the list.');
+      if (state.form.customerType === 'B2C') {
+        need(Boolean(state.form.b2cName), 'diB2cName', 'Enter the customer name.');
+        need(Boolean(state.form.b2cPhone), 'diB2cPhone', 'Enter the customer phone number.');
+      } else {
+        need(Boolean(state.custCode), 'diCustLookup', 'Choose the B2B customer from the list.');
+      }
       need(Boolean(state.form.salesman), 'diSalesman', 'Choose the salesman.');
       if (state.form.salesman && !channelOfSalesman(state.form.salesman)) {
         showFieldError(
@@ -22532,6 +22696,11 @@ ${bodyHtml}
         schedulePrice();
       });
       q('#diDeliveryNote').addEventListener('change', readFields);
+      q('#diCustType').addEventListener('change', () => {
+        readFields();
+        clearErrors(q('#diForm'));
+        applyCustomerType();
+      });
       q('#diSalesman').addEventListener('change', () => {
         readFields();
         drawChannel();
@@ -22727,6 +22896,20 @@ ${bodyHtml}
         });
       }
 
+      const stickerBox = q('[data-di-stickers]');
+      if (stickerBox) {
+        stickerBox.addEventListener('click', async (event) => {
+          const button = event.target.closest('button');
+          if (!button || !state.job) return;
+          try {
+            if (button.hasAttribute('data-di-sticker-all')) await printDiStickers(state.job);
+            else if (button.hasAttribute('data-di-sticker-line'))
+              await printDiStickers(state.job, Number(button.dataset.diStickerLine));
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message);
+          }
+        });
+      }
       q('[data-di-actions]').addEventListener('click', async (event) => {
         const button = event.target.closest('button');
         if (!button) return;
@@ -23533,7 +23716,9 @@ ${bodyHtml}
                   (job.status === 'Completed' ? fmt(job.totalRevenue) : '—') +
                   '</td><td><button class="button" type="button" data-di-open="' +
                   escapeHtml(job.id) +
-                  '">Open</button></td></tr>',
+                  '">Open</button> <button class="button button-outline" type="button" data-di-stickers-for="' +
+                  escapeHtml(job.id) +
+                  '">Stickers</button></td></tr>',
               )
               .join('')
           : '<tr><td colspan="10" class="empty-state">No jobs match.</td></tr>') +
@@ -23584,6 +23769,18 @@ ${bodyHtml}
             state.tab = 'job';
             syncTabs();
             drawJob();
+          } catch (error) {
+            setMessage('#workspaceMessage', error.message);
+          }
+        }),
+      );
+      body.querySelectorAll('[data-di-stickers-for]').forEach((button) =>
+        button.addEventListener('click', async () => {
+          try {
+            const result = await apiRequest(
+              '/api/di-jobs/' + encodeURIComponent(button.dataset.diStickersFor),
+            );
+            await printDiStickers(result.job);
           } catch (error) {
             setMessage('#workspaceMessage', error.message);
           }

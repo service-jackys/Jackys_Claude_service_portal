@@ -5205,6 +5205,26 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #282 — Delivery and Install: B2C customers and unit stickers
+
+**Date:** 2026-11-19
+
+**Why.** Installed units should carry a sticker (brand, model, install date, warranty start) so a unit that returns for repair shows its warranty start straight away. Delivery and Install also needed to take individual (B2C) customers, not only B2B branches.
+
+**What changed.**
+
+- New **Customer type** on a Delivery and Install job: **B2B** (the customer lookup, as before; this stays the default) or **B2C** (customer name and phone typed in). A B2C job cannot be completed without a name and a phone number.
+- New optional **Technician** field, printed on the sticker.
+- New **Unit stickers** panel on a saved job: **Print all stickers (n)** and **Print stickers for this item**; the Jobs list has a **Stickers** button on every row. One sticker per unit. The sticker has the brand, model or item code, description, category, customer, "DN … · unit i of n", technician, **INSTALLED ON** and **WARRANTY STARTS** (the service date), a boxed status (DELIVERED + INSTALLED, INSTALLED or DELIVERED), the one-year note (unless a VAS plan was bought) and the service contact line. The barcode is the delivery note and unit number, for example 16101023-1.
+- If a required detail is missing, the same "Sticker cannot be printed yet" pop-up lists it.
+- **Nothing else changes:** pricing, the 2-trip cap, billing and revenue read the same lines as before. B2B jobs behave exactly as before. In the billing ledger a B2C job now shows customer type B2C (B2B jobs still show B2B).
+- Migration 104 adds customer type (default B2B), customer phone and technician to Delivery and Install jobs.
+- Tests: tests/integration/dandi-b2c.test.ts (a B2C job prices and completes to the same revenue as the same B2B job), tests/e2e/delivery-installation.spec.ts; the existing pricing, trip-cap, billing, compare and transport tests pass unchanged.
+
+**Files.** packages/db/migrations/104_di_job_customer_type.sql, packages/db/src/di-jobs.ts, packages/db/src/billing-ledger.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-b2c.test.ts, tests/e2e/delivery-installation.spec.ts.
+
+**Needs you:** pull, **run `npm.cmd run db:migrate`** (migration 104), restart the API, hard-refresh.
+
 ## Modification #281 — Unit stickers: print a sticker from a service job card (Zebra GK420t)
 
 **Date:** 2026-11-19
