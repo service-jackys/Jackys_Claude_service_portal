@@ -46,8 +46,8 @@ async function sampleWorkbook(dir: string): Promise<string> {
       'Complaint No',
     ],
     [
-      new Date(Date.UTC(2099, 0, 5, 9)),
-      'APT-2099-00001',
+      new Date(Date.UTC(2098, 0, 5, 9)),
+      'APT-2098-00001',
       'B2C',
       'Test One',
       '551085135',
@@ -58,7 +58,7 @@ async function sampleWorkbook(dir: string): Promise<string> {
       'M1',
       'Not cooling',
       'In Warranty',
-      new Date(Date.UTC(2099, 0, 6)),
+      new Date(Date.UTC(2098, 0, 6)),
       null,
       'IMP SIVA',
       null,
@@ -73,8 +73,8 @@ async function sampleWorkbook(dir: string): Promise<string> {
       null,
     ],
     [
-      new Date(Date.UTC(2099, 0, 5, 9)),
-      'APT-2099-00002',
+      new Date(Date.UTC(2098, 0, 5, 9)),
+      'APT-2098-00002',
       'B2B',
       'Test Two',
       '0504901232',
@@ -85,7 +85,7 @@ async function sampleWorkbook(dir: string): Promise<string> {
       'M2',
       'Leak',
       'Out Warranty',
-      new Date(Date.UTC(2099, 0, 7)),
+      new Date(Date.UTC(2098, 0, 7)),
       null,
       'Imp Siva',
       null,
@@ -148,9 +148,9 @@ async function sampleWorkbook(dir: string): Promise<string> {
     inJsonColumn: boolean,
   ) => {
     const cells: unknown[] = new Array(30).fill(null);
-    cells[0] = new Date(Date.UTC(2099, 0, 8, 9));
+    cells[0] = new Date(Date.UTC(2098, 0, 8, 9));
     cells[1] = n;
-    cells[2] = new Date(Date.UTC(2099, 0, 8));
+    cells[2] = new Date(Date.UTC(2098, 0, 8));
     cells[4] = ref;
     cells[5] = 'Test One';
     cells[6] = '551085135';
@@ -170,19 +170,19 @@ async function sampleWorkbook(dir: string): Promise<string> {
     jcHeader,
     row(
       'JC-901',
-      'APT-2099-00001',
+      'APT-2098-00001',
       'Repair Completed',
-      new Date(Date.UTC(2099, 0, 9)),
+      new Date(Date.UTC(2098, 0, 9)),
       150,
       'INV-0001',
       true,
     ),
-    row('JC-902', 'APT-2099-00001', 'WIP', null, 0, 'NA', false),
+    row('JC-902', 'APT-2098-00001', 'WIP', null, 0, 'NA', false),
     row('JC-903', null, 'Spare pending', null, 0, null, true),
     // A BER job that was handed back keeps BER as its job status.
-    row('JC-904', null, 'BER', new Date(Date.UTC(2099, 0, 10)), 60, null, true),
+    row('JC-904', null, 'BER', new Date(Date.UTC(2098, 0, 10)), 60, null, true),
     // Rejected and Cancelled are job statuses; the unit counts as returned with a delivery date.
-    row('JC-905', null, 'Rejected', new Date(Date.UTC(2099, 0, 11)), 0, null, true),
+    row('JC-905', null, 'Rejected', new Date(Date.UTC(2098, 0, 11)), 0, null, true),
     row('JC-906', null, 'Cancelled', null, 0, null, true),
   ]);
   return (async () => {
@@ -317,7 +317,7 @@ test(
         );
         // New appointments continue after the imported APT numbers.
         const counter = await client.query(
-          `SELECT next_value::int AS n FROM reference_counters WHERE namespace = 'appointment' AND scope_date = '2099-01-01'`,
+          `SELECT next_value::int AS n FROM reference_counters WHERE namespace = 'appointment' AND scope_date = '2098-01-01'`,
         );
         assert.equal(counter.rows[0].n, 3);
       } finally {
