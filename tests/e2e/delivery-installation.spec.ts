@@ -226,6 +226,89 @@ test.describe('delivery and installation', () => {
     await expect(page.locator('[data-di-complete]')).toHaveCount(0);
   });
 
+  test('a B2C job takes a typed name and phone; stickers print per unit or show what is missing', async ({
+    page,
+  }) => {
+    let created: Record<string, unknown> | null = null;
+    const b2cJob = (brand: string | null) => ({
+      ...savedJob('Draft'),
+      customerType: 'B2C',
+      custCode: null,
+      customerName: 'Aisha Khan',
+      customerPhone: '050 123 4567',
+      technicianName: 'Tech One',
+      lines: [
+        { ...fridge, brand, lineNo: 1, qty: 2, type: 'CSIDI', salesChannel: 'JDI' },
+        { ...kettle, lineNo: 2, qty: 1, type: 'CSIDO', salesChannel: 'JDI' },
+      ],
+    });
+    let job = b2cJob('VENUS');
+    await mockApi(page, ['di_jobs.read', 'di_jobs.write'], (url, method, body) => {
+      if (url.pathname === '/api/di-jobs/options') {
+        return {
+          regions: ['Dubai'],
+          salesmen: [{ name: 'Raneesh Jose', salesChannel: 'JDI' }],
+          erpInvMandatory: false,
+        };
+      }
+      if (url.pathname === '/api/di-jobs/items') return { items: [fridge] };
+      if (url.pathname === '/api/di-jobs/price')
+        return { ok: true, lines: [], totals: {}, issues: [] };
+      if (url.pathname === '/api/di-jobs' && method === 'POST') {
+        created = body as Record<string, unknown>;
+        return { job, duplicates: [] };
+      }
+      if (url.pathname === '/api/di-jobs/5' && method === 'PATCH') return { job, duplicates: [] };
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#deliveryInstallNav').click();
+
+    // B2B is the default and shows the lookup; B2C swaps it for name and phone.
+    await expect(page.locator('#diCustLookup')).toBeVisible();
+    await expect(page.locator('#diB2cName')).toBeHidden();
+    await page.locator('#diCustType').selectOption('B2C');
+    await expect(page.locator('#diCustLookup')).toBeHidden();
+    await page.locator('#diB2cName').fill('Aisha Khan');
+    await page.locator('#diB2cPhone').fill('050 123 4567');
+    await page.locator('#diSalesman').selectOption('Raneesh Jose');
+    await page.locator('#diDeliveryNote').fill('DN-1');
+    await page.locator('#diItemSearch').fill('fri');
+    await page.locator('#diItemResults button').first().click();
+    await page.locator('[data-di-save]').click();
+    await expect(page.locator('[data-di-stickers]')).toBeVisible();
+    expect(created).toMatchObject({
+      customerType: 'B2C',
+      custCode: null,
+      customerName: 'Aisha Khan',
+      customerPhone: '050 123 4567',
+    });
+    // 2 fridges + 1 kettle = 3 stickers.
+    await expect(page.locator('[data-di-sticker-all]')).toContainText('(3)');
+
+    // Print all: one sticker per unit, barcode = delivery note - unit number.
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('[data-di-sticker-all]').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState();
+    const html = await popup.content();
+    expect((html.match(/class="lb-page"/g) || []).length).toBe(3);
+    expect(html).toContain('DN-1-1');
+    expect(html).toContain('DN-1-3');
+    expect(html).toContain('DELIVERED');
+    expect(html).toContain('WARRANTY STARTS');
+    await popup.close();
+
+    // A missing brand stops the print with the pop-up.
+    job = b2cJob(null);
+    await page.locator('[data-di-save]').click();
+    await page.locator('[data-di-sticker-all]').click();
+    const dialog = page.locator('dialog.pw-dialog[open]');
+    await expect(dialog).toContainText('Sticker cannot be printed yet');
+    await expect(dialog).toContainText('Missing');
+    await expect(dialog).toContainText('Brand');
+  });
+
   test('a salesman with no channel shows the contact-admin pop-up', async ({ page }) => {
     await mockApi(page, ['di_jobs.read', 'di_jobs.write'], (url) => {
       if (url.pathname === '/api/di-jobs/options') {

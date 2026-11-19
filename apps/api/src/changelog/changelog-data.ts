@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 282,
+    "title": "Delivery and Install: B2C customers and unit stickers",
+    "area": "Delivery & Installation",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "Delivery and Install jobs can be for B2B or B2C customers, and every unit can get a warranty sticker printed from the saved job.",
+    "changes": [
+      "Customer type on a job: B2B (lookup, the default) or B2C (typed name and phone).",
+      "Optional technician field, printed on the sticker.",
+      "Unit stickers: print all, or per item, from the job or the Jobs list; one sticker per unit with install date and warranty start.",
+      "Pop-up listing any missing detail before a sticker can print.",
+      "Pricing, trip cap, billing and revenue are unchanged."
+    ],
+    "needsYou": "Pull, run npm.cmd run db:migrate, restart the API, hard-refresh.",
+    "migrations": ["104_di_job_customer_type.sql"],
+    "files": "packages/db/migrations/104_di_job_customer_type.sql, packages/db/src/di-jobs.ts, packages/db/src/billing-ledger.ts, apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/integration/dandi-b2c.test.ts, tests/e2e/delivery-installation.spec.ts."
+  },
+  {
     "id": 281,
     "title": "Unit stickers: print from a service job card",
     "area": "Job cards",
