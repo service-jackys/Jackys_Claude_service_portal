@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 291,
+    "title": "Service Revenue Dashboard: custom rates made visible everywhere (only while locked)",
+    "area": "Revenue",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "After locking custom rates, management and the Service team must see at once that the figures are not the workbook figures, by how much, and why. Everything below appears only while custom rates are locked; with workbook rates (or while editing without locking) every screen and export is exactly as before.",
+    "changes": [
+      "Banner on every dashboard tab (Overview, Explorer, Reports, Logic applied, Transport rules): custom rates in force, locked by / on, workbook revenue to custom revenue and the difference, with an Open Rate card button.",
+      "Rate card after lock: new tables \"Effect of each rate\" (each rate measured on its own, jobs affected, revenue effect), \"Effect by salesperson\" and \"Example invoices\" (biggest changes, workbook vs custom, with the reason in plain words).",
+      "Logic applied tab: a \"Custom rates are in force\" box with the changed rates (workbook value struck through) and a \"Why the figures differ from the workbook\" note: workbook figures are kept as uploaded, custom = workbook figure + rate…",
+      "Export report (.xlsx): highlighted Summary note (locked by / when, workbook revenue, custom revenue, difference), a new \"Rate changes\" sheet (rate, workbook, custom, lines affected, revenue effect, total), a \"Workbook revenue (AED)\"…",
+      "New GET /api/revenue-dashboard/rate-card/status (revenue_dashboard.read)."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh. No migration.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/rate-overrides.ts, service.ts, routes.ts, export.ts, apps/api/src/api/route-catalog.ts, packages/db/src/revenue-dashboard.ts…"
+  },
+  {
     "id": 290,
     "title": "Service Revenue Dashboard: editable Rate card, lock and recalculate, apply to Pricing Masters",
     "area": "Revenue",

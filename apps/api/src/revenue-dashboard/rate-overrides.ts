@@ -245,6 +245,79 @@ export function totalsOf(lines: RateLine[], revenue: Map<string, number>) {
   return { byType, byMonth };
 }
 
+/** The base rates with only ONE rate (named by a diffRates key) taken from `next`. */
+export function singleChange(base: RateSet, next: RateSet, key: string): RateSet {
+  const out = JSON.parse(JSON.stringify(base)) as RateSet;
+  const parts = key.split('.');
+  if (parts[0] === 'jobRates') {
+    const k = parts[1] as keyof RateSet['jobRates'];
+    out.jobRates[k] = next.jobRates[k];
+  } else if (parts[0] === 'transport') {
+    const k = parts[1] as keyof RateSet['transport'];
+    out.transport[k] = next.transport[k];
+  } else {
+    const mode = parts[0] as 'deliveryInstall' | 'install';
+    if (parts[1] === 'disc') {
+      const i = Number(parts[2]);
+      out[mode].discounts[i] = next[mode].discounts[i] ?? out[mode].discounts[i]!;
+    } else {
+      const i = Number(parts[1]);
+      const field = (parts[2] + 'Rate') as 'batchRate' | 'standardRate' | 'minimumRate';
+      const name = base[mode].categories[i]!.category;
+      const n = next[mode].categories.find((c) => c.category === name);
+      if (n) out[mode].categories[i]![field] = n[field];
+    }
+  }
+  return out;
+}
+
+/** One plain sentence on why a line moved when the rates changed. */
+export function reasonOf(line: RateLine, base: PricingRules, next: PricingRules): string {
+  const b = ratesOf(base);
+  const n = ratesOf(next);
+  const money = (v: number) => (Math.round(v * 100) / 100).toFixed(2);
+  if (line.jobType === 'CSIJW' || line.jobType === 'CSIJO') {
+    const flat = Math.abs(line.workbookRevenue - line.qty * line.unitPrice) > 0.01;
+    return flat
+      ? `BER / RWR flat charge ${money(b.jobRates.RWR)} -> ${money(n.jobRates.RWR)}`
+      : `${line.jobType} rate ${money(b.jobRates[line.jobType])} -> ${money(n.jobRates[line.jobType])} x ${line.qty}`;
+  }
+  const p = line.pricing as {
+    applianceCategory?: string | null;
+    baseUnitRate?: number | null;
+    calcQty?: number | null;
+    discountRate?: number | null;
+  } | null;
+  if ((line.jobType === 'CSIDI' || line.jobType === 'CSIII') && p?.applianceCategory) {
+    const mode = line.jobType === 'CSIDI' ? 'deliveryInstall' : 'install';
+    const cb = b[mode].categories.find((c) => c.category === p.applianceCategory);
+    const cn = n[mode].categories.find((c) => c.category === p.applianceCategory);
+    if (cb && cn) {
+      const rate = p.baseUnitRate ?? null;
+      const kind =
+        rate !== null &&
+        Math.abs(rate - cb.batchRate) < 0.01 &&
+        Math.abs(cb.batchRate - cb.standardRate) > 0.01
+          ? 'batch'
+          : rate !== null &&
+              Math.abs(rate - cb.standardRate) < 0.01 &&
+              Math.abs(cb.batchRate - cb.standardRate) > 0.01
+            ? 'standard'
+            : null;
+      const units = p.calcQty ?? line.qty;
+      const disc = p.discountRate
+        ? `, ${Math.round(p.discountRate * 1000) / 10}% volume discount`
+        : '';
+      if (kind) {
+        const from = kind === 'batch' ? cb.batchRate : cb.standardRate;
+        const to = kind === 'batch' ? cn.batchRate : cn.standardRate;
+        return `${p.applianceCategory.replace('Freestanding ', '')} ${kind} rate ${money(from)} -> ${money(to)} (${units} unit${units === 1 ? '' : 's'}${disc})`;
+      }
+    }
+  }
+  return 'Charge or minimum / discount rate changed';
+}
+
 export { csidoFlatCharge };
 
 // ---- Pricing Masters (D+I Admin Entry) <-> the revenue rate card ----------------------------------

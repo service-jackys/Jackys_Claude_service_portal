@@ -14,6 +14,8 @@ import {
   overlayRates,
   ratesFromMasters,
   ratesOf,
+  reasonOf,
+  singleChange,
   totalsOf,
   type RateSet,
 } from './rate-overrides.js';
@@ -363,6 +365,7 @@ export function createRevenueDashboardService(pool: Pool) {
         flatRates: ((await pricing.get('dandi_pricing')).payload as DandiPricingInput).flatRates,
         ...(await tripDetails(client, batch.id)),
         transportRules: await exportTransportRules(client),
+        customRates: (await customRatesSummary(client, true)) ?? undefined,
       };
       const workbook = await buildRevenueReportWorkbook(data);
       if (profileId) {
@@ -1197,6 +1200,7 @@ export function createRevenueDashboardService(pool: Pool) {
     inputs: Awaited<ReturnType<typeof loadRevenueInputs>>['inputs'],
     base: ReturnType<typeof rulesOfBatch>,
     custom: RateSet,
+    full = true,
   ) {
     const next = overlayRates(base, custom);
     const before = computeRevenue(inputs, base, base).revenue;
@@ -1224,6 +1228,70 @@ export function createRevenueDashboardService(pool: Pool) {
       customRates: r2(b.byMonth.get(m) ?? 0),
       change: r2((b.byMonth.get(m) ?? 0) - (a.byMonth.get(m) ?? 0)),
     }));
+    // By salesperson, one row per rate that was changed, and the biggest single moves with a reason.
+    if (!full) {
+      return {
+        workbookRates: r2(a.byType.size ? [...a.byType.values()].reduce((t, v) => t + v, 0) : 0),
+        customRates: r2(b.byType.size ? [...b.byType.values()].reduce((t, v) => t + v, 0) : 0),
+      };
+    }
+    const person = new Map<string, { jobs: number; before: number; after: number }>();
+    const moved: { line: (typeof inputs.lines)[number]; delta: number }[] = [];
+    for (const l of inputs.lines) {
+      const who = l.salesPerson?.trim() || '(none)';
+      const e = person.get(who) ?? { jobs: 0, before: 0, after: 0 };
+      const was = before.get(l.id) ?? 0;
+      const now = after.get(l.id) ?? 0;
+      e.before += was;
+      e.after += now;
+      if (Math.abs(now - was) >= 0.005) {
+        e.jobs += 1;
+        moved.push({ line: l, delta: now - was });
+      }
+      person.set(who, e);
+    }
+    const byPerson = [...person.entries()]
+      .filter(([, e]) => e.jobs > 0)
+      .map(([salesPerson, e]) => ({
+        salesPerson,
+        jobsAffected: e.jobs,
+        workbookRates: r2(e.before),
+        customRates: r2(e.after),
+        change: r2(e.after - e.before),
+      }))
+      .sort((x, y) => x.change - y.change);
+    const baseSet = ratesOf(base);
+    const byRate = diffRates(baseSet, custom).map((d) => {
+      const one = computeRevenue(
+        inputs,
+        base,
+        overlayRates(base, singleChange(baseSet, custom, d.key)),
+      ).revenue;
+      let jobs = 0;
+      let effect = 0;
+      for (const l of inputs.lines) {
+        const diff = (one.get(l.id) ?? 0) - (before.get(l.id) ?? 0);
+        if (Math.abs(diff) >= 0.005) {
+          jobs += 1;
+          effect += diff;
+        }
+      }
+      return { label: d.label, from: d.from, to: d.to, jobsAffected: jobs, change: r2(effect) };
+    });
+    const examples = moved
+      .sort((x, y) => Math.abs(y.delta) - Math.abs(x.delta))
+      .slice(0, 8)
+      .map(({ line, delta }) => ({
+        invoice: line.invDelNo,
+        date: line.orderDate ?? null,
+        salesPerson: line.salesPerson ?? null,
+        customer: line.customer ?? null,
+        jobType: line.jobType,
+        workbookRevenue: r2(before.get(line.id) ?? 0),
+        customRevenue: r2(after.get(line.id) ?? 0),
+        change: r2(delta),
+        reason: reasonOf(line, base, next),
+      }));
     const sum = (k: 'workbookRates' | 'customRates') => r2(byJobType.reduce((t, x) => t + x[k], 0));
     const workbookRates = sum('workbookRates');
     const customRates = sum('customRates');
@@ -1235,7 +1303,51 @@ export function createRevenueDashboardService(pool: Pool) {
       jobsAffected: [...affected.values()].reduce((t, v) => t + v, 0),
       byJobType,
       byMonth,
+      byPerson,
+      byRate,
+      examples,
     };
+  }
+
+  /** Small summary for the banner, the Logic applied tab and the export. Null when no custom rates are locked. */
+  async function customRatesSummary(client: PoolClient, full = false) {
+    const stored = await getRateOverrides(client);
+    const custom = parseRateSet(stored.payload);
+    if (!custom) return null;
+    const batch = await findActiveBatch(client, 'revenue');
+    if (!batch) return null;
+    const { inputs, base } = await loadRevenueInputs(client, batch.id);
+    const totals = impactOf(inputs, base, custom, true) as {
+      workbookRates: number;
+      customRates: number;
+      byRate?: { label: string; from: number; to: number; jobsAffected: number; change: number }[];
+    };
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    const change = r2(totals.customRates - totals.workbookRates);
+    return {
+      lockedAt: stored.lockedAt,
+      updatedByName: stored.updatedByName,
+      workbookRates: totals.workbookRates,
+      customRates: totals.customRates,
+      change,
+      changePct: totals.workbookRates ? r2((change / totals.workbookRates) * 100) : 0,
+      changes: diffRates(ratesOf(base), custom),
+      byRate: totals.byRate ?? [],
+      custom,
+      workbook: ratesOf(base),
+    };
+  }
+
+  async function rateStatus() {
+    const client = await pool.connect();
+    try {
+      const sum = await customRatesSummary(client);
+      if (!sum) return { active: false };
+      const { custom: _c, workbook: _w, ...light } = sum;
+      return { active: true, ...light };
+    } finally {
+      client.release();
+    }
   }
 
   async function rateCard() {
@@ -1421,6 +1533,8 @@ export function createRevenueDashboardService(pool: Pool) {
     transportRules,
     saveTransportRulesAndApply,
     rateCard,
+    rateStatus,
+    customRatesSummary,
     lockRateCard,
     resetRateCard,
     applyRateCardToMasters,

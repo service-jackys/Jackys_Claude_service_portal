@@ -3808,6 +3808,17 @@ export function createRouteCatalog(
         handlers: revenueDashboardHandlers.rateCard,
       },
       {
+        method: 'get' as const,
+        path: '/api/revenue-dashboard/rate-card/status',
+        operationId: 'getRevenueDashboardRateCardStatus',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Short status of the locked custom rates (who, when, workbook vs custom revenue, rates changed); active is false when none are locked',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: revenueDashboardHandlers.rateStatus,
+      },
+      {
         method: 'put' as const,
         path: '/api/revenue-dashboard/rate-card',
         operationId: 'lockRevenueDashboardRateCard',

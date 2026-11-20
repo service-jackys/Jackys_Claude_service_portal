@@ -2645,6 +2645,33 @@
         min-width: 320px;
       }
       /* Rate card (modification #290). Colours come from the page tokens so light and dark both work. */
+      .rc-bar.rc-live {
+        border-color: color-mix(in srgb, #d98a00 55%, var(--line));
+        background: color-mix(in srgb, #d98a00 10%, var(--surface));
+      }
+      .rc-dot-live {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: #d98a00;
+        flex: none;
+      }
+      .rc-sub {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .rc-live-box {
+        border-color: color-mix(in srgb, #d98a00 55%, var(--line));
+        margin-bottom: 14px;
+      }
+      .rc-why {
+        margin-top: 10px;
+        font-size: 0.88rem;
+      }
+      .rc-why ul {
+        margin: 6px 0 0 18px;
+        padding: 0;
+      }
       .rc-bar {
         display: flex;
         flex-wrap: wrap;

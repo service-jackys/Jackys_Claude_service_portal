@@ -275,6 +275,16 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    rateStatus: [
+      requirePermission('revenue_dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json(await service.rateStatus());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     lockRateCard: [
       requirePermission('revenue_dashboard.rate_card_edit'),
       async (request, response, next) => {
