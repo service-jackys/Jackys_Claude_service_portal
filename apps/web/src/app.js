@@ -21968,6 +21968,17 @@ ${bodyHtml}
         getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
         canSummary: () =>
           hasPermission('revenue_dashboard.read') && hasPermission('tasks.roi_management_summary'),
+        blockPerms: () => ({
+          customerCare: hasPermission('tasks.roi_customer_care'),
+          fieldOps: hasPermission('tasks.roi_field_ops'),
+        }),
+        loadBlocks: async (week) =>
+          (
+            await apiRequest(
+              '/api/roi/blocks?' +
+                new URLSearchParams({ weekYear: String(week.year), weekNumber: String(week.week) }),
+            )
+          ).blocks || [],
         openChatRecord: (type, id) => discussRecord(type, id),
         can: (permission) => Boolean(hasPermission(permission)),
         openRecord: openTaskRecord,

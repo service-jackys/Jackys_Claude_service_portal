@@ -780,6 +780,118 @@
     return out;
   }
 
+  // ------------------------------------------------ role data blocks (modification #298)
+  // blocks = [{ key, title, source, tables: [{ title, head, rows, totalRow, empty }] }]
+  // Counts and quantities only; a role only receives the blocks it may see.
+  function blockTable(t) {
+    var cellStyle = 'padding:3px 8px;border:1px solid ' + LINE + ';font-size:11px;';
+    var out =
+      '<div style="' +
+      FONT +
+      'font-size:12px;font-weight:600;color:' +
+      NAVY +
+      ';padding:10px 0 4px;">' +
+      esc(t.title) +
+      '</div>';
+    if (t.empty || !t.rows.length) {
+      return (
+        out +
+        '<div style="' +
+        FONT +
+        'font-size:11px;color:' +
+        MUTED +
+        ';">' +
+        esc(t.empty || 'Nothing to report.') +
+        '</div>'
+      );
+    }
+    out +=
+      '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;' +
+      FONT +
+      'color:' +
+      INK +
+      ';">';
+    if (t.head && t.head.length) {
+      out +=
+        '<tr>' +
+        t.head
+          .map(function (h, i) {
+            return (
+              '<th align="' +
+              (i ? 'right' : 'left') +
+              '" style="' +
+              cellStyle +
+              'background:#eef2f6;font-weight:600;text-align:' +
+              (i ? 'right' : 'left') +
+              ';">' +
+              esc(h) +
+              '</th>'
+            );
+          })
+          .join('') +
+        '</tr>';
+    }
+    t.rows.forEach(function (row, r) {
+      var total = t.totalRow && r === t.rows.length - 1;
+      out +=
+        '<tr' +
+        (total ? ' style="background:#f3f6fa;font-weight:700;"' : '') +
+        '>' +
+        row
+          .map(function (cell, i) {
+            return (
+              '<td align="' +
+              (i ? 'right' : 'left') +
+              '" style="' +
+              cellStyle +
+              'text-align:' +
+              (i ? 'right' : 'left') +
+              ';">' +
+              esc(cell) +
+              '</td>'
+            );
+          })
+          .join('') +
+        '</tr>';
+    });
+    return out + '</table>';
+  }
+  function blocksRows(blocks) {
+    return (blocks || [])
+      .map(function (b) {
+        return (
+          band(b.title, '#0b2a4a') +
+          '<tr><td align="left" style="padding:4px 24px 14px;">' +
+          b.tables.map(blockTable).join('') +
+          '<div style="' +
+          FONT +
+          'font-size:10px;color:' +
+          MUTED +
+          ';padding-top:8px;">Source: ' +
+          esc(b.source) +
+          '. Counts and quantities only.</div>' +
+          '</td></tr>'
+        );
+      })
+      .join('');
+  }
+  function blocksText(blocks) {
+    var out = [];
+    (blocks || []).forEach(function (b) {
+      out.push('', b.title.toUpperCase());
+      b.tables.forEach(function (t) {
+        out.push('  ' + t.title + ':');
+        if (t.empty || !t.rows.length) out.push('    ' + (t.empty || 'Nothing to report.'));
+        if (t.head && t.head.length && t.rows.length) out.push('    ' + t.head.join(' | '));
+        t.rows.forEach(function (row) {
+          out.push('    ' + row.map(String).join(' | '));
+        });
+      });
+      out.push('  Source: ' + b.source + '. Counts and quantities only.');
+    });
+    return out;
+  }
+
   // ------------------------------------------------------------- full email
   // input = {
   //   week: isoWeek(), name, title, greeting, intro, groups: groupForWeek(),
@@ -825,6 +937,7 @@
       band('Result', '#15803d') +
       resultRows(groups.results) +
       summaryRows(input.summary) +
+      blocksRows(input.blocks) +
       band('Objective', '#1d5fa8') +
       objectiveRows(groups.objectives) +
       band('Issues / Innovation', '#b45309') +
@@ -1002,6 +1115,9 @@
       }
       out.push('  Not in revenue yet; information only.');
     }
+    blocksText(input.blocks).forEach(function (l) {
+      out.push(l);
+    });
     out.push('', 'OBJECTIVE');
     if (!g.objectives.length) out.push('  No open objectives.');
     g.objectives.forEach(function (t) {
@@ -1117,6 +1233,8 @@
     groupForWeek: groupForWeek,
     weeklyBudget: weeklyBudget,
     summaryRows: summaryRows,
+    blocksRows: blocksRows,
+    blocksText: blocksText,
     buildRoiHtml: buildRoiHtml,
     buildRoiText: buildRoiText,
     subjectFor: subjectFor,

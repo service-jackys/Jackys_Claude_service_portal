@@ -84,6 +84,12 @@ export function createRoiHandlers(
         response.json({ settings: await service.saveSettings(auth, request.body) });
       }),
     ],
+    blocks: [
+      use,
+      wrap(async (auth, request, response) => {
+        response.json({ blocks: await service.blocks(auth, request.query) });
+      }),
+    ],
     reports: [
       use,
       wrap(async (auth, _request, response) => {
