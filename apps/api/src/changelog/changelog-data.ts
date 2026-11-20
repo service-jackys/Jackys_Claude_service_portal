@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 296,
+    "title": "Dashboard: dispatch board look with vector icons",
+    "area": "Portal look & feel",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "He asked for a fresh, professional look for the Dashboard Overview and Kanban board, approved from the mockup with real figures and an icon on every item.",
+    "changes": [
+      "What changed: Look and markup only. Every click, filter, tab, refresh and data call works as before."
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, apps/web/src/app.js, modification.md."
+  },
+  {
     "id": 295,
     "title": "Reports: missing columns added and six new reports",
     "area": "Portal look & feel",

@@ -6749,6 +6749,225 @@
           transform: none;
         }
       }
+      /* ---- Dashboard dispatch board look (modification #296): icons, instrument strip, pipeline ---- */
+      .dash-tab.is-active {
+        color: var(--ink);
+        border-bottom: 3px solid var(--ink);
+      }
+      .dash-tab {
+        font-size: 0.95rem;
+      }
+      .dash-title {
+        font-size: 1.9rem;
+        letter-spacing: -0.02em;
+        line-height: 1.1;
+      }
+      .dash-hero {
+        gap: 0;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 18px;
+      }
+      .dash-hero .dash-kpi {
+        border: 0;
+        border-radius: 0;
+        box-shadow: none;
+        background: transparent;
+        border-right: 1px solid var(--line);
+        padding: 18px 20px;
+      }
+      .dash-hero .dash-kpi:last-child {
+        border-right: 0;
+      }
+      button.dash-kpi:hover {
+        border-color: transparent;
+        box-shadow: none;
+        background: var(--surface-soft);
+      }
+      .dash-kpi-label::before {
+        display: none;
+      }
+      .dash-kpi-ico {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 9px;
+        color: var(--kpi-color, var(--blue));
+        background: color-mix(in srgb, var(--kpi-color, var(--blue)) 14%, var(--surface));
+      }
+      [data-theme='dark'] .dash-kpi-ico {
+        color: color-mix(in srgb, var(--kpi-color, var(--blue)) 55%, #fff);
+      }
+      .dash-kpi-label {
+        letter-spacing: 0.08em;
+        min-height: 38px;
+      }
+      .dash-kpi-value {
+        font-size: 2.5rem;
+        letter-spacing: -0.03em;
+      }
+      .dash-pipe {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 18px 20px;
+        margin-bottom: 26px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .dash-pipe:empty {
+        display: none;
+      }
+      .dash-pipe-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px 12px;
+      }
+      .dash-pipe-title {
+        margin: 0;
+        font-size: 1.05rem;
+        color: var(--ink);
+      }
+      .dash-pipe-sub {
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .dash-pipe-key {
+        margin-left: auto;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
+      .dash-key::before {
+        content: '';
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 2px;
+        background: var(--success);
+      }
+      .dash-key.risk::before {
+        background: #c98a12;
+      }
+      .dash-key.late::before {
+        background: var(--red);
+      }
+      .dash-pipe-bar,
+      .dash-tat-bar {
+        display: flex;
+        gap: 3px;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .dash-pipe-bar {
+        height: 40px;
+      }
+      .dash-tat-bar {
+        height: 8px;
+        border-radius: 4px;
+        gap: 2px;
+      }
+      .dash-seg {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 30px;
+        background: var(--col, var(--blue));
+        color: #fff;
+        font-weight: 700;
+        font-size: 1rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .dash-tat-bar .dash-seg {
+        min-width: 0;
+        font-size: 0;
+        background: var(--success);
+      }
+      .dash-tat-bar .dash-seg.risk {
+        background: #c98a12;
+      }
+      .dash-tat-bar .dash-seg.late {
+        background: var(--red);
+      }
+      .dash-pipe-cells {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        border-top: 1px solid var(--line);
+      }
+      .dash-pipe-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        padding: 12px 12px 0 0;
+      }
+      .dash-pipe-name {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .dash-pipe-ico,
+      .kb-col-ico {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        flex: none;
+        border-radius: 6px;
+        color: var(--col, var(--blue));
+        background: color-mix(in srgb, var(--col, var(--blue)) 14%, var(--surface));
+      }
+      [data-theme='dark'] .dash-pipe-ico,
+      [data-theme='dark'] .kb-col-ico {
+        color: color-mix(in srgb, var(--col, var(--blue)) 55%, #fff);
+      }
+      .dash-pipe-count {
+        font-size: 1.35rem;
+        font-weight: 700;
+        color: var(--ink);
+        font-variant-numeric: tabular-nums;
+      }
+      .dash-pipe-meta {
+        font-size: 0.72rem;
+        color: var(--muted);
+      }
+      .kb-col-name {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+      .kb-col {
+        border-radius: 12px;
+      }
+      .kb-card {
+        border-radius: 9px;
+      }
+      .kb-ref {
+        font-family: ui-monospace, 'JetBrains Mono', Consolas, monospace;
+        color: var(--ink);
+      }
+      @media (max-width: 640px) {
+        .dash-hero .dash-kpi {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+        .dash-pipe-key {
+          margin-left: 0;
+        }
+      }
       /* ---- Appointments calendar redesign (modification #68) ---- */
       :root {
         --st-scheduled: #1769aa;
@@ -16607,6 +16826,7 @@
                 </div>
                 <div id="dashOverviewPanel" role="tabpanel" aria-labelledby="dashTabOverview">
                   <div class="dash-hero" id="dashHero"></div>
+                  <section class="dash-pipe" id="dashPipeline" aria-label="Case pipeline"></section>
                   <div id="dashboardTiles">
                     <section class="dash-section">
                       <div class="dash-section-head">
