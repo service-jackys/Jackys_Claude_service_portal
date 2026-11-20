@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 290,
+    "title": "Service Revenue Dashboard: editable Rate card, lock and recalculate, apply to Pricing Masters",
+    "area": "Revenue",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Rate card only showed the workbook's rates. Management needed to try different rates, see the loss or gain on the whole revenue, and then (only if wanted) push those rates into the Pricing Masters.",
+    "changes": [
+      "Rate card tab, admin only. Edit the job-type rates (CSIJW, CSIJO, CSIDO flat charge, BER/RWR), the D+I and Install-only batch / standard / minimum rate per appliance, the volume discount %, and the Dubai / Sharjah transport. Changed cells…",
+      "Lock & recalculate revenue. Stores the rates and recalculates all revenue at them. Only the rates change: tier boundaries, trips, daily cap, which lines carry the once-per-invoice charge and any line with an actual ERP value stay as they…",
+      "Effect on revenue. Workbook vs custom revenue, loss or gain in AED and %, jobs changed, and the difference per job type.",
+      "Apply to Pricing Masters (pill, disabled until custom rates differ from the masters). Two-step confirmation: list of changes, then type APPLY. Until applied, Pricing Masters, the calculators and the Rate Card page keep the old rates.",
+      "Pricing Masters history (D+I Admin Entry). Each entry shows where it came from (Applied from Revenue Rate card / Workbook (Excel) rates), with the existing Load this entry, and a new \"Restore workbook rates\" button (confirm by typing…",
+      "New permission revenue_dashboard.rate_card_edit (admin role). Audit events: rate_card_locked, rate_card_reset, and the pricing history entries carry their source and the list of changes."
+    ],
+    "needsYou": "pull, run npm.cmd run db:migrate (migration 106), restart the API, hard-refresh. Note: the workbook's CSIJO is 119 while Pricing Masters hold 125; the editor starts from the workbook rates and shows the masters value beside it.",
+    "migrations": [
+      "106_revenue_rate_overrides.sql"
+    ],
+    "files": "packages/db/migrations/106_revenue_rate_overrides.sql, packages/db/src/revenue-rate-overrides.ts, packages/db/src/pricing-configs.ts, apps/api/src/revenue-dashboard/rate-overrides.ts (new)…"
+  },
+  {
     "id": 289,
     "title": "D+I Quote Calculator: polish",
     "area": "Pricing & rates",

@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import type { RequestHandler } from 'express';
 import multer from 'multer';
 import type { ApplicationAuth } from '../auth/application-auth.js';
@@ -258,6 +259,86 @@ export function createRevenueDashboardHandlers(
               'Bad Request',
               'Send dailyCap, deliveryOnlyCap and mixedInvoiceTransport as true or false.',
             );
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    rateCard: [
+      requirePermission('revenue_dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json(await service.rateCard());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    lockRateCard: [
+      requirePermission('revenue_dashboard.rate_card_edit'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(await service.lockRateCard(request.body, auth.profileId));
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          if (error instanceof Error && error.name === 'ZodError') {
+            problem(
+              response,
+              400,
+              'invalid-rates',
+              'Bad Request',
+              'Send every rate as a number of 0 or more.',
+            );
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    resetRateCard: [
+      requirePermission('revenue_dashboard.rate_card_edit'),
+      async (_request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(await service.resetRateCard(auth.profileId));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    applyRateCardToMasters: [
+      requirePermission('revenue_dashboard.rate_card_edit'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(
+            await service.applyRateCardToMasters(request.body, auth.profileId, randomUUID()),
+          );
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    restoreMastersToWorkbookRates: [
+      requirePermission('revenue_dashboard.rate_card_edit'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(
+            await service.restoreMastersToWorkbookRates(request.body, auth.profileId, randomUUID()),
+          );
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
             return;
           }
           next(error);

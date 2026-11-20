@@ -13923,6 +13923,46 @@ ${bodyHtml}
       });
       const entries = result.history || [];
       historyEmpty.hidden = entries.length > 0;
+      if (domain === 'dandi_pricing' && hasPermission('revenue_dashboard.rate_card_edit')) {
+        let bar = historyPanel.querySelector('[data-rc-restore-bar]');
+        if (!bar) {
+          bar = document.createElement('div');
+          bar.setAttribute('data-rc-restore-bar', '');
+          bar.className = 'rc-restore-bar';
+          bar.innerHTML =
+            '<button type="button" class="button button-outline" data-rc-restore-wb>Restore workbook rates</button><span class="form-note">Puts the rates from the uploaded master workbook (Excel) back into these Pricing Masters.</span>';
+          historyPanel.insertBefore(bar, historyPanel.firstChild);
+          bar.querySelector('button').addEventListener('click', () => {
+            rcConfirmModal({
+              title: 'Restore workbook rates',
+              intro:
+                'The Pricing Masters rates below will be replaced by the rates in the uploaded master workbook.',
+              rows: [
+                {
+                  label: 'Rate card values held in Pricing Masters',
+                  from: 'Current',
+                  to: 'Workbook (Excel)',
+                },
+              ],
+              word: 'RESTORE',
+              confirmLabel: 'Restore workbook rates',
+              onConfirm: async () => {
+                await apiRequest('/api/revenue-dashboard/rate-card/restore-masters-to-workbook', {
+                  method: 'POST',
+                  body: JSON.stringify({ confirm: 'RESTORE' }),
+                });
+                await pcLoadCard(domain);
+                await pcToggleHistory(domain);
+                setMessage(
+                  '#workspaceMessage',
+                  'Pricing Masters now hold the workbook rates.',
+                  true,
+                );
+              },
+            });
+          });
+        }
+      }
       historyBody.innerHTML = entries
         .map((entry) => {
           const actionLabel =
@@ -13933,11 +13973,20 @@ ${bodyHtml}
                 : entry.action === 'pricing_config.restored'
                   ? 'Restored'
                   : escapeHtml(entry.action);
+          const sourceLabel =
+            entry.source === 'revenue_rate_card'
+              ? 'Applied from Revenue Rate card'
+              : entry.source === 'workbook_rates'
+                ? 'Workbook (Excel) rates'
+                : null;
           return (
             '<tr><td>' +
             escapeHtml(pcFormatWhen(entry.occurredAt)) +
             '</td><td>' +
             actionLabel +
+            (sourceLabel
+              ? ' <span class="rc-chip rc-chip-on">' + escapeHtml(sourceLabel) + '</span>'
+              : '') +
             '</td><td>' +
             escapeHtml(entry.actorProfileId != null ? String(entry.actorProfileId) : '—') +
             '</td><td><button type="button" class="button button-outline" data-pc-restore="' +
@@ -27929,6 +27978,397 @@ ${bodyHtml}
     });
   }
 
+  // ---- Rate card: admin edit, lock and recalculate, apply to Pricing Masters (modification #290) ----
+  const RC_JOB_ROWS = [
+    ['CSIJW', 'CSIJW repair rate (per job)'],
+    ['CSIJO', 'CSIJO repair rate (per job)'],
+    ['CSIDO', 'CSIDO delivery-only flat charge'],
+    ['RWR', 'BER / RWR flat charge'],
+  ];
+
+  function rcRows(set, labels) {
+    const rows = [];
+    const aed = (v) => 'AED ' + rdMoney2(v);
+    RC_JOB_ROWS.forEach(([k, label]) =>
+      rows.push({
+        id: 'job.' + k,
+        group: 'Job-type rates',
+        label,
+        get: (s) => s.jobRates[k],
+        put: (s, v) => (s.jobRates[k] = v),
+        show: aed,
+      }),
+    );
+    ['Dubai', 'Sharjah'].forEach((r) =>
+      rows.push({
+        id: 'tr.' + r,
+        group: 'Transport (round trip)',
+        label: r + ' round trip',
+        get: (s) => s.transport[r],
+        put: (s, v) => (s.transport[r] = v),
+        show: aed,
+      }),
+    );
+    [
+      ['deliveryInstall', 'Delivery + installation (CSIDI)'],
+      ['install', 'Installation only (CSIII)'],
+    ].forEach(([key, title]) => {
+      set[key].categories.forEach((c, i) => {
+        [
+          ['batchRate', 'batch rate'],
+          ['standardRate', 'standard rate'],
+          ['minimumRate', 'minimum rate'],
+        ].forEach(([f, name]) =>
+          rows.push({
+            id: key + '.' + i + '.' + f,
+            group: title,
+            label: c.category + ' - ' + name,
+            get: (s) => s[key].categories[i][f],
+            put: (s, v) => (s[key].categories[i][f] = v),
+            show: aed,
+          }),
+        );
+      });
+      set[key].discounts.forEach((_, i) =>
+        rows.push({
+          id: key + '.disc.' + i,
+          group: title,
+          label: 'Volume discount ' + ((labels?.[key] || [])[i] || 'tier ' + (i + 1)),
+          get: (s) => Math.round(s[key].discounts[i] * 10000) / 100,
+          put: (s, v) => (s[key].discounts[i] = Math.round(v * 100) / 10000),
+          show: (v) => rdMoney2(v) + '%',
+          pct: true,
+        }),
+      );
+    });
+    return rows;
+  }
+
+  // Two-step confirmation: step 1 lists the changes, step 2 asks for the word to be typed.
+  function rcConfirmModal({ title, intro, rows, word, confirmLabel, onConfirm }) {
+    const overlay = document.createElement('div');
+    overlay.className = 'rc-modal-overlay';
+    overlay.innerHTML =
+      '<div class="rc-modal" role="dialog" aria-modal="true"><h3>' +
+      escapeHtml(title) +
+      '</h3><div data-rc-step></div></div>';
+    document.body.appendChild(overlay);
+    const step = overlay.querySelector('[data-rc-step]');
+    const close = () => overlay.remove();
+    const step1 = () => {
+      step.innerHTML =
+        '<p class="rc-step-tag">Step 1 of 2</p><p>' +
+        escapeHtml(intro) +
+        '</p><div class="rc-modal-table"><table><thead><tr><th>Rate</th><th>Now</th><th></th><th>Becomes</th></tr></thead><tbody>' +
+        rows
+          .map(
+            (r) =>
+              '<tr><td>' +
+              escapeHtml(r.label) +
+              '</td><td>' +
+              escapeHtml(r.from) +
+              '</td><td>&rarr;</td><td><b>' +
+              escapeHtml(r.to) +
+              '</b></td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div><div class="rc-modal-actions"><button type="button" class="button button-outline" data-rc-cancel>Cancel</button><button type="button" class="button" data-rc-next>Continue</button></div>';
+      step.querySelector('[data-rc-cancel]').addEventListener('click', close);
+      step.querySelector('[data-rc-next]').addEventListener('click', step2);
+    };
+    const step2 = () => {
+      step.innerHTML =
+        '<p class="rc-step-tag">Step 2 of 2</p><p>' +
+        rows.length +
+        ' rate' +
+        (rows.length === 1 ? '' : 's') +
+        ' will change. To confirm, type <b>' +
+        escapeHtml(word) +
+        '</b> below.</p><input type="text" class="rc-modal-input" autocomplete="off" data-rc-word /><p class="form-note" data-rc-msg></p><div class="rc-modal-actions"><button type="button" class="button button-outline" data-rc-back>Back</button><button type="button" class="button" data-rc-go disabled>' +
+        escapeHtml(confirmLabel) +
+        '</button></div>';
+      const input = step.querySelector('[data-rc-word]');
+      const go = step.querySelector('[data-rc-go]');
+      input.addEventListener('input', () => {
+        go.disabled = input.value.trim() !== word;
+      });
+      input.focus();
+      step.querySelector('[data-rc-back]').addEventListener('click', step1);
+      go.addEventListener('click', async () => {
+        go.disabled = true;
+        step.querySelector('[data-rc-msg]').textContent = 'Working…';
+        try {
+          await onConfirm();
+          close();
+        } catch (error) {
+          step.querySelector('[data-rc-msg]').textContent = error.message || 'Could not complete.';
+          go.disabled = false;
+        }
+      });
+    };
+    step1();
+  }
+
+  async function rdRateCardPanel(host, onChanged) {
+    const canEdit = hasPermission('revenue_dashboard.rate_card_edit');
+    const e = escapeHtml;
+    let data;
+    try {
+      data = await apiRequest('/api/revenue-dashboard/rate-card');
+    } catch (error) {
+      host.innerHTML = '<p class="form-note">' + e(error.message || 'Could not load.') + '</p>';
+      return;
+    }
+    if (!data.batch) {
+      host.innerHTML = '';
+      return;
+    }
+    const aed = (n) => '⃃ ' + rdMoney2(n).replace(/\.00$/, '');
+    const signed = (n) => (n > 0 ? '+' : n < 0 ? '-' : '') + aed(Math.abs(n));
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const rows = rcRows(data.workbook, data.discountLabels);
+    let editing = false;
+    let draft = clone(data.custom || data.workbook);
+    const message = { text: '', ok: true };
+
+    const changedRows = (a, b) =>
+      rows
+        .filter((r) => Math.abs(r.get(a) - r.get(b)) > 0.0001)
+        .map((r) => ({
+          label: r.group + ': ' + r.label,
+          from: r.show(r.get(a)),
+          to: r.show(r.get(b)),
+        }));
+
+    const draw = () => {
+      const inUse = data.custom || data.workbook;
+      const shown = editing ? draft : inUse;
+      const imp = data.impact;
+      const dirty = editing && changedRows(data.workbook, draft).length > 0;
+      let html =
+        '<div class="rc-card"><div class="rc-head"><div><h3>Rates in use</h3><p>' +
+        (data.active
+          ? 'Custom rates are locked. Every revenue figure in the portal is calculated at these rates; all other logic is unchanged.'
+          : 'Revenue is calculated at the workbook rates. Admins can lock different rates to see the effect on revenue.') +
+        '</p></div><div class="rc-actions"><span class="rc-chip ' +
+        (data.active ? 'rc-chip-on' : '') +
+        '">' +
+        (data.active ? '&#128274; Custom rates locked' : 'Workbook rates') +
+        '</span>';
+      if (canEdit && !editing)
+        html +=
+          '<button type="button" class="button button-outline" data-rc-edit>Edit rates</button>';
+      if (canEdit && editing)
+        html +=
+          '<button type="button" class="button button-outline" data-rc-discard>Discard</button><button type="button" class="button" data-rc-lock ' +
+          (dirty || data.active ? '' : 'disabled') +
+          '>&#128274; Lock &amp; recalculate revenue</button>';
+      if (canEdit && !editing && data.active)
+        html +=
+          '<button type="button" class="button button-outline" data-rc-back>Back to workbook rates</button>';
+      if (canEdit && !editing)
+        html +=
+          '<button type="button" class="rc-apply-pill" data-rc-apply ' +
+          (data.active && data.mastersDiffer ? '' : 'disabled') +
+          ' title="' +
+          e(
+            data.active
+              ? data.mastersDiffer
+                ? 'Copy these rates into Pricing Masters, calculators and the Rate Card page. Asks for confirmation twice.'
+                : 'Pricing Masters already hold these rates.'
+              : 'Lock custom rates first.',
+          ) +
+          '">Apply to Pricing Masters</button>';
+      html += '</div></div>';
+      if (message.text)
+        html += '<p class="rc-msg ' + (message.ok ? 'ok' : 'bad') + '">' + e(message.text) + '</p>';
+      if (data.active && !editing && data.appliedToActive)
+        html += '<p class="rc-msg ok">These rates have been applied to Pricing Masters.</p>';
+      if (!data.active && data.workbookDiffersFromMasters)
+        html +=
+          '<p class="rc-msg warn">Pricing Masters hold different rates from this workbook (see the Pricing Masters column). Revenue here follows the workbook until you lock your own rates.</p>';
+      html +=
+        '<div class="rc-table"><table><thead><tr><th>Rate</th><th>Workbook</th><th>Pricing Masters</th><th>' +
+        (editing ? 'New rate' : 'In use') +
+        '</th></tr></thead><tbody>';
+      let group = '';
+      rows.forEach((r, i) => {
+        if (r.group !== group) {
+          group = r.group;
+          html += '<tr class="rc-group"><td colspan="4">' + e(group) + '</td></tr>';
+        }
+        const wb = r.get(data.workbook);
+        const cur = r.get(shown);
+        const changed = Math.abs(cur - wb) > 0.0001;
+        html +=
+          '<tr class="' +
+          (changed ? 'rc-changed' : '') +
+          '"><td>' +
+          e(r.label) +
+          '</td><td>' +
+          e(r.show(wb)) +
+          '</td><td class="rc-muted">' +
+          e(r.show(r.get(data.masters))) +
+          '</td><td>';
+        if (editing)
+          html +=
+            '<input type="number" step="0.01" min="0" class="rc-input" data-rc-i="' +
+            i +
+            '" value="' +
+            cur +
+            '" />' +
+            (r.pct ? '<span class="rc-unit">%</span>' : '') +
+            (changed ? '<span class="rc-was">' + e(r.show(wb)) + '</span>' : '');
+        else
+          html +=
+            '<b>' +
+            e(r.show(cur)) +
+            '</b>' +
+            (changed ? '<span class="rc-was">' + e(r.show(wb)) + '</span>' : '');
+        html += '</td></tr>';
+      });
+      html += '</tbody></table></div></div>';
+      if (data.active && imp && !editing) {
+        html +=
+          '<div class="rc-card"><div class="rc-head"><div><h3>Effect on revenue</h3><p>Whole upload, ' +
+          e(data.batch.fileName) +
+          '. ' +
+          e(String(imp.jobsAffected)) +
+          ' jobs are priced differently.</p></div></div>' +
+          rdKpis([
+            ['Workbook rates', aed(imp.workbookRates), 'Revenue as uploaded'],
+            ['Custom rates', aed(imp.customRates), 'Revenue now'],
+            [
+              imp.change < 0 ? 'Loss' : 'Gain',
+              signed(imp.change),
+              (imp.changePct > 0 ? '+' : '') + imp.changePct + '% vs workbook',
+            ],
+          ]) +
+          '<div class="rc-table"><table><thead><tr><th>Job type</th><th>Jobs changed</th><th>Workbook</th><th>Custom</th><th>Difference</th></tr></thead><tbody>' +
+          imp.byJobType
+            .map(
+              (t) =>
+                '<tr><td>' +
+                e(t.label) +
+                '</td><td>' +
+                t.jobsAffected +
+                '</td><td>' +
+                aed(t.workbookRates) +
+                '</td><td>' +
+                aed(t.customRates) +
+                '</td><td class="' +
+                (t.change < 0 ? 'rc-neg' : t.change > 0 ? 'rc-pos' : '') +
+                '">' +
+                signed(t.change) +
+                '</td></tr>',
+            )
+            .join('') +
+          '</tbody></table></div></div>';
+      }
+      host.innerHTML = html;
+      wire();
+    };
+
+    const run = async (fn) => {
+      try {
+        await fn();
+      } catch (error) {
+        message.text = error.message || 'Something went wrong.';
+        message.ok = false;
+        draw();
+      }
+    };
+
+    const wire = () => {
+      host.querySelector('[data-rc-edit]')?.addEventListener('click', () => {
+        editing = true;
+        draft = clone(data.custom || data.workbook);
+        message.text = '';
+        draw();
+      });
+      host.querySelector('[data-rc-discard]')?.addEventListener('click', () => {
+        editing = false;
+        message.text = '';
+        draw();
+      });
+      host.querySelectorAll('[data-rc-i]').forEach((input) =>
+        input.addEventListener('change', () => {
+          const v = Number(input.value);
+          if (Number.isFinite(v) && v >= 0) rows[Number(input.dataset.rcI)].put(draft, v);
+          draw();
+        }),
+      );
+      host.querySelector('[data-rc-lock]')?.addEventListener('click', () =>
+        run(async () => {
+          const n = changedRows(data.workbook, draft).length;
+          if (!n && !data.active) return;
+          if (
+            !window.confirm(
+              n
+                ? 'Lock ' +
+                    n +
+                    ' changed rate' +
+                    (n === 1 ? '' : 's') +
+                    ' and recalculate the entire revenue? Pricing Masters are not changed.'
+                : 'These are the workbook rates. Go back to workbook rates?',
+            )
+          )
+            return;
+          message.text = 'Recalculating the dashboard…';
+          message.ok = true;
+          draw();
+          data = await apiRequest('/api/revenue-dashboard/rate-card', {
+            method: 'PUT',
+            body: JSON.stringify({ rates: draft }),
+          });
+          editing = false;
+          message.text = n ? 'Rates locked and revenue recalculated.' : 'Back on workbook rates.';
+          draw();
+          onChanged?.();
+        }),
+      );
+      host.querySelector('[data-rc-back]')?.addEventListener('click', () =>
+        run(async () => {
+          if (!window.confirm('Go back to the workbook rates and recalculate revenue?')) return;
+          data = await apiRequest('/api/revenue-dashboard/rate-card', { method: 'DELETE' });
+          editing = false;
+          message.text = 'Back on workbook rates.';
+          message.ok = true;
+          draw();
+          onChanged?.();
+        }),
+      );
+      host.querySelector('[data-rc-apply]')?.addEventListener('click', () => {
+        const changes = changedRows(data.masters, data.custom);
+        rcConfirmModal({
+          title: 'Apply to Pricing Masters',
+          intro:
+            'These rates will replace the current D+I Pricing Masters values. Calculators and the Rate Card page will use them from now on. You can restore the earlier values or the workbook rates from the Pricing Masters history.',
+          rows: changes,
+          word: 'APPLY',
+          confirmLabel: 'Apply to Pricing Masters',
+          onConfirm: async () => {
+            const res = await apiRequest('/api/revenue-dashboard/rate-card/apply-to-masters', {
+              method: 'POST',
+              body: JSON.stringify({ confirm: 'APPLY' }),
+            });
+            data = await apiRequest('/api/revenue-dashboard/rate-card');
+            message.text =
+              'Applied to Pricing Masters (' +
+              res.applied +
+              ' value' +
+              (res.applied === 1 ? '' : 's') +
+              ').' +
+              (res.skipped?.length ? ' Not held by the masters: ' + res.skipped.join('; ') : '');
+            message.ok = true;
+            draw();
+          },
+        });
+      });
+    };
+    draw();
+  }
+
   function rdUploadCard(host, kind, onDone) {
     if (!hasPermission('revenue_dashboard.write')) return;
     const label =
@@ -31815,9 +32255,11 @@ ${bodyHtml}
           '<div class="rl-hero"><div><h2>Rate card</h2><p>The rates, volume discounts and once-per-invoice charges read from the uploaded master workbook, and how the workbook compares with these rules.</p></div><div class="rl-hero-meta"><span class="rl-chip muted">' +
           e(d.batch.fileName) +
           '</span></div></div>' +
+          '<div data-rc-host></div>' +
           ratesHtml +
           recHtml +
           footNote;
+        rdRateCardPanel(body.querySelector('[data-rc-host]'));
         return;
       }
       body.innerHTML =

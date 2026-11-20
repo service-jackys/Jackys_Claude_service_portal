@@ -2644,6 +2644,203 @@
       .rd-search input {
         min-width: 320px;
       }
+      .rc-card {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 16px;
+        margin: 0 0 16px;
+      }
+      .rc-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        justify-content: space-between;
+        align-items: flex-start;
+      }
+      .rc-head h3 {
+        margin: 0 0 4px;
+        font-size: 1.05rem;
+        font-weight: 600;
+      }
+      .rc-head p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.88rem;
+        max-width: 560px;
+      }
+      .rc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .rc-chip {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+      .rc-chip-on {
+        background: #e8f3ff;
+        border-color: #b9d8f5;
+        color: #14548f;
+      }
+      .rc-apply-pill {
+        border: 0;
+        border-radius: 999px;
+        padding: 8px 18px;
+        font-weight: 600;
+        font-size: 0.88rem;
+        color: #fff;
+        cursor: pointer;
+        background: linear-gradient(135deg, #0f766e, #14548f);
+      }
+      .rc-apply-pill:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .rc-msg {
+        margin: 12px 0 0;
+        padding: 8px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+      }
+      .rc-msg.ok {
+        background: #e7f6ec;
+        color: #1d6b3a;
+      }
+      .rc-msg.bad {
+        background: #fdecec;
+        color: #a12626;
+      }
+      .rc-msg.warn {
+        background: #fff5e0;
+        color: #8a5a00;
+      }
+      .rc-table {
+        overflow-x: auto;
+        margin-top: 12px;
+      }
+      .rc-table table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.88rem;
+      }
+      .rc-table th,
+      .rc-table td {
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .rc-group td {
+        background: var(--surface-soft);
+        font-weight: 600;
+        font-size: 0.8rem;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+      }
+      .rc-muted {
+        color: var(--muted);
+      }
+      .rc-changed td {
+        background: #fff9e6;
+      }
+      .rc-was {
+        margin-left: 8px;
+        color: var(--muted);
+        text-decoration: line-through;
+        font-size: 0.8rem;
+      }
+      .rc-input {
+        width: 110px;
+        padding: 5px 8px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface);
+        color: var(--ink);
+      }
+      .rc-unit {
+        margin-left: 4px;
+        color: var(--muted);
+      }
+      .rc-neg {
+        color: #b42318;
+        font-weight: 600;
+      }
+      .rc-pos {
+        color: #1d6b3a;
+        font-weight: 600;
+      }
+      .rc-restore-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      .rc-modal-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 25, 40, 0.55);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 16px;
+      }
+      .rc-modal {
+        background: var(--surface);
+        color: var(--ink);
+        border-radius: 16px;
+        padding: 20px;
+        width: min(560px, 100%);
+        max-height: 90vh;
+        overflow: auto;
+      }
+      .rc-modal h3 {
+        margin: 0 0 8px;
+      }
+      .rc-step-tag {
+        color: var(--muted);
+        font-size: 0.78rem;
+        margin: 0 0 6px;
+      }
+      .rc-modal-table {
+        max-height: 40vh;
+        overflow: auto;
+        margin: 10px 0;
+      }
+      .rc-modal-table table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.85rem;
+      }
+      .rc-modal-table th,
+      .rc-modal-table td {
+        padding: 5px 8px;
+        border-bottom: 1px solid var(--line);
+        text-align: left;
+      }
+      .rc-modal-input {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        font-size: 1rem;
+        background: var(--surface);
+        color: var(--ink);
+        box-sizing: border-box;
+      }
+      .rc-modal-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+        margin-top: 14px;
+      }
       .rl-hero {
         display: flex;
         flex-wrap: wrap;

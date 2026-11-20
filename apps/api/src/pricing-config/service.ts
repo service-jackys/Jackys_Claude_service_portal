@@ -200,6 +200,8 @@ export function createPricingConfigService(pool: Pool) {
     input: unknown,
     profileId: string,
     requestId: string = randomUUID(),
+    // Where the change came from (e.g. the Revenue Dashboard rate card); shown in History.
+    extra?: Record<string, unknown>,
   ): Promise<PricingConfigView> {
     let payload = pricingConfigSchemaFor(domain).parse(input);
     // Appliance Master: renamedFrom marks a renamed row. It is applied to the
@@ -223,7 +225,12 @@ export function createPricingConfigService(pool: Pool) {
         action: 'pricing_config.saved',
         targetType: 'pricing_config',
         targetId: row.id,
-        metadata: renames.length ? { domain, payload, renames } : { domain, payload },
+        metadata: {
+          domain,
+          payload,
+          ...(renames.length ? { renames } : {}),
+          ...(extra ?? {}),
+        },
         requestId,
       });
       if (domain === 'appliance_master') {
