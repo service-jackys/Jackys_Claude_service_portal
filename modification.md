@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #293 — Tasks: material workspace look
+
+**Date:** 2026-11-20
+
+**Why.** The Tasks page did not look professional enough. He chose Option A (Material workspace) from three mockups.
+
+**What changed.** Styling only, no behaviour change. Soft white cards with gentle shadows and larger corners, rounded pill buttons and filters, the four KPI cards with a coloured status dot (open, done, due this week, overdue, issues), the view switch (List / Board / Timeline) as a rounded segmented control, each status group as its own card with a coloured count, roomier table rows with lighter headings, thicker progress bars in teal, and rounder priority pills. Works in light and dark themes (card text now follows the theme). The Flow look, Board and Timeline views, and all task actions are unchanged.
+
+**Files.** apps/web/src/index.html, modification.md.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #292 — Unit stickers: larger, bolder text and a darker barcode
 
 **Date:** 2026-11-20

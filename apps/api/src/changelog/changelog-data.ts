@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 293,
+    "title": "Tasks: material workspace look",
+    "area": "Tasks",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Tasks page did not look professional enough. He chose Option A (Material workspace) from three mockups.",
+    "changes": [
+      "What changed: Styling only, no behaviour change. Soft white cards with gentle shadows and larger corners, rounded pill buttons and filters, the four KPI cards with a coloured status dot (open, done, due this week, overdue, issues), the…"
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 292,
     "title": "Unit stickers: larger, bolder text and a darker barcode",
     "area": "General",
