@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 292,
+    "title": "Unit stickers: larger, bolder text",
+    "area": "General",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "On the Zebra printout (Delivery + installation page) the small entries were hard to read: 6 to 7 pt text on a 100 x 75 mm label with empty space left below.",
+    "changes": [
+      "What changed: Row text is now 8.5 pt bold (labels 7.5 pt bold), the delivery note number 13 pt, the status box and brand 11 pt, the date box 8 pt, the warranty note and contact line 6.3 to 6.8 pt bold. Long descriptions and customer names…"
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart. Print one sticker from the Delivery + installation page and one from Service jobs to confirm.",
+    "migrations": [],
+    "files": "apps/web/src/label-core.js, modification.md."
+  },
+  {
     "id": 291,
     "title": "Service Revenue Dashboard: custom rates made visible everywhere (only while locked)",
     "area": "Revenue",
