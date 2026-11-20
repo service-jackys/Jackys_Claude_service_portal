@@ -16,7 +16,12 @@ test('Send ROI preview shows the LPO pending block under the Management Summary'
           name: 'Vysakh Raju',
           email: 'finance@jackys.com',
           role: 'staff',
-          permissions: ['revenue_dashboard.read', 'revenue_dashboard.tab_reports', 'tasks.use'],
+          permissions: [
+            'revenue_dashboard.read',
+            'revenue_dashboard.tab_reports',
+            'tasks.use',
+            'tasks.roi_management_summary',
+          ],
         },
       });
     }

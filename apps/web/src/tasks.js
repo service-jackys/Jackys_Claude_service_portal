@@ -1717,7 +1717,7 @@
         '<div class="tk-field"><label for="cSig">Signature</label><textarea id="cSig" rows="3" data-c="signature" maxlength="2000"></textarea></div>' +
         (canSummary
           ? '<label class="tk-check"><input type="checkbox" data-c="includeSummary"> Include the Management Summary <span class="tk-opt" data-c-summary-note></span></label>'
-          : '<p class="tk-hint">The Management Summary is added for users with Service Revenue Dashboard access.</p>') +
+          : '<p class="tk-hint">The Management Summary is added only for roles that have it switched on (Roles page: ROI Management Summary).</p>') +
         '<div class="tk-compose-actions">' +
         '<button type="button" class="button button-primary tk-btn" data-c-copy>Copy formatted email</button>' +
         '<button type="button" class="button button-outline tk-btn" data-c-eml>Download Outlook draft (.eml)</button>' +

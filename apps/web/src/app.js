@@ -21966,7 +21966,8 @@ ${bodyHtml}
         tipHtml,
         isAdmin: () => Boolean(currentUser?.permissions?.includes('*')),
         getUser: () => ({ name: currentUser?.name || '', email: currentUser?.email || '' }),
-        canSummary: () => hasPermission('revenue_dashboard.read'),
+        canSummary: () =>
+          hasPermission('revenue_dashboard.read') && hasPermission('tasks.roi_management_summary'),
         openChatRecord: (type, id) => discussRecord(type, id),
         can: (permission) => Boolean(hasPermission(permission)),
         openRecord: openTaskRecord,
@@ -31987,7 +31988,7 @@ ${bodyHtml}
         ).join('') +
         '</div>' +
         '<span class="rd-spacer"></span><button class="button" type="button" data-rd-export>Export report (.xlsx)</button><button class="button button-outline" type="button" data-rd-summary>Management summary</button><button class="button button-outline" type="button" data-rd-email>Email draft</button><button class="button button-outline" type="button" data-rd-html-email>Formatted email</button>' +
-        (hasPermission('tasks.use')
+        (hasPermission('tasks.use') && hasPermission('tasks.roi_management_summary')
           ? '<button class="tk-pill tk-pill-accent" type="button" data-rd-send-roi title="Build this week\u2019s ROI (Results, Management Summary, Objectives, Issues) as an email draft">Send ROI</button>'
           : '') +
         '</div>' +

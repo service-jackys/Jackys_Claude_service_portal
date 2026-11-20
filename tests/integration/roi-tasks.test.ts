@@ -203,12 +203,42 @@ test(
         subject: 'Weekly ROI: Week 40',
         toEmails: ['x@example.test'],
         ccEmails: [],
-        includesSummary: true,
+        includesSummary: false,
         counts: { results: 2, objectives: 3 },
       });
+      // The Management Summary needs its own permission; a plain tasks.use user is refused.
+      await assert.rejects(
+        service.logReport(userA, {
+          weekYear: 2026,
+          weekNumber: 41,
+          weekEnding: '2026-10-09',
+          subject: 'Weekly ROI: Week 41',
+          toEmails: ['x@example.test'],
+          ccEmails: [],
+          includesSummary: true,
+          counts: {},
+        }),
+        (error) => error instanceof RoiServiceError && error.code === 'forbidden',
+      );
+      await service.logReport(
+        { ...userA, permissions: ['tasks.use', 'tasks.roi_management_summary'] },
+        {
+          weekYear: 2026,
+          weekNumber: 41,
+          weekEnding: '2026-10-09',
+          subject: 'Weekly ROI: Week 41',
+          toEmails: ['x@example.test'],
+          ccEmails: [],
+          includesSummary: true,
+          counts: {},
+        },
+      );
       const reports = await service.reports(userA);
-      assert.equal(reports.length, 1);
-      assert.deepEqual(reports[0].counts, { results: 2, objectives: 3 });
+      assert.equal(reports.length, 2);
+      assert.deepEqual(reports.find((r) => r.weekNumber === 40)?.counts, {
+        results: 2,
+        objectives: 3,
+      });
       assert.equal((await service.reports(userB)).length, 0);
 
       // Import: parsed rows land as tasks, re-running skips duplicates

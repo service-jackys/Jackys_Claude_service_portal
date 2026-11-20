@@ -275,6 +275,16 @@ export function createRoiService(pool: Pool) {
     requestId: string = randomUUID(),
   ) {
     const data = roiReportLogSchema.parse(input);
+    if (
+      data.includesSummary &&
+      !isAdmin(auth) &&
+      !auth.permissions.includes('tasks.roi_management_summary')
+    ) {
+      throw new RoiServiceError(
+        'forbidden',
+        'Your role cannot include the Management Summary in an ROI.',
+      );
+    }
     return withTransaction(pool, async (client) => {
       const id = await insertRoiReport(client, auth.profileId, data);
       await insertAuditEvent(client, {
