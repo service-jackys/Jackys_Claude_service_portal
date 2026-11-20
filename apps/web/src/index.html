@@ -13099,6 +13099,209 @@
           transition: none;
         }
       }
+      /* Tasks: material workspace look (modification #293). Only colours, radii, shadows and spacing. */
+      .tk {
+        --tk-teal: #0b7c96;
+        --tk-shadow: 0 1px 2px rgb(15 42 51 / 8%), 0 4px 12px rgb(15 42 51 / 6%);
+      }
+      .tk-head {
+        margin-bottom: 1.25rem;
+      }
+      .tk-pill {
+        min-height: 40px;
+        padding: 0.3rem 1.1rem;
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        background: var(--surface);
+        color: var(--ink);
+        font-size: 0.85rem;
+      }
+      .tk-pill:hover:not(:disabled) {
+        background: var(--surface-soft);
+        color: var(--ink);
+        box-shadow: var(--tk-shadow);
+      }
+      .tk-pill-accent {
+        border-color: var(--red);
+        background: var(--red);
+        color: #fff;
+      }
+      .tk-pill-accent:hover:not(:disabled) {
+        background: #a62727;
+        border-color: #a62727;
+        color: #fff;
+      }
+      .tk-btn {
+        min-height: 40px;
+        padding: 0.4rem 1.2rem;
+        border-radius: 20px;
+        font-size: 0.88rem;
+        box-shadow: 0 2px 6px rgb(11 124 150 / 30%);
+      }
+      .tk-kpis {
+        gap: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .tk-kpi {
+        --tk-kc: var(--tk-teal);
+        gap: 0.25rem;
+        padding: 1.05rem 1.2rem;
+        border: 0;
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--tk-shadow);
+      }
+      .tk-kpi-good {
+        --tk-kc: var(--tk-s-completed);
+      }
+      .tk-kpi-bad {
+        --tk-kc: var(--red);
+      }
+      .tk-kpi:nth-child(3):not(.tk-kpi-good):not(.tk-kpi-bad) {
+        --tk-kc: #d97706;
+      }
+      .tk-kpi:nth-child(5):not(.tk-kpi-good):not(.tk-kpi-bad) {
+        --tk-kc: #8a9ba3;
+      }
+      .tk-kpi-label {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        font-size: 0.7rem;
+        letter-spacing: 0.07em;
+      }
+      .tk-kpi-label::before {
+        content: '';
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--tk-kc);
+        flex: none;
+      }
+      .tk-kpi-value {
+        font-size: 2.1rem;
+        font-weight: 700;
+      }
+      .tk-toolbar {
+        gap: 0.65rem;
+        margin-bottom: 1.1rem;
+      }
+      .tk-toolbar select,
+      .tk-search input {
+        min-height: 40px;
+        border-radius: 20px;
+        padding: 0.3rem 0.95rem;
+        background: var(--surface);
+      }
+      .tk-search {
+        max-width: 340px;
+      }
+      .tk-seg {
+        padding: 4px;
+        border-radius: 20px;
+        background: color-mix(in srgb, var(--ink) 9%, var(--surface));
+      }
+      .tk-seg button,
+      .tk-seg label {
+        border-radius: 16px;
+        padding: 0.4rem 1.1rem;
+      }
+      .tk-seg button.active,
+      .tk-seg label.active {
+        background: var(--surface);
+        box-shadow: 0 1px 3px rgb(15 42 51 / 18%);
+      }
+      .tk-archive-toggle {
+        min-height: 40px;
+        border-radius: 20px;
+        background: var(--surface);
+      }
+      .tk-quickadd input {
+        min-height: 44px;
+        border-radius: 20px;
+        padding: 0.4rem 1.1rem;
+        background: var(--surface);
+      }
+      .tk-quickadd .tk-btn {
+        box-shadow: none;
+      }
+      .tk-group {
+        margin-bottom: 1rem;
+        border: 0;
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--tk-shadow);
+      }
+      .tk-group-bar {
+        background: var(--surface);
+      }
+      .tk-group-head {
+        padding: 1rem 1.1rem 0.7rem;
+        font-size: 1rem;
+        font-weight: 700;
+      }
+      .tk-group .tk-dot {
+        width: 10px;
+        height: 10px;
+      }
+      .tk-count {
+        background: color-mix(in srgb, var(--tk-accent, #64748b) 16%, var(--surface));
+        color: color-mix(in srgb, var(--tk-accent, #64748b) 80%, var(--ink));
+        font-weight: 700;
+      }
+      .tk-table th {
+        padding: 0.5rem 0.75rem;
+        border-bottom: 0;
+        font-size: 0.68rem;
+        letter-spacing: 0.07em;
+        background: transparent;
+      }
+      .tk-table td {
+        padding: 0.9rem 0.75rem;
+        border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+      }
+      .tk-row:hover td {
+        background: var(--surface-soft);
+      }
+      .tk-head-title h3,
+      .tk-kpi-value,
+      .tk-group-head,
+      .tk-c-progress output,
+      .tk-archive-toggle,
+      .tk-seg button.active,
+      .tk-seg label.active {
+        color: var(--ink);
+      }
+      .tk-pct {
+        color: var(--muted);
+      }
+      .tk-title {
+        font-weight: 600;
+      }
+      .tk-c-check input {
+        width: 18px;
+        height: 18px;
+      }
+      .tk-c-progress input {
+        accent-color: var(--tk-teal);
+      }
+      .tk-c-progress output {
+        font-weight: 700;
+      }
+      .tk-progress {
+        height: 8px;
+        background: color-mix(in srgb, var(--ink) 10%, var(--surface));
+      }
+      .tk-progress-fill.tk-s-in_progress {
+        background: var(--tk-teal);
+      }
+      .tk-p-urgent,
+      .tk-p-high,
+      .tk-p-medium,
+      .tk-p-low {
+        border-radius: 12px;
+        font-weight: 700;
+      }
       /* Flow look for Tasks (modification #139): dark aurora + frosted glass, switched on per browser */
       .tk-orb {
         display: none;
