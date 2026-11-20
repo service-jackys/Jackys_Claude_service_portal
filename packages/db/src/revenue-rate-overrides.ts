@@ -68,6 +68,9 @@ export interface RateLine {
   year: number | null;
   monthNo: number | null;
   pricing: Record<string, unknown> | null;
+  salesPerson?: string | null;
+  customer?: string | null;
+  orderDate?: string | null;
 }
 
 /** Every revenue line of a batch with the fields needed to re-price it, in workbook order. */
@@ -80,7 +83,8 @@ export async function listRateLines(client: Q, batchId: string | number): Promis
     `SELECT id::text AS id, job_type AS "jobType", inv_del_no AS "invDelNo", qty::float8 AS qty,
             unit_price::float8 AS "unitPrice", workbook_revenue::float8 AS "workbookRevenue",
             remarks, billing_code AS "billingCode", original_job_value::float8 AS "originalJobValue",
-            year, month_no AS "monthNo", pricing
+            year, month_no AS "monthNo", pricing,
+            sales_person AS "salesPerson", customer, order_date::text AS "orderDate"
        FROM revenue_lines WHERE batch_id = $1 ORDER BY source_row NULLS LAST, id`,
     [batchId],
   );

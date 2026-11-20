@@ -517,7 +517,7 @@ export async function revenueExportLines(
 ) {
   const f = filterClause(batchId, filters);
   const rows = await client.query(
-    `SELECT ${lineColumns}, pricing FROM revenue_lines WHERE ${f.where}
+    `SELECT ${lineColumns}, workbook_revenue::float8 AS "workbookRevenue", pricing FROM revenue_lines WHERE ${f.where}
      ORDER BY order_date DESC NULLS LAST, id DESC LIMIT ${limit}`,
     f.params,
   );

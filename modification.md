@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #291 — Service Revenue Dashboard: custom rates made visible everywhere (only while locked)
+
+**Date:** 2026-11-20
+
+**Why.** After locking custom rates, management and the Service team must see at once that the figures are not the workbook figures, by how much, and why. Everything below appears only while custom rates are locked; with workbook rates (or while editing without locking) every screen and export is exactly as before.
+
+**What changed.**
+
+- **Banner on every dashboard tab** (Overview, Explorer, Reports, Logic applied, Transport rules): custom rates in force, locked by / on, workbook revenue to custom revenue and the difference, with an Open Rate card button.
+- **Rate card after lock:** new tables "Effect of each rate" (each rate measured on its own, jobs affected, revenue effect), "Effect by salesperson" and "Example invoices" (biggest changes, workbook vs custom, with the reason in plain words).
+- **Logic applied tab:** a "Custom rates are in force" box with the changed rates (workbook value struck through) and a "Why the figures differ from the workbook" note: workbook figures are kept as uploaded, custom = workbook figure + rate difference with the same rules, what changed, what did not change. The reconciliation check stays on workbook rates.
+- **Export report (.xlsx):** highlighted Summary note (locked by / when, workbook revenue, custom revenue, difference), a new "Rate changes" sheet (rate, workbook, custom, lines affected, revenue effect, total), a "Workbook revenue (AED)" column next to revenue on the job-line sheets, and a note on the Logic sheet. The "Workbook minus rules" columns compare against the custom rates so the rate change is not shown as a workbook error.
+- New `GET /api/revenue-dashboard/rate-card/status` (revenue_dashboard.read).
+
+**Files.** apps/api/src/revenue-dashboard/rate-overrides.ts, service.ts, routes.ts, export.ts, apps/api/src/api/route-catalog.ts, packages/db/src/revenue-dashboard.ts, packages/db/src/revenue-rate-overrides.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/rate-overrides.test.ts.
+
+**Needs you:** pull, restart the API, hard-refresh. No migration.
+
 ## Modification #290 — Service Revenue Dashboard: editable Rate card, lock and recalculate, apply to Pricing Masters
 
 **Date:** 2026-11-19

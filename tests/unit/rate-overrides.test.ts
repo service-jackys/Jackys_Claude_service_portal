@@ -9,6 +9,8 @@ import {
   overlayRates,
   ratesFromMasters,
   ratesOf,
+  reasonOf,
+  singleChange,
   type RateSet,
 } from '../../apps/api/src/revenue-dashboard/rate-overrides.js';
 import type { RateLine } from '../../packages/db/src/revenue-rate-overrides.js';
@@ -78,4 +80,21 @@ test('the pricing master round-trips the rate card values it holds', () => {
   const { payload } = mastersFromRates(dandiPricingDefault, set, base);
   assert.equal(payload.flatRates?.CSIJW, 111);
   assert.equal(ratesFromMasters(payload, base).jobRates.CSIJW, 111);
+});
+
+test('singleChange applies exactly one rate and leaves the rest at the workbook value', () => {
+  const set = clone(ratesOf(base));
+  set.jobRates.CSIJO += 7;
+  set.jobRates.CSIJW += 3;
+  const one = singleChange(ratesOf(base), set, 'jobRates.CSIJO');
+  assert.equal(one.jobRates.CSIJO, jo + 7);
+  assert.equal(one.jobRates.CSIJW, jw);
+});
+
+test('reasonOf explains a repair line with the old and new rate', () => {
+  const set = clone(ratesOf(base));
+  set.jobRates.CSIJO += 10;
+  const text = reasonOf(line('9', 'CSIJO', 2, 2 * jo), base, overlayRates(base, set));
+  assert.match(text, /CSIJO rate/);
+  assert.match(text, /x 2$/);
 });

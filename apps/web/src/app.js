@@ -28127,6 +28127,37 @@ ${bodyHtml}
     step1();
   }
 
+  /** Banner shown on every Service Revenue Dashboard tab while custom rates are locked (nothing when workbook rates are in use). */
+  function rdCustomRatesBanner(st, onOpen) {
+    if (!st || !st.active) return null;
+    const e = escapeHtml;
+    const aed = (n) => '⃃ ' + rdMoney2(n).replace(/\.00$/, '');
+    const when = st.lockedAt
+      ? new Date(st.lockedAt).toLocaleDateString('en-GB', {
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+        })
+      : '';
+    const diff = st.change;
+    const el = document.createElement('div');
+    el.className = 'rc-bar rc-live';
+    el.innerHTML =
+      '<span class="rc-dot-live"></span><div class="rc-bar-main"><b>Custom rates in force</b><span class="rc-sub">Locked' +
+      (st.updatedByName ? ' by ' + e(st.updatedByName) : '') +
+      (when ? ' on ' + e(when) : '') +
+      '. Workbook revenue ' +
+      e(aed(st.workbookRates)) +
+      ' &rarr; custom ' +
+      e(aed(st.customRates)) +
+      ' (' +
+      (diff > 0 ? '+' : diff < 0 ? '−' : '') +
+      e(aed(Math.abs(diff))) +
+      ').</span></div><span class="rc-grow"></span><div class="rc-bar-btns"><button type="button" class="secondary" data-rc-open>Open Rate card</button></div>';
+    el.querySelector('[data-rc-open]').addEventListener('click', onOpen);
+    return el;
+  }
+
   async function rdRateCardPanel(host, fallbackHtml) {
     const canEdit = hasPermission('revenue_dashboard.rate_card_edit');
     const e = escapeHtml;
@@ -28448,6 +28479,75 @@ ${bodyHtml}
             )
             .join('') +
           '</tbody></table></div>';
+        if (Array.isArray(imp.byRate) && imp.byRate.length)
+          html +=
+            '<div class="rc-box"><div class="rc-box-head"><b>Effect of each rate</b><span>each rate measured on its own</span></div>' +
+            '<table class="rc-t"><thead><tr><th>Rate</th><th class="rc-num">Workbook</th><th class="rc-num">Custom</th><th class="rc-num">Jobs affected</th><th class="rc-num">Revenue effect</th></tr></thead><tbody>' +
+            imp.byRate
+              .map(
+                (r) =>
+                  '<tr><td>' +
+                  e(r.label) +
+                  '</td><td class="rc-num">' +
+                  money(r.from) +
+                  '</td><td class="rc-num">' +
+                  money(r.to) +
+                  '</td><td class="rc-num">' +
+                  r.jobsAffected +
+                  '</td>' +
+                  diffCell(r.change) +
+                  '</tr>',
+              )
+              .join('') +
+            '</tbody></table><p class="form-note">When several rates change together the total can differ slightly from the sum of these rows, because they overlap on the same jobs.</p></div>';
+        if (Array.isArray(imp.byPerson) && imp.byPerson.length)
+          html +=
+            '<div class="rc-box"><div class="rc-box-head"><b>Effect by salesperson</b><span>' +
+            imp.byPerson.length +
+            ' salespeople</span></div>' +
+            '<table class="rc-t"><thead><tr><th>Salesperson</th><th class="rc-num">Jobs affected</th><th class="rc-num">Workbook rates</th><th class="rc-num">Custom rates</th><th class="rc-num">Difference</th></tr></thead><tbody>' +
+            imp.byPerson
+              .map(
+                (p) =>
+                  '<tr><td>' +
+                  e(p.salesPerson || '(none)') +
+                  '</td><td class="rc-num">' +
+                  p.jobsAffected +
+                  '</td><td class="rc-num">' +
+                  money(p.workbookRates) +
+                  '</td><td class="rc-num">' +
+                  money(p.customRates) +
+                  '</td>' +
+                  diffCell(p.change) +
+                  '</tr>',
+              )
+              .join('') +
+            '</tbody></table></div>';
+        if (Array.isArray(imp.examples) && imp.examples.length)
+          html +=
+            '<div class="rc-box"><div class="rc-box-head"><b>Example invoices</b><span>the biggest changes, with the reason</span></div>' +
+            '<table class="rc-t"><thead><tr><th>Invoice</th><th>Salesperson</th><th>Job type</th><th class="rc-num">Workbook</th><th class="rc-num">Custom</th><th class="rc-num">Difference</th><th>Why</th></tr></thead><tbody>' +
+            imp.examples
+              .map(
+                (x) =>
+                  '<tr><td>' +
+                  e(x.invoice) +
+                  '</td><td>' +
+                  e(x.salesPerson || '') +
+                  '</td><td>' +
+                  e(x.jobType) +
+                  '</td><td class="rc-num">' +
+                  money(x.workbookRevenue) +
+                  '</td><td class="rc-num">' +
+                  money(x.customRevenue) +
+                  '</td>' +
+                  diffCell(x.change) +
+                  '<td>' +
+                  e(x.reason) +
+                  '</td></tr>',
+              )
+              .join('') +
+            '</tbody></table></div>';
       }
       host.innerHTML = html;
       wire();
@@ -32443,6 +32543,42 @@ ${bodyHtml}
         rdRateCardPanel(body.querySelector('[data-rc-host]'), ratesHtml);
         return;
       }
+      let customBox = '';
+      try {
+        const st = await apiRequest('/api/revenue-dashboard/rate-card/status');
+        if (st && st.active) {
+          const sg = (n) => (n > 0 ? '+ ' : n < 0 ? '\u2212 ' : '') + aed(Math.abs(n));
+          customBox =
+            '<div class="rc-box rc-live-box"><div class="rc-box-head"><b>Custom rates are in force</b><span>' +
+            (st.updatedByName ? 'locked by ' + e(st.updatedByName) : 'locked') +
+            '</span></div><p>Workbook revenue <b>' +
+            e(aed(st.workbookRates)) +
+            '</b>, revenue at custom rates <b>' +
+            e(aed(st.customRates)) +
+            '</b>, difference <b>' +
+            e(sg(st.change)) +
+            '</b>. The rate tables on the Rate card tab show the custom values with the workbook value struck through.</p>' +
+            '<table class="rc-t"><thead><tr><th>Rate changed</th><th class="rc-num">Workbook</th><th class="rc-num">Custom</th></tr></thead><tbody>' +
+            (st.changes || [])
+              .map(
+                (c) =>
+                  '<tr><td>' +
+                  e(c.label) +
+                  '</td><td class="rc-num"><s>' +
+                  rdMoney2(c.from) +
+                  '</s></td><td class="rc-num"><b>' +
+                  rdMoney2(c.to) +
+                  '</b></td></tr>',
+              )
+              .join('') +
+            '</tbody></table><div class="rc-why"><b>Why the figures differ from the workbook</b><ul>' +
+            '<li>Workbook figures are kept exactly as uploaded. Custom revenue = the workbook figure + the rate difference, worked out with the same rules.</li>' +
+            '<li>What changed: only the rates listed above.</li>' +
+            '<li>What did not change: discount tiers, transport trips and caps, once-per-invoice charges, which lines count, and the reconciliation check (it still compares against workbook rates).</li></ul></div></div>';
+        }
+      } catch {
+        /* the notice must never stop the page */
+      }
       body.innerHTML =
         '<div class="rl-hero"><div><h2>How revenue is calculated</h2><p>Every revenue figure in this dashboard is the amount calculated in the master workbook. This page explains the rules behind it in plain language, with live figures from the data you uploaded.</p></div><div class="rl-hero-meta"><span class="rl-chip">' +
         (v3 ? 'Invoice-level rules' : 'Earlier per-line rules') +
@@ -32457,6 +32593,7 @@ ${bodyHtml}
           }),
         ) +
         '</span></div></div>' +
+        customBox +
         rdKpis([
           ['Revenue', aed(d.totals.revenue), 'Whole upload'],
           ['Jobs', rdMoney(d.totals.lines), 'Every revenue line'],
@@ -32998,6 +33135,16 @@ ${bodyHtml}
         banner.innerHTML = rdSourceBanner(sum.batch, 'revenue');
         top.appendChild(banner);
         rdUploadCard(top, 'revenue', () => renderRevenueDashboard(root));
+        try {
+          const st = await apiRequest('/api/revenue-dashboard/rate-card/status');
+          const live = rdCustomRatesBanner(st, () => {
+            tab = 'rates';
+            draw();
+          });
+          if (live && tab !== 'rates') top.appendChild(live);
+        } catch {
+          /* the banner must never stop the dashboard */
+        }
         if (tab !== 'transport') {
           try {
             await rdTransportStrip(top, F, () => {

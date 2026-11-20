@@ -1,6 +1,7 @@
 import ExcelJS from 'exceljs';
 import type { ImportBatch } from '../../../../packages/db/src/revenue-dashboard.js';
 import { buildLogicSheet, type LogicLine } from './logic-sheet.js';
+import { overlayRates, type RateSet } from './rate-overrides.js';
 import {
   applyFlatRates,
   DEFAULT_PRICING_RULES,
@@ -46,6 +47,17 @@ export type RevenueReportData = {
     deliveryOnlyCap: boolean;
     mixedInvoiceTransport: boolean;
     maxTrips: number;
+  };
+  /** Set while an admin has locked custom rates: the report then says its revenue is not the workbook figure. */
+  customRates?: {
+    lockedAt: string | Date | null;
+    updatedByName: string | null;
+    workbookRates: number;
+    customRates: number;
+    change: number;
+    changePct: number;
+    byRate: { label: string; from: number; to: number; jobsAffected: number; change: number }[];
+    custom: RateSet;
   };
 };
 
@@ -169,7 +181,9 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     ],
     [
       'Basis',
-      'Revenue is the figure calculated in the master Service Dashboard workbook (Revenue Source sheet).',
+      data.customRates
+        ? 'Revenue is the workbook figure (Revenue Source sheet) plus the effect of the custom rates locked in the portal; the workbook figure is shown beside it on the job sheets.'
+        : 'Revenue is the figure calculated in the master Service Dashboard workbook (Revenue Source sheet).',
     ],
     [
       'Limitation',
@@ -183,6 +197,50 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   summary.getCell('B9').numFmt = MONEY;
   summary.getCell('B10').numFmt = MONEY;
   summary.getColumn(2).alignment = { horizontal: 'left', wrapText: true };
+
+  if (data.customRates) {
+    const c = data.customRates;
+    const when =
+      c.lockedAt instanceof Date
+        ? c.lockedAt.toISOString().slice(0, 16).replace('T', ' ')
+        : String(c.lockedAt ?? '')
+            .slice(0, 16)
+            .replace('T', ' ');
+    const first = summary.rowCount + 1;
+    const rows: [string, string | number][] = [
+      [
+        'RATES',
+        `CUSTOM RATES IN FORCE - locked${c.updatedByName ? ' by ' + c.updatedByName : ''}${when ? ', ' + when : ''}. The revenue in this report is NOT the workbook figure.`,
+      ],
+      ['Workbook revenue, whole upload (AED)', c.workbookRates],
+      ['Revenue at custom rates, whole upload (AED)', c.customRates],
+      ['Difference, whole upload (AED)', `${c.change} (${c.changePct}%)`],
+      ['Rates changed', `${c.byRate.length} - see the "Rate changes" sheet.`],
+    ];
+    for (const [k, v] of rows) summary.addRow([k, v]);
+    for (let r = first; r <= summary.rowCount; r++)
+      for (const col of [1, 2])
+        summary.getCell(r, col).fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFFF3D6' },
+        };
+    summary.getCell(first + 1, 2).numFmt = MONEY;
+    summary.getCell(first + 2, 2).numFmt = MONEY;
+    const rc = wb.addWorksheet('Rate changes');
+    title(rc, 'Rate changes - custom rates against the workbook (whole upload)', 5);
+    rc.addRow(['Rate', 'Workbook (Excel)', 'Custom', 'Lines affected', 'Revenue effect (AED)']);
+    header(rc, 3);
+    for (const r of c.byRate) rc.addRow([r.label, r.from, r.to, r.jobsAffected, r.change]);
+    rc.addRow(['Total revenue difference', '', '', '', c.change]);
+    rc.getRow(rc.rowCount).font = { bold: true };
+    rc.addRow([]);
+    rc.addRow([
+      'Each rate is measured on its own. When several rates change together the total can differ slightly from the sum, because they overlap on the same lines.',
+    ]);
+    [1, 2, 3, 4, 5].forEach((i, k) => (rc.getColumn(i).width = [44, 18, 14, 16, 22][k]!));
+    [2, 3, 5].forEach((i) => (rc.getColumn(i).numFmt = MONEY));
+  }
 
   groupSheet(wb, 'By Job Type', 'Job type', data.total);
   matrixSheet(wb, 'Monthly Revenue', 'Month', data.monthly, 'revenue');
@@ -206,10 +264,13 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
   ex.getColumn(4).width = 90;
 
   const storedRules = (data.batch.summary as { pricingRules?: PricingRules }).pricingRules;
-  const rules: PricingRules = applyFlatRates(
-    storedRules?.deliveryInstall ? storedRules : DEFAULT_PRICING_RULES,
-    data.flatRates,
-  );
+  const ownRules = storedRules?.deliveryInstall ? storedRules : DEFAULT_PRICING_RULES;
+  // With custom rates locked, the revenue in this report follows them, so the rules used to rebuild each
+  // line (the "Workbook minus rules" columns) must follow them too; otherwise the rate change would show
+  // up as a workbook error.
+  const rules: PricingRules = data.customRates
+    ? overlayRates(ownRules, data.customRates.custom)
+    : applyFlatRates(ownRules, data.flatRates);
   const enriched = data.lines.map((line) => {
     const pricing = (line.pricing as SheetPricing | null | undefined) ?? null;
     const e = enrichLine(rules, {
@@ -371,6 +432,19 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       sum: true,
       get: L('revenue'),
     },
+    ...(data.customRates
+      ? [
+          {
+            h: 'Workbook revenue (AED)',
+            w: 16,
+            fmt: MONEY,
+            group: 'Revenue',
+            core: true,
+            sum: true,
+            get: L('workbookRevenue'),
+          },
+        ]
+      : []),
     { h: 'Remarks', w: 60, group: 'Remarks', core: true, get: L('remarks') },
   ];
 
@@ -421,6 +495,19 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       sum: true,
       get: L('revenue'),
     },
+    ...(data.customRates
+      ? [
+          {
+            h: 'Workbook revenue (AED)',
+            w: 16,
+            fmt: MONEY,
+            group: 'Final',
+            core: true,
+            sum: true,
+            get: L('workbookRevenue'),
+          },
+        ]
+      : []),
     {
       h: 'Change vs before (AED)',
       w: 14,
@@ -693,7 +780,11 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     filterLabel,
     data.transportRules && {
       banner: data.transportRules.label,
-      detail: transportRulesDetail(data.transportRules),
+      detail:
+        transportRulesDetail(data.transportRules) +
+        (data.customRates
+          ? ` CUSTOM RATES IN FORCE: workbook revenue AED ${data.customRates.workbookRates} -> AED ${data.customRates.customRates} (whole upload). The rates on this sheet are the custom rates.`
+          : ''),
     },
   );
 
