@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 295,
+    "title": "Reports: missing columns added and six new reports",
+    "area": "Portal look & feel",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "He asked whether everything users enter is also available in the Reports page. A column-by-column comparison of the database tables with the 11 reports found fields that were saved but never reported, and records with no report at all.",
+    "changes": [
+      "What changed: Reports only, nothing changes on screen except the Reports page. The page, preview, search, date range and Excel download all work the same way; the report list and columns come from the server."
+    ],
+    "needsYou": "pull and restart the API (the report list is read from the server), then hard-refresh. No migration.",
+    "migrations": [],
+    "files": "apps/api/src/reports/definitions.ts, tests/integration/report-definitions.test.ts, modification.md."
+  },
+  {
     "id": 294,
     "title": "Tasks: executive table look with a delayed row hover",
     "area": "Tasks",
