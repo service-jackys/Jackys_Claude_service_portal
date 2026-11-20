@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #294 — Tasks: executive table look with a delayed row hover
+
+**Date:** 2026-11-20
+
+**Why.** He asked to replace the Option A look (#293) with Option B (executive table), add a hover that lifts one row, and a thin visible line between task rows.
+
+**What changed.** Styling only, no behaviour change. Replaces the Option A look from #293. The five KPIs sit in one bordered strip with coloured figures; the view switch is a squared segmented control with a dark active tab; status groups are plain headings with a thin rule; the table has a dark header rule and a thin visible line under every task row (including the last one). Row hover: after the pointer rests on a row for 2 seconds, that row lifts (shadow, 1% zoom, dark left edge) and the other rows in the same list fade to 55%. Moving off restores everything at once. Not used on touch screens or when the system asks for reduced motion. Checked in light and dark themes; Board, Timeline and the Flow look are unchanged.
+
+**Files.** apps/web/src/index.html, modification.md.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #293 — Tasks: material workspace look
 
 **Date:** 2026-11-20
