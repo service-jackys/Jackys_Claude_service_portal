@@ -30,7 +30,7 @@ test('Code 128 modules always start with Start B and end with the stop pattern',
   assert.equal((m.length - 13) % 11, 0);
 });
 
-test('barcode SVG uses 0.25 mm modules and a quiet zone', () => {
+test('barcode SVG uses wide modules (0.375 mm) and a quiet zone', () => {
   const svg = core.barcodeSvg('JBC-1');
   const modules = core.code128Modules('JBC-1').length;
   assert.match(svg, new RegExp('width="' + ((modules + 20) * 0.25).toFixed(2) + 'mm"'));
