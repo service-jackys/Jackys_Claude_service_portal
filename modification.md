@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #299 — Send ROI: To and Cc start empty for the service team
+
+**Date:** 2026-11-20
+
+**Why.** The built-in To and Cc list is the administrator's own ROI distribution. Gelloyd (CCE) and Siva (Technical Supervisor) were getting it pre-filled in their Send ROI.
+
+**What changed.** Only the administrator starts with the built-in To and Cc list. Every other role starts with both boxes empty and types the recipients; "Save recipients & signature as my defaults" still works for them. Anyone who has already saved their own defaults keeps them.
+
+**Files.** apps/api/src/roi-tasks/service.ts, tests/integration/roi-tasks.test.ts, modification.md.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. If Gelloyd or Siva have already saved the old list as their defaults, they clear the boxes and save once.
+
 ## Modification #298 — Send ROI: Customer care activity and Field operations blocks
 
 **Date:** 2026-11-20
