@@ -33,7 +33,7 @@ test('Code 128 modules always start with Start B and end with the stop pattern',
 test('barcode SVG uses wide modules (0.375 mm) and a quiet zone', () => {
   const svg = core.barcodeSvg('JBC-1');
   const modules = core.code128Modules('JBC-1').length;
-  assert.match(svg, new RegExp('width="' + ((modules + 20) * 0.25).toFixed(2) + 'mm"'));
+  assert.match(svg, new RegExp('width="' + ((modules + 20) * 0.375).toFixed(2) + 'mm"'));
 });
 
 test('install sticker needs customer phone only for B2C', () => {
