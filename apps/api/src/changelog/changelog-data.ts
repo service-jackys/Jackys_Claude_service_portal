@@ -16,14 +16,14 @@ export interface ChangelogEntry {
 export const CHANGELOG: ChangelogEntry[] = [
   {
     "id": 292,
-    "title": "Unit stickers: larger, bolder text",
+    "title": "Unit stickers: larger, bolder text and a darker barcode",
     "area": "General",
     "date": "2026-11-20",
     "approxDate": false,
     "status": null,
-    "summary": "On the Zebra printout (Delivery + installation page) the small entries were hard to read: 6 to 7 pt text on a 100 x 75 mm label with empty space left below.",
+    "summary": "On the Zebra printout the small entries were hard to read, with unused space left on every side, and the barcode scanned poorly after printing.",
     "changes": [
-      "What changed: Row text is now 8.5 pt bold (labels 7.5 pt bold), the delivery note number 13 pt, the status box and brand 11 pt, the date box 8 pt, the warranty note and contact line 6.3 to 6.8 pt bold. Long descriptions and customer names…"
+      "What changed: Smaller side and top margins (4 to 2.5 mm) and bigger bold text on both stickers: rows 9 pt, labels 8 pt, the number 14 pt, status and brand 12 pt. The service job sticker is larger again (rows 10.5 pt, work done 11 pt)…"
     ],
     "needsYou": "pull and hard-refresh. No migration, no API restart. Print one sticker from the Delivery + installation page and one from Service jobs to confirm.",
     "migrations": [],

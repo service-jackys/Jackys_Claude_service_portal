@@ -74,7 +74,13 @@
   function barcodeSvg(text, opts) {
     opts = opts || {};
     var moduleMm = opts.moduleMm || 0.25;
-    var heightMm = opts.heightMm || 9;
+    if (!opts.moduleMm) {
+      // Widest bars that still leave room for the number: 0.375 mm = 3 printer dots at 203 dpi, thicker and darker than 0.25 mm.
+      var count = code128Modules(text).length + 20;
+      var fit = Math.floor((62 / count) * 8) / 8;
+      moduleMm = Math.max(0.25, Math.min(0.375, fit));
+    }
+    var heightMm = opts.heightMm || 9.5;
     var quiet = 10;
     var modules = code128Modules(text);
     var total = modules.length + quiet * 2;
@@ -217,7 +223,9 @@
         '</div>';
     }
     return (
-      '<div class="lb-sticker">' +
+      '<div class="lb-sticker' +
+      (kind === 'install' ? '' : ' lb-r') +
+      '">' +
       '<div class="lb-top"><div class="lb-brand">Jacky’s Distribution<small>' +
       (kind === 'install' ? 'SERVICE CENTRE NAH, DUBAI' : 'SERVICE CENTRE NAH, DUBAI') +
       '</small></div><div class="lb-status">' +
@@ -243,18 +251,19 @@
   var CSS =
     '*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}' +
     '.lb-page{position:relative;overflow:hidden;page-break-after:always;break-after:page}' +
-    '.lb-sticker{position:relative;width:100mm;height:75mm;padding:3.2mm 4mm 1.5mm;font-size:8.5pt;line-height:1.12;display:flex;flex-direction:column;gap:0.8mm;overflow:hidden}' +
+    '.lb-sticker{position:relative;width:100mm;height:75mm;padding:2.8mm 2.5mm 1mm;font-size:9pt;line-height:1.12;display:flex;flex-direction:column;gap:0.8mm;overflow:hidden}' +
     '.lb-sticker+.lb-sticker{border-top:0.3mm dashed #555}' +
     '.lb-top{display:flex;justify-content:space-between;align-items:center}' +
-    '.lb-brand{font-size:11pt;font-weight:700;line-height:1.05}.lb-brand small{display:block;font-size:6.5pt;font-weight:700;letter-spacing:.05em}' +
-    '.lb-status{border:0.7mm solid #000;padding:0.6mm 2.5mm;font-size:11pt;font-weight:700;text-align:center;line-height:1.1}' +
-    '.lb-code{display:flex;gap:3mm;align-items:center}.lb-bars{display:block}.lb-ref{font-size:13pt;font-weight:700;white-space:nowrap}' +
-    '.lb-grid{display:grid;grid-template-columns:25mm 1fr;border-top:0.3mm solid #000;padding-top:0.8mm;row-gap:0.2mm}' +
-    '.lb-k{font-weight:700;font-size:7.5pt;padding-top:0.3mm}.lb-v{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;word-break:break-word}' +
-    '.lb-date{border:0.6mm solid #000;padding:0.6mm 2mm;font-size:8pt;font-weight:700;display:flex;justify-content:space-between;white-space:nowrap;gap:2mm}' +
-    '.lb-note{font-size:6.3pt;white-space:nowrap;font-weight:700;text-align:center}.lb-work{border-top:0.3mm solid #000;padding-top:0.8mm;font-size:8pt;font-weight:700}' +
-    '.lb-contact{margin-top:auto;font-size:6.8pt;font-weight:700;text-align:center}' +
-    '.lb-cap{position:absolute;right:4mm;top:0.8mm;font-size:6pt;font-weight:700;color:#000}';
+    '.lb-brand{font-size:12pt;font-weight:700;line-height:1.05}.lb-brand small{display:block;font-size:7pt;font-weight:700;letter-spacing:.05em}' +
+    '.lb-status{border:0.7mm solid #000;padding:0.6mm 2.5mm;font-size:12pt;font-weight:700;text-align:center;line-height:1.1}' +
+    '.lb-code{display:flex;gap:3mm;align-items:center}.lb-bars{display:block}.lb-ref{font-size:14pt;font-weight:700;white-space:nowrap}' +
+    '.lb-grid{display:grid;grid-template-columns:27mm 1fr;border-top:0.3mm solid #000;padding-top:0.8mm;row-gap:0.2mm}' +
+    '.lb-k{font-weight:700;font-size:8pt;padding-top:0.3mm}.lb-v{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;word-break:break-word}' +
+    '.lb-date{border:0.6mm solid #000;padding:0.6mm 1.2mm;font-size:8.3pt;font-weight:700;display:flex;justify-content:space-between;white-space:nowrap;gap:1mm}' +
+    '.lb-note{font-size:7pt;white-space:nowrap;font-weight:700;text-align:center}.lb-work{border-top:0.3mm solid #000;padding-top:0.8mm;font-size:10pt;font-weight:700}' +
+    '.lb-contact{margin-top:auto;font-size:7.5pt;font-weight:700;text-align:center}' +
+    '.lb-r{font-size:10.5pt}.lb-r .lb-k{font-size:9pt}.lb-r .lb-work{font-size:11pt}.lb-r .lb-contact{font-size:8pt}' +
+    '.lb-cap{position:absolute;right:2.5mm;top:0.5mm;font-size:6pt;font-weight:700;color:#000}';
 
   function labelDocument(items, settings) {
     settings = settings || {};

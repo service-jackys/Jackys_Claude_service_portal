@@ -5205,13 +5205,13 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
-## Modification #292 — Unit stickers: larger, bolder text
+## Modification #292 — Unit stickers: larger, bolder text and a darker barcode
 
 **Date:** 2026-11-20
 
-**Why.** On the Zebra printout (Delivery + installation page) the small entries were hard to read: 6 to 7 pt text on a 100 x 75 mm label with empty space left below.
+**Why.** On the Zebra printout the small entries were hard to read, with unused space left on every side, and the barcode scanned poorly after printing.
 
-**What changed.** Row text is now 8.5 pt bold (labels 7.5 pt bold), the delivery note number 13 pt, the status box and brand 11 pt, the date box 8 pt, the warranty note and contact line 6.3 to 6.8 pt bold. Long descriptions and customer names wrap to two lines instead of being cut with "...", and the "Copy 1 / Copy 2" caption moved to the top right so it no longer overlaps the warranty note. Applies to both sticker types (delivery + installation and service job). Checked on the worst case (delivered + installed, technician, long description, long customer name with phone): everything fits inside the 75 mm label.
+**What changed.** Smaller side and top margins (4 to 2.5 mm) and bigger bold text on both stickers: rows 9 pt, labels 8 pt, the number 14 pt, status and brand 12 pt. The service job sticker is larger again (rows 10.5 pt, work done 11 pt) because it has more spare room. Long description and customer lines wrap to two lines instead of being cut, and the Copy 1 / Copy 2 caption moved to the top right. **Barcode:** bars are now 0.375 mm wide (3 printer dots at 203 dpi, was 0.25 mm / 2 dots) and 9.5 mm tall, so they print thicker and darker; the width shrinks automatically for longer codes. Checked on the worst case (delivered + installed with technician, long description, long customer name): everything fits inside the 75 mm label.
 
 **Files.** apps/web/src/label-core.js, modification.md.
 
