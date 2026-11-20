@@ -181,7 +181,9 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     ],
     [
       'Basis',
-      'Revenue is the figure calculated in the master Service Dashboard workbook (Revenue Source sheet).',
+      data.customRates
+        ? 'Revenue is the workbook figure (Revenue Source sheet) plus the effect of the custom rates locked in the portal; the workbook figure is shown beside it on the job sheets.'
+        : 'Revenue is the figure calculated in the master Service Dashboard workbook (Revenue Source sheet).',
     ],
     [
       'Limitation',
