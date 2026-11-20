@@ -182,9 +182,13 @@ test(
       assert.equal((await service.list(userB, {})).length, 1);
 
       // Settings default to the thread's recipients, then persist
+      // modification #299: only the administrator starts with the built-in To/Cc list
       const defaults = await service.settings(userA);
-      assert.ok(defaults.toEmails.includes('manohar@jackys.com'));
-      assert.ok(defaults.ccEmails.includes('shameer.abdulla@jackys.com'));
+      assert.deepEqual(defaults.toEmails, []);
+      assert.deepEqual(defaults.ccEmails, []);
+      const adminDefaults = await service.settings(admin);
+      assert.ok(adminDefaults.toEmails.includes('manohar@jackys.com'));
+      assert.ok(adminDefaults.ccEmails.includes('shameer.abdulla@jackys.com'));
       await service.saveSettings(userA, {
         toEmails: ['x@example.test'],
         ccEmails: [],
