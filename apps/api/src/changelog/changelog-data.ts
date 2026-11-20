@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 294,
+    "title": "Tasks: executive table look with a delayed row hover",
+    "area": "Tasks",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "He asked to replace the Option A look (#293) with Option B (executive table), add a hover that lifts one row, and a thin visible line between task rows.",
+    "changes": [
+      "What changed: Styling only, no behaviour change. Replaces the Option A look from #293. The five KPIs sit in one bordered strip with coloured figures; the view switch is a squared segmented control with a dark active tab; status groups are…"
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 293,
     "title": "Tasks: material workspace look",
     "area": "Tasks",
