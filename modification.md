@@ -5224,6 +5224,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run npm.cmd run db:migrate (migration 106), restart the API, hard-refresh. Note: the workbook's CSIJO is 119 while Pricing Masters hold 125; the editor starts from the workbook rates and shows the masters value beside it.
 
+## Modification #289 — D+I Quote Calculator: polish
+
+**Date:** 2026-11-19
+
+**What changed.** The summary panel no longer slides under the top bar when you scroll; fonts in the calculator are lighter and smaller (labels, inputs, table, totals); card titles stay readable in the dark theme; the struck-through old unit price sits on its own line.
+
+**Files.** apps/web/src/index.html, modification.md.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #288 — D+I Quote Calculator: professional layout and an admin special discount
 
 **Date:** 2026-11-19

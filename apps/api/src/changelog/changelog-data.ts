@@ -37,6 +37,21 @@ export const CHANGELOG: ChangelogEntry[] = [
     "files": "packages/db/migrations/106_revenue_rate_overrides.sql, packages/db/src/revenue-rate-overrides.ts, packages/db/src/pricing-configs.ts, apps/api/src/revenue-dashboard/rate-overrides.ts (new)…"
   },
   {
+    "id": 289,
+    "title": "D+I Quote Calculator: polish",
+    "area": "Pricing & rates",
+    "date": "2026-11-19",
+    "approxDate": false,
+    "status": null,
+    "summary": "What changed: The summary panel no longer slides under the top bar when you scroll; fonts in the calculator are lighter and smaller (labels, inputs, table, totals); card titles stay readable in the dark theme; the struck-through old unit price sits on its own line.",
+    "changes": [
+      "What changed: The summary panel no longer slides under the top bar when you scroll; fonts in the calculator are lighter and smaller (labels, inputs, table, totals); card titles stay readable in the dark theme; the struck-through old unit…"
+    ],
+    "needsYou": "pull and hard-refresh. No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 288,
     "title": "D+I Quote Calculator: professional layout and an admin special discount",
     "area": "Permissions",
