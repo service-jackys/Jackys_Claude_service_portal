@@ -28115,8 +28115,8 @@ ${bodyHtml}
     ].forEach(([key, title]) => {
       set[key].categories.forEach((c, i) => {
         [
-          ['batchRate', 'batch rate'],
-          ['standardRate', 'standard rate'],
+          ['batchRate', 'special rate'],
+          ['standardRate', 'market rate'],
           ['minimumRate', 'minimum rate'],
         ].forEach(([f, name]) =>
           rows.push({
@@ -32510,7 +32510,7 @@ ${bodyHtml}
         rdSection(
           'Delivery + installation rate card (CSIDI)',
           table(
-            ['Category', 'Batch rate', 'Standard rate', 'Minimum'],
+            ['Category', 'Special rate', 'Market rate', 'Minimum'],
             di.categories.map((c) => ({
               cells: [
                 e(c.category),
@@ -32526,7 +32526,7 @@ ${bodyHtml}
         rdSection(
           'Installation-only rate card (CSIII)',
           table(
-            ['Category', 'Batch rate', 'Standard rate', 'Minimum'],
+            ['Category', 'Special rate', 'Market rate', 'Minimum'],
             M.install.categories.map((c) => ({
               cells: [
                 e(c.category),

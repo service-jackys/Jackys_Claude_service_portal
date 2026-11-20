@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 300,
+    "title": "Rate card: \"Standard rate\" is now \"Market rate\", \"Batch rate\" is now \"Special rate\"",
+    "area": "Pricing & rates",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management wanted the Rate card to use the terms Market rate and Special rate.",
+    "changes": [
+      "What changed: Label rename only; no figure, rule or calculation changes. Applies on the Service Revenue Dashboard Rate card tab (the delivery + installation and installation-only tables, the editable rate rows, the effect and history…"
+    ],
+    "needsYou": "pull, restart the API (no migration), hard-refresh.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/api/src/revenue-dashboard/logic-sheet.ts, rate-overrides.ts, modification.md."
+  },
+  {
     "id": 299,
     "title": "Send ROI: To and Cc start empty for the service team",
     "area": "Permissions",

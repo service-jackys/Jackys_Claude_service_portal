@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #300 — Rate card: "Standard rate" is now "Market rate", "Batch rate" is now "Special rate"
+
+**Date:** 2026-11-20
+
+**Why.** Management wanted the Rate card to use the terms Market rate and Special rate.
+
+**What changed.** Label rename only; no figure, rule or calculation changes. Applies on the Service Revenue Dashboard Rate card tab (the delivery + installation and installation-only tables, the editable rate rows, the effect and history lines) and the Logic sheet of the Export report (.xlsx). Pricing Masters, the D+I Admin Entry page and the explanatory Logic applied text keep their wording for now.
+
+**Files.** apps/web/src/app.js, apps/api/src/revenue-dashboard/logic-sheet.ts, rate-overrides.ts, modification.md.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh.
+
 ## Modification #299 — Send ROI: To and Cc start empty for the service team
 
 **Date:** 2026-11-20

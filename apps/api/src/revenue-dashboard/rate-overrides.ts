@@ -128,8 +128,13 @@ export function diffRates(base: RateSet, next: RateSet) {
   ] as const) {
     base[key].categories.forEach((c, i) => {
       const n = next[key].categories.find((x) => x.category === c.category) ?? c;
-      add(`${key}.${i}.batch`, `${name} ${c.category} batch`, c.batchRate, n.batchRate);
-      add(`${key}.${i}.standard`, `${name} ${c.category} standard`, c.standardRate, n.standardRate);
+      add(`${key}.${i}.batch`, `${name} ${c.category} special rate`, c.batchRate, n.batchRate);
+      add(
+        `${key}.${i}.standard`,
+        `${name} ${c.category} market rate`,
+        c.standardRate,
+        n.standardRate,
+      );
       add(`${key}.${i}.minimum`, `${name} ${c.category} minimum`, c.minimumRate, n.minimumRate);
     });
     base[key].discounts.forEach((d, i) =>
@@ -311,7 +316,7 @@ export function reasonOf(line: RateLine, base: PricingRules, next: PricingRules)
       if (kind) {
         const from = kind === 'batch' ? cb.batchRate : cb.standardRate;
         const to = kind === 'batch' ? cn.batchRate : cn.standardRate;
-        return `${p.applianceCategory.replace('Freestanding ', '')} ${kind} rate ${money(from)} -> ${money(to)} (${units} unit${units === 1 ? '' : 's'}${disc})`;
+        return `${p.applianceCategory.replace('Freestanding ', '')} ${kind === 'batch' ? 'special' : 'market'} rate ${money(from)} -> ${money(to)} (${units} unit${units === 1 ? '' : 's'}${disc})`;
       }
     }
   }

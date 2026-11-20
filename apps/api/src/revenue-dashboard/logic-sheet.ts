@@ -88,8 +88,8 @@ function sum<T>(list: T[], pick: (t: T) => number | null | undefined): number {
 function masterRows(w: Writer, label: string, m: PricingMaster) {
   w.head([
     label + ' - category',
-    'Batch rate (same-site, Qty > 1)',
-    'Standard rate (Qty = 1)',
+    'Special rate (same-site, Qty > 1)',
+    'Market rate (Qty = 1)',
     'Minimum rate',
   ]);
   for (const c of m.categories)
@@ -350,7 +350,7 @@ function buildInvoiceLevelLogicSheet(
   // 3. Rates ---------------------------------------------------------------------
   section(4, 'Rates in force (read from the workbook)');
   const rateTable = (label: string, m: PricingMaster) => {
-    tableHead([label, 'Batch rate', 'Standard rate', 'Minimum rate']);
+    tableHead([label, 'Special rate', 'Market rate', 'Minimum rate']);
     m.categories.forEach((c, i) =>
       tableRow([c.category, c.batchRate, c.standardRate, c.minimumRate], {
         fmts: [null, MONEY, MONEY, MONEY],
