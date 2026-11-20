@@ -2644,136 +2644,270 @@
       .rd-search input {
         min-width: 320px;
       }
-      .rc-card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 16px;
-        margin: 0 0 16px;
-      }
-      .rc-head {
+      /* Rate card (modification #290). Colours come from the page tokens so light and dark both work. */
+      .rc-bar {
         display: flex;
         flex-wrap: wrap;
-        gap: 12px;
-        justify-content: space-between;
-        align-items: flex-start;
+        align-items: center;
+        gap: 10px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 12px 16px;
+        margin: 0 0 14px;
       }
-      .rc-head h3 {
-        margin: 0 0 4px;
-        font-size: 1.05rem;
-        font-weight: 600;
+      .rc-bar > b {
+        font-size: 1rem;
       }
-      .rc-head p {
-        margin: 0;
-        color: var(--muted);
-        font-size: 0.88rem;
-        max-width: 560px;
+      .rc-grow {
+        flex: 1 1 auto;
       }
-      .rc-actions {
+      .rc-bar-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .rc-bar-btns {
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
         align-items: center;
       }
+      .rc-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        min-width: 0;
+      }
+      .rc-stack .rc-box {
+        margin: 0;
+      }
+      .rc-lock {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        background: var(--ink);
+        color: var(--surface);
+        font-size: 1rem;
+      }
+      .rc-by {
+        color: var(--muted);
+        font-size: 0.85rem;
+      }
       .rc-chip {
         display: inline-block;
-        padding: 4px 10px;
+        padding: 4px 12px;
         border-radius: 999px;
-        font-size: 0.78rem;
-        background: var(--surface-soft);
-        border: 1px solid var(--line);
-        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 600;
+        border: 1px solid transparent;
+      }
+      .rc-chip-ok {
+        background: color-mix(in srgb, #1d9a5b 16%, transparent);
+        color: #1d7a4a;
       }
       .rc-chip-on {
-        background: #e8f3ff;
-        border-color: #b9d8f5;
-        color: #14548f;
+        background: color-mix(in srgb, #e0a21a 22%, transparent);
+        color: #8a5a00;
+      }
+      .rc-dark {
+        background: #12294a;
+        border-color: #12294a;
+        color: #fff;
       }
       .rc-apply-pill {
         border: 0;
         border-radius: 999px;
-        padding: 8px 18px;
+        padding: 9px 18px;
         font-weight: 600;
         font-size: 0.88rem;
         color: #fff;
         cursor: pointer;
-        background: linear-gradient(135deg, #0f766e, #14548f);
+        background: linear-gradient(135deg, #0f5c8a, #14548f);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+      }
+      .rc-apply-pill:hover:not(:disabled) {
+        filter: brightness(1.1);
+      }
+      .rc-apply-pill:focus-visible,
+      .rc-input:focus-visible,
+      .rc-modal-input:focus-visible {
+        outline: 2px solid #3b82c4;
+        outline-offset: 2px;
       }
       .rc-apply-pill:disabled {
         opacity: 0.45;
         cursor: not-allowed;
       }
       .rc-msg {
-        margin: 12px 0 0;
-        padding: 8px 12px;
-        border-radius: 8px;
-        font-size: 0.85rem;
+        margin: 0 0 14px;
+        padding: 10px 14px;
+        border-radius: 10px;
+        font-size: 0.88rem;
+        border-left: 4px solid transparent;
       }
       .rc-msg.ok {
-        background: #e7f6ec;
-        color: #1d6b3a;
+        background: color-mix(in srgb, #1d9a5b 14%, transparent);
+        border-color: #1d9a5b;
       }
       .rc-msg.bad {
-        background: #fdecec;
-        color: #a12626;
+        background: color-mix(in srgb, #d92d20 14%, transparent);
+        border-color: #d92d20;
       }
       .rc-msg.warn {
-        background: #fff5e0;
-        color: #8a5a00;
+        background: color-mix(in srgb, #e0a21a 18%, transparent);
+        border-color: #e0a21a;
       }
-      .rc-table {
-        overflow-x: auto;
-        margin-top: 12px;
+      .rc-kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin: 0 0 14px;
       }
-      .rc-table table {
+      .rc-kpi {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+      .rc-kpi small {
+        display: block;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .rc-kpi b {
+        display: block;
+        margin-top: 4px;
+        font-size: 1.3rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .rc-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        margin: 0 0 14px;
+        align-items: start;
+      }
+      .rc-grid.rc-one {
+        grid-template-columns: minmax(0, 1fr);
+      }
+      .rc-box {
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        overflow: hidden;
+        margin: 0 0 14px;
+      }
+      .rc-grid .rc-box {
+        margin: 0;
+      }
+      .rc-box-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 6px;
+        padding: 12px 16px;
+        background: var(--surface-soft);
+        border-bottom: 1px solid var(--line);
+      }
+      .rc-box-head b {
+        font-size: 0.95rem;
+      }
+      .rc-box-head span {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .rc-t {
         width: 100%;
         border-collapse: collapse;
         font-size: 0.88rem;
       }
-      .rc-table th,
-      .rc-table td {
-        padding: 7px 10px;
-        border-bottom: 1px solid var(--line);
+      .rc-t th {
         text-align: left;
-      }
-      .rc-group td {
-        background: var(--surface-soft);
-        font-weight: 600;
-        font-size: 0.8rem;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-      }
-      .rc-muted {
         color: var(--muted);
+        font-size: 0.72rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        padding: 9px 16px;
+        border-bottom: 1px solid var(--line);
       }
-      .rc-changed td {
-        background: #fff9e6;
+      .rc-t td {
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--line);
+        vertical-align: middle;
+      }
+      .rc-t tr:last-child td {
+        border-bottom: 0;
+      }
+      .rc-t .rc-num {
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .rc-grid .rc-t th,
+      .rc-grid .rc-t td {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+      .rc-t td:first-child {
+        white-space: nowrap;
+      }
+      .rc-t.rc-month {
+        border-top: 2px solid var(--line);
+      }
+      .rc-cell-changed {
+        background: color-mix(in srgb, #e0a21a 16%, transparent);
+        font-weight: 700;
       }
       .rc-was {
-        margin-left: 8px;
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 400;
         color: var(--muted);
         text-decoration: line-through;
-        font-size: 0.8rem;
       }
       .rc-input {
-        width: 110px;
-        padding: 5px 8px;
+        width: 84px;
+        padding: 6px 10px;
+        text-align: right;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: var(--surface);
         color: var(--ink);
+        font: inherit;
+        font-variant-numeric: tabular-nums;
+      }
+      .rc-input-changed {
+        background: color-mix(in srgb, #e0a21a 18%, var(--surface));
+        border-color: #e0a21a;
       }
       .rc-unit {
         margin-left: 4px;
         color: var(--muted);
       }
-      .rc-neg {
-        color: #b42318;
-        font-weight: 600;
+      .rc-dot {
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-left: 6px;
+        border-radius: 50%;
+        background: #e08a1a;
+        vertical-align: middle;
+        cursor: help;
       }
-      .rc-pos {
-        color: #1d6b3a;
-        font-weight: 600;
+      .rc-kpi .neg,
+      .rc-t .neg {
+        color: #c2271c;
+        font-weight: 700;
+      }
+      .rc-kpi .pos,
+      .rc-t .pos {
+        color: #1d7a4a;
+        font-weight: 700;
       }
       .rc-restore-bar {
         display: flex;
@@ -2782,10 +2916,16 @@
         align-items: center;
         margin-bottom: 10px;
       }
+      .rc-what {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.78rem;
+        color: var(--muted);
+      }
       .rc-modal-overlay {
         position: fixed;
         inset: 0;
-        background: rgba(15, 25, 40, 0.55);
+        background: rgba(15, 25, 40, 0.6);
         z-index: 9999;
         display: flex;
         align-items: center;
@@ -2796,18 +2936,33 @@
         background: var(--surface);
         color: var(--ink);
         border-radius: 16px;
-        padding: 20px;
-        width: min(560px, 100%);
+        padding: 22px;
+        width: min(600px, 100%);
         max-height: 90vh;
         overflow: auto;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
       }
       .rc-modal h3 {
-        margin: 0 0 8px;
+        margin: 12px 0 6px;
+        font-size: 1.2rem;
+      }
+      .rc-progress {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+      .rc-progress i {
+        height: 5px;
+        border-radius: 3px;
+        background: var(--line);
+      }
+      .rc-progress i.on {
+        background: #14548f;
       }
       .rc-step-tag {
         color: var(--muted);
-        font-size: 0.78rem;
-        margin: 0 0 6px;
+        font-size: 0.85rem;
+        margin: 0 0 10px;
       }
       .rc-modal-table {
         max-height: 40vh;
@@ -2817,19 +2972,25 @@
       .rc-modal-table table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 0.85rem;
+        font-size: 0.88rem;
       }
-      .rc-modal-table th,
-      .rc-modal-table td {
-        padding: 5px 8px;
-        border-bottom: 1px solid var(--line);
+      .rc-modal-table th {
         text-align: left;
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        padding: 6px 8px;
+        border-bottom: 1px solid var(--line);
+      }
+      .rc-modal-table td {
+        padding: 7px 8px;
+        border-bottom: 1px solid var(--line);
       }
       .rc-modal-input {
         width: 100%;
-        padding: 8px 10px;
+        padding: 10px 12px;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 10px;
         font-size: 1rem;
         background: var(--surface);
         color: var(--ink);
@@ -2839,7 +3000,18 @@
         display: flex;
         justify-content: flex-end;
         gap: 8px;
-        margin-top: 14px;
+        margin-top: 16px;
+      }
+      @media (max-width: 900px) {
+        .rc-kpis {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .rc-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .rc-box {
+          overflow-x: auto;
+        }
       }
       .rl-hero {
         display: flex;

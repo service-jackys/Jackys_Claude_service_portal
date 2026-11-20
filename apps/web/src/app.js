@@ -13987,6 +13987,17 @@ ${bodyHtml}
             (sourceLabel
               ? ' <span class="rc-chip rc-chip-on">' + escapeHtml(sourceLabel) + '</span>'
               : '') +
+            (Array.isArray(entry.changes) && entry.changes.length
+              ? '<span class="rc-what">' +
+                entry.changes
+                  .slice(0, 4)
+                  .map((c) => escapeHtml(c.label + ': ' + c.from + ' \u2192 ' + c.to))
+                  .join(' \u00b7 ') +
+                (entry.changes.length > 4
+                  ? ' \u00b7 +' + (entry.changes.length - 4) + ' more'
+                  : '') +
+                '</span>'
+              : '') +
             '</td><td>' +
             escapeHtml(entry.actorProfileId != null ? String(entry.actorProfileId) : '—') +
             '</td><td><button type="button" class="button button-outline" data-pc-restore="' +
@@ -28049,17 +28060,23 @@ ${bodyHtml}
     const overlay = document.createElement('div');
     overlay.className = 'rc-modal-overlay';
     overlay.innerHTML =
-      '<div class="rc-modal" role="dialog" aria-modal="true"><h3>' +
+      '<div class="rc-modal" role="dialog" aria-modal="true" aria-label="' +
       escapeHtml(title) +
-      '</h3><div data-rc-step></div></div>';
+      '"><div class="rc-progress" data-rc-prog></div><h3 data-rc-title></h3><div data-rc-step></div></div>';
     document.body.appendChild(overlay);
     const step = overlay.querySelector('[data-rc-step]');
     const close = () => overlay.remove();
+    const mark = (n, heading) => {
+      overlay.querySelector('[data-rc-prog]').innerHTML =
+        '<i class="on"></i><i' + (n === 2 ? ' class="on"' : '') + '></i>';
+      overlay.querySelector('[data-rc-title]').textContent = heading;
+    };
     const step1 = () => {
+      mark(1, title + '?');
       step.innerHTML =
         '<p class="rc-step-tag">Step 1 of 2</p><p>' +
         escapeHtml(intro) +
-        '</p><div class="rc-modal-table"><table><thead><tr><th>Rate</th><th>Now</th><th></th><th>Becomes</th></tr></thead><tbody>' +
+        '</p><div class="rc-modal-table"><table><thead><tr><th>Rate</th><th>Now</th><th></th><th>New</th></tr></thead><tbody>' +
         rows
           .map(
             (r) =>
@@ -28077,6 +28094,7 @@ ${bodyHtml}
       step.querySelector('[data-rc-next]').addEventListener('click', step2);
     };
     const step2 = () => {
+      mark(2, 'Final confirmation');
       step.innerHTML =
         '<p class="rc-step-tag">Step 2 of 2</p><p>' +
         rows.length +
@@ -28109,18 +28127,18 @@ ${bodyHtml}
     step1();
   }
 
-  async function rdRateCardPanel(host, onChanged) {
+  async function rdRateCardPanel(host, fallbackHtml) {
     const canEdit = hasPermission('revenue_dashboard.rate_card_edit');
     const e = escapeHtml;
     let data;
     try {
       data = await apiRequest('/api/revenue-dashboard/rate-card');
     } catch (error) {
-      host.innerHTML = '<p class="form-note">' + e(error.message || 'Could not load.') + '</p>';
+      host.innerHTML = fallbackHtml || '';
       return;
     }
     if (!data.batch) {
-      host.innerHTML = '';
+      host.innerHTML = fallbackHtml || '';
       return;
     }
     const aed = (n) => '⃃ ' + rdMoney2(n).replace(/\.00$/, '');
@@ -28140,33 +28158,178 @@ ${bodyHtml}
           to: r.show(r.get(b)),
         }));
 
+    const idx = {};
+    rows.forEach((r, i) => (idx[r.id] = i));
+    const JOB_MEANING = {
+      CSIJW: 'Warranty repair',
+      CSIJO: 'Non-warranty repair',
+      CSIDO: 'Delivery only (flat)',
+      RWR: 'BER / RWR flat charge',
+    };
+    const FIELD_NAME = { batchRate: 'Batch', standardRate: 'Standard', minimumRate: 'Minimum' };
+
     const draw = () => {
       const inUse = data.custom || data.workbook;
       const shown = editing ? draft : inUse;
       const imp = data.impact;
-      const dirty = editing && changedRows(data.workbook, draft).length > 0;
+      const nChanged = editing ? changedRows(data.workbook, draft).length : 0;
+      const money = (v) => rdMoney2(v);
+      const fmtv = (r, v) => (r.pct ? String(Math.round(v * 100) / 100) + '%' : rdMoney2(v));
+      // One editable / read-only value cell.
+      const cell = (id) => {
+        const i = idx[id];
+        const r = rows[i];
+        const wb = r.get(data.workbook);
+        const cur = r.get(shown);
+        const changed = Math.abs(cur - wb) > 0.0001;
+        const mv = r.get(data.masters);
+        const dot =
+          Math.abs(mv - wb) > 0.0001
+            ? '<i class="rc-dot" title="Pricing Masters hold ' + e(r.show(mv)) + '"></i>'
+            : '';
+        const was = changed ? '<span class="rc-was">' + fmtv(r, wb) + '</span>' : '';
+        if (editing)
+          return (
+            '<td class="rc-num"><input type="number" step="0.01" min="0" class="rc-input' +
+            (changed ? ' rc-input-changed' : '') +
+            '" data-rc-i="' +
+            i +
+            '" value="' +
+            cur +
+            '" />' +
+            (r.pct ? '<span class="rc-unit">%</span>' : '') +
+            was +
+            '</td>'
+          );
+        return (
+          '<td class="rc-num' +
+          (changed ? ' rc-cell-changed' : '') +
+          '">' +
+          fmtv(r, cur) +
+          dot +
+          was +
+          '</td>'
+        );
+      };
+      const card = (title, sub, inner) =>
+        '<div class="rc-box"><div class="rc-box-head"><b>' +
+        e(title) +
+        '</b>' +
+        (sub ? '<span>' + e(sub) + '</span>' : '') +
+        '</div>' +
+        inner +
+        '</div>';
+      const jobCard = card(
+        'Job-type rates',
+        'AED per job, incl. VAT',
+        '<table class="rc-t"><thead><tr><th>Job type</th><th>Meaning</th>' +
+          (editing ? '<th class="rc-num">Workbook</th>' : '') +
+          '<th class="rc-num">' +
+          (editing ? 'New rate' : 'Rate') +
+          '</th></tr></thead><tbody>' +
+          RC_JOB_ROWS.map(
+            ([k]) =>
+              '<tr><td><b>' +
+              k +
+              '</b></td><td>' +
+              e(JOB_MEANING[k]) +
+              '</td>' +
+              (editing ? '<td class="rc-num">' + money(data.workbook.jobRates[k]) + '</td>' : '') +
+              cell('job.' + k) +
+              '</tr>',
+          ).join('') +
+          '</tbody></table>',
+      );
+      const discCard = card(
+        'Volume discount',
+        'by units on the invoice',
+        '<table class="rc-t"><thead><tr><th>Units</th><th class="rc-num">Delivery + installation</th><th class="rc-num">Installation only</th></tr></thead><tbody>' +
+          (data.discountLabels.deliveryInstall || [])
+            .map(
+              (t, i) =>
+                '<tr><td>' +
+                e(t) +
+                '</td>' +
+                cell('deliveryInstall.disc.' + i) +
+                cell('install.disc.' + i) +
+                '</tr>',
+            )
+            .join('') +
+          '</tbody></table>',
+      );
+      const catCard = (key, title) =>
+        card(
+          title,
+          'AED per unit, incl. VAT',
+          '<table class="rc-t"><thead><tr><th>Category</th><th class="rc-num">Batch</th><th class="rc-num">Standard</th><th class="rc-num">Minimum</th></tr></thead><tbody>' +
+            data.workbook[key].categories
+              .map(
+                (c, i) =>
+                  '<tr><td>' +
+                  e(c.category.replace('Freestanding ', '')) +
+                  '</td>' +
+                  ['batchRate', 'standardRate', 'minimumRate']
+                    .map((f) => cell(key + '.' + i + '.' + f))
+                    .join('') +
+                  '</tr>',
+              )
+              .join('') +
+            '</tbody></table>',
+        );
+      const trCard = card(
+        'Once-per-invoice transport',
+        'AED round trip, incl. VAT',
+        '<table class="rc-t"><thead><tr><th>Region</th><th>Applies to</th><th class="rc-num">Charge</th></tr></thead><tbody>' +
+          ['Dubai', 'Sharjah']
+            .map(
+              (r) =>
+                '<tr><td>' +
+                r +
+                '</td><td>CSIDI invoices with more than 1 unit and no delivery-only line</td>' +
+                cell('tr.' + r) +
+                '</tr>',
+            )
+            .join('') +
+          '</tbody></table>',
+      );
+
       let html =
-        '<div class="rc-card"><div class="rc-head"><div><h3>Rates in use</h3><p>' +
-        (data.active
-          ? 'Custom rates are locked. Every revenue figure in the portal is calculated at these rates; all other logic is unchanged.'
-          : 'Revenue is calculated at the workbook rates. Admins can lock different rates to see the effect on revenue.') +
-        '</p></div><div class="rc-actions"><span class="rc-chip ' +
-        (data.active ? 'rc-chip-on' : '') +
+        '<div class="rc-bar"><span class="rc-lock">' +
+        (editing ? '&#128275;' : '&#128274;') +
+        '</span><div class="rc-bar-main"><div><b>' +
+        (editing ? 'Editing rates' : 'Rates locked') +
+        '</b> <span class="rc-chip ' +
+        (data.active || editing ? 'rc-chip-on' : 'rc-chip-ok') +
         '">' +
-        (data.active ? '&#128274; Custom rates locked' : 'Workbook rates') +
-        '</span>';
-      if (canEdit && !editing)
-        html +=
-          '<button type="button" class="button button-outline" data-rc-edit>Edit rates</button>';
+        (editing
+          ? nChanged + ' rate' + (nChanged === 1 ? '' : 's') + ' changed · not applied yet'
+          : data.active
+            ? 'Custom rates in force'
+            : 'Workbook rates in use') +
+        '</span></div>' +
+        (data.active && !editing && data.lockedAt
+          ? '<span class="rc-by">Locked ' +
+            (data.updatedByName ? 'by ' + e(data.updatedByName) + ' · ' : '') +
+            e(
+              new Date(data.lockedAt).toLocaleString('en-GB', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+              }),
+            ) +
+            '</span>'
+          : '') +
+        '</div><span class="rc-grow"></span><div class="rc-bar-btns">';
       if (canEdit && editing)
         html +=
-          '<button type="button" class="button button-outline" data-rc-discard>Discard</button><button type="button" class="button" data-rc-lock ' +
-          (dirty || data.active ? '' : 'disabled') +
+          '<button type="button" class="button button-outline" data-rc-discard>Discard changes</button><button type="button" class="button rc-dark" data-rc-lock ' +
+          (nChanged || data.active ? '' : 'disabled') +
           '>&#128274; Lock &amp; recalculate revenue</button>';
-      if (canEdit && !editing && data.active)
+      if (canEdit && !editing) {
         html +=
-          '<button type="button" class="button button-outline" data-rc-back>Back to workbook rates</button>';
-      if (canEdit && !editing)
+          '<button type="button" class="button button-outline" data-rc-edit>&#9998; Edit rates</button>';
+        if (data.active)
+          html +=
+            '<button type="button" class="button button-outline" data-rc-back>&#8635; Back to workbook rates</button>';
         html +=
           '<button type="button" class="rc-apply-pill" data-rc-apply ' +
           (data.active && data.mastersDiffer ? '' : 'disabled') +
@@ -28174,96 +28337,117 @@ ${bodyHtml}
           e(
             data.active
               ? data.mastersDiffer
-                ? 'Copy these rates into Pricing Masters, calculators and the Rate Card page. Asks for confirmation twice.'
+                ? 'Copy these rates into Pricing Masters. Asks for confirmation twice.'
                 : 'Pricing Masters already hold these rates.'
               : 'Lock custom rates first.',
           ) +
-          '">Apply to Pricing Masters</button>';
+          '">&#8679; Apply to Pricing Masters</button>';
+      }
       html += '</div></div>';
       if (message.text)
         html += '<p class="rc-msg ' + (message.ok ? 'ok' : 'bad') + '">' + e(message.text) + '</p>';
-      if (data.active && !editing && data.appliedToActive)
-        html += '<p class="rc-msg ok">These rates have been applied to Pricing Masters.</p>';
-      if (!data.active && data.workbookDiffersFromMasters)
+      if (data.active && !editing && !data.mastersDiffer)
+        html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
+      if (data.active && !editing)
         html +=
-          '<p class="rc-msg warn">Pricing Masters hold different rates from this workbook (see the Pricing Masters column). Revenue here follows the workbook until you lock your own rates.</p>';
-      html +=
-        '<div class="rc-table"><table><thead><tr><th>Rate</th><th>Workbook</th><th>Pricing Masters</th><th>' +
-        (editing ? 'New rate' : 'In use') +
-        '</th></tr></thead><tbody>';
-      let group = '';
-      rows.forEach((r, i) => {
-        if (r.group !== group) {
-          group = r.group;
-          html += '<tr class="rc-group"><td colspan="4">' + e(group) + '</td></tr>';
-        }
-        const wb = r.get(data.workbook);
-        const cur = r.get(shown);
-        const changed = Math.abs(cur - wb) > 0.0001;
+          '<p class="rc-msg warn">&#9888; Every revenue figure in the dashboard now uses the custom rates below. Workbook figures are kept and can be restored at any time.</p>';
+      if (imp && data.active && !editing)
         html +=
-          '<tr class="' +
-          (changed ? 'rc-changed' : '') +
-          '"><td>' +
-          e(r.label) +
-          '</td><td>' +
-          e(r.show(wb)) +
-          '</td><td class="rc-muted">' +
-          e(r.show(r.get(data.masters))) +
-          '</td><td>';
-        if (editing)
-          html +=
-            '<input type="number" step="0.01" min="0" class="rc-input" data-rc-i="' +
-            i +
-            '" value="' +
-            cur +
-            '" />' +
-            (r.pct ? '<span class="rc-unit">%</span>' : '') +
-            (changed ? '<span class="rc-was">' + e(r.show(wb)) + '</span>' : '');
-        else
-          html +=
-            '<b>' +
-            e(r.show(cur)) +
-            '</b>' +
-            (changed ? '<span class="rc-was">' + e(r.show(wb)) + '</span>' : '');
-        html += '</td></tr>';
-      });
-      html += '</tbody></table></div></div>';
-      if (data.active && imp && !editing) {
-        html +=
-          '<div class="rc-card"><div class="rc-head"><div><h3>Effect on revenue</h3><p>Whole upload, ' +
-          e(data.batch.fileName) +
-          '. ' +
-          e(String(imp.jobsAffected)) +
-          ' jobs are priced differently.</p></div></div>' +
-          rdKpis([
-            ['Workbook rates', aed(imp.workbookRates), 'Revenue as uploaded'],
-            ['Custom rates', aed(imp.customRates), 'Revenue now'],
+          '<div class="rc-kpis">' +
+          [
+            ['Revenue at workbook rates', 'AED ' + money(imp.workbookRates), ''],
+            ['Revenue at custom rates', 'AED ' + money(imp.customRates), ''],
             [
-              imp.change < 0 ? 'Loss' : 'Gain',
-              signed(imp.change),
-              (imp.changePct > 0 ? '+' : '') + imp.changePct + '% vs workbook',
+              'Difference',
+              (imp.change > 0 ? '+ ' : imp.change < 0 ? '− ' : '') +
+                'AED ' +
+                money(Math.abs(imp.change)),
+              imp.change < 0 ? 'neg' : imp.change > 0 ? 'pos' : '',
             ],
-          ]) +
-          '<div class="rc-table"><table><thead><tr><th>Job type</th><th>Jobs changed</th><th>Workbook</th><th>Custom</th><th>Difference</th></tr></thead><tbody>' +
+            [
+              'Difference %',
+              (imp.changePct > 0 ? '+ ' : imp.changePct < 0 ? '− ' : '') +
+                Math.abs(imp.changePct) +
+                '%',
+              imp.change < 0 ? 'neg' : imp.change > 0 ? 'pos' : '',
+            ],
+          ]
+            .map(
+              (k) =>
+                '<div class="rc-kpi"><small>' +
+                e(k[0]) +
+                '</small><b class="' +
+                k[2] +
+                '">' +
+                e(k[1]) +
+                '</b></div>',
+            )
+            .join('') +
+          '</div>';
+      if (!data.active && !editing && data.workbookDiffersFromMasters)
+        html +=
+          '<p class="rc-msg warn">Rates marked with an orange dot are different in Pricing Masters. Revenue follows the workbook until you lock your own rates.</p>';
+      html +=
+        '<div class="rc-grid"><div class="rc-stack">' +
+        jobCard +
+        trCard +
+        '</div>' +
+        discCard +
+        '</div><div class="rc-grid">' +
+        catCard('deliveryInstall', 'Delivery + installation (CSIDI)') +
+        catCard('install', 'Installation only (CSIII)') +
+        '</div>';
+      if (editing)
+        html +=
+          '<p class="form-note">Changed cells are highlighted with the workbook value struck through. Only rates change: every revenue rule (discount tiers, transport trips and cap, once-per-invoice charges, which lines count) stays exactly as it is.</p>';
+      if (imp && data.active && !editing) {
+        const diffCell = (v) =>
+          '<td class="rc-num ' +
+          (v < 0 ? 'neg' : v > 0 ? 'pos' : '') +
+          '">' +
+          (v > 0 ? '+ ' : v < 0 ? '− ' : '') +
+          money(Math.abs(v)) +
+          '</td>';
+        html +=
+          '<div class="rc-box"><div class="rc-box-head"><b>Where the difference comes from</b><span>' +
+          e(String(imp.jobsAffected)) +
+          ' jobs priced differently</span></div>' +
+          '<table class="rc-t"><thead><tr><th>Job type</th><th class="rc-num">Jobs affected</th><th class="rc-num">Workbook rates</th><th class="rc-num">Custom rates</th><th class="rc-num">Difference</th></tr></thead><tbody>' +
           imp.byJobType
             .map(
               (t) =>
                 '<tr><td>' +
                 e(t.label) +
-                '</td><td>' +
+                '</td><td class="rc-num">' +
                 t.jobsAffected +
-                '</td><td>' +
-                aed(t.workbookRates) +
-                '</td><td>' +
-                aed(t.customRates) +
-                '</td><td class="' +
-                (t.change < 0 ? 'rc-neg' : t.change > 0 ? 'rc-pos' : '') +
-                '">' +
-                signed(t.change) +
-                '</td></tr>',
+                '</td><td class="rc-num">' +
+                money(t.workbookRates) +
+                '</td><td class="rc-num">' +
+                money(t.customRates) +
+                '</td>' +
+                diffCell(t.change) +
+                '</tr>',
             )
             .join('') +
-          '</tbody></table></div></div>';
+          '</tbody></table>' +
+          '<table class="rc-t rc-month"><thead><tr><th>Month</th><th class="rc-num">Workbook rates</th><th class="rc-num">Custom rates</th><th class="rc-num">Difference</th></tr></thead><tbody>' +
+          imp.byMonth
+            .map(
+              (m) =>
+                '<tr><td>' +
+                e(
+                  String(Math.floor(m.month / 100)) + '-' + String(m.month % 100).padStart(2, '0'),
+                ) +
+                '</td><td class="rc-num">' +
+                money(m.workbookRates) +
+                '</td><td class="rc-num">' +
+                money(m.customRates) +
+                '</td>' +
+                diffCell(m.change) +
+                '</tr>',
+            )
+            .join('') +
+          '</tbody></table></div>';
       }
       host.innerHTML = html;
       wire();
@@ -28324,7 +28508,6 @@ ${bodyHtml}
           editing = false;
           message.text = n ? 'Rates locked and revenue recalculated.' : 'Back on workbook rates.';
           draw();
-          onChanged?.();
         }),
       );
       host.querySelector('[data-rc-back]')?.addEventListener('click', () =>
@@ -28335,7 +28518,6 @@ ${bodyHtml}
           message.text = 'Back on workbook rates.';
           message.ok = true;
           draw();
-          onChanged?.();
         }),
       );
       host.querySelector('[data-rc-apply]')?.addEventListener('click', () => {
@@ -32256,10 +32438,9 @@ ${bodyHtml}
           e(d.batch.fileName) +
           '</span></div></div>' +
           '<div data-rc-host></div>' +
-          ratesHtml +
           recHtml +
           footNote;
-        rdRateCardPanel(body.querySelector('[data-rc-host]'));
+        rdRateCardPanel(body.querySelector('[data-rc-host]'), ratesHtml);
         return;
       }
       body.innerHTML =
