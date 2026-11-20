@@ -5205,6 +5205,35 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #295 — Reports: missing columns added and six new reports
+
+**Date:** 2026-11-20
+
+**Why.** He asked whether everything users enter is also available in the Reports page. A column-by-column comparison of the database tables with the 11 reports found fields that were saved but never reported, and records with no report at all.
+
+**What changed.** Reports only, nothing changes on screen except the Reports page. The page, preview, search, date range and Excel download all work the same way; the report list and columns come from the server.
+- **Columns added to existing reports.**
+  - Quotations: status, ERP status, ERP invoice no, invoiced date, warranty status, customer type, B2B branch/school, source ref, subtotal, VAT rate and amount, signature date.
+  - Inspections: date of collection, customer type, B2B branch/school, source ref, signature date.
+  - AMC Contracts: status, pricing model (old or v2), revision and note, sold plan and prices, sold date, who marked it sold, lost reason.
+  - Thomson Sales: status, sold date, lost reason, who changed the status and when, revision and note, payment schedule.
+  - Service Job Cards: customer details, school contacts, sales order, purchase date, accessories and condition notes, final warranty and the reason it changed, linked quotation, billing and payment details, portal invoice and TRN, who finalised, the full closure approval trail, sticker attached (when and by whom).
+  - Job Status Wise, Scheduler, VAS and Rate Card Sales: the equivalent missing fields.
+  - Every main record report now also has Created By, Last Updated By and Last Updated.
+- **New reports.**
+  - Delivery + Installation Jobs (CSIDI, CSIDO, CSIII totals, invoice references, who completed or cancelled).
+  - Delivery + Installation Lines (rate kind, discount tier, labour, transport, revenue per line).
+  - Complaints (with the appointment booked from each).
+  - Tasks (ROI), administrators only, because normal users only see their own tasks.
+  - Warranty Approvals (decision, who, how; the private approval link is never included).
+  - Revenue Rate Changes (every time custom rates were locked, reset or applied to Pricing Masters, with who, when and the rates changed).
+- Each new report needs the same permission as its own page (D+I jobs, complaints, warranty approvals, revenue dashboard).
+- New integration test runs every report against the real database and checks the new reports return saved records.
+
+**Files.** apps/api/src/reports/definitions.ts, tests/integration/report-definitions.test.ts, modification.md.
+
+**Needs you:** pull and restart the API (the report list is read from the server), then hard-refresh. No migration.
+
 ## Modification #294 — Tasks: executive table look with a delayed row hover
 
 **Date:** 2026-11-20
