@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #292 — Unit stickers: larger, bolder text
+
+**Date:** 2026-11-20
+
+**Why.** On the Zebra printout (Delivery + installation page) the small entries were hard to read: 6 to 7 pt text on a 100 x 75 mm label with empty space left below.
+
+**What changed.** Row text is now 8.5 pt bold (labels 7.5 pt bold), the delivery note number 13 pt, the status box and brand 11 pt, the date box 8 pt, the warranty note and contact line 6.3 to 6.8 pt bold. Long descriptions and customer names wrap to two lines instead of being cut with "...", and the "Copy 1 / Copy 2" caption moved to the top right so it no longer overlaps the warranty note. Applies to both sticker types (delivery + installation and service job). Checked on the worst case (delivered + installed, technician, long description, long customer name with phone): everything fits inside the 75 mm label.
+
+**Files.** apps/web/src/label-core.js, modification.md.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart. Print one sticker from the Delivery + installation page and one from Service jobs to confirm.
+
 ## Modification #291 — Service Revenue Dashboard: custom rates made visible everywhere (only while locked)
 
 **Date:** 2026-11-20

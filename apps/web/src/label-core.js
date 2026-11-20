@@ -176,11 +176,11 @@
       rows =
         row('BRAND', d.brand) +
         row('MODEL / CODE', d.itemCode) +
-        row('DESCRIPTION', trim(d.itemDesc, 48)) +
+        row('DESCRIPTION', trim(d.itemDesc, 70)) +
         row('CATEGORY', trim([d.groupName, d.subGroup].filter(Boolean).join(' / '), 48)) +
         row(
           'CUSTOMER',
-          trim(d.customerName + (d.customerPhone ? ' · ' + d.customerPhone : ''), 52),
+          trim(d.customerName + (d.customerPhone ? ' · ' + d.customerPhone : ''), 70),
         ) +
         row(
           'DELIVERY NOTE',
@@ -202,7 +202,7 @@
       rows =
         row('MODEL', trim(d.model || d.itemDesc, 48)) +
         row('SERIAL', d.serial) +
-        row('OWNER', trim(d.customerName + (d.customerPhone ? ' · ' + d.customerPhone : ''), 52)) +
+        row('OWNER', trim(d.customerName + (d.customerPhone ? ' · ' + d.customerPhone : ''), 70)) +
         row('WARRANTY', d.warranty) +
         row(
           'RECEIVED',
@@ -243,18 +243,18 @@
   var CSS =
     '*{box-sizing:border-box}html,body{margin:0;padding:0;background:#fff;color:#000;font-family:Arial,Helvetica,sans-serif}' +
     '.lb-page{position:relative;overflow:hidden;page-break-after:always;break-after:page}' +
-    '.lb-sticker{position:relative;width:100mm;height:75mm;padding:3mm 4mm 2mm;font-size:7pt;line-height:1.22;display:flex;flex-direction:column;gap:1mm;overflow:hidden}' +
+    '.lb-sticker{position:relative;width:100mm;height:75mm;padding:3.2mm 4mm 1.5mm;font-size:8.5pt;line-height:1.12;display:flex;flex-direction:column;gap:0.8mm;overflow:hidden}' +
     '.lb-sticker+.lb-sticker{border-top:0.3mm dashed #555}' +
     '.lb-top{display:flex;justify-content:space-between;align-items:center}' +
-    '.lb-brand{font-size:10pt;font-weight:700;line-height:1.05}.lb-brand small{display:block;font-size:5.5pt;font-weight:400;letter-spacing:.08em}' +
-    '.lb-status{border:0.6mm solid #000;padding:0.6mm 2.5mm;font-size:10pt;font-weight:700;text-align:center;line-height:1.1}' +
-    '.lb-code{display:flex;gap:3mm;align-items:center}.lb-bars{display:block}.lb-ref{font-size:11pt;font-weight:700;white-space:nowrap}' +
-    '.lb-grid{display:grid;grid-template-columns:25mm 1fr;border-top:0.25mm solid #000;padding-top:0.8mm;row-gap:0.2mm}' +
-    '.lb-k{font-weight:700}.lb-v{overflow:hidden;white-space:nowrap;text-overflow:ellipsis}' +
-    '.lb-date{border:0.5mm solid #000;padding:0.6mm 2mm;font-size:8pt;font-weight:700;display:flex;justify-content:space-between}' +
-    '.lb-note{font-size:5.8pt;text-align:center}.lb-work{border-top:0.25mm solid #000;padding-top:0.8mm;font-size:6.8pt}' +
-    '.lb-contact{margin-top:auto;font-size:5.8pt;font-weight:700;text-align:center}' +
-    '.lb-cap{position:absolute;right:3mm;bottom:5.2mm;font-size:5pt;color:#333}';
+    '.lb-brand{font-size:11pt;font-weight:700;line-height:1.05}.lb-brand small{display:block;font-size:6.5pt;font-weight:700;letter-spacing:.05em}' +
+    '.lb-status{border:0.7mm solid #000;padding:0.6mm 2.5mm;font-size:11pt;font-weight:700;text-align:center;line-height:1.1}' +
+    '.lb-code{display:flex;gap:3mm;align-items:center}.lb-bars{display:block}.lb-ref{font-size:13pt;font-weight:700;white-space:nowrap}' +
+    '.lb-grid{display:grid;grid-template-columns:25mm 1fr;border-top:0.3mm solid #000;padding-top:0.8mm;row-gap:0.2mm}' +
+    '.lb-k{font-weight:700;font-size:7.5pt;padding-top:0.3mm}.lb-v{font-weight:700;overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;word-break:break-word}' +
+    '.lb-date{border:0.6mm solid #000;padding:0.6mm 2mm;font-size:8pt;font-weight:700;display:flex;justify-content:space-between;white-space:nowrap;gap:2mm}' +
+    '.lb-note{font-size:6.3pt;white-space:nowrap;font-weight:700;text-align:center}.lb-work{border-top:0.3mm solid #000;padding-top:0.8mm;font-size:8pt;font-weight:700}' +
+    '.lb-contact{margin-top:auto;font-size:6.8pt;font-weight:700;text-align:center}' +
+    '.lb-cap{position:absolute;right:4mm;top:0.8mm;font-size:6pt;font-weight:700;color:#000}';
 
   function labelDocument(items, settings) {
     settings = settings || {};
