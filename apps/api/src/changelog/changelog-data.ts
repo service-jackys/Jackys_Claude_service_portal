@@ -24,6 +24,7 @@ export const CHANGELOG: ChangelogEntry[] = [
     "summary": "The Rate card only showed the workbook's rates. Management needed to try different rates, see the loss or gain on the whole revenue, and then (only if wanted) push those rates into the Pricing Masters.",
     "changes": [
       "Rate card tab, admin only. Edit the job-type rates (CSIJW, CSIJO, CSIDO flat charge, BER/RWR), the D+I and Install-only batch / standard / minimum rate per appliance, the volume discount %, and the Dubai / Sharjah transport. Changed cells…",
+      "Layout. Cards in the same style as the original Rate card (Job-type rates with the once-per-invoice transport, Volume discount, Delivery + installation, Installation only). Edit mode puts inputs in the cards; after locking, management…",
       "Lock & recalculate revenue. Stores the rates and recalculates all revenue at them. Only the rates change: tier boundaries, trips, daily cap, which lines carry the once-per-invoice charge and any line with an actual ERP value stay as they…",
       "Effect on revenue. Workbook vs custom revenue, loss or gain in AED and %, jobs changed, and the difference per job type.",
       "Apply to Pricing Masters (pill, disabled until custom rates differ from the masters). Two-step confirmation: list of changes, then type APPLY. Until applied, Pricing Masters, the calculators and the Rate Card page keep the old rates.",
