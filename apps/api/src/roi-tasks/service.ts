@@ -27,6 +27,11 @@ import {
   saveRoiSettings,
   updateRoiTask,
 } from '../../../../packages/db/src/roi-tasks.js';
+import {
+  customerCareBlock,
+  fieldOpsBlock,
+  type RoiBlock,
+} from '../../../../packages/db/src/roi-blocks.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import type { ApplicationAuth } from '../auth/application-auth.js';
 
@@ -304,6 +309,31 @@ export function createRoiService(pool: Pool) {
     });
   }
 
+  // Role-specific ROI data blocks. A block is only returned when the caller holds its permission.
+  async function blocks(
+    auth: ApplicationAuth,
+    query: { weekYear?: unknown; weekNumber?: unknown },
+  ) {
+    const year = Number(query.weekYear);
+    const week = Number(query.weekNumber);
+    if (
+      !Number.isInteger(year) ||
+      year < 2000 ||
+      year > 2100 ||
+      !Number.isInteger(week) ||
+      week < 1 ||
+      week > 53
+    )
+      throw new RoiServiceError('invalid', 'Give a valid week year and week number.');
+    const allowed = (permission: string) => isAdmin(auth) || auth.permissions.includes(permission);
+    return withClient(async (client) => {
+      const out: RoiBlock[] = [];
+      if (allowed('tasks.roi_customer_care')) out.push(await customerCareBlock(client, year, week));
+      if (allowed('tasks.roi_field_ops')) out.push(await fieldOpsBlock(client, year, week));
+      return out;
+    });
+  }
+
   async function reports(auth: ApplicationAuth) {
     return withClient((client) => listRoiReports(client, auth.profileId));
   }
@@ -351,6 +381,7 @@ export function createRoiService(pool: Pool) {
     settings,
     saveSettings,
     logReport,
+    blocks,
     reports,
     previewImport,
     importTasks,

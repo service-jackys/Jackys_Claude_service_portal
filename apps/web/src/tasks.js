@@ -1689,6 +1689,9 @@
       }
       const user = deps.getUser() || {};
       const canSummary = Boolean(deps.canSummary && deps.canSummary());
+      const blockPerms = (deps.blockPerms && deps.blockPerms()) || {};
+      const canCare = Boolean(blockPerms.customerCare);
+      const canField = Boolean(blockPerms.fieldOps);
       const c = {
         week: Roi.isoWeek(today()),
         to: settings.toEmails.join('; '),
@@ -1697,6 +1700,10 @@
         greeting: 'Dear Sir,',
         intro: 'For your information,',
         includeSummary: canSummary,
+        includeCare: canCare,
+        includeField: canField,
+        collect: '',
+        blockData: [],
         summary: null,
         summaryNote: '',
         logged: new Set(),
@@ -1718,6 +1725,13 @@
         (canSummary
           ? '<label class="tk-check"><input type="checkbox" data-c="includeSummary"> Include the Management Summary <span class="tk-opt" data-c-summary-note></span></label>'
           : '<p class="tk-hint">The Management Summary is added only for roles that have it switched on (Roles page: ROI Management Summary).</p>') +
+        (canCare
+          ? '<label class="tk-check"><input type="checkbox" data-c="includeCare"> Include Customer care activity <span class="tk-opt">counts and quantities, no AED</span></label>'
+          : '') +
+        (canField
+          ? '<label class="tk-check"><input type="checkbox" data-c="includeField"> Include Field operations <span class="tk-opt">counts and quantities, no AED</span></label>' +
+            '<div class="tk-field"><label for="cCollect">Units pending to collect from customer</label><input id="cCollect" data-c="collect" maxlength="12" inputmode="numeric" placeholder="e.g. 4"><p class="tk-hint">Type this each week. The portal does not track collections yet.</p></div>'
+          : '') +
         '<div class="tk-compose-actions">' +
         '<button type="button" class="button button-primary tk-btn" data-c-copy>Copy formatted email</button>' +
         '<button type="button" class="button button-outline tk-btn" data-c-eml>Download Outlook draft (.eml)</button>' +
@@ -1768,6 +1782,42 @@
           if (noteEl)
             noteEl.textContent = result.data ? result.data.monthLabel : result.reason || '';
         } else c.summary = null;
+        const wantCare = canCare && c.includeCare;
+        const wantField = canField && c.includeField;
+        if ((wantCare || wantField) && deps.loadBlocks) {
+          const stamp = c.week.friday;
+          let loaded = [];
+          try {
+            loaded = await deps.loadBlocks(c.week);
+          } catch {
+            loaded = [];
+          }
+          if (stamp !== c.week.friday) return;
+          c.blockData = loaded;
+        } else c.blockData = [];
+        const chosenBlocks = c.blockData
+          .filter(
+            (b) => (b.key === 'customer_care' && wantCare) || (b.key === 'field_ops' && wantField),
+          )
+          .map((b) => {
+            const typed = String(c.collect || '').trim();
+            if (b.key !== 'field_ops' || !typed) return b;
+            return {
+              ...b,
+              tables: b.tables.map((t) =>
+                t.title === 'Pending, as at today'
+                  ? {
+                      ...t,
+                      rows: [
+                        ...t.rows.slice(0, 1),
+                        ['Service units pending to collect from customer (typed by sender)', typed],
+                        ...t.rows.slice(1),
+                      ],
+                    }
+                  : t,
+              ),
+            };
+          });
         c.input = {
           week: c.week,
           name: user.name,
@@ -1776,6 +1826,7 @@
           intro: c.intro,
           groups,
           summary: c.summary,
+          blocks: chosenBlocks,
           signature: c.signature,
         };
         c.html = Roi.buildRoiHtml(c.input);
@@ -1812,11 +1863,19 @@
         if (!el.dataset || !el.dataset.c) return;
         if (el.type === 'checkbox') return;
         c[el.dataset.c] = el.value;
-        if (['greeting', 'intro', 'signature'].includes(el.dataset.c)) schedule();
+        if (['greeting', 'intro', 'signature', 'collect'].includes(el.dataset.c)) schedule();
       });
       body.addEventListener('change', (e) => {
         if (e.target.matches('[data-c=includeSummary]')) {
           c.includeSummary = e.target.checked;
+          refresh();
+        }
+        if (e.target.matches('[data-c=includeCare]')) {
+          c.includeCare = e.target.checked;
+          refresh();
+        }
+        if (e.target.matches('[data-c=includeField]')) {
+          c.includeField = e.target.checked;
           refresh();
         }
       });

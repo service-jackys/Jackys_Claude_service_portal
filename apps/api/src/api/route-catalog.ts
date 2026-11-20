@@ -858,6 +858,7 @@ export function createRouteCatalog(
         'saveSettings',
         'reports',
         'logReport',
+        'blocks',
         'importPreview',
         'importTasks',
       ]);
@@ -4561,6 +4562,17 @@ export function createRouteCatalog(
         requestBody: 'roiSettings' as const,
         responses: [200, 400, 401, 403, 500],
         handlers: roiHandlers.saveSettings,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/roi/blocks',
+        operationId: 'listRoiBlocks',
+        tags: ['Tasks (ROI)'],
+        summary:
+          'Role-specific ROI data blocks (customer care, field operations) for a week; only the blocks the caller may see',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: roiHandlers.blocks,
       },
       {
         method: 'get' as const,

@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #298 — Send ROI: Customer care activity and Field operations blocks
+
+**Date:** 2026-11-20
+
+**Why.** The customer care coordinator and the technical supervisor each send a weekly ROI with the same kind of figures every week, typed by hand. Management wanted those figures filled in from the portal, with counts and quantities only and no AED. The administrator's own ROI, including the Management Summary, stays exactly as it was.
+
+**What changed.**
+- **Customer care activity** (permission "ROI: include the Customer care activity block"): jobs by billing code, delivery and installation by sales channel, repair services by sales channel, the Channel detail table (sales channel, jobs, quantity), and a Service dashboard table (appointments and job cards created and completed, this week and overall).
+- **Field operations** (permission "ROI: include the Field operations block"): deliveries and installations by channel, repairs attended this week, and a Pending table (units repaired but not delivered back, pending appointments by warranty, out of warranty and not stated, appointments in the next 7 days).
+- **Typed line.** In Send ROI, the technical supervisor types "Units pending to collect from customer" each week; it goes into the Pending table.
+- Each block has its own tick-box in Send ROI, shown only to roles that hold the permission. Administrator has both, unticked by default; the Management Summary tick-box is unchanged.
+- Quantities come from the uploaded revenue workbook (channels such as INS, HAA, 3PTY), so a week shows figures once its workbook rows are uploaded; otherwise the table says so. Pending and dashboard tables come from live portal records.
+- New endpoint GET /api/roi/blocks (needs the Tasks tab permission; returns only the blocks the user holds). No revenue amounts are returned.
+- No migration.
+
+**Files.** packages/db/src/roi-blocks.ts, apps/api/src/roi-tasks/service.ts, routes.ts, apps/api/src/api/route-catalog.ts, apps/web/src/roi-core.js, tasks.js, app.js, tests/integration/roi-blocks.test.ts, modification.md.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. Then on the Roles page tick the two block permissions on CCE (Customer care) and Technical Supervisor (Field operations).
+
 ## Modification #297 — Send ROI: a separate permission for each data block
 
 **Date:** 2026-11-20
