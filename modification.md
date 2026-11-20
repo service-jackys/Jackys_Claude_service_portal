@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #297 — Send ROI: a separate permission for each data block
+
+**Date:** 2026-11-20
+
+**Why.** The Management Summary (AED revenue figures) showed in Send ROI for anyone with Service Revenue Dashboard access, so team members such as the customer care coordinator and the technical supervisor could tick it. Management wanted it for administrators only, and role-specific blocks for the service team instead.
+
+**What changed.** Three new permissions on the Roles page, each switched on per role:
+- ROI: include the Management Summary (revenue figures in AED). Given to Administrator only.
+- ROI: include the Customer care activity block (counts, no revenue). Block itself follows in the next change.
+- ROI: include the Field operations block (counts, no revenue). Block itself follows in the next change.
+- The Management Summary tick-box in Send ROI, and the Send ROI button on the Service Revenue Dashboard, now need the Management Summary permission as well as Service Revenue Dashboard access. The server also refuses to log an ROI that includes the summary without it.
+- "Use the Tasks (ROI) tab" is unchanged: anyone with it can still send their own ROI (Results, Objectives, Issues).
+- Not covered: this does not stop a role with Service Revenue Dashboard access from opening that dashboard. Remove that access from a role if its members should not see revenue at all.
+
+**Files.** packages/db/migrations/107_roi_block_permissions.sql, apps/api/src/roi-tasks/service.ts, apps/web/src/app.js, apps/web/src/tasks.js, tests/integration/roi-tasks.test.ts, tests/e2e/roi-lpo-section.spec.ts, modification.md.
+
+**Needs you:** pull, run `npm.cmd run db:migrate`, restart the API, hard-refresh.
+
 ## Modification #296 — Dashboard: dispatch board look with vector icons
 
 **Date:** 2026-11-20

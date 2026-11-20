@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 297,
+    "title": "Send ROI: a separate permission for each data block",
+    "area": "Permissions",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "The Management Summary (AED revenue figures) showed in Send ROI for anyone with Service Revenue Dashboard access, so team members such as the customer care coordinator and the technical supervisor could tick it. Management wanted it for administrators only, and role-specific blocks for the service team instead.",
+    "changes": [
+      "What changed: Three new permissions on the Roles page, each switched on per role:"
+    ],
+    "needsYou": "pull, run npm.cmd run db:migrate, restart the API, hard-refresh.",
+    "migrations": [
+      "107_roi_block_permissions.sql"
+    ],
+    "files": "packages/db/migrations/107_roi_block_permissions.sql, apps/api/src/roi-tasks/service.ts, apps/web/src/app.js, apps/web/src/tasks.js, tests/integration/roi-tasks.test.ts…"
+  },
+  {
     "id": 296,
     "title": "Dashboard: dispatch board look with vector icons",
     "area": "Portal look & feel",
