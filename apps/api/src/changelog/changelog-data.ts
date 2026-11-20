@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 299,
+    "title": "Send ROI: To and Cc start empty for the service team",
+    "area": "Permissions",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "The built-in To and Cc list is the administrator's own ROI distribution. Gelloyd (CCE) and Siva (Technical Supervisor) were getting it pre-filled in their Send ROI.",
+    "changes": [
+      "What changed: Only the administrator starts with the built-in To and Cc list. Every other role starts with both boxes empty and types the recipients; \"Save recipients & signature as my defaults\" still works for them. Anyone who has…"
+    ],
+    "needsYou": "pull, restart the API (no migration), hard-refresh. If Gelloyd or Siva have already saved the old list as their defaults, they clear the boxes and save once.",
+    "migrations": [],
+    "files": "apps/api/src/roi-tasks/service.ts, tests/integration/roi-tasks.test.ts, modification.md."
+  },
+  {
     "id": 298,
     "title": "Send ROI: Customer care activity and Field operations blocks",
     "area": "Complaints",

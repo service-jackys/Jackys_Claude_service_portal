@@ -259,10 +259,13 @@ export function createRoiService(pool: Pool) {
 
   async function settings(auth: ApplicationAuth) {
     const saved = await withClient((client) => readRoiSettings(client, auth.profileId));
+    // modification #299: the built-in To/Cc list belongs to the administrator's ROI. Everyone else
+    // (CCE, Technical Supervisor, ...) starts with empty To and Cc and types or saves their own.
+    const useDefaults = isAdmin(auth);
     return (
       saved ?? {
-        toEmails: [...roiDefaultRecipients.to],
-        ccEmails: [...roiDefaultRecipients.cc],
+        toEmails: useDefaults ? [...roiDefaultRecipients.to] : [],
+        ccEmails: useDefaults ? [...roiDefaultRecipients.cc] : [],
         signature: auth.displayName,
       }
     );
