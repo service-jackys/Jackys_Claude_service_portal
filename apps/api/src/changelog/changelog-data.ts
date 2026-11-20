@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 301,
+    "title": "Rate card: column headings Market and Special",
+    "area": "Pricing & rates",
+    "date": "2026-11-20",
+    "approxDate": false,
+    "status": null,
+    "summary": "After #300 the Rate card tab still showed the old words \"Batch\" and \"Standard\" in its table headings and in the effect lines.",
+    "changes": [
+      "What changed: Label rename only: the Rate card tab's delivery + installation and installation-only table headings, the rate names in the effect list, and the base rate table in the Rate card view now read Special (was Batch) and Market…"
+    ],
+    "needsYou": "pull and hard-refresh (no restart, no migration).",
+    "migrations": [],
+    "files": "apps/web/src/app.js, modification.md."
+  },
+  {
     "id": 300,
     "title": "Rate card: \"Standard rate\" is now \"Market rate\", \"Batch rate\" is now \"Special rate\"",
     "area": "Pricing & rates",

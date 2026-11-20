@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #301 — Rate card: column headings Market and Special
+
+**Date:** 2026-11-20
+
+**Why.** After #300 the Rate card tab still showed the old words "Batch" and "Standard" in its table headings and in the effect lines.
+
+**What changed.** Label rename only: the Rate card tab's delivery + installation and installation-only table headings, the rate names in the effect list, and the base rate table in the Rate card view now read Special (was Batch) and Market (was Standard). No figures or rules change.
+
+**Files.** apps/web/src/app.js, modification.md.
+
+**Needs you:** pull and hard-refresh (no restart, no migration).
+
 ## Modification #300 — Rate card: "Standard rate" is now "Market rate", "Batch rate" is now "Special rate"
 
 **Date:** 2026-11-20
