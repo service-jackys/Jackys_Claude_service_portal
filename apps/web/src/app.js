@@ -15137,7 +15137,7 @@ ${bodyHtml}
       rcInfo(RC_DANDI_NOTE) +
       '</h3><div class="rcv-note">Depends on D+I Admin Entry factors &mdash; shown here as base rates only.</div>' +
       '<div class="rcv-grid">' +
-      '<div><h4>Base rate per unit (\u20C3)</h4><table class="rc-table"><thead><tr><th>Appliance</th><th class="num">Standard</th><th class="num">Batch</th></tr></thead><tbody>' +
+      '<div><h4>Base rate per unit (\u20C3)</h4><table class="rc-table"><thead><tr><th>Appliance</th><th class="num">Market</th><th class="num">Special</th></tr></thead><tbody>' +
       rateRows +
       '</tbody></table></div>' +
       '<div><h4>Quantity discount</h4><table class="rc-table"><thead><tr><th>Units</th><th class="num">Discount</th></tr></thead><tbody>' +
@@ -28286,7 +28286,7 @@ ${bodyHtml}
       CSIDO: 'Delivery only (flat)',
       RWR: 'BER / RWR flat charge',
     };
-    const FIELD_NAME = { batchRate: 'Batch', standardRate: 'Standard', minimumRate: 'Minimum' };
+    const FIELD_NAME = { batchRate: 'Special', standardRate: 'Market', minimumRate: 'Minimum' };
 
     const draw = () => {
       const inUse = data.custom || data.workbook;
@@ -28381,7 +28381,7 @@ ${bodyHtml}
         card(
           title,
           'AED per unit, incl. VAT',
-          '<table class="rc-t"><thead><tr><th>Category</th><th class="rc-num">Batch</th><th class="rc-num">Standard</th><th class="rc-num">Minimum</th></tr></thead><tbody>' +
+          '<table class="rc-t"><thead><tr><th>Category</th><th class="rc-num">Special</th><th class="rc-num">Market</th><th class="rc-num">Minimum</th></tr></thead><tbody>' +
             data.workbook[key].categories
               .map(
                 (c, i) =>
