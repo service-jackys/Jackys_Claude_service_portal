@@ -5205,6 +5205,21 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #296 — Dashboard: dispatch board look with vector icons
+
+**Date:** 2026-11-20
+
+**Why.** He asked for a fresh, professional look for the Dashboard Overview and Kanban board, approved from the mockup with real figures and an icon on every item.
+
+**What changed.** Look and markup only. Every click, filter, tab, refresh and data call works as before.
+- **Overview.** The five headline numbers are one connected strip with a vector icon on each. New Case pipeline panel: one bar of open cases by stage (Scheduled, On site, Awaiting job card, Job card open, In progress), a legend with count, average days and late per stage including Done, and an on track / at risk / late bar. On track is open cases minus at risk minus late.
+- **Kanban board.** Each lane heading has a vector icon (calendar, pin, hourglass, file, wrench, check). The summary numbers have icons too; reference numbers use a monospace face.
+- Light and dark themes both work; works on phone width.
+
+**Files.** apps/web/src/index.html, apps/web/src/app.js, modification.md.
+
+**Needs you:** pull and hard-refresh. No migration, no API restart.
+
 ## Modification #295 — Reports: missing columns added and six new reports
 
 **Date:** 2026-11-20

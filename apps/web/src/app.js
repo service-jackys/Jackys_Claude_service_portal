@@ -8192,8 +8192,51 @@ ${bodyHtml}
     });
   }
 
+  /* Dashboard vector icons (modification #296): stroke icons, 24 grid, drawn in currentColor. */
+  const DASH_ICON_PATHS = {
+    layers: '<path d="M12 3 3 8l9 5 9-5z"/><path d="m3 13 9 5 9-5"/>',
+    calendar:
+      '<rect x="3.5" y="5" width="17" height="15.5" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
+    hourglass:
+      '<path d="M6 3h12M6 21h12"/><path d="M7 3v3.5L12 12l-5 5.5V21M17 3v3.5L12 12l5 5.5V21"/>',
+    alert: '<path d="M12 4 2.8 19.5h18.4z"/><path d="M12 10v4M12 17v.01"/>',
+    timer: '<circle cx="12" cy="13.5" r="7.5"/><path d="M12 9.5v4l2.5 1.5M9.5 3h5"/>',
+    clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+    check: '<circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.8 2.8L16 9.5"/>',
+    pin: '<path d="M12 21s7-6 7-11.5A7 7 0 0 0 5 9.5C5 15 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/>',
+    file: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6"/>',
+    wrench:
+      '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>',
+  };
+  const DASH_COLUMN_ICONS = {
+    scheduled: 'calendar',
+    on_site: 'pin',
+    awaiting_job_card: 'hourglass',
+    jc_open: 'file',
+    jc_progress: 'wrench',
+    done: 'check',
+  };
+  function dashIcon(name, size) {
+    const d = DASH_ICON_PATHS[name];
+    if (!d) return '';
+    const px = size || 16;
+    return `<svg class="dash-ico" width="${px}" height="${px}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  }
+
+  const DASH_KPI_ICONS = {
+    'Open cases': 'layers',
+    'Appointments today': 'calendar',
+    'Awaiting job card': 'hourglass',
+    'Late cases': 'alert',
+    Late: 'alert',
+    'At risk': 'clock',
+    'Average TAT': 'timer',
+    'On time': 'check',
+  };
+
   function kpiHtml(label, value, note, color, action) {
-    const inner = `<span class="dash-kpi-label">${escapeHtml(label)}</span><span class="dash-kpi-value">${escapeHtml(String(value))}</span><span class="dash-kpi-note">${escapeHtml(note || '')}</span>`;
+    const ico = dashIcon(DASH_KPI_ICONS[label], 18);
+    const inner = `<span class="dash-kpi-label">${ico ? `<span class="dash-kpi-ico">${ico}</span>` : ''}${escapeHtml(label)}</span><span class="dash-kpi-value">${escapeHtml(String(value))}</span><span class="dash-kpi-note">${escapeHtml(note || '')}</span>`;
     const style = `--kpi-color:${color}`;
     return action
       ? `<button type="button" class="dash-kpi" style="${style}" data-kpi="${action}">${inner}</button>`
@@ -8243,6 +8286,40 @@ ${bodyHtml}
       ),
     ];
     $('#dashHero').innerHTML = tiles.join('');
+    renderDashPipeline(board);
+  }
+
+  function renderDashPipeline(board) {
+    const host = $('#dashPipeline');
+    if (!host) return;
+    const cols = board?.columns;
+    const st = board?.stats;
+    if (!cols || !st) {
+      host.innerHTML = '';
+      return;
+    }
+    const open = cols.filter((c) => c.key !== 'done');
+    const total = open.reduce((n, c) => n + c.count, 0);
+    const onTrack = Math.max(0, st.open - st.atRisk - st.late);
+    const seg = (n, cls) =>
+      n ? `<span class="dash-seg ${cls}" style="flex:${n} 1 0">${n}</span>` : '';
+    const bar = open
+      .map((c) =>
+        c.count
+          ? `<span class="dash-seg" style="flex:${c.count} 1 0;--col:${BOARD_COLOURS[c.key] || '#1769aa'}" title="${escapeHtml(c.label)}: ${c.count}">${c.count}</span>`
+          : '',
+      )
+      .join('');
+    const legend = cols
+      .map(
+        (c) =>
+          `<div class="dash-pipe-cell" style="--col:${BOARD_COLOURS[c.key] || '#1769aa'}"><span class="dash-pipe-name"><span class="dash-pipe-ico">${dashIcon(DASH_COLUMN_ICONS[c.key], 15)}</span>${escapeHtml(c.label)}</span><span class="dash-pipe-count">${c.count}</span><span class="dash-pipe-meta">${escapeHtml([c.avgDays != null ? `Avg ${c.avgDays} d` : '', c.late ? `${c.late} late` : ''].filter(Boolean).join(' · '))}</span></div>`,
+      )
+      .join('');
+    host.innerHTML = `<div class="dash-pipe-head"><h3 class="dash-pipe-title">Case pipeline</h3><span class="dash-pipe-sub">Where all ${total} open cases sit right now</span><span class="dash-pipe-key"><span class="dash-key ok">On track ${onTrack}</span><span class="dash-key risk">At risk ${st.atRisk}</span><span class="dash-key late">Late ${st.late}</span></span></div>
+      <div class="dash-pipe-bar" role="img" aria-label="Open cases by stage">${bar}</div>
+      <div class="dash-pipe-cells">${legend}</div>
+      <div class="dash-tat-bar" aria-hidden="true">${seg(onTrack, 'ok')}${seg(st.atRisk, 'risk')}${seg(st.late, 'late')}</div>`;
   }
 
   function boardCardMatches(card) {
@@ -8358,7 +8435,7 @@ ${bodyHtml}
             ? `<p class="kb-more">Showing the ${col.cards.length} oldest of ${col.count}</p>`
             : '';
         return `<section class="kb-col" style="--col:${BOARD_COLOURS[col.key] || '#1769aa'}" aria-label="${escapeHtml(col.label)}">
-          <div class="kb-col-head"><div class="kb-col-title"><span>${escapeHtml(col.label)}</span><span class="kb-count">${filtered ? `${shown.length}/${col.count}` : col.count}</span></div><div class="kb-col-meta" title="${escapeHtml(col.hint)}">${escapeHtml(meta || col.hint)}</div></div>
+          <div class="kb-col-head"><div class="kb-col-title"><span class="kb-col-name">${DASH_COLUMN_ICONS[col.key] ? `<span class="kb-col-ico">${dashIcon(DASH_COLUMN_ICONS[col.key], 15)}</span>` : ''}${escapeHtml(col.label)}</span><span class="kb-count">${filtered ? `${shown.length}/${col.count}` : col.count}</span></div><div class="kb-col-meta" title="${escapeHtml(col.hint)}">${escapeHtml(meta || col.hint)}</div></div>
           <div class="kb-list">${body}${more}</div>
         </section>`;
       })
