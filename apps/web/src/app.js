@@ -18139,31 +18139,23 @@ ${bodyHtml}
   }
 
   function printThomsonLineItemsTable(lineItems) {
-    // The customer sees what is charged to them, never our internal transport
-    // cost: whatever is in the line total beyond equipment and services.
-    const charged = (li) =>
-      Math.max(
-        0,
-        Math.round(
-          ((Number(li.totalPrice) || 0) -
-            (Number(li.applianceSubtotal) || 0) -
-            (Number(li.addonRevenue) || 0)) *
-            100,
-        ) / 100,
-      );
-    const anySingle = (lineItems || []).some((li) => li.quoteMode === 'single');
+    // The customer never sees transport named: whatever is charged beyond the
+    // equipment (services plus the customer's share of transport, or the round
+    // trip and call-out on a single-unit quote) is one "Services" figure.
+    // The portal screens keep the split.
+    const T = window.JdThomsonTerms;
     const sum = (f) => (lineItems || []).reduce((t, li) => t + (Number(f(li)) || 0), 0);
     const totalsRow = (lineItems || []).length
-      ? `<tfoot><tr><td colspan="2"><strong>Total</strong></td><td class="num"><strong>${sum((li) => li.qty)}</strong></td><td></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.applianceSubtotal))}</strong></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.addonRevenue))}</strong></td><td class="num"><strong>\u20C3 ${money(sum(charged))}</strong></td><td class="num"><strong>\u20C3 ${money(sum((li) => li.totalPrice))}</strong></td></tr></tfoot>`
+      ? `<tfoot><tr><td colspan="2"><strong>Total</strong></td><td class="num"><strong>${sum((li) => li.qty)}</strong></td><td></td><td class="num"><strong>\u20C3 ${moneyGrouped(sum((li) => li.applianceSubtotal))}</strong></td><td class="num"><strong>\u20C3 ${moneyGrouped(sum(T.servicesCharged))}</strong></td><td class="num"><strong>\u20C3 ${moneyGrouped(sum((li) => li.totalPrice))}</strong></td></tr></tfoot>`
       : '';
     const rows = (lineItems || [])
       .map(
         (li) =>
-          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">\u20C3 ${money(li.unitRate)}</td><td class="num">\u20C3 ${money(li.applianceSubtotal)}</td><td class="num">\u20C3 ${money(li.addonRevenue)}</td><td class="num">\u20C3 ${money(charged(li))}</td><td class="num">\u20C3 ${money(li.totalPrice)}</td></tr>`,
+          `<tr><td>${escapeHtml(li.region)}</td><td>${escapeHtml(li.applianceName)}</td><td class="num">${escapeHtml(String(li.qty))}</td><td class="num">\u20C3 ${moneyGrouped(li.unitRate)}</td><td class="num">\u20C3 ${moneyGrouped(li.applianceSubtotal)}</td><td class="num">\u20C3 ${moneyGrouped(T.servicesCharged(li))}</td><td class="num">\u20C3 ${moneyGrouped(li.totalPrice)}</td></tr>`,
       )
       .join('');
-    return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Add-on revenue</th><th class="num">${anySingle ? 'Transport &amp; call-out' : 'Transport charged'}</th><th class="num">Total price</th></tr></thead><tbody>${
-      rows || '<tr><td colspan="8" style="text-align:center;color:#888;">No lines</td></tr>'
+    return `<table><thead><tr><th>Region</th><th>Appliance</th><th class="num">Qty</th><th class="num">Unit rate</th><th class="num">Appliance subtotal</th><th class="num">Services</th><th class="num">Total price</th></tr></thead><tbody>${
+      rows || '<tr><td colspan="7" style="text-align:center;color:#888;">No lines</td></tr>'
     }</tbody>${totalsRow}</table>`;
   }
 
@@ -18189,7 +18181,7 @@ ${bodyHtml}
     return (
       '<h2>Project schedule</h2>' +
       printFieldGrid([
-        ['Work method', phased ? 'Phase to phase' : 'Continuous work'],
+        ['Work method', phased ? 'Phase by phase' : 'Continuous work'],
         ['Technicians on site', String(schedule.technicians)],
         ['Working days', String(schedule.workingDays)],
         ...(phased ? [['Waiting between phases', schedule.waitingDays + ' days']] : []),
@@ -18212,9 +18204,14 @@ ${bodyHtml}
   }
 
   function buildThomsonSaleCertificateBody(sale) {
+    const T = window.JdThomsonTerms;
+    const single = isThomsonSingleSale(sale);
+    const tot = T.totals(sale);
+    const line = (label, value, strong) =>
+      `<div style="display:flex;justify-content:space-between;gap:24px;margin-top:3px;"><span>${label}</span><${strong ? 'strong' : 'span'}>\u20C3 ${moneyGrouped(value)}</${strong ? 'strong' : 'span'}></div>`;
     return `
       ${printDocHeadWithLogo(
-        isThomsonSingleSale(sale) ? 'Thomson Quotation' : 'Thomson Project Quotation',
+        single ? 'Thomson Quotation' : 'Thomson Project Quotation',
         sale.thomsonSaleReference,
       )}
       <h2>Quotation details</h2>
@@ -18223,25 +18220,27 @@ ${bodyHtml}
         ['Client', sale.clientName],
         ['Contact number', sale.contactNumber],
         ['Site / location', sale.siteLocation],
-        ...(isThomsonSingleSale(sale)
-          ? []
-          : [['Customer transport share', String(sale.transportSharePercent) + '%']]),
         ['Contract ref.', sale.contractRef || sale.thomsonSaleReference],
       ])}
-      <h2>${isThomsonSingleSale(sale) ? 'Quotation lines' : 'Project lines'}</h2>
+      <h2>${single ? 'Quotation lines' : 'Project lines'}</h2>
       ${printThomsonLineItemsTable(sale.lineItems)}
-      <div class="cert-feebox">
-        <div class="fee">\u20C3 ${money(sale.totalPrice)}</div>
-        <div>${isThomsonSingleSale(sale) ? 'Total price' : 'Total project price'}</div>
+      <div class="cert-feebox" style="display:block;text-align:left;">
+        ${line(single ? 'Total price, excluding VAT' : 'Total project price, excluding VAT', tot.excl)}
+        ${line('VAT 5%', tot.vat)}
+        <div style="display:flex;justify-content:space-between;gap:24px;margin-top:6px;padding-top:6px;border-top:1px solid #bbb;"><strong>Total including VAT</strong><strong class="fee" style="font-size:18px;">\u20C3 ${moneyGrouped(tot.incl)}</strong></div>
       </div>
+      ${single ? '' : '<p style="font-size:10px;color:#555;">Unit rates follow the quantity of each appliance type in the project (volume tiers). A change in quantity can change the rate.</p>'}
+      ${T.servicesSectionHtml(sale, moneyGrouped)}
       ${buildThomsonScheduleHtml(sale.schedule)}
+      ${T.phasedBoxHtml(sale, moneyGrouped)}
+      ${T.termsHtml(sale, moneyGrouped)}
       <h2>Signatures</h2>
-      <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing and payment terms.</p>
+      <p style="font-size:11px;color:#444;">By signing below, the client confirms acceptance of this quotation's scope, pricing, services and the terms and conditions above.</p>
       <div class="sign-row">
         <div class="sign-box">For Jacky's Distribution LLC &mdash; name / designation / date / signature &amp; company stamp</div>
         <div class="sign-box">For Client Acceptance &mdash; name / designation / date / signature &amp; company stamp (if applicable)</div>
       </div>
-      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in \u20C3. This quotation is valid for 30 days from the date shown above unless otherwise agreed in writing.</p>
+      <p style="font-size:9.5px;color:#777;font-style:italic;margin-top:16px;">This document is issued by Jacky's Distribution LLC Service Department, governed by the laws of the United Arab Emirates. Prices are in \u20C3.</p>
     `;
   }
 
@@ -19873,6 +19872,21 @@ ${bodyHtml}
         timelineAdviceHtml(current);
     }
 
+    // Price of one extra site visit on a phased quote: the customer's share of
+    // the region round trip (full round trip at 0% and 100%). With several
+    // regions the highest round trip is used.
+    function extraVisitAmountNow() {
+      const trips = lineItems.map(
+        (li) => (regions.find((r) => r.name === li.region) || regions[0] || {}).roundTripCost || 0,
+      );
+      const roundTrip = trips.length ? Math.max.apply(null, trips) : 0;
+      const amount = window.JdThomsonTerms.extraVisitAmount(
+        roundTrip,
+        parseNumber(transportShareInput.value),
+      );
+      return amount > 0 ? amount : undefined;
+    }
+
     // The schedule stored with a saved project quote and printed on it.
     function buildSavedSchedule() {
       if (mode === 'single' || !lineItems.length) return undefined;
@@ -19889,6 +19903,7 @@ ${bodyHtml}
         workingDays: sch.workingDays,
         waitingDays: sch.gapDays,
         totalDays: sch.calendarDays,
+        extraVisitAmount: sch.mode === 'phased' ? extraVisitAmountNow() : undefined,
         plannedStart: finish ? plannedStart : undefined,
         estimatedCompletion: finish,
         phases:

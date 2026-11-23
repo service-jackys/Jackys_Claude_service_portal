@@ -326,6 +326,122 @@ test.describe('Thomson Quote Calculator', () => {
     await expect(page.locator('[data-tq-total]')).toBeInViewport();
   });
 
+  test('the printed quotation folds transport into Services, adds VAT, services and terms', async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      (window as any).__printed = '';
+      window.open = () =>
+        ({
+          document: {
+            open() {},
+            write(html: string) {
+              (window as any).__printed += html;
+            },
+            close() {},
+          },
+          focus() {},
+          print() {},
+          addEventListener() {},
+        }) as any;
+    });
+    await openCalculator(page, []);
+    const saved = {
+      id: '1',
+      thomsonSaleReference: 'TH-2026-00004',
+      saleDate: '2026-11-23',
+      createdAt: '2026-11-23T08:00:00Z',
+      clientName: 'Thomson Gulf',
+      siteLocation: 'Dubai',
+      status: 'Quote',
+      transportSharePercent: '50',
+      totalPrice: 63607,
+      totalCost: 50000,
+      margin: 13607,
+      lineItems: [
+        {
+          region: 'Dubai',
+          applianceName: 'Built-in Cooker Hood 90cm',
+          qty: 319,
+          unitRate: 50,
+          applianceSubtotal: 15950,
+          addonRevenue: 150,
+          transportCost: 440,
+          totalPrice: 16320,
+        },
+        {
+          region: 'Dubai',
+          applianceName: 'Built-in Cooker Hood 60cm',
+          qty: 1079,
+          unitRate: 43,
+          applianceSubtotal: 46397,
+          addonRevenue: 150,
+          transportCost: 1480,
+          totalPrice: 47287,
+        },
+      ],
+      schedule: {
+        workMode: 'phased',
+        technicians: 2,
+        workingDays: 32,
+        waitingDays: 20,
+        totalDays: 52,
+        extraVisitAmount: 30,
+        phases: [
+          { name: 'Phase 1', items: '1 x A', days: 10, waitBeforeDays: 0, readiness: 'assumed' },
+        ],
+      },
+      editorState: {
+        mode: 'project',
+        workMode: 'phased',
+        technicians: 2,
+        overtimeHours: 0,
+        lines: [
+          { region: 'Dubai', applianceName: 'A', qty: 319, siteVisits: 1, trainingSessions: 0 },
+          { region: 'Dubai', applianceName: 'B', qty: 1079, siteVisits: 1, trainingSessions: 0 },
+        ],
+        phases: [],
+        addons: [
+          { name: 'Project Management Fee', rate: 0.05, hours: 0, on: false },
+          { name: 'Site Survey', rate: 150, hours: 1, on: true },
+          { name: 'Testing & Commissioning', rate: 25, hours: 0.25, on: false },
+          { name: 'Training (End User)', rate: 750, hours: 2, on: false },
+        ],
+      },
+    };
+    await page.route('**/api/thomson-sales**', async (route) => {
+      const url = new URL(route.request().url());
+      const body = url.pathname.endsWith('/1')
+        ? { thomsonSale: saved }
+        : {
+            thomsonSales: [saved],
+            pagination: { page: 1, pageSize: 100, total: 1, totalPages: 1 },
+          };
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    });
+    await page.getByRole('tab', { name: 'Issued quotes' }).click();
+    await page.locator('[data-tcc-reprint]').first().click();
+    await expect
+      .poll(() => page.evaluate(() => (window as any).__printed.length))
+      .toBeGreaterThan(100);
+    const html = await page.evaluate(() => (window as any).__printed as string);
+    expect(html).not.toMatch(/Transport charged|Customer transport share|Add-on revenue/);
+    expect(html).toContain('<th class="num">Services</th>');
+    expect(html).toContain('Total project price, excluding VAT');
+    expect(html).toContain('3,180.35');
+    expect(html).toContain('66,787.35');
+    expect(html).toContain('Services in this quotation');
+    expect(html).toContain('Phase by phase');
+    expect(html).toContain('AED 30.00 per visit');
+    expect(html).toContain('Terms and conditions');
+    expect(html).toContain('at least 14 days');
+    expect(html).not.toMatch(/waiting time on site/i);
+  });
+
   test('Issued quotes show status, schedule and outcome actions', async ({ page }) => {
     await openCalculator(page, []);
     const changes: { url: string; body: unknown }[] = [];
