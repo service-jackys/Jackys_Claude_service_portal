@@ -976,6 +976,8 @@ export const thomsonSaleScheduleSchema = z
     workingDays: z.number().min(0).max(100000),
     waitingDays: z.number().min(0).max(100000),
     totalDays: z.number().min(0).max(100000),
+    // AED charged for each extra site visit on a phased quote (modification #302).
+    extraVisitAmount: z.number().min(0).max(10000000).optional(),
     plannedStart: dateSchema.optional(),
     estimatedCompletion: dateSchema.optional(),
     phases: z

@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 302,
+    "title": "Thomson quotation print: services, VAT and terms and conditions",
+    "area": "Pricing & rates",
+    "date": "2026-11-23",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management asked for the Thomson quotation print to state clearly what the customer is paying for, how transport is handled on phase-by-phase work, and the terms the work is done under.",
+    "changes": [
+      "What changed: Print only; the calculator screens, the review step and Issued quotes keep the separate Transport column. On the printed Thomson quotation: (1) transport is never named, the customer's share is added into one \"Services\"…"
+    ],
+    "needsYou": "pull, restart the API (the quote schedule has one new optional field; no migration), hard-refresh. Quotes saved before this change print the same new wording; the extra-visit price appears once a phased quote is saved again. Management or legal should…",
+    "migrations": [],
+    "files": "apps/web/src/thomson-terms-core.js (new), apps/web/src/app.js, apps/web/src/index.html, packages/contracts/src/index.ts, tests/unit/thomson-terms-core.test.ts…"
+  },
+  {
     "id": 301,
     "title": "Rate card: column headings Market and Special",
     "area": "Pricing & rates",

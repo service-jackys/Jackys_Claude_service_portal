@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #302 — Thomson quotation print: services, VAT and terms and conditions
+
+**Date:** 2026-11-23
+
+**Why.** Management asked for the Thomson quotation print to state clearly what the customer is paying for, how transport is handled on phase-by-phase work, and the terms the work is done under.
+
+**What changed.** Print only; the calculator screens, the review step and Issued quotes keep the separate Transport column. On the printed Thomson quotation: (1) transport is never named, the customer's share is added into one "Services" column (on a single-unit quote the round trip and call-out go into it the same way); the "Customer transport share" row is gone. (2) Total excluding VAT, VAT 5% and Total including VAT. (3) A "Services in this quotation" table built from the ticks (Site Survey, Project Management Fee, Testing & Commissioning, Training): Included with the count and rate, or Not included, each with a plain explanation. (4) "Phase to phase" now reads "Phase by phase", and phased projects get a "Phased work and site visits" box with the price of an extra visit (the customer's share of the round trip; the full round trip at 0% and 100%), saved with the quote. (5) Standard Terms and conditions (scope, site readiness, access, storage, phased work and extra visits, changes, delays, handover in 3 working days, warranty as per the sales terms with nothing extra, liability, rescheduling with 14 days' written notice, validity 30 days, UAE law). No waiting-time charge and no payment clause for now.
+
+**Files.** apps/web/src/thomson-terms-core.js (new), apps/web/src/app.js, apps/web/src/index.html, packages/contracts/src/index.ts, tests/unit/thomson-terms-core.test.ts, tests/e2e/thomson-quote-calculator.spec.ts, modification.md.
+
+**Needs you:** pull, restart the API (the quote schedule has one new optional field; no migration), hard-refresh. Quotes saved before this change print the same new wording; the extra-visit price appears once a phased quote is saved again. Management or legal should confirm the clauses (the 14-day notice has not been checked against UAE consumer law).
+
 ## Modification #301 — Rate card: column headings Market and Special
 
 **Date:** 2026-11-20
