@@ -3875,6 +3875,17 @@ export function createRouteCatalog(
         handlers: revenueDashboardHandlers.resetRateCard,
       },
       {
+        method: 'put' as const,
+        path: '/api/revenue-dashboard/fridge-logic',
+        operationId: 'saveRevenueDashboardFridgeLogic',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Save the new fridge logic rates and the new / old logic switch (admin) and recalculate the active upload',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.saveFridgeLogic,
+      },
+      {
         method: 'post' as const,
         path: '/api/revenue-dashboard/rate-card/apply-to-masters',
         operationId: 'applyRevenueDashboardRateCardToMasters',

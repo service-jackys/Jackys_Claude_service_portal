@@ -1,7 +1,7 @@
 import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
 import { capacityForCodes } from '../../../../packages/db/src/stock-master.js';
-import { DEFAULT_FRIDGE_SCENARIO, FRIDGE_CATEGORY, plugQuantities } from './fridge-scenario.js';
-import { runScenario } from './scenario-run.js';
+import { FRIDGE_CATEGORY, plugQuantities } from './fridge-scenario.js';
+import { fridgeRevenue, runScenario } from './scenario-run.js';
 import { buildScenarioWorkbook } from './scenario-export.js';
 import { z } from 'zod';
 import {
@@ -10,6 +10,8 @@ import {
   listRateLines,
   markRateOverridesApplied,
   saveRateOverrides,
+  getFridgeLogic,
+  saveFridgeLogic,
 } from '../../../../packages/db/src/revenue-rate-overrides.js';
 import {
   computeRevenue,
@@ -1002,11 +1004,47 @@ export function createRevenueDashboardService(pool: Pool) {
     };
   }
 
+  /** Litres and 13A plug quantities the new fridge logic needs. */
+  async function fridgeContext(
+    client: PoolClient,
+    batchId: string,
+    inputs: Awaited<ReturnType<typeof loadRevenueInputs>>['inputs'],
+  ) {
+    const models: string[] = [];
+    for (const l of inputs.lines) {
+      const p = l.pricing as {
+        applianceCategory?: string | null;
+        erpModels?: string | null;
+      } | null;
+      if (p?.applianceCategory === FRIDGE_CATEGORY && p.erpModels)
+        models.push(...p.erpModels.split(/[,;/]/));
+    }
+    const lookup = await capacityForCodes(client, models);
+    const plugQty = plugQuantities(await listSheetRows(client, batchId, 'Net Sale Current'));
+    return { lookup, plugQty };
+  }
+
   async function applyRulesToBatch(client: PoolClient, batchId: string) {
     const { inputs, base } = await loadRevenueInputs(client, batchId);
     const custom = parseRateSet((await getRateOverrides(client)).payload);
-    const next = custom ? overlayRates(base, custom) : base;
-    const { revenue, unmatched } = computeRevenue(inputs, base, next);
+    const fridgeSettings = await getFridgeLogic(client);
+    let revenue: Map<string, number>;
+    let unmatched = 0;
+    if (fridgeSettings.enabled) {
+      // New fridge logic (modification #306): fridges and 13A plugs re-priced on top of the workbook.
+      const { lookup, plugQty } = await fridgeContext(client, batchId, inputs);
+      revenue = fridgeRevenue(
+        inputs,
+        base,
+        custom ?? ratesOf(base),
+        fridgeSettings,
+        lookup,
+        plugQty,
+      ).revenue;
+    } else {
+      const next = custom ? overlayRates(base, custom) : base;
+      ({ revenue, unmatched } = computeRevenue(inputs, base, next));
+    }
     const updates = inputs.lines
       .map((l) => ({
         id: l.id,
@@ -1365,7 +1403,19 @@ export function createRevenueDashboardService(pool: Pool) {
       const workbook = ratesOf(base);
       const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
       const masters = ratesFromMasters(dandi, base);
+      const fridgeLogic = await getFridgeLogic(client);
+      const tot = await client.query<{ workbook: string; portal: string }>(
+        `SELECT COALESCE(SUM(workbook_revenue), 0) AS workbook, COALESCE(SUM(revenue), 0) AS portal
+           FROM revenue_lines WHERE batch_id = $1`,
+        [batch.id],
+      );
+      const r2t = (v: string) => Math.round(Number(v) * 100) / 100;
       return {
+        fridgeLogic,
+        figures: {
+          workbook: r2t(tot.rows[0]?.workbook ?? '0'),
+          portal: r2t(tot.rows[0]?.portal ?? '0'),
+        },
         batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
         workbook,
         custom,
@@ -1467,6 +1517,45 @@ export function createRevenueDashboardService(pool: Pool) {
     return { batch, inputs, base, custom };
   }
 
+  const fridgeLogicSchema = z.object({
+    enabled: z.boolean(),
+    smallBase: rate,
+    smallOver10: rate,
+    smallMinimum: rate,
+    optionB: z.boolean(),
+    plugAmount: rate,
+  });
+
+  async function savedFridge(client: PoolClient) {
+    const f = await getFridgeLogic(client);
+    return {
+      smallBase: f.smallBase,
+      smallOver10: f.smallOver10,
+      smallMinimum: f.smallMinimum,
+      optionB: f.optionB,
+      plugAmount: f.plugAmount,
+    };
+  }
+
+  // Saves the new-fridge-logic settings and switch, then re-prices the active workbook.
+  async function saveFridgeLogicSettings(body: unknown, profileId: string) {
+    const input = fridgeLogicSchema.parse(body);
+    await withTransaction(pool, async (client) => {
+      const before = await getFridgeLogic(client);
+      await saveFridgeLogic(client, input, profileId);
+      const batch = await findActiveBatch(client, 'revenue');
+      if (batch) await applyRulesToBatch(client, batch.id);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.fridge_logic_saved',
+        targetType: 'revenue_fridge_logic',
+        targetId: '1',
+        metadata: { batchId: batch?.id ?? null, before, after: input },
+      });
+    });
+    return rateCard();
+  }
+
   async function scenarioDefaults() {
     const client = await pool.connect();
     try {
@@ -1475,7 +1564,7 @@ export function createRevenueDashboardService(pool: Pool) {
         batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
         live: custom ?? ratesOf(base),
         customLocked: !!custom,
-        fridge: DEFAULT_FRIDGE_SCENARIO,
+        fridge: await savedFridge(client),
         fridgeCategory: FRIDGE_CATEGORY,
         discountLabels: {
           deliveryInstall: base.deliveryInstall.discounts.map((d) => d.tier),
@@ -1498,17 +1587,7 @@ export function createRevenueDashboardService(pool: Pool) {
     try {
       const { batch, inputs, base, custom } = await scenarioContext(client);
       checkRateSet(base, parsed.data.rates);
-      const models: string[] = [];
-      for (const l of inputs.lines) {
-        const p = l.pricing as {
-          applianceCategory?: string | null;
-          erpModels?: string | null;
-        } | null;
-        if (p?.applianceCategory === FRIDGE_CATEGORY && p.erpModels)
-          models.push(...p.erpModels.split(/[,;/]/));
-      }
-      const lookup = await capacityForCodes(client, models);
-      const plugQty = plugQuantities(await listSheetRows(client, batch.id, 'Net Sale Current'));
+      const { lookup, plugQty } = await fridgeContext(client, String(batch.id), inputs);
       const result = runScenario(inputs, base, custom, parsed.data, lookup, plugQty);
       return { batch, settings: parsed.data, result };
     } finally {
@@ -1642,6 +1721,7 @@ export function createRevenueDashboardService(pool: Pool) {
     resetRateCard,
     applyRateCardToMasters,
     restoreMastersToWorkbookRates,
+    saveFridgeLogicSettings,
     scenarioDefaults,
     scenarioRun,
     scenarioExport,

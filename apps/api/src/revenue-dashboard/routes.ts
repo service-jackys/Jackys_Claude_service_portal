@@ -355,6 +355,31 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    saveFridgeLogic: [
+      requirePermission('revenue_dashboard.rate_card_edit'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(await service.saveFridgeLogicSettings(request.body, auth.profileId));
+        } catch (error) {
+          if (error instanceof Error && error.name === 'ZodError') {
+            problem(
+              response,
+              400,
+              'invalid-fridge-logic',
+              'Bad Request',
+              'Send every fridge rate as a number of 0 or more, and the switch as true or false.',
+            );
+            return;
+          }
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     scenarioDefaults: [
       requirePermission('revenue_dashboard.read'),
       async (_request, response, next) => {
