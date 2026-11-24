@@ -138,5 +138,67 @@ export function createStockMasterHandlers(
         }
       },
     ],
+    capacityList: [
+      requirePermission('stock.write'),
+      async (request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json(await service.capacityList(request.query));
+        } catch (error) {
+          if (error instanceof ZodError) {
+            problem(response, 400, 'invalid-query', 'Bad Request', 'Invalid query.');
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    capacitySet: [
+      requirePermission('stock.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const item = await service.capacitySet(
+            String(request.params.itemCode ?? ''),
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.json({ item });
+        } catch (error) {
+          if (error instanceof ZodError) {
+            problem(
+              response,
+              400,
+              'invalid-body',
+              'Bad Request',
+              'Litres must be a number from 1 to 5000, or empty to work it out again.',
+            );
+            return;
+          }
+          if (error instanceof StockMasterServiceError) {
+            problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    capacityRecalculate: [
+      requirePermission('stock.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(
+            await service.capacityRecalculate(
+              auth.profileId,
+              request.header('x-request-id') ?? undefined,
+            ),
+          );
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
   };
 }

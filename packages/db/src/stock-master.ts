@@ -1,4 +1,5 @@
 import type { PoolClient } from 'pg';
+import { deriveCapacity, isCapacityGroup, type CapacitySource } from './capacity-litres.js';
 
 /** Main groups that the item search offers first (service-relevant items). */
 export const STOCK_SEARCH_GROUPS = ['MDA', 'SDA'] as const;
@@ -108,6 +109,8 @@ export async function upsertStockMaster(
     const groups: (string | null)[] = [];
     const subs: (string | null)[] = [];
     const brands: (string | null)[] = [];
+    const capLitres: (number | null)[] = [];
+    const capSources: (string | null)[] = [];
     for (const [upper, item] of chunk) {
       const before = existing.get(upper);
       if (!before) {
@@ -134,18 +137,30 @@ export async function upsertStockMaster(
       groups.push(item.groupName);
       subs.push(item.subGroup);
       brands.push(item.brand);
+      const capacity = isCapacityGroup(item.groupName)
+        ? deriveCapacity({ itemDesc: item.itemDesc, subGroup: item.subGroup })
+        : null;
+      capLitres.push(capacity ? capacity.litres : null);
+      capSources.push(capacity ? capacity.source : null);
     }
     await client.query(
-      `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, sub_group, brand, last_seen_at)
-       SELECT code, descr, main, grp, sub, brand, now()
-         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
-              AS t(code, descr, main, grp, sub, brand)
+      `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, sub_group, brand,
+                                 capacity_litres, capacity_source, last_seen_at)
+       SELECT code, descr, main, grp, sub, brand, cap, capsrc, now()
+         FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[],
+                     $7::numeric[], $8::text[])
+              AS t(code, descr, main, grp, sub, brand, cap, capsrc)
        ON CONFLICT (item_code) DO UPDATE SET
          item_desc = EXCLUDED.item_desc,
          main_group = EXCLUDED.main_group,
          group_name = EXCLUDED.group_name,
          sub_group = EXCLUDED.sub_group,
          brand = EXCLUDED.brand,
+         -- a litres value typed by an admin is kept; everything else follows the description
+         capacity_litres = CASE WHEN stock_master.capacity_source = 'manual'
+                                THEN stock_master.capacity_litres ELSE EXCLUDED.capacity_litres END,
+         capacity_source = CASE WHEN stock_master.capacity_source = 'manual'
+                                THEN stock_master.capacity_source ELSE EXCLUDED.capacity_source END,
          last_seen_at = EXCLUDED.last_seen_at,
          updated_at = CASE
            WHEN (stock_master.item_desc, stock_master.main_group, stock_master.group_name,
@@ -154,7 +169,7 @@ export async function upsertStockMaster(
                 (EXCLUDED.item_desc, EXCLUDED.main_group, EXCLUDED.group_name,
                  EXCLUDED.sub_group, EXCLUDED.brand)
            THEN stock_master.updated_at ELSE now() END`,
-      [codes, descs, mains, groups, subs, brands],
+      [codes, descs, mains, groups, subs, brands, capLitres, capSources],
     );
   }
 
@@ -392,4 +407,139 @@ export async function stockMasterRows(db: Queryable): Promise<StockMasterRow[]> 
        FROM stock_master ORDER BY item_code`,
   );
   return result.rows;
+}
+
+// --- Capacity (litres) ----------------------------------------------------------
+
+export type CapacityRow = {
+  itemCode: string;
+  itemDesc: string;
+  groupName: string | null;
+  subGroup: string | null;
+  brand: string | null;
+  capacityLitres: number | null;
+  capacitySource: CapacitySource | null;
+};
+
+export type CapacityFilter = 'all' | 'default' | 'check' | 'manual' | 'derived';
+
+/** Fridge and freezer items with their capacity, newest filter first; paged. */
+export async function listCapacityItems(
+  db: Queryable,
+  options: { filter: CapacityFilter; q: string; limit: number; offset: number },
+): Promise<{ rows: CapacityRow[]; total: number }> {
+  const escaped = options.q.trim().replace(/[\\%_]/g, (char) => `\\${char}`);
+  const where = `capacity_source IS NOT NULL
+        AND ($1 = '' OR item_code ILIKE $2 ESCAPE '\\' OR item_desc ILIKE $2 ESCAPE '\\'
+             OR COALESCE(brand, '') ILIKE $2 ESCAPE '\\')
+        AND CASE $3
+              WHEN 'default' THEN capacity_source = 'default'
+              WHEN 'check' THEN capacity_source = 'check'
+              WHEN 'manual' THEN capacity_source = 'manual'
+              WHEN 'derived' THEN capacity_source IN ('description', 'gross', 'cft', 'range')
+              ELSE true END`;
+  const params = [options.q.trim(), `%${escaped}%`, options.filter];
+  const total = await db.query<{ total: string }>(
+    `SELECT count(*)::text AS total FROM stock_master WHERE ${where}`,
+    params,
+  );
+  const rows = await db.query<CapacityRow>(
+    `SELECT item_code AS "itemCode", item_desc AS "itemDesc", group_name AS "groupName",
+            sub_group AS "subGroup", brand, capacity_litres::float8 AS "capacityLitres",
+            capacity_source AS "capacitySource"
+       FROM stock_master WHERE ${where}
+      ORDER BY (capacity_source = 'default') DESC, (capacity_source = 'check') DESC, item_code
+      LIMIT $4 OFFSET $5`,
+    [...params, options.limit, options.offset],
+  );
+  return { rows: rows.rows, total: Number(total.rows[0]?.total ?? 0) };
+}
+
+export async function capacityCounts(db: Queryable): Promise<Record<string, number>> {
+  const result = await db.query<{ source: string; count: number }>(
+    `SELECT capacity_source AS source, count(*)::int AS count FROM stock_master
+      WHERE capacity_source IS NOT NULL GROUP BY capacity_source`,
+  );
+  const counts: Record<string, number> = {};
+  for (const row of result.rows) counts[row.source] = row.count;
+  return counts;
+}
+
+/** Type a litres value (kept by uploads) or clear it (null: worked out from the description again). */
+export async function setItemCapacity(
+  client: Queryable,
+  itemCode: string,
+  litres: number | null,
+): Promise<CapacityRow | null> {
+  const current = await client.query<{
+    itemCode: string;
+    itemDesc: string;
+    groupName: string | null;
+    subGroup: string | null;
+  }>(
+    `SELECT item_code AS "itemCode", item_desc AS "itemDesc", group_name AS "groupName",
+            sub_group AS "subGroup"
+       FROM stock_master WHERE upper(item_code) = upper($1)`,
+    [itemCode],
+  );
+  const item = current.rows[0];
+  if (!item || !isCapacityGroup(item.groupName)) return null;
+  const next =
+    litres === null
+      ? deriveCapacity({ itemDesc: item.itemDesc, subGroup: item.subGroup })
+      : { litres, source: 'manual' as const };
+  const updated = await client.query<CapacityRow>(
+    `UPDATE stock_master SET capacity_litres = $2, capacity_source = $3, updated_at = now()
+      WHERE item_code = $1
+      RETURNING item_code AS "itemCode", item_desc AS "itemDesc", group_name AS "groupName",
+                sub_group AS "subGroup", brand, capacity_litres::float8 AS "capacityLitres",
+                capacity_source AS "capacitySource"`,
+    [item.itemCode, next.litres, next.source],
+  );
+  return updated.rows[0] ?? null;
+}
+
+/**
+ * Work the capacity out again for every fridge and freezer item that is not typed by hand
+ * (items stored before this column existed have none until an upload or this runs).
+ */
+export async function recalculateCapacity(
+  client: PoolClient,
+): Promise<{ checked: number; changed: number }> {
+  const result = await client.query<{
+    itemCode: string;
+    itemDesc: string;
+    subGroup: string | null;
+    litres: number | null;
+    source: string | null;
+  }>(
+    `SELECT item_code AS "itemCode", item_desc AS "itemDesc", sub_group AS "subGroup",
+            capacity_litres::float8 AS litres, capacity_source AS source
+       FROM stock_master
+      WHERE upper(trim(group_name)) IN ('FRIDGE', 'FREEZER')
+        AND capacity_source IS DISTINCT FROM 'manual'`,
+  );
+  const codes: string[] = [];
+  const litres: number[] = [];
+  const sources: string[] = [];
+  for (const row of result.rows) {
+    const next = deriveCapacity({ itemDesc: row.itemDesc, subGroup: row.subGroup });
+    if (next.litres === row.litres && next.source === row.source) continue;
+    codes.push(row.itemCode);
+    litres.push(next.litres);
+    sources.push(next.source);
+  }
+  for (let start = 0; start < codes.length; start += CHUNK) {
+    await client.query(
+      `UPDATE stock_master s SET capacity_litres = t.litres, capacity_source = t.source
+         FROM unnest($1::text[], $2::numeric[], $3::text[]) AS t(code, litres, source)
+        WHERE s.item_code = t.code`,
+      [
+        codes.slice(start, start + CHUNK),
+        litres.slice(start, start + CHUNK),
+        sources.slice(start, start + CHUNK),
+      ],
+    );
+  }
+  return { checked: result.rows.length, changed: codes.length };
 }

@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #303 — Stock Master: fridge capacity (litres)
+
+**Date:** 2026-11-24
+
+**Why.** Management wants fridges up to 400 L and fridges over 400 L priced differently on Delivery + installation and Installation only. The master carries no litres, so the portal now reads them from the item description. This step only stores and shows the litres; nothing is priced from them yet (the Rate card scenario test comes next).
+
+**What changed.** For Fridge and Freezer items the ERP Item Listing upload now works out a capacity in litres from the description (a number with L, LTR or LITRES; gross when gross and net are both written; cubic feet converted; a range in the sub group name; otherwise 400, marked "Default 400"; figures under 20 L or over 1,500 L are marked for checking). Admin > Masters > Stock master has a new "Fridge capacity (litres)" card: counts by source, a review list (Default 400 first), search, typing litres for one item (kept when a new file is uploaded), "Use description" to hand it back, and "Work out all again" for items stored before this change. On your master file: 2,185 fridges and freezers, 1,366 read from the description, 12 cubic feet, 8 gross, 3 from the sub group, 6 to check, 790 default 400.
+
+**Files.** packages/db/migrations/108_stock_capacity_litres.sql, packages/db/src/capacity-litres.ts, packages/db/src/stock-master.ts, apps/api/src/stock-master/service.ts and routes.ts, apps/api/src/api/route-catalog.ts (GET /api/stock/capacity, PUT /api/stock/capacity/:itemCode, POST /api/stock/capacity/recalculate), apps/web/src/app.js, tests (unit, integration, e2e), modification.md.
+
+**Needs you:** pull, npm.cmd run db:migrate, restart the API, hard-refresh, then press "Work out all again" once on the Stock master page (or upload the master again).
+
 ## Modification #302 — Thomson quotation print: services, VAT and terms and conditions
 
 **Date:** 2026-11-23

@@ -4,6 +4,10 @@ import { z } from 'zod';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import {
   brandCatalogue,
+  capacityCounts,
+  listCapacityItems,
+  recalculateCapacity,
+  setItemCapacity,
   latestStockUploadFile,
   saveStockUploadFile,
   saveStockUploadReport,
@@ -20,7 +24,7 @@ import { parseStockWorkbook, StockParseError } from './parser.js';
 
 export class StockMasterServiceError extends Error {
   constructor(
-    public readonly code: 'invalid-file' | 'no-data',
+    public readonly code: 'invalid-file' | 'no-data' | 'not-found',
     message: string,
   ) {
     super(message);
@@ -37,6 +41,15 @@ const searchQuerySchema = z.object({
   group: z.string().trim().max(120).default(''),
   limit: z.coerce.number().int().min(1).max(50).default(15),
 });
+
+const capacityListQuerySchema = z.object({
+  filter: z.enum(['all', 'default', 'check', 'manual', 'derived']).default('all'),
+  q: z.string().trim().max(80).default(''),
+  page: z.coerce.number().int().min(1).max(100000).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(25),
+});
+
+const capacitySetSchema = z.object({ litres: z.number().min(1).max(5000).nullable() }).strict();
 
 const REPORT_CHANGE_LIMIT = 100;
 
@@ -170,11 +183,77 @@ export function createStockMasterService(pool: Pool) {
     }
   }
 
+  async function capacityList(query: unknown) {
+    const parsed = capacityListQuerySchema.parse(query);
+    const result = await listCapacityItems(pool, {
+      filter: parsed.filter,
+      q: parsed.q,
+      limit: parsed.pageSize,
+      offset: (parsed.page - 1) * parsed.pageSize,
+    });
+    return {
+      items: result.rows,
+      counts: await capacityCounts(pool),
+      pagination: {
+        page: parsed.page,
+        pageSize: parsed.pageSize,
+        total: result.total,
+        totalPages: Math.max(1, Math.ceil(result.total / parsed.pageSize)),
+      },
+    };
+  }
+
+  async function capacitySet(
+    itemCode: string,
+    body: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const parsed = capacitySetSchema.parse(body);
+    return withTransaction(pool, async (client) => {
+      const item = await setItemCapacity(client, itemCode, parsed.litres);
+      if (!item) {
+        throw new StockMasterServiceError(
+          'not-found',
+          'That item is not a fridge or freezer in the stock master.',
+        );
+      }
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'stock.capacity_set',
+        targetType: 'stock_item',
+        metadata: { itemCode: item.itemCode, litres: parsed.litres, source: item.capacitySource },
+        requestId,
+      });
+      return item;
+    });
+  }
+
+  async function capacityRecalculate(profileId: string, requestId: string = randomUUID()) {
+    return withTransaction(pool, async (client) => {
+      const result = await recalculateCapacity(client);
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'stock.capacity_recalculated',
+        targetType: 'stock_master',
+        metadata: result,
+        requestId,
+      });
+      return { ...result, counts: await capacityCounts(client) };
+    });
+  }
+
   return {
     upload,
     download,
     supplierTemplate,
-    status: () => stockStatus(pool),
+    capacityList,
+    capacitySet,
+    capacityRecalculate,
+    status: async () => ({
+      ...(await stockStatus(pool)),
+      capacityCounts: await capacityCounts(pool),
+    }),
     async search(query: unknown) {
       const parsed = searchQuerySchema.parse(query);
       return {
