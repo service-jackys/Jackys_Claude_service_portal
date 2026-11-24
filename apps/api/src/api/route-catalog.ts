@@ -3395,6 +3395,40 @@ export function createRouteCatalog(
         handlers: stockMasterHandlers.status,
       },
       {
+        method: 'get' as const,
+        path: '/api/stock/capacity',
+        operationId: 'listStockCapacity',
+        tags: ['Stock Master'],
+        summary:
+          'Fridge and freezer items with their capacity in litres and where it came from (filter: all, default, check, manual, derived)',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: stockMasterHandlers.capacityList,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/stock/capacity/recalculate',
+        operationId: 'recalculateStockCapacity',
+        tags: ['Stock Master'],
+        summary:
+          'Work the litres out again from the item descriptions for every fridge and freezer not typed by hand',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: stockMasterHandlers.capacityRecalculate,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/stock/capacity/:itemCode',
+        operationId: 'setStockItemCapacity',
+        tags: ['Stock Master'],
+        parameters: [{ name: 'itemCode', in: 'path', required: true, schema: { type: 'string' } }],
+        summary:
+          'Type the litres of one fridge or freezer (kept by uploads), or send null to work it out from the description again',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 404, 500],
+        handlers: stockMasterHandlers.capacitySet,
+      },
+      {
         method: 'post' as const,
         path: '/api/b2b-master/upload',
         operationId: 'uploadB2bCustomerMaster',

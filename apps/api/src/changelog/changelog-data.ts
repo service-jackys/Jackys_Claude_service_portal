@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 303,
+    "title": "Stock Master: fridge capacity (litres)",
+    "area": "Stock & masters",
+    "date": "2026-11-24",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management wants fridges up to 400 L and fridges over 400 L priced differently on Delivery + installation and Installation only. The master carries no litres, so the portal now reads them from the item description. This step only stores and shows the litres; nothing is priced from them yet (the Rate card scenario…",
+    "changes": [
+      "What changed: For Fridge and Freezer items the ERP Item Listing upload now works out a capacity in litres from the description (a number with L, LTR or LITRES; gross when gross and net are both written; cubic feet converted; a range in…"
+    ],
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh, then press \"Work out all again\" once on the Stock master page (or upload the master again).",
+    "migrations": [
+      "108_stock_capacity_litres.sql"
+    ],
+    "files": "packages/db/migrations/108_stock_capacity_litres.sql, packages/db/src/capacity-litres.ts, packages/db/src/stock-master.ts, apps/api/src/stock-master/service.ts and routes.ts…"
+  },
+  {
     "id": 302,
     "title": "Thomson quotation print: services, VAT and terms and conditions",
     "area": "Pricing & rates",

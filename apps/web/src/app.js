@@ -16004,6 +16004,7 @@ ${bodyHtml}
       '<div class="sm-upload"><input type="file" accept=".xlsx" data-sm-file />' +
       '<button class="button button-primary" type="button" data-sm-upload>Upload</button></div>' +
       '<p class="form-note" data-sm-msg role="status"></p><div data-sm-report></div></section>' +
+      '<section class="detail-action-card" data-sm-cap></section>' +
       '<section class="detail-action-card"><h4>Recent uploads</h4>' +
       (status.recentUploads.length
         ? status.recentUploads
@@ -16079,6 +16080,173 @@ ${bodyHtml}
         button.disabled = false;
       }
     });
+    smRenderCapacity(root.querySelector('[data-sm-cap]'), status.capacityCounts || {});
+  }
+
+  // Fridge capacity (litres) card on the Stock Master page (modification #303).
+  const SM_CAPACITY_SOURCES = {
+    description: 'From description',
+    gross: 'Gross used',
+    cft: 'Cubic feet converted',
+    range: 'From sub group name',
+    default: 'Default 400 — review',
+    manual: 'Typed by you',
+    check: 'Unusual figure — check',
+  };
+
+  function smRenderCapacity(host, initialCounts) {
+    if (!host) return;
+    const state = { filter: 'default', q: '', page: 1, counts: initialCounts };
+    const total = () => Object.values(state.counts).reduce((t, n) => t + n, 0);
+    host.innerHTML =
+      '<h4>Fridge capacity (litres) ' +
+      tipHtml(
+        'Worked out from the item description on every upload, for Fridge and Freezer items only. A number with L, LTR or LITRES is the capacity; when gross and net are both written, gross is used; cubic feet are converted. ' +
+          'When no litres are written the item gets 400 and is marked Default 400 so you can review it. A value you type is kept when you upload a new file. Nothing is priced from this yet.',
+      ) +
+      '</h4><p data-smc-summary class="form-note"></p>' +
+      '<div class="sm-upload"><select data-smc-filter aria-label="Show">' +
+      '<option value="default">Default 400 (review)</option><option value="check">Unusual figure (check)</option>' +
+      '<option value="manual">Typed by you</option><option value="derived">Read from description</option><option value="all">All fridges and freezers</option></select>' +
+      '<input type="search" data-smc-q placeholder="Search code, description or brand" aria-label="Search" />' +
+      '<button class="button" type="button" data-smc-recalc>Work out all again</button></div>' +
+      '<p class="form-note" data-smc-msg role="status"></p>' +
+      '<div class="table-wrap"><table><thead><tr><th>Item code</th><th>Description</th><th>Sub group</th><th>Litres</th><th>Source</th><th></th></tr></thead><tbody data-smc-rows></tbody></table></div>' +
+      '<p class="form-note"><button class="button" type="button" data-smc-prev>Previous</button> <span data-smc-page></span> <button class="button" type="button" data-smc-next>Next</button></p>';
+    const rowsHost = host.querySelector('[data-smc-rows]');
+    const msg = host.querySelector('[data-smc-msg]');
+    const summary = () => {
+      host.querySelector('[data-smc-summary]').textContent = total()
+        ? total().toLocaleString('en-GB') +
+          ' fridges and freezers: ' +
+          Object.keys(SM_CAPACITY_SOURCES)
+            .filter((key) => state.counts[key])
+            .map(
+              (key) =>
+                state.counts[key].toLocaleString('en-GB') +
+                ' ' +
+                SM_CAPACITY_SOURCES[key].toLowerCase(),
+            )
+            .join(', ')
+        : 'No litres yet: press “Work out all again”, or upload the ERP Item Listing.';
+    };
+    async function load() {
+      msg.textContent = '';
+      try {
+        const data = await apiRequest(
+          '/api/stock/capacity?filter=' +
+            encodeURIComponent(state.filter) +
+            '&q=' +
+            encodeURIComponent(state.q) +
+            '&page=' +
+            state.page,
+        );
+        state.counts = data.counts;
+        summary();
+        rowsHost.innerHTML = data.items.length
+          ? data.items
+              .map(
+                (item) =>
+                  '<tr data-smc-code="' +
+                  escapeHtml(item.itemCode) +
+                  '"><td>' +
+                  escapeHtml(item.itemCode) +
+                  '</td><td>' +
+                  escapeHtml(item.itemDesc) +
+                  '</td><td>' +
+                  escapeHtml(item.subGroup || '') +
+                  '</td><td><input type="number" min="1" max="5000" step="1" style="width:84px" data-smc-input value="' +
+                  escapeHtml(String(item.capacityLitres ?? '')) +
+                  '" aria-label="Litres for ' +
+                  escapeHtml(item.itemCode) +
+                  '" /></td><td>' +
+                  escapeHtml(SM_CAPACITY_SOURCES[item.capacitySource] || '') +
+                  '</td><td><button class="button" type="button" data-smc-save>Save</button> ' +
+                  (item.capacitySource === 'manual'
+                    ? '<button class="button" type="button" data-smc-clear>Use description</button>'
+                    : '') +
+                  '</td></tr>',
+              )
+              .join('')
+          : '<tr><td colspan="6" class="form-note">Nothing in this view.</td></tr>';
+        host.querySelector('[data-smc-page]').textContent =
+          'Page ' + data.pagination.page + ' of ' + data.pagination.totalPages;
+        host.querySelector('[data-smc-prev]').disabled = data.pagination.page <= 1;
+        host.querySelector('[data-smc-next]').disabled =
+          data.pagination.page >= data.pagination.totalPages;
+      } catch (error) {
+        msg.textContent = error.message || 'Could not load the capacities.';
+      }
+    }
+    async function save(code, litres) {
+      try {
+        await apiRequest('/api/stock/capacity/' + encodeURIComponent(code), {
+          method: 'PUT',
+          body: JSON.stringify({ litres }),
+        });
+        await load();
+        msg.textContent = litres === null ? 'Worked out from the description again.' : 'Saved.';
+      } catch (error) {
+        msg.textContent = error.message || 'Could not save.';
+      }
+    }
+    host.querySelector('[data-smc-filter]').addEventListener('change', (event) => {
+      state.filter = event.target.value;
+      state.page = 1;
+      load();
+    });
+    let searchTimer;
+    host.querySelector('[data-smc-q]').addEventListener('input', (event) => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        state.q = event.target.value.trim();
+        state.page = 1;
+        load();
+      }, 300);
+    });
+    host.querySelector('[data-smc-prev]').addEventListener('click', () => {
+      state.page = Math.max(1, state.page - 1);
+      load();
+    });
+    host.querySelector('[data-smc-next]').addEventListener('click', () => {
+      state.page += 1;
+      load();
+    });
+    host.querySelector('[data-smc-recalc]').addEventListener('click', async (event) => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      msg.textContent = 'Working out the litres…';
+      try {
+        const result = await apiRequest('/api/stock/capacity/recalculate', { method: 'POST' });
+        await load();
+        msg.textContent =
+          result.checked.toLocaleString('en-GB') +
+          ' items checked, ' +
+          result.changed.toLocaleString('en-GB') +
+          ' updated.';
+      } catch (error) {
+        msg.textContent = error.message || 'Could not work out the litres.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+    rowsHost.addEventListener('click', (event) => {
+      const row = event.target.closest('tr[data-smc-code]');
+      if (!row) return;
+      const code = row.getAttribute('data-smc-code');
+      if (event.target.closest('[data-smc-save]')) {
+        const value = Number(row.querySelector('[data-smc-input]').value);
+        if (!Number.isFinite(value) || value < 1 || value > 5000) {
+          msg.textContent = 'Type litres from 1 to 5000.';
+          return;
+        }
+        save(code, value);
+      } else if (event.target.closest('[data-smc-clear]')) {
+        save(code, null);
+      }
+    });
+    summary();
+    load();
   }
 
   // --- Walk-in service job card -----------------------------------------------
