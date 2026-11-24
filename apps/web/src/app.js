@@ -28907,6 +28907,70 @@ ${bodyHtml}
       html += '</div></div>';
       if (message.text)
         html += '<p class="rc-msg ' + (message.ok ? 'ok' : 'bad') + '">' + e(message.text) + '</p>';
+      // Fridge pricing (modification #306): the new logic switch, its rates and the workbook figure.
+      if (data.fridgeLogic) {
+        const fl = data.fridgeLogic;
+        const fig = data.figures || { workbook: 0, portal: 0 };
+        const fnum = (k, v) =>
+          canEdit
+            ? '<input type="number" step="0.01" min="0" class="rc-input" data-fl="' +
+              k +
+              '" value="' +
+              v +
+              '" />'
+            : rdMoney2(v);
+        const fridgeBtn = (val, text) =>
+          '<label class="rc-radio"><input type="radio" name="flEnabled" data-fl-on value="' +
+          val +
+          '"' +
+          ((fl.enabled ? '1' : '0') === val ? ' checked' : '') +
+          (canEdit ? '' : ' disabled') +
+          ' /> ' +
+          text +
+          '</label>';
+        html +=
+          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>' +
+          (fl.enabled ? 'new logic in force' : 'old logic in force') +
+          '</span></div><div style="padding:10px 16px"><div class="rc-sub">Fridge pricing: ' +
+          fridgeBtn('1', 'New logic') +
+          ' ' +
+          fridgeBtn('0', 'Old logic') +
+          (canEdit ? '' : ' (admins change this)') +
+          '</div>' +
+          '<table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
+          '<tr><td>Fridge 400 L and under, 1 unit</td><td class="rc-num">market rate (Appliance table: Refrigerator)</td></tr>' +
+          '<tr><td>Fridge 400 L and under, 2 to 10 units: base</td><td class="rc-num">' +
+          fnum('smallBase', fl.smallBase) +
+          '</td></tr><tr><td>Fridge 400 L and under, units above 10: second tier</td><td class="rc-num">' +
+          fnum('smallOver10', fl.smallOver10) +
+          '</td></tr><tr><td>Fridge 400 L and under, minimum</td><td class="rc-num">' +
+          fnum('smallMinimum', fl.smallMinimum) +
+          '</td></tr><tr><td>Second tier applies to</td><td class="rc-num">' +
+          (canEdit
+            ? '<select data-fl="optionB"><option value="1"' +
+              (fl.optionB ? ' selected' : '') +
+              '>only the units above 10</option><option value="0"' +
+              (fl.optionB ? '' : ' selected') +
+              '>every unit when over 10</option></select>'
+            : fl.optionB
+              ? 'only the units above 10'
+              : 'every unit when over 10') +
+          '</td></tr><tr><td>Fridge over 400 L: 1 unit market, 2 or more special</td><td class="rc-num">special rate (Appliance table: Refrigerator)</td></tr>' +
+          '<tr><td>13A plug, per unit, on top of the cooker rate, no discount</td><td class="rc-num">' +
+          fnum('plugAmount', fl.plugAmount) +
+          '</td></tr></tbody></table>' +
+          (canEdit
+            ? '<p><button type="button" class="button" data-fl-save>Save fridge pricing &amp; recalculate</button></p>'
+            : '') +
+          '<table class="rc-t"><thead><tr><th>Revenue of the active workbook</th><th class="rc-num">AED</th></tr></thead><tbody>' +
+          '<tr><td>Workbook figure (master .xlsm as uploaded)</td><td class="rc-num">' +
+          rdMoney2(fig.workbook) +
+          '</td></tr><tr><td>Portal figure (what every tab and export shows)</td><td class="rc-num">' +
+          rdMoney2(fig.portal) +
+          '</td></tr><tr><td>Difference</td><td class="rc-num">' +
+          signed(fig.portal - fig.workbook) +
+          '</td></tr></tbody></table></div></div>';
+      }
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
       if (data.active && !editing)
@@ -29094,6 +29158,26 @@ ${bodyHtml}
     };
 
     const wire = () => {
+      host.querySelector('[data-fl-save]')?.addEventListener('click', () =>
+        run(async () => {
+          const body = { optionB: true, enabled: true };
+          host.querySelectorAll('[data-fl]').forEach((el) => {
+            const k = el.getAttribute('data-fl');
+            body[k] = k === 'optionB' ? el.value === '1' : Number(el.value);
+          });
+          body.enabled = host.querySelector('[data-fl-on]:checked')?.value !== '0';
+          data = await apiRequest('/api/revenue-dashboard/fridge-logic', {
+            method: 'PUT',
+            body: JSON.stringify(body),
+          });
+          message.text =
+            'Fridge pricing saved (' +
+            (body.enabled ? 'new logic' : 'old logic') +
+            '). Every figure was recalculated.';
+          message.ok = true;
+          draw();
+        }),
+      );
       host.querySelector('[data-rc-edit]')?.addEventListener('click', () => {
         editing = true;
         draft = clone(data.custom || data.workbook);
@@ -33078,6 +33162,109 @@ ${bodyHtml}
         rdRateCardPanel(body.querySelector('[data-rc-host]'), ratesHtml);
         return;
       }
+      // How fridges are priced (modification #306): every rate is read from the Rate card, never typed.
+      let fridgeNotes = '';
+      try {
+        const rc = await apiRequest('/api/revenue-dashboard/rate-card');
+        const fl = rc && rc.fridgeLogic;
+        if (fl && fl.enabled) {
+          const rates = rc.custom || rc.workbook;
+          const find = (re) =>
+            rates.deliveryInstall.categories.find((c) => re.test(c.category)) || {};
+          const fr = find(/refrigerator/i);
+          const ck = find(/cook/i);
+          const market = fr.standardRate || 0;
+          const special = fr.batchRate || 0;
+          const cMarket = ck.standardRate || 0;
+          const chip = (v) =>
+            '<span class="rl-live">' + e(rdMoney2(v).replace(/\.00$/, '')) + '</span>';
+          const small = (n) =>
+            n <= 0
+              ? 0
+              : n === 1
+                ? Math.max(fl.smallMinimum, market)
+                : n <= 10
+                  ? n * Math.max(fl.smallMinimum, fl.smallBase)
+                  : fl.optionB
+                    ? 10 * Math.max(fl.smallMinimum, fl.smallBase) +
+                      (n - 10) * Math.max(fl.smallMinimum, fl.smallOver10)
+                    : n * Math.max(fl.smallMinimum, fl.smallOver10);
+          const large = (n) =>
+            n <= 0
+              ? 0
+              : n === 1
+                ? Math.max(fr.minimumRate || 0, market)
+                : n * Math.max(fr.minimumRate || 0, special);
+          const ex = [
+            ['1 fridge, 400 L and under', 'one unit: market rate ' + chip(market), small(1)],
+            [
+              '6 fridges, 400 L and under',
+              '6 units × base ' + chip(fl.smallBase) + ', no discount tiers',
+              small(6),
+            ],
+            [
+              '12 fridges, 400 L and under',
+              fl.optionB
+                ? 'first 10 × base ' +
+                  chip(fl.smallBase) +
+                  ', the 2 above 10 × ' +
+                  chip(fl.smallOver10)
+                : '12 units × second tier ' + chip(fl.smallOver10),
+              small(12),
+            ],
+            [
+              '4 fridges, over 400 L',
+              '4 units × special ' + chip(special) + ', no discount tiers',
+              large(4),
+            ],
+            [
+              '1 cooker + 1 plug line',
+              'cooker market ' + chip(cMarket) + ' + plug ' + chip(fl.plugAmount),
+              cMarket + fl.plugAmount,
+            ],
+          ];
+          fridgeNotes =
+            '<div class="rc-box"><div class="rc-box-head"><b>How fridges are priced</b><span>CSIDI and CSIII</span></div><div style="padding:10px 16px"><ol>' +
+            '<li>Quantity is counted per invoice, per job type and per size group (400 L and under, over 400 L). Litres come from the Stock Master by the model on the invoice; a model with no litres is priced as 400 L and flagged.</li>' +
+            '<li><b>400 L and under:</b> 1 unit pays the market rate (' +
+            chip(market) +
+            '); 2 to 10 units pay the base rate (' +
+            chip(fl.smallBase) +
+            '); ' +
+            (fl.optionB
+              ? 'units above 10 pay the second tier ('
+              : 'when an invoice has more than 10, every unit pays the second tier (') +
+            chip(fl.smallOver10) +
+            '). No volume discount tiers.</li>' +
+            '<li><b>Over 400 L:</b> 1 unit pays the market rate (' +
+            chip(market) +
+            '); 2 or more pay the special rate (' +
+            chip(special) +
+            '). No volume discount tiers.</li>' +
+            '<li><b>Washing machines, cookers and other categories:</b> unchanged, including the volume discount tiers.</li>' +
+            '<li><b>13A plug:</b> every ERP line with item code REPAIR-MATERIAL on a CSIDI or CSIII invoice is charged the plug amount (' +
+            chip(fl.plugAmount) +
+            ') times its quantity, on top of the cooker rate. No discount; not a unit, trip or transport.</li>' +
+            '<li>The master workbook is not changed. Each line keeps the workbook figure; the portal figure is shown next to it on the Rate card.</li></ol></div></div>' +
+            '<div class="rc-box"><div class="rc-box-head"><b>Worked examples</b><span>recalculated from the Rate card</span></div>' +
+            '<table class="rc-t"><thead><tr><th>Invoice</th><th>Rule</th><th class="rc-num">AED</th></tr></thead><tbody>' +
+            ex
+              .map(
+                (x) =>
+                  '<tr><td>' +
+                  e(x[0]) +
+                  '</td><td>' +
+                  x[1] +
+                  '</td><td class="rc-num">' +
+                  rdMoney2(x[2]) +
+                  '</td></tr>',
+              )
+              .join('') +
+            '</tbody></table></div>';
+        }
+      } catch {
+        /* the notes must never stop the page */
+      }
       let customBox = '';
       try {
         const st = await apiRequest('/api/revenue-dashboard/rate-card/status');
@@ -33129,6 +33316,7 @@ ${bodyHtml}
         ) +
         '</span></div></div>' +
         customBox +
+        fridgeNotes +
         rdKpis([
           ['Revenue', aed(d.totals.revenue), 'Whole upload'],
           ['Jobs', rdMoney(d.totals.lines), 'Every revenue line'],

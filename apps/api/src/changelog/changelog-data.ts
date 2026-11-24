@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 306,
+    "title": "Fridge pricing: new logic live, with a Rate card switch (step 1 of 3)",
+    "area": "Pricing & rates",
+    "date": "2026-11-24",
+    "approxDate": false,
+    "status": null,
+    "summary": "After testing on the Scenario test tab, management confirmed the new fridge logic and the 13A plug charge. This step puts them live on the Service Revenue Dashboard, with a way back.",
+    "changes": [
+      "What changed: Fridges now follow the new logic on every invoice, past months included: a size group of 400 L and under uses the market rate for one unit, the base rate for 2 to 10 units and the second-tier rate for units above 10; over…",
+      "Go back any time: Rate card > Fridge pricing > Old logic (admins only, press \"Save fridge pricing & recalculate\"). The figures return to the old logic exactly; the Logic applied sections for fridges are shown only while the new logic is…",
+      "Also changing in the next steps: Step 2: Export report (.xlsx) logic note and a sheet naming the logic used, fridge litres and the Default litres flag, Ask AI notes, and a check that dashboard total = Export report total = Scenario total.…"
+    ],
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. The new logic is on straight away for the active workbook (the figures are recalculated when the settings are saved or a workbook is uploaded; press \"Save fridge pricing & recalculate\" once to…",
+    "migrations": [
+      "109_revenue_fridge_logic.sql"
+    ],
+    "files": "packages/db/migrations/109_revenue_fridge_logic.sql, packages/db/src/revenue-rate-overrides.ts, apps/api/src/revenue-dashboard/scenario-run.ts (fridgeRevenue), service.ts, routes.ts…"
+  },
+  {
     "id": 305,
     "title": "Scenario test: 13A plug line (REPAIR-MATERIAL)",
     "area": "General",

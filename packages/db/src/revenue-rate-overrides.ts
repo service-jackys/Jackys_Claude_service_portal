@@ -98,3 +98,51 @@ export async function batchSummary(client: Q, batchId: string | number) {
   );
   return r.rows[0]?.summary ?? {};
 }
+
+// New fridge logic settings (modification #306). One row; see migration 109.
+export interface StoredFridgeLogic {
+  enabled: boolean;
+  smallBase: number;
+  smallOver10: number;
+  smallMinimum: number;
+  optionB: boolean;
+  plugAmount: number;
+  updatedAt: string | null;
+  updatedByName: string | null;
+}
+
+export async function getFridgeLogic(client: Q): Promise<StoredFridgeLogic> {
+  const r = await client.query<StoredFridgeLogic>(
+    `SELECT f.enabled, f.small_base::float8 AS "smallBase", f.small_over10::float8 AS "smallOver10",
+            f.small_minimum::float8 AS "smallMinimum", f.option_b AS "optionB",
+            f.plug_amount::float8 AS "plugAmount", f.updated_at AS "updatedAt",
+            p.display_name AS "updatedByName"
+       FROM revenue_fridge_logic f LEFT JOIN profiles p ON p.id = f.updated_by WHERE f.id = 1`,
+  );
+  return (
+    r.rows[0] ?? {
+      enabled: true,
+      smallBase: 30,
+      smallOver10: 20,
+      smallMinimum: 20,
+      optionB: true,
+      plugAmount: 15,
+      updatedAt: null,
+      updatedByName: null,
+    }
+  );
+}
+
+export async function saveFridgeLogic(
+  client: Q,
+  v: Omit<StoredFridgeLogic, 'updatedAt' | 'updatedByName'>,
+  profileId: string,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO revenue_fridge_logic (id, enabled, small_base, small_over10, small_minimum, option_b, plug_amount, updated_by, updated_at)
+     VALUES (1, $1, $2, $3, $4, $5, $6, $7, now())
+     ON CONFLICT (id) DO UPDATE SET enabled = $1, small_base = $2, small_over10 = $3,
+       small_minimum = $4, option_b = $5, plug_amount = $6, updated_by = $7, updated_at = now()`,
+    [v.enabled, v.smallBase, v.smallOver10, v.smallMinimum, v.optionB, v.plugAmount, profileId],
+  );
+}

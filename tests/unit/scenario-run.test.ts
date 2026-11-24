@@ -4,7 +4,7 @@ import { DEFAULT_PRICING_RULES } from '../../apps/api/src/revenue-dashboard/pric
 import { DEFAULT_FRIDGE_SCENARIO } from '../../apps/api/src/revenue-dashboard/fridge-scenario.js';
 import { ratesOf } from '../../apps/api/src/revenue-dashboard/rate-overrides.js';
 import { plugQuantities } from '../../apps/api/src/revenue-dashboard/fridge-scenario.js';
-import { runScenario } from '../../apps/api/src/revenue-dashboard/scenario-run.js';
+import { fridgeRevenue, runScenario } from '../../apps/api/src/revenue-dashboard/scenario-run.js';
 
 const line = (
   id: string,
@@ -169,4 +169,33 @@ test('plug quantities are read from REPAIR-MATERIAL lines of CSIDI and CSIII onl
   assert.equal(q.get('16101580|CSIDI'), 3);
   assert.equal(q.get('16101600|CSIII'), 4);
   assert.equal(q.size, 2);
+});
+
+test('live revenue (fridgeRevenue) adds up to the scenario total, plugs included', () => {
+  const plug = new Map([['A|CSIII', 2]]);
+  const live = fridgeRevenue(
+    inputs as never,
+    DEFAULT_PRICING_RULES,
+    settings.rates,
+    settings.fridge,
+    lookup,
+    plug,
+  );
+  const total = [...live.revenue.values()].reduce((a, b) => a + b, 0);
+  const r = runScenario(inputs as never, DEFAULT_PRICING_RULES, null, settings, lookup, plug);
+  assert.equal(Math.round(total * 100) / 100, r.scenario);
+  // 90 + 156.75 + 60 + 60 + 2 plugs x 15
+  assert.equal(r.scenario, 90 + 156.75 + 60 + 60 + 30);
+});
+
+test('plug amount follows the saved setting, not a typed number', () => {
+  const live = fridgeRevenue(
+    inputs as never,
+    DEFAULT_PRICING_RULES,
+    settings.rates,
+    { ...settings.fridge, plugAmount: 25 },
+    lookup,
+    new Map([['A|CSIII', 1]]),
+  );
+  assert.equal(live.plugOf.get('1'), 25);
 });

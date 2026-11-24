@@ -50,19 +50,22 @@ export interface ScenarioInvoiceRow {
   change: number;
 }
 
-export function runScenario(
+/**
+ * Revenue of every line under the new fridge logic: the fridge lines re-priced (everything else as on
+ * the given rates), and the 13A plug amount on the first revenue line of its invoice and job type.
+ * Used by the scenario test and, once the new logic is switched on, by the live dashboard.
+ */
+export function fridgeRevenue(
   inputs: RevenueInputs,
   base: PricingRules,
-  liveRates: RateSet | null,
-  settings: ScenarioSettings,
+  rates: RateSet,
+  fridgeSettings: FridgeScenario,
   lookup: Map<string, Litres>,
   plugQty: Map<string, number> = new Map(),
 ) {
-  const liveRules = liveRates ? overlayRates(base, liveRates) : base;
-  const nextRules = overlayRates(base, settings.rates);
-  const live = computeRevenue(inputs, base, liveRules).revenue;
+  const nextRules = overlayRates(base, rates);
   const step = computeRevenue(inputs, base, nextRules).revenue;
-  const fridge = priceFridgeLines(inputs.lines, base, nextRules, settings.fridge, lookup);
+  const fridge = priceFridgeLines(inputs.lines, base, nextRules, fridgeSettings, lookup);
   const scenario = new Map<string, number>();
   for (const l of inputs.lines) {
     const f = fridge.get(l.id);
@@ -70,8 +73,6 @@ export function runScenario(
     if (f) value = value - f.oldLabour + f.newLabour;
     scenario.set(l.id, r2(value));
   }
-
-  // 13A plug lines: the amount rides on the first revenue line of the same invoice and job type.
   const plugOf = new Map<string, number>();
   const plugUnits = new Map<string, number>();
   const used = new Set<string>();
@@ -81,10 +82,33 @@ export function runScenario(
     const qty = plugQty.get(key);
     if (!qty || used.has(key)) continue;
     used.add(key);
-    plugOf.set(l.id, r2(qty * settings.fridge.plugAmount));
+    plugOf.set(l.id, r2(qty * fridgeSettings.plugAmount));
     plugUnits.set(l.id, qty);
   }
   const unmatchedPlugs = [...plugQty.keys()].filter((k) => !used.has(k));
+  const revenue = new Map<string, number>();
+  for (const [id, v] of scenario) revenue.set(id, r2(v + (plugOf.get(id) ?? 0)));
+  return { revenue, scenario, fridge, plugOf, plugUnits, unmatchedPlugs };
+}
+
+export function runScenario(
+  inputs: RevenueInputs,
+  base: PricingRules,
+  liveRates: RateSet | null,
+  settings: ScenarioSettings,
+  lookup: Map<string, Litres>,
+  plugQty: Map<string, number> = new Map(),
+) {
+  const liveRules = liveRates ? overlayRates(base, liveRates) : base;
+  const live = computeRevenue(inputs, base, liveRules).revenue;
+  const { scenario, fridge, plugOf, plugUnits, unmatchedPlugs } = fridgeRevenue(
+    inputs,
+    base,
+    settings.rates,
+    settings.fridge,
+    lookup,
+    plugQty,
+  );
 
   const rows = new Map<string, ScenarioRow>();
   const bump = (key: string, label: string, units: number, cur: number, next: number) => {
