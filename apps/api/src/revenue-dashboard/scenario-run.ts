@@ -52,7 +52,7 @@ export interface ScenarioInvoiceRow {
 
 /**
  * Revenue of every line under the new fridge logic: the fridge lines re-priced (everything else as on
- * the given rates), and the 13A plug amount on the first revenue line of its invoice and job type.
+ * the given rates), and the 13A/15A plug amount on the first revenue line of its invoice and job type.
  * Used by the scenario test and, once the new logic is switched on, by the live dashboard.
  */
 export function fridgeRevenue(
@@ -157,7 +157,7 @@ export function runScenario(
       label = cat.replace('Freestanding ', '');
     }
     bump(key, label, isDI ? l.qty : 0, cur, nextBase);
-    if (plug) bump('plugs', '13A plugs (new)', plugUnits.get(l.id) ?? 0, 0, plug);
+    if (plug) bump('plugs', '13A/15A plugs (new)', plugUnits.get(l.id) ?? 0, 0, plug);
     const t = types.get(l.jobType) ?? {
       key: l.jobType,
       label: l.jobType,
@@ -208,12 +208,12 @@ export function runScenario(
         salesPerson: l.salesPerson ?? null,
         customer: l.customer ?? null,
         jobType: l.jobType,
-        category: '13A plug',
+        category: '13A/15A plug',
         units: plugUnits.get(l.id) ?? 0,
         litres: null,
         litresSource: null,
         defaultLitres: false,
-        rule: `13A plug line (${PLUG_ITEM_CODE}): ${plugUnits.get(l.id)} x ${settings.fridge.plugAmount}, no discount, not a unit or trip`,
+        rule: `13A/15A plug line (${PLUG_ITEM_CODE}): ${plugUnits.get(l.id)} x ${settings.fridge.plugAmount}, no discount, not a unit or trip`,
         current: 0,
         scenario: plug,
         change: plug,

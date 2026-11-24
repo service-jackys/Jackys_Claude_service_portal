@@ -49,7 +49,7 @@ export async function buildScenarioWorkbook(
   title.font = { name: FONT, bold: true, size: 13, color: { argb: NAVY } };
   sum.addRow([`Workbook: ${fileName}`]).font = { name: FONT, size: 10 };
   sum.addRow([]);
-  header(sum.addRow(['', 'Current logic (live)', 'New logic (scenario)', 'Difference']));
+  header(sum.addRow(['', 'Old logic (live rates)', 'New logic (scenario rates)', 'Difference']));
   for (const [label, a, b] of [['Total revenue', result.current, result.scenario]] as const) {
     const r = sum.addRow([label, a, b, Math.round((b - a) * 100) / 100]);
     r.eachCell((c, i) => {
@@ -64,14 +64,14 @@ export async function buildScenarioWorkbook(
     ['Fridge 400 L and under: second tier (over 10 units)', f.smallOver10],
     ['Fridge 400 L and under: minimum', f.smallMinimum],
     ['Over 10 units', f.optionB ? 'Option B: only the units above 10' : 'Option A: all units'],
-    ['13A plug amount per plug', f.plugAmount],
+    ['13A/15A plug amount per plug', f.plugAmount],
     ['Fridge lines / units priced', `${result.fridges.lines} / ${result.fridges.units}`],
     [
       'Fridge lines on the 400 L default (litres not found)',
       `${result.fridges.defaultLines} lines / ${result.fridges.defaultUnits} units`,
     ],
     [
-      `13A plug lines (${result.plugs.itemCode})`,
+      `13A/15A plug lines (${result.plugs.itemCode})`,
       `${result.plugs.invoices} invoices / ${result.plugs.units} plugs = ${result.plugs.total}`,
     ],
   ];

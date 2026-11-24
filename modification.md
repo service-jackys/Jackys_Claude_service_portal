@@ -5205,6 +5205,24 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #307 — Fridge pricing step 2: Export report, Ask AI notes, Scenario wording, compact look, "13A/15A"
+
+**Date:** 2026-11-24
+
+**Why.** Step 1 (#306) put the new fridge logic live. This step makes the exports and notes say so, keeps the totals consistent everywhere, and tidies the look.
+
+**What changed.**
+- Export report (.xlsx): the Summary names the new fridge logic with the rates it used (read from the saved settings and the Rate card, never typed), shows the workbook figure, the portal figure and the difference, and the number of fridge lines on the default 400 L. The job sheet gains Workbook revenue, Fridge litres, Litres source, Default litres, Fridge rule applied and 13A/15A plug columns, and fridge or plug lines that differ from the old-logic rebuild are labelled "New fridge logic" or "13A/15A plug" in "Why they differ" instead of looking like errors. The Revenue Logic sheet says the new fridge logic is in force.
+- Total check: on your master with the settings used in testing, the dashboard total, the Export report total and the Scenario test total are the same (120,913.50 in the test; workbook 123,559.75).
+- Ask AI: the revenue data it is given now carries a plain description of how fridges and the 13A/15A plug are priced (rates from the saved settings), or says the old logic is in force.
+- Scenario test: the labels now read "Old logic (live rates)" and "New logic (these rates)", and its note says the live dashboard follows the logic chosen on the Rate card.
+- Rate card and Scenario test: compact look (slimmer header, smaller boxes and tables, rate tables beside the fridge rules, compact result figures); the fridge switch is an iPhone-style New logic / Old logic pill with the workbook, portal and difference figures beside the rules, and its save button reads "Save & recalculate".
+- Wording: "13A plug" is now "13A/15A plug" on every screen, note, export and rule text. Figures are not changed.
+
+**Files.** apps/api/src/revenue-dashboard/export.ts, service.ts, scenario-run.ts, scenario-export.ts, fridge-scenario.ts, apps/api/src/ai/workbook.ts, apps/web/src/app.js, apps/web/src/index.html, tests (export sheets, scenario run), modification.md.
+
+**Needs you:** pull, restart the API (export and Ask AI wording are in the API), hard-refresh. No migration. Then download Export report (.xlsx) and compare its Summary with the Rate card figures.
+
 ## Modification #306 — Fridge pricing: new logic live, with a Rate card switch (step 1 of 3)
 
 **Date:** 2026-11-24

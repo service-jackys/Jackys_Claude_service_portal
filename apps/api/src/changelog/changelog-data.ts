@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 307,
+    "title": "Fridge pricing step 2: Export report, Ask AI notes, Scenario wording, compact look, \"13A/15A\"",
+    "area": "Pricing & rates",
+    "date": "2026-11-24",
+    "approxDate": false,
+    "status": null,
+    "summary": "Step 1 (#306) put the new fridge logic live. This step makes the exports and notes say so, keeps the totals consistent everywhere, and tidies the look.",
+    "changes": [
+      "Export report (.xlsx): the Summary names the new fridge logic with the rates it used (read from the saved settings and the Rate card, never typed), shows the workbook figure, the portal figure and the difference, and the number of fridge…",
+      "Total check: on your master with the settings used in testing, the dashboard total, the Export report total and the Scenario test total are the same (120,913.50 in the test; workbook 123,559.75).",
+      "Ask AI: the revenue data it is given now carries a plain description of how fridges and the 13A/15A plug are priced (rates from the saved settings), or says the old logic is in force.",
+      "Scenario test: the labels now read \"Old logic (live rates)\" and \"New logic (these rates)\", and its note says the live dashboard follows the logic chosen on the Rate card.",
+      "Rate card and Scenario test: compact look (slimmer header, smaller boxes and tables, rate tables beside the fridge rules, compact result figures); the fridge switch is an iPhone-style New logic / Old logic pill with the workbook, portal…",
+      "Wording: \"13A plug\" is now \"13A/15A plug\" on every screen, note, export and rule text. Figures are not changed."
+    ],
+    "needsYou": "pull, restart the API (export and Ask AI wording are in the API), hard-refresh. No migration. Then download Export report (.xlsx) and compare its Summary with the Rate card figures.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/export.ts, service.ts, scenario-run.ts, scenario-export.ts, fridge-scenario.ts, apps/api/src/ai/workbook.ts, apps/web/src/app.js, apps/web/src/index.html, tests…"
+  },
+  {
     "id": 306,
     "title": "Fridge pricing: new logic live, with a Rate card switch (step 1 of 3)",
     "area": "Pricing & rates",

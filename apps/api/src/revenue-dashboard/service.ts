@@ -342,6 +342,59 @@ export function createRevenueDashboardService(pool: Pool) {
     return withActive((client, batchId) => revenueExceptions(client, batchId, filters));
   }
 
+  /** What the Export report needs to describe the new fridge logic (modification #307). Undefined while it is off. */
+  async function exportFridgeLogic(client: PoolClient, batchId: string) {
+    const settings = await getFridgeLogic(client);
+    if (!settings.enabled) return undefined;
+    const { inputs, base } = await loadRevenueInputs(client, batchId);
+    const custom = parseRateSet((await getRateOverrides(client)).payload);
+    const { lookup, plugQty } = await fridgeContext(client, batchId, inputs);
+    const r = fridgeRevenue(inputs, base, custom ?? ratesOf(base), settings, lookup, plugQty);
+    const byLine = new Map<
+      string,
+      { litres: number; source: string; defaultLitres: boolean; rule: string; large: boolean }
+    >();
+    let defaultLines = 0;
+    for (const [id, f] of r.fridge) {
+      byLine.set(id, {
+        litres: f.litres,
+        source: f.litresSource,
+        defaultLitres: f.defaultLitres,
+        rule: f.rule,
+        large: f.large,
+      });
+      if (f.defaultLitres) defaultLines += 1;
+    }
+    const plugByLine = new Map<string, { qty: number; amount: number }>();
+    for (const [id, amount] of r.plugOf)
+      plugByLine.set(id, { qty: r.plugUnits.get(id) ?? 0, amount });
+    const tot = await client.query<{ workbook: string; portal: string }>(
+      `SELECT COALESCE(SUM(workbook_revenue), 0) AS workbook, COALESCE(SUM(revenue), 0) AS portal
+         FROM revenue_lines WHERE batch_id = $1`,
+      [batchId],
+    );
+    return {
+      settings: {
+        smallBase: settings.smallBase,
+        smallOver10: settings.smallOver10,
+        smallMinimum: settings.smallMinimum,
+        optionB: settings.optionB,
+        plugAmount: settings.plugAmount,
+      },
+      rates: (() => {
+        const c = (custom ?? ratesOf(base)).deliveryInstall.categories.find((x) =>
+          /refrigerator/i.test(x.category),
+        );
+        return { market: c?.standardRate ?? 0, special: c?.batchRate ?? 0 };
+      })(),
+      workbook: Math.round(Number(tot.rows[0]?.workbook ?? 0) * 100) / 100,
+      portal: Math.round(Number(tot.rows[0]?.portal ?? 0) * 100) / 100,
+      byLine,
+      plugByLine,
+      defaultLines,
+    };
+  }
+
   async function exportWorkbook(
     query: Record<string, unknown>,
     profileId?: string,
@@ -372,6 +425,7 @@ export function createRevenueDashboardService(pool: Pool) {
         ...(await tripDetails(client, batch.id)),
         transportRules: await exportTransportRules(client),
         customRates: (await customRatesSummary(client, true)) ?? undefined,
+        fridgeLogic: await exportFridgeLogic(client, String(batch.id)),
       };
       const workbook = await buildRevenueReportWorkbook(data);
       if (profileId) {
@@ -1004,7 +1058,7 @@ export function createRevenueDashboardService(pool: Pool) {
     };
   }
 
-  /** Litres and 13A plug quantities the new fridge logic needs. */
+  /** Litres and 13A/15A plug quantities the new fridge logic needs. */
   async function fridgeContext(
     client: PoolClient,
     batchId: string,
@@ -1031,7 +1085,7 @@ export function createRevenueDashboardService(pool: Pool) {
     let revenue: Map<string, number>;
     let unmatched = 0;
     if (fridgeSettings.enabled) {
-      // New fridge logic (modification #306): fridges and 13A plugs re-priced on top of the workbook.
+      // New fridge logic (modification #306): fridges and 13A/15A plugs re-priced on top of the workbook.
       const { lookup, plugQty } = await fridgeContext(client, batchId, inputs);
       revenue = fridgeRevenue(
         inputs,
