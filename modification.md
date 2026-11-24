@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #304 — Service Revenue Dashboard: Scenario test tab (new fridge logic, test only)
+
+**Date:** 2026-11-24
+
+**Why.** Management wants fridges priced by size and quantity instead of the volume discount tiers. Because it touches the whole dashboard, it is tried first on a copy: nothing live changes until you confirm.
+
+**What changed.** New "Scenario test" tab next to the Rate card on the Service Revenue Dashboard. It runs your uploaded workbook through the new fridge logic next to the current logic and shows both totals and the difference: by category, job type and salesperson, and line by line with the rule that priced each invoice. Scenario rates are editable on the tab (they start from the live rates) and are never saved. New fridge logic, CSIDI and CSIII: fridge 400 L and under = 1 unit market rate, 2 to 10 units base (30), over 10 second tier (20; temporary Option B charges only the units above 10, Option A charges all units, switch on the tab), no discount tiers, minimum 20; fridge over 400 L = 1 unit market rate, 2 or more the special rate (60), no discount tiers. Units are counted per invoice, per job type and per size. Washing machines, cookers and all other categories keep today's logic. Litres come from the Stock Master by the model in the sales workbook; a model with no litres is priced as 400 L and flagged "Default litres" (also listed on its own sheet in the export). The 13A plug amount is a setting (15) but no plug line is counted until the ERP line wording is given. "Export comparison (.xlsx)" downloads Summary, By category, By job type, By salesperson, Changed invoices and Default litres. On your Oct 22 workbook: current 121,175.25 (matches the dashboard), new logic 121,038.00 with the starting settings; 172 fridge lines, 3 on the default.
+
+**Files.** apps/api/src/revenue-dashboard/fridge-scenario.ts, scenario-run.ts, scenario-export.ts (new), service.ts, routes.ts, pricing-logic.ts and rate-overrides.ts (two helpers exported), apps/api/src/api/route-catalog.ts (GET /api/revenue-dashboard/scenario, POST .../scenario/run, POST .../scenario/export), packages/db/src/stock-master.ts (capacityForCodes), apps/web/src/app.js, apps/web/src/index.html, tests (unit x2, e2e), modification.md.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh, open Service Revenue Dashboard > Scenario test, compare, tell me which option (A or B) and rates to keep.
+
 ## Modification #303 — Stock Master: fridge capacity (litres)
 
 **Date:** 2026-11-24

@@ -260,7 +260,7 @@ function categoryRate(master: PricingMaster, category: string | null): CategoryR
   );
 }
 
-function crewLoading(master: PricingMaster, size: number): number {
+export function crewLoading(master: PricingMaster, size: number): number {
   const exact = master.crew.find((c) => c.size === size);
   if (exact) return exact.loading;
   // The workbook treats larger crews like the biggest listed one.

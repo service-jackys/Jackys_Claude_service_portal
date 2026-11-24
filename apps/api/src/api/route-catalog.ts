@@ -3898,6 +3898,38 @@ export function createRouteCatalog(
       },
       {
         method: 'get' as const,
+        path: '/api/revenue-dashboard/scenario',
+        operationId: 'getRevenueDashboardScenarioDefaults',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Scenario test (test only, nothing is saved): the live rates and the default fridge settings to start from',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 404, 500],
+        handlers: revenueDashboardHandlers.scenarioDefaults,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/revenue-dashboard/scenario/run',
+        operationId: 'runRevenueDashboardScenario',
+        tags: ['Revenue Dashboard'],
+        summary:
+          'Scenario test: the active upload re-priced with the new fridge logic and the given scenario rates, next to the live figures (nothing is saved)',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.scenarioRun,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/revenue-dashboard/scenario/export',
+        operationId: 'exportRevenueDashboardScenario',
+        tags: ['Revenue Dashboard'],
+        summary: 'Scenario test comparison as an Excel workbook',
+        security: 'bearerAuth' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: revenueDashboardHandlers.scenarioExport,
+      },
+      {
+        method: 'get' as const,
         path: '/api/revenue-dashboard/logic/example',
         operationId: 'getRevenueDashboardLogicExample',
         tags: ['Revenue Dashboard'],

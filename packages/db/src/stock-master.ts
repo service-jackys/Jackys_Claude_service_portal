@@ -543,3 +543,21 @@ export async function recalculateCapacity(
   }
   return { checked: result.rows.length, changed: codes.length };
 }
+
+/** Litres of the given item codes (fridge and freezer items only), upper-cased code to capacity. */
+export async function capacityForCodes(
+  db: Queryable,
+  codes: string[],
+): Promise<Map<string, { litres: number; source: string }>> {
+  const unique = [...new Set(codes.map((c) => c.trim().toUpperCase()).filter(Boolean))];
+  const out = new Map<string, { litres: number; source: string }>();
+  if (!unique.length) return out;
+  const r = await db.query<{ code: string; litres: number; source: string }>(
+    `SELECT upper(item_code) AS code, capacity_litres::float8 AS litres, capacity_source AS source
+       FROM stock_master
+      WHERE upper(item_code) = ANY($1::text[]) AND capacity_litres IS NOT NULL`,
+    [unique],
+  );
+  for (const row of r.rows) out.set(row.code, { litres: row.litres, source: row.source });
+  return out;
+}

@@ -144,7 +144,7 @@ export function diffRates(base: RateSet, next: RateSet) {
   return out;
 }
 
-const toLike = (l: RateLine) => ({
+export const toLike = (l: RateLine) => ({
   jobType: l.jobType,
   qty: l.qty,
   unitPrice: l.unitPrice,
