@@ -5213,13 +5213,15 @@ Display only; no pricing formulas, API or database changes.
 
 **What changed.** Fridges now follow the new logic on every invoice, past months included: a size group of 400 L and under uses the market rate for one unit, the base rate for 2 to 10 units and the second-tier rate for units above 10; over 400 L uses the market rate for one unit and the special rate for 2 or more. No volume discount tiers for fridges. 13A plug lines (item code REPAIR-MATERIAL) on CSIDI and CSIII are charged the plug amount times the line quantity, on top of the cooker rate. Washing machines, cookers and all other categories are unchanged. All rates are read from the Rate card and the new "Fridge pricing" card (base rate, second tier, minimum, whether the second tier covers only the units above 10, plug amount), so a change by an admin changes the figures and every note. The master workbook is not changed: each line keeps its workbook figure and the Rate card shows the workbook figure beside the portal figure. Because the figures are stored on each revenue line, Overview, Explorer and Reports follow the new logic from this step. The Logic applied tab has two new sections, "How fridges are priced" and "Worked examples", with every rate shown from the Rate card. New table revenue_fridge_logic holds the saved settings and the switch.
 
-**Go back any time.** Rate card > Fridge pricing > Old logic (admins only, press "Save fridge pricing & recalculate"). The figures return to the old logic exactly; the Logic applied sections for fridges are shown only while the new logic is on. Back up the staging database before the first run.
+**Look.** The Rate card and Scenario test tabs are tighter: slimmer header, smaller boxes and tables, rate tables side by side with the fridge rules, and the fridge switch is an iPhone-style New logic / Old logic pill with the workbook, portal and difference figures beside it.
+
+**Go back any time.** Rate card > Fridge pricing > Old logic (admins only, press "Save & recalculate"). The figures return to the old logic exactly; the Logic applied sections for fridges are shown only while the new logic is on. Back up the staging database before the first run.
 
 **Also changing in the next steps.** Step 2: Export report (.xlsx) logic note and a sheet naming the logic used, fridge litres and the Default litres flag, Ask AI notes, and a check that dashboard total = Export report total = Scenario total. Step 3: Pricing Masters, D+I Billing engine and the D+I Quote Calculator (13A plug quantity field).
 
 **Files.** packages/db/migrations/109_revenue_fridge_logic.sql, packages/db/src/revenue-rate-overrides.ts, apps/api/src/revenue-dashboard/scenario-run.ts (fridgeRevenue), service.ts, routes.ts, apps/api/src/api/route-catalog.ts (PUT /api/revenue-dashboard/fridge-logic), apps/web/src/app.js, apps/web/src/index.html, tests/unit/scenario-run.test.ts, modification.md.
 
-**Needs you:** pull, npm.cmd run db:migrate, restart the API, hard-refresh. The new logic is on straight away for the active workbook (the figures are recalculated when the settings are saved or a workbook is uploaded; press "Save fridge pricing & recalculate" once to refresh the current upload).
+**Needs you:** pull, npm.cmd run db:migrate, restart the API, hard-refresh. The new logic is on straight away for the active workbook (the figures are recalculated when the settings are saved or a workbook is uploaded; press "Save & recalculate" once to refresh the current upload).
 
 ## Modification #305 — Scenario test: 13A plug line (REPAIR-MATERIAL)
 

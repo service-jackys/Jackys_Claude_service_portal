@@ -24,10 +24,11 @@ export const CHANGELOG: ChangelogEntry[] = [
     "summary": "After testing on the Scenario test tab, management confirmed the new fridge logic and the 13A plug charge. This step puts them live on the Service Revenue Dashboard, with a way back.",
     "changes": [
       "What changed: Fridges now follow the new logic on every invoice, past months included: a size group of 400 L and under uses the market rate for one unit, the base rate for 2 to 10 units and the second-tier rate for units above 10; over…",
-      "Go back any time: Rate card > Fridge pricing > Old logic (admins only, press \"Save fridge pricing & recalculate\"). The figures return to the old logic exactly; the Logic applied sections for fridges are shown only while the new logic is…",
+      "Look: The Rate card and Scenario test tabs are tighter: slimmer header, smaller boxes and tables, rate tables side by side with the fridge rules, and the fridge switch is an iPhone-style New logic / Old logic pill with the workbook…",
+      "Go back any time: Rate card > Fridge pricing > Old logic (admins only, press \"Save & recalculate\"). The figures return to the old logic exactly; the Logic applied sections for fridges are shown only while the new logic is on. Back up the…",
       "Also changing in the next steps: Step 2: Export report (.xlsx) logic note and a sheet naming the logic used, fridge litres and the Default litres flag, Ask AI notes, and a check that dashboard total = Export report total = Scenario total.…"
     ],
-    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. The new logic is on straight away for the active workbook (the figures are recalculated when the settings are saved or a workbook is uploaded; press \"Save fridge pricing & recalculate\" once to…",
+    "needsYou": "pull, npm.cmd run db:migrate, restart the API, hard-refresh. The new logic is on straight away for the active workbook (the figures are recalculated when the settings are saved or a workbook is uploaded; press \"Save & recalculate\" once to refresh the current…",
     "migrations": [
       "109_revenue_fridge_logic.sql"
     ],
