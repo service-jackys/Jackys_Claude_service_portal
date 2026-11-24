@@ -257,3 +257,88 @@ test('export: Summary and Logic say which transport rules apply, and capped tran
   assert.match(text(wb.getWorksheet('Revenue Logic')!), /2-trip daily cap/);
   assert.match(text(wb.getWorksheet('Revenue Logic')!), /Daily trip cap on/);
 });
+
+test('export: new fridge logic is named on the Summary, with litres, plug and workbook figure per line', async () => {
+  const lines = [
+    line({
+      id: '7',
+      jobType: 'CSIDI',
+      invDelNo: 'F1',
+      qty: 3,
+      unitPrice: 0,
+      revenue: 90,
+      workbookRevenue: 156.75,
+      pricing: {
+        applianceCategory: 'Freestanding Refrigerator',
+        erpModels: 'F350',
+        pricingType: 'CSIDI',
+        before: {},
+      },
+    }),
+    line({
+      id: '8',
+      jobType: 'CSIDI',
+      invDelNo: 'C1',
+      qty: 1,
+      unitPrice: 0,
+      revenue: 135,
+      workbookRevenue: 120,
+      pricing: { applianceCategory: 'Freestanding Cooker', pricingType: 'CSIDI', before: {} },
+    }),
+  ];
+  const data = {
+    batch: { fileName: 'x.xlsm', uploadedAt: new Date(), summary: {} },
+    filters: {},
+    total: group(225, 2),
+    monthly: { totals: group(225, 2).totals, cells: [] },
+    weekly: { totals: group(225, 2).totals, cells: [] },
+    channel: group(225, 2),
+    salesPerson: group(225, 2),
+    customer: group(225, 2),
+    billingCode: group(225, 2),
+    exceptions: { totals: group(225, 2).totals, exceptions: [] },
+    lines,
+    fridgeLogic: {
+      settings: { smallBase: 30, smallOver10: 20, smallMinimum: 20, optionB: true, plugAmount: 15 },
+      rates: { market: 100, special: 60 },
+      workbook: 276.75,
+      portal: 225,
+      byLine: new Map([
+        [
+          '7',
+          {
+            litres: 350,
+            source: 'description',
+            defaultLitres: false,
+            rule: '3 units: base',
+            large: false,
+          },
+        ],
+      ]),
+      plugByLine: new Map([['8', { qty: 1, amount: 15 }]]),
+      defaultLines: 0,
+    },
+  } as unknown as RevenueReportData;
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load((await buildRevenueReportWorkbook(data)) as unknown as ArrayBuffer);
+  const text: string[] = [];
+  wb.getWorksheet('Summary')!.eachRow((r) => text.push(r.values!.toString()));
+  const all = text.join('\n');
+  assert.ok(all.includes('NEW FRIDGE LOGIC IN FORCE'));
+  assert.ok(all.includes('base (AED 30)'));
+  assert.ok(all.includes('AED 15 x quantity'));
+  assert.ok(all.includes('Workbook figure, whole upload (AED)'));
+  const di = wb.getWorksheet('Delivery & Install')!;
+  const head = (di.getRow(2).values as unknown[]).slice(1).map(String);
+  for (const h of [
+    'Fridge litres',
+    'Fridge rule applied',
+    '13A/15A plug (AED)',
+    'Workbook revenue (AED)',
+  ])
+    assert.ok(head.includes(h), h);
+  const litres = head.indexOf('Fridge litres') + 1;
+  assert.equal(di.getRow(3).getCell(litres).value, 350);
+  const plug = head.indexOf('13A/15A plug (AED)') + 1;
+  assert.equal(di.getRow(4).getCell(plug).value, 15);
+});

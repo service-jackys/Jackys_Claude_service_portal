@@ -104,7 +104,7 @@ test('changing option B to A only changes fridges over 10 units', () => {
   assert.equal(a.scenario, 12 * 20);
 });
 
-test('13A plug lines add amount x quantity once per invoice, outside units and discounts', () => {
+test('13A/15A plug lines add amount x quantity once per invoice, outside units and discounts', () => {
   const plugs = new Map([
     ['A|CSIII', 2],
     ['NOPE|CSIII', 1],
@@ -119,7 +119,7 @@ test('13A plug lines add amount x quantity once per invoice, outside units and d
   const row = r.byCategory.find((c) => c.key === 'plugs')!;
   assert.equal(row.units, 2);
   assert.equal(row.scenario, 30);
-  assert.equal(r.invoices.filter((i) => i.category === '13A plug').length, 1);
+  assert.equal(r.invoices.filter((i) => i.category === '13A/15A plug').length, 1);
 });
 
 test('plug quantities are read from REPAIR-MATERIAL lines of CSIDI and CSIII only', () => {

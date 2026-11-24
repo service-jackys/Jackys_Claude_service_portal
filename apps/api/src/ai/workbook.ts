@@ -6,6 +6,10 @@ import {
   revenueSummary,
   type RevenueFilters,
 } from '../../../../packages/db/src/revenue-dashboard.js';
+import {
+  getFridgeLogic,
+  getRateOverrides,
+} from '../../../../packages/db/src/revenue-rate-overrides.js';
 
 import { describeCatalog, readCatalog } from './sheet-lookup.js';
 
@@ -75,8 +79,33 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
             Math.round(Number(r.revenue) * 100) / 100,
           ];
         }
+        // How fridges are priced (modification #307). Read from the saved settings, so the figures stay current.
+        const fl = await getFridgeLogic(pool);
+        let fridgeNote: string | undefined;
+        if (fl.enabled) {
+          const rates = (await getRateOverrides(pool)).payload as {
+            deliveryInstall?: {
+              categories?: { category: string; batchRate: number; standardRate: number }[];
+            };
+          } | null;
+          const fr = rates?.deliveryInstall?.categories?.find((c) =>
+            /refrigerator/i.test(c.category),
+          );
+          fridgeNote =
+            'Fridges are priced with the new logic on every invoice (the master workbook is unchanged; the portal re-prices it). ' +
+            `Fridge 400 L and under: 1 unit pays the market rate${fr ? ` (AED ${fr.standardRate})` : ' from the Rate card'}; 2 to 10 units pay the base rate (AED ${fl.smallBase}); ` +
+            (fl.optionB ? 'only the units above 10' : 'every unit when there are more than 10') +
+            ` pay the second tier (AED ${fl.smallOver10}); minimum AED ${fl.smallMinimum}; no volume discount tiers. ` +
+            `Fridge over 400 L: 1 unit pays the market rate, 2 or more the special rate${fr ? ` (AED ${fr.batchRate})` : ''}; no volume discount tiers. ` +
+            `Units are counted per invoice, job type and size group; litres come from the Stock Master and a model without litres counts as 400 L. ` +
+            `13A/15A plug lines (item code REPAIR-MATERIAL) on CSIDI and CSIII invoices add AED ${fl.plugAmount} x quantity on top of the cooker rate, with no discount. ` +
+            'Washing machines, cookers and other categories keep their rates and volume discount tiers. An admin can switch back to the old logic on the Rate card.';
+        } else
+          fridgeNote =
+            'The old fridge logic is in force (volume discount tiers apply to fridges, as for other appliances); the new fridge logic can be switched on in the Rate card.';
         out.revenueWorkbook = {
           uploaded: true,
+          fridgePricing: fridgeNote,
           source: revenueBatch.fileName ?? undefined,
           totals: summary.totals,
           groupedBy: byDimension,

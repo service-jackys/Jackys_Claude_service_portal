@@ -25,7 +25,7 @@ export interface FridgeScenario {
   smallMinimum: number;
   /** true = Option B (only the units above 10 get the second tier). */
   optionB: boolean;
-  /** Amount charged per 13A plug line (ERP wording still to come; no plug line is counted yet). */
+  /** Amount charged per 13A/15A plug line (ERP wording still to come; no plug line is counted yet). */
   plugAmount: number;
 }
 
@@ -199,7 +199,7 @@ export function priceFridgeLines(
   return out;
 }
 
-/** ERP item code of the 13A plug line (value 0 in ERP; the portal charges the plug amount per unit). */
+/** ERP item code of the 13A/15A plug line (value 0 in ERP; the portal charges the plug amount per unit). */
 export const PLUG_ITEM_CODE = 'REPAIR-MATERIAL';
 
 /** Plug quantity per invoice and job type, read from the ERP lines of the master ("Net Sale Current"). */

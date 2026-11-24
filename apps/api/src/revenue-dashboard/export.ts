@@ -48,6 +48,25 @@ export type RevenueReportData = {
     mixedInvoiceTransport: boolean;
     maxTrips: number;
   };
+  /** Set while the new fridge logic is on (modification #307): what the report says about it and per-line details. */
+  fridgeLogic?: {
+    settings: {
+      smallBase: number;
+      smallOver10: number;
+      smallMinimum: number;
+      optionB: boolean;
+      plugAmount: number;
+    };
+    rates: { market: number; special: number };
+    workbook: number;
+    portal: number;
+    byLine: Map<
+      string,
+      { litres: number; source: string; defaultLitres: boolean; rule: string; large: boolean }
+    >;
+    plugByLine: Map<string, { qty: number; amount: number }>;
+    defaultLines: number;
+  };
   /** Set while an admin has locked custom rates: the report then says its revenue is not the workbook figure. */
   customRates?: {
     lockedAt: string | Date | null;
@@ -181,8 +200,11 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     ],
     [
       'Basis',
-      data.customRates
-        ? 'Revenue is the workbook figure (Revenue Source sheet) plus the effect of the custom rates locked in the portal; the workbook figure is shown beside it on the job sheets.'
+      data.customRates || data.fridgeLogic
+        ? 'Revenue is the workbook figure (Revenue Source sheet) re-priced in the portal' +
+          (data.customRates ? ' with the custom rates locked in the portal' : '') +
+          (data.fridgeLogic ? ' and the new fridge logic' : '') +
+          '; the workbook figure is shown beside it on the job sheets.'
         : 'Revenue is the figure calculated in the master Service Dashboard workbook (Revenue Source sheet).',
     ],
     [
@@ -292,6 +314,15 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       (e.diffCause === 'CSIDI transport' || e.diffCause === 'CSIDO flat charge')
     )
       e.diffCause = 'Daily trip cap';
+    // New fridge logic (modification #307): fridge and plug lines differ from the rebuilt old-logic figure on purpose.
+    const lid = String(line.id ?? '');
+    if (
+      data.fridgeLogic &&
+      e.reconcileDiff !== null &&
+      Math.abs(e.reconcileDiff) > 0.01 &&
+      (data.fridgeLogic.byLine.has(lid) || data.fridgeLogic.plugByLine.has(lid))
+    )
+      e.diffCause = data.fridgeLogic.byLine.has(lid) ? 'New fridge logic' : '13A/15A plug';
     return { line, pricing, e };
   });
 
@@ -322,6 +353,26 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
         });
     }
   }
+  if (data.fridgeLogic) {
+    const f = data.fridgeLogic;
+    const fmt = (n: number) => n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    const first = summary.rowCount + 1;
+    const rows: [string, string | number][] = [
+      [
+        'FRIDGE LOGIC',
+        `NEW FRIDGE LOGIC IN FORCE. Fridge 400 L and under: 1 unit market rate (AED ${fmt(f.rates.market)}), 2 to 10 units base (AED ${fmt(f.settings.smallBase)}), ${f.settings.optionB ? 'only the units above 10' : 'every unit when over 10'} at the second tier (AED ${fmt(f.settings.smallOver10)}), minimum AED ${fmt(f.settings.smallMinimum)}. Fridge over 400 L: 1 unit market rate, 2 or more the special rate (AED ${fmt(f.rates.special)}). No volume discount tiers for fridges. 13A/15A plug lines (REPAIR-MATERIAL): AED ${fmt(f.settings.plugAmount)} x quantity on top of the cooker rate, no discount. Washing machines, cookers and other categories are unchanged. Rates are read from the Rate card in the portal.`,
+      ],
+      ['Workbook figure, whole upload (AED)', f.workbook],
+      ['Portal figure, whole upload (AED)', f.portal],
+      ['Total difference from the workbook (AED)', Math.round((f.portal - f.workbook) * 100) / 100],
+      ['Fridge lines on the default 400 L (no litres in the Stock Master)', f.defaultLines],
+    ];
+    for (const [k, v] of rows) summary.addRow([k, v]);
+    for (let r = first; r < first + rows.length; r++)
+      summary.getCell('A' + r).font = { bold: true };
+    for (const r of [first + 1, first + 2, first + 3]) summary.getCell('B' + r).numFmt = MONEY;
+  }
+
   if (data.transportRules) {
     const total = [...unchargedByRow.values()].reduce((a, b) => a + b, 0);
     summary.addRow(['Transport rules', data.transportRules.label]);
@@ -432,7 +483,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       sum: true,
       get: L('revenue'),
     },
-    ...(data.customRates
+    ...(data.customRates || data.fridgeLogic
       ? [
           {
             h: 'Workbook revenue (AED)',
@@ -464,6 +515,44 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       sum: true,
       get: P((p) => p.before.revenue),
     },
+    ...(data.fridgeLogic
+      ? [
+          {
+            h: 'Fridge litres',
+            w: 10,
+            group: 'After',
+            get: (x: Row) => data.fridgeLogic?.byLine.get(String(x.line.id ?? ''))?.litres ?? '',
+          },
+          {
+            h: 'Litres source',
+            w: 14,
+            group: 'After',
+            get: (x: Row) => data.fridgeLogic?.byLine.get(String(x.line.id ?? ''))?.source ?? '',
+          },
+          {
+            h: 'Default litres',
+            w: 10,
+            group: 'After',
+            get: (x: Row) =>
+              data.fridgeLogic?.byLine.get(String(x.line.id ?? ''))?.defaultLitres ? 'Yes' : '',
+          },
+          {
+            h: 'Fridge rule applied',
+            w: 44,
+            group: 'After',
+            get: (x: Row) => data.fridgeLogic?.byLine.get(String(x.line.id ?? ''))?.rule ?? '',
+          },
+          {
+            h: '13A/15A plug (AED)',
+            w: 14,
+            fmt: MONEY,
+            group: 'After',
+            sum: true,
+            get: (x: Row) =>
+              data.fridgeLogic?.plugByLine.get(String(x.line.id ?? ''))?.amount ?? '',
+          },
+        ]
+      : []),
     { h: 'Appliance category', w: 24, group: 'After', get: P((p) => p.applianceCategory) },
     { h: 'Pricing type', w: 11, group: 'After', get: P((p) => p.pricingType) },
     { h: 'Billing qty', w: 9, group: 'After', get: P((p) => p.billingQty) },
@@ -495,7 +584,7 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       sum: true,
       get: L('revenue'),
     },
-    ...(data.customRates
+    ...(data.customRates || data.fridgeLogic
       ? [
           {
             h: 'Workbook revenue (AED)',
@@ -784,6 +873,9 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
         transportRulesDetail(data.transportRules) +
         (data.customRates
           ? ` CUSTOM RATES IN FORCE: workbook revenue AED ${data.customRates.workbookRates} -> AED ${data.customRates.customRates} (whole upload). The rates on this sheet are the custom rates.`
+          : '') +
+        (data.fridgeLogic
+          ? ` NEW FRIDGE LOGIC IN FORCE: fridges and 13A/15A plug lines are priced as described on the Summary sheet, so fridge lines on this sheet differ from the old-logic rebuild by design (see the "Why they differ" column).`
           : ''),
     },
   );

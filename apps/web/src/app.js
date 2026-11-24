@@ -28453,7 +28453,7 @@ ${bodyHtml}
         .join('') +
       '</tbody></table></div>';
     host.innerHTML =
-      '<div class="rc-bar" style="background:#FFF6DC;border-color:#E5C766"><div class="rc-bar-main"><b>Scenario test: nothing here changes your dashboard.</b><span class="rc-sub">The live figures keep using the current logic. This tab runs the new fridge logic on the same workbook, next to it, so you can compare before confirming. Fridge litres come from the Stock Master.</span></div></div>' +
+      '<div class="rc-bar" style="background:#FFF6DC;border-color:#E5C766"><div class="rc-bar-main"><b>Scenario test: nothing here changes your dashboard.</b><span class="rc-sub">It compares the old fridge logic with the new one on the same workbook, using the rates below, so you can try other rates before saving them on the Rate card. The live dashboard follows the logic chosen on the Rate card. Fridge litres come from the Stock Master.</span></div></div>' +
       '<div class="sc-top"><div class="rc-box">' +
       '<div class="rc-box-head"><b>Fridge 400 L and under</b><span>both CSIDI and CSIII</span></div><table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
       '<tr><td>1 unit</td><td class="rc-num">market rate (from the tables below)</td></tr>' +
@@ -28471,7 +28471,7 @@ ${bodyHtml}
       '>B: units above 10</option><option value="0"' +
       (state.fridge.optionB ? '' : ' selected') +
       '>A: every unit</option></select></td></tr>' +
-      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not a unit or trip; every REPAIR-MATERIAL line, per quantity, on top of the cooker rate</span></td><td class="rc-num">' +
+      '<tr><td>13A/15A plug line, per plug<br><span class="form-note">no discount, not a unit or trip; every REPAIR-MATERIAL line, per quantity, on top of the cooker rate</span></td><td class="rc-num">' +
       num('fridge.plugAmount', state.fridge.plugAmount) +
       '</td></tr>' +
       '</tbody></table></div>' +
@@ -28527,8 +28527,8 @@ ${bodyHtml}
       results.innerHTML =
         '<div class="rc-kpis sc-kpis">' +
         [
-          ['Current logic (live)', rdMoney2(r.current), ''],
-          ['New logic (scenario)', rdMoney2(r.scenario), ''],
+          ['Old logic (live rates)', rdMoney2(r.current), ''],
+          ['New logic (these rates)', rdMoney2(r.scenario), ''],
           [
             'Difference',
             signed(r.change) +
@@ -28571,7 +28571,7 @@ ${bodyHtml}
         (f.modelsNotInMaster.length
           ? ' Models not found in the Stock Master: ' + e(f.modelsNotInMaster.join(', ')) + '.'
           : '') +
-        ' <b>13A plugs:</b> ' +
+        ' <b>13A/15A plugs:</b> ' +
         (r.plugs.units
           ? r.plugs.units +
             ' plug(s) on ' +
@@ -28933,7 +28933,7 @@ ${bodyHtml}
           '</span></label>';
         const diff = fig.portal - fig.workbook;
         html +=
-          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>fridges and the 13A plug, CSIDI and CSIII</span></div>' +
+          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>fridges and the 13A/15A plug, CSIDI and CSIII</span></div>' +
           '<div class="fl-top"><div class="fl-seg" role="radiogroup" aria-label="Fridge pricing logic">' +
           seg('1', 'New logic', 'fl-new') +
           seg('0', 'Old logic', 'fl-old') +
@@ -28964,7 +28964,7 @@ ${bodyHtml}
               ? 'units above 10'
               : 'every unit') +
           '</td></tr><tr><td>Over 400 L: 1 unit market, 2 or more</td><td class="rc-num">special rate</td></tr>' +
-          '<tr><td>13A plug, per unit, on top of the cooker, no discount</td><td class="rc-num">' +
+          '<tr><td>13A/15A plug, per unit, on top of the cooker, no discount</td><td class="rc-num">' +
           fnum('plugAmount', fl.plugAmount) +
           '</td></tr></tbody></table>' +
           '<div class="fl-figs"><div class="fl-fig"><small>Workbook figure</small><b>' +
@@ -33247,7 +33247,7 @@ ${bodyHtml}
             chip(special) +
             '). No volume discount tiers.</li>' +
             '<li><b>Washing machines, cookers and other categories:</b> unchanged, including the volume discount tiers.</li>' +
-            '<li><b>13A plug:</b> every ERP line with item code REPAIR-MATERIAL on a CSIDI or CSIII invoice is charged the plug amount (' +
+            '<li><b>13A/15A plug:</b> every ERP line with item code REPAIR-MATERIAL on a CSIDI or CSIII invoice is charged the plug amount (' +
             chip(fl.plugAmount) +
             ') times its quantity, on top of the cooker rate. No discount; not a unit, trip or transport.</li>' +
             '<li>The master workbook is not changed. Each line keeps the workbook figure; the portal figure is shown next to it on the Rate card.</li></ol></div></div>' +
