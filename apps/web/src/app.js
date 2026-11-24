@@ -28454,7 +28454,8 @@ ${bodyHtml}
       '</tbody></table></div>';
     host.innerHTML =
       '<div class="rc-bar" style="background:#FFF6DC;border-color:#E5C766"><div class="rc-bar-main"><b>Scenario test: nothing here changes your dashboard.</b><span class="rc-sub">The live figures keep using the current logic. This tab runs the new fridge logic on the same workbook, next to it, so you can compare before confirming. Fridge litres come from the Stock Master.</span></div></div>' +
-      '<div class="rc-box"><div class="rc-box-head"><b>Fridge 400 L and under</b><span>both CSIDI and CSIII</span></div><table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
+      '<div class="sc-top"><div class="rc-box">' +
+      '<div class="rc-box-head"><b>Fridge 400 L and under</b><span>both CSIDI and CSIII</span></div><table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
       '<tr><td>1 unit</td><td class="rc-num">market rate (from the tables below)</td></tr>' +
       '<tr><td>2 to 10 units: base</td><td class="rc-num">' +
       num('fridge.smallBase', state.fridge.smallBase) +
@@ -28467,16 +28468,16 @@ ${bodyHtml}
       '</td></tr>' +
       '<tr><td>Over 10 units applies to</td><td class="rc-num"><select data-sc="fridge.optionB"><option value="1"' +
       (state.fridge.optionB ? ' selected' : '') +
-      '>Option B: only the units above 10</option><option value="0"' +
+      '>B: units above 10</option><option value="0"' +
       (state.fridge.optionB ? '' : ' selected') +
-      '>Option A: all units on the invoice</option></select></td></tr>' +
-      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not counted as a unit or trip. Charged on every ERP line with item code REPAIR-MATERIAL (CSIDI and CSIII), per quantity, on top of the cooker rate.</span></td><td class="rc-num">' +
+      '>A: every unit</option></select></td></tr>' +
+      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not a unit or trip; every REPAIR-MATERIAL line, per quantity, on top of the cooker rate</span></td><td class="rc-num">' +
       num('fridge.plugAmount', state.fridge.plugAmount) +
       '</td></tr>' +
       '</tbody></table></div>' +
-      '<div class="rc-grid">' +
+      '<div class="rc-stack">' +
       MODES.map(rateTable).join('') +
-      '</div>' +
+      '</div></div>' +
       '<p class="form-note">Volume discount tiers, job-type rates and transport stay as in the live logic. Washing machines, cookers and every other category keep today&rsquo;s logic with these rates.</p>' +
       '<div class="rc-bar-btns"><button type="button" class="button" data-sc-run>Run scenario</button> <button type="button" class="button button-outline" data-sc-reset>Reset to live rates</button> <button type="button" class="button button-outline" data-sc-export disabled>Export comparison (.xlsx)</button> <span class="form-note" data-sc-msg></span></div>' +
       '<div data-sc-results></div>';
@@ -28524,7 +28525,7 @@ ${bodyHtml}
     const show = (r) => {
       const f = r.fridges;
       results.innerHTML =
-        '<div class="rc-grid">' +
+        '<div class="rc-kpis sc-kpis">' +
         [
           ['Current logic (live)', rdMoney2(r.current), ''],
           ['New logic (scenario)', rdMoney2(r.scenario), ''],
@@ -28540,13 +28541,13 @@ ${bodyHtml}
         ]
           .map(
             ([label, value, cls]) =>
-              '<div class="rc-box"><div class="rc-box-head"><span>' +
+              '<div class="rc-kpi"><small>' +
               e(label) +
-              '</span></div><p class="rc-big' +
-              cls +
+              '</small><b class="' +
+              cls.trim() +
               '">' +
               e(value) +
-              '</p></div>',
+              '</b></div>',
           )
           .join('') +
         '</div>' +
@@ -28919,57 +28920,61 @@ ${bodyHtml}
               v +
               '" />'
             : rdMoney2(v);
-        const fridgeBtn = (val, text) =>
-          '<label class="rc-radio"><input type="radio" name="flEnabled" data-fl-on value="' +
+        const seg = (val, text, cls) =>
+          '<label class="fl-opt ' +
+          cls +
+          '"><input type="radio" name="flEnabled" data-fl-on value="' +
           val +
           '"' +
           ((fl.enabled ? '1' : '0') === val ? ' checked' : '') +
           (canEdit ? '' : ' disabled') +
-          ' /> ' +
+          ' /><span>' +
           text +
-          '</label>';
+          '</span></label>';
+        const diff = fig.portal - fig.workbook;
         html +=
-          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>' +
-          (fl.enabled ? 'new logic in force' : 'old logic in force') +
-          '</span></div><div style="padding:10px 16px"><div class="rc-sub">Fridge pricing: ' +
-          fridgeBtn('1', 'New logic') +
-          ' ' +
-          fridgeBtn('0', 'Old logic') +
+          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>fridges and the 13A plug, CSIDI and CSIII</span></div>' +
+          '<div class="fl-top"><div class="fl-seg" role="radiogroup" aria-label="Fridge pricing logic">' +
+          seg('1', 'New logic', 'fl-new') +
+          seg('0', 'Old logic', 'fl-old') +
+          '</div><span class="fl-state">' +
+          (fl.enabled ? 'New logic in force' : 'Old logic in force') +
           (canEdit ? '' : ' (admins change this)') +
-          '</div>' +
+          '</span>' +
+          (canEdit
+            ? '<button type="button" class="button" data-fl-save>Save &amp; recalculate</button>'
+            : '') +
+          '</div><div class="fl-body">' +
           '<table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
-          '<tr><td>Fridge 400 L and under, 1 unit</td><td class="rc-num">market rate (Appliance table: Refrigerator)</td></tr>' +
-          '<tr><td>Fridge 400 L and under, 2 to 10 units: base</td><td class="rc-num">' +
+          '<tr><td>400 L and under, 1 unit</td><td class="rc-num">market rate</td></tr>' +
+          '<tr><td>400 L and under, 2 to 10 units: base</td><td class="rc-num">' +
           fnum('smallBase', fl.smallBase) +
-          '</td></tr><tr><td>Fridge 400 L and under, units above 10: second tier</td><td class="rc-num">' +
+          '</td></tr><tr><td>400 L and under, units above 10: second tier</td><td class="rc-num">' +
           fnum('smallOver10', fl.smallOver10) +
-          '</td></tr><tr><td>Fridge 400 L and under, minimum</td><td class="rc-num">' +
+          '</td></tr><tr><td>400 L and under, minimum</td><td class="rc-num">' +
           fnum('smallMinimum', fl.smallMinimum) +
           '</td></tr><tr><td>Second tier applies to</td><td class="rc-num">' +
           (canEdit
-            ? '<select data-fl="optionB"><option value="1"' +
+            ? '<select data-fl="optionB" class="rc-input" style="width:auto"><option value="1"' +
               (fl.optionB ? ' selected' : '') +
-              '>only the units above 10</option><option value="0"' +
+              '>units above 10</option><option value="0"' +
               (fl.optionB ? '' : ' selected') +
-              '>every unit when over 10</option></select>'
+              '>every unit</option></select>'
             : fl.optionB
-              ? 'only the units above 10'
-              : 'every unit when over 10') +
-          '</td></tr><tr><td>Fridge over 400 L: 1 unit market, 2 or more special</td><td class="rc-num">special rate (Appliance table: Refrigerator)</td></tr>' +
-          '<tr><td>13A plug, per unit, on top of the cooker rate, no discount</td><td class="rc-num">' +
+              ? 'units above 10'
+              : 'every unit') +
+          '</td></tr><tr><td>Over 400 L: 1 unit market, 2 or more</td><td class="rc-num">special rate</td></tr>' +
+          '<tr><td>13A plug, per unit, on top of the cooker, no discount</td><td class="rc-num">' +
           fnum('plugAmount', fl.plugAmount) +
           '</td></tr></tbody></table>' +
-          (canEdit
-            ? '<p><button type="button" class="button" data-fl-save>Save fridge pricing &amp; recalculate</button></p>'
-            : '') +
-          '<table class="rc-t"><thead><tr><th>Revenue of the active workbook</th><th class="rc-num">AED</th></tr></thead><tbody>' +
-          '<tr><td>Workbook figure (master .xlsm as uploaded)</td><td class="rc-num">' +
+          '<div class="fl-figs"><div class="fl-fig"><small>Workbook figure</small><b>' +
           rdMoney2(fig.workbook) +
-          '</td></tr><tr><td>Portal figure (what every tab and export shows)</td><td class="rc-num">' +
+          '</b></div><div class="fl-fig"><small>Portal figure (all tabs and exports)</small><b>' +
           rdMoney2(fig.portal) +
-          '</td></tr><tr><td>Difference</td><td class="rc-num">' +
-          signed(fig.portal - fig.workbook) +
-          '</td></tr></tbody></table></div></div>';
+          '</b></div><div class="fl-fig fl-diff"><small>Difference</small><b>' +
+          (diff > 0 ? '+' : diff < 0 ? '\u2212' : '') +
+          rdMoney2(Math.abs(diff)) +
+          '</b></div></div></div></div>';
       }
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
@@ -33153,7 +33158,7 @@ ${bodyHtml}
         '<p class="form-note rl-foot">Revenue everywhere in the portal is the workbook figure, not an ERP posting. Rates, tiers and charges on this page are read from the workbook’s pricing sheets, so they change when a new workbook is uploaded.</p>';
       if (ratesOnly) {
         body.innerHTML =
-          '<div class="rl-hero"><div><h2>Rate card</h2><p>The rates, volume discounts and once-per-invoice charges read from the uploaded master workbook, and how the workbook compares with these rules.</p></div><div class="rl-hero-meta"><span class="rl-chip muted">' +
+          '<div class="rl-hero rl-hero-slim"><div><h2>Rate card</h2><p>The rates, volume discounts and once-per-invoice charges read from the uploaded master workbook, and how the workbook compares with these rules.</p></div><div class="rl-hero-meta"><span class="rl-chip muted">' +
           e(d.batch.fileName) +
           '</span></div></div>' +
           '<div data-rc-host></div>' +

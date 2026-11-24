@@ -93,12 +93,12 @@ test('Rate card shows the fridge pricing card and saves the switch', async ({ pa
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.evaluate(() => document.getElementById('revenueDashNav')?.click());
   await page.locator('.rd-subtab-btn', { hasText: 'Rate card' }).click();
-  await expect(page.getByText('new logic in force')).toBeVisible();
+  await expect(page.getByText('New logic in force')).toBeVisible();
   await expect(page.getByText('92,335.75')).toBeVisible();
   await expect(page.getByText('93,617')).toBeVisible();
   await page.getByLabel('Old logic').check();
-  await page.getByRole('button', { name: /Save fridge pricing/ }).click();
-  await expect(page.getByText('old logic in force')).toBeVisible();
+  await page.getByRole('button', { name: 'Save & recalculate' }).click();
+  await expect(page.getByText('Old logic in force')).toBeVisible();
   expect(saves[0]).toMatchObject({ enabled: false, smallBase: 30, plugAmount: 15 });
 });
 

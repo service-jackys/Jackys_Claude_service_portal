@@ -14850,6 +14850,227 @@
         color: #157347;
         font-size: 0.9rem;
       }
+
+      /* Rate card and Scenario test, compact look (modification #306). Later rules win over the ones above. */
+      .rc-bar {
+        padding: 8px 12px;
+        gap: 8px;
+        margin: 0 0 10px;
+        border-radius: 12px;
+      }
+      .rc-grid {
+        gap: 10px;
+        margin: 0 0 10px;
+      }
+      .rc-box {
+        border-radius: 12px;
+        margin: 0 0 10px;
+        box-shadow: 0 1px 2px rgba(15, 35, 60, 0.05);
+      }
+      .rc-box-head {
+        padding: 8px 14px;
+        background: transparent;
+        align-items: baseline;
+      }
+      .rc-box-head b {
+        font-size: 0.86rem;
+        letter-spacing: 0.01em;
+      }
+      .rc-box-head span {
+        font-size: 0.74rem;
+      }
+      .rc-t {
+        font-size: 0.8rem;
+      }
+      .rc-t th {
+        padding: 6px 12px;
+        font-size: 0.66rem;
+        background: var(--surface-soft);
+      }
+      .rc-t td {
+        padding: 6px 12px;
+      }
+      .rc-t td:first-child {
+        white-space: normal;
+      }
+      .rc-grid .rc-t th,
+      .rc-grid .rc-t td {
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+      .rc-input {
+        width: 68px;
+        padding: 3px 8px;
+        border-radius: 8px;
+        font-size: 0.8rem;
+      }
+      .rc-kpis {
+        gap: 8px;
+        margin: 0 0 10px;
+      }
+      .rc-kpi {
+        padding: 8px 12px;
+        border-radius: 12px;
+      }
+      .rc-kpi small {
+        font-size: 0.7rem;
+      }
+      .rc-kpi b {
+        margin-top: 2px;
+        font-size: 1.1rem;
+      }
+      .rc-msg {
+        padding: 6px 12px;
+        margin: 0 0 8px;
+        font-size: 0.8rem;
+      }
+      .rl-hero.rl-hero-slim {
+        padding: 10px 16px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+      }
+      .rl-hero-slim h2 {
+        font-size: 1.05rem;
+        margin: 0;
+      }
+      .rl-hero-slim p {
+        font-size: 0.78rem;
+        margin: 2px 0 0;
+      }
+      .rl-hero-slim .rl-hero-meta {
+        margin: 0;
+      }
+      .sc-top {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.35fr);
+        gap: 10px;
+        align-items: start;
+        margin-bottom: 10px;
+      }
+      .sc-top .rc-box {
+        margin: 0;
+      }
+      .rc-kpis.sc-kpis {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+      }
+      .rc-kpi b.rc-neg {
+        color: #b3261e;
+      }
+      .rc-kpi b.rc-pos {
+        color: #1f7a45;
+      }
+      .rc-bar-btns .button {
+        padding: 5px 14px;
+        font-size: 0.8rem;
+      }
+      @media (max-width: 900px) {
+        .sc-top {
+          grid-template-columns: 1fr;
+        }
+      }
+      /* iPhone-style segmented pill for New logic / Old logic */
+      .fl-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .fl-seg {
+        display: inline-flex;
+        padding: 3px;
+        gap: 2px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--ink) 10%, var(--surface-soft));
+      }
+      .fl-opt {
+        position: relative;
+        cursor: pointer;
+      }
+      .fl-opt input {
+        position: absolute;
+        opacity: 0;
+        inset: 0;
+        margin: 0;
+        cursor: pointer;
+      }
+      .fl-opt span {
+        display: block;
+        padding: 4px 18px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: var(--muted);
+        transition:
+          background 0.18s,
+          color 0.18s,
+          box-shadow 0.18s;
+      }
+      .fl-opt input:checked + span {
+        background: var(--surface);
+        color: var(--ink);
+        box-shadow: 0 1px 3px rgba(15, 35, 60, 0.25);
+      }
+      .fl-opt.fl-new input:checked + span {
+        background: #1f9d55;
+        color: #fff;
+      }
+      .fl-opt input:focus-visible + span {
+        outline: 2px solid #1f6feb;
+        outline-offset: 2px;
+      }
+      .fl-opt input:disabled + span {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      .fl-state {
+        font-size: 0.76rem;
+        color: var(--muted);
+      }
+      .fl-top .button {
+        margin-left: auto;
+        padding: 4px 14px;
+        font-size: 0.8rem;
+      }
+      .fl-body {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+      }
+      .fl-body > .rc-t {
+        align-self: start;
+      }
+      .fl-figs {
+        display: grid;
+        gap: 8px;
+        padding: 10px 14px;
+        align-content: start;
+        border-left: 1px solid var(--line);
+        background: var(--surface-soft);
+      }
+      .fl-fig small {
+        display: block;
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+      .fl-fig b {
+        font-size: 1.05rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .fl-fig.fl-diff b {
+        color: #b3261e;
+      }
+      @media (max-width: 820px) {
+        .fl-body {
+          grid-template-columns: 1fr;
+        }
+        .fl-figs {
+          border-left: 0;
+          border-top: 1px solid var(--line);
+        }
+      }
     </style>
   </head>
   <body>
