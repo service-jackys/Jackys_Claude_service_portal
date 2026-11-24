@@ -355,6 +355,57 @@ export function createRevenueDashboardHandlers(
         }
       },
     ],
+    scenarioDefaults: [
+      requirePermission('revenue_dashboard.read'),
+      async (_request, response, next) => {
+        try {
+          response.json(await service.scenarioDefaults());
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 404, error.code, 'Not Found', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    scenarioRun: [
+      requirePermission('revenue_dashboard.read'),
+      async (request, response, next) => {
+        try {
+          response.json(await service.scenarioRun(request.body));
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    scenarioExport: [
+      requirePermission('revenue_dashboard.export'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const buffer = await service.scenarioExport(
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response
+            .type('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+            .set('Content-Disposition', 'attachment; filename="fridge-scenario-comparison.xlsx"')
+            .send(buffer);
+        } catch (error) {
+          if (error instanceof RevenueDashboardServiceError) {
+            problem(response, 400, error.code, 'Bad Request', error.message);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
     logicExample: [
       requirePermission('revenue_dashboard.tab_logic'),
       async (request, response, next) => {

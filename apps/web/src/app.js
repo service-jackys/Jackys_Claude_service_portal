@@ -28399,6 +28399,252 @@ ${bodyHtml}
     step1();
   }
 
+  // ---- Scenario test tab (modification #304): the new fridge logic next to the live logic. Nothing is saved. ----
+  async function rdScenarioPanel(host) {
+    const e = escapeHtml;
+    const clone = (o) => JSON.parse(JSON.stringify(o));
+    const signed = (v) => (v > 0 ? '+' : v < 0 ? '−' : '') + rdMoney2(Math.abs(v));
+    const tone = (v) => (v > 0.004 ? ' rc-pos' : v < -0.004 ? ' rc-neg' : '');
+    host.innerHTML = '<p class="form-note">Loading the scenario test&hellip;</p>';
+    let defaults;
+    try {
+      defaults = await apiRequest('/api/revenue-dashboard/scenario');
+    } catch (error) {
+      host.innerHTML =
+        '<p class="form-note">' + e(error.message || 'Scenario test is not available.') + '</p>';
+      return;
+    }
+    const state = { rates: clone(defaults.live), fridge: clone(defaults.fridge), result: null };
+    const MODES = [
+      ['deliveryInstall', 'Delivery + installation (CSIDI)'],
+      ['install', 'Installation only (CSIII)'],
+    ];
+    const num = (path, value) =>
+      '<input type="number" step="0.01" min="0" class="rc-input" data-sc="' +
+      path +
+      '" value="' +
+      value +
+      '" />';
+    const rateTable = ([key, title]) =>
+      '<div class="rc-box"><div class="rc-box-head"><b>' +
+      e(title) +
+      '</b><span>AED per unit</span></div><table class="rc-t"><thead><tr><th>Category</th><th class="rc-num">Special</th><th class="rc-num">Market</th><th class="rc-num">Minimum</th></tr></thead><tbody>' +
+      state.rates[key].categories
+        .map((c, i) => {
+          const fridge = c.category === defaults.fridgeCategory;
+          return (
+            '<tr><td>' +
+            e(fridge ? 'Refrigerator, over 400 L' : c.category.replace('Freestanding ', '')) +
+            (fridge
+              ? '<br><span class="form-note">2 or more units = special rate, 1 unit = market rate, no discount tiers</span>'
+              : '') +
+            '</td>' +
+            ['batchRate', 'standardRate', 'minimumRate']
+              .map(
+                (f) =>
+                  '<td class="rc-num">' +
+                  num('rates.' + key + '.categories.' + i + '.' + f, c[f]) +
+                  '</td>',
+              )
+              .join('') +
+            '</tr>'
+          );
+        })
+        .join('') +
+      '</tbody></table></div>';
+    host.innerHTML =
+      '<div class="rc-bar" style="background:#FFF6DC;border-color:#E5C766"><div class="rc-bar-main"><b>Scenario test: nothing here changes your dashboard.</b><span class="rc-sub">The live figures keep using the current logic. This tab runs the new fridge logic on the same workbook, next to it, so you can compare before confirming. Fridge litres come from the Stock Master.</span></div></div>' +
+      '<div class="rc-box"><div class="rc-box-head"><b>Fridge 400 L and under</b><span>both CSIDI and CSIII</span></div><table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
+      '<tr><td>1 unit</td><td class="rc-num">market rate (from the tables below)</td></tr>' +
+      '<tr><td>2 to 10 units: base</td><td class="rc-num">' +
+      num('fridge.smallBase', state.fridge.smallBase) +
+      '</td></tr>' +
+      '<tr><td>Over 10 units: second tier</td><td class="rc-num">' +
+      num('fridge.smallOver10', state.fridge.smallOver10) +
+      '</td></tr>' +
+      '<tr><td>Minimum</td><td class="rc-num">' +
+      num('fridge.smallMinimum', state.fridge.smallMinimum) +
+      '</td></tr>' +
+      '<tr><td>Over 10 units applies to</td><td class="rc-num"><select data-sc="fridge.optionB"><option value="1"' +
+      (state.fridge.optionB ? ' selected' : '') +
+      '>Option B: only the units above 10</option><option value="0"' +
+      (state.fridge.optionB ? '' : ' selected') +
+      '>Option A: all units on the invoice</option></select></td></tr>' +
+      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not counted as a unit or trip. No plug line is counted until the ERP line wording is added.</span></td><td class="rc-num">' +
+      num('fridge.plugAmount', state.fridge.plugAmount) +
+      '</td></tr>' +
+      '</tbody></table></div>' +
+      '<div class="rc-grid">' +
+      MODES.map(rateTable).join('') +
+      '</div>' +
+      '<p class="form-note">Volume discount tiers, job-type rates and transport stay as in the live logic. Washing machines, cookers and every other category keep today&rsquo;s logic with these rates.</p>' +
+      '<div class="rc-bar-btns"><button type="button" class="button" data-sc-run>Run scenario</button> <button type="button" class="button button-outline" data-sc-reset>Reset to live rates</button> <button type="button" class="button button-outline" data-sc-export disabled>Export comparison (.xlsx)</button> <span class="form-note" data-sc-msg></span></div>' +
+      '<div data-sc-results></div>';
+    const msg = host.querySelector('[data-sc-msg]');
+    const results = host.querySelector('[data-sc-results]');
+    const exportBtn = host.querySelector('[data-sc-export]');
+    const setPath = (path, raw) => {
+      const parts = path.split('.');
+      let target = state;
+      for (let i = 0; i < parts.length - 1; i++) target = target[parts[i]];
+      const last = parts[parts.length - 1];
+      target[last] = last === 'optionB' ? raw === '1' : Math.max(0, Number(raw) || 0);
+    };
+    host
+      .querySelectorAll('[data-sc]')
+      .forEach((el) => el.addEventListener('change', () => setPath(el.dataset.sc, el.value)));
+    const body = () => JSON.stringify({ scenario: { rates: state.rates, fridge: state.fridge } });
+    const table = (title, rows, first) =>
+      '<div class="rc-box"><div class="rc-box-head"><b>' +
+      e(title) +
+      '</b></div><div class="table-wrap"><table class="rc-t"><thead><tr><th>' +
+      e(first) +
+      '</th><th class="rc-num">Jobs</th><th class="rc-num">Units</th><th class="rc-num">Current</th><th class="rc-num">New</th><th class="rc-num">Difference</th></tr></thead><tbody>' +
+      rows
+        .map(
+          (r) =>
+            '<tr><td>' +
+            e(r.label) +
+            '</td><td class="rc-num">' +
+            r.jobs +
+            '</td><td class="rc-num">' +
+            r.units +
+            '</td><td class="rc-num">' +
+            rdMoney2(r.current) +
+            '</td><td class="rc-num">' +
+            rdMoney2(r.scenario) +
+            '</td><td class="rc-num' +
+            tone(r.change) +
+            '">' +
+            signed(r.change) +
+            '</td></tr>',
+        )
+        .join('') +
+      '</tbody></table></div></div>';
+    const show = (r) => {
+      const f = r.fridges;
+      results.innerHTML =
+        '<div class="rc-grid">' +
+        [
+          ['Current logic (live)', rdMoney2(r.current), ''],
+          ['New logic (scenario)', rdMoney2(r.scenario), ''],
+          [
+            'Difference',
+            signed(r.change) +
+              ' (' +
+              (r.changePct > 0 ? '+' : r.changePct < 0 ? '−' : '') +
+              Math.abs(r.changePct) +
+              '%)',
+            tone(r.change),
+          ],
+        ]
+          .map(
+            ([label, value, cls]) =>
+              '<div class="rc-box"><div class="rc-box-head"><span>' +
+              e(label) +
+              '</span></div><p class="rc-big' +
+              cls +
+              '">' +
+              e(value) +
+              '</p></div>',
+          )
+          .join('') +
+        '</div>' +
+        table('Where the difference comes from', r.byCategory, 'Category') +
+        table('By job type', r.byJobType, 'Job type') +
+        (r.bySalesperson.length
+          ? table('By salesperson (only those who change)', r.bySalesperson, 'Salesperson')
+          : '') +
+        '<div class="rc-box"><div class="rc-box-head"><b>Fridges priced</b><span>' +
+        f.lines +
+        ' lines, ' +
+        f.units +
+        ' units</span></div><p class="form-note rd-pad">' +
+        (f.defaultLines
+          ? '<b>' +
+            f.defaultLines +
+            ' line(s), ' +
+            f.defaultUnits +
+            ' unit(s)</b> use the 400 L default because no litres were found in the Stock Master (marked <b>Default litres</b> below). Fix them in Stock Master &gt; Fridge capacity and run again.'
+          : 'Every fridge line has litres from the Stock Master.') +
+        (f.modelsNotInMaster.length
+          ? ' Models not found in the Stock Master: ' + e(f.modelsNotInMaster.join(', ')) + '.'
+          : '') +
+        '</p></div>' +
+        '<div class="rc-box"><div class="rc-box-head"><b>Invoices that change, or use default litres</b><span>' +
+        r.invoiceCount +
+        ' lines' +
+        (r.invoiceCount > r.invoices.length
+          ? ', biggest ' + r.invoices.length + ' shown (all are in the export)'
+          : '') +
+        '</span></div><div class="table-wrap"><table class="rc-t"><thead><tr><th>Invoice</th><th>Salesperson</th><th>Type</th><th>Category</th><th class="rc-num">Units</th><th class="rc-num">Litres</th><th>Rule applied</th><th class="rc-num">Current</th><th class="rc-num">New</th><th class="rc-num">Difference</th></tr></thead><tbody>' +
+        r.invoices
+          .map(
+            (i) =>
+              '<tr><td>' +
+              e(i.invoice || '') +
+              '</td><td>' +
+              e(i.salesPerson || '') +
+              '</td><td>' +
+              e(i.jobType) +
+              '</td><td>' +
+              e(i.category) +
+              '</td><td class="rc-num">' +
+              i.units +
+              '</td><td class="rc-num">' +
+              (i.litres === null ? '' : i.litres) +
+              (i.defaultLitres ? ' <span class="rc-chip">Default litres</span>' : '') +
+              '</td><td>' +
+              e(i.rule) +
+              '</td><td class="rc-num">' +
+              rdMoney2(i.current) +
+              '</td><td class="rc-num">' +
+              rdMoney2(i.scenario) +
+              '</td><td class="rc-num' +
+              tone(i.change) +
+              '">' +
+              signed(i.change) +
+              '</td></tr>',
+          )
+          .join('') +
+        '</tbody></table></div></div>';
+      exportBtn.disabled = false;
+    };
+    const run = async () => {
+      msg.textContent = 'Working…';
+      try {
+        state.result = await apiRequest('/api/revenue-dashboard/scenario/run', {
+          method: 'POST',
+          body: body(),
+        });
+        show(state.result);
+        msg.textContent = '';
+      } catch (error) {
+        msg.textContent = error.message || 'Could not run the scenario.';
+      }
+    };
+    host.querySelector('[data-sc-run]').addEventListener('click', run);
+    host.querySelector('[data-sc-reset]').addEventListener('click', () => rdScenarioPanel(host));
+    exportBtn.addEventListener('click', async () => {
+      msg.textContent = 'Preparing the Excel…';
+      try {
+        const headers = new Headers({ 'content-type': 'application/json' });
+        if (authToken) headers.set('authorization', 'Bearer ' + authToken);
+        const response = await fetch('/api/revenue-dashboard/scenario/export', {
+          method: 'POST',
+          headers,
+          body: body(),
+        });
+        if (!response.ok) throw new Error('The export could not be completed.');
+        rdDownloadBlob(await response.blob(), 'fridge-scenario-comparison.xlsx');
+        msg.textContent = 'Downloaded fridge-scenario-comparison.xlsx';
+      } catch (error) {
+        msg.textContent = error.message || 'The export could not be completed.';
+      }
+    });
+    await run();
+  }
+
   /** Banner shown on every Service Revenue Dashboard tab while custom rates are locked (nothing when workbook rates are in use). */
   function rdCustomRatesBanner(st, onOpen) {
     if (!st || !st.active) return null;
@@ -30287,7 +30533,11 @@ ${bodyHtml}
     // Transport rules tab (#251): for everyone who can open the dashboard; switches are admin only.
     // Rate card tab (#254): the rates and the workbook check, moved out of Logic applied.
     const shownTabs = allowedTabs.length
-      ? [...allowedTabs, ...(allowedTabs.includes('logic') ? ['rates'] : []), 'transport']
+      ? [
+          ...allowedTabs,
+          ...(allowedTabs.includes('logic') ? ['rates', 'scenario'] : []),
+          'transport',
+        ]
       : [];
     let tab = allowedTabs[0] || 'overview';
     let reportView = 'drill';
@@ -30327,6 +30577,7 @@ ${bodyHtml}
           ['reports', 'Reports'],
           ['logic', 'Logic applied'],
           ['rates', 'Rate card'],
+          ['scenario', 'Scenario test'],
           ['transport', 'Transport rules'],
         ]
           .filter(([id]) => shownTabs.includes(id))
@@ -33453,6 +33704,11 @@ ${bodyHtml}
         drawTabs();
         if (tab === 'logic' || tab === 'rates') {
           await drawLogic(sum, tab === 'rates');
+          return;
+        }
+        if (tab === 'scenario') {
+          barEl.innerHTML = '';
+          await rdScenarioPanel(body);
           return;
         }
         drawFilterBar(sum.summary.options);

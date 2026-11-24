@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 304,
+    "title": "Service Revenue Dashboard: Scenario test tab (new fridge logic, test only)",
+    "area": "Revenue",
+    "date": "2026-11-24",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management wants fridges priced by size and quantity instead of the volume discount tiers. Because it touches the whole dashboard, it is tried first on a copy: nothing live changes until you confirm.",
+    "changes": [
+      "What changed: New \"Scenario test\" tab next to the Rate card on the Service Revenue Dashboard. It runs your uploaded workbook through the new fridge logic next to the current logic and shows both totals and the difference: by category, job…"
+    ],
+    "needsYou": "pull, restart the API (no migration), hard-refresh, open Service Revenue Dashboard > Scenario test, compare, tell me which option (A or B) and rates to keep.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/fridge-scenario.ts, scenario-run.ts, scenario-export.ts (new), service.ts, routes.ts, pricing-logic.ts and rate-overrides.ts (two helpers exported)…"
+  },
+  {
     "id": 303,
     "title": "Stock Master: fridge capacity (litres)",
     "area": "Stock & masters",

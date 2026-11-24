@@ -1,4 +1,8 @@
 import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
+import { capacityForCodes } from '../../../../packages/db/src/stock-master.js';
+import { DEFAULT_FRIDGE_SCENARIO, FRIDGE_CATEGORY } from './fridge-scenario.js';
+import { runScenario } from './scenario-run.js';
+import { buildScenarioWorkbook } from './scenario-export.js';
 import { z } from 'zod';
 import {
   batchSummary,
@@ -1442,6 +1446,104 @@ export function createRevenueDashboardService(pool: Pool) {
     return rateCard();
   }
 
+  // ---- Scenario test of the new fridge logic (modification #304). Read only: nothing is saved. ----
+  const scenarioSchema = z.object({
+    rates: rateSetSchema,
+    fridge: z.object({
+      smallBase: rate,
+      smallOver10: rate,
+      smallMinimum: rate,
+      optionB: z.boolean(),
+      plugAmount: rate,
+    }),
+  });
+
+  async function scenarioContext(client: PoolClient) {
+    const batch = await findActiveBatch(client, 'revenue');
+    if (!batch)
+      throw new RevenueDashboardServiceError('no-upload', 'Upload the master workbook first.');
+    const { inputs, base } = await loadRevenueInputs(client, batch.id);
+    const custom = parseRateSet((await getRateOverrides(client)).payload);
+    return { batch, inputs, base, custom };
+  }
+
+  async function scenarioDefaults() {
+    const client = await pool.connect();
+    try {
+      const { batch, base, custom } = await scenarioContext(client);
+      return {
+        batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
+        live: custom ?? ratesOf(base),
+        customLocked: !!custom,
+        fridge: DEFAULT_FRIDGE_SCENARIO,
+        fridgeCategory: FRIDGE_CATEGORY,
+        discountLabels: {
+          deliveryInstall: base.deliveryInstall.discounts.map((d) => d.tier),
+          install: base.install.discounts.map((d) => d.tier),
+        },
+      };
+    } finally {
+      client.release();
+    }
+  }
+
+  async function scenarioCompute(body: unknown) {
+    const parsed = scenarioSchema.safeParse((body as { scenario?: unknown } | null)?.scenario);
+    if (!parsed.success)
+      throw new RevenueDashboardServiceError(
+        'invalid-rates',
+        'Send every scenario rate as a number of 0 or more.',
+      );
+    const client = await pool.connect();
+    try {
+      const { batch, inputs, base, custom } = await scenarioContext(client);
+      checkRateSet(base, parsed.data.rates);
+      const models: string[] = [];
+      for (const l of inputs.lines) {
+        const p = l.pricing as {
+          applianceCategory?: string | null;
+          erpModels?: string | null;
+        } | null;
+        if (p?.applianceCategory === FRIDGE_CATEGORY && p.erpModels)
+          models.push(...p.erpModels.split(/[,;/]/));
+      }
+      const lookup = await capacityForCodes(client, models);
+      const result = runScenario(inputs, base, custom, parsed.data, lookup);
+      return { batch, settings: parsed.data, result };
+    } finally {
+      client.release();
+    }
+  }
+
+  async function scenarioRun(body: unknown) {
+    const { batch, result } = await scenarioCompute(body);
+    const { invoices, ...rest } = result;
+    return {
+      batch: { id: batch.id, fileName: batch.fileName, uploadedAt: batch.uploadedAt },
+      ...rest,
+      invoiceCount: invoices.length,
+      invoices: invoices.slice(0, 300),
+    };
+  }
+
+  async function scenarioExport(body: unknown, profileId: string, requestId?: string) {
+    const { batch, settings, result } = await scenarioCompute(body);
+    const client = await pool.connect();
+    try {
+      await insertAuditEvent(client, {
+        actorProfileId: profileId,
+        action: 'revenue_dashboard.scenario_exported',
+        targetType: 'revenue_rate_overrides',
+        targetId: '1',
+        requestId,
+        metadata: { batchId: batch.id },
+      });
+    } finally {
+      client.release();
+    }
+    return buildScenarioWorkbook(batch.fileName, settings, result);
+  }
+
   // Writes the locked custom rates into Pricing Masters (D+I Admin Entry). Both confirmation steps
   // happen on screen; the server also wants the word APPLY so a stray call cannot change the masters.
   async function applyRateCardToMasters(body: unknown, profileId: string, requestId: string) {
@@ -1539,6 +1641,9 @@ export function createRevenueDashboardService(pool: Pool) {
     resetRateCard,
     applyRateCardToMasters,
     restoreMastersToWorkbookRates,
+    scenarioDefaults,
+    scenarioRun,
+    scenarioExport,
   };
 }
 
