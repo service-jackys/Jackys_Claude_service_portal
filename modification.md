@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #305 — Scenario test: 13A plug line (REPAIR-MATERIAL)
+
+**Date:** 2026-11-24
+
+**Why.** ERP now bills the 13A plug on a cooker job as its own line with value 0 (item code REPAIR-MATERIAL, "SERVICE - MATERIAL PURCHASE FOR REPAIR/INSTALLATION", seen on invoice 16101580). The portal charges an amount you set for each plug.
+
+**What changed.** The Scenario test tab now counts the REPAIR-MATERIAL lines of CSIDI and CSIII invoices (read from the master's Net Sale Current sheet) and adds the plug amount (15 now, editable on the tab) times the line quantity, on top of the cooker rate. No discount, not counted as a unit, a trip or transport. A new "13A plugs (new)" row shows in the totals and the by-category table, each plug invoice is listed with its rule, and the Excel export carries the plug count and total. A plug line whose invoice has no revenue line is listed as not matched. Live figures are not changed (the live switch is still to come).
+
+**Files.** apps/api/src/revenue-dashboard/fridge-scenario.ts, scenario-run.ts, scenario-export.ts, service.ts, apps/web/src/app.js, tests/unit/scenario-run.test.ts, tests/e2e/rate-scenario.spec.ts, modification.md.
+
+**Needs you:** pull, restart the API (no migration), hard-refresh. To see it work, upload a master that includes the plug invoice (for example 16101580) and open Scenario test.
+
 ## Modification #304 — Service Revenue Dashboard: Scenario test tab (new fridge logic, test only)
 
 **Date:** 2026-11-24

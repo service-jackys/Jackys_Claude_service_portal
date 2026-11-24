@@ -3,6 +3,7 @@ import test from 'node:test';
 import { DEFAULT_PRICING_RULES } from '../../apps/api/src/revenue-dashboard/pricing-logic.js';
 import { DEFAULT_FRIDGE_SCENARIO } from '../../apps/api/src/revenue-dashboard/fridge-scenario.js';
 import { ratesOf } from '../../apps/api/src/revenue-dashboard/rate-overrides.js';
+import { plugQuantities } from '../../apps/api/src/revenue-dashboard/fridge-scenario.js';
 import { runScenario } from '../../apps/api/src/revenue-dashboard/scenario-run.js';
 
 const line = (
@@ -101,4 +102,71 @@ test('changing option B to A only changes fridges over 10 units', () => {
   );
   assert.equal(b.scenario, 10 * 30 + 2 * 20);
   assert.equal(a.scenario, 12 * 20);
+});
+
+test('13A plug lines add amount x quantity once per invoice, outside units and discounts', () => {
+  const plugs = new Map([
+    ['A|CSIII', 2],
+    ['NOPE|CSIII', 1],
+  ]);
+  const without = runScenario(inputs as never, DEFAULT_PRICING_RULES, null, settings, lookup);
+  const r = runScenario(inputs as never, DEFAULT_PRICING_RULES, null, settings, lookup, plugs);
+  assert.equal(r.scenario, without.scenario + 30);
+  assert.equal(r.current, without.current);
+  assert.deepEqual(r.plugs.unmatched, ['NOPE|CSIII']);
+  assert.equal(r.plugs.units, 2);
+  assert.equal(r.plugs.total, 30);
+  const row = r.byCategory.find((c) => c.key === 'plugs')!;
+  assert.equal(row.units, 2);
+  assert.equal(row.scenario, 30);
+  assert.equal(r.invoices.filter((i) => i.category === '13A plug').length, 1);
+});
+
+test('plug quantities are read from REPAIR-MATERIAL lines of CSIDI and CSIII only', () => {
+  const rows = [
+    {
+      data: {
+        'Invi Item Code': 'REPAIR-MATERIAL',
+        'Txn Code': 'CSIDI',
+        'Inv No': 16101580,
+        QTY: 1,
+      },
+    },
+    {
+      data: {
+        'Invi Item Code': ' repair-material ',
+        'Txn Code': 'CSIDI',
+        'Inv No': '16101580',
+        QTY: 2,
+      },
+    },
+    {
+      data: {
+        'Invi Item Code': 'REPAIR-MATERIAL',
+        'Txn Code': 'CSIII',
+        'Inv No': 16101600,
+        QTY: 4,
+      },
+    },
+    {
+      data: {
+        'Invi Item Code': 'REPAIR-MATERIAL',
+        'Txn Code': 'CSIDO',
+        'Inv No': 16101700,
+        QTY: 1,
+      },
+    },
+    {
+      data: {
+        'Invi Item Code': 'SERV- DEL&INST -JERC',
+        'Txn Code': 'CSIDI',
+        'Inv No': 16101580,
+        QTY: 1,
+      },
+    },
+  ];
+  const q = plugQuantities(rows);
+  assert.equal(q.get('16101580|CSIDI'), 3);
+  assert.equal(q.get('16101600|CSIII'), 4);
+  assert.equal(q.size, 2);
 });

@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 305,
+    "title": "Scenario test: 13A plug line (REPAIR-MATERIAL)",
+    "area": "General",
+    "date": "2026-11-24",
+    "approxDate": false,
+    "status": null,
+    "summary": "ERP now bills the 13A plug on a cooker job as its own line with value 0 (item code REPAIR-MATERIAL, \"SERVICE - MATERIAL PURCHASE FOR REPAIR/INSTALLATION\", seen on invoice 16101580). The portal charges an amount you set for each plug.",
+    "changes": [
+      "What changed: The Scenario test tab now counts the REPAIR-MATERIAL lines of CSIDI and CSIII invoices (read from the master's Net Sale Current sheet) and adds the plug amount (15 now, editable on the tab) times the line quantity, on top of…"
+    ],
+    "needsYou": "pull, restart the API (no migration), hard-refresh. To see it work, upload a master that includes the plug invoice (for example 16101580) and open Scenario test.",
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/fridge-scenario.ts, scenario-run.ts, scenario-export.ts, service.ts, apps/web/src/app.js, tests/unit/scenario-run.test.ts, tests/e2e/rate-scenario.spec.ts…"
+  },
+  {
     "id": 304,
     "title": "Service Revenue Dashboard: Scenario test tab (new fridge logic, test only)",
     "area": "Revenue",

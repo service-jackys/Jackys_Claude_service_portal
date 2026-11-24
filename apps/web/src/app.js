@@ -28470,7 +28470,7 @@ ${bodyHtml}
       '>Option B: only the units above 10</option><option value="0"' +
       (state.fridge.optionB ? '' : ' selected') +
       '>Option A: all units on the invoice</option></select></td></tr>' +
-      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not counted as a unit or trip. No plug line is counted until the ERP line wording is added.</span></td><td class="rc-num">' +
+      '<tr><td>13A plug line, per plug<br><span class="form-note">no discount, not counted as a unit or trip. Charged on every ERP line with item code REPAIR-MATERIAL (CSIDI and CSIII), per quantity, on top of the cooker rate.</span></td><td class="rc-num">' +
       num('fridge.plugAmount', state.fridge.plugAmount) +
       '</td></tr>' +
       '</tbody></table></div>' +
@@ -28569,6 +28569,18 @@ ${bodyHtml}
           : 'Every fridge line has litres from the Stock Master.') +
         (f.modelsNotInMaster.length
           ? ' Models not found in the Stock Master: ' + e(f.modelsNotInMaster.join(', ')) + '.'
+          : '') +
+        ' <b>13A plugs:</b> ' +
+        (r.plugs.units
+          ? r.plugs.units +
+            ' plug(s) on ' +
+            r.plugs.invoices +
+            ' invoice(s) = ' +
+            rdMoney2(r.plugs.total) +
+            '.'
+          : 'no REPAIR-MATERIAL line found in this upload.') +
+        (r.plugs.unmatched.length
+          ? ' Not matched to a revenue line: ' + e(r.plugs.unmatched.join(', ')) + '.'
           : '') +
         '</p></div>' +
         '<div class="rc-box"><div class="rc-box-head"><b>Invoices that change, or use default litres</b><span>' +
