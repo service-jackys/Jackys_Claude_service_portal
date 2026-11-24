@@ -1,6 +1,6 @@
 import { insertSheetRows, listSheetRows } from '../../../../packages/db/src/workbook-sheets.js';
 import { capacityForCodes } from '../../../../packages/db/src/stock-master.js';
-import { DEFAULT_FRIDGE_SCENARIO, FRIDGE_CATEGORY } from './fridge-scenario.js';
+import { DEFAULT_FRIDGE_SCENARIO, FRIDGE_CATEGORY, plugQuantities } from './fridge-scenario.js';
 import { runScenario } from './scenario-run.js';
 import { buildScenarioWorkbook } from './scenario-export.js';
 import { z } from 'zod';
@@ -1508,7 +1508,8 @@ export function createRevenueDashboardService(pool: Pool) {
           models.push(...p.erpModels.split(/[,;/]/));
       }
       const lookup = await capacityForCodes(client, models);
-      const result = runScenario(inputs, base, custom, parsed.data, lookup);
+      const plugQty = plugQuantities(await listSheetRows(client, batch.id, 'Net Sale Current'));
+      const result = runScenario(inputs, base, custom, parsed.data, lookup, plugQty);
       return { batch, settings: parsed.data, result };
     } finally {
       client.release();

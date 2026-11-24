@@ -9,6 +9,8 @@ import {
 import type { PricingRules } from './pricing-logic.js';
 import {
   priceFridgeLines,
+  plugKey,
+  PLUG_ITEM_CODE,
   type FridgeLineResult,
   type FridgeScenario,
   type Litres,
@@ -54,6 +56,7 @@ export function runScenario(
   liveRates: RateSet | null,
   settings: ScenarioSettings,
   lookup: Map<string, Litres>,
+  plugQty: Map<string, number> = new Map(),
 ) {
   const liveRules = liveRates ? overlayRates(base, liveRates) : base;
   const nextRules = overlayRates(base, settings.rates);
@@ -67,6 +70,21 @@ export function runScenario(
     if (f) value = value - f.oldLabour + f.newLabour;
     scenario.set(l.id, r2(value));
   }
+
+  // 13A plug lines: the amount rides on the first revenue line of the same invoice and job type.
+  const plugOf = new Map<string, number>();
+  const plugUnits = new Map<string, number>();
+  const used = new Set<string>();
+  for (const l of inputs.lines) {
+    if (l.jobType !== 'CSIDI' && l.jobType !== 'CSIII') continue;
+    const key = plugKey(l.invDelNo ?? '', l.jobType);
+    const qty = plugQty.get(key);
+    if (!qty || used.has(key)) continue;
+    used.add(key);
+    plugOf.set(l.id, r2(qty * settings.fridge.plugAmount));
+    plugUnits.set(l.id, qty);
+  }
+  const unmatchedPlugs = [...plugQty.keys()].filter((k) => !used.has(k));
 
   const rows = new Map<string, ScenarioRow>();
   const bump = (key: string, label: string, units: number, cur: number, next: number) => {
@@ -98,7 +116,9 @@ export function runScenario(
 
   for (const l of inputs.lines) {
     const cur = live.get(l.id) ?? l.workbookRevenue;
-    const next = scenario.get(l.id) ?? cur;
+    const nextBase = scenario.get(l.id) ?? cur;
+    const plug = plugOf.get(l.id) ?? 0;
+    const next = nextBase + plug;
     const f = fridge.get(l.id);
     const p = l.pricing as { applianceCategory?: string | null; erpModels?: string | null } | null;
     const isDI = l.jobType === 'CSIDI' || l.jobType === 'CSIII';
@@ -112,7 +132,8 @@ export function runScenario(
       key = 'cat:' + cat;
       label = cat.replace('Freestanding ', '');
     }
-    bump(key, label, isDI ? l.qty : 0, cur, next);
+    bump(key, label, isDI ? l.qty : 0, cur, nextBase);
+    if (plug) bump('plugs', '13A plugs (new)', plugUnits.get(l.id) ?? 0, 0, plug);
     const t = types.get(l.jobType) ?? {
       key: l.jobType,
       label: l.jobType,
@@ -156,7 +177,25 @@ export function runScenario(
           .filter(Boolean)
           .forEach((m) => notInMaster.add(m));
     }
-    if (Math.abs(next - cur) >= 0.005 || (f && f.defaultLitres)) {
+    if (plug) {
+      invoices.push({
+        invoice: l.invDelNo,
+        date: l.orderDate ?? null,
+        salesPerson: l.salesPerson ?? null,
+        customer: l.customer ?? null,
+        jobType: l.jobType,
+        category: '13A plug',
+        units: plugUnits.get(l.id) ?? 0,
+        litres: null,
+        litresSource: null,
+        defaultLitres: false,
+        rule: `13A plug line (${PLUG_ITEM_CODE}): ${plugUnits.get(l.id)} x ${settings.fridge.plugAmount}, no discount, not a unit or trip`,
+        current: 0,
+        scenario: plug,
+        change: plug,
+      });
+    }
+    if (Math.abs(nextBase - cur) >= 0.005 || (f && f.defaultLitres)) {
       invoices.push({
         invoice: l.invDelNo,
         date: l.orderDate ?? null,
@@ -170,8 +209,8 @@ export function runScenario(
         defaultLitres: !!f?.defaultLitres,
         rule: f ? f.rule : 'Rate change on the same logic',
         current: r2(cur),
-        scenario: r2(next),
-        change: r2(next - cur),
+        scenario: r2(nextBase),
+        change: r2(nextBase - cur),
       });
     }
   }
@@ -184,7 +223,7 @@ export function runScenario(
     }));
   const total = (m: Map<string, number>) => r2([...m.values()].reduce((a, b) => a + b, 0));
   const current = total(live);
-  const next = total(scenario);
+  const next = r2(total(scenario) + [...plugOf.values()].reduce((a, b) => a + b, 0));
   const order = ['fridge-small', 'fridge-large'];
   const byCategory = finish(rows.values()).sort((a, b) => {
     const ia = order.indexOf(a.key);
@@ -213,9 +252,12 @@ export function runScenario(
       modelsNotInMaster: [...notInMaster].sort(),
     },
     plugs: {
-      lines: 0,
+      invoices: plugOf.size,
+      units: [...plugUnits.values()].reduce((a, b) => a + b, 0),
       amount: settings.fridge.plugAmount,
-      note: 'No plug line is counted yet: the ERP line wording is still to come.',
+      total: r2([...plugOf.values()].reduce((a, b) => a + b, 0)),
+      itemCode: PLUG_ITEM_CODE,
+      unmatched: unmatchedPlugs,
     },
     liveRates: ratesOf(liveRates ? overlayRates(base, liveRates) : base),
   };

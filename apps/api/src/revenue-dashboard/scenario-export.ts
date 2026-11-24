@@ -70,7 +70,10 @@ export async function buildScenarioWorkbook(
       'Fridge lines on the 400 L default (litres not found)',
       `${result.fridges.defaultLines} lines / ${result.fridges.defaultUnits} units`,
     ],
-    ['Plug lines counted', 'None yet: the ERP line wording is still to come'],
+    [
+      `13A plug lines (${result.plugs.itemCode})`,
+      `${result.plugs.invoices} invoices / ${result.plugs.units} plugs = ${result.plugs.total}`,
+    ],
   ];
   header(sum.addRow(['Scenario settings', 'Value']));
   for (const [k, v] of lines) {

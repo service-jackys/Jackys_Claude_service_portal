@@ -198,3 +198,30 @@ export function priceFridgeLines(
   }
   return out;
 }
+
+/** ERP item code of the 13A plug line (value 0 in ERP; the portal charges the plug amount per unit). */
+export const PLUG_ITEM_CODE = 'REPAIR-MATERIAL';
+
+/** Plug quantity per invoice and job type, read from the ERP lines of the master ("Net Sale Current"). */
+export function plugQuantities(rows: { data: Record<string, unknown> }[]): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const { data } of rows) {
+    const code = String(data['Invi Item Code'] ?? '')
+      .trim()
+      .toUpperCase();
+    if (code !== PLUG_ITEM_CODE) continue;
+    const job = String(data['Txn Code'] ?? '')
+      .trim()
+      .toUpperCase();
+    if (job !== 'CSIDI' && job !== 'CSIII') continue;
+    const inv = String(data['Inv No'] ?? '').trim();
+    const qty = Number(data['QTY'] ?? data['Qty'] ?? 0);
+    if (!inv || !Number.isFinite(qty) || qty <= 0) continue;
+    const key = plugKey(inv, job);
+    out.set(key, (out.get(key) ?? 0) + qty);
+  }
+  return out;
+}
+
+export const plugKey = (invoice: string, jobType: string) =>
+  `${invoice.trim()}|${jobType.trim().toUpperCase()}`;

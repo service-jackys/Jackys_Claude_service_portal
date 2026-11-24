@@ -60,6 +60,14 @@ const result = {
       change: -156,
     },
   ],
+  plugs: {
+    invoices: 1,
+    units: 2,
+    amount: 15,
+    total: 30,
+    itemCode: 'REPAIR-MATERIAL',
+    unmatched: [],
+  },
   fridges: {
     lines: 172,
     units: 252,
@@ -152,6 +160,7 @@ test('Scenario test tab runs the scenario with edited rates and shows the compar
   await expect(page.getByText('121,175.25').first()).toBeVisible();
   await expect(page.getByText('117,480.00').first()).toBeVisible();
   await expect(page.getByText('Default litres').first()).toBeVisible();
+  await expect(page.getByText('2 plug(s) on 1 invoice(s) = 30.00')).toBeVisible();
   expect(runs[0]!.scenario.fridge).toMatchObject({ smallBase: 30, smallOver10: 20, optionB: true });
   // Edit the base rate and switch to Option A, run again.
   await page.locator('[data-sc="fridge.smallBase"]').fill('28');
