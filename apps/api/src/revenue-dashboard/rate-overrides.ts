@@ -208,6 +208,37 @@ export interface RevenueInputs {
   }[];
   sheetRows: SheetRow[];
   transportRules: TransportRules;
+  /**
+   * Installation-only discount tiers (modification #314): 'invoice' reads every line on the invoice's
+   * total installation units (the portal rule), 'line' on its own quantity (the master workbook).
+   */
+  installTierBasis?: 'invoice' | 'line';
+}
+
+/**
+ * Per-line revenue difference when an installation-only line's discount tier is read on the invoice's
+ * total installation units instead of its own quantity. Lines in `skip` (fridges priced by the fridge
+ * logic, which has no tiers) are left alone.
+ */
+export function installTierAdjustments(lines: RateLine[], rules: PricingRules, skip?: Set<string>) {
+  const out = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const l of lines)
+    if (l.jobType === 'CSIII' && l.invDelNo)
+      total.set(l.invDelNo, (total.get(l.invDelNo) ?? 0) + l.qty);
+  for (const l of lines) {
+    if (l.jobType !== 'CSIII' || !l.pricing || !l.invDelNo || skip?.has(l.id)) continue;
+    const invoiceQty = total.get(l.invDelNo) ?? l.qty;
+    if (invoiceQty === l.qty) continue;
+    const own = enrichLine(rules, toLike(l)).labourAfterDiscount;
+    const whole = enrichLine(rules, {
+      ...toLike(l),
+      tierQtyOverride: invoiceQty,
+    }).labourAfterDiscount;
+    if (own !== null && whole !== null && Math.abs(whole - own) >= 0.005)
+      out.set(l.id, money(whole - own));
+  }
+  return out;
 }
 
 /**
@@ -215,7 +246,12 @@ export interface RevenueInputs {
  * given) the rate difference. With `next` equal to `base`, this is exactly what the dashboard held
  * before custom rates existed.
  */
-export function computeRevenue(inputs: RevenueInputs, base: PricingRules, next: PricingRules) {
+export function computeRevenue(
+  inputs: RevenueInputs,
+  base: PricingRules,
+  next: PricingRules,
+  opts: { skipTier?: Set<string> } = {},
+) {
   const same = JSON.stringify(ratesOf(base)) === JSON.stringify(ratesOf(next));
   const out = new Map<string, number>(inputs.lines.map((l) => [l.id, l.workbookRevenue]));
   let unmatched = 0;
@@ -231,6 +267,9 @@ export function computeRevenue(inputs: RevenueInputs, base: PricingRules, next: 
   }
   if (!same)
     for (const [id, delta] of unitAdjustments(inputs.lines, base, next))
+      out.set(id, money((out.get(id) ?? 0) + delta));
+  if (inputs.installTierBasis === 'invoice')
+    for (const [id, delta] of installTierAdjustments(inputs.lines, next, opts.skipTier))
       out.set(id, money((out.get(id) ?? 0) + delta));
   return { revenue: out, unmatched };
 }

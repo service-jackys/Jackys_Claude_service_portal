@@ -64,8 +64,11 @@ export function fridgeRevenue(
   plugQty: Map<string, number> = new Map(),
 ) {
   const nextRules = overlayRates(base, rates);
-  const step = computeRevenue(inputs, base, nextRules).revenue;
   const fridge = priceFridgeLines(inputs.lines, base, nextRules, fridgeSettings, lookup);
+  // Fridges have no discount tiers, so the installation-only invoice-total tier does not touch them.
+  const step = computeRevenue(inputs, base, nextRules, {
+    skipTier: new Set(fridge.keys()),
+  }).revenue;
   const scenario = new Map<string, number>();
   for (const l of inputs.lines) {
     const f = fridge.get(l.id);

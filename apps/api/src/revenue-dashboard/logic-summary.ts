@@ -17,6 +17,7 @@ import {
 // example taken from the data, and how the workbook compares with the rules.
 
 export type LogicSummaryLine = {
+  id?: string | number | null;
   jobType: string;
   invDelNo: string | null;
   customer: string | null;
@@ -58,6 +59,14 @@ export type ExampleLine = {
   checkDiff?: number;
   /** Cause of the difference, when check is set (#256). */
   checkCause?: string;
+  /** Revenue line id, so the invoice lookup can match the portal figure to the line (#314). */
+  lineId?: string;
+  /** Fridge capacity, e.g. "352 L (400 L and under)" (#314). */
+  capacity?: string;
+  /** The master workbook's own figure for the line, when the lookup shows portal figures (#314). */
+  workbook?: number;
+  /** How the workbook priced the line, shown small under its figure (#314). */
+  workbookHow?: string;
 };
 
 export type WorkedExample = {
@@ -70,6 +79,8 @@ export type WorkedExample = {
   custCode: string | null;
   lines: ExampleLine[];
   total: number;
+  /** The master workbook's total for the invoice, when the lookup shows portal figures (#314). */
+  workbookTotal?: number;
   /** How the invoice-level rules were applied to this invoice, in plain words. */
   notes: string[];
 };
@@ -214,7 +225,14 @@ function exampleLineText(rules: PricingRules, line: LogicSummaryLine): ExampleLi
           : `${line.qty} x ${money(line.unitPrice)}` +
             (line.jobType === 'CSIJW' || line.jobType === 'CSIJO' ? ' per job' : '');
   }
-  return { jobType: line.jobType, item, qty: line.qty, revenue: line.revenue, how };
+  return {
+    jobType: line.jobType,
+    item,
+    qty: line.qty,
+    revenue: line.revenue,
+    how,
+    ...(line.id !== undefined && line.id !== null ? { lineId: String(line.id) } : {}),
+  };
 }
 
 /** The invoice's Ref DocNo: the distinct values on its lines, most often just one. */

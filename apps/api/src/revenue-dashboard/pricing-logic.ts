@@ -402,6 +402,8 @@ export type LineLike = {
   billingCode?: string | null;
   originalJobValue?: number | null;
   pricing?: SheetPricing | null;
+  /** Installation-only lines: read the discount tier on this quantity (the invoice total) instead of the line's own. */
+  tierQtyOverride?: number | null;
 };
 
 export type Enriched = {
@@ -504,8 +506,10 @@ function enrichInvoiceLevel(
       transportNote = 'transport charged once for the invoice (' + region + ')';
     }
   }
-  // CSIDI: invoice total (workbook of 15 Oct 2026). CSIII rows are still priced on the line's own quantity in the workbook.
-  const tierQty = t === 'CSIDI' ? (p.invoiceCsidiQty ?? line.qty) : line.qty;
+  // CSIDI: invoice total (workbook of 15 Oct 2026). CSIII rows are priced on the line's own quantity in the workbook;
+  // the portal's own rule (tierQtyOverride, modification #314) reads the invoice total instead.
+  const tierQty =
+    t === 'CSIDI' ? (p.invoiceCsidiQty ?? line.qty) : (line.tierQtyOverride ?? line.qty);
   const cur = priceInstallLine(rules, t, {
     qty: line.qty,
     category: p.applianceCategory,
@@ -521,7 +525,11 @@ function enrichInvoiceLevel(
         ' CSIDI unit' +
         (tierQty === 1 ? '' : 's') +
         '; one transport charge per invoice only when the invoice has more than 1 CSIDI unit and no CSIDO line'
-      : 'Qty x Net unit rate x crew loading (no transport)';
+      : 'Qty x Net unit rate x crew loading (no transport); discount tier read on ' +
+        tierQty +
+        ' installation unit' +
+        (tierQty === 1 ? '' : 's') +
+        (line.tierQtyOverride ? ' (the invoice total)' : ' (this line)');
   out.grossLabour = cur.gross;
   out.discountAmount = cur.discountAmount;
   out.floorApplied = cur.floorApplied ? 'Yes' : 'No';
@@ -632,6 +640,7 @@ export function enrichLine(rules: PricingRules, line: LineLike): Enriched {
     category: p.applianceCategory,
     trips,
     crewSize: crew,
+    ...(t === 'CSIII' && line.tierQtyOverride ? { tierQty: line.tierQtyOverride } : {}),
   });
   empty.basis =
     t === 'CSIDI'
