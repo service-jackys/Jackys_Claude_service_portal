@@ -5125,8 +5125,33 @@
       }
       .dc-qty-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1rem 1.1rem;
+        gap: 1.1rem;
+      }
+      .dc-qty-group h5 {
+        margin: 0 0 0.45rem;
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .dc-qty-row {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+        gap: 0.8rem;
+      }
+      .dc-qty .dc-label > span:first-child {
+        white-space: normal;
+        overflow: visible;
+        text-overflow: clip;
+        line-height: 1.25;
+      }
+      .dc-qty-rule {
+        margin-top: 0.3rem;
+        font-size: 0.72rem;
+        line-height: 1.3;
+        color: var(--muted);
+        text-align: right;
       }
       .dc-qty {
         padding: 0.8rem 0.9rem 0.7rem;
@@ -5157,6 +5182,9 @@
       }
       .dc-wrap .dc-card-head h4 {
         color: var(--ink);
+      }
+      .dc-table td.num {
+        white-space: nowrap;
       }
       .dc-admin {
         border-left: 4px solid #d99a00;
@@ -5370,15 +5398,13 @@
         }
       }
       @media (max-width: 720px) {
-        .dc-fields,
-        .dc-qty-grid {
+        .dc-fields {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
       @media (max-width: 480px) {
         .dc-fields,
-        .dc-fields.dc-fields-2,
-        .dc-qty-grid {
+        .dc-fields.dc-fields-2 {
           grid-template-columns: minmax(0, 1fr);
         }
         .dc-card {
@@ -9274,6 +9300,27 @@
       }
       #deliveryInstallWorkspace .di-totals strong {
         font-size: 1.05rem;
+      }
+      #deliveryInstallWorkspace .di-breakdown {
+        margin-top: 0.7rem;
+      }
+      #deliveryInstallWorkspace .di-breakdown summary {
+        cursor: pointer;
+        font-weight: 600;
+        font-size: 0.85rem;
+        color: var(--blue);
+      }
+      #deliveryInstallWorkspace .di-calc th,
+      #deliveryInstallWorkspace .di-calc td {
+        font-size: 0.78rem;
+        vertical-align: top;
+      }
+      #deliveryInstallWorkspace .di-calc .di-rule {
+        min-width: 14rem;
+        color: var(--muted);
+      }
+      #deliveryInstallWorkspace .di-calc small {
+        color: var(--muted);
       }
       #deliveryInstallWorkspace .di-issues {
         margin: 0.5rem 0 0;

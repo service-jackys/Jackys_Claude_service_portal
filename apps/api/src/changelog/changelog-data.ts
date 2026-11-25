@@ -27,6 +27,7 @@ export const CHANGELOG: ChangelogEntry[] = [
       "D+I Quote Calculator. With the new logic on, the single Fridge box becomes two (400 L and under / over 400 L) and a 13A/15A plug box is added. Fridges are priced as a group with no discount tiers (1 unit market; 2 to 10 base; above 10…",
       "Pricing Masters (D+I Admin Entry). New card \"Fridge pricing and 13A/15A plug\" showing the same settings; editing needs revenue_dashboard.rate_card_edit, saves through the Rate card route (which also re-prices the dashboard and is…",
       "D+I Billing engine (job entry). Fridge lines of CSIDI and CSIII are priced as groups per job type and size, litres from the Stock Master (400 L and a warning when unknown), no discount tiers; fridge units still count for the note's tiers…",
+      "Follow-up (layout and job entry). Fixed a markup slip that closed the calculator's left column early, which pushed the Special discount, Client details and Price breakdown cards out of the grid. Quantities are now grouped (Refrigerators…",
       "Verified on the Oct 22 master (see the PR): old logic with workbook rates equals the workbook (123,559.75); the new logic equals a hand calculation for all 167 fridge groups."
     ],
     "needsYou": "pull and restart the API; hard-refresh (Ctrl+Shift+R). No migration. REPAIR-MATERIAL must be in the Stock Master to be picked in job entry.",
