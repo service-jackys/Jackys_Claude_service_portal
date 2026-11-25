@@ -19,6 +19,10 @@ export type DailyListRow = {
   faultDescription: string;
   jobWarranty: string | null;
   salesOrderNumber: string | null;
+  serialNo: string | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  receivedDate: string | null;
   technicianId: string | null;
   technicianName: string | null;
   branchName: string | null;
@@ -59,6 +63,10 @@ export async function listDailyAppointments(
             a.fault_description AS "faultDescription",
             a.job_warranty AS "jobWarranty",
             a.sales_order_number AS "salesOrderNumber",
+            a.serial_no AS "serialNo",
+            a.invoice_number AS "invoiceNumber",
+            a.invoice_date::text AS "invoiceDate",
+            a.received_date::text AS "receivedDate",
             a.technician_id::text AS "technicianId",
             t.name AS "technicianName",
             COALESCE(b.name, a.b2b_branch_school) AS "branchName",

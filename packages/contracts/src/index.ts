@@ -1319,6 +1319,11 @@ export const appointmentCreateSchema = z
     faultDescription: z.string().trim().min(1).max(10000).optional(),
     jobWarranty: optionalText(120),
     salesOrderNumber: optionalText(120),
+    // Optional purchase details (migration 111); the technician can write them on the sheet.
+    serialNo: optionalText(120),
+    invoiceNumber: optionalText(120),
+    invoiceDate: dateSchema.optional(),
+    receivedDate: dateSchema.optional(),
     // B2B/school workflow + product-category fields — see
     // docs/PARITY_REVIEW_2026-09-28.md, gaps #1 and #2. Always optional and
     // editable regardless of customerType, matching the live Scheduler's
@@ -1386,6 +1391,10 @@ const appointmentVisitItemSchema = z
     faultDescription: z.string().trim().min(1).max(10000).optional(),
     jobWarranty: optionalText(120),
     salesOrderNumber: optionalText(120),
+    serialNo: optionalText(120),
+    invoiceNumber: optionalText(120),
+    invoiceDate: dateSchema.optional(),
+    receivedDate: dateSchema.optional(),
     technicianId: z.string().regex(/^\d+$/).optional(),
     appointmentDate: dateSchema.optional(),
   })
@@ -1445,6 +1454,10 @@ export const appointmentVisitDraftSchema = z
             faultDescription: z.string().trim().max(10000).optional(),
             jobWarranty: optionalText(120),
             salesOrderNumber: optionalText(120),
+            serialNo: optionalText(120),
+            invoiceNumber: optionalText(120),
+            invoiceDate: dateSchema.optional(),
+            receivedDate: dateSchema.optional(),
             technicianId: z.string().regex(/^\d+$/).optional(),
             appointmentDate: dateSchema.optional(),
           })

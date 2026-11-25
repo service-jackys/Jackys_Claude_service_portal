@@ -27,6 +27,11 @@ export type AppointmentRecord = {
   faultDescription: string;
   jobWarranty: string | null;
   salesOrderNumber: string | null;
+  // Optional purchase details (migration 111).
+  serialNo: string | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  receivedDate: string | null;
   b2bBranchSchool: string | null;
   schoolContactPerson: string | null;
   schoolContactNumber: string | null;
@@ -76,6 +81,10 @@ const columns = `
   appointments.fault_description AS "faultDescription",
   appointments.job_warranty AS "jobWarranty",
   appointments.sales_order_number AS "salesOrderNumber",
+  appointments.serial_no AS "serialNo",
+  appointments.invoice_number AS "invoiceNumber",
+  appointments.invoice_date::text AS "invoiceDate",
+  appointments.received_date::text AS "receivedDate",
   appointments.b2b_branch_school AS "b2bBranchSchool",
   appointments.school_contact_person AS "schoolContactPerson",
   appointments.school_contact_number AS "schoolContactNumber",
@@ -116,8 +125,9 @@ export async function insertAppointment(
       customer_type, customer_name, contact_number, customer_email, address, region,
       brand, model, item_code, fault_description, job_warranty, sales_order_number,
       b2b_branch_school, school_contact_person, school_contact_number, customer_number, sub_group,
-      salesman, appointment_date, created_by, complaint_source, visit_group_id
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27)
+      salesman, appointment_date, created_by, complaint_source, visit_group_id,
+      serial_no, invoice_number, invoice_date, received_date
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
     RETURNING ${columns}, NULL::text AS "complaintReference"`,
     [
       input.appointmentReference,
@@ -147,6 +157,10 @@ export async function insertAppointment(
       input.createdBy ?? null,
       input.complaintSource ?? null,
       input.visitGroupId ?? null,
+      input.serialNo ?? null,
+      input.invoiceNumber ?? null,
+      input.invoiceDate ?? null,
+      input.receivedDate ?? null,
     ],
   );
   return result.rows[0];

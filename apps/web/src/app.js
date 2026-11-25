@@ -3581,7 +3581,7 @@
   .apt-line .v { font-weight: 700; color: var(--apt-ink); text-align: right; }
   .apt-line .v.gap { color: var(--apt-alert); }
   .apt-legend { font-size: 9.5px; color: var(--apt-muted); margin: 0 0 8px; }
-  .apt-sec { margin-bottom: 10px; border: 1px solid var(--apt-edge); border-radius: 5px; overflow: hidden; break-inside: avoid; }
+  .apt-sec { margin-bottom: 8px; border: 1px solid var(--apt-edge); border-radius: 5px; overflow: hidden; break-inside: avoid; }
   .apt-sec h3 { margin: 0; padding: 5px 12px; background: var(--apt-head); color: var(--apt-ink); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; font-weight: 800; border-bottom: 1px solid var(--apt-edge); }
   table.apt-d { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 0; }
   table.apt-d th, table.apt-d td { padding: 4px 11px; border: 0; border-bottom: 1px solid var(--apt-line); text-align: left; vertical-align: middle; font-size: 11.25px; background: transparent; }
@@ -3589,6 +3589,11 @@
   table.apt-d th { width: 26%; background: var(--apt-label); color: #333; font-size: 10px; font-weight: 700; border-right: 1px solid var(--apt-line); }
   table.apt-d th.req::after { content: " *"; color: var(--apt-alert); font-weight: 700; }
   table.apt-d td.req { font-weight: 700; color: var(--apt-ink); }
+  table.apt-d2 th { width: 19%; }
+  table.apt-d2 td + th { border-left: 1px solid var(--apt-line); }
+  table.apt-d2 td.write { height: 28px; vertical-align: bottom; padding-bottom: 5px; }
+  .apt-sec h3 .apt-sub { font-weight: 400; letter-spacing: 0; text-transform: none; font-size: 9px; color: var(--apt-muted); margin-left: 6px; }
+  .write-line { display: block; border-bottom: 1px solid #444; height: 14px; }
   table.apt-d td.gap { font-weight: 700; color: var(--apt-alert); background: var(--apt-alert-bg); outline: 1.5px dashed var(--apt-alert); outline-offset: -2px; }
   @media print { .no-print { display: none !important; } }
 </style>
@@ -6252,6 +6257,10 @@ ${bodyHtml}
       schoolContactNumber: $('#newComplaintSchoolContactNumber').value.trim(),
       customerNumber: $('#newComplaintCustomerNumber').value.trim(),
       salesOrderNumber: $('#newComplaintSalesOrderNumber').value.trim(),
+      serialNo: $('#newComplaintSerialNo').value.trim(),
+      invoiceNumber: $('#newComplaintInvoiceNumber').value.trim(),
+      invoiceDate: $('#newComplaintInvoiceDate').value,
+      receivedDate: $('#newComplaintReceivedDate').value,
     };
     // Optional fields left blank must be OMITTED, not sent as "" -- the
     // server's Zod schema treats each as .optional() but still .min(1)
@@ -6424,6 +6433,10 @@ ${bodyHtml}
           <option value="">Not known yet</option>
           <option value="In Warranty">In Warranty (invoice within 1 year)</option>
           <option value="Out Warranty">Out of Warranty</option></select></div>
+        <div><label>S/N (serial number)</label><input data-v="serialNo" maxlength="120" /></div>
+        <div><label>Invoice number</label><input data-v="invoiceNumber" maxlength="120" /></div>
+        <div><label>Invoice date</label><input data-v="invoiceDate" type="date" /></div>
+        <div><label>Received date</label><input data-v="receivedDate" type="date" /></div>
         <div><label>Date</label><input data-v="appointmentDate" type="date" /></div>
         <div><label>Technician</label><select data-v="technicianId">${technicianOptions}</select></div>
         <div class="wide"><label>Describe the issue <span class="required">*</span></label>
@@ -6789,6 +6802,10 @@ ${bodyHtml}
     'faultDescription',
     'jobWarranty',
     'salesOrderNumber',
+    'serialNo',
+    'invoiceNumber',
+    'invoiceDate',
+    'receivedDate',
   ];
 
   function splitVisitData(data) {
@@ -6918,6 +6935,10 @@ ${bodyHtml}
     set('#newComplaintWarranty', first.jobWarranty || '');
     set('#newComplaintDescription', first.faultDescription || '');
     set('#newComplaintSalesOrderNumber', first.salesOrderNumber || '');
+    set('#newComplaintSerialNo', first.serialNo || '');
+    set('#newComplaintInvoiceNumber', first.invoiceNumber || '');
+    set('#newComplaintInvoiceDate', first.invoiceDate || '');
+    set('#newComplaintReceivedDate', first.receivedDate || '');
     for (const item of rest) {
       addVisitItem();
       const card = $('#visitExtraItems').lastElementChild;
@@ -9998,6 +10019,15 @@ ${bodyHtml}
             ['Job warranty', appointment.jobWarranty],
             ['Sales order no.', appointment.salesOrderNumber],
             ['Salesman', appointment.salesman],
+          ],
+        },
+        {
+          title: 'Purchase details',
+          items: [
+            ['S/N (serial number)', appointment.serialNo],
+            ['Invoice number', appointment.invoiceNumber],
+            ['Invoice date', appointment.invoiceDate],
+            ['Received date', appointment.receivedDate],
           ],
         },
         {
@@ -23208,6 +23238,44 @@ ${bodyHtml}
           ? '<div class="apt-title gap">' + NOT_ENTERED + '</div>'
           : '<div class="apt-title">—</div>';
     };
+    // Purchase details are optional. Each field prints its value, or a ruled write-in line when blank,
+    // so the technician can complete it by hand. Two fields per row to keep the sheet on one page.
+    const dateText = (value) => {
+      if (!value) return '';
+      const [year, month, day] = value.split('-').map(Number);
+      return new Date(year, month - 1, day).toLocaleDateString('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      });
+    };
+    const purchaseTable = () => {
+      const fields = [
+        ['S/N (serial no.)', trimmed(row.serialNo)],
+        ['Invoice number', trimmed(row.invoiceNumber)],
+        ['Invoice date', dateText(trimmed(row.invoiceDate))],
+        ['Received date', dateText(trimmed(row.receivedDate))],
+      ];
+      const anyBlank = fields.some(([, value]) => !value);
+      const pair = ([label, value]) =>
+        '<th>' +
+        escapeHtml(label) +
+        '</th>' +
+        (value
+          ? '<td class="req">' + escapeHtml(value) + '</td>'
+          : '<td class="write"><span class="write-line"></span></td>');
+      return (
+        '<div class="apt-sec"><h3>Purchase details' +
+        (anyBlank ? ' <span class="apt-sub">optional: technician writes in if blank</span>' : '') +
+        '</h3><table class="apt-d apt-d2"><tr>' +
+        pair(fields[0]) +
+        pair(fields[1]) +
+        '</tr><tr>' +
+        pair(fields[2]) +
+        pair(fields[3]) +
+        '</tr></table></div>'
+      );
+    };
     const warranty = trimmed(row.jobWarranty);
     const schoolContact = [row.schoolContactPerson, row.schoolContactNumber]
       .filter(Boolean)
@@ -23222,13 +23290,15 @@ ${bodyHtml}
       line('Contact', row.contactNumber, true) +
       line('Region', row.region, true) +
       line('Type', row.customerType, false) +
+      line('Complaint source', row.complaintSource, false) +
+      line('Complaint ref', row.complaintReference, false) +
       '</div><div class="apt-card"><div class="apt-kicker">Visit</div>' +
       title(row.appointmentDate ? dlDayLabel(row.appointmentDate) : '', true) +
       line('Technician', row.technicianName, true) +
       line('Warranty', warranty, true) +
       line('Status', row.status, false) +
       '</div></div>' +
-      '<div class="apt-legend">* Required details &nbsp;|&nbsp; Dashed box = required but not entered: confirm with the customer before starting</div>' +
+      '<div class="apt-legend">* Required details &nbsp;|&nbsp; Dashed box = required, not entered: confirm with customer &nbsp;|&nbsp; <b>Ruled line = optional, technician writes it in</b></div>' +
       table('Customer details', [
         ['Customer name', row.customerName, true],
         ['Contact number', row.contactNumber, true],
@@ -23247,14 +23317,11 @@ ${bodyHtml}
         ['Sales order', row.salesOrderNumber, false],
         ['Salesman', row.salesman, false],
       ]) +
-      table('Reference', [
-        ['Complaint source', row.complaintSource, false],
-        ['Complaint ref', row.complaintReference, false],
-      ]) +
+      purchaseTable() +
       '<div class="block-label">Fault reported</div><div class="block">' +
       escapeHtml(row.faultDescription) +
-      '</div><div class="block-label">Work done</div><div class="block" style="min-height:90px"></div>' +
-      '<div class="block-label">Parts used</div><div class="block" style="min-height:60px"></div>' +
+      '</div><div class="block-label">Work done</div><div class="block" style="min-height:58px"></div>' +
+      '<div class="block-label">Parts used</div><div class="block" style="min-height:46px"></div>' +
       '<div class="sign-row"><div class="sign-box">Technician — name / signature / date</div><div class="sign-box">Customer — name / signature / date</div></div></div>'
     );
   }

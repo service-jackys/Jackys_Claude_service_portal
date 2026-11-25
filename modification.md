@@ -5205,6 +5205,27 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #316 — Schedules: optional Purchase details (S/N, Invoice number, Invoice date, Received date)
+
+**Date:** 2026-11-25
+
+**Why.** Technicians need the serial number and purchase invoice details on the visit, but CCE often do not have them when scheduling. They must be optional at booking, and the technician writes any missing one by hand on the printed appointment sheet.
+
+**What changed.**
+
+- New optional "Purchase details" card on Schedules > New request: S/N (serial number), Invoice number, Invoice date, Received date (the day the customer received the unit), each with a tooltip. None blocks Save or Book. Each extra item of a multi-item visit has its own four fields, and visit drafts keep them.
+- Appointment detail shows a Purchase details section.
+- Appointment sheet (Daily schedule print): the old Reference section is replaced by Purchase details (two fields per row). An entered field prints its value; a blank one prints a ruled write-in line, not a red "Not entered" gap. The Complaint source and Complaint ref moved into the top Customer box. The sheet stays on one A4 page (Work done and Parts used boxes are slightly shorter).
+- Job card prefill from a completed appointment now fills Serial number (from S/N) and Purchase date (from Invoice date). The purchase invoice number is not copied, because the job card Invoice no. is the service invoice.
+- Migration 111 adds serial_no, invoice_number, invoice_date, received_date to appointments (all nullable).
+- Tests: tests/integration/appointment-purchase-details.test.ts (save, visit items, daily list, job card prefill); e2e in phase4-scheduling.spec.ts (form payload, print with blank and entered fields).
+
+**Not included.** There is no general appointment edit route yet, so a value forgotten at booking is written on the sheet or entered on the job card (Serial number, Purchase date).
+
+**Files.** packages/db/migrations/111_appointment_purchase_details.sql, packages/db/src/appointments.ts, packages/db/src/daily-list.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests, modification.md, changelog-data.ts.
+
+**Needs you:** pull, run `npm.cmd run db:migrate` (migration 111), restart the API, hard-refresh (Ctrl+Shift+R).
+
 ## Modification #315 — Job entry Live price: daily trip cap note
 
 **Date:** 2026-11-25

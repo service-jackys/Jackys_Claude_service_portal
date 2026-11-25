@@ -18562,6 +18562,60 @@
                         </select>
                       </div>
                       <div class="field field-wide">
+                        <strong>Purchase details</strong>
+                        <span class="visit-pill">Optional</span>
+                        <p class="form-note">
+                          Leave blank if the customer does not have them. The technician writes
+                          anything missing on the printed appointment sheet.
+                        </p>
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintSerialNo"
+                          >S/N (serial number)<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The serial number from the rating label on the unit. It is copied
+                              into the job card.</span
+                            ></span
+                          ></label
+                        >
+                        <input id="newComplaintSerialNo" maxlength="120" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintInvoiceNumber"
+                          >Invoice number<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The customer’s purchase invoice number, if they have it.</span
+                            ></span
+                          ></label
+                        >
+                        <input id="newComplaintInvoiceNumber" maxlength="120" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintInvoiceDate"
+                          >Invoice date<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The date on the purchase invoice. It is copied into the job card as
+                              the purchase date, which starts the warranty check.</span
+                            ></span
+                          ></label
+                        >
+                        <input id="newComplaintInvoiceDate" type="date" />
+                      </div>
+                      <div class="field">
+                        <label for="newComplaintReceivedDate"
+                          >Received date<span class="tooltip" tabindex="0"
+                            ><span class="tooltip-icon" aria-hidden="true">i</span
+                            ><span class="tooltip-bubble" role="tooltip"
+                              >The day the customer received the unit.</span
+                            ></span
+                          ></label
+                        >
+                        <input id="newComplaintReceivedDate" type="date" />
+                      </div>
+                      <div class="field field-wide">
                         <label for="newComplaintDescription"
                           >Describe the issue <span class="required">*</span
                           ><span class="tooltip" tabindex="0"
