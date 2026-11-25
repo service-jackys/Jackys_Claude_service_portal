@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #308 — Logic applied: rate chips back to small inline pills
+
+**Date:** 2026-11-25
+
+**Why.** After #306/#236 the Logic applied tab showed each live rate as a full-width stacked box and broke every sentence. The chip used the class name `rl-live`, which the old live-example panel already used for a grid layout, so the panel style won.
+
+**What changed.** The chip has its own class (`rl-rate`) and is now a small rounded pill that sits inside the sentence, in How fridges are priced and in Worked examples. Rates are still read from the Rate card. No figures, logic or data change.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/fridge-logic-switch.spec.ts, modification.md.
+
+**Needs you:** pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.
+
 ## Modification #307 — Fridge pricing step 2: Export report, Ask AI notes, Scenario wording, compact look, "13A/15A"
 
 **Date:** 2026-11-24
@@ -5212,6 +5224,7 @@ Display only; no pricing formulas, API or database changes.
 **Why.** Step 1 (#306) put the new fridge logic live. This step makes the exports and notes say so, keeps the totals consistent everywhere, and tidies the look.
 
 **What changed.**
+
 - Export report (.xlsx): the Summary names the new fridge logic with the rates it used (read from the saved settings and the Rate card, never typed), shows the workbook figure, the portal figure and the difference, and the number of fridge lines on the default 400 L. The job sheet gains Workbook revenue, Fridge litres, Litres source, Default litres, Fridge rule applied and 13A/15A plug columns, and fridge or plug lines that differ from the old-logic rebuild are labelled "New fridge logic" or "13A/15A plug" in "Why they differ" instead of looking like errors. The Revenue Logic sheet says the new fridge logic is in force.
 - Total check: on your master with the settings used in testing, the dashboard total, the Export report total and the Scenario test total are the same (120,913.50 in the test; workbook 123,559.75).
 - Ask AI: the revenue data it is given now carries a plain description of how fridges and the 13A/15A plug are priced (rates from the saved settings), or says the old logic is in force.
@@ -5332,6 +5345,7 @@ Display only; no pricing formulas, API or database changes.
 **Why.** The customer care coordinator and the technical supervisor each send a weekly ROI with the same kind of figures every week, typed by hand. Management wanted those figures filled in from the portal, with counts and quantities only and no AED. The administrator's own ROI, including the Management Summary, stays exactly as it was.
 
 **What changed.**
+
 - **Customer care activity** (permission "ROI: include the Customer care activity block"): jobs by billing code, delivery and installation by sales channel, repair services by sales channel, the Channel detail table (sales channel, jobs, quantity), and a Service dashboard table (appointments and job cards created and completed, this week and overall).
 - **Field operations** (permission "ROI: include the Field operations block"): deliveries and installations by channel, repairs attended this week, and a Pending table (units repaired but not delivered back, pending appointments by warranty, out of warranty and not stated, appointments in the next 7 days).
 - **Typed line.** In Send ROI, the technical supervisor types "Units pending to collect from customer" each week; it goes into the Pending table.
@@ -5351,6 +5365,7 @@ Display only; no pricing formulas, API or database changes.
 **Why.** The Management Summary (AED revenue figures) showed in Send ROI for anyone with Service Revenue Dashboard access, so team members such as the customer care coordinator and the technical supervisor could tick it. Management wanted it for administrators only, and role-specific blocks for the service team instead.
 
 **What changed.** Three new permissions on the Roles page, each switched on per role:
+
 - ROI: include the Management Summary (revenue figures in AED). Given to Administrator only.
 - ROI: include the Customer care activity block (counts, no revenue). Block itself follows in the next change.
 - ROI: include the Field operations block (counts, no revenue). Block itself follows in the next change.
@@ -5369,6 +5384,7 @@ Display only; no pricing formulas, API or database changes.
 **Why.** He asked for a fresh, professional look for the Dashboard Overview and Kanban board, approved from the mockup with real figures and an icon on every item.
 
 **What changed.** Look and markup only. Every click, filter, tab, refresh and data call works as before.
+
 - **Overview.** The five headline numbers are one connected strip with a vector icon on each. New Case pipeline panel: one bar of open cases by stage (Scheduled, On site, Awaiting job card, Job card open, In progress), a legend with count, average days and late per stage including Done, and an on track / at risk / late bar. On track is open cases minus at risk minus late.
 - **Kanban board.** Each lane heading has a vector icon (calendar, pin, hourglass, file, wrench, check). The summary numbers have icons too; reference numbers use a monospace face.
 - Light and dark themes both work; works on phone width.
@@ -5384,6 +5400,7 @@ Display only; no pricing formulas, API or database changes.
 **Why.** He asked whether everything users enter is also available in the Reports page. A column-by-column comparison of the database tables with the 11 reports found fields that were saved but never reported, and records with no report at all.
 
 **What changed.** Reports only, nothing changes on screen except the Reports page. The page, preview, search, date range and Excel download all work the same way; the report list and columns come from the server.
+
 - **Columns added to existing reports.**
   - Quotations: status, ERP status, ERP invoice no, invoiced date, warranty status, customer type, B2B branch/school, source ref, subtotal, VAT rate and amount, signature date.
   - Inspections: date of collection, customer type, B2B branch/school, source ref, signature date.

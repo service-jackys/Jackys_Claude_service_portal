@@ -33182,7 +33182,7 @@ ${bodyHtml}
           const special = fr.batchRate || 0;
           const cMarket = ck.standardRate || 0;
           const chip = (v) =>
-            '<span class="rl-live">' + e(rdMoney2(v).replace(/\.00$/, '')) + '</span>';
+            '<span class="rl-rate">' + e(rdMoney2(v).replace(/\.00$/, '')) + '</span>';
           const small = (n) =>
             n <= 0
               ? 0
