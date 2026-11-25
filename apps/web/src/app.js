@@ -23859,6 +23859,71 @@ ${bodyHtml}
       );
     }
 
+    // Daily trip cap note under Live price (display only; the figures above are not changed).
+    function tripNoteHtml(note) {
+      if (!note) return '';
+      const ordinal = (n) =>
+        n +
+        (n % 10 === 1 && n !== 11
+          ? 'st'
+          : n % 10 === 2 && n !== 12
+            ? 'nd'
+            : n % 10 === 3 && n !== 13
+              ? 'rd'
+              : 'th');
+      const who = escapeHtml(state.form.salesman || 'This salesman');
+      const day = escapeHtml(state.form.serviceDate || 'this date');
+      let text;
+      if (!note.charged) {
+        text =
+          who +
+          ' already has ' +
+          (note.trips - 1) +
+          ' completed trips on ' +
+          day +
+          ' with a higher charge, so this would be trip ' +
+          note.rank +
+          ' of ' +
+          note.trips +
+          ' and only the highest ' +
+          note.maxTrips +
+          ' are charged. The ' +
+          fmt(note.charge) +
+          ' transport above will not be charged in Billing and the dashboard.';
+      } else if (note.pushedOut.length) {
+        text =
+          'Only the highest ' +
+          note.maxTrips +
+          ' trips a day are charged for ' +
+          who +
+          ' on ' +
+          day +
+          '. This trip is charged, but it leaves ' +
+          note.pushedOut
+            .map((o) => escapeHtml(o.deliveryNoteRef || o.reference) + ' (' + fmt(o.charge) + ')')
+            .join(', ') +
+          ' uncharged.';
+      } else {
+        text =
+          'This is the ' +
+          ordinal(note.rank) +
+          ' of ' +
+          note.maxTrips +
+          ' charged trips for ' +
+          who +
+          ' on ' +
+          day +
+          '. Any further trip that day with a lower charge will not be charged.';
+      }
+      return (
+        '<p class="di-trip-note' +
+        (note.charged ? '' : ' di-trip-note-warn') +
+        '"><strong>Daily trip limit.</strong> ' +
+        text +
+        ' <span class="di-trip-note-sub">Counts completed jobs only.</span></p>'
+      );
+    }
+
     function drawPrice() {
       const box = q('[data-di-price]');
       if (!box) return;
@@ -23900,6 +23965,7 @@ ${bodyHtml}
               .join('') +
             '</ul>';
         }
+        if (!completed) html += tripNoteHtml(source.tripNote);
         if (!completed) html += breakdownHtml(source);
         html += completed
           ? '<p class="form-note">These figures were frozen when the job was completed. Billing may charge less transport where the daily trip cap applies.</p>'
@@ -24054,6 +24120,10 @@ ${bodyHtml}
             method: 'POST',
             body: JSON.stringify({
               region: state.form.region,
+              serviceDate: state.form.serviceDate || null,
+              salesman: state.form.salesman || null,
+              deliveryNoteRef: state.form.deliveryNoteRef || null,
+              jobId: state.job ? state.job.id : null,
               lines: state.lines.map((l) => ({
                 itemCode: l.itemCode,
                 qty: Number(l.qty) || 0,
@@ -24188,7 +24258,14 @@ ${bodyHtml}
         readFields();
         schedulePrice();
       });
-      q('#diDeliveryNote').addEventListener('change', readFields);
+      q('#diDeliveryNote').addEventListener('change', () => {
+        readFields();
+        schedulePrice();
+      });
+      q('#diServiceDate').addEventListener('change', () => {
+        readFields();
+        schedulePrice();
+      });
       q('#diCustType').addEventListener('change', () => {
         readFields();
         clearErrors(q('#diForm'));
@@ -24196,6 +24273,7 @@ ${bodyHtml}
       });
       q('#diSalesman').addEventListener('change', () => {
         readFields();
+        schedulePrice();
         drawChannel();
         if (state.form.salesman && !channelOfSalesman(state.form.salesman)) {
           notifyDialog(
