@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #315 — Job entry Live price: daily trip cap note
+
+**Date:** 2026-11-25
+
+**Why.** Billing, Budget vs actual and the dashboard charge only the highest 2 transport trips per salesperson per service date, but job entry prices one note at a time, so a user could see a transport charge on screen that Billing later leaves uncharged (for example 16101431, trip 3 of 3 for RENEESH JOSE on 12 Oct).
+
+**What changed.** Under Live price a short "Daily trip limit" note appears (display only, the Live price figure is not changed). It looks at the same salesperson's completed Delivery + Installation notes on the same service date and ranks this note the way Billing does (highest charge first, lower ERP delivery note first on a tie). Three cases: this trip would not be charged (warning style, says which trip of how many); this trip is charged but pushes another note out of the cap; this is the last charged trip of the day. No note for a first trip, for notes without transport, or when the cap is off in the D+I Transport rules tab; the limit follows that tab. The price also re-calculates when the service date, salesman or delivery note changes. Counts completed jobs only. The Excel export is not changed.
+
+**Files.** apps/api/src/dandi-jobs/trip-note.ts (new), apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-trip-note.test.ts, tests/e2e/delivery-installation.spec.ts, modification.md, changelog-data.ts.
+
+**Needs you:** pull, restart the API, hard-refresh (Ctrl+Shift+R). No migration.
+
 ## Modification #314 — Service Revenue Dashboard follows the portal rules: Logic applied shows portal figures, installation-only tiers on the invoice total
 
 **Date:** 2026-11-25

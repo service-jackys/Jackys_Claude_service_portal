@@ -60,6 +60,7 @@ import { createPricingConfigService } from '../pricing-config/service.js';
 import { engineMasterFromDandi } from './pricing-engine.js';
 import { PLUG_ITEM_CODE } from '../revenue-dashboard/fridge-scenario.js';
 import { createDandiPricingService, priceNoteSchema, type PricedNote } from './service.js';
+import { buildTripNote, tripOfNote, type TripNote } from './trip-note.js';
 
 export const ERP_INV_SETTING = 'dandi_erp_inv_mandatory';
 
@@ -185,8 +186,70 @@ export function createDiJobService(pool: Pool) {
     }
   }
 
-  async function price(input: unknown): Promise<PricedNote> {
-    return pricing.price(priceNoteSchema.parse(input));
+  const priceContextSchema = z.object({
+    serviceDate: z.string().trim().max(10).nullish(),
+    salesman: z.string().trim().max(200).nullish(),
+    deliveryNoteRef: z.string().trim().max(100).nullish(),
+    jobId: z.union([z.string(), z.number()]).nullish(),
+  });
+
+  /**
+   * Prices the note. When the screen also sends the service date and salesman, the answer carries a
+   * daily trip cap note (display only): where this note's transport would rank among that salesperson's
+   * completed notes of the day. The figures themselves are not changed.
+   */
+  async function price(input: unknown): Promise<PricedNote & { tripNote: TripNote | null }> {
+    const raw = (input ?? {}) as Record<string, unknown>;
+    const { serviceDate, salesman, deliveryNoteRef, jobId, ...noteInput } = raw;
+    const context = priceContextSchema.parse({ serviceDate, salesman, deliveryNoteRef, jobId });
+    const note = priceNoteSchema.parse(noteInput);
+    const priced = await pricing.price(note);
+    let tripNote: TripNote | null = null;
+    if (context.serviceDate && context.salesman && priced.lines.length === note.lines.length) {
+      const client = await pool.connect();
+      try {
+        const rules = await getDiTransportRules(client);
+        const mine = tripOfNote(
+          note.lines.map((line, i) => ({
+            type: line.type,
+            qty: line.qty,
+            transport: priced.lines[i]!.transport ?? 0,
+            charge: priced.lines[i]!.charge ?? 0,
+          })),
+          rules,
+        );
+        if (mine.capped) {
+          const others = await client.query<{
+            reference: string;
+            deliveryNoteRef: string | null;
+            charge: string;
+          }>(
+            `SELECT d.reference, c.delivery_note_ref AS "deliveryNoteRef", c.trip_charge::text AS charge
+               FROM di_job_trip_cap c JOIN di_jobs d ON d.id = c.job_id
+              WHERE c.capped AND c.service_date = $1::date
+                AND lower(btrim(COALESCE(c.salesman, ''))) = lower(btrim($2))
+                AND ($3::bigint IS NULL OR c.job_id <> $3::bigint)`,
+            [
+              context.serviceDate,
+              context.salesman,
+              context.jobId == null ? null : String(context.jobId),
+            ],
+          );
+          tripNote = buildTripNote(
+            { ...mine, deliveryNoteRef: context.deliveryNoteRef ?? null },
+            others.rows.map((r) => ({
+              reference: r.reference,
+              deliveryNoteRef: r.deliveryNoteRef,
+              charge: Number(r.charge),
+            })),
+            rules.maxTrips,
+          );
+        }
+      } finally {
+        client.release();
+      }
+    }
+    return { ...priced, tripNote };
   }
 
   /** Customer (from the B2B master), salesman (master spelling) and the channel the salesman sells under. */

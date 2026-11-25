@@ -226,6 +226,61 @@ test.describe('delivery and installation', () => {
     await expect(page.locator('[data-di-complete]')).toHaveCount(0);
   });
 
+  test('Live price warns when the salesperson has used the daily trip cap', async ({ page }) => {
+    const priceBodies: Record<string, unknown>[] = [];
+    await mockApi(page, ['di_jobs.read', 'di_jobs.write'], (url, _method, body) => {
+      if (url.pathname === '/api/di-jobs/options') {
+        return {
+          regions: ['Dubai'],
+          salesmen: [{ name: 'Raneesh Jose', salesChannel: 'JDI' }],
+          erpInvMandatory: false,
+        };
+      }
+      if (url.pathname === '/api/di-jobs/items') return { items: [fridge] };
+      if (url.pathname === '/api/di-jobs/price') {
+        const request = body as Record<string, unknown> & { lines: { qty: number }[] };
+        priceBodies.push(request);
+        return {
+          region: 'Dubai',
+          ok: true,
+          lines: request.lines.map((l) => ({
+            type: 'CSIDI',
+            qty: l.qty,
+            blocked: false,
+            revenue: 120,
+          })),
+          totals: { CSIDI: 120, CSIDO: 0, CSIII: 0, total: 120 },
+          issues: [],
+          tripNote: request.salesman
+            ? { rank: 3, trips: 3, maxTrips: 2, charge: 60, charged: false, pushedOut: [] }
+            : null,
+        };
+      }
+      return undefined;
+    });
+    await signIn(page);
+    await page.locator('#deliveryInstallNav').click();
+    await expect(page.getByRole('tab', { name: 'New job' })).toBeVisible();
+    await page.locator('#diItemSearch').fill('fri');
+    await page.locator('#diItemResults button').first().click();
+    await expect(page.locator('[data-di-price]')).toContainText('120.00');
+    // No salesman yet: no note.
+    await expect(page.locator('.di-trip-note')).toHaveCount(0);
+
+    await page.locator('#diServiceDate').fill('2026-10-12');
+    await page.locator('#diSalesman').selectOption('Raneesh Jose');
+    const note = page.locator('.di-trip-note');
+    await expect(note).toContainText('Daily trip limit.');
+    await expect(note).toContainText('trip 3 of 3');
+    await expect(note).toContainText('will not be charged');
+    // The figure itself is not changed by the note.
+    await expect(page.locator('[data-di-price]')).toContainText('120.00');
+    expect(priceBodies[priceBodies.length - 1]).toMatchObject({
+      serviceDate: '2026-10-12',
+      salesman: 'Raneesh Jose',
+    });
+  });
+
   test('a B2C job takes a typed name and phone; stickers print per unit or show what is missing', async ({
     page,
   }) => {

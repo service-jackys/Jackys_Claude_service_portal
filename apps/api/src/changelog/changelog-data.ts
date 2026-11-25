@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 315,
+    "title": "Job entry Live price: daily trip cap note",
+    "area": "General",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "Billing, Budget vs actual and the dashboard charge only the highest 2 transport trips per salesperson per service date, but job entry prices one note at a time, so a user could see a transport charge on screen that Billing later leaves uncharged (for example 16101431, trip 3 of 3 for RENEESH JOSE on 12 Oct).",
+    "changes": [
+      "What changed: Under Live price a short \"Daily trip limit\" note appears (display only, the Live price figure is not changed). It looks at the same salesperson's completed Delivery + Installation notes on the same service date and ranks…"
+    ],
+    "needsYou": "pull, restart the API, hard-refresh (Ctrl+Shift+R). No migration.",
+    "migrations": [],
+    "files": "apps/api/src/dandi-jobs/trip-note.ts (new), apps/api/src/dandi-jobs/jobs-service.ts, apps/web/src/app.js, apps/web/src/index.html, tests/unit/dandi-trip-note.test.ts…"
+  },
+  {
     "id": 314,
     "title": "Service Revenue Dashboard follows the portal rules: Logic applied shows portal figures, installation-only tiers on the invoice total",
     "area": "Revenue",
