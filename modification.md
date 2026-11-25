@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #313 — D+I Quote Calculator layout fix, grouped quantities; job entry capacity column and price breakdown
+
+**Date:** 2026-11-25
+
+**Why.** After #312 the calculator page looked broken, and job entry showed no fridge capacity or price detail.
+
+**What changed.** Fixed a markup slip that closed the calculator's left column one tag early, which pushed Special discount, Client details and Price breakdown out of the grid. Quantities are grouped (Refrigerators, Other appliances, Add-ons) with full labels and a rule line under each fridge box. D+I job entry gets a Capacity column and a "How this price is calculated" table under Live price (master rate, tier, net rate, labour, transport, revenue and the rule applied per line).
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, modification.md, changelog-data.ts.
+
+**Needs you:** pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.
+
 ## Modification #312 — New fridge and 13A/15A plug logic in the D+I Quote Calculator, Pricing Masters and D+I Billing engine
 
 **Date:** 2026-11-25

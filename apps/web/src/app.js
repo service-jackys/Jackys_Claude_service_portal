@@ -18783,7 +18783,7 @@ ${bodyHtml}
       '<section class="dc-card">' +
       cardHead(2, 'Appliance quantities', '') +
       '<p class="dc-limit" data-dc-limit></p>' +
-      '<div class="dc-qty-grid" data-dc-qty-grid></div>' +
+      '<div class="dc-qty-grid" data-dc-qty-grid>' +
       '</div></section>' +
       (canDiscount
         ? '<section class="dc-card dc-admin" data-dc-admin>' +
@@ -18862,23 +18862,27 @@ ${bodyHtml}
     let qtyInputs = [];
     // The quantity boxes: with the new fridge logic two fridge sizes and a plug box, else the old three.
     function qtyBoxes() {
-      if (!state.fridgeLogic) return core.KINDS.map((k) => ({ ...k, tip: '' }));
+      if (!state.fridgeLogic)
+        return core.KINDS.map((k) => ({ ...k, group: 'Appliances', tip: '' }));
       return [
         {
           key: 'fridge',
-          label: 'Fridge, 400 L and under',
+          label: '400 L and under',
+          group: 'Refrigerators',
           tip: 'Fridges of 400 litres or less. Priced as a group: 1 unit at the market rate, 2 to 10 at the base rate, more than 10 at the second tier. No quantity discount tiers.',
         },
         {
           key: 'fridgeLarge',
-          label: 'Fridge, over 400 L',
+          label: 'Over 400 L',
+          group: 'Refrigerators',
           tip: 'Fridges over 400 litres. 1 unit at the market rate, 2 or more at the special rate. No quantity discount tiers.',
         },
-        core.KINDS[1],
-        core.KINDS[2],
+        { ...core.KINDS[1], group: 'Other appliances', tip: '' },
+        { ...core.KINDS[2], group: 'Other appliances', tip: '' },
         {
           key: 'plug',
           label: '13A/15A plugs',
+          group: 'Add-ons',
           tip: 'Number of 13A/15A plugs fitted. Charged per plug on top of the cooker, with no discount. A plug is not a unit or a trip.',
         },
       ];
@@ -18889,22 +18893,34 @@ ${bodyHtml}
       Object.keys(state.qty).forEach((key) => {
         if (!boxes.some((b) => b.key === key)) state.qty[key] = 0;
       });
-      $q('[data-dc-qty-grid]').innerHTML = boxes
-        .map(
-          (k) =>
-            '<div class="dc-qty">' +
-            dandiCalcField(
-              k.label,
-              k.tip || 'Number of ' + k.label.toLowerCase() + ' units in this quote.',
-              '<input type="number" min="0" step="1" value="' +
-                (keep[k.key] || 0) +
-                '" data-dc-qty="' +
-                k.key +
-                '" />',
-            ) +
-            '<div class="dc-qty-price" data-dc-unit="' +
+      const box = (k) =>
+        '<div class="dc-qty">' +
+        dandiCalcField(
+          k.label,
+          k.tip || 'Number of ' + k.label.toLowerCase() + ' units in this quote.',
+          '<input type="number" min="0" step="1" value="' +
+            (keep[k.key] || 0) +
+            '" data-dc-qty="' +
             k.key +
-            '">&nbsp;</div></div>',
+            '" />',
+        ) +
+        '<div class="dc-qty-price" data-dc-unit="' +
+        k.key +
+        '">&nbsp;</div><div class="dc-qty-rule" data-dc-rule="' +
+        k.key +
+        '"></div></div>';
+      const groups = [...new Set(boxes.map((b) => b.group))];
+      $q('[data-dc-qty-grid]').innerHTML = groups
+        .map(
+          (g) =>
+            '<div class="dc-qty-group"><h5>' +
+            escapeHtml(g) +
+            '</h5><div class="dc-qty-row">' +
+            boxes
+              .filter((b) => b.group === g)
+              .map(box)
+              .join('') +
+            '</div></div>',
         )
         .join('');
       qtyInputs = Array.from(container.querySelectorAll('[data-dc-qty]'));
@@ -19025,6 +19041,10 @@ ${bodyHtml}
               '</strong>' +
               (hasDisc ? ' <s>' + dandiCalcMoney(l.chargedUnit) + '</s>' : '')
             : '&nbsp;';
+      });
+      calc.lines.forEach((l) => {
+        const cell = $q('[data-dc-rule="' + l.key + '"]');
+        if (cell) cell.textContent = l.qty && l.rule ? l.rule.replace(/^[^:]*, /, '') : '';
       });
       const plugCell = $q('[data-dc-unit="plug"]');
       if (plugCell)
@@ -23590,7 +23610,7 @@ ${bodyHtml}
             ) +
             '</label><input id="diItemSearch" type="text" autocomplete="off" placeholder="Item code or description…" /></div>' +
             '<ul id="diItemResults" class="b2b-branch-results" hidden></ul>') +
-        '<div class="di-lines-wrap"><table class="di-lines"><thead><tr><th>#</th><th>Item</th><th>Group</th><th>Qty</th><th>Activity</th><th class="num">Net rate</th><th class="num">Revenue (\u20C3)</th><th></th></tr></thead><tbody data-di-lines></tbody></table></div>' +
+        '<div class="di-lines-wrap"><table class="di-lines"><thead><tr><th>#</th><th>Item</th><th>Group</th><th class="num">Capacity</th><th>Qty</th><th>Activity</th><th class="num">Net rate</th><th class="num">Revenue (\u20C3)</th><th></th></tr></thead><tbody data-di-lines></tbody></table></div>' +
         '<span class="field-error" data-error-for="diItemSearch"></span>' +
         '</section>' +
         '<div class="di-price" data-di-price></div>' +
@@ -23695,6 +23715,8 @@ ${bodyHtml}
                 escapeHtml(line.itemDesc || '') +
                 '</span></td><td>' +
                 groupBadge(line) +
+                '</td><td class="num">' +
+                (priceLine && priceLine.litres ? fmt0(priceLine.litres) + ' L' : '—') +
                 '</td><td>' +
                 (isLocked
                   ? escapeHtml(line.qty)
@@ -23727,7 +23749,7 @@ ${bodyHtml}
               );
             })
             .join('')
-        : '<tr><td colspan="8" class="empty-state">No items yet. Search for an item above.</td></tr>';
+        : '<tr><td colspan="9" class="empty-state">No items yet. Search for an item above.</td></tr>';
     }
 
     function frozenSummary() {
@@ -23741,6 +23763,100 @@ ${bodyHtml}
         },
         issues: [],
       };
+    }
+
+    const fmt0 = (n) => String(Math.round(Number(n) || 0));
+
+    // Line by line: where each price comes from (the rate in the pricing master), the rule that was applied
+    // and the transport, so the figure can be checked by hand.
+    function breakdownHtml(source) {
+      const priced = source && source.lines;
+      if (!priced || !priced.length) return '';
+      const head = (label, tip) => '<th>' + label + (tip ? ' ' + tipHtml(tip) : '') + '</th>';
+      const rows = state.lines
+        .map((line, i) => {
+          const r = line.frozen || priced[i];
+          if (!r) return '';
+          const kind = r.plug
+            ? 'Plug'
+            : r.rateKind === 'batch'
+              ? 'Batch rate'
+              : r.rateKind === 'standard'
+                ? 'Standard rate'
+                : r.rateKind === 'regional'
+                  ? 'Regional transport'
+                  : r.rateKind === 'flat'
+                    ? 'Flat charge'
+                    : '—';
+          const fromMaster =
+            r.baseRate != null
+              ? fmt(r.baseRate) + ' <small>' + kind.toLowerCase() + '</small>'
+              : kind;
+          const rule = r.blocked
+            ? '<span class="di-issue-error">Not priced</span>'
+            : escapeHtml(r.note || r.rateNote || '');
+          return (
+            '<tr><td>' +
+            (i + 1) +
+            '</td><td><strong>' +
+            escapeHtml(line.itemCode) +
+            '</strong> <small>' +
+            escapeHtml(TYPE_LABELS[line.type] || line.type) +
+            '</small></td><td class="num">' +
+            escapeHtml(line.qty) +
+            '</td><td class="num">' +
+            (r.litres ? fmt0(r.litres) + ' L' : '—') +
+            '</td><td class="num">' +
+            fromMaster +
+            '</td><td>' +
+            escapeHtml(r.discountTier || '—') +
+            '</td><td class="num">' +
+            (r.netRate != null ? fmt(r.netRate) : '—') +
+            '</td><td class="num">' +
+            fmt(r.labour || r.charge || 0) +
+            '</td><td class="num">' +
+            fmt(r.transport || 0) +
+            '</td><td class="num"><strong>' +
+            (r.blocked ? '—' : fmt(r.revenue)) +
+            '</strong></td><td class="di-rule">' +
+            rule +
+            '</td></tr>'
+          );
+        })
+        .join('');
+      return (
+        '<details class="di-breakdown" open><summary>How this price is calculated</summary>' +
+        '<div class="di-lines-wrap"><table class="di-lines di-calc"><thead><tr><th>#</th>' +
+        head('Item') +
+        head('Qty') +
+        head(
+          'Capacity',
+          'Fridge capacity in litres from the Stock Master. Fridges of 400 L and under and over 400 L are priced separately; no litres on file means 400 L is used and the line is flagged.',
+        ) +
+        head(
+          'Master rate',
+          'The rate from the Delivery + Installation pricing master that applies to this line: the batch rate when the note has more than one unit, otherwise the standard rate. Fridges use the fridge settings of Pricing Masters.',
+        ) +
+        head(
+          'Discount tier',
+          'The quantity tier looked up on the units of the note. Fridges have no discount tiers; plugs are never discounted.',
+        ) +
+        head(
+          'Net rate',
+          'Price per unit after the tier and the minimum charge (for fridges, the group price divided by the units).',
+        ) +
+        head('Labour') +
+        head(
+          'Transport',
+          'One transport charge per note, only when it has more than one Delivery + Installation unit and no Delivery only line. A plug is not a unit or a trip.',
+        ) +
+        head('Revenue (\u20C3)') +
+        head('Rule applied') +
+        '</tr></thead><tbody>' +
+        rows +
+        '</tbody></table></div>' +
+        '<p class="form-note">Revenue = labour + transport. Labour = units \u00d7 net rate; for fridges the whole size group (400 L and under / over 400 L) is priced together: 1 unit at the market rate, 2 to 10 at the base rate, units above 10 at the second tier, over 400 L from 2 units at the special rate. A 13A/15A plug (REPAIR-MATERIAL) is the plug amount \u00d7 quantity. Rates come from Pricing Masters.</p></details>'
+      );
     }
 
     function drawPrice() {
@@ -23784,6 +23900,7 @@ ${bodyHtml}
               .join('') +
             '</ul>';
         }
+        if (!completed) html += breakdownHtml(source);
         html += completed
           ? '<p class="form-note">These figures were frozen when the job was completed. Billing may charge less transport where the daily trip cap applies.</p>'
           : '<p class="form-note">Recalculated on every change from the Delivery + Installation pricing master. Figures freeze when you complete the job.</p>';
