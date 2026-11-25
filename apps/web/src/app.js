@@ -32846,6 +32846,11 @@ ${bodyHtml}
         '<div class="rl-example"><div class="rl-example-head"><b>Invoice ' +
         e(ex.invoice) +
         '</b>' +
+        (ex.family
+          ? '<span class="rl-fam">' +
+            (ex.family === 'repair' ? 'Repair invoice' : 'Delivery / installation invoice') +
+            '</span>'
+          : '') +
         refDocPill(ex.refDocNo) +
         custCodePill(ex.custCode) +
         '<span>' +
@@ -33424,7 +33429,7 @@ ${bodyHtml}
       // first invoice of the list: select the invoice if it is listed, otherwise
       // add it (or the pasted set) at the top.
       const showPastedInPicker = (res) => {
-        const found = (res.examples || []).map((x) => x.invoice);
+        const found = (res.examples || []).map((x) => x.key || x.invoice);
         pick.querySelectorAll('option[data-pasted]').forEach((o) => o.remove());
         if (!found.length) return;
         if (found.length === 1) {
@@ -33440,13 +33445,13 @@ ${bodyHtml}
         option.value = found.length === 1 ? found[0] : '';
         option.textContent =
           found.length === 1
-            ? found[0] +
+            ? ex.invoice +
               ' · ' +
               (ex.customer || 'No customer') +
               ' · ' +
               (ex.date || '') +
               ' · pasted'
-            : 'Pasted: ' + found.join(', ');
+            : 'Pasted: ' + [...new Set(res.examples.map((x) => x.invoice))].join(', ');
         pick.insertBefore(option, pick.firstChild);
         pick.value = option.value;
         option.selected = true;
@@ -33725,7 +33730,7 @@ ${bodyHtml}
           spData && spShow !== 'all'
             ? pickerAll.filter((i) => spStatus(i.invoice) === spShow)
             : pickerAll;
-        listed = list.map((i) => i.invoice);
+        listed = list.map((i) => i.key || i.invoice);
         const who = lf.salesPerson === 'UNASSIGNED' ? 'no sales person' : lf.salesPerson;
         const kind =
           spData && spShow !== 'all'
@@ -33741,14 +33746,15 @@ ${bodyHtml}
         pick.innerHTML = list.length
           ? list
               .map((i) => {
-                const row = spData && spData.byInvoice[i.invoice];
+                // Trips belong to delivery documents; a repair invoice can share the number.
+                const row = spData && i.family !== 'repair' && spData.byInvoice[i.invoice];
                 const flag =
                   row && row.status === 'not_charged'
                     ? '\u26A0 Not charged \u00B7 trip ' + row.rank + ' \u00B7 '
                     : '';
                 return (
                   '<option value="' +
-                  e(i.invoice) +
+                  e(i.key || i.invoice) +
                   '">' +
                   e(
                     flag +
@@ -33773,7 +33779,7 @@ ${bodyHtml}
           : '';
         liveMsg.textContent = countMsg;
         if (openFirst) {
-          if (list.length) await loadExample(list[0].invoice);
+          if (list.length) await loadExample(list[0].key || list[0].invoice);
           else liveRoot.innerHTML = '';
         }
       };

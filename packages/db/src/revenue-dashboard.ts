@@ -524,8 +524,18 @@ export async function revenueExportLines(
   return rows.rows;
 }
 
+// The ERP numbers each document series on its own, so a repair invoice (CSIJO / CSIJW) can carry the
+// same number as an unrelated delivery or installation invoice (CSIDI / CSIDO / CSIII). An invoice is
+// therefore identified by its number and its job family.
+export type InvoiceFamily = 'repair' | 'delivery';
+export const invoiceFamilyOf = (jobType: string): InvoiceFamily =>
+  jobType === 'CSIJO' || jobType === 'CSIJW' ? 'repair' : 'delivery';
+const FAMILY_SQL = `CASE WHEN job_type IN ('CSIJO', 'CSIJW') THEN 'repair' ELSE 'delivery' END`;
+
 export type RevenueInvoiceRow = {
   invoice: string;
+  family: InvoiceFamily;
+  key: string;
   customer: string | null;
   date: string | null;
   jobTypes: string[];
@@ -545,6 +555,7 @@ export async function revenueInvoiceList(
   const f = filterClause(batchId, filters);
   const rows = await client.query<{
     invoice: string;
+    family: InvoiceFamily;
     customer: string | null;
     date: string | null;
     jobTypes: string[];
@@ -552,17 +563,18 @@ export async function revenueInvoiceList(
     lines: string;
     revenue: string;
   }>(
-    `SELECT inv_del_no AS invoice, MAX(customer) AS customer, MIN(order_date)::text AS date,
+    `SELECT inv_del_no AS invoice, ${FAMILY_SQL} AS family, MAX(customer) AS customer, MIN(order_date)::text AS date,
             array_agg(DISTINCT job_type ORDER BY job_type) AS "jobTypes",
             MAX(NULLIF(sales_person, '')) AS "salesPerson",
             COUNT(*) AS lines, COALESCE(SUM(revenue), 0) AS revenue
      FROM revenue_lines WHERE ${f.where} AND inv_del_no IS NOT NULL AND inv_del_no <> ''
-     GROUP BY inv_del_no
-     ORDER BY MIN(order_date) DESC NULLS LAST, inv_del_no DESC LIMIT ${Math.floor(limit)}`,
+     GROUP BY inv_del_no, ${FAMILY_SQL}
+     ORDER BY MIN(order_date) DESC NULLS LAST, inv_del_no DESC, 2 LIMIT ${Math.floor(limit)}`,
     f.params,
   );
   return rows.rows.map((r) => ({
     ...r,
+    key: `${r.invoice}::${r.family}`,
     lines: Number(r.lines),
     revenue: Number(r.revenue),
   }));

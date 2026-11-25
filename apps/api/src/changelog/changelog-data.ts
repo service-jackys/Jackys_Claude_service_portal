@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 309,
+    "title": "Worked example: repair and delivery invoices with the same number are separate documents",
+    "area": "Invoices & billing",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "The ERP numbers each document series on its own (confirmed with the ERP team), so a repair invoice (CSIJO / CSIJW) can carry the same number as an unrelated delivery or installation invoice (CSIDI / CSIDO / CSIII). In the Logic applied worked example, picking invoice 16101035 showed a November repair and a July…",
+    "changes": [
+      "An invoice is now its number plus its job family (repair, or delivery / installation). The picker lists one row per family and each card total equals its dropdown row.",
+      "A pasted number that exists in both families shows two cards, each labelled \"Repair invoice\" or \"Delivery / installation invoice\". \"number::repair\" or \"number::delivery\" can also be pasted.",
+      "A repair card has no transport note; the trip and cap notes of the Export report are limited to delivery lines; the summary worked example no longer mixes the two series.",
+      "Display only: no rate, revenue figure or total changes. Delivery lines of one invoice (CSIDI, CSIDO, CSIII) stay together."
+    ],
+    "needsYou": "pull, restart the API, hard-refresh (Ctrl+Shift+R). No migration.",
+    "migrations": [],
+    "files": "packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, export.ts, logic-summary.ts, apps/web/src/app.js, index.html, tests/integration/revenue-invoice-family.test.ts…"
+  },
+  {
     "id": 308,
     "title": "Logic applied: rate chips back to small inline pills",
     "area": "General",

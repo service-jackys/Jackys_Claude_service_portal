@@ -393,7 +393,9 @@ export function buildLogicSummary(
   const groups = new Map<string, LogicSummaryLine[]>();
   for (const l of lines) {
     if (!l.invDelNo) continue;
-    groups.set(l.invDelNo, [...(groups.get(l.invDelNo) ?? []), l]);
+    // Same number in the repair and the delivery series is two documents (ERP numbers each series on its own).
+    const k = `${l.invDelNo}|${l.jobType === 'CSIJO' || l.jobType === 'CSIJW' ? 'r' : 'd'}`;
+    groups.set(k, [...(groups.get(k) ?? []), l]);
   }
   let example: LogicSummary['example'] = null;
   const candidates = [...groups.entries()]
@@ -410,8 +412,8 @@ export function buildLogicSummary(
       (a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0], undefined, { numeric: true }),
     );
   if (candidates[0]) {
-    const [invoice, set] = candidates[0];
-    example = buildWorkedExample(rules, invoice, set);
+    const [key, set] = candidates[0];
+    example = buildWorkedExample(rules, key.split('|')[0] ?? key, set);
   }
 
   // Compare the workbook with the rules.
