@@ -116,6 +116,70 @@ export function createServiceJobCardHandlers(
         }
       },
     ],
+    walkInVisitCreate: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          const result = await service.createWalkInVisit(
+            request.body,
+            auth.profileId,
+            request.header('x-request-id') ?? undefined,
+          );
+          response.status(result.replay ? 200 : 201).json(result);
+        } catch (error) {
+          if (error instanceof ServiceJobCardError) {
+            serviceError(error, response);
+            return;
+          }
+          next(error);
+        }
+      },
+    ],
+    walkInSerialCheck: [
+      requirePermission('service_job_card.write'),
+      async (request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json(await service.walkInSerialCheck(request.body));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    walkInSettings: [
+      requirePermission('service_job_card.write'),
+      async (_request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json(await service.walkInSettings());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    walkInSettingsSave: [
+      requirePermission('admin.users'),
+      async (request, response, next) => {
+        try {
+          const auth = response.locals.auth as ApplicationAuth;
+          response.json(await service.saveWalkInVisitLimit(request.body, auth.profileId));
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
+    visitCards: [
+      requirePermission('service_job_card.read'),
+      async (request, response, next) => {
+        try {
+          response.setHeader('Cache-Control', 'no-store');
+          response.json({ jobCards: await service.visitCards(String(request.params.reference)) });
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     walkInContactCheck: [
       requirePermission('service_job_card.write'),
       async (request, response, next) => {

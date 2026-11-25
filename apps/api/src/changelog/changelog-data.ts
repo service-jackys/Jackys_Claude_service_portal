@@ -15,6 +15,30 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 317,
+    "title": "Walk-in job card: several units in one visit",
+    "area": "Job cards",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "B2B customers often bring several units at once (for example 5 of one model, each with its own S/N, plus 2 of another model). CCE had to retype the customer and every item for each unit, and the open-records warning made the form feel blocked.",
+    "changes": [
+      "Walk-in form: the customer is entered once. \"Items brought in\" holds one line per model (model, brand, description, warranty, quantity, fault for all). Each line has one row per unit (S/N, purchase date, invoice no., optional different…",
+      "One job card is still opened per unit, so billing, parts, stickers and delivery are unchanged. All cards of a visit share a visit reference WI-YYYY-NNNNN. A retry or double press never creates duplicate cards (request key).",
+      "Same serial number: a red stop only when that S/N is already on an open job card. A card stops counting when its job status is BER, Cancelled or it is Delivered. The row can be confirmed with \"Different repair, open anyway\". Open…",
+      "Units per visit limit: default 10. Only an administrator can change it, in Admin > Masters > Walk-in.",
+      "After saving: one result table, one combined intake receipt, one sticker print, \"Add more units for this customer\" (keeps the customer, resets the items) and \"New customer\". A single unit still opens the same screen as before.",
+      "Schedules > New request: the Purchase details note from #316 is now a tooltip (the tooltips test requires no inline notes).",
+      "New API: POST /api/job-cards/walk-in/visit, POST /walk-in/serial-check, GET and PUT /walk-in/settings, GET /api/job-cards/visit/{reference}.",
+      "Migration 112 adds the visit columns, the serial index, the walk_in_settings table and the walk_in_visit reference counter."
+    ],
+    "needsYou": "pull, run npm.cmd run db:migrate (migration 112), restart the API, hard-refresh (Ctrl+Shift+R).",
+    "migrations": [
+      "112_walk_in_visits.sql"
+    ],
+    "files": "packages/db/migrations/112_walk_in_visits.sql, packages/db/src/walk-in-settings.ts, packages/db/src/job-cards.ts, packages/db/src/references.ts, packages/contracts/src/index.ts…"
+  },
+  {
     "id": 316,
     "title": "Schedules: optional Purchase details (S/N, Invoice number, Invoice date, Received date)",
     "area": "Invoices & billing",

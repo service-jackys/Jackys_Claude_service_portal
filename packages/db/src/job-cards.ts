@@ -20,6 +20,10 @@ export type ServiceJobCardRecord = {
   quotationReference: string | null;
   // '' = the job card covers the whole quotation; otherwise the unit it was made for.
   quotationUnitKey: string;
+  // Walk-in visit (migration 112): cards opened together share a visit reference.
+  visitReference: string | null;
+  visitUnitNo: number | null;
+  visitUnitCount: number | null;
   // The complaint that led to this job card's appointment, if any -- an
   // appointment can be created without a complaint, so both can be null.
   // Carried through for the workflow link (see modification.md #5).
@@ -185,6 +189,9 @@ const columns = `
   appointments.appointment_reference AS "appointmentReference",
   service_job_cards.quotation_id AS "quotationId",
   service_job_cards.quotation_unit_key AS "quotationUnitKey",
+  service_job_cards.visit_reference AS "visitReference",
+  service_job_cards.visit_unit_no::int AS "visitUnitNo",
+  service_job_cards.visit_unit_count::int AS "visitUnitCount",
   quotations.quotation_reference AS "quotationReference",
   appointments.complaint_id AS "complaintId",
   complaints.complaint_reference AS "complaintReference",
@@ -956,3 +963,142 @@ UPDATE service_job_cards j SET sales_channel = fill.channel
    AND j.customer_type IS DISTINCT FROM 'B2C'
    AND (coalesce(trim(j.customer_number), '') = '' OR coalesce(trim(j.sales_order_number), '') = '')`,
 ];
+
+// ---- Walk-in visits (migration 112) ----
+
+/** Stamp a freshly created job card with its visit. A repeated (key, unit) pair violates the
+ *  unique index, which the caller turns into "return the cards already created". */
+export async function setServiceJobCardVisit(
+  client: PoolClient,
+  id: string,
+  visit: { reference: string; unitNo: number; unitCount: number; requestKey: string | null },
+): Promise<void> {
+  await client.query(
+    `UPDATE service_job_cards
+        SET visit_reference = $2, visit_unit_no = $3, visit_unit_count = $4, visit_request_key = $5
+      WHERE id = $1`,
+    [id, visit.reference, visit.unitNo, visit.unitCount, visit.requestKey],
+  );
+}
+
+export async function listServiceJobCardsByVisitKey(
+  client: PoolClient,
+  requestKey: string,
+): Promise<ServiceJobCardRecord[]> {
+  const ids = await client.query<{ id: string }>(
+    `SELECT id::text FROM service_job_cards WHERE visit_request_key = $1 ORDER BY visit_unit_no`,
+    [requestKey],
+  );
+  const cards: ServiceJobCardRecord[] = [];
+  for (const row of ids.rows) {
+    const card = await findServiceJobCardById(client, row.id);
+    if (card) cards.push(card);
+  }
+  return cards;
+}
+
+export async function listServiceJobCardsByVisitReference(
+  client: PoolClient,
+  reference: string,
+): Promise<ServiceJobCardRecord[]> {
+  const ids = await client.query<{ id: string }>(
+    `SELECT id::text FROM service_job_cards WHERE visit_reference = $1 ORDER BY visit_unit_no`,
+    [reference],
+  );
+  const cards: ServiceJobCardRecord[] = [];
+  for (const row of ids.rows) {
+    const card = await findServiceJobCardById(client, row.id);
+    if (card) cards.push(card);
+  }
+  return cards;
+}
+
+/** S/N values that are placeholders, not real serial numbers: never compared. */
+const SERIAL_PLACEHOLDERS = new Set([
+  'NA',
+  'N/A',
+  'NIL',
+  'NONE',
+  'NULL',
+  'UNKNOWN',
+  'NOSN',
+  '-',
+  '--',
+  '0',
+]);
+
+export function normaliseSerial(value: string | null | undefined): string | null {
+  const text = String(value ?? '')
+    .replace(/\s+/g, '')
+    .toUpperCase();
+  if (text.length < 3 || SERIAL_PLACEHOLDERS.has(text) || /^0+$/.test(text)) return null;
+  return text;
+}
+
+export interface OpenSerialMatch {
+  serial: string;
+  jobCardId: string;
+  reference: string;
+  status: string;
+  sourceType: string;
+  customerName: string | null;
+  item: string | null;
+}
+
+/** Open job cards that already hold these serial numbers. A card stops being open when it is
+ *  Delivered, BER or Cancelled (the unit has left or will not be repaired). */
+export async function findOpenCardsBySerials(
+  client: PoolClient,
+  serials: string[],
+): Promise<OpenSerialMatch[]> {
+  const keys = [
+    ...new Set(serials.map((value) => normaliseSerial(value)).filter(Boolean)),
+  ] as string[];
+  if (!keys.length) return [];
+  const result = await client.query(
+    `SELECT upper(regexp_replace(serial_no, '[[:space:]]', '', 'g')) AS serial, id::text AS "jobCardId",
+            job_card_reference AS reference, COALESCE(job_final_status, 'WIP') AS status,
+            source_type AS "sourceType", customer_name AS "customerName",
+            COALESCE(NULLIF(trim(concat_ws(' ', brand, model_no)), ''), item_description) AS item
+       FROM service_job_cards
+      WHERE serial_no IS NOT NULL
+        AND upper(regexp_replace(serial_no, '[[:space:]]', '', 'g')) = ANY($1::text[])
+        AND final_status IS DISTINCT FROM 'Delivered'
+        AND COALESCE(job_final_status, 'WIP') NOT IN ('BER', 'Cancelled')
+      ORDER BY created_at DESC`,
+    [keys],
+  );
+  return result.rows;
+}
+
+/** Open appointments and complaints that mention one of these serial numbers (information only). */
+export async function findOpenOtherRecordsBySerials(
+  client: PoolClient,
+  serials: string[],
+): Promise<
+  { serial: string; kind: 'Appointment' | 'Complaint'; reference: string; status: string }[]
+> {
+  const keys = [
+    ...new Set(serials.map((value) => normaliseSerial(value)).filter(Boolean)),
+  ] as string[];
+  if (!keys.length) return [];
+  const appointments = await client.query(
+    `SELECT upper(regexp_replace(serial_no, '[[:space:]]', '', 'g')) AS serial, 'Appointment' AS kind,
+            appointment_reference AS reference, status
+       FROM appointments
+      WHERE serial_no IS NOT NULL
+        AND upper(regexp_replace(serial_no, '[[:space:]]', '', 'g')) = ANY($1::text[])
+        AND status NOT IN ('Completed', 'Cancelled')`,
+    [keys],
+  );
+  const complaints = await client.query(
+    `SELECT upper(regexp_replace(serial_or_item_code, '[[:space:]]', '', 'g')) AS serial, 'Complaint' AS kind,
+            complaint_reference AS reference, status
+       FROM complaints
+      WHERE serial_or_item_code IS NOT NULL
+        AND upper(regexp_replace(serial_or_item_code, '[[:space:]]', '', 'g')) = ANY($1::text[])
+        AND status NOT IN ('Closed', 'Cancelled')`,
+    [keys],
+  );
+  return [...appointments.rows, ...complaints.rows];
+}

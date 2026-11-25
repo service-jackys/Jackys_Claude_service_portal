@@ -549,6 +549,54 @@ export const walkInJobCardCreateSchema = z
   });
 export type WalkInJobCardCreateInput = z.infer<typeof walkInJobCardCreateSchema>;
 
+// Walk-in visit (modification #317): one customer, several item lines, one job card per unit.
+// The customer fields are the same as a single walk-in; each line carries the item and a
+// quantity; units[] holds the per-unit serial number / purchase date / invoice / fault.
+const walkInUnitSchema = z
+  .object({
+    serialNo: optionalText(120),
+    purchaseDate: dateSchema.optional(),
+    invoiceNo: optionalText(120),
+    complaint: optionalText(10000),
+    // The counter staff confirmed this S/N is a different repair from the open card holding it.
+    allowDuplicateSerial: z.boolean().optional(),
+  })
+  .strict();
+const walkInLineSchema = z
+  .object({
+    itemDescription: optionalText(300),
+    modelNo: optionalText(120),
+    brand: optionalText(120),
+    itemCode: optionalText(120),
+    mainGroup: optionalText(120),
+    groupName: optionalText(120),
+    subGroup: optionalText(120),
+    itemInMaster: z.boolean().optional(),
+    warrantyStatus: optionalText(50),
+    complaint: optionalText(10000),
+    accessoriesReceived: optionalText(1000),
+    conditionNotes: optionalText(2000),
+    quantity: z.number().int().min(1).max(500),
+    units: z.array(walkInUnitSchema).max(500).optional(),
+  })
+  .strict();
+export const walkInVisitCreateSchema = z
+  .object({
+    ...jobCardContentFields,
+    // Item and unit fields live in the lines, not at the top level.
+    lines: z.array(walkInLineSchema).min(1).max(100),
+    // One random key per press of the button: a retry or double press cannot open the cards twice.
+    requestKey: z.string().trim().min(8).max(100),
+  })
+  .strict();
+export type WalkInVisitCreateInput = z.infer<typeof walkInVisitCreateSchema>;
+export const walkInSerialCheckSchema = z
+  .object({ serials: z.array(z.string().trim().max(120)).max(500) })
+  .strict();
+export const walkInSettingsSchema = z
+  .object({ maxUnitsPerVisit: z.number().int().min(1).max(500) })
+  .strict();
+
 // approvalMethod / approvalNotes accompany a manual move from "Customer approval
 // pending" to WIP: how the customer approved when they did not use the link.
 export const serviceJobCardUpdateSchema = z
