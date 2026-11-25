@@ -383,8 +383,8 @@ function defaultsFromAppointment(
     groupName: null,
     subGroup: appointment.subGroup,
     itemInMaster: null,
-    serialNo: null,
-    purchaseDate: null,
+    serialNo: appointment.serialNo,
+    purchaseDate: appointment.invoiceDate,
     accessoriesReceived: null,
     conditionNotes: null,
   };

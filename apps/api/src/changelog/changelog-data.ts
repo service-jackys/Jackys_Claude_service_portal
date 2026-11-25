@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 316,
+    "title": "Schedules: optional Purchase details (S/N, Invoice number, Invoice date, Received date)",
+    "area": "Invoices & billing",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "Technicians need the serial number and purchase invoice details on the visit, but CCE often do not have them when scheduling. They must be optional at booking, and the technician writes any missing one by hand on the printed appointment sheet.",
+    "changes": [
+      "New optional \"Purchase details\" card on Schedules > New request: S/N (serial number), Invoice number, Invoice date, Received date (the day the customer received the unit), each with a tooltip. None blocks Save or Book. Each extra item of…",
+      "Appointment detail shows a Purchase details section.",
+      "Appointment sheet (Daily schedule print): the old Reference section is replaced by Purchase details (two fields per row). An entered field prints its value; a blank one prints a ruled write-in line, not a red \"Not entered\" gap. The…",
+      "Job card prefill from a completed appointment now fills Serial number (from S/N) and Purchase date (from Invoice date). The purchase invoice number is not copied, because the job card Invoice no. is the service invoice.",
+      "Migration 111 adds serial_no, invoice_number, invoice_date, received_date to appointments (all nullable).",
+      "Tests: tests/integration/appointment-purchase-details.test.ts (save, visit items, daily list, job card prefill); e2e in phase4-scheduling.spec.ts (form payload, print with blank and entered fields)."
+    ],
+    "needsYou": "pull, run npm.cmd run db:migrate (migration 111), restart the API, hard-refresh (Ctrl+Shift+R).",
+    "migrations": [
+      "111_appointment_purchase_details.sql"
+    ],
+    "files": "packages/db/migrations/111_appointment_purchase_details.sql, packages/db/src/appointments.ts, packages/db/src/daily-list.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts…"
+  },
+  {
     "id": 315,
     "title": "Job entry Live price: daily trip cap note",
     "area": "General",

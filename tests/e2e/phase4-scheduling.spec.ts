@@ -403,6 +403,10 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await page.locator('#newComplaintContactNumber').fill('0500000001');
     await page.locator('#newComplaintBrand').fill('LG');
     await page.locator('#newComplaintDescription').fill('Washer not spinning');
+    await page.locator('#newComplaintSerialNo').fill('VN4501234');
+    await page.locator('#newComplaintInvoiceNumber').fill('16101234');
+    await page.locator('#newComplaintInvoiceDate').fill('2025-03-12');
+    await page.locator('#newComplaintReceivedDate').fill('2025-03-20');
     await expect(page.locator('#submitNewComplaintButton')).toHaveText('Book appointment');
 
     await page.locator('#addVisitItemButton').click();
@@ -417,6 +421,8 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     expect(api.visitBodies).toHaveLength(0);
 
     await item.locator('[data-v="model"]').fill('Fridge');
+    await item.locator('[data-v="serialNo"]').fill('SN-FRIDGE-1');
+    await item.locator('[data-v="invoiceDate"]').fill('2025-01-02');
     await item.locator('[data-v="faultDescription"]').fill('Fridge not cooling');
     await item.locator('[data-v="appointmentDate"]').fill('2026-10-13');
     await item.locator('[data-v="appointmentDate"]').dispatchEvent('change');
@@ -432,7 +438,19 @@ test.describe('Phase4 appointment calendar and recovery', () => {
       complaintSource: 'Phone',
     });
     expect(body.items).toHaveLength(2);
-    expect(body.items[0]).toMatchObject({ brand: 'LG', faultDescription: 'Washer not spinning' });
+    expect(body.items[0]).toMatchObject({
+      brand: 'LG',
+      faultDescription: 'Washer not spinning',
+      serialNo: 'VN4501234',
+      invoiceNumber: '16101234',
+      invoiceDate: '2025-03-12',
+      receivedDate: '2025-03-20',
+    });
+    expect(body.items[1]).toMatchObject({
+      serialNo: 'SN-FRIDGE-1',
+      invoiceDate: '2025-01-02',
+    });
+    expect(body.items[1].invoiceNumber).toBeUndefined();
     expect(body.items[1]).toMatchObject({
       model: 'Fridge',
       faultDescription: 'Fridge not cooling',
@@ -643,7 +661,7 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     await expect(popup.locator('.apt-sec h3')).toHaveText([
       'Customer details',
       'Product details',
-      'Reference',
+      /^Purchase details/,
     ]);
     await expect(popup.locator('.apt-card .apt-kicker')).toHaveText(['Customer', 'Visit']);
     // Required and entered: bold cell; required and missing: red "Not entered".
@@ -655,6 +673,37 @@ test.describe('Phase4 appointment calendar and recovery', () => {
     );
     await expect(popup.locator('.block', { hasText: 'Fridge not cooling' })).toBeVisible();
     await expect(popup.locator('input[type="checkbox"]')).toHaveCount(0);
+    // Purchase details are optional: all four blank print as ruled write-in lines, not red gaps.
+    await expect(
+      popup.locator('.apt-sec', { hasText: 'Purchase details' }).locator('.write-line'),
+    ).toHaveCount(4);
+    await expect(popup.locator('.apt-sec', { hasText: 'Purchase details' })).toContainText('S/N');
+    await expect(popup.locator('.apt-card', { hasText: 'Complaint source' })).toBeVisible();
+  });
+
+  test('prints entered purchase details as values and keeps write-in lines only for blank ones', async ({
+    page,
+  }) => {
+    await installStaffApi(page, {
+      appointment: {
+        ...appointment,
+        serialNo: 'VN4501234',
+        invoiceNumber: null,
+        invoiceDate: '2025-03-12',
+        receivedDate: null,
+      } as typeof appointment,
+    });
+    await signInAndOpenAppointments(page);
+    await page.getByRole('button', { name: 'APT-2026-00001' }).click();
+    const popupPromise = page.waitForEvent('popup');
+    await page.locator('#printAppointmentButton').click();
+    const popup = await popupPromise;
+    await popup.waitForLoadState();
+    const sec = popup.locator('.apt-sec', { hasText: 'Purchase details' });
+    await expect(sec.locator('td', { hasText: 'VN4501234' })).toBeVisible();
+    await expect(sec.locator('td', { hasText: '12 Mar 2025' })).toBeVisible();
+    await expect(sec.locator('.write-line')).toHaveCount(2);
+    await expect(sec).toContainText('technician writes in');
   });
 
   test('hides rescheduling for terminal appointments', async ({ page }) => {
