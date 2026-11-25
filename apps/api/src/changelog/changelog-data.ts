@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 319,
+    "title": "My notes: smaller side tab, swatches stay round",
+    "area": "General",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "The minimised \"My notes\" tab on the right edge was a little big, and when the note panel was made as narrow as possible the colour dots were squeezed into ovals.",
+    "changes": [
+      "What changed: The tab is smaller (34 x 108 px instead of 46 x 150, smaller icon, label and dot). The five colour dots keep a fixed round size at every panel width; at the narrowest width the title and the saved text shrink instead (the…"
+    ],
+    "needsYou": "pull and hard-refresh (Ctrl+Shift+R). No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/index.html, modification.md, changelog-data.ts."
+  },
+  {
     "id": 318,
     "title": "My notes: floating private note panel on every page",
     "area": "Invoices & billing",
