@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #314 — Service Revenue Dashboard follows the portal rules: Logic applied shows portal figures, installation-only tiers on the invoice total
+
+**Date:** 2026-11-25
+
+**Why.** The Logic applied invoice lookup explained the master workbook's own figures (for example 16101431 at 114 and 16101171 at 200) while the dashboard held different portal figures, and installation-only (CSIII) lines were still priced on each line's own quantity as the workbook does.
+
+**What changed.** New admin switch on the Rate card, "Installation-only (CSIII) discount tiers": **Whole invoice (portal rule, the default)** or **Each line on its own (workbook)**, with the total of the 40 installation-only lines under each setting shown beside it. With the portal rule on, the dashboard re-prices installation-only lines on the invoice's total installation units (fridges follow the fridge capacity rule and have no tier). The Logic applied invoice lookup, and the example opened with the tab, now show the portal figure of every line with a Capacity column, a "How it is priced (portal rules)" column and the workbook's figure beside it; the badge reads "Installation-only invoice" where that is the case. The Excel export gets an "Installation-only tiers" line in the Summary and a reason tag "Installation-only invoice tier" on the lines this moves. Workbook figures are kept, so either setting is reversible.
+
+**Files.** packages/db/migrations/110_revenue_install_tier_basis.sql, packages/db/src/revenue-rate-overrides.ts, apps/api/src/revenue-dashboard (service, rate-overrides, scenario-run, pricing-logic, logic-summary, export), apps/web/src/app.js, tests, modification.md, changelog-data.ts.
+
+**Needs you:** pull, `npm.cmd run db:migrate`, restart the API, hard-refresh (Ctrl+Shift+R). Then open Rate card and press **Update tier basis** once: it re-prices the dashboard under the whole-invoice rule. Existing installation-only lines keep the workbook's rate when the row is locked history; only the tier moves.
+
 ## Modification #313 — D+I Quote Calculator layout fix, grouped quantities; job entry capacity column and price breakdown
 
 **Date:** 2026-11-25

@@ -85,7 +85,7 @@ import {
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 import { buildBudgetWorkbook, buildRevenueSourceWorkbook } from './download.js';
 import { buildRevenueReportWorkbook } from './export.js';
-import { applyFlatRates } from './pricing-logic.js';
+import { applyFlatRates, priceInstallLine, type PricingRules } from './pricing-logic.js';
 import {
   buildLogicSummary,
   buildWorkedExample,
@@ -353,7 +353,14 @@ export function createRevenueDashboardService(pool: Pool) {
     const r = fridgeRevenue(inputs, base, custom ?? ratesOf(base), settings, lookup, plugQty);
     const byLine = new Map<
       string,
-      { litres: number; source: string; defaultLitres: boolean; rule: string; large: boolean }
+      {
+        litres: number;
+        source: string;
+        defaultLitres: boolean;
+        rule: string;
+        large: boolean;
+        labour: number;
+      }
     >();
     let defaultLines = 0;
     for (const [id, f] of r.fridge) {
@@ -363,6 +370,7 @@ export function createRevenueDashboardService(pool: Pool) {
         defaultLitres: f.defaultLitres,
         rule: f.rule,
         large: f.large,
+        labour: f.newLabour,
       });
       if (f.defaultLitres) defaultLines += 1;
     }
@@ -426,6 +434,7 @@ export function createRevenueDashboardService(pool: Pool) {
         ...(await tripDetails(client, batch.id)),
         transportRules: await exportTransportRules(client),
         customRates: (await customRatesSummary(client, true)) ?? undefined,
+        installTierBasis: (await getFridgeLogic(client)).installTierBasis,
         fridgeLogic: await exportFridgeLogic(client, String(batch.id)),
       };
       const workbook = await buildRevenueReportWorkbook(data);
@@ -558,7 +567,34 @@ export function createRevenueDashboardService(pool: Pool) {
         id?: unknown;
       })[];
       const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
-      const summary = buildLogicSummary(batch!, lines.map(toLogicLine), dandi);
+      const summary = { ...buildLogicSummary(batch!, lines.map(toLogicLine), dandi) };
+      // The example opened with the tab shows the portal figures too (modification #314).
+      if (summary.example) {
+        const types = new Set(summary.example.lines.map((l) => l.jobType));
+        const raw = (
+          (await revenueInvoiceLines(client, batchId, [
+            summary.example.invoice,
+          ])) as (LogicSummaryLine & {
+            workbookRevenue?: unknown;
+          })[]
+        ).filter((r) => types.has(r.jobType));
+        if (raw.length) {
+          const rules = applyFlatRates(rulesOfBatch(batch!), dandi.flatRates);
+          const set = raw.map((r) =>
+            toLogicLine({
+              ...r,
+              revenue: r.workbookRevenue === undefined ? r.revenue : Number(r.workbookRevenue),
+            } as LogicSummaryLine),
+          );
+          summary.example = portalExample(
+            buildWorkedExample(rules, summary.example.invoice, set),
+            raw,
+            rules,
+            (await getFridgeLogic(client)).installTierBasis,
+            (await exportFridgeLogic(client, String(batchId)))?.byLine,
+          );
+        }
+      }
       // The workbook check re-prices lines with the rate card, which has no daily trip cap
       // (#254). Compare it with the line figures before the cap, and report the cap apart.
       const sheet = await listSheetRows(client, batchId, 'CSIDI');
@@ -792,6 +828,8 @@ export function createRevenueDashboardService(pool: Pool) {
       const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
       const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
       const transport = await exampleTransport(client, batch.id, invoices);
+      const tierBasis = (await getFridgeLogic(client)).installTierBasis;
+      const fridgeInfo = (await exportFridgeLogic(client, String(batch.id)))?.byLine;
       // The groups to show, in the order asked: one per (number, family).
       const wanted: { number: string; family: 'repair' | 'delivery' }[] = [];
       for (const p of parsed) {
@@ -813,8 +851,7 @@ export function createRevenueDashboardService(pool: Pool) {
         }))
         .filter((x) => x.lines.length)
         .map((x) => {
-          // The example explains the workbook figures (#252); the dashboard figure under the
-          // transport rules is given in the transport note when it differs.
+          // The example shows the portal figures (#314) with the workbook's figure beside each line.
           const current = x.lines.reduce((sum, r) => sum + Number(r.revenue ?? 0), 0);
           const set = x.lines
             .map((r) => ({
@@ -822,7 +859,13 @@ export function createRevenueDashboardService(pool: Pool) {
               revenue: r.workbookRevenue === undefined ? r.revenue : Number(r.workbookRevenue),
             }))
             .map((r) => toLogicLine(r as LogicSummaryLine));
-          const ex = buildWorkedExample(rules, x.number, set);
+          const ex = portalExample(
+            buildWorkedExample(rules, x.number, set),
+            x.lines,
+            rules,
+            tierBasis,
+            fridgeInfo,
+          );
           const jobTypes = [...new Set(set.map((l) => l.jobType))];
           // Transport rules cover delivery documents only; a repair invoice has no transport note.
           const note =
@@ -986,6 +1029,93 @@ export function createRevenueDashboardService(pool: Pool) {
     return { ...ex, lines, notes };
   }
 
+  // The invoice lookup shows the PORTAL figure of every line (modification #314): the stored revenue,
+  // which follows the fridge logic, the installation-only tier basis, the rate card and the transport
+  // rules. The master workbook's own figure and wording stay next to it for comparison.
+  type FridgeLine = { litres: number; rule: string; large: boolean; labour: number };
+  function portalExample(
+    ex: WorkedExample,
+    raw: (LogicSummaryLine & { revenue?: unknown })[],
+    rules: PricingRules,
+    tierBasis: 'invoice' | 'line',
+    fridge: Map<string, FridgeLine> | undefined,
+  ): WorkedExample {
+    const money = (n: number) => 'AED ' + (Math.round(n * 100) / 100).toString();
+    const byId = new Map(raw.map((r) => [String(r.id), r]));
+    const csiiiUnits = raw
+      .filter((r) => r.jobType === 'CSIII')
+      .reduce((t, r) => t + Number(r.qty ?? 0), 0);
+    let total = 0;
+    let workbookTotal = 0;
+    const lines = ex.lines.map((l) => {
+      const r = l.lineId ? byId.get(l.lineId) : undefined;
+      if (!r) {
+        total += l.revenue;
+        workbookTotal += l.revenue;
+        return l;
+      }
+      const portal = Number(r.revenue ?? 0);
+      const { check: _c, checkDiff: _d, checkCause: _k, ...rest } = l;
+      void _c;
+      void _d;
+      void _k;
+      let how = l.how;
+      let capacity: string | undefined;
+      const f = fridge?.get(String(r.id));
+      if (f) {
+        const unit = l.qty > 0 ? f.labour / l.qty : 0;
+        how = `${l.qty} x ${money(unit)} \u2014 ${f.rule}`;
+        capacity = `${Math.round(f.litres)} L (${f.large ? 'over 400 L' : '400 L and under'})`;
+      } else if (
+        l.jobType === 'CSIII' &&
+        tierBasis === 'invoice' &&
+        r.pricing &&
+        csiiiUnits !== Number(r.qty ?? 0)
+      ) {
+        const p = priceInstallLine(rules, 'CSIII', {
+          qty: Number(r.qty ?? 0),
+          category: r.pricing.applianceCategory ?? null,
+          trips: 1,
+          crewSize: r.pricing.crewSize ?? 2,
+          tierQty: csiiiUnits,
+        });
+        const pct = Math.round(p.discountRate * 1000) / 10;
+        how =
+          Math.abs(p.labour - portal) < 0.01
+            ? `${l.qty} x ${money(p.net)} (${csiiiUnits > 1 ? 'batch' : 'standard'} rate ${money(p.base)}` +
+              (pct ? ` less ${pct}% volume discount` : '') +
+              `, tier read on all ${csiiiUnits} installation units on the invoice)`
+            : // A locked row kept at an older rate: only the tier moves, the rate stays as the workbook had it.
+              `${l.qty} x ${money(l.qty > 0 ? portal / l.qty : 0)} (the row keeps the workbook's older rate; ` +
+              `the tier is read on all ${csiiiUnits} installation units on the invoice, ${pct ? pct + '% volume discount' : 'no volume discount'})`;
+      }
+      total += portal;
+      workbookTotal += l.revenue;
+      return {
+        ...rest,
+        revenue: portal,
+        how,
+        workbook: l.revenue,
+        ...(how !== l.how ? { workbookHow: l.how } : {}),
+        ...(capacity ? { capacity } : {}),
+      };
+    });
+    const notes = ex.notes.map((t) =>
+      t.startsWith('Installation only:')
+        ? tierBasis === 'invoice'
+          ? `Installation only: the invoice has ${csiiiUnits} installation unit${csiiiUnits === 1 ? '' : 's'} in total, so the volume-discount tier is read on ${csiiiUnits} for every non-fridge line (the portal rule). Fridges follow the fridge capacity rule and have no tier. No transport is added.`
+          : 'Installation only: each line is priced on its own quantity (the master workbook rule); no transport is added.'
+        : t,
+    );
+    return {
+      ...ex,
+      lines,
+      notes,
+      total: Math.round(total * 100) / 100,
+      workbookTotal: Math.round(workbookTotal * 100) / 100,
+    };
+  }
+
   async function withActive<T>(
     fn: (client: import('pg').PoolClient, batchId: string) => Promise<T>,
   ) {
@@ -1070,8 +1200,10 @@ export function createRevenueDashboardService(pool: Pool) {
     const transportLines = await listTransportLines(client, batchId);
     const sheetRows = await listSheetRows(client, batchId, 'CSIDI');
     const base = rulesOfBatch({ summary: await batchSummary(client, batchId) } as never);
+    const tierBasis = (await getFridgeLogic(client)).installTierBasis;
     return {
       inputs: {
+        installTierBasis: tierBasis,
         lines,
         transportLines,
         sheetRows,
@@ -1474,6 +1606,44 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
+  // What the installation-only (CSIII) lines add up to under each discount-tier basis, for the Rate card.
+  async function tierBasisEffect(
+    client: PoolClient,
+    batchId: string,
+    inputs: Awaited<ReturnType<typeof loadRevenueInputs>>['inputs'],
+    base: PricingRules,
+    custom: RateSet | null,
+  ) {
+    const fridgeSettings = await getFridgeLogic(client);
+    const rates = custom ?? ratesOf(base);
+    const ctx = fridgeSettings.enabled ? await fridgeContext(client, batchId, inputs) : null;
+    const run = (basis: 'invoice' | 'line') => {
+      const inp = { ...inputs, installTierBasis: basis };
+      return ctx
+        ? fridgeRevenue(inp, base, rates, fridgeSettings, ctx.lookup, ctx.plugQty).revenue
+        : computeRevenue(inp, base, custom ? overlayRates(base, custom) : base).revenue;
+    };
+    const byInvoice = run('invoice');
+    const byLine = run('line');
+    let workbook = 0;
+    let invoice = 0;
+    let line = 0;
+    let lines = 0;
+    let differing = 0;
+    for (const l of inputs.lines) {
+      if (l.jobType !== 'CSIII') continue;
+      const a = byInvoice.get(l.id) ?? l.workbookRevenue;
+      const b = byLine.get(l.id) ?? l.workbookRevenue;
+      lines += 1;
+      workbook += l.workbookRevenue;
+      invoice += a;
+      line += b;
+      if (Math.abs(a - b) >= 0.005) differing += 1;
+    }
+    const r = (v: number) => Math.round(v * 100) / 100;
+    return { lines, differing, workbook: r(workbook), invoice: r(invoice), line: r(line) };
+  }
+
   async function rateCard() {
     const client = await pool.connect();
     try {
@@ -1494,6 +1664,7 @@ export function createRevenueDashboardService(pool: Pool) {
       const r2t = (v: string) => Math.round(Number(v) * 100) / 100;
       return {
         fridgeLogic,
+        tierEffect: await tierBasisEffect(client, String(batch.id), inputs, base, custom),
         figures: {
           workbook: r2t(tot.rows[0]?.workbook ?? '0'),
           portal: r2t(tot.rows[0]?.portal ?? '0'),
@@ -1606,6 +1777,7 @@ export function createRevenueDashboardService(pool: Pool) {
     smallMinimum: rate,
     optionB: z.boolean(),
     plugAmount: rate,
+    installTierBasis: z.enum(['invoice', 'line']).default('invoice'),
   });
 
   async function savedFridge(client: PoolClient) {
@@ -1616,6 +1788,7 @@ export function createRevenueDashboardService(pool: Pool) {
       smallMinimum: f.smallMinimum,
       optionB: f.optionB,
       plugAmount: f.plugAmount,
+      installTierBasis: f.installTierBasis,
     };
   }
 

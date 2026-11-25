@@ -29304,6 +29304,51 @@ ${bodyHtml}
           (diff > 0 ? '+' : diff < 0 ? '\u2212' : '') +
           rdMoney2(Math.abs(diff)) +
           '</b></div></div></div></div>';
+        // Installation-only discount tiers (modification #314): invoice total (portal) or each line (workbook).
+        const te = data.tierEffect;
+        const tierOpt = (val, title, text) =>
+          '<label class="fl-opt tb-opt' +
+          (fl.installTierBasis === val ? ' tb-on' : '') +
+          '" style="display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px"><input type="radio" name="tierBasis" data-tb value="' +
+          val +
+          '"' +
+          (fl.installTierBasis === val ? ' checked' : '') +
+          (canEdit ? '' : ' disabled') +
+          ' /><span><b>' +
+          title +
+          '</b><br><small>' +
+          text +
+          '</small></span></label>';
+        html +=
+          '<div class="rc-box" data-tb-box><div class="rc-box-head"><b>Installation-only (CSIII) discount tiers</b><span>how many units set the volume-discount tier</span></div>' +
+          '<div class="fl-body" style="display:grid;gap:10px">' +
+          tierOpt(
+            'invoice',
+            'Whole invoice (portal rule)',
+            'Every line gets the tier for the invoice\u2019s total installation units, as delivery + installation and the billing engine do.',
+          ) +
+          tierOpt(
+            'line',
+            'Each line on its own (workbook)',
+            'The tier is read on each line\u2019s own quantity, as the master workbook does.',
+          ) +
+          (te
+            ? '<div class="fl-figs"><div class="fl-fig"><small>Workbook (' +
+              te.lines +
+              ' installation-only lines)</small><b>' +
+              rdMoney2(te.workbook) +
+              '</b></div><div class="fl-fig"><small>Whole invoice</small><b>' +
+              rdMoney2(te.invoice) +
+              '</b></div><div class="fl-fig"><small>Each line</small><b>' +
+              rdMoney2(te.line) +
+              '</b></div><div class="fl-fig fl-diff"><small>Lines that differ</small><b>' +
+              te.differing +
+              '</b></div></div>'
+            : '') +
+          (canEdit
+            ? '<div><button type="button" class="button" data-tb-save>Update tier basis</button> <small>Re-prices the dashboard and writes an audit entry.</small></div>'
+            : '<small>Admins change this.</small>') +
+          '</div></div>';
       }
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
@@ -29494,7 +29539,11 @@ ${bodyHtml}
     const wire = () => {
       host.querySelector('[data-fl-save]')?.addEventListener('click', () =>
         run(async () => {
-          const body = { optionB: true, enabled: true };
+          const body = {
+            optionB: true,
+            enabled: true,
+            installTierBasis: (data.fridgeLogic && data.fridgeLogic.installTierBasis) || 'invoice',
+          };
           host.querySelectorAll('[data-fl]').forEach((el) => {
             const k = el.getAttribute('data-fl');
             body[k] = k === 'optionB' ? el.value === '1' : Number(el.value);
@@ -29507,6 +29556,31 @@ ${bodyHtml}
           message.text =
             'Fridge pricing saved (' +
             (body.enabled ? 'new logic' : 'old logic') +
+            '). Every figure was recalculated.';
+          message.ok = true;
+          draw();
+        }),
+      );
+      host.querySelector('[data-tb-save]')?.addEventListener('click', () =>
+        run(async () => {
+          const f = data.fridgeLogic;
+          const basis =
+            host.querySelector('[data-tb]:checked')?.value === 'line' ? 'line' : 'invoice';
+          data = await apiRequest('/api/revenue-dashboard/fridge-logic', {
+            method: 'PUT',
+            body: JSON.stringify({
+              enabled: f.enabled,
+              smallBase: f.smallBase,
+              smallOver10: f.smallOver10,
+              smallMinimum: f.smallMinimum,
+              optionB: f.optionB,
+              plugAmount: f.plugAmount,
+              installTierBasis: basis,
+            }),
+          });
+          message.text =
+            'Installation-only tier basis saved (' +
+            (basis === 'invoice' ? 'whole invoice' : 'each line') +
             '). Every figure was recalculated.';
           message.ok = true;
           draw();
@@ -33154,9 +33228,10 @@ ${bodyHtml}
           default:
             text = '';
         }
-        const differs = Math.abs((t.currentTotal || 0) - (ex.total || 0)) >= 0.005;
+        const wbTotal = typeof ex.workbookTotal === 'number' ? ex.workbookTotal : ex.total;
+        const differs = Math.abs((t.currentTotal || 0) - (wbTotal || 0)) >= 0.005;
         if (differs)
-          text += ' Workbook ' + amt(ex.total) + ' \u2192 dashboard ' + amt(t.currentTotal) + '.';
+          text += ' Workbook ' + amt(wbTotal) + ' \u2192 dashboard ' + amt(t.currentTotal) + '.';
         return (
           '<div class="rl-transport' +
           (warn ? ' rl-transport-warn' : '') +
@@ -33177,7 +33252,13 @@ ${bodyHtml}
         '</b>' +
         (ex.family
           ? '<span class="rl-fam">' +
-            (ex.family === 'repair' ? 'Repair invoice' : 'Delivery / installation invoice') +
+            (ex.family === 'repair'
+              ? 'Repair invoice'
+              : ex.lines.length && ex.lines.every((l) => l.jobType === 'CSIII')
+                ? 'Installation-only invoice'
+                : ex.lines.length && ex.lines.every((l) => l.jobType === 'CSIDO')
+                  ? 'Delivery-only invoice'
+                  : 'Delivery / installation invoice') +
             '</span>'
           : '') +
         refDocPill(ex.refDocNo) +
@@ -33186,7 +33267,15 @@ ${bodyHtml}
         e((ex.customer || '') + (ex.date ? ' · ' + ex.date : '')) +
         '</span></div>' +
         table(
-          ['Type', 'Item', 'Qty', 'How it is priced', 'Revenue (\u20C3)'],
+          [
+            'Type',
+            'Item',
+            'Qty',
+            'Capacity',
+            'How it is priced (portal rules)',
+            'Workbook shows',
+            'Revenue (\u20C3)',
+          ],
           ex.lines
             .map((l) => ({
               cls: l.revenue === 0 ? 'rl-row-zero' : '',
@@ -33198,17 +33287,34 @@ ${bodyHtml}
                   '</span>',
                 e(l.item),
                 rdMoney(l.qty),
-                e(l.how) + (l.check ? '<div class="rl-check">' + e(l.check) + '</div>' : ''),
+                l.capacity ? e(l.capacity) : '\u2013',
+                e(l.how),
+                typeof l.workbook === 'number'
+                  ? rdMoney2(l.workbook) +
+                    (l.workbookHow
+                      ? '<div class="rl-check" style="font-weight:400">' +
+                        e(l.workbookHow) +
+                        '</div>'
+                      : '')
+                  : '',
                 '<b>' + rdMoney2(l.revenue) + '</b>',
               ],
             }))
             .concat([
               {
                 cls: 'rl-row-total',
-                cells: ['', '<b>Invoice total</b>', '', '', '<b>' + rdMoney2(ex.total) + '</b>'],
+                cells: [
+                  '',
+                  '<b>Invoice total</b>',
+                  '',
+                  '',
+                  '',
+                  typeof ex.workbookTotal === 'number' ? rdMoney2(ex.workbookTotal) : '',
+                  '<b>' + rdMoney2(ex.total) + '</b>',
+                ],
               },
             ]),
-          [2, 4],
+          [2, 5, 6],
         ) +
         (ex.notes && ex.notes.length
           ? '<ul class="rl-notes">' +
@@ -33237,7 +33343,7 @@ ${bodyHtml}
         '</select></label></div>';
       const exampleHtml = rdSection(
         'Worked example &mdash; pick any invoice',
-        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are workbook figures. The Transport note under each invoice says why transport was or was not charged under the current transport rules, and the dashboard figure when it differs.</p>' +
+        '<div class="rd-pad rl-live"><p class="rl-live-note">Pick a period and job type, choose an invoice, and see how each line was priced &mdash; or paste invoice numbers. Amounts are the portal figures (fridge rule, installation-only tiers, rate card, transport rules); the workbook figure is shown beside each line. The Transport note under each invoice says why transport was or was not charged under the current transport rules, and the dashboard figure when it differs.</p>' +
           '<div class="rl-live-bar">' +
           liveSel('year', 'Year', liveOpts.years) +
           liveSel('month', 'Month', [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], (v) =>

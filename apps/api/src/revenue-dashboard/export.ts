@@ -48,6 +48,8 @@ export type RevenueReportData = {
     mixedInvoiceTransport: boolean;
     maxTrips: number;
   };
+  /** Installation-only discount tier basis in force (modification #314). */
+  installTierBasis?: 'invoice' | 'line';
   /** Set while the new fridge logic is on (modification #307): what the report says about it and per-line details. */
   fridgeLogic?: {
     settings: {
@@ -326,6 +328,16 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       (data.fridgeLogic.byLine.has(lid) || data.fridgeLogic.plugByLine.has(lid))
     )
       e.diffCause = data.fridgeLogic.byLine.has(lid) ? 'New fridge logic' : '13A/15A plug';
+    // Installation-only tiers read on the invoice total (modification #314): the rebuilt figure reads the
+    // line's own quantity, so the difference is the portal rule at work, not a pricing error.
+    else if (
+      data.installTierBasis === 'invoice' &&
+      line.jobType === 'CSIII' &&
+      e.reconcileDiff !== null &&
+      Math.abs(e.reconcileDiff) > 0.01 &&
+      e.diffCause === 'Rate or quantity'
+    )
+      e.diffCause = 'Installation-only invoice tier';
     return { line, pricing, e };
   });
 
@@ -357,6 +369,16 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
             : `Trip ${trip.rank} of ${trip.trips} that day: transport ${aed(trip.charge)} not charged (only the ${maxTrips} highest charges a day are charged).`,
         });
     }
+  }
+  if (data.installTierBasis) {
+    const first = summary.rowCount + 1;
+    summary.addRow([
+      'INSTALLATION-ONLY TIERS',
+      data.installTierBasis === 'invoice'
+        ? 'Whole invoice (portal rule): every installation-only (CSIII) line gets the discount tier for the invoice\u2019s total installation units, the same as delivery + installation. Fridges follow the fridge logic and have no tier. The workbook reads each line on its own quantity; the difference is shown on the job sheets.'
+        : 'Each line on its own (master workbook rule): the discount tier is read on the line\u2019s own quantity.',
+    ]);
+    summary.getRow(first).getCell(2).alignment = { wrapText: true, vertical: 'top' };
   }
   if (data.fridgeLogic) {
     const f = data.fridgeLogic;

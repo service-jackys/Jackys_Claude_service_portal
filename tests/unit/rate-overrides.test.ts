@@ -98,3 +98,68 @@ test('reasonOf explains a repair line with the old and new rate', () => {
   assert.match(text, /CSIJO rate/);
   assert.match(text, /x 2$/);
 });
+
+// Installation-only discount tier basis (modification #314).
+const installLine = (
+  id: string,
+  inv: string,
+  qty: number,
+  wb: number,
+  category: string,
+): RateLine =>
+  ({
+    ...line(id, 'CSIII', qty, wb),
+    invDelNo: inv,
+    pricing: {
+      applianceCategory: category,
+      crewSize: 2,
+      city: 'DUBAI',
+      before: { revenue: null, transport: null },
+    },
+  }) as unknown as RateLine;
+
+test('installation-only tiers: the whole invoice sets the tier when the basis is "invoice"', () => {
+  const lines = [
+    installLine('c', '1001', 1, 80, 'Freestanding Cooker'),
+    installLine('w', '1001', 1, 60, 'Freestanding Washing Machine'),
+    installLine('x', '1002', 1, 60, 'Freestanding Washing Machine'),
+  ];
+  const mk = (basis?: 'invoice' | 'line') => ({
+    lines,
+    transportLines: [],
+    sheetRows: [],
+    transportRules: noTransport,
+    installTierBasis: basis,
+  });
+  const v3 = { ...base, logicVersion: 3 as const };
+  const wbRules = overlayRates(v3, ratesOf(v3));
+  const own = computeRevenue(mk('line'), v3, wbRules).revenue;
+  assert.equal(own.get('c'), 80);
+  assert.equal(own.get('w'), 60);
+  const inv = computeRevenue(mk('invoice'), v3, wbRules).revenue;
+  // Invoice 1001 has 2 installation units: batch rate less the 2-5 unit tier (5%).
+  assert.equal(inv.get('c'), 66.5);
+  assert.equal(inv.get('w'), 52.25);
+  // A single-line, single-unit invoice is untouched.
+  assert.equal(inv.get('x'), 60);
+});
+
+test('installation-only tiers: lines skipped for the fridge logic keep their figure', () => {
+  const lines = [
+    installLine('c', '1001', 1, 80, 'Freestanding Cooker'),
+    installLine('f', '1001', 1, 60, 'Freestanding Refrigerator'),
+  ];
+  const inputs = {
+    lines,
+    transportLines: [],
+    sheetRows: [],
+    transportRules: noTransport,
+    installTierBasis: 'invoice' as const,
+  };
+  const v3 = { ...base, logicVersion: 3 as const };
+  const r = computeRevenue(inputs, v3, overlayRates(v3, ratesOf(v3)), {
+    skipTier: new Set(['f']),
+  }).revenue;
+  assert.equal(r.get('c'), 66.5);
+  assert.equal(r.get('f'), 60);
+});
