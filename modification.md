@@ -5205,6 +5205,23 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #309 — Worked example: repair and delivery invoices with the same number are separate documents
+
+**Date:** 2026-11-25
+
+**Why.** The ERP numbers each document series on its own (confirmed with the ERP team), so a repair invoice (CSIJO / CSIJW) can carry the same number as an unrelated delivery or installation invoice (CSIDI / CSIDO / CSIII). In the Logic applied worked example, picking invoice 16101035 showed a November repair and a July delivery for another customer under one total. In the Oct 22 master, 16 numbers (16101019 to 16101036, except 16101021, 16101034) are used this way.
+
+**What changed.**
+
+- An invoice is now its number plus its job family (repair, or delivery / installation). The picker lists one row per family and each card total equals its dropdown row.
+- A pasted number that exists in both families shows two cards, each labelled "Repair invoice" or "Delivery / installation invoice". "number::repair" or "number::delivery" can also be pasted.
+- A repair card has no transport note; the trip and cap notes of the Export report are limited to delivery lines; the summary worked example no longer mixes the two series.
+- Display only: no rate, revenue figure or total changes. Delivery lines of one invoice (CSIDI, CSIDO, CSIII) stay together.
+
+**Files.** packages/db/src/revenue-dashboard.ts, apps/api/src/revenue-dashboard/service.ts, export.ts, logic-summary.ts, apps/web/src/app.js, index.html, tests/integration/revenue-invoice-family.test.ts, modification.md.
+
+**Needs you:** pull, restart the API, hard-refresh (Ctrl+Shift+R). No migration.
+
 ## Modification #308 — Logic applied: rate chips back to small inline pills
 
 **Date:** 2026-11-25

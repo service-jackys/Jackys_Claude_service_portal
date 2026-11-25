@@ -306,7 +306,10 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
       pricing,
     });
     // The rate card has no daily cap: a trip the cap left uncharged is not a pricing error.
-    const cap = data.cappedTrips?.get(String(line.invDelNo ?? ''));
+    const cap =
+      line.jobType === 'CSIJO' || line.jobType === 'CSIJW'
+        ? undefined
+        : data.cappedTrips?.get(String(line.invDelNo ?? ''));
     if (
       cap !== undefined &&
       e.reconcileDiff !== null &&
@@ -338,7 +341,9 @@ export async function buildRevenueReportWorkbook(data: RevenueReportData): Promi
     const aed = (n: number) => `AED ${n.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
     for (const x of enriched) {
       const inv = String(x.line.invDelNo ?? '');
-      if (!inv || seen.has(inv)) continue;
+      // Trips belong to delivery documents; a repair invoice can carry the same number (ERP series differ).
+      if (!inv || x.line.jobType === 'CSIJO' || x.line.jobType === 'CSIJW' || seen.has(inv))
+        continue;
       const amount = data.cappedTrips?.get(inv);
       const trip = data.tripInfo?.get(inv);
       if (amount === undefined && !trip) continue;

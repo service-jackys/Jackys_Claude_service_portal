@@ -72,6 +72,7 @@ import {
   revenueInvoiceLines,
   revenueInvoiceSalesPersons,
   revenueInvoiceList,
+  invoiceFamilyOf,
   revenueLines,
   revenueLinesForBatch,
   revenueMatrix,
@@ -756,10 +757,12 @@ export function createRevenueDashboardService(pool: Pool) {
     }
   }
 
-  // Worked example for the invoice numbers given (comma / space separated, up
-  // to 20): every line of each invoice, with how it was priced.
+  // Worked example for the invoices given (comma / space separated, up to 20): every line of each
+  // invoice, with how it was priced. The ERP numbers each document series on its own, so an invoice
+  // is its number plus its job family (repair CSIJO/CSIJW, delivery CSIDI/CSIDO/CSIII). An entry is
+  // either a plain number (one card per family that carries it) or "number::repair" / "number::delivery".
   async function logicExample(query: Record<string, unknown>) {
-    const invoices = [
+    const entries = [
       ...new Set(
         String(query.invoices ?? '')
           .split(/[\s,;]+/)
@@ -767,8 +770,18 @@ export function createRevenueDashboardService(pool: Pool) {
           .filter(Boolean),
       ),
     ].slice(0, 20);
-    if (!invoices.length)
+    if (!entries.length)
       throw new RevenueDashboardServiceError('no-data', 'Enter at least one invoice number.');
+    const parsed = entries.map((entry) => {
+      const [number, family] = entry.split('::');
+      return {
+        entry,
+        number: number ?? entry,
+        family: (family === 'repair' || family === 'delivery' ? family : null) as
+          'repair' | 'delivery' | null,
+      };
+    });
+    const invoices = [...new Set(parsed.map((p) => p.number))];
     const client = await pool.connect();
     try {
       const batch = await findActiveBatch(client, 'revenue');
@@ -776,37 +789,52 @@ export function createRevenueDashboardService(pool: Pool) {
       const raw = (await revenueInvoiceLines(client, batch.id, invoices)) as (LogicSummaryLine & {
         workbookRevenue?: unknown;
       })[];
-      // The example explains the workbook figures (#252); the dashboard figure under the
-      // transport rules is given in the transport note when it differs.
-      const current = new Map<string, number>();
-      for (const r of raw)
-        current.set(
-          String(r.invDelNo),
-          (current.get(String(r.invDelNo)) ?? 0) + Number(r.revenue ?? 0),
-        );
-      const rows = raw.map((r) => ({
-        ...r,
-        revenue: r.workbookRevenue === undefined ? r.revenue : Number(r.workbookRevenue),
-      })) as LogicSummaryLine[];
       const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
       const rules = applyFlatRates(rulesOfBatch(batch), dandi.flatRates);
       const transport = await exampleTransport(client, batch.id, invoices);
-      const examples = invoices
-        .map((invoice) => ({
-          invoice,
-          set: rows.filter((r) => r.invDelNo === invoice).map(toLogicLine),
+      // The groups to show, in the order asked: one per (number, family).
+      const wanted: { number: string; family: 'repair' | 'delivery' }[] = [];
+      for (const p of parsed) {
+        const families: ('repair' | 'delivery')[] = p.family
+          ? [p.family]
+          : (['delivery', 'repair'] as const).filter((f) =>
+              raw.some((r) => String(r.invDelNo) === p.number && invoiceFamilyOf(r.jobType) === f),
+            );
+        for (const family of families)
+          if (!wanted.some((w) => w.number === p.number && w.family === family))
+            wanted.push({ number: p.number, family });
+      }
+      const examples = wanted
+        .map((w) => ({
+          ...w,
+          lines: raw.filter(
+            (r) => String(r.invDelNo) === w.number && invoiceFamilyOf(r.jobType) === w.family,
+          ),
         }))
-        .filter((x) => x.set.length)
+        .filter((x) => x.lines.length)
         .map((x) => {
-          const ex = buildWorkedExample(rules, x.invoice, x.set);
-          const jobTypes = [...new Set(x.set.map((l) => l.jobType))];
-          const note = transportNote(
-            transport,
-            x.invoice,
-            jobTypes,
-            Math.round((current.get(x.invoice) ?? 0) * 100) / 100,
-          );
-          return { ...capWording(ex, note), transport: note };
+          // The example explains the workbook figures (#252); the dashboard figure under the
+          // transport rules is given in the transport note when it differs.
+          const current = x.lines.reduce((sum, r) => sum + Number(r.revenue ?? 0), 0);
+          const set = x.lines
+            .map((r) => ({
+              ...r,
+              revenue: r.workbookRevenue === undefined ? r.revenue : Number(r.workbookRevenue),
+            }))
+            .map((r) => toLogicLine(r as LogicSummaryLine));
+          const ex = buildWorkedExample(rules, x.number, set);
+          const jobTypes = [...new Set(set.map((l) => l.jobType))];
+          // Transport rules cover delivery documents only; a repair invoice has no transport note.
+          const note =
+            x.family === 'delivery'
+              ? transportNote(transport, x.number, jobTypes, Math.round(current * 100) / 100)
+              : null;
+          return {
+            ...capWording(ex, note),
+            transport: note,
+            family: x.family,
+            key: `${x.number}::${x.family}`,
+          };
         });
       const found = new Set(examples.map((e) => e.invoice));
       return { batch, examples, notFound: invoices.filter((i) => !found.has(i)) };
