@@ -5205,6 +5205,29 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #318 — My notes: floating private note panel on every page
+
+**Date:** 2026-11-25
+
+**Why.** Users wanted a professional sticky note that is always on screen while they work (call-backs, S/Ns to check, reminders), without leaving the page they are on.
+
+**What changed.**
+
+- A floating "My notes" panel for every signed-in user, available on every page and kept when moving between pages. It sits above the Live Chat button; the minimised tab sits on the right edge.
+- Minimised tab: drag it up or down the right edge to where it suits you (a plain click opens the note); the dot on it shows the note has text.
+- Resizable: drag the grip at the top-left corner. Long notes scroll inside the panel.
+- Five muted colours (Navy, Slate, Teal, Plum, Sand), smooth open and close, Add time (stamps the date and time), Clear (asks twice).
+- Private to each user and saved to the account (not just the browser), so it follows the user to another computer. It is also kept in the browser for an instant show after refresh. Text, colour, size, tab position and open or minimised are all remembered. Saving is automatic; the footer shows Saved HH:MM.
+- Not shown in the chat pop-out window and not printed.
+- New API: GET and PUT /api/me/note (any signed-in user, own note only; PUT takes only the fields that changed). Migration 113 adds user_notes.
+- Tests: tests/integration/user-notes.test.ts; tests/e2e/my-notes.spec.ts.
+
+**Not included.** No shared team notes, no notes per job card, no rich text. A note is limited to 20,000 characters.
+
+**Files.** packages/db/migrations/113_user_notes.sql, packages/db/src/user-notes.ts, packages/contracts/src/index.ts, apps/api/src/user-notes/routes.ts, apps/api/src/auth/application-auth.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests, modification.md, changelog-data.ts.
+
+**Needs you:** pull, run `npm.cmd run db:migrate` (migration 113), restart the API, hard-refresh (Ctrl+Shift+R).
+
 ## Modification #317 — Walk-in job card: several units in one visit
 
 **Date:** 2026-11-25

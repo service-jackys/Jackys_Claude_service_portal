@@ -373,6 +373,25 @@ const requestBodies = {
       },
     },
   },
+  userNoteBody: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          properties: {
+            body: { type: 'string', maxLength: 20000 },
+            color: { type: 'string', enum: ['navy', 'slate', 'teal', 'plum', 'sand'] },
+            width: { type: 'integer', minimum: 300, maximum: 900 },
+            height: { type: 'integer', minimum: 240, maximum: 900 },
+            tabPosition: { type: 'integer', minimum: 0, maximum: 100 },
+            open: { type: 'boolean' },
+          },
+          additionalProperties: false,
+        },
+      },
+    },
+  },
   walkInSettingsBody: {
     required: true,
     content: {
