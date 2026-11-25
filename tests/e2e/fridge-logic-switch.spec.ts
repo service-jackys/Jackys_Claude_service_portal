@@ -153,7 +153,7 @@ test('Logic applied notes read every rate from the Rate card', async ({ page }) 
   await expect(page.getByText('How fridges are priced')).toBeVisible();
   await expect(page.getByText('Worked examples')).toBeVisible();
   // 1 fridge pays the market rate of the Rate card (120), 12 fridges = 10 x 30 + 2 x 20 = 340.
-  await expect(page.locator('.rl-live', { hasText: '120' }).first()).toBeVisible();
+  await expect(page.locator('.rl-rate', { hasText: '120' }).first()).toBeVisible();
   await expect(page.getByRole('cell', { name: '340.00' })).toBeVisible();
   await expect(page.getByRole('cell', { name: '120.00' }).first()).toBeVisible();
 });

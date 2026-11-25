@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 308,
+    "title": "Logic applied: rate chips back to small inline pills",
+    "area": "General",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "After #306/#236 the Logic applied tab showed each live rate as a full-width stacked box and broke every sentence. The chip used the class name rl-live, which the old live-example panel already used for a grid layout, so the panel style won.",
+    "changes": [
+      "What changed: The chip has its own class (rl-rate) and is now a small rounded pill that sits inside the sentence, in How fridges are priced and in Worked examples. Rates are still read from the Rate card. No figures, logic or data change."
+    ],
+    "needsYou": "pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/fridge-logic-switch.spec.ts, modification.md."
+  },
+  {
     "id": 307,
     "title": "Fridge pricing step 2: Export report, Ask AI notes, Scenario wording, compact look, \"13A/15A\"",
     "area": "Pricing & rates",
