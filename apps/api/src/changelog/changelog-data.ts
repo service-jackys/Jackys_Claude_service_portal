@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 311,
+    "title": "Logic applied: \"How fridges are priced\" as three tiles",
+    "area": "General",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "You preferred the three-tile layout (Option B) to the table in #310.",
+    "changes": [
+      "What changed: Three tiles: 400 L and under (1 unit, 2 to 10 units, units above 10), over 400 L (1 unit, 2 or more units) and the 13A/15A plug (each plug, times quantity, on top of the cooker rate), with the four short notes kept below (no…"
+    ],
+    "needsYou": "pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 310,
     "title": "Logic applied: \"How fridges are priced\" as a rate table",
     "area": "General",

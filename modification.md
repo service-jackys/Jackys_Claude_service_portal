@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #311 — Logic applied: "How fridges are priced" as three tiles
+
+**Date:** 2026-11-25
+
+**Why.** You preferred the three-tile layout (Option B) to the table in #310.
+
+**What changed.** Three tiles: 400 L and under (1 unit, 2 to 10 units, units above 10), over 400 L (1 unit, 2 or more units) and the 13A/15A plug (each plug, times quantity, on top of the cooker rate), with the four short notes kept below (no volume discount tiers; other categories unchanged including their discount tiers; litres from the Stock Master, no litres = 400 L and flagged; workbook not changed). Rates still read from the Rate card. Display only: no figure changes.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.
+
 ## Modification #310 — Logic applied: "How fridges are priced" as a rate table
 
 **Date:** 2026-11-25

@@ -3285,21 +3285,37 @@
         display: grid;
         gap: 0.6rem;
       }
-      .fl-rules td:first-child {
-        width: 1.5rem;
-        padding-right: 0;
+      .fl-tiles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+        gap: 10px;
+        padding: 12px 16px;
       }
-      .fl-rules .fl-grp td {
-        background: color-mix(in srgb, var(--primary, #1f6fd1) 5%, var(--surface, #fff));
-        font-weight: 700;
+      .fl-tile {
+        border: 1px solid var(--line, #d9e3ef);
+        border-radius: 10px;
+        padding: 10px 12px;
+        background: var(--surface, #fff);
+      }
+      .fl-tile h4 {
+        margin: 0 0 6px;
+        font-size: 0.74rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted, #5b6b82);
+      }
+      .fl-line {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        padding: 3px 0;
+      }
+      .fl-tile p {
+        margin: 4px 0 0;
         font-size: 0.78rem;
-        letter-spacing: 0.02em;
+        line-height: 1.35;
         color: var(--muted, #5b6b82);
-      }
-      .fl-lbl {
-        color: var(--muted, #5b6b82);
-        font-size: 0.82rem;
-        margin-left: 4px;
       }
       .fl-foot {
         display: flex;
