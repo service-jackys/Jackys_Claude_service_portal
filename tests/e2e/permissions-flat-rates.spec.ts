@@ -155,3 +155,73 @@ test('D+I Admin Entry: a bigger maximum adds discount ranges and keeps the saved
   await expect(dandiNote).toContainText('Ranges now end at the maximum of 50 units');
   await expect(dandiCard.locator('input[value="91–100 units"]')).toHaveCount(0);
 });
+
+test('D+I Admin Entry shows the fridge and plug settings and saves them through the Rate card route', async ({
+  page,
+}) => {
+  const saved: { body: Record<string, unknown> | null } = { body: null };
+  await mockApi(
+    page,
+    ['pricing_config.read', 'pricing_config.write', 'revenue_dashboard.rate_card_edit'],
+    (url, method, body) => {
+      if (url.pathname === '/api/pricing-config/dandi_pricing')
+        return { domain: 'dandi_pricing', payload: dandiPricingDefault, isOverride: false };
+      if (url.pathname === '/api/pricing-config-fridge-logic')
+        return {
+          enabled: true,
+          smallBase: 30,
+          smallOver10: 20,
+          smallMinimum: 20,
+          optionB: true,
+          plugAmount: 15,
+        };
+      if (url.pathname === '/api/revenue-dashboard/fridge-logic' && method === 'PUT') {
+        saved.body = body as Record<string, unknown>;
+        return {};
+      }
+      if (url.pathname.endsWith('/history')) return { history: [] };
+      return undefined;
+    },
+  );
+  await signIn(page);
+  await page.locator('#dandiAdminNav').dispatchEvent('click');
+  const plug = page.locator('[data-pc-fridge="plugAmount"]');
+  await expect(plug).toHaveValue('15');
+  await expect(page.locator('[data-pc-fridge="smallBase"]')).toHaveValue('30');
+  await expect(page.locator('[data-pc-fridge-card]')).toContainText('New logic');
+  await plug.fill('10');
+  await page.locator('[data-pc-fridge-save]').click();
+  await expect
+    .poll(() => saved.body)
+    .toMatchObject({
+      enabled: true,
+      smallBase: 30,
+      smallOver10: 20,
+      smallMinimum: 20,
+      plugAmount: 10,
+    });
+});
+
+test('D+I Admin Entry shows the fridge settings read-only without the Rate card edit permission', async ({
+  page,
+}) => {
+  await mockApi(page, ['pricing_config.read'], (url) => {
+    if (url.pathname === '/api/pricing-config/dandi_pricing')
+      return { domain: 'dandi_pricing', payload: dandiPricingDefault, isOverride: false };
+    if (url.pathname === '/api/pricing-config-fridge-logic')
+      return {
+        enabled: true,
+        smallBase: 30,
+        smallOver10: 20,
+        smallMinimum: 20,
+        optionB: true,
+        plugAmount: 15,
+      };
+    if (url.pathname.endsWith('/history')) return { history: [] };
+    return undefined;
+  });
+  await signIn(page);
+  await page.locator('#dandiAdminNav').dispatchEvent('click');
+  await expect(page.locator('[data-pc-fridge="plugAmount"]')).toBeDisabled();
+  await expect(page.locator('[data-pc-fridge-save]')).toHaveCount(0);
+});

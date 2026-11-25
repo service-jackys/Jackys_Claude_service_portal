@@ -18,8 +18,26 @@
 //          regional transport rate (Dubai / Sharjah) when the note also has a
 //          CSIDI unit, otherwise the flat CSIDO rate. The quantity does not change
 //          the charge.
+//
+// New fridge and plug logic (modification #312), when the fridge settings are passed in switched on:
+//  - Fridge lines (Freestanding Refrigerator) of CSIDI and CSIII are priced as a group per job type and
+//    size (400 L and under / over 400 L; litres come from the Stock Master, 400 L and a warning when
+//    unknown) with the same groupLabour rule the dashboard and the quote calculator use, and no
+//    discount tiers. Other categories keep their rates and tiers; fridge units still count towards the
+//    note's quantity for those tiers, for the batch rate and for transport.
+//  - A 13A/15A plug line (item REPAIR-MATERIAL) on CSIDI or CSIII is charged the plug amount x its
+//    quantity, no discount; it is not a unit, a trip or transport, and is never a CSIDO line.
 import type { DandiPricingInput } from '../../../../packages/contracts/src/index.js';
 import { masterRates } from '../revenue-dashboard/logic-summary.js';
+import {
+  DEFAULT_CAPACITY_LITRES,
+  FRIDGE_LARGE_THRESHOLD_LITRES,
+} from '../../../../packages/db/src/capacity-litres.js';
+import {
+  FRIDGE_CATEGORY,
+  groupLabour,
+  type FridgeScenario,
+} from '../revenue-dashboard/fridge-scenario.js';
 import {
   DEFAULT_PRICING_RULES,
   type CategoryRate,
@@ -41,12 +59,18 @@ export type EngineMaster = {
   install: Pick<PricingMaster, 'categories' | 'discounts'>;
   transport: { region: string; roundTrip: number }[];
   csidoFlat: number;
+  /** The saved fridge and plug settings (Rate card / Pricing Masters). Absent or off = old logic. */
+  fridge?: FridgeScenario & { enabled: boolean };
 };
 
 /** The rate tables the engine needs, read from the D+I Admin Entry pricing master. */
-export function engineMasterFromDandi(dandi: DandiPricingInput): EngineMaster {
+export function engineMasterFromDandi(
+  dandi: DandiPricingInput,
+  fridge?: FridgeScenario & { enabled: boolean },
+): EngineMaster {
   const rates = masterRates(dandi, DEFAULT_PRICING_RULES);
   return {
+    ...(fridge ? { fridge } : {}),
     deliveryInstall: rates.deliveryInstall,
     install: rates.install,
     transport: rates.transport,
@@ -61,6 +85,10 @@ export type EngineLineInput = {
   pricingCategory: string | null;
   /** Category Mapping: true / false, or null when the item's group is not linked yet. */
   installable: boolean | null;
+  /** The ERP item REPAIR-MATERIAL: a 13A/15A plug line. */
+  isPlug?: boolean;
+  /** Fridge capacity from the Stock Master; null / absent when the item has none. */
+  litres?: number | null;
 };
 
 export type EngineIssue = {
@@ -73,7 +101,10 @@ export type EngineIssue = {
     | 'not-installable'
     | 'unmapped'
     | 'no-pricing-category'
-    | 'delivery-only-installable';
+    | 'delivery-only-installable'
+    | 'plug-delivery-only'
+    | 'plug-old-logic'
+    | 'fridge-litres-default';
   message: string;
 };
 
@@ -93,6 +124,10 @@ export type EngineLineResult = {
   charge: number;
   revenue: number;
   note: string;
+  /** Litres used for a fridge line priced by the new logic; null otherwise. */
+  litres?: number | null;
+  /** True for a 13A/15A plug line. */
+  plug?: boolean;
 };
 
 export type EngineResult = {
@@ -151,6 +186,23 @@ export function priceDeliveryNote(
       fail('qty', 'Enter a whole quantity of 1 or more.');
       return;
     }
+    if (line.isPlug) {
+      if (line.type === 'CSIDO') {
+        fail(
+          'plug-delivery-only',
+          'A 13A/15A plug (REPAIR-MATERIAL) goes on a Delivery + Installation or Installation only line, not Delivery only.',
+        );
+      } else if (!master.fridge?.enabled) {
+        issues.push({
+          level: 'warning',
+          line: index,
+          code: 'plug-old-logic',
+          message:
+            'The old fridge logic is switched on (Revenue Rate card), so the 13A/15A plug is not charged.',
+        });
+      }
+      return;
+    }
     if (line.type === 'CSIDO') {
       if (line.installable === true) {
         issues.push({
@@ -186,16 +238,81 @@ export function priceDeliveryNote(
   });
 
   const valid = input.lines.map((_, i) => !blocked.has(i));
+  // A plug is not a unit: it never counts towards the note's quantity, batch rate, tiers or transport.
   const sumQty = (type: DandiLineType) =>
-    input.lines.reduce((n, l, i) => (valid[i] && l.type === type ? n + l.qty : n), 0);
+    input.lines.reduce((n, l, i) => (valid[i] && !l.isPlug && l.type === type ? n + l.qty : n), 0);
   const csidiQty = sumQty('CSIDI');
   const csiiiQty = sumQty('CSIII');
-  const csidoLines = input.lines.filter((l, i) => valid[i] && l.type === 'CSIDO').length;
+  const csidoLines = input.lines.filter(
+    (l, i) => valid[i] && !l.isPlug && l.type === 'CSIDO',
+  ).length;
   const hasCsido = csidoLines > 0;
+
+  // New fridge logic: the labour of each fridge size group, shared over its lines by quantity.
+  const fridgeLabour = new Map<number, { labour: number; rule: string; litres: number }>();
+  const fs = master.fridge;
+  if (fs?.enabled) {
+    const groups = new Map<string, { indexes: number[]; large: boolean; type: DandiLineType }>();
+    input.lines.forEach((line, i) => {
+      if (!valid[i] || line.isPlug || line.type === 'CSIDO') return;
+      if (line.pricingCategory !== FRIDGE_CATEGORY) return;
+      const known = typeof line.litres === 'number' && line.litres > 0;
+      const litres = known ? (line.litres as number) : DEFAULT_CAPACITY_LITRES;
+      if (!known) {
+        issues.push({
+          level: 'warning',
+          line: i,
+          code: 'fridge-litres-default',
+          message: `No litres in the Stock Master for this fridge, so it is priced as ${DEFAULT_CAPACITY_LITRES} L. Add the capacity in the Stock Master.`,
+        });
+      }
+      const large = litres > FRIDGE_LARGE_THRESHOLD_LITRES;
+      const key = `${line.type}|${large}`;
+      const group = groups.get(key) ?? { indexes: [], large, type: line.type };
+      group.indexes.push(i);
+      groups.set(key, group);
+      fridgeLabour.set(i, { labour: 0, rule: '', litres });
+    });
+    for (const group of groups.values()) {
+      const side = group.type === 'CSIDI' ? master.deliveryInstall : master.install;
+      const cat = side.categories.find((c) => c.category === FRIDGE_CATEGORY) as CategoryRate;
+      const units = group.indexes.reduce((n, i) => n + input.lines[i]!.qty, 0);
+      const { total, rule } = groupLabour(
+        units,
+        group.large,
+        { market: cat.standardRate, special: cat.batchRate, minimum: cat.minimumRate },
+        fs,
+      );
+      let given = 0;
+      group.indexes.forEach((i, k) => {
+        const last = k === group.indexes.length - 1;
+        const share = last ? round2(total - given) : round2((total * input.lines[i]!.qty) / units);
+        given += share;
+        const entry = fridgeLabour.get(i)!;
+        entry.labour = share;
+        entry.rule = rule;
+      });
+    }
+  }
 
   const seen: Record<DandiLineType, number> = { CSIDI: 0, CSIDO: 0, CSIII: 0 };
   const results: EngineLineResult[] = input.lines.map((line, index) => {
     if (!valid[index]) return blockedLine(line, 'Not priced: fix the error on this line.');
+    if (line.isPlug) {
+      const on = !!fs?.enabled;
+      const labour = on ? line.qty * fs.plugAmount : 0;
+      return {
+        ...blockedLine(line, ''),
+        blocked: false,
+        plug: true,
+        netRate: on ? fs.plugAmount : 0,
+        labour: round2(labour),
+        revenue: round2(labour),
+        note: on
+          ? `13A/15A plug: ${fs.plugAmount} x ${line.qty}, no discount, not a unit, trip or transport.`
+          : 'Old fridge logic: the plug is not charged.',
+      };
+    }
     const first = seen[line.type] === 0;
     seen[line.type] += 1;
 
@@ -227,12 +344,15 @@ export function priceDeliveryNote(
     const tier = discountFor(side.discounts, tierQty);
     const batch = tierQty > 1;
     const baseRate = batch ? cat.batchRate : cat.standardRate;
-    const netRate = Math.max(cat.minimumRate, baseRate * (1 - tier.discount));
+    const fridge = fridgeLabour.get(index);
+    const netRate = fridge
+      ? fridge.labour / line.qty
+      : Math.max(cat.minimumRate, baseRate * (1 - tier.discount));
     let transport = 0;
     if (line.type === 'CSIDI' && first && !hasCsido && csidiQty > 1) {
       transport = regionRow?.roundTrip ?? 0;
     }
-    const labour = netRate * line.qty;
+    const labour = fridge ? fridge.labour : netRate * line.qty;
     const reason =
       line.type === 'CSIDI'
         ? hasCsido
@@ -249,14 +369,17 @@ export function priceDeliveryNote(
       blocked: false,
       rateKind: batch ? 'batch' : 'standard',
       baseRate,
-      discountTier: tier.tier,
-      discountRate: tier.discount,
+      discountTier: fridge ? 'No discount tiers' : tier.tier,
+      discountRate: fridge ? 0 : tier.discount,
       netRate: round2(netRate),
       labour: round2(labour),
       transport,
       charge: 0,
       revenue: round2(labour + transport),
-      note: `${batch ? 'Batch' : 'Standard'} rate ${baseRate} (${tierQty} unit${tierQty === 1 ? '' : 's'} on the note), ${tier.discount * 100}% discount (${tier.tier}). ${reason}`,
+      note: fridge
+        ? `${fridge.rule} (${fridge.litres} L). ${reason}`
+        : `${batch ? 'Batch' : 'Standard'} rate ${baseRate} (${tierQty} unit${tierQty === 1 ? '' : 's'} on the note), ${tier.discount * 100}% discount (${tier.tier}). ${reason}`,
+      ...(fridge ? { litres: fridge.litres } : {}),
     };
   });
 

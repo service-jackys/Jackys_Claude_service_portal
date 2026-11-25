@@ -15,6 +15,12 @@ const core = mod.exports as {
   compute(cfg: unknown, input: Record<string, unknown>): any;
   discountFor(mode: unknown, total: number): { label: string; rate: number };
   requiredTrips(total: number): number;
+  fridgeGroupLabour(
+    units: number,
+    large: boolean,
+    rates: unknown,
+    f: unknown,
+  ): { total: number; rule: string };
 };
 
 const cfg = dandiPricingDefault;
@@ -334,4 +340,106 @@ test('no extra discount is the default and a quote that is not ready stays at ze
     extra: { type: 'percent', value: 10 },
   });
   assert.equal(blocked.totalCharge, 0);
+});
+
+// --- New fridge and 13A/15A plug logic (modification #312) -------------------------------------
+import { groupLabour } from '../../apps/api/src/revenue-dashboard/fridge-scenario.js';
+
+const fl = {
+  enabled: true,
+  smallBase: 30,
+  smallOver10: 20,
+  smallMinimum: 20,
+  optionB: true,
+  plugAmount: 15,
+};
+const nbase = {
+  mode: 'dandi',
+  region: 'Dubai',
+  grouping: SAME,
+  sites: 1,
+  plannedTrips: 1,
+  crew: 2,
+};
+const q = (o: Record<string, number>) => ({
+  fridge: 0,
+  fridgeLarge: 0,
+  washer: 0,
+  cooker: 0,
+  plug: 0,
+  ...o,
+});
+
+test('new fridge logic: group prices, no discount tiers, plug on top', () => {
+  const r = core.compute(cfg, {
+    ...nbase,
+    fridgeLogic: fl,
+    qty: q({ fridge: 5, fridgeLarge: 2, cooker: 1, plug: 2 }),
+  });
+  const fr = r.lines.find((l: any) => l.key === 'fridge');
+  const lg = r.lines.find((l: any) => l.key === 'fridgeLarge');
+  close(fr.lineTotal, 150); // 5 x 30
+  close(lg.lineTotal, 120); // 2 x 60 (the D+I batch rate)
+  close(r.plug.total, 30);
+  assert.equal(r.total, 8); // plugs are not units
+  // cooker keeps its own batch rate and the 6-10 unit discount tier, as before
+  const cooker = r.lines.find((l: any) => l.key === 'cooker');
+  close(cooker.lineTotal, 80 * (1 - 0.1));
+  close(r.totalCharge, 150 + 120 + cooker.lineTotal + 30 + 60); // + Dubai round trip
+  close(r.averagePerUnit, (r.totalCharge - 30) / 8);
+});
+
+test('new fridge logic: one fridge is market, above 10 uses the second tier (Option B)', () => {
+  const one = core.compute(cfg, { ...nbase, fridgeLogic: fl, qty: q({ fridge: 1, washer: 1 }) });
+  close(one.lines.find((l: any) => l.key === 'fridge').lineTotal, 100);
+  const many = core.compute(cfg, {
+    ...nbase,
+    plannedTrips: 2,
+    fridgeLogic: fl,
+    qty: q({ fridge: 12 }),
+  });
+  close(many.lines.find((l: any) => l.key === 'fridge').lineTotal, 10 * 30 + 2 * 20);
+  const optionA = core.compute(cfg, {
+    ...nbase,
+    plannedTrips: 2,
+    fridgeLogic: { ...fl, optionB: false },
+    qty: q({ fridge: 12 }),
+  });
+  close(optionA.lines.find((l: any) => l.key === 'fridge').lineTotal, 12 * 20);
+});
+
+test('new fridge logic off or absent: one fridge box at the old prices, no plug', () => {
+  const off = core.compute(cfg, {
+    ...nbase,
+    fridgeLogic: { ...fl, enabled: false },
+    qty: q({ fridge: 2, fridgeLarge: 1, plug: 3 }),
+  });
+  const none = core.compute(cfg, { ...nbase, qty: { fridge: 3, washer: 0, cooker: 0 } });
+  close(off.totalCharge, none.totalCharge);
+  assert.equal(off.plug.total, 0);
+  assert.equal(off.lines.length, 3);
+});
+
+test('fridges of different customers are not grouped: market rate per unit', () => {
+  const r = core.compute(cfg, {
+    ...nbase,
+    grouping: 'Same customer / multiple sites',
+    fridgeLogic: fl,
+    qty: q({ fridge: 3 }),
+  });
+  close(r.lines.find((l: any) => l.key === 'fridge').lineTotal, 300);
+});
+
+test('calculator fridge group rule equals the dashboard and billing rule', () => {
+  for (const large of [false, true]) {
+    for (const optionB of [true, false]) {
+      for (let n = 1; n <= 14; n++) {
+        const rates = { market: 100, special: 60, minimum: 35 };
+        const s = { ...fl, optionB };
+        const a = core.fridgeGroupLabour(n, large, rates, s).total;
+        const b = groupLabour(n, large, rates, s).total;
+        close(a, b);
+      }
+    }
+  }
 });

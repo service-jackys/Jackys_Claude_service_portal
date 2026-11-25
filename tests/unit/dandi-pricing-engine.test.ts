@@ -287,3 +287,114 @@ test('a group that is not linked is delivery only: no warning, and it cannot be 
   assert.equal(installed.ok, false);
   assert.equal(installed.issues[0]!.code, 'unmapped');
 });
+
+// --- New fridge and 13A/15A plug logic (modification #312) -------------------------------------
+const FS = {
+  enabled: true,
+  smallBase: 30,
+  smallOver10: 20,
+  smallMinimum: 20,
+  optionB: true,
+  plugAmount: 15,
+};
+const newMaster = engineMasterFromDandi(dandiPricingDefault, FS);
+const newPrice = (lines: EngineLineInput[], region = 'Dubai') =>
+  priceDeliveryNote(newMaster, { region, lines });
+const fridge = (qty: number, litres: number | null, type: 'CSIDI' | 'CSIII' = 'CSIDI') => ({
+  qty,
+  type,
+  pricingCategory: FRIDGE,
+  installable: true as boolean | null,
+  litres,
+});
+const plug = (qty: number, type: 'CSIDI' | 'CSIII' | 'CSIDO' = 'CSIDI'): EngineLineInput => ({
+  qty,
+  type,
+  pricingCategory: null,
+  installable: null,
+  isPlug: true,
+});
+
+test('new logic: fridges of 400 L and under, 2 to 10 units, base rate, no discount tier', () => {
+  const r = newPrice([fridge(3, 350)]);
+  assert.equal(r.ok, true);
+  assert.equal(r.lines[0]!.labour, 90);
+  assert.equal(r.lines[0]!.transport, 60); // more than one unit on the note: one transport charge
+  assert.equal(r.lines[0]!.discountRate, 0);
+  assert.equal(r.totals.total, 150);
+});
+
+test('new logic: one fridge is the market rate, over 400 L from two units the special rate', () => {
+  assert.equal(newPrice([fridge(1, 300)]).totals.total, 100);
+  assert.equal(newPrice([fridge(1, 500)]).totals.total, 100);
+  const two = newPrice([fridge(2, 500)]);
+  assert.equal(two.lines[0]!.labour, 120);
+});
+
+test('new logic: Option B charges only the units above 10 at the second tier', () => {
+  const r = newPrice([fridge(12, 300)]);
+  assert.equal(r.lines[0]!.labour, 10 * 30 + 2 * 20);
+  const a = priceDeliveryNote(
+    engineMasterFromDandi(dandiPricingDefault, { ...FS, optionB: false }),
+    {
+      region: 'Dubai',
+      lines: [fridge(12, 300)],
+    },
+  );
+  assert.equal(a.lines[0]!.labour, 12 * 20);
+});
+
+test('new logic: a fridge without litres is priced as 400 L and flagged', () => {
+  const r = newPrice([fridge(2, null)]);
+  assert.equal(r.lines[0]!.litres, 400);
+  assert.equal(r.lines[0]!.labour, 60);
+  assert.ok(r.issues.some((i) => i.code === 'fridge-litres-default' && i.level === 'warning'));
+  assert.equal(r.ok, true);
+});
+
+test('new logic: two size groups of one note are priced apart; their lines share a group by quantity', () => {
+  const r = newPrice([fridge(2, 300), fridge(3, 300), fridge(2, 500)]);
+  assert.equal(r.lines[0]!.labour + r.lines[1]!.labour, 5 * 30);
+  assert.equal(r.lines[2]!.labour, 120);
+});
+
+test('new logic: other categories keep their rate and discount tier, fridge units count in the tier', () => {
+  const old = price([di(2, COOKER)]);
+  const withFridge = newPrice([{ ...di(2, COOKER), litres: null }, fridge(1, 300)]);
+  // cooker tier is now looked up on 3 units (2 + 1 fridge); the cooker rate itself is the workbook's
+  const cooker = withFridge.lines[0]!;
+  assert.equal(cooker.discountTier !== null, true);
+  assert.equal(old.lines[0]!.discountTier !== null, true);
+});
+
+test('new logic: the plug is amount x quantity, no discount, not a unit, trip or transport', () => {
+  const r = newPrice([di(1, COOKER), plug(2)]);
+  const cooker = r.lines[0]!;
+  const p = r.lines[1]!;
+  assert.equal(p.plug, true);
+  assert.equal(p.revenue, 30);
+  assert.equal(p.transport, 0);
+  assert.equal(r.note.csidiQty, 1); // the plug is not a unit
+  assert.equal(cooker.transport, 0); // so a single cooker still has no transport
+  assert.equal(r.totals.CSIDI, cooker.revenue + 30);
+});
+
+test('new logic: the plug works on installation only, and is refused on delivery only', () => {
+  const ok = newPrice([inst(1, COOKER), plug(1, 'CSIII')]);
+  assert.equal(ok.lines[1]!.revenue, 15);
+  assert.equal(ok.totals.CSIII, ok.lines[0]!.revenue + 15);
+  const bad = newPrice([del(1), plug(1, 'CSIDO')]);
+  assert.equal(bad.ok, false);
+  assert.ok(bad.issues.some((i) => i.code === 'plug-delivery-only' && i.level === 'error'));
+});
+
+test('old logic switched on: fridges keep the old prices and the plug is not charged', () => {
+  const offMaster = engineMasterFromDandi(dandiPricingDefault, { ...FS, enabled: false });
+  const lines = [di(3), plug(2)];
+  const off = priceDeliveryNote(offMaster, { region: 'Dubai', lines });
+  const old = priceDeliveryNote(master, { region: 'Dubai', lines: [di(3)] });
+  assert.equal(off.lines[0]!.revenue, old.lines[0]!.revenue);
+  assert.equal(off.lines[1]!.revenue, 0);
+  assert.ok(off.issues.some((i) => i.code === 'plug-old-logic'));
+  assert.equal(off.ok, true);
+});

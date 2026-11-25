@@ -4,7 +4,7 @@ import { dandiPricingDefault } from '../../packages/db/src/pricing-config-defaul
 
 // The D+I Quote Calculator: a separate page under Quote Calculators, priced from
 // D+I Admin Entry. The API is mocked so the numbers are the default rates.
-async function open(page: Page, permissions: string[]) {
+async function open(page: Page, permissions: string[], fridge: Record<string, unknown> = {}) {
   const seen: string[] = [];
   await page.route('**/api/**', async (route) => {
     const url = new URL(route.request().url());
@@ -20,6 +20,7 @@ async function open(page: Page, permissions: string[]) {
       seen.push(url.pathname);
       return json({ payload: dandiPricingDefault });
     }
+    if (url.pathname === '/api/pricing-config-fridge-logic') return json(fridge);
     return json({});
   });
   await page.goto('/portal/');
@@ -119,4 +120,53 @@ test('D+I Quote Calculator gives an admin an extra discount that stops at the mi
     root.locator('[data-dc-print]').click(),
   ]);
   await expect(popup.locator('body')).toContainText('Special discount');
+});
+
+// Modification #312: with the new fridge logic on, the calculator has two fridge boxes and a plug box.
+const FRIDGE_NEW = {
+  enabled: true,
+  smallBase: 30,
+  smallOver10: 20,
+  smallMinimum: 20,
+  optionB: true,
+  plugAmount: 15,
+};
+
+test('D+I Quote Calculator prices fridge groups and plugs with the new fridge logic', async ({
+  page,
+}) => {
+  await open(page, ['quote_calculators.use'], FRIDGE_NEW);
+  const root = page.locator('#dandiCalcWorkspace');
+  await expect(root.locator('[data-dc-qty="fridgeLarge"]')).toBeVisible();
+  await expect(root.locator('[data-dc-qty="plug"]')).toBeVisible();
+
+  // 5 fridges of 400 L and under = 5 x 30; 2 fridges over 400 L = 2 x 60; 2 plugs = 2 x 15;
+  // 7 units, one trip to Dubai (60): 150 + 120 + 30 + 60 = 360.
+  await root.locator('[data-dc-qty="fridge"]').fill('5');
+  await root.locator('[data-dc-qty="fridgeLarge"]').fill('2');
+  await root.locator('[data-dc-qty="plug"]').fill('2');
+  await expect(root.locator('[data-dc-status]')).toHaveText('Ready to quote');
+  await expect(root.locator('[data-dc-total]')).toContainText('360.00');
+  await expect(root.locator('[data-dc-review]')).toContainText('13A/15A plug');
+  await expect(root.locator('[data-dc-review]')).toContainText('no discount tiers');
+  await expect(root.locator('[data-dc-facts]')).toContainText('2 × ⃃ 15.00');
+
+  // A plug is not a unit: the total units stay 7 and the average excludes the plugs.
+  await expect(root.locator('[data-dc-facts]')).toContainText('Fridges: no tiers');
+  await expect(root.locator('[data-dc-facts]')).toContainText('47.14');
+
+  const [popup] = await Promise.all([
+    page.waitForEvent('popup'),
+    root.locator('[data-dc-print]').click(),
+  ]);
+  await expect(popup.locator('body')).toContainText('13A/15A plug');
+});
+
+test('D+I Quote Calculator keeps one fridge box when the old logic is switched on', async ({
+  page,
+}) => {
+  await open(page, ['quote_calculators.use'], { ...FRIDGE_NEW, enabled: false });
+  const root = page.locator('#dandiCalcWorkspace');
+  await expect(root.locator('[data-dc-qty="fridgeLarge"]')).toHaveCount(0);
+  await expect(root.locator('[data-dc-qty="plug"]')).toHaveCount(0);
 });

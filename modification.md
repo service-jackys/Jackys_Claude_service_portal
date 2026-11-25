@@ -5205,6 +5205,23 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #312 — New fridge and 13A/15A plug logic in the D+I Quote Calculator, Pricing Masters and D+I Billing engine
+
+**Date:** 2026-11-25
+
+**Why.** The new fridge and plug logic already drives the Service Revenue Dashboard (#304 to #306). The quote calculator and the billing engine still priced every fridge as one size with discount tiers, so a quote or a job entered in the portal could disagree with the dashboard.
+
+**What changed.**
+- **One source of truth.** The fridge and plug settings (base rate, second tier, minimum, Option A / B, plug amount, new / old switch) are the single row the Rate card already saves. New read route `GET /api/pricing-config-fridge-logic` (any of pricing_config.read, quote_calculators.use, di_jobs.read, revenue_dashboard.read) feeds the calculator and the Pricing Masters card.
+- **D+I Quote Calculator.** With the new logic on, the single Fridge box becomes two (400 L and under / over 400 L) and a 13A/15A plug box is added. Fridges are priced as a group with no discount tiers (1 unit market; 2 to 10 base; above 10 second tier; over 400 L: 1 unit market, 2 or more special), only when the quote is one customer at one site, otherwise market per unit. The plug is amount x quantity, no discount, not a unit, trip or crew-adjusted, and is excluded from the average per unit; the printed quote shows it as its own line. Washing machines and cookers are unchanged. With the old logic switched on the calculator is exactly as before. The group rule is a copy of the dashboard's, and a unit test keeps the two equal.
+- **Pricing Masters (D+I Admin Entry).** New card "Fridge pricing and 13A/15A plug" showing the same settings; editing needs revenue_dashboard.rate_card_edit, saves through the Rate card route (which also re-prices the dashboard and is audited). Market and special stay the D+I fridge rates of the table on the same page.
+- **D+I Billing engine (job entry).** Fridge lines of CSIDI and CSIII are priced as groups per job type and size, litres from the Stock Master (400 L and a warning when unknown), no discount tiers; fridge units still count for the note's tiers, batch rate and transport. A REPAIR-MATERIAL line is the plug: amount x quantity, not a unit or transport, error on a Delivery only line, not charged (warning) under the old logic. Following the Rate card switch. The dashboard still reads only the master workbook.
+- **Verified on the Oct 22 master** (see the PR): old logic with workbook rates equals the workbook (123,559.75); the new logic equals a hand calculation for all 167 fridge groups.
+
+**Files.** apps/web/src/app.js, apps/web/src/dandi-calc-core.js, apps/api/src/dandi-jobs/pricing-engine.ts, service.ts, jobs-service.ts, apps/api/src/pricing-config/routes.ts, service.ts, apps/api/src/api/route-catalog.ts, tests (unit, integration, e2e), modification.md, changelog-data.ts.
+
+**Needs you:** pull and restart the API; hard-refresh (Ctrl+Shift+R). No migration. REPAIR-MATERIAL must be in the Stock Master to be picked in job entry.
+
 ## Modification #311 — Logic applied: "How fridges are priced" as three tiles
 
 **Date:** 2026-11-25

@@ -1057,6 +1057,10 @@ export function createRouteCatalog(
         requireAnyPermission,
       )
     : {
+        fridgeLogic: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
         get: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
@@ -1879,6 +1883,17 @@ export function createRouteCatalog(
         parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
         responses: [200, 400, 401, 403, 404, 500],
         handlers: salesmanHandlers.update,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/pricing-config-fridge-logic',
+        operationId: 'getFridgeLogicSettings',
+        tags: ['Pricing config'],
+        summary:
+          'The new fridge and 13A/15A plug settings (one saved row shared by the Rate card, the D+I Quote Calculator, the D+I Billing engine and Pricing Masters)',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: pricingConfigHandlers.fridgeLogic,
       },
       {
         method: 'get' as const,

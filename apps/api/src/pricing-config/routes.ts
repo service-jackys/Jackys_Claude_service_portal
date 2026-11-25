@@ -86,6 +86,22 @@ export function createPricingConfigHandlers(
         }
       },
     ],
+    fridgeLogic: [
+      requireAnyPermission([
+        'pricing_config.read',
+        'quote_calculators.use',
+        'di_jobs.read',
+        'revenue_dashboard.read',
+      ]),
+      async (_request, response, next) => {
+        response.setHeader('Cache-Control', 'no-store');
+        try {
+          response.json(await service.fridgeLogic());
+        } catch (error) {
+          next(error);
+        }
+      },
+    ],
     save: [
       requirePermission('pricing_config.write'),
       async (request, response, next) => {

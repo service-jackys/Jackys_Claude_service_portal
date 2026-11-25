@@ -2,6 +2,8 @@ import type { Pool } from 'pg';
 import { z } from 'zod';
 import type { DandiPricingInput } from '../../../../packages/contracts/src/index.js';
 import { resolveItemCategories } from '../../../../packages/db/src/category-mappings.js';
+import { capacityForCodes } from '../../../../packages/db/src/stock-master.js';
+import { PLUG_ITEM_CODE } from '../revenue-dashboard/fridge-scenario.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { engineMasterFromDandi, priceDeliveryNote, type EngineResult } from './pricing-engine.js';
 
@@ -42,22 +44,31 @@ export function createDandiPricingService(pool: Pool) {
     const dandi = (await pricing.get('dandi_pricing')).payload as DandiPricingInput;
     const client = await pool.connect();
     let resolved;
+    let litres;
     try {
       resolved = await resolveItemCategories(
+        client,
+        data.lines.map((line) => line.itemCode),
+      );
+      // Fridge litres from the Stock Master, for the new fridge logic.
+      litres = await capacityForCodes(
         client,
         data.lines.map((line) => line.itemCode),
       );
     } finally {
       client.release();
     }
+    const fridge = await pricing.fridgeLogic();
     const items = data.lines.map((line) => resolved.get(line.itemCode)!);
-    const result = priceDeliveryNote(engineMasterFromDandi(dandi), {
+    const result = priceDeliveryNote(engineMasterFromDandi(dandi, fridge), {
       region: data.region,
       lines: data.lines.map((line, i) => ({
         qty: line.qty,
         type: line.type,
         pricingCategory: items[i]!.pricingCategory,
         installable: items[i]!.installable,
+        isPlug: line.itemCode.trim().toUpperCase() === PLUG_ITEM_CODE,
+        litres: litres.get(line.itemCode.trim().toUpperCase())?.litres ?? null,
       })),
     });
     return {
