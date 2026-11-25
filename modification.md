@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #319 — My notes: smaller side tab, swatches stay round
+
+**Date:** 2026-11-25
+
+**Why.** The minimised "My notes" tab on the right edge was a little big, and when the note panel was made as narrow as possible the colour dots were squeezed into ovals.
+
+**What changed.** The tab is smaller (34 x 108 px instead of 46 x 150, smaller icon, label and dot). The five colour dots keep a fixed round size at every panel width; at the narrowest width the title and the saved text shrink instead (the saved text shows "..." when it does not fit). Look only: no API, no migration.
+
+**Files.** apps/web/src/index.html, modification.md, changelog-data.ts.
+
+**Needs you:** pull and hard-refresh (Ctrl+Shift+R). No migration, no API restart.
+
 ## Modification #318 — My notes: floating private note panel on every page
 
 **Date:** 2026-11-25

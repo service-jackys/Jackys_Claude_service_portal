@@ -4343,17 +4343,30 @@
       }
       .mn-title {
         display: flex;
-        flex: 1;
+        flex: 1 1 0;
+        min-width: 0;
+        overflow: hidden;
         align-items: center;
         gap: 8px;
         font-size: 14px;
         font-weight: 600;
         white-space: nowrap;
       }
+      .mn-title svg {
+        flex: none;
+      }
+      .mn-stat span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
       .mn-sw {
         box-sizing: border-box;
-        width: 22px;
-        height: 22px;
+        flex: none;
+        width: 20px;
+        min-width: 20px;
+        height: 20px;
+        min-height: 20px;
         padding: 0;
         border: 2px solid #fff;
         border-radius: 50%;
@@ -4467,12 +4480,12 @@
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 10px;
-        width: 46px;
-        height: 150px;
+        gap: 7px;
+        width: 34px;
+        height: 108px;
         padding: 0;
         border: 0;
-        border-radius: 12px 0 0 12px;
+        border-radius: 10px 0 0 10px;
         background: var(--mn-hd);
         color: #fff;
         box-shadow: -4px 6px 18px rgba(15, 30, 60, 0.25);
@@ -4485,8 +4498,12 @@
           width 0.15s,
           background 0.2s;
       }
+      .mn-tab svg {
+        width: 15px;
+        height: 15px;
+      }
       .mn-tab:hover {
-        width: 52px;
+        width: 38px;
       }
       .mn-tab.is-dragging {
         cursor: grabbing;
@@ -4496,19 +4513,19 @@
         opacity: 0;
         visibility: hidden;
         pointer-events: none;
-        transform: translateX(30px);
+        transform: translateX(24px);
       }
       .mn-tab-label {
-        font-size: 13px;
+        font-size: 11.5px;
         font-weight: 600;
-        letter-spacing: 0.04em;
+        letter-spacing: 0.03em;
         transform: rotate(180deg);
         writing-mode: vertical-rl;
       }
       .mn-dot {
         box-sizing: content-box;
-        width: 9px;
-        height: 9px;
+        width: 7px;
+        height: 7px;
         border: 2px solid var(--mn-hd);
         border-radius: 50%;
         background: #7fe3a8;
