@@ -33233,29 +33233,44 @@ ${bodyHtml}
               cMarket + fl.plugAmount,
             ],
           ];
+          const rule = (group, isGroup, units, rate, label) =>
+            isGroup
+              ? '<tr class="fl-grp"><td colspan="3">' + e(group) + '</td></tr>'
+              : '<tr><td></td><td>' +
+                e(units) +
+                '</td><td class="rc-num">' +
+                rate +
+                ' <span class="fl-lbl">' +
+                e(label) +
+                '</span></td></tr>';
           fridgeNotes =
-            '<div class="rc-box"><div class="rc-box-head"><b>How fridges are priced</b><span>CSIDI and CSIII</span></div><div style="padding:10px 16px"><ol>' +
-            '<li>Quantity is counted per invoice, per job type and per size group (400 L and under, over 400 L). Litres come from the Stock Master by the model on the invoice; a model with no litres is priced as 400 L and flagged.</li>' +
-            '<li><b>400 L and under:</b> 1 unit pays the market rate (' +
-            chip(market) +
-            '); 2 to 10 units pay the base rate (' +
-            chip(fl.smallBase) +
-            '); ' +
-            (fl.optionB
-              ? 'units above 10 pay the second tier ('
-              : 'when an invoice has more than 10, every unit pays the second tier (') +
-            chip(fl.smallOver10) +
-            '). No volume discount tiers.</li>' +
-            '<li><b>Over 400 L:</b> 1 unit pays the market rate (' +
-            chip(market) +
-            '); 2 or more pay the special rate (' +
-            chip(special) +
-            '). No volume discount tiers.</li>' +
-            '<li><b>Washing machines, cookers and other categories:</b> unchanged, including the volume discount tiers.</li>' +
-            '<li><b>13A/15A plug:</b> every ERP line with item code REPAIR-MATERIAL on a CSIDI or CSIII invoice is charged the plug amount (' +
-            chip(fl.plugAmount) +
-            ') times its quantity, on top of the cooker rate. No discount; not a unit, trip or transport.</li>' +
-            '<li>The master workbook is not changed. Each line keeps the workbook figure; the portal figure is shown next to it on the Rate card.</li></ol></div></div>' +
+            '<div class="rc-box"><div class="rc-box-head"><b>How fridges are priced</b><span>CSIDI and CSIII · counted per invoice and job type</span></div>' +
+            '<table class="rc-t fl-rules"><thead><tr><th>Fridge size</th><th>Units on the invoice</th><th class="rc-num">Rate per unit (AED)</th></tr></thead><tbody>' +
+            rule('400 L and under', true) +
+            rule('', false, '1 unit', chip(market), 'market rate') +
+            rule('', false, '2 to 10 units', chip(fl.smallBase), 'base rate') +
+            rule(
+              '',
+              false,
+              fl.optionB ? 'Units above 10' : 'More than 10 units (every unit)',
+              chip(fl.smallOver10),
+              'second tier',
+            ) +
+            rule('Over 400 L', true) +
+            rule('', false, '1 unit', chip(market), 'market rate') +
+            rule('', false, '2 or more units', chip(special), 'special rate') +
+            rule('13A/15A plug (item code REPAIR-MATERIAL, CSIDI and CSIII)', true) +
+            rule(
+              '',
+              false,
+              'Each plug',
+              chip(fl.plugAmount),
+              '\u00D7 quantity, on top of the cooker rate',
+            ) +
+            '</tbody></table><div class="fl-foot"><span><b>No volume discount tiers</b> for fridges; plugs are not a unit, trip or transport.</span>' +
+            '<span><b>Washing machines, cookers and other categories:</b> unchanged, including their discount tiers.</span>' +
+            '<span><b>Litres</b> come from the Stock Master by the model on the invoice; no litres = priced as 400 L and flagged.</span>' +
+            '<span><b>The master workbook is not changed:</b> each line keeps its workbook figure; the portal figure is shown beside it on the Rate card.</span></div></div>' +
             '<div class="rc-box"><div class="rc-box-head"><b>Worked examples</b><span>recalculated from the Rate card</span></div>' +
             '<table class="rc-t"><thead><tr><th>Invoice</th><th>Rule</th><th class="rc-num">AED</th></tr></thead><tbody>' +
             ex
