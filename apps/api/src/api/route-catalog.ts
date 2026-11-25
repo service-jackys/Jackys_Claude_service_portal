@@ -139,6 +139,9 @@ export type RouteDefinition = {
     | 'appointmentStatus'
     | 'draftSchedule'
     | 'serviceJobCardCreate'
+    | 'walkInVisitCreate'
+    | 'walkInSerialCheck'
+    | 'walkInSettingsBody'
     | 'serviceJobCardUpdate'
     | 'serviceJobCardStatus'
     | 'serviceJobCardClosureDecision'
@@ -636,6 +639,26 @@ export function createRouteCatalog(
             providerUnavailable(response),
         ],
         walkInContactCheck: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        walkInVisitCreate: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        walkInSerialCheck: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        walkInSettings: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        walkInSettingsSave: [
+          (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
+            providerUnavailable(response),
+        ],
+        visitCards: [
           (_request: Parameters<RequestHandler>[0], response: Parameters<RequestHandler>[1]) =>
             providerUnavailable(response),
         ],
@@ -2626,6 +2649,69 @@ export function createRouteCatalog(
         requestBody: 'serviceJobCardCreate' as const,
         responses: [201, 400, 401, 403, 500],
         handlers: serviceJobCardHandlers.walkInCreate,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/job-cards/walk-in/visit',
+        operationId: 'createWalkInVisit',
+        tags: ['Service Job Cards'],
+        summary:
+          'Open walk-in job cards for several units of one customer visit (one card per unit, one WI- visit reference); a repeated requestKey returns the same cards',
+        security: 'bearerAuth' as const,
+        requestBody: 'walkInVisitCreate' as const,
+        responses: [200, 201, 400, 401, 403, 409, 500],
+        handlers: serviceJobCardHandlers.walkInVisitCreate,
+      },
+      {
+        method: 'post' as const,
+        path: '/api/job-cards/walk-in/serial-check',
+        operationId: 'walkInSerialCheck',
+        tags: ['Service Job Cards'],
+        summary:
+          'Serial numbers already open on a job card (stop) or on an open appointment or complaint (information)',
+        security: 'bearerAuth' as const,
+        requestBody: 'walkInSerialCheck' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: serviceJobCardHandlers.walkInSerialCheck,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/walk-in/settings',
+        operationId: 'getWalkInSettings',
+        tags: ['Service Job Cards'],
+        summary: 'Walk-in settings: the units-per-visit limit',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 403, 500],
+        handlers: serviceJobCardHandlers.walkInSettings,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/job-cards/walk-in/settings',
+        operationId: 'saveWalkInSettings',
+        tags: ['Service Job Cards'],
+        summary: 'Change the units-per-visit limit (administrators only)',
+        security: 'bearerAuth' as const,
+        requestBody: 'walkInSettingsBody' as const,
+        responses: [200, 400, 401, 403, 500],
+        handlers: serviceJobCardHandlers.walkInSettingsSave,
+      },
+      {
+        method: 'get' as const,
+        path: '/api/job-cards/visit/{reference}',
+        operationId: 'listWalkInVisitCards',
+        tags: ['Service Job Cards'],
+        summary: 'Every job card opened under one walk-in visit reference (WI-2026-00012)',
+        security: 'bearerAuth' as const,
+        parameters: [
+          {
+            name: 'reference',
+            in: 'path',
+            required: true,
+            schema: { type: 'string', maxLength: 40 },
+          },
+        ],
+        responses: [200, 401, 403, 500],
+        handlers: serviceJobCardHandlers.visitCards,
       },
       {
         method: 'get' as const,

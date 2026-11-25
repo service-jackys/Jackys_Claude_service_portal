@@ -5636,6 +5636,128 @@
         margin: 6px 0 0;
         padding-left: 18px;
       }
+      .wi-dup details summary {
+        cursor: pointer;
+      }
+      .wi-pill {
+        display: inline-block;
+        margin-left: 8px;
+        padding: 2px 9px;
+        border-radius: 999px;
+        background: #e4ecf7;
+        color: #43526b;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: none;
+        letter-spacing: 0;
+      }
+      .wi-line {
+        border: 1px solid #9db4d6;
+        border-radius: 12px;
+        background: #f8fbff;
+        padding: 14px 16px;
+        margin-bottom: 12px;
+      }
+      .wi-line-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .wi-line-head .wi-small {
+        margin-left: auto;
+      }
+      .wi-small {
+        min-height: 30px;
+        padding: 0 12px;
+        font-size: 12px;
+      }
+      .wi-units-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 14px;
+      }
+      .wi-units-tools {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+        flex-wrap: wrap;
+      }
+      .wi-inline {
+        display: inline-flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+      .wi-inline input[type='checkbox'] {
+        width: auto;
+      }
+      .wi-paste {
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        margin: 8px 0;
+      }
+      .wi-paste textarea {
+        flex: 1;
+        min-height: 64px;
+      }
+      .wi-units-scroll {
+        overflow-x: auto;
+      }
+      table.wi-units {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+      }
+      table.wi-units th {
+        text-align: left;
+        font-size: 11px;
+        padding: 6px 8px;
+        border-bottom: 1px solid #c9d5e6;
+        background: #eef3f9;
+      }
+      table.wi-units td {
+        padding: 5px 8px;
+        border-bottom: 1px solid #e1e8f2;
+        vertical-align: top;
+      }
+      table.wi-units td input {
+        width: 100%;
+        box-sizing: border-box;
+      }
+      table.wi-units td input.wi-bad {
+        border-color: #b3261e;
+        background: #fdecea;
+      }
+      .wi-unit-note {
+        margin-top: 3px;
+        font-size: 11px;
+      }
+      .wi-bad-text {
+        color: #b3261e;
+        font-weight: 600;
+      }
+      .wi-warn-text {
+        color: #8a5a00;
+        font-weight: 600;
+      }
+      .wi-hint {
+        margin: 10px 0 0;
+        padding: 8px 12px;
+        border: 1px solid #f5c26b;
+        background: #fff8e6;
+        border-radius: 8px;
+        font-size: 12px;
+      }
+      .wi-done-table {
+        text-align: left;
+        margin: 10px 0;
+      }
       .wi-done {
         text-align: center;
       }
@@ -18563,11 +18685,14 @@
                       </div>
                       <div class="field field-wide">
                         <strong>Purchase details</strong>
+                        <span class="tooltip" tabindex="0"
+                          ><span class="tooltip-icon" aria-hidden="true">i</span
+                          ><span class="tooltip-bubble" role="tooltip"
+                            >Leave blank if the customer does not have them. The technician writes
+                            anything missing on the printed appointment sheet.</span
+                          ></span
+                        >
                         <span class="visit-pill">Optional</span>
-                        <p class="form-note">
-                          Leave blank if the customer does not have them. The technician writes
-                          anything missing on the printed appointment sheet.
-                        </p>
                       </div>
                       <div class="field">
                         <label for="newComplaintSerialNo"

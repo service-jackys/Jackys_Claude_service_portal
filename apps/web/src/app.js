@@ -845,7 +845,8 @@
       hasPermission('stock.write') ||
       hasPermission('b2b_master.write') ||
       hasPermission('pricing_config.read') ||
-      hasPermission('ai_settings.manage')
+      hasPermission('ai_settings.manage') ||
+      hasPermission('admin.users')
     );
     $('#walkInNav').hidden = !hasPermission('service_job_card.write');
     $('#awaitingDraftsNav').hidden = !hasPermission('scheduler.read');
@@ -15821,6 +15822,7 @@ ${bodyHtml}
     if (hasPermission('b2b_master.write')) tabs.push(['customers', 'Customers']);
     if (hasPermission('pricing_config.read')) tabs.push(['appliances', 'Appliances']);
     if (hasPermission('ai_settings.manage')) tabs.push(['ai', 'AI settings']);
+    if (hasPermission('admin.users')) tabs.push(['walkin', 'Walk-in']);
     if (!tabs.some(([key]) => key === mastersTab)) mastersTab = tabs[0][0];
     root.innerHTML =
       '<div class="ws-tabs" role="tablist" aria-label="Masters">' +
@@ -15848,12 +15850,61 @@ ${bodyHtml}
     );
     if (mastersTab === 'customers') await renderCustomerMasterPage(body);
     else if (mastersTab === 'appliances') await renderApplianceMasterTab(body);
+    else if (mastersTab === 'walkin') await renderWalkInSettingsTab(body);
     else if (mastersTab === 'ai') {
       body.innerHTML =
         '<p class="form-note">Optional. Connects an AI service that can put the Thomson Smart advice into words. Prices, days and margins are always worked out by the portal; the AI only writes the sentences. With no key, or if the AI fails, the calculator shows its own computed advice. The key is stored encrypted and is never shown again.</p>' +
         '<div class="ai-admin" data-ai-admin></div>';
       await renderAiAdminPage();
     } else await renderStockMasterPage(body);
+  }
+
+  // Walk-in settings tab (Admin > Masters): the most units one walk-in visit may open.
+  // Everyone can read the limit; only an administrator can change it.
+  async function renderWalkInSettingsTab(root) {
+    root.innerHTML =
+      '<section class="detail-action-card"><h4>Walk-in job cards</h4>' +
+      '<p class="form-note">The walk-in form opens one job card per unit. This is the most units one visit may open in a single save. Raise it for a customer who brings a large batch; lower it to guard against typing mistakes.</p>' +
+      '<div class="field-grid"><div class="field"><label for="wiMaxUnits">Units per visit ' +
+      tipHtml(
+        'Default 10. Applies to the Walk-in job card form for everyone. Only an administrator can change it.',
+      ) +
+      '</label><input id="wiMaxUnits" type="number" min="1" max="500" step="1" /></div></div>' +
+      '<div class="form-footer"><span class="form-note" id="wiMaxUnitsStatus" role="status"></span>' +
+      '<button class="button button-primary" type="button" id="wiMaxUnitsSave">Save</button></div></section>';
+    const input = root.querySelector('#wiMaxUnits');
+    const status = root.querySelector('#wiMaxUnitsStatus');
+    const show = (settings) => {
+      input.value = String(settings.maxUnitsPerVisit);
+      status.textContent = settings.updatedAt
+        ? 'Last changed ' +
+          new Date(settings.updatedAt).toLocaleDateString('en-GB') +
+          (settings.updatedByName ? ' by ' + settings.updatedByName : '')
+        : 'Default setting.';
+    };
+    try {
+      show(await apiRequest('/api/job-cards/walk-in/settings'));
+    } catch (error) {
+      status.textContent = error.message || 'The setting could not be loaded.';
+    }
+    root.querySelector('#wiMaxUnitsSave').addEventListener('click', async () => {
+      const value = Number(input.value);
+      if (!Number.isInteger(value) || value < 1 || value > 500) {
+        status.textContent = 'Enter a whole number from 1 to 500.';
+        return;
+      }
+      try {
+        show(
+          await apiRequest('/api/job-cards/walk-in/settings', {
+            method: 'PUT',
+            body: JSON.stringify({ maxUnitsPerVisit: value }),
+          }),
+        );
+        status.textContent = 'Saved. ' + status.textContent;
+      } catch (error) {
+        status.textContent = error.message || 'The setting could not be saved.';
+      }
+    });
   }
 
   // Appliance Master tab (Admin > Masters): the shared AMC + Thomson appliance
@@ -16399,6 +16450,117 @@ ${bodyHtml}
   // The customer comes straight to the service centre: no complaint, no
   // appointment. Counter staff capture the essentials; the technician, parts
   // and charges are added later from the normal job card screen.
+  // One "item line" of the walk-in form: a model with a quantity and one row per unit.
+  // The first line keeps the original element ids (wiBrand, wiModelNo, wiSerialNo ...).
+  function walkInLineHtml(first) {
+    const tip = (text) =>
+      '<span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
+      escapeHtml(text) +
+      '</span></span>';
+    const id = (name) => (first ? ' id="' + name + '"' : '');
+    const lab = (name) => (first ? ' for="' + name + '"' : '');
+    return (
+      '<div class="wi-line" data-wi-line>' +
+      '<div class="wi-line-head"><strong data-wi-line-title>Line 1</strong><span class="wi-pill" data-wi-line-count>1 unit</span>' +
+      '<button type="button" class="button button-outline wi-small" data-wi-remove-line hidden>Remove line</button></div>' +
+      '<div class="field-grid">' +
+      '<div class="field"><label' +
+      lab('wiBrand') +
+      '>Brand ' +
+      tip('Start typing or click to pick a brand. The model list then shows only that brand.') +
+      '</label><input' +
+      id('wiBrand') +
+      ' data-f="brand" maxlength="120" autocomplete="off" /></div>' +
+      '<div class="field"><label' +
+      lab('wiModelNo') +
+      '>Model (item code) ' +
+      tip(
+        'Type an item code or part of the description. Picking a result fills brand, description, group and sub group.',
+      ) +
+      '</label><input' +
+      id('wiModelNo') +
+      ' data-f="model" maxlength="120" autocomplete="off" /><span class="field-error" data-error-for="' +
+      (first ? 'wiModelNo' : '') +
+      '" data-wi-line-error></span></div>' +
+      '<div class="field field-wide"><label' +
+      lab('wiItemDescription') +
+      '>Item description</label><input' +
+      id('wiItemDescription') +
+      ' data-f="desc" maxlength="300" autocomplete="off" /></div>' +
+      '<div class="field"><label' +
+      lab('wiMainGroup') +
+      '>Main group</label><input' +
+      id('wiMainGroup') +
+      ' data-f="mainGroup" maxlength="120" /></div>' +
+      '<div class="field"><label' +
+      lab('wiGroup') +
+      '>Group</label><input' +
+      id('wiGroup') +
+      ' data-f="group" maxlength="120" /></div>' +
+      '<div class="field"><label' +
+      lab('wiSubGroup') +
+      '>Sub group</label><input' +
+      id('wiSubGroup') +
+      ' data-f="subGroup" maxlength="120" /></div>' +
+      '<div class="field"><label' +
+      lab('wiWarrantyStatus') +
+      '>Warranty status</label><select' +
+      id('wiWarrantyStatus') +
+      ' data-f="warranty"><option value="To be verified">To be verified</option><option value="In Warranty">In Warranty</option><option value="Out of Warranty">Out of Warranty</option></select></div>' +
+      '<div class="field"><label>Quantity ' +
+      tip(
+        'How many units of this model the customer brought. One job card is opened for each unit, so each unit can have its own serial number.',
+      ) +
+      '</label><input type="number" min="1" step="1" value="1" data-f="quantity" /></div>' +
+      '<div class="field field-wide"><label>Fault for this model (optional) ' +
+      tip('Leave blank to use the fault typed under "Fault and condition" below.') +
+      '</label><input data-f="complaint" maxlength="10000" placeholder="Same as the fault below" /></div>' +
+      '<input type="hidden" data-f="code"' +
+      id('wiItemCode') +
+      ' />' +
+      '</div>' +
+      '<div class="wi-units-head"><strong>Units: serial number for each</strong>' +
+      '<span class="wi-units-tools">' +
+      '<label class="wi-inline">Purchase date, all units <input type="date" data-f="defPurchase" /></label>' +
+      '<label class="wi-inline">Invoice no., all units <input data-f="defInvoice" maxlength="120" /></label>' +
+      '<button type="button" class="button button-outline wi-small" data-wi-paste-toggle>Paste or scan S/Ns</button>' +
+      '</span></div>' +
+      '<div class="wi-paste" data-wi-paste hidden><textarea rows="3" data-wi-paste-text placeholder="One serial number per line"></textarea>' +
+      '<button type="button" class="button wi-small" data-wi-paste-apply>Fill the rows</button></div>' +
+      '<p class="form-note">Serial numbers are optional. A unit without one is still opened and shows an empty line on the receipt.</p>' +
+      '<div class="wi-units-scroll"><table class="wi-units"><thead><tr><th>#</th><th>Serial number (S/N)</th><th>Purchase date</th><th>Invoice no.</th><th>Different fault for this unit (optional)</th></tr></thead><tbody data-wi-unit-rows></tbody></table></div>' +
+      '<p class="wi-hint" data-wi-line-hint hidden></p>' +
+      '</div>'
+    );
+  }
+
+  function walkInUnitRowHtml(number, firstRow) {
+    const id = (name) => (firstRow ? ' id="' + name + '"' : '');
+    return (
+      '<tr data-wi-unit><td>' +
+      number +
+      '</td>' +
+      '<td><input' +
+      id('wiSerialNo') +
+      ' data-u="serial" maxlength="120" aria-label="Serial number, unit ' +
+      number +
+      '" /><div class="wi-unit-note" data-u-note hidden></div></td>' +
+      '<td><input type="date"' +
+      id('wiPurchaseDate') +
+      ' data-u="purchase" aria-label="Purchase date, unit ' +
+      number +
+      '" /></td>' +
+      '<td><input' +
+      id('wiInvoiceNo') +
+      ' data-u="invoice" maxlength="120" aria-label="Invoice no., unit ' +
+      number +
+      '" /></td>' +
+      '<td><input data-u="complaint" maxlength="10000" placeholder="same as above" aria-label="Fault, unit ' +
+      number +
+      '" /></td></tr>'
+    );
+  }
+
   function walkInIntakeHtml() {
     const tip = (text) =>
       '<span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
@@ -16438,29 +16600,17 @@ ${bodyHtml}
       '<div class="field"><label for="wiSalesChannel">Sales channel</label><select id="wiSalesChannel"><option value="">Select a sales channel</option></select></div>' +
       '<div class="field"><label for="wiTechnician">Technician (optional)</label><select id="wiTechnician"><option value="">Assign later</option></select></div>' +
       '</div></section>' +
-      '<section class="detail-action-card"><h4>Item brought in</h4><div class="field-grid">' +
-      '<div class="field"><label for="wiBrand">Brand ' +
-      tip('Start typing or click to pick a brand. The model list then shows only that brand.') +
-      '</label><input id="wiBrand" maxlength="120" autocomplete="off" /></div>' +
-      '<div class="field"><label for="wiModelNo">Model (item code) ' +
-      tip(
-        'Type an item code or part of the description. Picking a result fills brand, description, group and sub group.',
-      ) +
-      '</label><input id="wiModelNo" maxlength="120" autocomplete="off" /><span class="field-error" data-error-for="wiModelNo"></span></div>' +
-      '<div class="field field-wide"><label for="wiItemDescription">Item description</label><input id="wiItemDescription" maxlength="300" autocomplete="off" /></div>' +
-      '<div class="field"><label for="wiMainGroup">Main group</label><input id="wiMainGroup" maxlength="120" /></div>' +
-      '<div class="field"><label for="wiGroup">Group</label><input id="wiGroup" maxlength="120" /></div>' +
-      '<div class="field"><label for="wiSubGroup">Sub group</label><input id="wiSubGroup" maxlength="120" /></div>' +
-      '<div class="field"><label for="wiSerialNo">Serial number</label><input id="wiSerialNo" maxlength="120" /></div>' +
-      '<div class="field"><label for="wiPurchaseDate">Purchase date</label><input id="wiPurchaseDate" type="date" /></div>' +
-      '<div class="field"><label for="wiInvoiceNo">Invoice no. ' +
-      tip('Ask for the purchase invoice: it proves the warranty period.') +
-      '</label><input id="wiInvoiceNo" maxlength="120" /></div>' +
-      '<div class="field"><label for="wiWarrantyStatus">Warranty status</label><select id="wiWarrantyStatus"><option value="To be verified">To be verified</option><option value="In Warranty">In Warranty</option><option value="Out of Warranty">Out of Warranty</option></select></div>' +
-      '<input id="wiItemCode" type="hidden" />' +
-      '</div></section>' +
+      '<section class="detail-action-card"><h4>Items brought in <span class="wi-pill">one job card is opened per unit</span></h4>' +
+      '<p class="form-note" data-wi-limit-note></p>' +
+      '<div data-wi-lines></div>' +
+      '<p><button type="button" class="button button-outline" data-wi-add-line>+ Add another model</button></p>' +
+      '</section>' +
       '<section class="detail-action-card"><h4>Fault and condition</h4>' +
-      '<div class="field"><label for="wiComplaint">Fault reported by the customer <span class="required">*</span></label><textarea id="wiComplaint" maxlength="10000"></textarea><span class="field-error" data-error-for="wiComplaint"></span></div>' +
+      '<div class="field"><label for="wiComplaint">Fault reported by the customer <span class="required">*</span> ' +
+      tip(
+        'Applies to every unit. A line or a single unit can have its own fault under Items brought in.',
+      ) +
+      '</label><textarea id="wiComplaint" maxlength="10000"></textarea><span class="field-error" data-error-for="wiComplaint"></span></div>' +
       '<div class="field-grid">' +
       '<div class="field"><label for="wiAccessories">Accessories received ' +
       tip('Power cord, remote, charger, box, SIM tray… so nothing is disputed at collection.') +
@@ -16471,9 +16621,83 @@ ${bodyHtml}
       ) +
       '</label><input id="wiCondition" maxlength="2000" placeholder="e.g. scratch on the lid" /></div>' +
       '</div></section>' +
-      '<div class="form-footer"><span class="form-note" id="wiResult" role="status"></span>' +
+      '<div class="form-footer"><span class="form-note" data-wi-summary></span><span class="form-note" id="wiResult" role="status"></span>' +
       '<button class="button button-primary" type="submit" id="wiSubmit">Open walk-in job card</button></div>' +
       '</form><div data-wi-done hidden></div>'
+    );
+  }
+
+  // One intake receipt for a visit with several units: the customer, then one row per unit.
+  function printWalkInVisitReceipt(result) {
+    const cards = (result && result.jobCards) || [];
+    if (!cards.length) return;
+    const first = cards[0];
+    const intake = first.intakeAt ? new Date(first.intakeAt).toLocaleString('en-GB') : '';
+    const rows = cards
+      .map(
+        (card, index) =>
+          '<tr><td>' +
+          (index + 1) +
+          '</td><td>' +
+          escapeHtml(card.jobCardReference) +
+          '</td><td>' +
+          escapeHtml(
+            [card.brand, card.modelNo].filter(Boolean).join(' ') || card.itemDescription || '',
+          ) +
+          '</td><td>' +
+          (card.serialNo
+            ? escapeHtml(card.serialNo)
+            : '<span style="display:block;border-bottom:1px solid #444;height:14px"></span>') +
+          '</td><td>' +
+          escapeHtml(card.warrantyStatus || '') +
+          '</td><td>' +
+          escapeHtml(card.complaint || '') +
+          '</td></tr>',
+      )
+      .join('');
+    const body = `
+      ${printDocHeadWithLogo('Service Intake Receipt', result.visitReference || first.jobCardReference)}
+      <h2>Customer</h2>
+      ${printFieldGrid([
+        ['Received on', intake],
+        ['Customer name', first.customerName],
+        ['Customer type', first.customerType],
+        ['Contact', first.customerContact],
+        ['Email', first.customerEmail],
+        ['Address', first.customerAddress],
+        ['Region', first.region],
+        ['B2B branch / school', first.b2bBranchSchool],
+        [
+          'Site contact',
+          [first.schoolContactPerson, first.schoolContactNumber].filter(Boolean).join(' · '),
+        ],
+        ['Sales order no.', first.salesOrderNumber],
+        ['Salesman', first.salesman],
+      ])}
+      <h2>Items received (${cards.length} units)</h2>
+      <table style="width:100%;border-collapse:collapse;font-size:12px;" border="1" cellpadding="5">
+        <thead><tr><th>#</th><th>Job card</th><th>Item</th><th>Serial number</th><th>Warranty</th><th>Fault reported</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      ${printFieldGrid([
+        ['Accessories received', first.accessoriesReceived],
+        ['Condition at drop-off', first.conditionNotes],
+      ])}
+      <h2>Terms</h2>
+      <ol style="font-size:12px;">
+        <li>Warranty cover is confirmed only after inspection and proof of purchase; an inspection or diagnosis fee may apply to out-of-warranty items, even if the repair is declined.</li>
+        <li>A quotation is given before any chargeable repair. Work starts only after the customer approves it.</li>
+        <li>Please back up and remove personal data from phones, computers and storage devices. Jacky's is not responsible for data loss.</li>
+        <li>Items not collected within 30 days of the completion notice are left at the owner's risk and may incur storage charges.</li>
+        <li>Please present this receipt to collect the items. Accessories are returned only as listed above.</li>
+      </ol>
+      <div class="sign-row">
+        <div class="sign-box">Received by (service centre)</div>
+        <div class="sign-box">Customer signature</div>
+      </div>
+    `;
+    openPrintWindow(
+      printDocumentShell(`Intake receipt ${result.visitReference || first.jobCardReference}`, body),
     );
   }
 
@@ -16560,7 +16784,9 @@ ${bodyHtml}
           invoiceNo: filled('wiInvoiceNo'),
           salesOrderNumber: filled('wiSalesOrderNumber'),
         },
-        salesmanRequired: v('wiCustomerType') === 'B2C' && v('wiWarrantyStatus') === 'In Warranty',
+        salesmanRequired: v('wiCustomerType') === 'B2C' && anyInWarranty(),
+        unitCount: totalUnits(),
+        modelLines: lineList().length,
         duplicateWarningShown: Boolean(
           root.querySelector('[data-wi-dup]:not([hidden])')?.textContent?.trim(),
         ),
@@ -16568,23 +16794,320 @@ ${bodyHtml}
     });
     const dup = root.querySelector('[data-wi-dup]');
     const $$ = (id) => root.querySelector('#' + id);
-    attachItemPicker({
-      brand: $$('wiBrand'),
-      model: $$('wiModelNo'),
-      desc: $$('wiItemDescription'),
-      code: $$('wiItemCode'),
-      mainGroup: $$('wiMainGroup'),
-      group: $$('wiGroup'),
-      subGroup: $$('wiSubGroup'),
+    // ---- Items brought in: lines of (model, quantity), one row per unit ----
+    const linesHost = root.querySelector('[data-wi-lines]');
+    const limitNote = root.querySelector('[data-wi-limit-note]');
+    let maxUnits = 10;
+    let openRecords = { walkIns: [] };
+    let serialInfo = { openJobCards: [], others: [] };
+    const newKey = () =>
+      window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'k' + Date.now() + Math.random().toString(16).slice(2);
+    let requestKey = newKey();
+    const lineList = () => [...linesHost.querySelectorAll('[data-wi-line]')];
+    const lineF = (line, name) => line.querySelector('[data-f="' + name + '"]');
+    const unitList = (line) => [...line.querySelectorAll('[data-wi-unit]')];
+    const unitF = (row, name) => row.querySelector('[data-u="' + name + '"]');
+    const totalUnits = () => lineList().reduce((sum, line) => sum + unitList(line).length, 0);
+    const anyInWarranty = () =>
+      lineList().some((line) => lineF(line, 'warranty').value === 'In Warranty');
+    const normSerial = (value) => {
+      const text = String(value || '')
+        .replace(/\s+/g, '')
+        .toUpperCase();
+      if (text.length < 3 || /^0+$/.test(text)) return '';
+      return ['NA', 'N/A', 'NIL', 'NONE', 'NULL', 'UNKNOWN', 'NOSN', '-', '--'].includes(text)
+        ? ''
+        : text;
+    };
+    const limitMessage = () =>
+      'A visit can have at most ' +
+      maxUnits +
+      ' units. An administrator can raise the limit in Admin > Masters > Walk-in.';
+
+    function summarise() {
+      const units = totalUnits();
+      const missing = lineList().reduce(
+        (sum, line) =>
+          sum + unitList(line).filter((row) => !unitF(row, 'serial').value.trim()).length,
+        0,
+      );
+      lineList().forEach((line) => {
+        const count = unitList(line).length;
+        line.querySelector('[data-wi-line-count]').textContent =
+          count + (count === 1 ? ' unit' : ' units');
+      });
+      const submit = $$('wiSubmit');
+      const label = units > 1 ? 'Open ' + units + ' job cards' : 'Open walk-in job card';
+      submit.dataset.label = label;
+      if (!submit.disabled) submit.textContent = label;
+      root.querySelector('[data-wi-summary]').textContent =
+        units +
+        (units === 1 ? ' unit' : ' units') +
+        ' · ' +
+        lineList().length +
+        (lineList().length === 1 ? ' model' : ' models') +
+        (missing ? ' · ' + missing + ' without S/N' : '');
+    }
+
+    function setUnitCount(line, wanted) {
+      const body = line.querySelector('[data-wi-unit-rows]');
+      const others = totalUnits() - unitList(line).length;
+      let count = Math.max(1, Math.floor(Number(wanted) || 1));
+      const room = Math.max(1, maxUnits - others);
+      if (count > room) {
+        count = room;
+        limitNote.textContent = limitMessage();
+        limitNote.classList.add('pg-error');
+      }
+      while (unitList(line).length < count) {
+        body.insertAdjacentHTML(
+          'beforeend',
+          walkInUnitRowHtml(
+            unitList(line).length + 1,
+            line === lineList()[0] && !unitList(line).length,
+          ),
+        );
+      }
+      while (unitList(line).length > count) unitList(line).pop().remove();
+      lineF(line, 'quantity').value = String(count);
+      summarise();
+      scheduleSerialCheck();
+    }
+
+    function renumber() {
+      lineList().forEach((line, index) => {
+        line.querySelector('[data-wi-line-title]').textContent = 'Line ' + (index + 1);
+        line.querySelector('[data-wi-remove-line]').hidden = index === 0;
+      });
+    }
+
+    function addLine() {
+      linesHost.insertAdjacentHTML('beforeend', walkInLineHtml(lineList().length === 0));
+      const line = lineList()[lineList().length - 1];
+      lineF(line, 'quantity').max = String(maxUnits);
+      setUnitCount(line, 1);
+      attachItemPicker({
+        brand: lineF(line, 'brand'),
+        model: lineF(line, 'model'),
+        desc: lineF(line, 'desc'),
+        code: lineF(line, 'code'),
+        mainGroup: lineF(line, 'mainGroup'),
+        group: lineF(line, 'group'),
+        subGroup: lineF(line, 'subGroup'),
+      });
+      renumber();
+      return line;
+    }
+
+    // Same model already open for this customer and no S/N typed: information only.
+    function refreshHints() {
+      lineList().forEach((line) => {
+        const hint = line.querySelector('[data-wi-line-hint]');
+        const model = lineF(line, 'model').value.trim().toLowerCase();
+        const typed = unitList(line).some((row) => unitF(row, 'serial').value.trim());
+        const matches = model
+          ? (openRecords.walkIns || []).filter((card) =>
+              String(card.item || '')
+                .toLowerCase()
+                .includes(model),
+            )
+          : [];
+        if (!matches.length || typed) {
+          hint.hidden = true;
+          return;
+        }
+        hint.hidden = false;
+        hint.textContent =
+          matches.length +
+          (matches.length === 1 ? ' card' : ' cards') +
+          ' for this model ' +
+          (matches.length === 1 ? 'is' : 'are') +
+          ' already open for this customer (' +
+          matches.map((card) => card.reference).join(', ') +
+          '). New units are fine: type the serial numbers so each unit can be told apart.';
+      });
+    }
+
+    // Serial numbers: an open job card with the same S/N stops that unit; an open
+    // appointment or complaint is information only.
+    function renderSerialNotes() {
+      const counts = new Map();
+      lineList().forEach((line) =>
+        unitList(line).forEach((row) => {
+          const key = normSerial(unitF(row, 'serial').value);
+          if (key) counts.set(key, (counts.get(key) || 0) + 1);
+        }),
+      );
+      lineList().forEach((line) =>
+        unitList(line).forEach((row) => {
+          const input = unitF(row, 'serial');
+          const note = row.querySelector('[data-u-note]');
+          const key = normSerial(input.value);
+          const wasAllowed = Boolean(row.querySelector('[data-u="allow"]')?.checked);
+          const open = key ? serialInfo.openJobCards.find((m) => m.serial === key) : null;
+          const others = key ? serialInfo.others.filter((m) => m.serial === key) : [];
+          let html = '';
+          let bad = false;
+          if (key && counts.get(key) > 1) {
+            bad = true;
+            html +=
+              '<span class="wi-bad-text">This serial number is entered twice in this visit.</span>';
+          }
+          if (open) {
+            bad = true;
+            html +=
+              '<span class="wi-bad-text">Already open on <strong>' +
+              escapeHtml(open.reference) +
+              '</strong> (' +
+              escapeHtml(open.status) +
+              '). Same repair?</span> <label class="wi-inline"><input type="checkbox" data-u="allow"' +
+              (wasAllowed ? ' checked' : '') +
+              ' /> Different repair, open anyway</label>';
+          }
+          if (others.length) {
+            html +=
+              '<span class="wi-warn-text">Also on open ' +
+              others
+                .map((m) => escapeHtml(m.kind.toLowerCase()) + ' ' + escapeHtml(m.reference))
+                .join(', ') +
+              '.</span>';
+          }
+          note.hidden = !html;
+          note.innerHTML = html;
+          input.classList.toggle('wi-bad', bad);
+        }),
+      );
+    }
+
+    let serialTimer = null;
+    let serialSequence = 0;
+    async function runSerialCheck() {
+      clearTimeout(serialTimer);
+      serialTimer = null;
+      const serials = [];
+      lineList().forEach((line) =>
+        unitList(line).forEach((row) => {
+          const value = unitF(row, 'serial').value.trim();
+          if (normSerial(value)) serials.push(value);
+        }),
+      );
+      const mine = ++serialSequence;
+      if (!serials.length) {
+        serialInfo = { openJobCards: [], others: [] };
+        renderSerialNotes();
+        return;
+      }
+      try {
+        const result = await apiRequest('/api/job-cards/walk-in/serial-check', {
+          method: 'POST',
+          body: JSON.stringify({ serials }),
+        });
+        if (mine !== serialSequence) return;
+        serialInfo = {
+          openJobCards: result.openJobCards || [],
+          others: result.others || [],
+        };
+      } catch {
+        if (mine !== serialSequence) return;
+        serialInfo = { openJobCards: [], others: [] };
+      }
+      renderSerialNotes();
+    }
+    function scheduleSerialCheck() {
+      clearTimeout(serialTimer);
+      serialTimer = setTimeout(runSerialCheck, 400);
+      renderSerialNotes();
+    }
+
+    linesHost.addEventListener('input', (event) => {
+      if (event.target.matches('[data-u="serial"]')) {
+        summarise();
+        scheduleSerialCheck();
+      }
     });
+    linesHost.addEventListener('change', (event) => {
+      const line = event.target.closest('[data-wi-line]');
+      if (!line) return;
+      if (event.target.matches('[data-f="quantity"]')) setUnitCount(line, event.target.value);
+      else if (event.target.matches('[data-f="warranty"]')) syncWiSalesman();
+      else if (event.target.matches('[data-u="serial"]')) {
+        refreshHints();
+        scheduleSerialCheck();
+      } else if (event.target.matches('[data-f="model"], [data-f="desc"]')) refreshHints();
+    });
+    linesHost.addEventListener('focusout', (event) => {
+      if (event.target.matches('[data-f="model"], [data-f="desc"]')) refreshHints();
+    });
+    // A barcode scanner types the S/N and presses Enter: move to the next unit, never submit.
+    linesHost.addEventListener('keydown', (event) => {
+      if (event.key !== 'Enter' || !event.target.matches('[data-u="serial"]')) return;
+      event.preventDefault();
+      const inputs = [...linesHost.querySelectorAll('[data-u="serial"]')];
+      const next = inputs[inputs.indexOf(event.target) + 1];
+      if (next) next.focus();
+    });
+    linesHost.addEventListener('click', (event) => {
+      const line = event.target.closest('[data-wi-line]');
+      if (!line) return;
+      if (event.target.closest('[data-wi-remove-line]')) {
+        line.remove();
+        renumber();
+        summarise();
+        scheduleSerialCheck();
+      } else if (event.target.closest('[data-wi-paste-toggle]')) {
+        const box = line.querySelector('[data-wi-paste]');
+        box.hidden = !box.hidden;
+        if (!box.hidden) box.querySelector('textarea').focus();
+      } else if (event.target.closest('[data-wi-paste-apply]')) {
+        const box = line.querySelector('[data-wi-paste]');
+        const values = box
+          .querySelector('textarea')
+          .value.split(/[\n\r\t;,]+/)
+          .map((value) => value.trim())
+          .filter(Boolean);
+        if (!values.length) return;
+        setUnitCount(line, Math.max(unitList(line).length, values.length));
+        const rows = unitList(line);
+        values.forEach((value, index) => {
+          if (rows[index]) unitF(rows[index], 'serial').value = value;
+        });
+        if (values.length > rows.length) {
+          limitNote.textContent = limitMessage();
+          limitNote.classList.add('pg-error');
+        }
+        box.querySelector('textarea').value = '';
+        box.hidden = true;
+        summarise();
+        refreshHints();
+        scheduleSerialCheck();
+      }
+    });
+    root.querySelector('[data-wi-add-line]').addEventListener('click', () => {
+      if (totalUnits() >= maxUnits) {
+        limitNote.textContent = limitMessage();
+        limitNote.classList.add('pg-error');
+        return;
+      }
+      addLine().querySelector('[data-f="model"]').focus();
+    });
+    apiRequest('/api/job-cards/walk-in/settings')
+      .then((result) => {
+        maxUnits = Number(result.maxUnitsPerVisit) || 10;
+        limitNote.textContent = 'Up to ' + maxUnits + ' units in one visit.';
+        lineList().forEach((line) => {
+          lineF(line, 'quantity').max = String(maxUnits);
+        });
+      })
+      .catch(() => {});
 
     // Customer type: B2B shows the branch / school block and makes the contact
     // number optional, exactly like the New request form.
     const b2bBox = $$('wiB2bFields');
     // A B2C walk-in under warranty is billed internally to the salesman's channel, so
     // the salesman is required and fills the sales channel (modification #153).
-    const wiSalesmanNeeded = () =>
-      $$('wiCustomerType').value === 'B2C' && $$('wiWarrantyStatus').value === 'In Warranty';
+    const wiSalesmanNeeded = () => $$('wiCustomerType').value === 'B2C' && anyInWarranty();
     const syncWiSalesman = () => {
       $$('wiSalesmanStar').hidden = !wiSalesmanNeeded();
       if (wiSalesmanNeeded() && !$$('wiSalesman').value) {
@@ -16599,7 +17122,6 @@ ${bodyHtml}
       $$('wiContactStar').hidden = $$('wiCustomerType').value === 'B2B';
       syncWiSalesman();
     });
-    $$('wiWarrantyStatus').addEventListener('change', syncWiSalesman);
     const wiSalesmanNoChannel = () => {
       const name = $$('wiSalesman').value;
       return wiSalesmanNeeded() && name && !$$('wiSalesChannel').value && !channelForSalesman(name);
@@ -16721,11 +17243,15 @@ ${bodyHtml}
               '</li>',
           ),
         ];
+        openRecords = found;
+        refreshHints();
         dup.hidden = rows.length === 0;
         dup.innerHTML = rows.length
-          ? '<strong>This number already has open records.</strong> Check it is not the same repair before opening another card:<ul>' +
+          ? '<details><summary><strong>This number already has open records.</strong> (' +
+            rows.length +
+            ') Check it is not the same repair before opening another card.</summary><ul>' +
             rows.join('') +
-            '</ul>'
+            '</ul></details>'
           : '';
       } catch {
         dup.hidden = true;
@@ -16758,12 +17284,51 @@ ${bodyHtml}
       } else {
         need('wiCustomerContact', 'Enter a contact number.');
       }
-      need('wiComplaint', 'Describe the fault.');
-      if (
-        $$('wiCustomerType').value === 'B2C' &&
-        $$('wiWarrantyStatus').value === 'In Warranty' &&
-        !$$('wiSalesman').value
-      ) {
+      // Item lines: each needs a model or description; each unit needs a fault from somewhere.
+      const readLines = () =>
+        lineList().map((line) => {
+          const defPurchase = lineF(line, 'defPurchase').value || undefined;
+          const defInvoice = lineF(line, 'defInvoice').value.trim() || undefined;
+          const rows = unitList(line);
+          const text = (name) => lineF(line, name).value.trim() || undefined;
+          return {
+            brand: text('brand'),
+            modelNo: text('model'),
+            itemDescription: text('desc'),
+            itemCode: text('code'),
+            mainGroup: text('mainGroup'),
+            groupName: text('group'),
+            subGroup: text('subGroup'),
+            itemInMaster: readItemInMaster(lineF(line, 'model')),
+            warrantyStatus: lineF(line, 'warranty').value || undefined,
+            complaint: text('complaint'),
+            quantity: rows.length,
+            units: rows.map((row) => ({
+              serialNo: unitF(row, 'serial').value.trim() || undefined,
+              purchaseDate: unitF(row, 'purchase').value || defPurchase,
+              invoiceNo: unitF(row, 'invoice').value.trim() || defInvoice,
+              complaint: unitF(row, 'complaint').value.trim() || undefined,
+              allowDuplicateSerial: row.querySelector('[data-u="allow"]')?.checked || undefined,
+            })),
+          };
+        });
+      const lineData = readLines();
+      lineList().forEach((line, index) => {
+        if (!lineF(line, 'model').value.trim() && !lineF(line, 'desc').value.trim()) {
+          const message = 'Enter the model, item code or description.';
+          if (index === 0) showFieldError(form, 'wiModelNo', message);
+          else line.querySelector('[data-wi-line-error]').textContent = message;
+          valid = false;
+        }
+      });
+      const faultMissing = lineData.some(
+        (line) => !line.complaint && line.units.some((unit) => !unit.complaint),
+      );
+      if (faultMissing && !$$('wiComplaint').value.trim()) {
+        showFieldError(form, 'wiComplaint', 'Describe the fault.');
+        valid = false;
+      }
+      if ($$('wiCustomerType').value === 'B2C' && anyInWarranty() && !$$('wiSalesman').value) {
         showFieldError(form, 'wiSalesman', 'Choose the salesman for a B2C job under warranty.');
         valid = false;
       } else if (wiSalesmanNoChannel()) {
@@ -16775,11 +17340,39 @@ ${bodyHtml}
         wiChannelPopup($$('wiSalesman').value);
         valid = false;
       }
-      if (!$$('wiModelNo').value.trim() && !$$('wiItemDescription').value.trim()) {
-        showFieldError(form, 'wiModelNo', 'Enter the model, item code or description.');
+      if (totalUnits() > maxUnits) {
+        $$('wiResult').textContent = limitMessage();
         valid = false;
       }
       if (!valid) return;
+      // The serial numbers are checked one last time before saving. An open card with the
+      // same S/N stops that unit until "Different repair, open anyway" is ticked.
+      await runSerialCheck();
+      const blockers = [];
+      lineList().forEach((line) =>
+        unitList(line).forEach((row) => {
+          const key = normSerial(unitF(row, 'serial').value);
+          const open = key ? serialInfo.openJobCards.find((m) => m.serial === key) : null;
+          if (open && !row.querySelector('[data-u="allow"]')?.checked) {
+            blockers.push(
+              unitF(row, 'serial').value.trim() + ' is already open on ' + open.reference,
+            );
+          }
+        }),
+      );
+      const typedSerials = lineData.flatMap((line) =>
+        line.units.map((unit) => normSerial(unit.serialNo)).filter(Boolean),
+      );
+      if (new Set(typedSerials).size !== typedSerials.length) {
+        blockers.push('a serial number is entered twice in this visit');
+      }
+      if (blockers.length) {
+        $$('wiResult').textContent =
+          'Check the serial numbers: ' +
+          blockers.join('; ') +
+          '. Tick "Different repair, open anyway" or fix the number.';
+        return;
+      }
       const value = (id) => $$(id).value.trim() || undefined;
       const payload = {
         customerName: value('wiCustomerName'),
@@ -16799,45 +17392,53 @@ ${bodyHtml}
         salesman: value('wiSalesman'),
         salesChannel: value('wiSalesChannel'),
         technicianName: value('wiTechnician'),
-        brand: value('wiBrand'),
-        modelNo: value('wiModelNo'),
-        itemDescription: value('wiItemDescription'),
-        itemCode: value('wiItemCode'),
-        mainGroup: value('wiMainGroup'),
-        groupName: value('wiGroup'),
-        subGroup: value('wiSubGroup'),
-        itemInMaster: readItemInMaster($$('wiModelNo')),
-        serialNo: value('wiSerialNo'),
-        purchaseDate: $$('wiPurchaseDate').value || undefined,
-        invoiceNo: value('wiInvoiceNo'),
-        warrantyStatus: value('wiWarrantyStatus'),
         complaint: value('wiComplaint'),
         accessoriesReceived: value('wiAccessories'),
         conditionNotes: value('wiCondition'),
+        requestKey,
+        lines: lineData,
       };
       const button = $$('wiSubmit');
       setBusy(button, true, 'Opening…');
       try {
-        const result = await apiRequest('/api/job-cards/walk-in', {
+        const result = await apiRequest('/api/job-cards/walk-in/visit', {
           method: 'POST',
           body: JSON.stringify(payload),
         });
-        const jobCard = result.jobCard;
-        form.hidden = true;
-        dup.hidden = true;
-        done.hidden = false;
+        showVisitDone(result);
+      } catch (error) {
+        setBusy(button, false);
+        $$('wiResult').textContent = error.message || 'The job card could not be opened.';
+      }
+    });
+
+    function showVisitDone(result) {
+      const cards = result.jobCards || [];
+      const button = $$('wiSubmit');
+      const more =
+        '<button class="button button-outline" type="button" data-wi-more>Add more units for this customer</button> ' +
+        '<button class="button button-outline" type="button" data-wi-new>New customer</button>';
+      form.hidden = true;
+      dup.hidden = true;
+      done.hidden = false;
+      const nextStep =
+        '<div class="card-help"><span>Next step</span>' +
+        tipHtml(
+          'Print the intake receipt for the customer to sign, then hand the items to the technician.',
+        ) +
+        '</div>';
+      if (cards.length === 1) {
+        const jobCard = cards[0];
         done.innerHTML =
           '<section class="detail-action-card wi-done"><h4>Walk-in job card opened</h4>' +
           '<p class="wi-ref">' +
           escapeHtml(jobCard.jobCardReference) +
-          '</p><div class="card-help"><span>Next step</span>' +
-          tipHtml(
-            'Print the intake receipt for the customer to sign, then hand the item to the technician.',
-          ) +
-          '</div>' +
+          '</p>' +
+          nextStep +
           '<p><button class="button button-primary" type="button" data-wi-print>Print intake receipt</button> ' +
           '<button class="button button-outline" type="button" data-wi-open>Open job card</button> ' +
-          '<button class="button button-outline" type="button" data-wi-new>New walk-in</button></p></section>';
+          more +
+          '</p></section>';
         done
           .querySelector('[data-wi-print]')
           .addEventListener('click', () => printWalkInReceipt(jobCard));
@@ -16845,12 +17446,94 @@ ${bodyHtml}
           setWorkspaceMode('job-cards');
           loadJobCardDetail(jobCard.id);
         });
-        done.querySelector('[data-wi-new]').addEventListener('click', () => renderWalkInPage(root));
-      } catch (error) {
-        setBusy(button, false);
-        $$('wiResult').textContent = error.message || 'The job card could not be opened.';
+      } else {
+        const rows = cards
+          .map(
+            (card) =>
+              '<tr><td><button type="button" class="link-button" data-wi-open-id="' +
+              escapeHtml(card.id) +
+              '"><strong>' +
+              escapeHtml(card.jobCardReference) +
+              '</strong></button></td><td>' +
+              escapeHtml(
+                [card.brand, card.modelNo].filter(Boolean).join(' ') || card.itemDescription || '',
+              ) +
+              '</td><td>' +
+              (card.serialNo
+                ? escapeHtml(card.serialNo)
+                : '<span class="wi-warn-text">S/N missing</span>') +
+              '</td><td>' +
+              escapeHtml(card.complaint || '') +
+              '</td><td>' +
+              escapeHtml(card.warrantyStatus || '') +
+              '</td></tr>',
+          )
+          .join('');
+        done.innerHTML =
+          '<section class="detail-action-card wi-done"><h4>' +
+          cards.length +
+          ' walk-in job cards opened</h4><p class="wi-ref">' +
+          escapeHtml(result.visitReference || '') +
+          '</p>' +
+          '<div class="wi-units-scroll"><table class="wi-units wi-done-table"><thead><tr><th>Job card</th><th>Model</th><th>Serial number</th><th>Fault</th><th>Warranty</th></tr></thead><tbody>' +
+          rows +
+          '</tbody></table></div>' +
+          nextStep +
+          '<p><button class="button button-primary" type="button" data-wi-print>Print one intake receipt (' +
+          cards.length +
+          ' units)</button> ' +
+          '<button class="button button-outline" type="button" data-wi-stickers>Print ' +
+          cards.length +
+          ' stickers</button> ' +
+          more +
+          '</p></section>';
+        done
+          .querySelector('[data-wi-print]')
+          .addEventListener('click', () => printWalkInVisitReceipt(result));
+        done.querySelector('[data-wi-stickers]').addEventListener('click', async () => {
+          const items = cards.map((card) => ({ kind: 'repair', data: repairStickerData(card) }));
+          const bad = items.find(
+            (item) => window.JdLabel.missingDetails('repair', item.data).length,
+          );
+          if (bad) {
+            await showMissingStickerDetails(
+              REPAIR_STICKER_FIELDS,
+              window.JdLabel.missingDetails('repair', bad.data),
+            );
+            return;
+          }
+          printStickers(items);
+        });
+        done.addEventListener('click', (event) => {
+          const open = event.target.closest('[data-wi-open-id]');
+          if (!open) return;
+          setWorkspaceMode('job-cards');
+          loadJobCardDetail(open.getAttribute('data-wi-open-id'));
+        });
       }
-    });
+      done.querySelector('[data-wi-new]').addEventListener('click', () => renderWalkInPage(root));
+      // The customer stays filled in: a customer who brings more units does not retype it.
+      done.querySelector('[data-wi-more]').addEventListener('click', () => {
+        done.hidden = true;
+        form.hidden = false;
+        linesHost.innerHTML = '';
+        addLine();
+        $$('wiComplaint').value = '';
+        $$('wiAccessories').value = '';
+        $$('wiCondition').value = '';
+        $$('wiResult').textContent = '';
+        limitNote.classList.remove('pg-error');
+        limitNote.textContent = 'Up to ' + maxUnits + ' units in one visit.';
+        serialInfo = { openJobCards: [], others: [] };
+        requestKey = newKey();
+        setBusy(button, false);
+        summarise();
+        linesHost.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+
+    addLine();
+    summarise();
   }
 
   let rateCardVisibilityHandler = null;

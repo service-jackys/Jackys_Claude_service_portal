@@ -5205,6 +5205,30 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #317 — Walk-in job card: several units in one visit
+
+**Date:** 2026-11-25
+
+**Why.** B2B customers often bring several units at once (for example 5 of one model, each with its own S/N, plus 2 of another model). CCE had to retype the customer and every item for each unit, and the open-records warning made the form feel blocked.
+
+**What changed.**
+
+- Walk-in form: the customer is entered once. "Items brought in" holds one line per model (model, brand, description, warranty, quantity, fault for all). Each line has one row per unit (S/N, purchase date, invoice no., optional different fault). "Add another model" adds a line. Paste or scan S/Ns fills the rows in order. Blank S/Ns are allowed and the card shows them as missing.
+- One job card is still opened per unit, so billing, parts, stickers and delivery are unchanged. All cards of a visit share a visit reference WI-YYYY-NNNNN. A retry or double press never creates duplicate cards (request key).
+- Same serial number: a red stop only when that S/N is already on an open job card. A card stops counting when its job status is BER, Cancelled or it is Delivered. The row can be confirmed with "Different repair, open anyway". Open appointments and complaints with the same S/N, and same model already open for the customer, are amber information only. The same S/N twice in one visit is stopped.
+- Units per visit limit: default 10. Only an administrator can change it, in Admin > Masters > Walk-in.
+- After saving: one result table, one combined intake receipt, one sticker print, "Add more units for this customer" (keeps the customer, resets the items) and "New customer". A single unit still opens the same screen as before.
+- Schedules > New request: the Purchase details note from #316 is now a tooltip (the tooltips test requires no inline notes).
+- New API: POST /api/job-cards/walk-in/visit, POST /walk-in/serial-check, GET and PUT /walk-in/settings, GET /api/job-cards/visit/{reference}.
+- Migration 112 adds the visit columns, the serial index, the walk_in_settings table and the walk_in_visit reference counter.
+- Tests: tests/integration/walk-in-visit.test.ts; tests/e2e/walk-in-visit.spec.ts.
+
+**Not included.** Two visits entered at the very same moment with the same S/N are not hard-locked against each other. Appointment and complaint creation are unchanged. "Request warranty approval for all units" and searching job cards by visit reference in the screen are not built yet (the API route exists).
+
+**Files.** packages/db/migrations/112_walk_in_visits.sql, packages/db/src/walk-in-settings.ts, packages/db/src/job-cards.ts, packages/db/src/references.ts, packages/contracts/src/index.ts, apps/api/src/job-cards/service.ts, apps/api/src/job-cards/routes.ts, apps/api/src/api/route-catalog.ts, apps/api/src/api/openapi.ts, apps/web/src/app.js, apps/web/src/index.html, tests, modification.md, changelog-data.ts.
+
+**Needs you:** pull, run `npm.cmd run db:migrate` (migration 112), restart the API, hard-refresh (Ctrl+Shift+R).
+
 ## Modification #316 — Schedules: optional Purchase details (S/N, Invoice number, Invoice date, Received date)
 
 **Date:** 2026-11-25

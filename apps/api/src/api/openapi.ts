@@ -342,6 +342,50 @@ const requestBodies = {
       },
     },
   },
+  walkInVisitCreate: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          description:
+            'The walk-in customer fields (as ServiceJobCardCreateRequest) plus lines[] (item fields, quantity, units[] with serialNo, purchaseDate, invoiceNo, complaint, allowDuplicateSerial) and requestKey.',
+          required: ['lines', 'requestKey'],
+          properties: {
+            lines: { type: 'array', minItems: 1, items: { type: 'object' } },
+            requestKey: { type: 'string', minLength: 8, maxLength: 100 },
+          },
+          additionalProperties: true,
+        },
+      },
+    },
+  },
+  walkInSerialCheck: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          required: ['serials'],
+          properties: { serials: { type: 'array', items: { type: 'string', maxLength: 120 } } },
+          additionalProperties: false,
+        },
+      },
+    },
+  },
+  walkInSettingsBody: {
+    required: true,
+    content: {
+      'application/json': {
+        schema: {
+          type: 'object',
+          required: ['maxUnitsPerVisit'],
+          properties: { maxUnitsPerVisit: { type: 'integer', minimum: 1, maximum: 500 } },
+          additionalProperties: false,
+        },
+      },
+    },
+  },
   serviceJobCardUpdate: {
     required: true,
     content: {

@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Pool } from 'pg';
+import type { Pool, PoolClient } from 'pg';
 import {
   BER_HANDLING_CHARGE,
   finalStatusesLocked,
@@ -15,12 +15,22 @@ import {
   serviceJobCardCreateSchema,
   serviceJobCardUpdateSchema,
   walkInJobCardCreateSchema,
+  walkInVisitCreateSchema,
+  walkInSerialCheckSchema,
+  walkInSettingsSchema,
+  type WalkInJobCardCreateInput,
   type JobCardPart,
   type ServiceJobCardCreateInput,
   type ServiceJobCardUpdateInput,
 } from '../../../../packages/contracts/src/index.js';
 import {
   findOpenRecordsForContact,
+  findOpenCardsBySerials,
+  findOpenOtherRecordsBySerials,
+  listServiceJobCardsByVisitKey,
+  listServiceJobCardsByVisitReference,
+  normaliseSerial,
+  setServiceJobCardVisit,
   listAppointmentsAwaitingJobCard,
   findServiceJobCardByAppointmentId,
   findServiceJobCardByQuotationId,
@@ -70,7 +80,12 @@ import { findStockItemByCode, searchStockItems } from '../../../../packages/db/s
 import {
   allocateJobCardReference,
   allocateWalkInJobCardReference,
+  allocateWalkInVisitReference,
 } from '../../../../packages/db/src/references.js';
+import {
+  getWalkInSettings,
+  saveWalkInSettings,
+} from '../../../../packages/db/src/walk-in-settings.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
 
 export class ServiceJobCardError extends Error {
@@ -88,7 +103,9 @@ export class ServiceJobCardError extends Error {
       | 'reason-required'
       | 'closure-approval-required'
       | 'sales-channel-required'
-      | 'salesman-required',
+      | 'salesman-required'
+      | 'serial-open'
+      | 'unit-limit',
     message: string,
   ) {
     super(message);
@@ -1098,8 +1115,9 @@ export function createServiceJobCardService(pool: Pool) {
     }
   }
 
-  async function createWalkIn(input: unknown, profileId: string, requestId: string = randomUUID()) {
-    const { billing, rest: data } = splitBilling(walkInJobCardCreateSchema.parse(input ?? {}));
+  type WalkInData = Omit<WalkInJobCardCreateInput, (typeof billingKeys)[number]>;
+
+  function assertWalkInSalesman(data: WalkInData, billing: BillingOverrides) {
     if (
       salesmanRequired({
         customerType: data.customerType,
@@ -1110,101 +1128,289 @@ export function createServiceJobCardService(pool: Pool) {
     ) {
       throw new ServiceJobCardError('salesman-required', SALESMAN_REQUIRED_MESSAGE);
     }
-    return withTransaction(pool, async (client) => {
-      const intakeAt = new Date();
-      const today = intakeAt.toISOString().slice(0, 10);
-      const content = mergeContent(
-        {
-          jobCardDate: today,
-          customerName: null,
-          customerContact: null,
-          customerAddress: null,
-          itemDescription: null,
-          modelNo: null,
-          warrantyStatus: null,
-          complaint: null,
-          serviceRendered: null,
-          periodFrom: null,
-          periodTo: null,
-          timeConsumedHours: null,
-          parts: [],
-          totalCost: 0,
-          serviceCharge: 0,
-          grandTotal: 0,
-          amountChargeable: null,
-          invoiceNo: null,
-          deliveryDate: null,
-          technicianName: null,
-          brand: null,
-          salesman: null,
-          salesChannel: null,
-          jobFinalStatus: 'WIP',
-          finalStatus: null,
-          finalStatusReason: null,
-          schoolContactPerson: null,
-          schoolContactNumber: null,
-          customerNumber: null,
-          customerType: null,
-          customerEmail: null,
-          region: null,
-          b2bBranchSchool: null,
-          salesOrderNumber: null,
-          legacyReference: null,
-          itemCode: null,
-          mainGroup: null,
-          groupName: null,
-          subGroup: null,
-          itemInMaster: null,
-          serialNo: null,
-          purchaseDate: null,
-          accessoriesReceived: null,
-          conditionNotes: null,
-        },
-        data,
-        await mdaRate(),
-        intakeAt.toISOString(),
-      );
-      if (content.customerType === 'B2C' && content.salesman && !content.salesChannel) {
-        const channel = await resolveSalesChannelForSalesman(client, content.salesman);
-        if (channel) content.salesChannel = channel;
-      }
-      const jobCardReference = await allocateWalkInJobCardReference(client, today);
-      let jobCard = await insertServiceJobCard(client, {
-        jobCardReference,
-        appointmentId: null,
-        quotationId: null,
-        sourceType: 'Walk-in',
-        createdBy: profileId,
-        content,
-        intakeAt,
-      });
-      jobCard = await applyBilling(
-        client,
-        null,
-        jobCard,
-        billing,
-        profileId,
-        jobCard.finalStatus === 'Delivered',
-      );
-      await insertServiceJobCardHistory(
-        client,
-        jobCard.id,
-        null,
-        'Open',
-        profileId,
-        'Walk-in intake',
-        requestId,
-      );
+  }
+
+  /** Opens one walk-in job card inside the caller's transaction. */
+  async function openWalkInCard(
+    client: PoolClient,
+    data: WalkInData,
+    billing: BillingOverrides,
+    profileId: string,
+    requestId: string,
+    intakeAt: Date,
+  ) {
+    const today = intakeAt.toISOString().slice(0, 10);
+    const content = mergeContent(
+      {
+        jobCardDate: today,
+        customerName: null,
+        customerContact: null,
+        customerAddress: null,
+        itemDescription: null,
+        modelNo: null,
+        warrantyStatus: null,
+        complaint: null,
+        serviceRendered: null,
+        periodFrom: null,
+        periodTo: null,
+        timeConsumedHours: null,
+        parts: [],
+        totalCost: 0,
+        serviceCharge: 0,
+        grandTotal: 0,
+        amountChargeable: null,
+        invoiceNo: null,
+        deliveryDate: null,
+        technicianName: null,
+        brand: null,
+        salesman: null,
+        salesChannel: null,
+        jobFinalStatus: 'WIP',
+        finalStatus: null,
+        finalStatusReason: null,
+        schoolContactPerson: null,
+        schoolContactNumber: null,
+        customerNumber: null,
+        customerType: null,
+        customerEmail: null,
+        region: null,
+        b2bBranchSchool: null,
+        salesOrderNumber: null,
+        legacyReference: null,
+        itemCode: null,
+        mainGroup: null,
+        groupName: null,
+        subGroup: null,
+        itemInMaster: null,
+        serialNo: null,
+        purchaseDate: null,
+        accessoriesReceived: null,
+        conditionNotes: null,
+      },
+      data,
+      await mdaRate(),
+      intakeAt.toISOString(),
+    );
+    if (content.customerType === 'B2C' && content.salesman && !content.salesChannel) {
+      const channel = await resolveSalesChannelForSalesman(client, content.salesman);
+      if (channel) content.salesChannel = channel;
+    }
+    const jobCardReference = await allocateWalkInJobCardReference(client, today);
+    let jobCard = await insertServiceJobCard(client, {
+      jobCardReference,
+      appointmentId: null,
+      quotationId: null,
+      sourceType: 'Walk-in',
+      createdBy: profileId,
+      content,
+      intakeAt,
+    });
+    jobCard = await applyBilling(
+      client,
+      null,
+      jobCard,
+      billing,
+      profileId,
+      jobCard.finalStatus === 'Delivered',
+    );
+    await insertServiceJobCardHistory(
+      client,
+      jobCard.id,
+      null,
+      'Open',
+      profileId,
+      'Walk-in intake',
+      requestId,
+    );
+    await insertAuditEvent(client, {
+      actorProfileId: profileId,
+      action: 'job_card.created',
+      targetType: 'service_job_card',
+      targetId: jobCard.id,
+      metadata: { jobCardReference: jobCard.jobCardReference, sourceType: 'Walk-in' },
+      requestId,
+    });
+    return jobCard;
+  }
+
+  async function createWalkIn(input: unknown, profileId: string, requestId: string = randomUUID()) {
+    const { billing, rest: data } = splitBilling(walkInJobCardCreateSchema.parse(input ?? {}));
+    assertWalkInSalesman(data, billing);
+    return withTransaction(pool, (client) =>
+      openWalkInCard(client, data, billing, profileId, requestId, new Date()),
+    );
+  }
+
+  async function walkInSettings() {
+    const client = await pool.connect();
+    try {
+      return await getWalkInSettings(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  async function saveWalkInVisitLimit(input: unknown, profileId: string) {
+    const { maxUnitsPerVisit } = walkInSettingsSchema.parse(input ?? {});
+    await withTransaction(pool, async (client) => {
+      await saveWalkInSettings(client, maxUnitsPerVisit, profileId);
       await insertAuditEvent(client, {
         actorProfileId: profileId,
-        action: 'job_card.created',
-        targetType: 'service_job_card',
-        targetId: jobCard.id,
-        metadata: { jobCardReference: jobCard.jobCardReference, sourceType: 'Walk-in' },
-        requestId,
+        action: 'walk_in_settings.updated',
+        targetType: 'walk_in_settings',
+        targetId: '1',
+        metadata: { maxUnitsPerVisit },
+        requestId: randomUUID(),
       });
-      return jobCard;
     });
+    return walkInSettings();
+  }
+
+  /** Serial numbers typed on the form: open job cards holding them (stop) and open appointments
+   *  or complaints that mention them (information only). */
+  async function walkInSerialCheck(input: unknown) {
+    const { serials } = walkInSerialCheckSchema.parse(input ?? {});
+    const client = await pool.connect();
+    try {
+      const [openJobCards, others] = await Promise.all([
+        findOpenCardsBySerials(client, serials),
+        findOpenOtherRecordsBySerials(client, serials),
+      ]);
+      return { openJobCards, others };
+    } finally {
+      client.release();
+    }
+  }
+
+  /** One customer, several item lines, one job card per unit, one visit reference. */
+  async function createWalkInVisit(
+    input: unknown,
+    profileId: string,
+    requestId: string = randomUUID(),
+  ) {
+    const { lines, requestKey, ...shared } = walkInVisitCreateSchema.parse(input ?? {});
+    const settings = await walkInSettings();
+    const total = lines.reduce((sum, line) => sum + line.quantity, 0);
+    if (total > settings.maxUnitsPerVisit) {
+      throw new ServiceJobCardError(
+        'unit-limit',
+        `A visit can have at most ${settings.maxUnitsPerVisit} units (you entered ${total}). An administrator can raise the limit in Admin > Masters > Walk-in.`,
+      );
+    }
+    // Expand the lines into one validated card per unit.
+    const units: {
+      data: WalkInData;
+      billing: BillingOverrides;
+      label: string;
+      allowDuplicate: boolean;
+    }[] = [];
+    lines.forEach((line, lineIndex) => {
+      const { quantity, units: unitRows = [], ...lineFields } = line;
+      for (let index = 0; index < quantity; index += 1) {
+        const row = unitRows[index] ?? {};
+        const { allowDuplicateSerial, ...unitFields } = row;
+        const merged = {
+          ...shared,
+          ...Object.fromEntries(Object.entries(lineFields).filter(([, v]) => v !== undefined)),
+          ...Object.fromEntries(Object.entries(unitFields).filter(([, v]) => v !== undefined)),
+        };
+        if (!unitFields.complaint && lineFields.complaint) merged.complaint = lineFields.complaint;
+        const parsed = splitBilling(walkInJobCardCreateSchema.parse(merged));
+        assertWalkInSalesman(parsed.rest, parsed.billing);
+        units.push({
+          data: parsed.rest,
+          billing: parsed.billing,
+          label: `line ${lineIndex + 1}, unit ${index + 1}`,
+          allowDuplicate: Boolean(allowDuplicateSerial),
+        });
+      }
+    });
+    try {
+      return await withTransaction(pool, async (client) => {
+        // A retry or double press with the same key returns the cards already opened.
+        const existing = await listServiceJobCardsByVisitKey(client, requestKey);
+        if (existing.length) {
+          return {
+            visitReference: existing[0].visitReference,
+            jobCards: existing,
+            replay: true,
+          };
+        }
+        // The same S/N twice in one visit, or already open on another card, stops that unit.
+        const seen = new Map<string, string>();
+        const matches = await findOpenCardsBySerials(
+          client,
+          units.map((unit) => unit.data.serialNo ?? ''),
+        );
+        for (const unit of units) {
+          const key = normaliseSerial(unit.data.serialNo);
+          if (!key) continue;
+          const first = seen.get(key);
+          if (first) {
+            throw new ServiceJobCardError(
+              'serial-open',
+              `Serial number ${unit.data.serialNo} is entered twice in this visit (${first} and ${unit.label}).`,
+            );
+          }
+          seen.set(key, unit.label);
+          const open = matches.find((match) => match.serial === key);
+          if (open && !unit.allowDuplicate) {
+            throw new ServiceJobCardError(
+              'serial-open',
+              `Serial number ${unit.data.serialNo} is already open on ${open.reference} (${open.status}). Confirm it is a different repair, or fix the number.`,
+            );
+          }
+        }
+        const intakeAt = new Date();
+        const today = intakeAt.toISOString().slice(0, 10);
+        const visitReference = await allocateWalkInVisitReference(client, today);
+        const jobCards = [];
+        for (let index = 0; index < units.length; index += 1) {
+          const unit = units[index];
+          const card = await openWalkInCard(
+            client,
+            unit.data,
+            unit.billing,
+            profileId,
+            `${requestId}#${index + 1}`,
+            intakeAt,
+          );
+          await setServiceJobCardVisit(client, card.id, {
+            reference: visitReference,
+            unitNo: index + 1,
+            unitCount: units.length,
+            requestKey,
+          });
+          const stamped = await findServiceJobCardById(client, card.id);
+          jobCards.push(stamped ?? card);
+        }
+        return { visitReference, jobCards, replay: false };
+      });
+    } catch (error) {
+      // Two identical presses at the same moment: the unique key lets one win; the other
+      // returns the winner's cards.
+      if ((error as { code?: string }).code === '23505') {
+        const client = await pool.connect();
+        try {
+          const existing = await listServiceJobCardsByVisitKey(client, requestKey);
+          if (existing.length) {
+            return { visitReference: existing[0].visitReference, jobCards: existing, replay: true };
+          }
+        } finally {
+          client.release();
+        }
+      }
+      throw error;
+    }
+  }
+
+  async function visitCards(reference: string) {
+    const client = await pool.connect();
+    try {
+      return await listServiceJobCardsByVisitReference(client, reference);
+    } finally {
+      client.release();
+    }
   }
 
   async function updateContent(
@@ -1732,6 +1938,11 @@ export function createServiceJobCardService(pool: Pool) {
     createFromQuotation,
     byQuotation,
     createWalkIn,
+    createWalkInVisit,
+    walkInSerialCheck,
+    walkInSettings,
+    saveWalkInVisitLimit,
+    visitCards,
     walkInContactCheck,
     listAwaiting,
   };
