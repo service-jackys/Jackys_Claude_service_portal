@@ -5205,6 +5205,18 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #310 — Logic applied: "How fridges are priced" as a rate table
+
+**Date:** 2026-11-25
+
+**Why.** The card was six long sentences with the rates buried inside them and confused readers.
+
+**What changed.** One short table: fridge size, units on the invoice and the rate per unit (400 L and under: 1 unit, 2 to 10 units, units above 10; over 400 L: 1 unit, 2 or more units; the 13A/15A plug as its own row), with a four-line footer for the notes (no volume discount tiers, other categories unchanged, litres from the Stock Master, workbook not changed). Every rate is still read from the Rate card, so an admin rate change shows at once. Display only: no figure changes.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, modification.md.
+
+**Needs you:** pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.
+
 ## Modification #309 — Worked example: repair and delivery invoices with the same number are separate documents
 
 **Date:** 2026-11-25

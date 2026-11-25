@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 310,
+    "title": "Logic applied: \"How fridges are priced\" as a rate table",
+    "area": "General",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "The card was six long sentences with the rates buried inside them and confused readers.",
+    "changes": [
+      "What changed: One short table: fridge size, units on the invoice and the rate per unit (400 L and under: 1 unit, 2 to 10 units, units above 10; over 400 L: 1 unit, 2 or more units; the 13A/15A plug as its own row), with a four-line footer…"
+    ],
+    "needsYou": "pull, hard-refresh (Ctrl+Shift+R). No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, modification.md."
+  },
+  {
     "id": 309,
     "title": "Worked example: repair and delivery invoices with the same number are separate documents",
     "area": "Invoices & billing",
