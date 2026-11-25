@@ -33233,41 +33233,28 @@ ${bodyHtml}
               cMarket + fl.plugAmount,
             ],
           ];
-          const rule = (group, isGroup, units, rate, label) =>
-            isGroup
-              ? '<tr class="fl-grp"><td colspan="3">' + e(group) + '</td></tr>'
-              : '<tr><td></td><td>' +
-                e(units) +
-                '</td><td class="rc-num">' +
-                rate +
-                ' <span class="fl-lbl">' +
-                e(label) +
-                '</span></td></tr>';
+          const line = (label, rate) =>
+            '<div class="fl-line"><span>' + e(label) + '</span>' + rate + '</div>';
           fridgeNotes =
             '<div class="rc-box"><div class="rc-box-head"><b>How fridges are priced</b><span>CSIDI and CSIII · counted per invoice and job type</span></div>' +
-            '<table class="rc-t fl-rules"><thead><tr><th>Fridge size</th><th>Units on the invoice</th><th class="rc-num">Rate per unit (AED)</th></tr></thead><tbody>' +
-            rule('400 L and under', true) +
-            rule('', false, '1 unit', chip(market), 'market rate') +
-            rule('', false, '2 to 10 units', chip(fl.smallBase), 'base rate') +
-            rule(
-              '',
-              false,
-              fl.optionB ? 'Units above 10' : 'More than 10 units (every unit)',
+            '<div class="fl-tiles">' +
+            '<div class="fl-tile"><h4>400 L and under</h4>' +
+            line('1 unit', chip(market)) +
+            line('2 to 10 units', chip(fl.smallBase)) +
+            line(
+              fl.optionB ? 'Units above 10' : 'More than 10 (every unit)',
               chip(fl.smallOver10),
-              'second tier',
             ) +
-            rule('Over 400 L', true) +
-            rule('', false, '1 unit', chip(market), 'market rate') +
-            rule('', false, '2 or more units', chip(special), 'special rate') +
-            rule('13A/15A plug (item code REPAIR-MATERIAL, CSIDI and CSIII)', true) +
-            rule(
-              '',
-              false,
-              'Each plug',
-              chip(fl.plugAmount),
-              '\u00D7 quantity, on top of the cooker rate',
-            ) +
-            '</tbody></table><div class="fl-foot"><span><b>No volume discount tiers</b> for fridges; plugs are not a unit, trip or transport.</span>' +
+            '</div>' +
+            '<div class="fl-tile"><h4>Over 400 L</h4>' +
+            line('1 unit', chip(market)) +
+            line('2 or more units', chip(special)) +
+            '</div>' +
+            '<div class="fl-tile"><h4>13A/15A plug</h4>' +
+            line('Each plug', chip(fl.plugAmount)) +
+            '<p>\u00D7 quantity, on top of the cooker rate. Item code REPAIR-MATERIAL, CSIDI and CSIII.</p>' +
+            '</div></div>' +
+            '<div class="fl-foot"><span><b>No volume discount tiers</b> for fridges; plugs are not a unit, trip or transport.</span>' +
             '<span><b>Washing machines, cookers and other categories:</b> unchanged, including their discount tiers.</span>' +
             '<span><b>Litres</b> come from the Stock Master by the model on the invoice; no litres = priced as 400 L and flagged.</span>' +
             '<span><b>The master workbook is not changed:</b> each line keeps its workbook figure; the portal figure is shown beside it on the Rate card.</span></div></div>' +
