@@ -82,6 +82,7 @@ import { createDashboardHandlers } from '../dashboard/routes.js';
 import { createDashboardService } from '../dashboard/service.js';
 import { createPricingConfigHandlers } from '../pricing-config/routes.js';
 import { createChatHandlers } from '../chat/routes.js';
+import { createUserNoteHandlers } from '../user-notes/routes.js';
 import { createChatService } from '../chat/service.js';
 import { createRoiHandlers } from '../roi-tasks/routes.js';
 import { createRoiService } from '../roi-tasks/service.js';
@@ -142,6 +143,7 @@ export type RouteDefinition = {
     | 'walkInVisitCreate'
     | 'walkInSerialCheck'
     | 'walkInSettingsBody'
+    | 'userNoteBody'
     | 'serviceJobCardUpdate'
     | 'serviceJobCardStatus'
     | 'serviceJobCardClosureDecision'
@@ -838,6 +840,9 @@ export function createRouteCatalog(
         'version',
         'updateVersion',
       ]);
+  const userNoteHandlers = pool
+    ? createUserNoteHandlers(pool, createApplicationAuth(pool, localAuth).requireSignedIn)
+    : unavailableHandlers(['get', 'save']);
   const chatHandlers = pool
     ? createChatHandlers(createChatService(pool), requirePermission)
     : unavailableHandlers([
@@ -4333,6 +4338,27 @@ export function createRouteCatalog(
       },
     ],
     ...[
+      {
+        method: 'get' as const,
+        path: '/api/me/note',
+        operationId: 'getMyNote',
+        tags: ['My notes'],
+        summary: 'Your floating note: text, colour, size and where its tab sits',
+        security: 'bearerAuth' as const,
+        responses: [200, 401, 500],
+        handlers: userNoteHandlers.get,
+      },
+      {
+        method: 'put' as const,
+        path: '/api/me/note',
+        operationId: 'saveMyNote',
+        tags: ['My notes'],
+        summary: 'Save your floating note (send only the fields that changed)',
+        security: 'bearerAuth' as const,
+        requestBody: 'userNoteBody' as const,
+        responses: [200, 400, 401, 500],
+        handlers: userNoteHandlers.save,
+      },
       {
         method: 'get' as const,
         path: '/api/chat/people',

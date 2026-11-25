@@ -637,6 +637,7 @@
     // marketing page it's the reverse of on sign-out.
     document.body.classList.add('is-authenticated');
     renderUser();
+    initMyNotes();
     loadMasterDataOptions();
     // Signed-in users always land on the dashboard when they can see it.
     if (
@@ -11034,12 +11035,316 @@ ${bodyHtml}
     }
   });
 
+  // ---- Floating "My notes" panel (modification #318) ----
+  // One private note per user, on every page, saved to the account (/api/me/note)
+  // and cached in this browser so it appears instantly after a refresh.
+  const MY_NOTE_THEMES = {
+    navy: { label: 'Navy', hd: '#12305e', bd: '#f6f8fc', ink: '#15233b', mut: '#4a5568' },
+    slate: { label: 'Slate', hd: '#334155', bd: '#f7f8fa', ink: '#1e2733', mut: '#4a5568' },
+    teal: { label: 'Teal', hd: '#0f5f66', bd: '#f1f8f8', ink: '#12292b', mut: '#41575a' },
+    plum: { label: 'Plum', hd: '#4b3a7a', bd: '#f6f4fb', ink: '#211a35', mut: '#4d4864' },
+    sand: { label: 'Sand', hd: '#6b5b3e', bd: '#faf8f4', ink: '#2b2418', mut: '#5a5242' },
+  };
+  let myNotes = null;
+
+  function destroyMyNotes() {
+    if (myNotes) {
+      myNotes.destroy();
+      myNotes = null;
+    }
+  }
+
+  function initMyNotes() {
+    destroyMyNotes();
+    if (new URLSearchParams(location.search).has('chatPopout')) return;
+    const cacheKey = 'jd-my-note:' + String(currentUser?.email || '').toLowerCase();
+    const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+    const note = {
+      body: '',
+      color: 'navy',
+      width: 380,
+      height: 340,
+      tabPosition: 55,
+      open: false,
+    };
+    try {
+      Object.assign(note, JSON.parse(localStorage.getItem(cacheKey) || '{}'));
+    } catch {}
+
+    const icon =
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h14v10l-6 6H5z"/><path d="M13 20v-6h6"/></svg>';
+    const root = document.createElement('div');
+    root.className = 'mn-root';
+    root.id = 'myNotesRoot';
+    root.innerHTML = `
+      <button type="button" class="mn-tab" id="mnTab" aria-label="Open my notes. Drag up or down to move this tab." title="My notes (drag to move)">
+        ${icon}<span class="mn-tab-label">My notes</span><span class="mn-dot" id="mnDot" hidden></span>
+      </button>
+      <section class="mn-panel is-closed" id="mnPanel" aria-label="My notes">
+        <div class="mn-grip" id="mnGrip" title="Drag to resize" aria-hidden="true">
+          <svg width="14" height="14" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M1 11L11 1M1 6.5L6.5 1"/></svg>
+        </div>
+        <div class="mn-head">
+          <div class="mn-title">${icon}My notes</div>
+          ${Object.entries(MY_NOTE_THEMES)
+            .map(
+              ([id, t]) =>
+                `<button type="button" class="mn-sw" data-mn-color="${id}" aria-label="${t.label} note colour" title="${t.label}" style="background:${t.hd}"></button>`,
+            )
+            .join('')}
+          <button type="button" class="mn-ib" id="mnClose" aria-label="Minimise notes" title="Minimise">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 12h12"/></svg>
+          </button>
+        </div>
+        <div class="mn-sub">Private to you. Saved to your account, on every page.</div>
+        <textarea class="mn-text" id="mnText" maxlength="20000" aria-label="Note text" spellcheck="true" placeholder="Jot down anything you need while you work: customer call-backs, S/Ns to check, reminders."></textarea>
+        <div class="mn-foot">
+          <div class="mn-stat"><span id="mnStat">Saved automatically</span></div>
+          <button type="button" class="mn-btn" id="mnStamp" title="Add the date and time at the end of the note">Add time</button>
+          <button type="button" class="mn-btn" id="mnClear" title="Clear the note">Clear</button>
+        </div>
+      </section>`;
+    document.body.appendChild(root);
+    const q = (s) => root.querySelector(s);
+    const tab = q('#mnTab');
+    const panel = q('#mnPanel');
+    const text = q('#mnText');
+    const stat = q('#mnStat');
+    const clearBtn = q('#mnClear');
+
+    let pending = {};
+    let timer = null;
+    let clearTimer = null;
+    let saving = false;
+    let lastSaved = '';
+    const timeNow = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    const cache = () => {
+      try {
+        localStorage.setItem(cacheKey, JSON.stringify(note));
+      } catch {}
+    };
+    const flush = async () => {
+      clearTimeout(timer);
+      timer = null;
+      if (saving || !Object.keys(pending).length) return;
+      const patch = pending;
+      pending = {};
+      saving = true;
+      stat.textContent = 'Saving…';
+      try {
+        await apiRequest('/api/me/note', { method: 'PUT', body: JSON.stringify(patch) });
+        lastSaved = timeNow();
+        stat.textContent = 'Saved ' + lastSaved + ' · ' + note.body.length + ' characters';
+      } catch (error) {
+        pending = { ...patch, ...pending };
+        stat.textContent = 'Not saved yet, will retry';
+        timer = setTimeout(flush, 5000);
+      } finally {
+        saving = false;
+        if (Object.keys(pending).length && !timer) timer = setTimeout(flush, 600);
+      }
+    };
+    const change = (patch, wait = 700) => {
+      Object.assign(note, patch);
+      Object.assign(pending, patch);
+      cache();
+      clearTimeout(timer);
+      timer = setTimeout(flush, wait);
+    };
+
+    const apply = () => {
+      const t = MY_NOTE_THEMES[note.color] || MY_NOTE_THEMES.navy;
+      root.style.setProperty('--mn-hd', t.hd);
+      root.style.setProperty('--mn-bd', t.bd);
+      root.style.setProperty('--mn-ink', t.ink);
+      root.style.setProperty('--mn-mut', t.mut);
+      root.querySelectorAll('[data-mn-color]').forEach((b) => {
+        b.setAttribute('aria-pressed', b.dataset.mnColor === note.color ? 'true' : 'false');
+      });
+      const maxW = Math.max(300, window.innerWidth - 48);
+      const maxH = Math.max(240, window.innerHeight - 88 - 24);
+      panel.style.width = clamp(note.width, 300, maxW) + 'px';
+      panel.style.height = clamp(note.height, 240, maxH) + 'px';
+      panel.classList.toggle('is-closed', !note.open);
+      tab.classList.toggle('is-hidden', !!note.open);
+      const room = Math.max(0, window.innerHeight - tab.offsetHeight - 16);
+      tab.style.top = 8 + (clamp(note.tabPosition, 0, 100) / 100) * room + 'px';
+      q('#mnDot').hidden = !note.body.trim();
+    };
+    const setOpen = (open) => {
+      change({ open }, 300);
+      apply();
+      if (open) setTimeout(() => text.focus(), 240);
+    };
+
+    text.value = note.body;
+    apply();
+
+    text.addEventListener('input', () => {
+      change({ body: text.value });
+      stat.textContent = 'Typing…';
+      q('#mnDot').hidden = !note.body.trim();
+    });
+    text.addEventListener('blur', flush);
+    root.querySelectorAll('[data-mn-color]').forEach((b) =>
+      b.addEventListener('click', () => {
+        change({ color: b.dataset.mnColor }, 300);
+        apply();
+      }),
+    );
+    q('#mnClose').addEventListener('click', () => setOpen(false));
+    q('#mnStamp').addEventListener('click', () => {
+      const d = new Date();
+      const tag =
+        '[' +
+        d.toLocaleDateString([], { day: '2-digit', month: 'short' }) +
+        ', ' +
+        d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+        '] ';
+      const cur = text.value;
+      text.value = cur + (cur && !cur.endsWith('\n') ? '\n' : '') + tag;
+      change({ body: text.value });
+      text.focus();
+      text.scrollTop = text.scrollHeight;
+    });
+    clearBtn.addEventListener('click', () => {
+      if (clearBtn.dataset.sure) {
+        clearTimeout(clearTimer);
+        delete clearBtn.dataset.sure;
+        clearBtn.textContent = 'Clear';
+        text.value = '';
+        change({ body: '' }, 300);
+        apply();
+        return;
+      }
+      clearBtn.dataset.sure = '1';
+      clearBtn.textContent = 'Sure?';
+      clearTimer = setTimeout(() => {
+        delete clearBtn.dataset.sure;
+        clearBtn.textContent = 'Clear';
+      }, 3000);
+    });
+
+    // Drag the top-left grip to resize (the panel stays anchored bottom-right).
+    q('#mnGrip').addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      const sx = e.clientX;
+      const sy = e.clientY;
+      const w0 = panel.offsetWidth;
+      const h0 = panel.offsetHeight;
+      const move = (ev) => {
+        note.width = Math.round(w0 + (sx - ev.clientX));
+        note.height = Math.round(h0 + (sy - ev.clientY));
+        apply();
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        note.width = panel.offsetWidth;
+        note.height = panel.offsetHeight;
+        change({ width: note.width, height: note.height }, 300);
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+
+    // The minimised tab slides up and down the right edge; a plain click opens the note.
+    tab.addEventListener('pointerdown', (e) => {
+      const sy = e.clientY;
+      const top0 = tab.getBoundingClientRect().top;
+      let moved = false;
+      const move = (ev) => {
+        if (!moved && Math.abs(ev.clientY - sy) < 5) return;
+        moved = true;
+        tab.classList.add('is-dragging');
+        const room = Math.max(1, window.innerHeight - tab.offsetHeight - 16);
+        const top = clamp(top0 + (ev.clientY - sy), 8, 8 + room);
+        note.tabPosition = Math.round(((top - 8) / room) * 100);
+        apply();
+      };
+      const up = () => {
+        document.removeEventListener('pointermove', move);
+        document.removeEventListener('pointerup', up);
+        tab.classList.remove('is-dragging');
+        if (moved) {
+          change({ tabPosition: note.tabPosition }, 300);
+          tab.dataset.justDragged = '1';
+          setTimeout(() => delete tab.dataset.justDragged, 0);
+        }
+      };
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+    tab.addEventListener('click', () => {
+      if (tab.dataset.justDragged) return;
+      setOpen(true);
+    });
+
+    const onResize = () => apply();
+    window.addEventListener('resize', onResize);
+    const onHide = () => {
+      if (Object.keys(pending).length) {
+        try {
+          fetch('/api/me/note', {
+            method: 'PUT',
+            keepalive: true,
+            headers: {
+              'content-type': 'application/json',
+              authorization: 'Bearer ' + authToken,
+            },
+            body: JSON.stringify(pending),
+          });
+          pending = {};
+        } catch {}
+      }
+    };
+    window.addEventListener('pagehide', onHide);
+
+    // Bring in what the account has saved (another computer or browser may be newer).
+    apiRequest('/api/me/note')
+      .then((server) => {
+        if (!server || !myNotes || myNotes.root !== root) return;
+        for (const key of ['body', 'color', 'width', 'height', 'tabPosition', 'open']) {
+          if (!(key in pending) && server[key] !== undefined) note[key] = server[key];
+        }
+        if (!Object.keys(pending).length && document.activeElement !== text) {
+          text.value = note.body;
+        }
+        cache();
+        apply();
+        if (server.updatedAt) {
+          const d = new Date(server.updatedAt);
+          stat.textContent =
+            'Saved ' +
+            d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+            ' · ' +
+            note.body.length +
+            ' characters';
+        }
+      })
+      .catch(() => {});
+
+    myNotes = {
+      root,
+      destroy() {
+        onHide();
+        clearTimeout(timer);
+        clearTimeout(clearTimer);
+        window.removeEventListener('resize', onResize);
+        window.removeEventListener('pagehide', onHide);
+        root.remove();
+      },
+    };
+  }
+
   async function signOut(callApi = true) {
     if (callApi && authToken) {
       try {
         await apiRequest('/api/auth/logout', { method: 'POST' });
       } catch {}
     }
+    destroyMyNotes();
     authToken = null;
     clearStoredToken();
     if (chatUi) chatUi.stopBadge();

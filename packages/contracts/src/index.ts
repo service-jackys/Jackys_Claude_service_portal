@@ -597,6 +597,19 @@ export const walkInSettingsSchema = z
   .object({ maxUnitsPerVisit: z.number().int().min(1).max(500) })
   .strict();
 
+// The floating "My notes" panel: every field optional, only what changed is sent.
+export const userNoteSchema = z
+  .object({
+    body: z.string().max(20000),
+    color: z.enum(['navy', 'slate', 'teal', 'plum', 'sand']),
+    width: z.number().int().min(300).max(900),
+    height: z.number().int().min(240).max(900),
+    tabPosition: z.number().int().min(0).max(100),
+    open: z.boolean(),
+  })
+  .partial()
+  .strict();
+
 // approvalMethod / approvalNotes accompany a manual move from "Customer approval
 // pending" to WIP: how the customer approved when they did not use the link.
 export const serviceJobCardUpdateSchema = z
