@@ -58,6 +58,7 @@ import {
 import { applyFlatRates } from '../revenue-dashboard/pricing-logic.js';
 import { createPricingConfigService } from '../pricing-config/service.js';
 import { engineMasterFromDandi } from './pricing-engine.js';
+import { PLUG_ITEM_CODE } from '../revenue-dashboard/fridge-scenario.js';
 import { createDandiPricingService, priceNoteSchema, type PricedNote } from './service.js';
 
 export const ERP_INV_SETTING = 'dandi_erp_inv_mandatory';
@@ -262,7 +263,14 @@ export function createDiJobService(pool: Pool) {
           `Item ${line.itemCode} is not in the stock master. Pick the item from the list.`,
         );
       }
-      if (item.installable === false && line.type !== 'CSIDO') {
+      const isPlug = item.itemCode.trim().toUpperCase() === PLUG_ITEM_CODE;
+      if (isPlug && line.type === 'CSIDO') {
+        throw new DiJobServiceError(
+          'invalid',
+          'A 13A/15A plug (REPAIR-MATERIAL) goes on a Delivery + Installation or Installation only line, not Delivery only.',
+        );
+      }
+      if (!isPlug && item.installable === false && line.type !== 'CSIDO') {
         throw new DiJobServiceError(
           'invalid',
           `${item.itemCode} is not installable, so it can only be Delivery only (CSIDO).`,

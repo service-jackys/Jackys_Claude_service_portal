@@ -21,6 +21,18 @@
  * line can give up at most qty x (unit price - minimum), the discount is shared
  * across the lines in proportion to that room, and anything asked for beyond
  * the total room is cut back to it (reported as capped).
+ *
+ * New fridge and plug logic (modification #312). When the saved fridge settings
+ * are passed in as input.fridgeLogic and switched on, a quote has two fridge
+ * boxes (400 L and under / over 400 L) priced as a group with no discount tiers,
+ * and a 13A/15A plug box. The group rule is the same one the Service Revenue
+ * Dashboard and the D+I Billing engine use (a test keeps the three equal):
+ *   400 L and under: 1 unit = market rate; 2-10 = base; above 10 = second tier
+ *                    (Option B: only the units above 10; Option A: every unit);
+ *                    never below the fridge minimum;
+ *   over 400 L:      1 unit = market rate; 2 or more = special rate;
+ *   plug:            amount x quantity, no discount, not a unit, trip or crew-adjusted.
+ * Market and special are the mode's standard and batch rates for the fridge.
  */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -53,6 +65,50 @@
     return match;
   }
 
+  // Group labour of `units` fridges of one size group (same rule as groupLabour in
+  // apps/api/src/revenue-dashboard/fridge-scenario.ts). rates: {market, special, minimum}.
+  function fridgeGroupLabour(units, large, rates, f) {
+    if (units <= 0) return { total: 0, rule: '' };
+    if (large) {
+      if (units === 1)
+        return {
+          total: Math.max(num(rates.minimum), num(rates.market)),
+          rule: 'Over 400 L, 1 unit: market rate',
+        };
+      return {
+        total: units * Math.max(num(rates.minimum), num(rates.special)),
+        rule: 'Over 400 L, ' + units + ' units: special rate, no discount tiers',
+      };
+    }
+    var min = num(f.smallMinimum);
+    if (units === 1)
+      return {
+        total: Math.max(min, num(rates.market)),
+        rule: '400 L and under, 1 unit: market rate',
+      };
+    var base = Math.max(min, num(f.smallBase));
+    var over = Math.max(min, num(f.smallOver10));
+    if (units <= 10)
+      return {
+        total: units * base,
+        rule: '400 L and under, ' + units + ' units: base rate, no discount tiers',
+      };
+    if (f.optionB)
+      return {
+        total: 10 * base + (units - 10) * over,
+        rule:
+          '400 L and under, ' +
+          units +
+          ' units: first 10 at base, ' +
+          (units - 10) +
+          ' above 10 at second tier',
+      };
+    return {
+      total: units * over,
+      rule: '400 L and under, ' + units + ' units: all units at second tier',
+    };
+  }
+
   function requiredTrips(total) {
     if (total <= 0) return 0;
     return total <= ONE_TRIP_UNITS ? 1 : 2;
@@ -70,7 +126,17 @@
     KINDS.forEach(function (k) {
       qty[k.key] = Math.max(0, Math.floor(num(input.qty && input.qty[k.key])));
     });
-    var total = qty.fridge + qty.washer + qty.cooker;
+    var fl = input.fridgeLogic || null;
+    var newFridge = !!(fl && fl.enabled);
+    qty.fridgeLarge = Math.max(0, Math.floor(num(input.qty && input.qty.fridgeLarge)));
+    // Without the new logic there is one fridge box: both sizes are plain fridges at the market rate.
+    if (!newFridge) {
+      qty.fridge += qty.fridgeLarge;
+      qty.fridgeLarge = 0;
+    }
+    var plugQty = newFridge ? Math.max(0, Math.floor(num(input.qty && input.qty.plug))) : 0;
+    var plugAmount = newFridge ? Math.max(0, num(fl.plugAmount)) : 0;
+    var total = qty.fridge + qty.fridgeLarge + qty.washer + qty.cooker;
     var region = (cfg.regions || []).filter(function (r) {
       return String(r.name) === String(input.region);
     })[0];
@@ -88,15 +154,61 @@
     var tripsSufficient = modeKey !== 'dandi' || plannedTrips >= needTrips;
     var crewFactor = num((cfg.crewFactors || {})[crew]) || 1;
 
-    var lines = KINDS.map(function (k) {
-      var rs = mode.rates[k.key];
+    var lineKinds = KINDS.slice();
+    if (newFridge) lineKinds.splice(1, 0, { key: 'fridgeLarge', label: 'Refrigerator over 400 L' });
+    var lines = lineKinds.map(function (k) {
+      var isFridge = newFridge && (k.key === 'fridge' || k.key === 'fridgeLarge');
+      var rs = mode.rates[k.key === 'fridgeLarge' ? 'fridge' : k.key];
       var rate = eligible ? num(rs.batch) : num(rs.standard);
+      var label = isFridge && k.key === 'fridge' ? 'Refrigerator, 400 L and under' : k.label;
+      if (isFridge) {
+        // Group price: only when the quote is one customer / one site with more than one unit;
+        // otherwise every fridge is a single unit at the market rate. No discount tiers either way.
+        var units = qty[k.key];
+        var g =
+          overLimit || !total
+            ? { total: 0, rule: '' }
+            : eligible
+              ? fridgeGroupLabour(
+                  units,
+                  k.key === 'fridgeLarge',
+                  {
+                    market: rs.standard,
+                    special: rs.batch,
+                    minimum: cfg.minUnitRate,
+                  },
+                  fl,
+                )
+              : {
+                  total:
+                    units *
+                    Math.max(
+                      k.key === 'fridge' ? num(fl.smallMinimum) : num(cfg.minUnitRate),
+                      num(rs.standard),
+                    ),
+                  rule: 'Not one customer at one site: market rate per unit',
+                };
+        var floor = k.key === 'fridge' ? num(fl.smallMinimum) : num(cfg.minUnitRate);
+        return {
+          key: k.key,
+          label: label,
+          qty: units,
+          listRate: num(rs.standard),
+          unit: units ? g.total / units : 0,
+          chargedUnit: units ? (g.total / units) * crewFactor : 0,
+          listTotal: g.total * crewFactor,
+          lineTotal: g.total * crewFactor,
+          floor: floor,
+          rule: g.rule,
+          fridgeGroup: true,
+        };
+      }
       var unit =
         overLimit || !total ? 0 : Math.max(num(cfg.minUnitRate), rate * (1 - num(discount.rate)));
       var labour = qty[k.key] * unit;
       return {
         key: k.key,
-        label: k.label,
+        label: label,
         qty: qty[k.key],
         listRate: rate,
         // Price of one unit after the quantity discount (before the crew factor).
@@ -106,6 +218,9 @@
         chargedUnit: unit * crewFactor,
         listTotal: qty[k.key] * rate * crewFactor,
         lineTotal: labour * crewFactor,
+        floor: num(cfg.minUnitRate),
+        rule: '',
+        fridgeGroup: false,
       };
     });
 
@@ -114,7 +229,7 @@
       return s + l.lineTotal;
     }, 0);
     lines.forEach(function (l) {
-      l.room = l.qty > 0 && l.chargedUnit > minRate ? l.qty * (l.chargedUnit - minRate) : 0;
+      l.room = l.qty > 0 && l.chargedUnit > l.floor ? l.qty * (l.chargedUnit - l.floor) : 0;
     });
     var maxExtra = lines.reduce(function (s, l) {
       return s + l.room;
@@ -147,11 +262,13 @@
     var transport =
       region && transportYes && !overLimit ? plannedTrips * num(region.roundTripCost) : 0;
     var valid = !!region && total > 0 && !overLimit && tripsSufficient;
-    var totalCharge = valid ? crewAdjusted - applied + transport : 0;
+    // 13A/15A plugs: amount x quantity on top, no discount, never crew-adjusted, not a unit or trip.
+    var plugTotal = valid ? plugQty * plugAmount : 0;
+    var totalCharge = valid ? crewAdjusted - applied + transport + plugTotal : 0;
 
     // Internal view (D+I only, as in the original): labour cost + transport.
     var labourMinutes = lines.reduce(function (s, l) {
-      return s + l.qty * num((cfg.laborMinutes || {})[l.key]);
+      return s + l.qty * num((cfg.laborMinutes || {})[l.key === 'fridgeLarge' ? 'fridge' : l.key]);
     }, 0);
     var labourCost =
       modeKey === 'dandi' ? (labourMinutes / 60) * num(cfg.laborCostPerHour) * crewFactor : 0;
@@ -201,7 +318,9 @@
       netUnitsTotal: crewAdjusted - applied,
       transport: transport,
       totalCharge: totalCharge,
-      averagePerUnit: valid && total ? totalCharge / total : 0,
+      newFridge: newFridge,
+      plug: { qty: plugQty, amount: plugAmount, total: plugTotal },
+      averagePerUnit: valid && total ? (totalCharge - plugTotal) / total : 0,
       estimatedCost: estimatedCost,
       margin: totalCharge - estimatedCost,
       marginPct: totalCharge ? (totalCharge - estimatedCost) / totalCharge : 0,
@@ -216,6 +335,7 @@
     round2: round2,
     discountFor: discountFor,
     requiredTrips: requiredTrips,
+    fridgeGroupLabour: fridgeGroupLabour,
     compute: compute,
   };
 });

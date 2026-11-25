@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 312,
+    "title": "New fridge and 13A/15A plug logic in the D+I Quote Calculator, Pricing Masters and D+I Billing engine",
+    "area": "Pricing & rates",
+    "date": "2026-11-25",
+    "approxDate": false,
+    "status": null,
+    "summary": "The new fridge and plug logic already drives the Service Revenue Dashboard (#304 to #306). The quote calculator and the billing engine still priced every fridge as one size with discount tiers, so a quote or a job entered in the portal could disagree with the dashboard.",
+    "changes": [
+      "One source of truth. The fridge and plug settings (base rate, second tier, minimum, Option A / B, plug amount, new / old switch) are the single row the Rate card already saves. New read route GET /api/pricing-config-fridge-logic (any of…",
+      "D+I Quote Calculator. With the new logic on, the single Fridge box becomes two (400 L and under / over 400 L) and a 13A/15A plug box is added. Fridges are priced as a group with no discount tiers (1 unit market; 2 to 10 base; above 10…",
+      "Pricing Masters (D+I Admin Entry). New card \"Fridge pricing and 13A/15A plug\" showing the same settings; editing needs revenue_dashboard.rate_card_edit, saves through the Rate card route (which also re-prices the dashboard and is…",
+      "D+I Billing engine (job entry). Fridge lines of CSIDI and CSIII are priced as groups per job type and size, litres from the Stock Master (400 L and a warning when unknown), no discount tiers; fridge units still count for the note's tiers…",
+      "Verified on the Oct 22 master (see the PR): old logic with workbook rates equals the workbook (123,559.75); the new logic equals a hand calculation for all 167 fridge groups."
+    ],
+    "needsYou": "pull and restart the API; hard-refresh (Ctrl+Shift+R). No migration. REPAIR-MATERIAL must be in the Stock Master to be picked in job entry.",
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/dandi-calc-core.js, apps/api/src/dandi-jobs/pricing-engine.ts, service.ts, jobs-service.ts, apps/api/src/pricing-config/routes.ts, service.ts…"
+  },
+  {
     "id": 311,
     "title": "Logic applied: \"How fridges are priced\" as three tiles",
     "area": "General",

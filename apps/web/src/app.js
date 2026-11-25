@@ -12466,6 +12466,7 @@ ${bodyHtml}
       commonInputsHost.className = 'detail-action-card pc-span-full';
       commonInputsHost.innerHTML = '<h4>Common Master Inputs</h4>';
       grid.appendChild(commonInputsHost);
+      pcRenderFridgeCard(grid, data);
       const maxUnitsField = document.createElement('div');
       maxUnitsField.className = 'field-grid';
       maxUnitsField.innerHTML =
@@ -13910,6 +13911,121 @@ ${bodyHtml}
     } catch (error) {
       return iso;
     }
+  }
+
+  // "Fridge pricing and 13A/15A plug" card inside D+I Admin Entry (Pricing Masters). It shows and edits
+  // the same saved row the Rate card uses, so the Rate card, the D+I Quote Calculator, the D+I Billing
+  // engine and this card never disagree. Market and special rates stay the fridge rates of the D+I
+  // table on this page. Saving needs the Rate card edit permission and also re-prices the dashboard.
+  function pcRenderFridgeCard(grid, data) {
+    const card = document.createElement('div');
+    card.className = 'detail-action-card pc-span-full';
+    card.setAttribute('data-pc-fridge-card', '');
+    card.innerHTML =
+      '<h4>Fridge pricing and 13A/15A plug</h4><p class="form-note">Loading current values&hellip;</p>';
+    grid.appendChild(card);
+    const canEdit = hasPermission('revenue_dashboard.rate_card_edit');
+    const fridgeRates =
+      (data && data.modes && data.modes.dandi && data.modes.dandi.rates.fridge) || {};
+    const tip = (text) =>
+      ' <span class="tooltip" tabindex="0"><span class="tooltip-icon" aria-hidden="true">i</span><span class="tooltip-bubble" role="tooltip">' +
+      escapeHtml(text) +
+      '</span></span>';
+    const box = (key, label, hint, value) =>
+      '<div class="field"><label>' +
+      escapeHtml(label) +
+      tip(hint) +
+      '</label><input type="number" min="0" step="0.01" data-pc-fridge="' +
+      key +
+      '" value="' +
+      value +
+      '"' +
+      (canEdit ? '' : ' disabled') +
+      '></div>';
+    apiRequest('/api/pricing-config-fridge-logic', { method: 'GET' })
+      .then((f) => {
+        card.innerHTML =
+          '<h4>Fridge pricing and 13A/15A plug</h4>' +
+          '<div class="field-grid">' +
+          '<div class="field"><label>Fridge, 1 unit (market rate)' +
+          tip(
+            'The D+I fridge standard rate in the rates table on this page. A single fridge is charged this. Change it in that table.',
+          ) +
+          '</label><input type="number" disabled value="' +
+          Number(fridgeRates.standard || 0) +
+          '"></div>' +
+          box(
+            'smallBase',
+            'Fridge 400 L and under: 2 to 10 units',
+            'Rate per unit for 2 to 10 fridges of 400 litres or less. No discount tiers.',
+            f.smallBase,
+          ) +
+          box(
+            'smallOver10',
+            'Units above 10',
+            'Rate per unit for the fridges above the tenth (or for every unit when Option A is used on the Rate card).',
+            f.smallOver10,
+          ) +
+          box(
+            'smallMinimum',
+            'Minimum per unit (400 L and under)',
+            'A fridge of 400 litres or less is never charged below this.',
+            f.smallMinimum,
+          ) +
+          '<div class="field"><label>Fridge over 400 L: 2 or more (special rate)' +
+          tip(
+            'The D+I fridge batch rate in the rates table on this page. Change it in that table.',
+          ) +
+          '</label><input type="number" disabled value="' +
+          Number(fridgeRates.batch || 0) +
+          '"></div>' +
+          box(
+            'plugAmount',
+            '13A/15A plug amount',
+            'Charged per plug (ERP item REPAIR-MATERIAL) on top of the cooker rate, with no discount. A plug is not a unit, trip or transport.',
+            f.plugAmount,
+          ) +
+          '</div>' +
+          '<p class="form-note">Fridge logic is <strong>' +
+          (f.enabled ? 'New logic' : 'Old logic') +
+          '</strong>; the switch is on the Revenue Rate card. Saving here changes the Rate card, the D+I Quote Calculator, the Billing engine and the dashboard too, and is recorded in the activity log. ' +
+          (canEdit
+            ? ''
+            : 'You can read these values; editing needs the Rate card edit permission. ') +
+          '</p>' +
+          (canEdit
+            ? '<div class="rm-actions"><button type="button" class="button button-primary" data-pc-fridge-save>Update fridge and plug settings</button></div>'
+            : '');
+        const save = card.querySelector('[data-pc-fridge-save]');
+        if (!save) return;
+        save.addEventListener('click', async () => {
+          const read = (key) =>
+            Math.max(0, Number(card.querySelector('[data-pc-fridge="' + key + '"]').value) || 0);
+          setBusy(save, true, 'Saving…');
+          try {
+            await apiRequest('/api/revenue-dashboard/fridge-logic', {
+              method: 'PUT',
+              body: JSON.stringify({
+                enabled: f.enabled,
+                smallBase: read('smallBase'),
+                smallOver10: read('smallOver10'),
+                smallMinimum: read('smallMinimum'),
+                optionB: f.optionB,
+                plugAmount: read('plugAmount'),
+              }),
+            });
+            setMessage('#workspaceMessage', 'Fridge and plug settings saved.', true);
+          } catch (error) {
+            setMessage('#workspaceMessage', error?.message || 'Could not save.', false);
+          } finally {
+            setBusy(save, false);
+          }
+        });
+      })
+      .catch(() => {
+        card.innerHTML =
+          '<h4>Fridge pricing and 13A/15A plug</h4><p class="form-note">Could not load these settings.</p>';
+      });
   }
 
   async function pcLoadCard(domain) {
@@ -18469,6 +18585,16 @@ ${bodyHtml}
           '</td></tr>',
       )
       .join('');
+    const plugRow =
+      calc.plug && calc.plug.qty > 0
+        ? '<tr><td>13A/15A plug</td><td class="num">' +
+          calc.plug.qty +
+          '</td><td class="num">' +
+          dandiCalcMoney(calc.plug.amount) +
+          '</td><td class="num">' +
+          dandiCalcMoney(calc.plug.total) +
+          '</td></tr>'
+        : '';
     const extraApplied = calc.extra ? calc.extra.applied : 0;
     const specialRow =
       extraApplied > 0.004
@@ -18516,6 +18642,7 @@ ${bodyHtml}
       '<h2>Quotation lines</h2>' +
       '<table><thead><tr><th>Appliance</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Line total</th></tr></thead><tbody>' +
       rows +
+      plugRow +
       specialRow +
       transportRow +
       '</tbody><tfoot><tr><td><strong>Total</strong></td><td class="num"><strong>' +
@@ -18543,7 +18670,7 @@ ${bodyHtml}
     );
   }
 
-  function renderDandiCalc(container, data) {
+  function renderDandiCalc(container, data, fridgeSettings) {
     const core = window.JdDandiCalc;
     // `data` is replaced when rates are refreshed (attachCalcRefresh below).
     let cfg = data;
@@ -18559,8 +18686,11 @@ ${bodyHtml}
       plannedTrips: 1,
       crew: 2,
       transport: 'No',
-      qty: { fridge: 0, washer: 0, cooker: 0 },
+      qty: { fridge: 0, fridgeLarge: 0, washer: 0, cooker: 0, plug: 0 },
       extra: { type: 'percent', value: 0 },
+      // The saved fridge and 13A/15A plug settings (the Rate card's, Pricing Masters edits them).
+      // null or switched off = one fridge box and no plug box, the old way.
+      fridgeLogic: fridgeSettings && fridgeSettings.enabled ? fridgeSettings : null,
     };
     let last = null;
 
@@ -18653,19 +18783,7 @@ ${bodyHtml}
       '<section class="dc-card">' +
       cardHead(2, 'Appliance quantities', '') +
       '<p class="dc-limit" data-dc-limit></p>' +
-      '<div class="dc-qty-grid">' +
-      core.KINDS.map(
-        (k) =>
-          '<div class="dc-qty">' +
-          dandiCalcField(
-            k.label,
-            'Number of ' + k.label.toLowerCase() + ' units in this quote.',
-            '<input type="number" min="0" step="1" value="0" data-dc-qty="' + k.key + '" />',
-          ) +
-          '<div class="dc-qty-price" data-dc-unit="' +
-          k.key +
-          '">&nbsp;</div></div>',
-      ).join('') +
+      '<div class="dc-qty-grid" data-dc-qty-grid></div>' +
       '</div></section>' +
       (canDiscount
         ? '<section class="dc-card dc-admin" data-dc-admin>' +
@@ -18741,7 +18859,56 @@ ${bodyHtml}
     const crewSelect = $q('[data-dc-crew]');
     const transportSelect = $q('[data-dc-transport]');
     const transportWrap = $q('[data-dc-transport-wrap]');
-    const qtyInputs = Array.from(container.querySelectorAll('[data-dc-qty]'));
+    let qtyInputs = [];
+    // The quantity boxes: with the new fridge logic two fridge sizes and a plug box, else the old three.
+    function qtyBoxes() {
+      if (!state.fridgeLogic) return core.KINDS.map((k) => ({ ...k, tip: '' }));
+      return [
+        {
+          key: 'fridge',
+          label: 'Fridge, 400 L and under',
+          tip: 'Fridges of 400 litres or less. Priced as a group: 1 unit at the market rate, 2 to 10 at the base rate, more than 10 at the second tier. No quantity discount tiers.',
+        },
+        {
+          key: 'fridgeLarge',
+          label: 'Fridge, over 400 L',
+          tip: 'Fridges over 400 litres. 1 unit at the market rate, 2 or more at the special rate. No quantity discount tiers.',
+        },
+        core.KINDS[1],
+        core.KINDS[2],
+        {
+          key: 'plug',
+          label: '13A/15A plugs',
+          tip: 'Number of 13A/15A plugs fitted. Charged per plug on top of the cooker, with no discount. A plug is not a unit or a trip.',
+        },
+      ];
+    }
+    function buildQtyGrid() {
+      const boxes = qtyBoxes();
+      const keep = { ...state.qty };
+      Object.keys(state.qty).forEach((key) => {
+        if (!boxes.some((b) => b.key === key)) state.qty[key] = 0;
+      });
+      $q('[data-dc-qty-grid]').innerHTML = boxes
+        .map(
+          (k) =>
+            '<div class="dc-qty">' +
+            dandiCalcField(
+              k.label,
+              k.tip || 'Number of ' + k.label.toLowerCase() + ' units in this quote.',
+              '<input type="number" min="0" step="1" value="' +
+                (keep[k.key] || 0) +
+                '" data-dc-qty="' +
+                k.key +
+                '" />',
+            ) +
+            '<div class="dc-qty-price" data-dc-unit="' +
+            k.key +
+            '">&nbsp;</div></div>',
+        )
+        .join('');
+      qtyInputs = Array.from(container.querySelectorAll('[data-dc-qty]'));
+    }
     const xType = $q('[data-dc-xtype]');
     const xValue = $q('[data-dc-xvalue]');
 
@@ -18859,6 +19026,11 @@ ${bodyHtml}
               (hasDisc ? ' <s>' + dandiCalcMoney(l.chargedUnit) + '</s>' : '')
             : '&nbsp;';
       });
+      const plugCell = $q('[data-dc-unit="plug"]');
+      if (plugCell)
+        plugCell.innerHTML = state.fridgeLogic
+          ? '<strong>' + dandiCalcMoney(calc.plug.amount) + '</strong> each, added on top'
+          : '&nbsp;';
       const status = $q('[data-dc-status]');
       status.textContent = calc.valid ? 'Ready to quote' : 'Not ready';
       status.className = 'dc-status ' + (calc.valid ? 'is-ready' : 'is-blocked');
@@ -18879,15 +19051,23 @@ ${bodyHtml}
         escapeHtml(String(v)) +
         '</dd></div>';
       const extraOn = calc.valid && calc.extra.applied > 0.004;
+      // Fridges have no discount tiers under the new logic; the tier only matters for other appliances.
+      const fridgesOnly = calc.newFridge && calc.qty.washer + calc.qty.cooker === 0;
       $q('[data-dc-facts]').innerHTML =
         fact('Service type', calc.modeLabel) +
         fact('Region', calc.region ? calc.region.name : '—') +
         fact('Total units', calc.total) +
-        fact('Quantity tier', calc.discount.label) +
-        fact('Discount applied', Math.round(Number(calc.discount.rate) * 100) + '%') +
+        fact('Quantity tier', fridgesOnly ? 'Fridges: no tiers' : calc.discount.label) +
+        fact(
+          'Discount applied',
+          fridgesOnly ? '0%' : Math.round(Number(calc.discount.rate) * 100) + '%',
+        ) +
         fact('Total discount', calc.valid ? dandiCalcMoney(calc.discountAmount) : '—') +
         (extraOn
           ? fact('Special discount', '− ' + dandiCalcMoney(calc.extra.applied), 'is-hl')
+          : '') +
+        (calc.plug.qty > 0
+          ? fact('13A/15A plugs', calc.plug.qty + ' × ' + dandiCalcMoney(calc.plug.amount))
           : '') +
         fact('Required trips', calc.requiredTrips) +
         fact('Planned trips', calc.plannedTrips) +
@@ -18915,6 +19095,7 @@ ${bodyHtml}
               (l) =>
                 '<tr><td>' +
                 escapeHtml(l.label) +
+                (l.rule ? '<br><small class="form-note">' + escapeHtml(l.rule) + '</small>' : '') +
                 '</td><td class="num">' +
                 l.qty +
                 '</td><td class="num">' +
@@ -18933,6 +19114,17 @@ ${bodyHtml}
               (calc.extra.capped ? ' (limited to the minimum charge)' : '') +
               '</td><td class="num">− ' +
               dandiCalcMoney(calc.extra.applied) +
+              '</td></tr>'
+            : '') +
+          (calc.plug.qty > 0
+            ? '<tr><td>13A/15A plug<br><small class="form-note">Amount × quantity, no discount, not a unit or trip</small></td><td class="num">' +
+              calc.plug.qty +
+              '</td><td class="num">' +
+              dandiCalcMoney(calc.plug.amount) +
+              '</td><td class="num">' +
+              dandiCalcMoney(calc.plug.amount) +
+              '</td><td class="num">' +
+              dandiCalcMoney(calc.plug.total) +
               '</td></tr>'
             : '') +
           (calc.transport > 0
@@ -18966,6 +19158,7 @@ ${bodyHtml}
       }
     }
 
+    buildQtyGrid();
     fillSelects();
     container.addEventListener('input', render);
     container.addEventListener('change', render);
@@ -19029,8 +19222,26 @@ ${bodyHtml}
         cfg = fresh.dandi_pricing;
         fillSelects();
         render();
+        // The fridge and plug settings may have changed too (Pricing Masters or the Rate card).
+        loadFridgeSettings().then((settings) => {
+          const next = settings && settings.enabled ? settings : null;
+          if (JSON.stringify(next) === JSON.stringify(state.fridgeLogic)) return;
+          state.fridgeLogic = next;
+          buildQtyGrid();
+          render();
+        });
       },
     });
+  }
+
+  // The new fridge and 13A/15A plug settings (one saved row). null when they cannot be read, in which
+  // case the calculator keeps the old single fridge box.
+  async function loadFridgeSettings() {
+    try {
+      return await apiRequest('/api/pricing-config-fridge-logic', { method: 'GET' });
+    } catch (error) {
+      return null;
+    }
   }
 
   function renderThomsonCalc(container, data) {
@@ -22346,7 +22557,8 @@ ${bodyHtml}
       description:
         'Delivery + Installation and Installation Only quote calculator, reading D+I Admin Entry. It does not save anything; it computes a price and prints a customer proposal.',
       domains: ['dandi_pricing'],
-      render: (root, dataByDomain) => renderDandiCalc(root, dataByDomain.dandi_pricing),
+      render: async (root, dataByDomain) =>
+        renderDandiCalc(root, dataByDomain.dandi_pricing, await loadFridgeSettings()),
     },
     chat: {
       navId: 'chatNav',

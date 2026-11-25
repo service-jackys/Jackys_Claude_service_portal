@@ -44,6 +44,17 @@ test(
         );
       }
       const service = createDandiPricingService(pool);
+      // The old logic first: these figures are the long-standing ones. The new fridge logic follows below.
+      const savedLogic = await pool.query(`SELECT * FROM revenue_fridge_logic WHERE id = 1`);
+      const setLogic = (enabled: boolean) =>
+        pool.query(
+          `INSERT INTO revenue_fridge_logic (id, enabled, small_base, small_over10, small_minimum, option_b, plug_amount)
+           VALUES (1, $1, 30, 20, 20, true, 15)
+           ON CONFLICT (id) DO UPDATE SET enabled = $1, small_base = 30, small_over10 = 20,
+             small_minimum = 20, option_b = true, plug_amount = 15`,
+          [enabled],
+        );
+      await setLogic(false);
 
       // The example from the plan: 2 fridges + 3 washers delivered and installed,
       // kettles and iron boxes delivered only (their group is not installable).
@@ -101,6 +112,55 @@ test(
         unlinked.issues.map((i) => i.code),
         ['unmapped', 'unmapped'],
       );
+
+      // The new fridge logic, read from the saved settings and the Stock Master litres.
+      await setLogic(true);
+      await pool.query(
+        `UPDATE stock_master SET capacity_litres = 350, capacity_source = 'manual' WHERE item_code = $1`,
+        [codes.fridge],
+      );
+      const inserted = await pool.query(
+        `INSERT INTO stock_master (item_code, item_desc, main_group, group_name, brand)
+         VALUES ('REPAIR-MATERIAL', 'SERVICE - MATERIAL PURCHASE FOR REPAIR/INSTALLATION', 'MDA', 'SERVICE MATERIAL', 'TESTBRAND')
+         ON CONFLICT DO NOTHING RETURNING item_code`,
+      );
+      try {
+        const fresh = await service.price({
+          region: 'Dubai',
+          lines: [
+            { itemCode: codes.fridge, qty: 3, type: 'CSIDI' },
+            { itemCode: 'REPAIR-MATERIAL', qty: 2, type: 'CSIDI' },
+          ],
+        });
+        assert.equal(fresh.ok, true);
+        // 3 fridges of 350 L: 3 x 30 + one transport (Dubai 60); the plug is 2 x 15 and not a unit.
+        assert.deepEqual(
+          fresh.lines.map((l) => l.revenue),
+          [150, 30],
+        );
+        assert.equal(fresh.lines[0]!.litres, 350);
+        assert.equal(fresh.totals.CSIDI, 180);
+        // A plug cannot be Delivery only.
+        const refused = await service.price({
+          region: 'Dubai',
+          lines: [{ itemCode: 'REPAIR-MATERIAL', qty: 1, type: 'CSIDO' }],
+        });
+        assert.equal(refused.ok, false);
+        assert.equal(refused.issues[0]!.code, 'plug-delivery-only');
+      } finally {
+        if (inserted.rowCount) {
+          await pool.query(`DELETE FROM stock_master WHERE item_code = 'REPAIR-MATERIAL'`);
+        }
+        if (savedLogic.rows[0]) {
+          const r = savedLogic.rows[0];
+          await pool.query(
+            `UPDATE revenue_fridge_logic SET enabled=$1, small_base=$2, small_over10=$3, small_minimum=$4, option_b=$5, plug_amount=$6 WHERE id = 1`,
+            [r.enabled, r.small_base, r.small_over10, r.small_minimum, r.option_b, r.plug_amount],
+          );
+        } else {
+          await pool.query(`DELETE FROM revenue_fridge_logic WHERE id = 1`);
+        }
+      }
 
       // Bad input is refused before any pricing.
       await assert.rejects(service.price({ region: 'Dubai', lines: [] }));

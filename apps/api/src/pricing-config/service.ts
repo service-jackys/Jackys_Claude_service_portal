@@ -19,6 +19,7 @@ import {
 } from '../../../../packages/db/src/pricing-config-defaults.js';
 import { insertAuditEvent } from '../../../../packages/db/src/audit.js';
 import { withTransaction } from '../../../../packages/db/src/transaction.js';
+import { getFridgeLogic } from '../../../../packages/db/src/revenue-rate-overrides.js';
 
 // Phase 6 (see modification.md #26): admin entry for VAS price banding &
 // split, Rate Card, D+I, AMC and Thomson pricing. Every domain shares this
@@ -328,7 +329,18 @@ export function createPricingConfigService(pool: Pool) {
     });
   }
 
-  return { get, save, reset, history, restore };
+  // The new fridge and 13A/15A plug settings: one saved row shared by the Rate card, the D+I Quote
+  // Calculator, the D+I Billing engine and the Pricing Masters card (modification #312).
+  async function fridgeLogic() {
+    const client = await pool.connect();
+    try {
+      return await getFridgeLogic(client);
+    } finally {
+      client.release();
+    }
+  }
+
+  return { get, save, reset, history, restore, fridgeLogic };
 }
 
 export type PricingConfigService = ReturnType<typeof createPricingConfigService>;
