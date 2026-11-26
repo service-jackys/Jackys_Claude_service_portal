@@ -158,3 +158,28 @@ test('A4 sheet: start cell leaves earlier cells empty, plan counts sheets and th
   const six = bc.barcodeDocument(items, { layout: 'D', sheetCells: 6, startCell: 1 }, {});
   assert.equal((six.match(/height:93mm/g) || []).length, 6);
 });
+
+test('barcode label: several delivery notes still get a short code and short text', () => {
+  const c = core as any;
+  const item = {
+    kind: 'install',
+    data: {
+      deliveryNote: 'NAW-16150014,16150010',
+      unitNo: 3,
+      unitCount: 8,
+      itemCode: 'BP04',
+    },
+  };
+  const e = c.barcodeEntry(item);
+  assert.equal(e.code, '1615001403');
+  assert.equal(e.no, 'NAW-16150014-3 +1');
+  assert.deepEqual(c.parseCompact(e.code), { kind: 'unit', note: '16150014', unitNo: 3 });
+  assert.equal(c.noteMatches('NAW-16150014,16150010', '16150014'), true);
+  assert.equal(c.noteMatches('NAW-16150014,16150010', '16150010'), true);
+  assert.equal(c.noteMatches('NAW-16150014,16150010', '16150011'), false);
+  assert.equal(c.noteMatches('16101431', '16101431'), true);
+  // 8 per label: no cell text is wider than the cell can show
+  const html = c.barcodeDocument(Array(8).fill(item), { layout: 'C', perLabel: 8 }, {});
+  assert.match(html, /text-overflow:ellipsis/);
+  assert.doesNotMatch(html, /NAW-16150014,16150010/);
+});

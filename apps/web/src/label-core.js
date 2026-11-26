@@ -365,10 +365,34 @@
     var m = /^WI-\d{2}(\d{2})-(\d{1,6})$/i.exec(String(reference || '').trim());
     return m ? 'V' + m[1] + pad(m[2], 6) : '';
   }
+  // A delivery note field can hold several notes ("NAW-16150014,16150010"); the first one is the key.
+  function noteTokens(deliveryNote) {
+    return String(deliveryNote || '')
+      .split(/[,;\s]+/)
+      .map(function (t) {
+        return t.trim();
+      })
+      .filter(Boolean);
+  }
+  // "NAW-16150014" and "16150014" both give 16150014 (letters before the number are dropped).
+  function noteDigits(token) {
+    var m = /^[A-Za-z]*-?(\d{8})$/.exec(String(token || '').trim());
+    return m ? m[1] : '';
+  }
+  // True when the delivery note field (one or several notes) contains the scanned note.
+  function noteMatches(deliveryNote, note) {
+    var want = String(note || '')
+      .trim()
+      .toLowerCase();
+    if (!want) return false;
+    return noteTokens(deliveryNote).some(function (t) {
+      return t.toLowerCase() === want || noteDigits(t) === want;
+    });
+  }
   function compactUnit(deliveryNote, unitNo) {
-    var dn = String(deliveryNote || '').trim();
+    var key = noteDigits(noteTokens(deliveryNote)[0]);
     var n = Number(unitNo);
-    if (/^\d{8}$/.test(dn) && n >= 1 && n <= 99 && Math.floor(n) === n) return dn + pad(n, 2);
+    if (key && n >= 1 && n <= 99 && Math.floor(n) === n) return key + pad(n, 2);
     return '';
   }
   // The text a compact code stands for, or null when the text is not a compact code.
@@ -387,10 +411,12 @@
   function barcodeEntry(item) {
     var d = (item && item.data) || {};
     if (item && item.kind === 'install') {
-      var dn = String(d.deliveryNote || '');
+      var tokens = noteTokens(d.deliveryNote);
+      var first = tokens[0] || '';
       return {
-        code: compactUnit(dn, d.unitNo) || dn + '-' + d.unitNo,
-        no: dn + '-' + d.unitNo,
+        code: compactUnit(d.deliveryNote, d.unitNo) || first + '-' + d.unitNo,
+        no:
+          trim(first, 18) + '-' + d.unitNo + (tokens.length > 1 ? ' +' + (tokens.length - 1) : ''),
         line2: trim(d.itemCode || d.itemDesc, 24),
         line3: 'unit ' + d.unitNo + ' of ' + d.unitCount,
       };
@@ -442,7 +468,7 @@
     '.bc-grid{flex:1;display:grid;grid-template-columns:1fr 1fr}' +
     '.bc-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:0.25mm dashed #666;padding:0 1mm;overflow:hidden}' +
     '.bc-cell:nth-child(odd){border-right:0.25mm dashed #666}' +
-    '.bc-n{font-size:4mm;font-weight:700;margin-top:1mm;white-space:nowrap}.bc-l{font-size:3.2mm;font-weight:700;white-space:nowrap}.bc-l3{font-size:3mm;font-weight:700;white-space:nowrap}' +
+    '.bc-n{font-size:4mm;font-weight:700;margin-top:1mm;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}.bc-l{font-size:3.2mm;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}.bc-l3{font-size:3mm;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}' +
     '.bc-ft{height:8mm;display:flex;align-items:flex-end;font-weight:700;font-size:2.5mm;padding-top:1mm;overflow:hidden;white-space:nowrap}' +
     '.sh-in{position:absolute;display:grid;grid-template-columns:99mm 99mm}' +
     '.sh-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}' +
@@ -657,6 +683,7 @@
     compactJob: compactJob,
     compactVisit: compactVisit,
     compactUnit: compactUnit,
+    noteMatches: noteMatches,
     parseCompact: parseCompact,
     testItem: testItem,
     dateText: dateText,

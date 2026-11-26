@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 321,
+    "title": "Barcode label (option C) overlap fix when a delivery note field holds several notes",
+    "area": "General",
+    "date": "2026-11-26",
+    "approxDate": false,
+    "status": null,
+    "summary": "In Delivery + Installation, option C with 8 per label printed overlapping text (\"NAW-16150014,16150010\" in both columns). The delivery note field held two notes, so the short code did not apply, the portal fell back to the full long text and each cell was wider than its half of the label.",
+    "changes": [
+      "The barcode key uses the first delivery note (\"NAW-16150014,16150010\", unit 3 gives 1615001403) and the text under it is short: \"NAW-16150014-3 +1\" (the +1 means one more note on the job). Names with letters before the number, like NAW…",
+      "Scan a unit finds the job when the scanned note is any one of the notes in the field.",
+      "Cell text can never run wider than its cell now (it is cut with \"…\" instead of overlapping).",
+      "Tests: unit test for a two-note job with 8 units, scan and label e2e pass.",
+      "No migration, no API restart, hard-refresh only."
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": null
+  },
+  {
     "id": 320,
     "title": "Label settings options C and D (barcode label and A4 sheet), now in Delivery + Installation too",
     "area": "General",
