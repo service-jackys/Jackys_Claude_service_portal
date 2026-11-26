@@ -5205,6 +5205,22 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #322 — Option D (barcode stickers on an A4 sheet) removed from Label settings
+
+**Date:** 2026-11-26
+
+**Why.** The A4 sticker sheet is not needed for the service operations; labels print on the Zebra roll.
+
+**What changed.**
+
+- Label settings now has three options: **A**, **B** and **C** (Option D and its Sheet type, Start at cell and New sheet are gone).
+- The print pop-up, the Service job cards selection bar and the Delivery + Installation buttons no longer have the A4 sheet wording or start-cell picker.
+- A computer that still had option D saved uses option C from now on (its barcode label); it can be changed in Label settings.
+- Options A, B and C, the short barcode keys and Scan a unit are unchanged.
+- Tests updated (unit and e2e). No migration, no API restart, hard-refresh only.
+
+**Status.** Code complete.
+
 ## Modification #321 — Barcode label (option C) overlap fix when a delivery note field holds several notes
 
 **Date:** 2026-11-26

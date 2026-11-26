@@ -15,6 +15,25 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 322,
+    "title": "Option D (barcode stickers on an A4 sheet) removed from Label settings",
+    "area": "General",
+    "date": "2026-11-26",
+    "approxDate": false,
+    "status": null,
+    "summary": "The A4 sticker sheet is not needed for the service operations; labels print on the Zebra roll.",
+    "changes": [
+      "Label settings now has three options: A, B and C (Option D and its Sheet type, Start at cell and New sheet are gone).",
+      "The print pop-up, the Service job cards selection bar and the Delivery + Installation buttons no longer have the A4 sheet wording or start-cell picker.",
+      "A computer that still had option D saved uses option C from now on (its barcode label); it can be changed in Label settings.",
+      "Options A, B and C, the short barcode keys and Scan a unit are unchanged.",
+      "Tests updated (unit and e2e). No migration, no API restart, hard-refresh only."
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": null
+  },
+  {
     "id": 321,
     "title": "Barcode label (option C) overlap fix when a delivery note field holds several notes",
     "area": "General",

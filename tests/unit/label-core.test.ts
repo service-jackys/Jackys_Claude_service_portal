@@ -69,7 +69,7 @@ test('sticker text is HTML-escaped', () => {
   assert.ok(!html.includes('<img src=x'));
 });
 
-// ---- Options C and D: compact barcode keys, barcode label and A4 sheet (modification #320) ----
+// ---- Option C: compact barcode keys and barcode label (modification #320) ----
 const bc = core as unknown as {
   code128Modules(text: string, compact?: boolean): string;
   compactJob(reference: string): string;
@@ -79,7 +79,7 @@ const bc = core as unknown as {
   barcodePlan(
     count: number,
     settings: Record<string, unknown>,
-  ): { pages: number; nextStartCell: number; startCell: number };
+  ): { pages: number; cellsPerPage: number };
   barcodeDocument(
     items: unknown[],
     settings: Record<string, unknown>,
@@ -141,22 +141,17 @@ test('barcode label: C holds 5 (rows + visit barcode), 6 or 8 per label and spil
   assert.ok(!noVisit.includes('WI-2026-00112'));
 });
 
-test('A4 sheet: start cell leaves earlier cells empty, plan counts sheets and the next free cell', () => {
-  const items = bc.testBarcodeItems({ layout: 'D', sheetCells: 8 }).slice(0, 5);
-  const doc = bc.barcodeDocument(items, { layout: 'D', sheetCells: 8, startCell: 4 }, {});
-  assert.match(doc, /size:A4/);
-  assert.equal((doc.match(/class="sh-cell" style=/g) || []).length, 3); // 3 empty cells before cell 4
-  assert.equal((doc.match(/<svg /g) || []).length, 5);
-  assert.deepEqual(bc.barcodePlan(5, { layout: 'D', sheetCells: 8, startCell: 4 }), {
-    cellsPerPage: 8,
-    startCell: 4,
-    pages: 1,
-    nextStartCell: 1,
-  });
-  assert.equal(bc.barcodePlan(6, { layout: 'D', sheetCells: 8, startCell: 4 }).pages, 2);
-  assert.equal(bc.barcodePlan(2, { layout: 'D', sheetCells: 6, startCell: 2 }).nextStartCell, 4);
-  const six = bc.barcodeDocument(items, { layout: 'D', sheetCells: 6, startCell: 1 }, {});
-  assert.equal((six.match(/height:93mm/g) || []).length, 6);
+test('barcode label plan counts the labels needed (no A4 sheet option any more)', () => {
+  assert.deepEqual(bc.barcodePlan(5, { layout: 'C', perLabel: 5 }), { cellsPerPage: 5, pages: 1 });
+  assert.equal(bc.barcodePlan(9, { layout: 'C', perLabel: 8 }).pages, 2);
+  assert.equal(bc.barcodePlan(0, { layout: 'C', perLabel: 6 }).pages, 1);
+  const doc = bc.barcodeDocument(
+    bc.testBarcodeItems({ layout: 'D', perLabel: 6 }),
+    { layout: 'D' },
+    {},
+  );
+  assert.match(doc, /size:100mm 150mm/);
+  assert.doesNotMatch(doc, /sh-cell/);
 });
 
 test('barcode label: several delivery notes still get a short code and short text', () => {
