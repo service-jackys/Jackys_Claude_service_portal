@@ -15,6 +15,28 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 320,
+    "title": "Label settings options C and D (barcode label and A4 sheet), now in Delivery + Installation too",
+    "area": "General",
+    "date": "2026-11-26",
+    "approxDate": false,
+    "status": null,
+    "summary": "Management asked to print several job barcodes on one sticker (5, 6 or 8), and the service team wanted the printing choice in Delivery + Installation as well as in Service job cards. The long job number (JBC-2026-00301) also forced thin 2-dot bars on the Zebra, which print light.",
+    "changes": [
+      "One polished Label settings dialog (replaces the old one) with four options and a live preview of the real print: A two stickers on a 4 x 6 in label (as before), B one 100 x 75 mm sticker (as before), C barcode label on the Zebra 4 x 6 in…",
+      "Compact barcode keys for C and D (Code 128 set C, digits only): J26000301 for JBC-2026-00301, V26000112 for WI-2026-00112, 1610143101 for delivery note 16101431 unit 1. They fit 3-dot bars (0.375 mm), 101 modules instead of 189. The A and…",
+      "Scan a unit reads the compact keys and the long forms, and a visit code (WI- reference, or its compact key) lists every job card of that visit with an Open button.",
+      "Service job cards: tick boxes in the list (select all), a selection bar with the active option, and Print stickers / Print barcode label / Print barcode stickers that follows the saved option; a pop-up lists the jobs (S/N missing is a…",
+      "Delivery + Installation: Label settings on the Jobs list and in every job's Unit stickers box. With A or B nothing changes. With C or D the main button prints one barcode label for the whole delivery note; the customer warranty sticker…",
+      "Walk-in stickers follow the saved option too (with C or D one barcode label with the visit barcode).",
+      "Settings stay per computer (browser storage), shared by both sections.",
+      "Tests: tests/unit/label-core.test.ts (4 new), tests/e2e/label-options.spec.ts, tests/e2e/scan-lookup.spec.ts (compact keys)."
+    ],
+    "needsYou": "pull and hard-refresh (Ctrl+Shift+R). No migration, no API restart.",
+    "migrations": [],
+    "files": "apps/web/src/label-core.js, apps/web/src/app.js, apps/web/src/index.html, tests, modification.md, changelog-data.ts."
+  },
+  {
     "id": 319,
     "title": "My notes: smaller side tab, swatches stay round",
     "area": "General",

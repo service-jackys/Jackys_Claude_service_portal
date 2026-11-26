@@ -116,6 +116,21 @@ test.describe('scan a unit', () => {
     await expect(result).toContainText('Nothing found');
   });
 
+  test('compact barcode keys from the barcode label (options C and D) are read too', async ({
+    page,
+  }) => {
+    await mockApi(page, ['service_job_card.read', 'di_jobs.read']);
+    await signIn(page);
+    await page.locator('#scanLookupButton').dispatchEvent('click');
+    const result = page.locator('[data-scan-result]');
+    await page.locator('#scanInput').fill('J26000412');
+    await page.locator('#scanInput').press('Enter');
+    await expect(result).toContainText('JBC-2026-00412');
+    await page.locator('#scanInput').fill('1610102303');
+    await page.locator('#scanInput').press('Enter');
+    await expect(result).toContainText('DN 16101023 · unit 3');
+  });
+
   test('the scan button is hidden without access', async ({ page }) => {
     await mockApi(page, ['complaints.read']);
     await signIn(page);
