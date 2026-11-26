@@ -15,6 +15,27 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 323,
+    "title": "Sticker button on every row of the Service job cards list",
+    "area": "Job cards",
+    "date": "2026-11-26",
+    "approxDate": false,
+    "status": null,
+    "summary": "To print a unit sticker you had to open the job first. It is a daily task, so it now sits in the list.",
+    "changes": [
+      "A new last column, Sticker (with an info tooltip), and a printer-icon button on every job card row. One click prints with the option saved in Label settings: A or B opens the sticker for that job, C prints the barcode label for that job.…",
+      "Hover or keyboard focus shows a tooltip with the active option, for example \"Print sticker · Option C · 6 per label\". It follows Label settings after you save them.",
+      "While the job is loading the button shows a small spinner.",
+      "An amber dot on the button means the serial number is missing. It still prints with \"S/N missing\", as inside the job.",
+      "If a required detail is empty, the same \"Sticker cannot be printed yet\" pop-up opens as inside the job.",
+      "Tick boxes, the selection bar and opening a job from its reference are unchanged.",
+      "Tests: new e2e test for the list button (option C and A), label, scan, printing and tooltip suites pass. No migration, no API restart, hard-refresh only."
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": null
+  },
+  {
     "id": 322,
     "title": "Option D (barcode stickers on an A4 sheet) removed from Label settings",
     "area": "General",
