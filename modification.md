@@ -5205,6 +5205,22 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #321 — Barcode label (option C) overlap fix when a delivery note field holds several notes
+
+**Date:** 2026-11-26
+
+**Why.** In Delivery + Installation, option C with 8 per label printed overlapping text ("NAW-16150014,16150010" in both columns). The delivery note field held two notes, so the short code did not apply, the portal fell back to the full long text and each cell was wider than its half of the label.
+
+**What changed.**
+
+- The barcode key uses the **first** delivery note ("NAW-16150014,16150010", unit 3 gives 1615001403) and the text under it is short: "NAW-16150014-3 +1" (the +1 means one more note on the job). Names with letters before the number, like NAW-, work too.
+- **Scan a unit** finds the job when the scanned note is any one of the notes in the field.
+- Cell text can never run wider than its cell now (it is cut with "…" instead of overlapping).
+- Tests: unit test for a two-note job with 8 units, scan and label e2e pass.
+- No migration, no API restart, hard-refresh only.
+
+**Status.** Code complete, in PR #249.
+
 ## Modification #320 — Label settings options C and D (barcode label and A4 sheet), now in Delivery + Installation too
 
 **Date:** 2026-11-26

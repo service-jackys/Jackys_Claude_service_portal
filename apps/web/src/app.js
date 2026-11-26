@@ -5111,10 +5111,7 @@ ${bodyHtml}
       const found = await apiRequest('/api/di-jobs?pageSize=50&search=' + encodeURIComponent(note));
       const candidates = (found.jobs || []).filter(
         (job) =>
-          job.status !== 'Cancelled' &&
-          String(job.deliveryNoteRef || '')
-            .trim()
-            .toLowerCase() === note.toLowerCase(),
+          job.status !== 'Cancelled' && window.JdLabel.noteMatches(job.deliveryNoteRef, note),
       );
       for (const candidate of candidates) {
         const job = (await apiRequest('/api/di-jobs/' + encodeURIComponent(candidate.id))).job;
