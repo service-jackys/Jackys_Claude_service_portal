@@ -4481,28 +4481,211 @@ ${bodyHtml}
 
   // ---- Unit stickers (Zebra GK420t, 4 x 6 in) -- pure helpers live in label-core.js (JdLabel)
   const LABEL_SETTINGS_KEY = 'jdLabelSettings';
+  // Layouts: A two stickers on a 4 x 6 in label, B one 100 x 75 mm sticker (both readable),
+  // C barcode label on the 4 x 6 in roll (5 + visit barcode, 6 or 8 jobs), D barcode stickers on an A4 sheet (modification #320).
+  function normaliseLabelSettings(saved) {
+    const s = saved && typeof saved === 'object' ? saved : {};
+    const sheetCells = Number(s.sheetCells) === 6 ? 6 : 8;
+    const startCell = Math.min(Math.max(1, Math.floor(Number(s.startCell) || 1)), sheetCells);
+    return {
+      layout: ['A', 'B', 'C', 'D'].includes(s.layout) ? s.layout : 'A',
+      offsetX: Number(s.offsetX) || 0,
+      offsetY: Number(s.offsetY) || 0,
+      perLabel: [5, 6, 8].includes(Number(s.perLabel)) ? Number(s.perLabel) : 5,
+      visitBarcode: s.visitBarcode !== false,
+      sheetCells,
+      startCell,
+    };
+  }
   function loadLabelSettings() {
     try {
-      const saved = JSON.parse(localStorage.getItem(LABEL_SETTINGS_KEY) || '{}');
-      return {
-        layout: saved.layout === 'B' ? 'B' : 'A',
-        offsetX: Number(saved.offsetX) || 0,
-        offsetY: Number(saved.offsetY) || 0,
-      };
+      return normaliseLabelSettings(JSON.parse(localStorage.getItem(LABEL_SETTINGS_KEY) || '{}'));
     } catch {
-      return { layout: 'A', offsetX: 0, offsetY: 0 };
+      return normaliseLabelSettings({});
     }
   }
   function saveLabelSettings(settings) {
     try {
-      localStorage.setItem(LABEL_SETTINGS_KEY, JSON.stringify(settings));
+      localStorage.setItem(LABEL_SETTINGS_KEY, JSON.stringify(normaliseLabelSettings(settings)));
     } catch {
       /* private window or blocked storage: settings last for this page only */
     }
   }
+  const labelOptionDetail = (settings) =>
+    settings.layout === 'C'
+      ? settings.perLabel === 5
+        ? 'Option C \u00b7 5 + visit barcode'
+        : 'Option C \u00b7 ' + settings.perLabel + ' per label'
+      : settings.layout === 'D'
+        ? 'Option D \u00b7 A4, ' + settings.sheetCells + ' per sheet'
+        : 'Option ' + settings.layout;
+  const isBarcodeLayout = (settings) => settings.layout === 'C' || settings.layout === 'D';
 
-  function printStickers(items) {
-    openPrintWindow(window.JdLabel.labelDocument(items, loadLabelSettings()));
+  // Customer, date and visit reference printed on a barcode label's header or footer.
+  function barcodeContext(items) {
+    const rows = items.map((item) => item.data || {});
+    const names = [...new Set(rows.map((d) => d.customerName).filter(Boolean))];
+    const title = names.length === 1 ? names[0] : names.length ? 'Several customers' : '';
+    const dates = [...new Set(rows.map((d) => d.serviceDate).filter(Boolean))];
+    const when = window.JdLabel.dateText(dates[0] || new Date().toISOString().slice(0, 10));
+    const visits = [...new Set(rows.map((d) => d.visitReference).filter(Boolean))];
+    const visitCode = visits.length === 1 && rows.every((d) => d.visitReference) ? visits[0] : '';
+    return {
+      title,
+      sub: when + ' \u00b7 ' + items.length + (items.length === 1 ? ' unit' : ' units'),
+      footer: [title, when].filter(Boolean).join(' \u00b7 '),
+      visitCode,
+    };
+  }
+
+  // Prints stickers using the layout saved in Label settings. With option C or D the barcode
+  // label is printed; opts.readable forces the readable customer sticker (layout A).
+  function printStickers(items, opts = {}) {
+    const settings = loadLabelSettings();
+    if (isBarcodeLayout(settings) && !opts.readable) return printBarcodeLabels(items);
+    openPrintWindow(
+      window.JdLabel.labelDocument(
+        items,
+        isBarcodeLayout(settings) ? { ...settings, layout: 'A' } : settings,
+      ),
+    );
+    return Promise.resolve();
+  }
+
+  // "Print barcode label" pop-up: the jobs going on the label, and for an A4 sheet the first cell to use.
+  function confirmBarcodePrint(items, settings) {
+    return new Promise((resolve) => {
+      const dialog = document.createElement('dialog');
+      dialog.className = 'pw-dialog ls-dialog ls-confirm';
+      const sheet = settings.layout === 'D';
+      let startCell = settings.startCell;
+      const core = window.JdLabel;
+      const rows = items
+        .map((item) => {
+          const e = core.barcodeEntry(item);
+          const noSerial = item.kind === 'repair' && /missing/.test(e.line3);
+          return (
+            '<div class="ls-job' +
+            (noSerial ? ' ls-job-warn' : '') +
+            '"><b>' +
+            escapeHtml(e.no) +
+            '</b><span>' +
+            (noSerial ? 'S/N missing: prints, add it later' : escapeHtml(e.line2)) +
+            '</span></div>'
+          );
+        })
+        .join('');
+      const render = () => {
+        const plan = core.barcodePlan(items.length, { ...settings, startCell });
+        dialog.querySelector('[data-ls-summary]').textContent =
+          items.length +
+          (items.length === 1 ? ' job' : ' jobs') +
+          ' \u00b7 ' +
+          plan.pages +
+          (sheet
+            ? plan.pages === 1
+              ? ' sheet'
+              : ' sheets'
+            : plan.pages === 1
+              ? ' label'
+              : ' labels') +
+          ' \u00b7 ' +
+          labelOptionDetail(settings);
+        if (sheet) {
+          dialog.querySelectorAll('[data-ls-cell]').forEach((button) => {
+            const n = Number(button.dataset.lsCell);
+            button.classList.toggle('is-used', n < startCell);
+            button.classList.toggle('is-on', n >= startCell && n < startCell + items.length);
+            button.classList.toggle('is-next', n === startCell);
+          });
+          const last = startCell - 1 + items.length;
+          dialog.querySelector('[data-ls-fill]').textContent =
+            last <= settings.sheetCells
+              ? items.length === 1
+                ? 'The job goes in cell ' + startCell + '.'
+                : items.length + ' jobs fill cells ' + startCell + ' to ' + last + '.'
+              : 'The jobs fill cell ' +
+                startCell +
+                ' to the end of the sheet and continue on the next sheet from cell 1.';
+        }
+      };
+      dialog.innerHTML =
+        '<div class="ls-head"><div><h3>' +
+        (sheet ? 'Print barcode stickers' : 'Print barcode label') +
+        '</h3><p data-ls-summary></p></div><button type="button" class="ls-x" data-ls-cancel aria-label="Close">\u2715</button></div>' +
+        '<div class="ls-body ls-confirm-body"><div class="ls-jobs">' +
+        rows +
+        '</div>' +
+        (sheet
+          ? '<div class="ls-field"><div class="ls-fl">Start at cell ' +
+            tipHtml(
+              'Cells before this one were already peeled off the sheet. The first job prints in the chosen cell.',
+            ) +
+            '</div><div class="ls-cells">' +
+            Array.from(
+              { length: settings.sheetCells },
+              (_, i) =>
+                '<button type="button" class="ls-cell" data-ls-cell="' +
+                (i + 1) +
+                '">' +
+                (i + 1) +
+                '</button>',
+            ).join('') +
+            '</div><p class="ls-hint" data-ls-fill></p></div>'
+          : '') +
+        '</div><div class="ls-foot"><button type="button" class="button button-outline" data-ls-change>Change layout</button><button type="button" class="button button-outline" data-ls-cancel>Cancel</button><button type="button" class="button button-primary" data-ls-print>Print</button></div>';
+      dialog.addEventListener('click', (event) => {
+        const cell = event.target.closest('[data-ls-cell]');
+        if (cell) {
+          startCell = Number(cell.dataset.lsCell);
+          render();
+        } else if (event.target.closest('[data-ls-print]')) {
+          dialog.close();
+          resolve({ startCell });
+        } else if (event.target.closest('[data-ls-change]')) {
+          dialog.close();
+          resolve({ changeLayout: true });
+        } else if (event.target.closest('[data-ls-cancel]')) {
+          dialog.close();
+          resolve(null);
+        }
+      });
+      dialog.addEventListener('close', () => {
+        dialog.remove();
+        resolve(null);
+      });
+      document.body.appendChild(dialog);
+      render();
+      dialog.showModal();
+    });
+  }
+
+  async function printBarcodeLabels(items) {
+    if (!items || !items.length) return;
+    const settings = loadLabelSettings();
+    const core = window.JdLabel;
+    if (settings.layout === 'D' || items.length > 1) {
+      const choice = await confirmBarcodePrint(items, settings);
+      if (!choice) return;
+      if (choice.changeLayout) {
+        openLabelSettings();
+        return;
+      }
+      if (settings.layout === 'D') settings.startCell = choice.startCell;
+    }
+    openPrintWindow(
+      core.barcodeDocument(items, settings, {
+        ...barcodeContext(items),
+        documentTitle: 'Barcode labels',
+      }),
+    );
+    if (settings.layout === 'D') {
+      // The next print starts after the cells just used; a full sheet goes back to cell 1.
+      saveLabelSettings({
+        ...settings,
+        startCell: core.barcodePlan(items.length, settings).nextStartCell,
+      });
+    }
   }
 
   // The "Sticker cannot be printed yet" pop-up.
@@ -4561,6 +4744,7 @@ ${bodyHtml}
       serviceRendered: jobCard.serviceRendered,
       parts: partsText,
       printDate: new Date().toISOString().slice(0, 10),
+      visitReference: jobCard.visitReference || '',
     };
   }
 
@@ -4575,37 +4759,290 @@ ${bodyHtml}
     printStickers([{ kind: 'repair', data }]);
   }
 
-  function openLabelSettings() {
+  // The Label settings dialog, shared by Service job cards and Delivery + Installation.
+  // Four layouts with a live preview (the real label code rendered in a small frame).
+  function openLabelSettings(options = {}) {
+    const core = window.JdLabel;
     const dialog = document.createElement('dialog');
-    dialog.className = 'pw-dialog print-choice';
-    const settings = loadLabelSettings();
-    dialog.innerHTML = `<h3>Label settings</h3>
-      <p>Saved on this computer only. Printer: Zebra GK420t, direct thermal. In the Windows printer settings set the paper to the label size below and the print scale to 100%.</p>
-      <label class="field"><span>Layout</span><select data-ls-layout>
-        <option value="A">A: two stickers on one 4 x 6 in label (unit copy + customer copy)</option>
-        <option value="B">B: one sticker per 100 x 75 mm label</option></select></label>
-      <label class="field"><span>Shift right (mm, negative = left)</span><input type="number" step="0.5" data-ls-x></label>
-      <label class="field"><span>Shift down (mm, negative = up)</span><input type="number" step="0.5" data-ls-y></label>
-      <div class="form-footer"><button type="button" class="button button-outline" data-ls-close>Close</button><button type="button" class="button button-outline" data-ls-test>Print a test sticker</button><button type="button" class="button" data-ls-save>Save</button></div>`;
-    dialog.querySelector('[data-ls-layout]').value = settings.layout;
-    dialog.querySelector('[data-ls-x]').value = settings.offsetX;
-    dialog.querySelector('[data-ls-y]').value = settings.offsetY;
+    dialog.className = 'pw-dialog ls-dialog';
+    let settings = loadLabelSettings();
+    const OPTIONS = [
+      [
+        'A',
+        'Two stickers on one 4 \u00d7 6 in label',
+        'Unit copy + customer copy. Readable details.',
+        'Zebra roll 100 \u00d7 150 mm',
+      ],
+      [
+        'B',
+        'One sticker per 100 \u00d7 75 mm label',
+        'One readable sticker per unit.',
+        'Zebra roll 100 \u00d7 75 mm',
+      ],
+      [
+        'C',
+        'Barcode label: 5, 6 or 8 jobs on a 4 \u00d7 6 in label',
+        'Barcodes only, one scan per job. Batch tag for a visit or delivery note.',
+        'Zebra roll 100 \u00d7 150 mm',
+      ],
+      [
+        'D',
+        'Barcode stickers on an A4 sheet',
+        '6 or 8 peel-off cells. Reuse a part-used sheet with Start at cell.',
+        'Office printer, A4 sticker sheet',
+      ],
+    ];
+    const glyph = {
+      A: '<svg width="30" height="46" viewBox="0 0 30 46"><rect x="1" y="1" width="28" height="44" rx="3" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/><rect x="5" y="5" width="20" height="16" rx="1.5" fill="#cfd9e6"/><rect x="5" y="25" width="20" height="16" rx="1.5" fill="#cfd9e6"/></svg>',
+      B: '<svg width="40" height="30" viewBox="0 0 40 30"><rect x="1" y="1" width="38" height="28" rx="3" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/><rect x="5" y="5" width="30" height="20" rx="1.5" fill="#cfd9e6"/></svg>',
+      C:
+        '<svg width="30" height="46" viewBox="0 0 30 46"><rect x="1" y="1" width="28" height="44" rx="3" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/>' +
+        [0, 1, 2]
+          .map((r) =>
+            [0, 1]
+              .map(
+                (c) =>
+                  '<rect x="' +
+                  (4 + c * 12) +
+                  '" y="' +
+                  (5 + r * 13) +
+                  '" width="10" height="3" fill="#102b4e"/><rect x="' +
+                  (4 + c * 12) +
+                  '" y="' +
+                  (10 + r * 13) +
+                  '" width="10" height="2" fill="#102b4e" opacity=".5"/>',
+              )
+              .join(''),
+          )
+          .join('') +
+        '</svg>',
+      D:
+        '<svg width="34" height="46" viewBox="0 0 34 46"><rect x="1" y="1" width="32" height="44" rx="2" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/>' +
+        [0, 1, 2, 3]
+          .map((r) =>
+            [0, 1]
+              .map(
+                (c) =>
+                  '<rect x="' +
+                  (4 + c * 14) +
+                  '" y="' +
+                  (4 + r * 10) +
+                  '" width="12" height="8" rx="1.5" fill="#cfd9e6" stroke="#8ea0b8" stroke-width=".7"/>',
+              )
+              .join(''),
+          )
+          .join('') +
+        '</svg>',
+    };
+    const seg = (name, values, current, labels) =>
+      '<div class="ls-seg" data-ls-seg="' +
+      name +
+      '">' +
+      values
+        .map(
+          (v, i) =>
+            '<button type="button" data-v="' +
+            v +
+            '" class="' +
+            (String(v) === String(current) ? 'is-on' : '') +
+            '">' +
+            escapeHtml(labels ? labels[i] : String(v)) +
+            '</button>',
+        )
+        .join('') +
+      '</div>';
+    dialog.innerHTML =
+      '<div class="ls-head"><div><h3>Label settings</h3><p>Saved on this computer only. Used for Service job cards and Delivery + Installation.</p></div><button type="button" class="ls-x" data-ls-close aria-label="Close">\u2715</button></div>' +
+      '<div class="ls-body"><div class="ls-main"><div class="ls-h">How should labels print?</div>' +
+      OPTIONS.map(
+        ([key, title, desc, tag]) =>
+          '<button type="button" class="ls-opt" data-ls-opt="' +
+          key +
+          '"><span class="ls-glyph">' +
+          glyph[key] +
+          '</span><span class="ls-opt-text"><b>Option ' +
+          key +
+          ' \u00b7 ' +
+          escapeHtml(title) +
+          '</b><span>' +
+          escapeHtml(desc) +
+          '</span><em>' +
+          escapeHtml(tag) +
+          '</em></span><span class="ls-radio"></span></button>',
+      ).join('') +
+      '<div class="ls-extra" data-ls-extra="A B"><p class="ls-tip">In the Windows printer settings set the paper to the label size and the print scale to 100%. Raise Zebra darkness a few steps if print looks light.</p></div>' +
+      '<div class="ls-extra" data-ls-extra="C"><div class="ls-field"><div class="ls-fl">Barcodes per label ' +
+      tipHtml(
+        'How many jobs go on one 4 \u00d7 6 in label. More jobs than this print on the next label automatically.',
+      ) +
+      '</div>' +
+      seg('perLabel', [5, 6, 8], settings.perLabel, ['5 + visit barcode', '6', '8']) +
+      '</div><label class="ls-switch"><span>Visit barcode in the header ' +
+      tipHtml(
+        'Only with 5 per label. One scan of the visit barcode lists every job of that visit. It prints when all the jobs belong to one walk-in visit (WI- reference).',
+      ) +
+      '</span><input type="checkbox" data-ls-visit></label><p class="ls-tip">The barcode holds the job number only. Scan a unit shows the details.</p></div>' +
+      '<div class="ls-extra" data-ls-extra="D"><div class="ls-field"><div class="ls-fl">Sheet type ' +
+      tipHtml(
+        'Match the sticker sheet you load: 6 cells of 99 \u00d7 93 mm or 8 cells of 99 \u00d7 68 mm on A4.',
+      ) +
+      '</div>' +
+      seg('sheetCells', [6, 8], settings.sheetCells, [
+        '6 per A4 (99 \u00d7 93)',
+        '8 per A4 (99 \u00d7 68)',
+      ]) +
+      '</div><div class="ls-field"><div class="ls-fl">Start at cell ' +
+      tipHtml(
+        'The next free cell of the sheet in the tray. It moves on after every print; press New sheet when you load a fresh sheet.',
+      ) +
+      '</div><div class="ls-cells" data-ls-cells></div><div class="ls-row"><button type="button" class="button button-outline ls-small" data-ls-newsheet>New sheet</button><span class="ls-hint">Remembered on this computer.</span></div></div><p class="ls-tip">Print on A4 at scale 100% with no browser margins. Load the sheet the same way each time.</p></div>' +
+      '<div class="ls-shift"><label class="ls-field"><div class="ls-fl">Shift right ' +
+      tipHtml(
+        'Moves the whole print right, in millimetres. Negative moves it left. Use after a test print if the print sits off the label.',
+      ) +
+      '</div><span class="ls-num"><input type="number" step="0.5" data-ls-x><i>mm (negative = left)</i></span></label>' +
+      '<label class="ls-field"><div class="ls-fl">Shift down ' +
+      tipHtml('Moves the whole print down, in millimetres. Negative moves it up.') +
+      '</div><span class="ls-num"><input type="number" step="0.5" data-ls-y><i>mm (negative = up)</i></span></label></div></div>' +
+      '<div class="ls-side"><div class="ls-h">Preview</div><div class="ls-preview" data-ls-preview></div><p class="ls-hint">Simplified preview of the real print, first label or sheet only.</p></div></div>' +
+      '<div class="ls-foot"><button type="button" class="button button-outline" data-ls-close>Close</button><button type="button" class="button button-outline" data-ls-test>Print a test label</button><button type="button" class="button button-primary" data-ls-save>Save</button></div>';
+
+    const $d = (sel) => dialog.querySelector(sel);
     const read = () => ({
-      layout: dialog.querySelector('[data-ls-layout]').value === 'B' ? 'B' : 'A',
-      offsetX: Number(dialog.querySelector('[data-ls-x]').value) || 0,
-      offsetY: Number(dialog.querySelector('[data-ls-y]').value) || 0,
+      ...settings,
+      offsetX: Number($d('[data-ls-x]').value) || 0,
+      offsetY: Number($d('[data-ls-y]').value) || 0,
+    });
+    function drawPreview() {
+      const s = read();
+      const box = $d('[data-ls-preview]');
+      const isSheet = s.layout === 'D';
+      const widthPx = isSheet ? 794 : 378;
+      const heightPx = isSheet ? 1123 : s.layout === 'B' ? 283 : 567;
+      const scale = isSheet ? 0.3 : s.layout === 'B' ? 0.62 : 0.5;
+      let html;
+      if (isBarcodeLayout(s)) {
+        const sample = core.testBarcodeItems(s);
+        html = core.barcodeDocument(
+          sample.slice(0, s.layout === 'D' ? sample.length : s.perLabel),
+          s,
+          {
+            title: 'JUMEIRAH COLLEGE (2)',
+            sub: '26 Nov 2026 \u00b7 ' + sample.length + ' units',
+            visitCode: 'WI-2026-00112',
+            footer: 'Sample customer \u00b7 26 Nov 2026',
+          },
+        );
+      } else {
+        html = core.labelDocument([core.testItem()], s);
+      }
+      box.style.width = Math.round(widthPx * scale) + 'px';
+      box.style.height = Math.round(heightPx * scale) + 'px';
+      box.innerHTML = '';
+      const frame = document.createElement('iframe');
+      frame.setAttribute('title', 'Label preview');
+      frame.setAttribute('sandbox', '');
+      frame.tabIndex = -1;
+      frame.style.cssText =
+        'width:' +
+        widthPx +
+        'px;height:' +
+        heightPx +
+        'px;border:0;transform:scale(' +
+        scale +
+        ');transform-origin:0 0;pointer-events:none;background:#fff';
+      frame.srcdoc = html;
+      box.appendChild(frame);
+    }
+    function sync() {
+      dialog
+        .querySelectorAll('[data-ls-opt]')
+        .forEach((b) => b.classList.toggle('is-on', b.dataset.lsOpt === settings.layout));
+      dialog.querySelectorAll('[data-ls-extra]').forEach((el) => {
+        el.hidden = !el.dataset.lsExtra.split(' ').includes(settings.layout);
+      });
+      dialog.querySelectorAll('[data-ls-seg]').forEach((group) => {
+        group
+          .querySelectorAll('button')
+          .forEach((b) =>
+            b.classList.toggle('is-on', b.dataset.v === String(settings[group.dataset.lsSeg])),
+          );
+      });
+      $d('[data-ls-visit]').checked = settings.visitBarcode;
+      $d('[data-ls-visit]').disabled = settings.perLabel !== 5;
+      $d('[data-ls-cells]').innerHTML = Array.from(
+        { length: settings.sheetCells },
+        (_, i) =>
+          '<button type="button" class="ls-cell' +
+          (i + 1 < settings.startCell
+            ? ' is-used'
+            : i + 1 === settings.startCell
+              ? ' is-next'
+              : '') +
+          '" data-ls-cell="' +
+          (i + 1) +
+          '">' +
+          (i + 1) +
+          '</button>',
+      ).join('');
+      $d('[data-ls-test]').textContent =
+        settings.layout === 'D' ? 'Print a test sheet' : 'Print a test label';
+      drawPreview();
+    }
+    $d('[data-ls-x]').value = settings.offsetX;
+    $d('[data-ls-y]').value = settings.offsetY;
+    dialog.addEventListener('input', (event) => {
+      if (event.target.matches('[data-ls-x],[data-ls-y]')) {
+        settings = read();
+        drawPreview();
+      }
+    });
+    dialog.addEventListener('change', (event) => {
+      if (event.target.matches('[data-ls-visit]')) {
+        settings = { ...read(), visitBarcode: event.target.checked };
+        drawPreview();
+      }
     });
     dialog.addEventListener('click', (event) => {
-      if (event.target.closest('[data-ls-save]')) {
+      const opt = event.target.closest('[data-ls-opt]');
+      const segButton = event.target.closest('[data-ls-seg] button');
+      const cell = event.target.closest('[data-ls-cell]');
+      if (opt) {
+        settings = { ...read(), layout: opt.dataset.lsOpt };
+        sync();
+      } else if (segButton) {
+        const name = segButton.closest('[data-ls-seg]').dataset.lsSeg;
+        settings = normaliseLabelSettings({ ...read(), [name]: Number(segButton.dataset.v) });
+        sync();
+      } else if (cell) {
+        settings = { ...read(), startCell: Number(cell.dataset.lsCell) };
+        sync();
+      } else if (event.target.closest('[data-ls-newsheet]')) {
+        settings = { ...read(), startCell: 1 };
+        sync();
+      } else if (event.target.closest('[data-ls-save]')) {
         saveLabelSettings(read());
         dialog.close();
+        if (typeof options.onSave === 'function') options.onSave(loadLabelSettings());
       } else if (event.target.closest('[data-ls-test]')) {
-        saveLabelSettings(read());
-        printStickers([window.JdLabel.testItem()]);
+        const s = read();
+        saveLabelSettings(s);
+        if (isBarcodeLayout(s)) {
+          openPrintWindow(
+            core.barcodeDocument(core.testBarcodeItems(s), s, {
+              title: 'TEST LABEL',
+              sub: 'Check position and size',
+              footer: 'Test print \u00b7 check position and size',
+              test: true,
+              documentTitle: 'Test barcode label',
+            }),
+          );
+        } else openPrintWindow(core.labelDocument([core.testItem()], s));
       } else if (event.target.closest('[data-ls-close]')) dialog.close();
     });
     dialog.addEventListener('close', () => dialog.remove());
     document.body.appendChild(dialog);
+    sync();
     dialog.showModal();
   }
 
@@ -4639,8 +5076,22 @@ ${bodyHtml}
 
   // Returns { kind: 'job_card', jobCard, repeats } or { kind: 'unit', job, unit } or null.
   async function scanLookup(codeRaw) {
-    const code = String(codeRaw || '').trim();
+    let code = String(codeRaw || '').trim();
     if (!code) return null;
+    // Compact barcode keys (J26000301, V26000112, 1610143101) stand for the long references.
+    const compact = window.JdLabel.parseCompact(code);
+    if (compact) {
+      if (compact.kind === 'unit') code = compact.note + '-' + compact.unitNo;
+      else code = compact.reference;
+    }
+    if (hasPermission('service_job_card.read') && /^WI-\d{4}-\d{5}$/i.test(code)) {
+      const visit = await apiRequest(
+        '/api/job-cards/visit/' + encodeURIComponent(code.toUpperCase()),
+      );
+      return (visit.jobCards || []).length
+        ? { kind: 'visit', reference: code.toUpperCase(), jobCards: visit.jobCards }
+        : null;
+    }
     if (hasPermission('service_job_card.read') && /^JBC-\d{4}-\d{5}$/i.test(code)) {
       const found = await apiRequest(
         '/api/job-cards?pageSize=5&search=' + encodeURIComponent(code),
@@ -4702,6 +5153,15 @@ ${bodyHtml}
         '<div class="form-footer"><button type="button" class="button button-outline" data-scan-open>Open job card</button><button type="button" class="button button-outline" data-scan-sticker>Reprint sticker</button></div></div>'
       );
     }
+    if (result.kind === 'visit') {
+      const list = result.jobCards
+        .map(
+          (c) =>
+            `<div class="ls-job"><b>${escapeHtml(c.jobCardReference)}</b><span>${escapeHtml([c.modelNo || c.itemDescription, c.serialNo ? 'SN ' + c.serialNo : ''].filter(Boolean).join(' \u00b7 '))} \u00b7 ${escapeHtml(c.jobFinalStatus || c.status || '')} <button type="button" class="button button-outline ls-small" data-scan-open-id="${escapeHtml(c.id)}">Open</button></span></div>`,
+        )
+        .join('');
+      return `<div class="scan-card"><div class="scan-head"><strong>Visit ${escapeHtml(result.reference)}</strong><span class="scan-status">${result.jobCards.length} job cards</span></div><div class="ls-jobs">${list}</div></div>`;
+    }
     const j = result.job;
     const u = result.unit;
     const status =
@@ -4719,7 +5179,7 @@ ${bodyHtml}
     dialog.innerHTML =
       '<h3>Scan a unit</h3>' +
       '<form data-scan-form class="scan-row"><label for="scanInput" style="position:absolute;left:-9999px">Scan or type a job card number or unit code</label>' +
-      '<input id="scanInput" type="text" autocomplete="off" placeholder="Scan or type: JBC-2026-00412 or 16101023-1" />' +
+      '<input id="scanInput" type="text" autocomplete="off" placeholder="Scan or type: JBC-2026-00412, 16101023-1 or WI-2026-00012" />' +
       '<button type="submit" class="button button-primary">Find</button></form>' +
       '<div data-scan-result></div>' +
       '<div class="form-footer"><button type="button" class="button button-outline" data-scan-close>Close</button></div>';
@@ -4743,7 +5203,12 @@ ${bodyHtml}
     });
     dialog.addEventListener('click', async (event) => {
       if (event.target.closest('[data-scan-close]')) dialog.close();
-      else if (event.target.closest('[data-scan-open]') && current?.kind === 'job_card') {
+      else if (event.target.closest('[data-scan-open-id]')) {
+        const id = event.target.closest('[data-scan-open-id]').dataset.scanOpenId;
+        dialog.close();
+        setWorkspaceMode('job-cards');
+        loadJobCardDetail(id);
+      } else if (event.target.closest('[data-scan-open]') && current?.kind === 'job_card') {
         const id = current.jobCard.id;
         dialog.close();
         setWorkspaceMode('job-cards');
@@ -5084,11 +5549,13 @@ ${bodyHtml}
 
   function renderAwaitingJobCards(appointments) {
     const body = $('#jobCardsBody');
+    clearJobCardSelection();
+    $('#jobCardSelectAll').hidden = true;
     const canCreate = hasPermission('service_job_card.write');
     body.innerHTML = appointments
       .map((row) => {
         const item = [row.brand, row.model].filter(Boolean).join(' ');
-        return `<tr><td>${
+        return `<tr><td class="jc-sel"></td><td>${
           canCreate
             ? `<button class="button button-secondary" type="button" data-create-for="${escapeHtml(row.appointmentId)}">Create job card</button>`
             : '<em>Not created</em>'
@@ -5113,16 +5580,88 @@ ${bodyHtml}
     );
   }
 
+  // Tick boxes on the job card list: print one barcode label (options C and D) or stickers for several job cards.
+  const selectedJobCards = new Set();
+  function updateJobCardSelection() {
+    const bar = $('#jobCardSelBar');
+    const settings = loadLabelSettings();
+    bar.hidden = selectedJobCards.size === 0;
+    $('#jobCardSelText').innerHTML =
+      escapeHtml(String(selectedJobCards.size)) +
+      ' selected <span class="ls-badge">' +
+      escapeHtml(labelOptionDetail(settings)) +
+      '</span>';
+    $('#jobCardSelPrint').textContent =
+      settings.layout === 'C'
+        ? 'Print barcode label'
+        : settings.layout === 'D'
+          ? 'Print barcode stickers'
+          : 'Print stickers';
+    const boxes = $$('#jobCardsBody [data-jc-select]');
+    const all = $('#jobCardSelectAll');
+    all.checked = boxes.length > 0 && boxes.every((box) => box.checked);
+    all.indeterminate = !all.checked && boxes.some((box) => box.checked);
+  }
+  function clearJobCardSelection() {
+    selectedJobCards.clear();
+    $$('#jobCardsBody [data-jc-select]').forEach((box) => (box.checked = false));
+    updateJobCardSelection();
+  }
+  async function printSelectedJobCards() {
+    const ids = [...selectedJobCards];
+    if (!ids.length) return;
+    try {
+      const cards = [];
+      for (const id of ids)
+        cards.push((await apiRequest('/api/job-cards/' + encodeURIComponent(id))).jobCard);
+      const items = cards.map((card) => ({ kind: 'repair', data: repairStickerData(card) }));
+      const bad = items.filter((item) => window.JdLabel.missingDetails('repair', item.data).length);
+      if (bad.length) {
+        const missing = [
+          ...new Set(bad.flatMap((item) => window.JdLabel.missingDetails('repair', item.data))),
+        ];
+        await showMissingStickerDetails(REPAIR_STICKER_FIELDS, missing);
+        setMessage(
+          '#workspaceMessage',
+          'Sticker not printed: ' +
+            bad.map((item) => item.data.reference).join(', ') +
+            ' is missing required details.',
+        );
+        return;
+      }
+      await printStickers(items);
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    }
+  }
+  // The button wording and the option badge follow the layout saved in Label settings.
+  function refreshLabelButtons() {
+    const settings = loadLabelSettings();
+    const barcode = isBarcodeLayout(settings);
+    const print = $('#printUnitStickerButton');
+    if (print) print.textContent = barcode ? 'Print barcode' : 'Print unit sticker';
+    ['#labelSettingsButton', '#jobCardsLabelSettingsButton'].forEach((selector) => {
+      const button = $(selector);
+      if (!button) return;
+      button.innerHTML =
+        'Label settings <span class="ls-badge">' + escapeHtml(settings.layout) + '</span>';
+    });
+    updateJobCardSelection();
+  }
+
   function renderJobCards(jobCards) {
     const body = $('#jobCardsBody');
+    selectedJobCards.clear();
+    $('#jobCardSelectAll').hidden = false;
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${customerTypeBadge(jobCard.customerType)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
+          `<tr><td class="jc-sel"><input type="checkbox" data-jc-select="${escapeHtml(jobCard.id)}" aria-label="Select ${escapeHtml(jobCard.jobCardReference)} for sticker printing"></td><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${customerTypeBadge(jobCard.customerType)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
     $('#jobCardsEmpty').hidden = jobCards.length > 0;
+    updateJobCardSelection();
     body
       .querySelectorAll('[data-job-card-id]')
       .forEach((button) =>
@@ -5200,7 +5739,7 @@ ${bodyHtml}
     const awaiting = status === AWAITING_JOB_CARD_FILTER;
     if (status && !awaiting) params.set('status', status);
     $('#jobCardsBody').innerHTML =
-      '<tr><td colspan="7" class="empty-state">Loading service job cards…</td></tr>';
+      '<tr><td colspan="8" class="empty-state">Loading service job cards…</td></tr>';
     try {
       if (awaiting) {
         const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
@@ -11716,7 +12255,30 @@ ${bodyHtml}
     $('#jobCardDetail').hidden = true;
   });
   $('#printUnitStickerButton').addEventListener('click', () => printRepairSticker(currentJobCard));
-  $('#labelSettingsButton').addEventListener('click', openLabelSettings);
+  $('#labelSettingsButton').addEventListener('click', () =>
+    openLabelSettings({ onSave: refreshLabelButtons }),
+  );
+  $('#jobCardsLabelSettingsButton').addEventListener('click', () =>
+    openLabelSettings({ onSave: refreshLabelButtons }),
+  );
+  $('#jobCardsBody').addEventListener('change', (event) => {
+    const box = event.target.closest('[data-jc-select]');
+    if (!box) return;
+    if (box.checked) selectedJobCards.add(box.dataset.jcSelect);
+    else selectedJobCards.delete(box.dataset.jcSelect);
+    updateJobCardSelection();
+  });
+  $('#jobCardSelectAll').addEventListener('change', (event) => {
+    $$('#jobCardsBody [data-jc-select]').forEach((box) => {
+      box.checked = event.target.checked;
+      if (box.checked) selectedJobCards.add(box.dataset.jcSelect);
+      else selectedJobCards.delete(box.dataset.jcSelect);
+    });
+    updateJobCardSelection();
+  });
+  $('#jobCardSelPrint').addEventListener('click', printSelectedJobCards);
+  $('#jobCardSelClear').addEventListener('click', clearJobCardSelection);
+  refreshLabelButtons();
   $('#scanLookupButton').addEventListener('click', openScanLookup);
   $('#printJobCardButton').addEventListener('click', async () => {
     if (!currentJobCard) return;
@@ -25060,7 +25622,7 @@ ${bodyHtml}
 
     // Prints the stickers of a saved job (optionally only one line). If a required
     // detail is missing, the "Sticker cannot be printed yet" pop-up lists it.
-    async function printDiStickers(job, onlyLineNo) {
+    async function printDiStickers(job, onlyLineNo, opts = {}) {
       let items = stickerUnits(job);
       if (!items.length) {
         notifyDialog('No items', 'Add at least one item to the job before printing stickers.');
@@ -25094,7 +25656,7 @@ ${bodyHtml}
         return;
       }
       if (onlyLineNo != null) items = items.filter((item) => item.lineNo === onlyLineNo);
-      printStickers(items);
+      await printStickers(items, opts);
     }
 
     function drawStickers() {
@@ -25106,12 +25668,28 @@ ${bodyHtml}
         return;
       }
       const total = stickerUnits(job).length;
+      const layout = loadLabelSettings();
+      const barcode = isBarcodeLayout(layout);
       box.hidden = false;
       box.innerHTML =
-        '<h4>Unit stickers</h4><p class="form-note">One sticker per unit, to stick on the rear of the unit. The warranty starts on the service date. Save the job first; stickers print from the saved job.</p>' +
-        '<div class="form-footer"><button class="button button-primary" type="button" data-di-sticker-all>Print all stickers (' +
-        total +
-        ')</button></div>' +
+        '<h4>Unit stickers <button class="button button-outline" type="button" data-di-label-settings>Label settings <span class="ls-badge">' +
+        escapeHtml(layout.layout) +
+        '</span></button></h4><p class="form-note">' +
+        (barcode
+          ? 'Prints one barcode label for the whole delivery note (all its units; more units than the label holds continue on the next label). The customer warranty sticker stays readable and prints from its own button. '
+          : 'One sticker per unit, to stick on the rear of the unit. The warranty starts on the service date. ') +
+        'Save the job first; stickers print from the saved job.</p>' +
+        '<div class="form-footer"><button class="button button-primary" type="button" data-di-sticker-all>' +
+        (barcode
+          ? 'Print barcode label (' + total + ' units)'
+          : 'Print all stickers (' + total + ')') +
+        '</button>' +
+        (barcode
+          ? '<button class="button button-outline" type="button" data-di-sticker-readable>Print customer stickers (' +
+            total +
+            ')</button>'
+          : '') +
+        '</div>' +
         '<ul class="di-sticker-list">' +
         job.lines
           .map(
@@ -25528,7 +26106,11 @@ ${bodyHtml}
           const button = event.target.closest('button');
           if (!button || !state.job) return;
           try {
-            if (button.hasAttribute('data-di-sticker-all')) await printDiStickers(state.job);
+            if (button.hasAttribute('data-di-label-settings'))
+              openLabelSettings({ onSave: drawStickers });
+            else if (button.hasAttribute('data-di-sticker-all')) await printDiStickers(state.job);
+            else if (button.hasAttribute('data-di-sticker-readable'))
+              await printDiStickers(state.job, undefined, { readable: true });
             else if (button.hasAttribute('data-di-sticker-line'))
               await printDiStickers(state.job, Number(button.dataset.diStickerLine));
           } catch (error) {
@@ -26317,6 +26899,9 @@ ${bodyHtml}
         escapeHtml(f.search) +
         '" /></div>' +
         '</div>' +
+        '<p><button class="button button-outline" type="button" data-di-label-settings>Label settings <span class="ls-badge">' +
+        escapeHtml(loadLabelSettings().layout) +
+        '</span></button></p>' +
         '<div class="acc-wrap"><table class="acc-table"><thead><tr><th>Reference</th><th>Date</th><th>Customer</th><th>Delivery note</th><th>Salesman</th><th>Channel</th><th>Status</th><th class="num">Lines</th><th class="num">Revenue (\u20C3)</th><th></th></tr></thead><tbody>' +
         (data.jobs.length
           ? data.jobs
@@ -26400,6 +26985,11 @@ ${bodyHtml}
           }
         }),
       );
+      body
+        .querySelectorAll('[data-di-label-settings]')
+        .forEach((button) =>
+          button.addEventListener('click', () => openLabelSettings({ onSave: drawJobs })),
+        );
       body.querySelectorAll('[data-di-stickers-for]').forEach((button) =>
         button.addEventListener('click', async () => {
           try {
