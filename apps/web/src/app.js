@@ -5504,6 +5504,9 @@ ${bodyHtml}
     const barcode = isBarcodeLayout(settings);
     const print = $('#printUnitStickerButton');
     if (print) print.textContent = barcode ? 'Print barcode' : 'Print unit sticker';
+    $$('#jobCardsBody [data-jc-print]').forEach((button) => {
+      button.dataset.tip = stickerTipText();
+    });
     ['#labelSettingsButton', '#jobCardsLabelSettingsButton'].forEach((selector) => {
       const button = $(selector);
       if (!button) return;
@@ -5513,6 +5516,39 @@ ${bodyHtml}
     updateJobCardSelection();
   }
 
+  // The Sticker button on each list row (modification #323): prints without opening the job.
+  const STICKER_ICON =
+    '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg>';
+  const stickerTipText = () => 'Print sticker \u00b7 ' + labelOptionDetail(loadLabelSettings());
+  function jobCardPrintButton(jobCard) {
+    const noSerial = jobCard.serialNo !== undefined && !String(jobCard.serialNo || '').trim();
+    return (
+      '<button type="button" class="jc-print-btn" data-jc-print="' +
+      escapeHtml(jobCard.id) +
+      '" data-tip="' +
+      escapeHtml(stickerTipText()) +
+      '" aria-label="Print sticker' +
+      (noSerial ? ', serial number missing' : '') +
+      '">' +
+      STICKER_ICON +
+      (noSerial ? '<span class="jc-print-dot" aria-hidden="true"></span>' : '') +
+      '</button>'
+    );
+  }
+  async function printJobCardFromList(button) {
+    button.classList.add('is-busy');
+    try {
+      const jobCard = (
+        await apiRequest('/api/job-cards/' + encodeURIComponent(button.dataset.jcPrint))
+      ).jobCard;
+      await printRepairSticker(jobCard);
+    } catch (error) {
+      setMessage('#workspaceMessage', error.message);
+    } finally {
+      button.classList.remove('is-busy');
+    }
+  }
+
   function renderJobCards(jobCards) {
     const body = $('#jobCardsBody');
     selectedJobCards.clear();
@@ -5520,7 +5556,7 @@ ${bodyHtml}
     body.innerHTML = jobCards
       .map(
         (jobCard) =>
-          `<tr><td class="jc-sel"><input type="checkbox" data-jc-select="${escapeHtml(jobCard.id)}" aria-label="Select ${escapeHtml(jobCard.jobCardReference)} for sticker printing"></td><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${customerTypeBadge(jobCard.customerType)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td></tr>`,
+          `<tr><td class="jc-sel"><input type="checkbox" data-jc-select="${escapeHtml(jobCard.id)}" aria-label="Select ${escapeHtml(jobCard.jobCardReference)} for sticker printing"></td><td><button class="table-link" type="button" data-job-card-id="${escapeHtml(jobCard.id)}">${escapeHtml(jobCard.jobCardReference)}</button></td><td><button class="table-link" type="button" data-appointment-id="${escapeHtml(jobCard.appointmentId)}">${escapeHtml(jobCard.appointmentReference)}</button></td><td><strong>${escapeHtml(jobCard.customerName)}</strong><br>${escapeHtml(jobCard.contactNumber)}</td><td>${customerTypeBadge(jobCard.customerType)}</td><td>${escapeHtml(appointmentDateTime(jobCard))}</td><td><span class="status ${statusClass(jobCard.jobFinalStatus || jobCard.status)}">${escapeHtml(jobCard.jobFinalStatus || jobCard.status)}</span></td><td>${jobCard.finalStatus ? `<span class="status ${statusClass(jobCard.finalStatus)}">${escapeHtml(jobCard.finalStatus)}</span>` : ''}</td><td class="jc-print">${jobCardPrintButton(jobCard)}</td></tr>`,
       )
       .join('');
     $('#jobCardsEmpty').textContent = 'No service job cards match the selected filters.';
@@ -5603,7 +5639,7 @@ ${bodyHtml}
     const awaiting = status === AWAITING_JOB_CARD_FILTER;
     if (status && !awaiting) params.set('status', status);
     $('#jobCardsBody').innerHTML =
-      '<tr><td colspan="8" class="empty-state">Loading service job cards…</td></tr>';
+      '<tr><td colspan="9" class="empty-state">Loading service job cards…</td></tr>';
     try {
       if (awaiting) {
         const awaitingResult = await apiRequest('/api/job-cards/awaiting?' + params);
@@ -12125,6 +12161,10 @@ ${bodyHtml}
   $('#jobCardsLabelSettingsButton').addEventListener('click', () =>
     openLabelSettings({ onSave: refreshLabelButtons }),
   );
+  $('#jobCardsBody').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-jc-print]');
+    if (button && !button.classList.contains('is-busy')) printJobCardFromList(button);
+  });
   $('#jobCardsBody').addEventListener('change', (event) => {
     const box = event.target.closest('[data-jc-select]');
     if (!box) return;

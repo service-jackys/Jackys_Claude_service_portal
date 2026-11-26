@@ -111,4 +111,40 @@ test.describe('Label settings options A to D', () => {
     expect(html).toContain('JBC-2026-00301');
     await popup.close();
   });
+  test('each list row has a Sticker button that prints without opening the job', async ({
+    page,
+  }) => {
+    await signIn(page);
+    await page.evaluate(() =>
+      localStorage.setItem(
+        'jdLabelSettings',
+        JSON.stringify({ layout: 'C', perLabel: 6, visitBarcode: true }),
+      ),
+    );
+    await page.reload();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#jobCardsNav').dispatchEvent('click');
+    const buttons = page.locator('#jobCardsBody [data-jc-print]');
+    await expect(buttons).toHaveCount(3);
+    await expect(page.locator('th.jc-print')).toContainText('Sticker');
+    await expect(buttons.first()).toHaveAttribute('data-tip', /Print sticker .*Option C/);
+
+    const popupPromise = page.waitForEvent('popup');
+    await buttons.first().click();
+    const popup = await popupPromise;
+    await expect.poll(() => popup.content()).toContain('bc-cell');
+    expect(await popup.content()).toMatch(/JBC-2026-\d{5}/);
+    await popup.close();
+
+    // Option A: the readable sticker for that one job, and the tooltip follows the option.
+    await page.locator('#jobCardsLabelSettingsButton').click();
+    await page.locator('dialog.ls-dialog [data-ls-opt="A"]').click();
+    await page.locator('dialog.ls-dialog [data-ls-save]').click();
+    await expect(buttons.first()).toHaveAttribute('data-tip', /Option A/);
+    const popup2Promise = page.waitForEvent('popup');
+    await buttons.first().click();
+    const popup2 = await popup2Promise;
+    await expect.poll(() => popup2.content()).toMatch(/JBC-2026-\d{5}/);
+    expect(await popup2.content()).not.toContain('bc-cell');
+  });
 });
