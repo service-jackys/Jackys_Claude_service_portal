@@ -116,9 +116,7 @@ test.describe('scan a unit', () => {
     await expect(result).toContainText('Nothing found');
   });
 
-  test('compact barcode keys from the barcode label (options C and D) are read too', async ({
-    page,
-  }) => {
+  test('compact barcode keys from the barcode label (option C) are read too', async ({ page }) => {
     await mockApi(page, ['service_job_card.read', 'di_jobs.read']);
     await signIn(page);
     await page.locator('#scanLookupButton').dispatchEvent('click');

@@ -4482,19 +4482,17 @@ ${bodyHtml}
   // ---- Unit stickers (Zebra GK420t, 4 x 6 in) -- pure helpers live in label-core.js (JdLabel)
   const LABEL_SETTINGS_KEY = 'jdLabelSettings';
   // Layouts: A two stickers on a 4 x 6 in label, B one 100 x 75 mm sticker (both readable),
-  // C barcode label on the 4 x 6 in roll (5 + visit barcode, 6 or 8 jobs), D barcode stickers on an A4 sheet (modification #320).
+  // C barcode label on the 4 x 6 in roll (5 + visit barcode, 6 or 8 jobs). The A4 sheet option D was removed (modification #322);
+  // a browser that still has D saved uses C.
   function normaliseLabelSettings(saved) {
     const s = saved && typeof saved === 'object' ? saved : {};
-    const sheetCells = Number(s.sheetCells) === 6 ? 6 : 8;
-    const startCell = Math.min(Math.max(1, Math.floor(Number(s.startCell) || 1)), sheetCells);
+    const layout = s.layout === 'D' ? 'C' : s.layout;
     return {
-      layout: ['A', 'B', 'C', 'D'].includes(s.layout) ? s.layout : 'A',
+      layout: ['A', 'B', 'C'].includes(layout) ? layout : 'A',
       offsetX: Number(s.offsetX) || 0,
       offsetY: Number(s.offsetY) || 0,
       perLabel: [5, 6, 8].includes(Number(s.perLabel)) ? Number(s.perLabel) : 5,
       visitBarcode: s.visitBarcode !== false,
-      sheetCells,
-      startCell,
     };
   }
   function loadLabelSettings() {
@@ -4516,10 +4514,8 @@ ${bodyHtml}
       ? settings.perLabel === 5
         ? 'Option C \u00b7 5 + visit barcode'
         : 'Option C \u00b7 ' + settings.perLabel + ' per label'
-      : settings.layout === 'D'
-        ? 'Option D \u00b7 A4, ' + settings.sheetCells + ' per sheet'
-        : 'Option ' + settings.layout;
-  const isBarcodeLayout = (settings) => settings.layout === 'C' || settings.layout === 'D';
+      : 'Option ' + settings.layout;
+  const isBarcodeLayout = (settings) => settings.layout === 'C';
 
   // Customer, date and visit reference printed on a barcode label's header or footer.
   function barcodeContext(items) {
@@ -4538,7 +4534,7 @@ ${bodyHtml}
     };
   }
 
-  // Prints stickers using the layout saved in Label settings. With option C or D the barcode
+  // Prints stickers using the layout saved in Label settings. With option C the barcode
   // label is printed; opts.readable forces the readable customer sticker (layout A).
   function printStickers(items, opts = {}) {
     const settings = loadLabelSettings();
@@ -4552,13 +4548,11 @@ ${bodyHtml}
     return Promise.resolve();
   }
 
-  // "Print barcode label" pop-up: the jobs going on the label, and for an A4 sheet the first cell to use.
+  // "Print barcode label" pop-up: the jobs going on the label(s).
   function confirmBarcodePrint(items, settings) {
     return new Promise((resolve) => {
       const dialog = document.createElement('dialog');
       dialog.className = 'pw-dialog ls-dialog ls-confirm';
-      const sheet = settings.layout === 'D';
-      let startCell = settings.startCell;
       const core = window.JdLabel;
       const rows = items
         .map((item) => {
@@ -4575,73 +4569,25 @@ ${bodyHtml}
           );
         })
         .join('');
-      const render = () => {
-        const plan = core.barcodePlan(items.length, { ...settings, startCell });
-        dialog.querySelector('[data-ls-summary]').textContent =
-          items.length +
-          (items.length === 1 ? ' job' : ' jobs') +
-          ' \u00b7 ' +
-          plan.pages +
-          (sheet
-            ? plan.pages === 1
-              ? ' sheet'
-              : ' sheets'
-            : plan.pages === 1
-              ? ' label'
-              : ' labels') +
-          ' \u00b7 ' +
-          labelOptionDetail(settings);
-        if (sheet) {
-          dialog.querySelectorAll('[data-ls-cell]').forEach((button) => {
-            const n = Number(button.dataset.lsCell);
-            button.classList.toggle('is-used', n < startCell);
-            button.classList.toggle('is-on', n >= startCell && n < startCell + items.length);
-            button.classList.toggle('is-next', n === startCell);
-          });
-          const last = startCell - 1 + items.length;
-          dialog.querySelector('[data-ls-fill]').textContent =
-            last <= settings.sheetCells
-              ? items.length === 1
-                ? 'The job goes in cell ' + startCell + '.'
-                : items.length + ' jobs fill cells ' + startCell + ' to ' + last + '.'
-              : 'The jobs fill cell ' +
-                startCell +
-                ' to the end of the sheet and continue on the next sheet from cell 1.';
-        }
-      };
+      const plan = core.barcodePlan(items.length, settings);
+      const summary =
+        items.length +
+        (items.length === 1 ? ' job' : ' jobs') +
+        ' \u00b7 ' +
+        plan.pages +
+        (plan.pages === 1 ? ' label' : ' labels') +
+        ' \u00b7 ' +
+        labelOptionDetail(settings);
       dialog.innerHTML =
-        '<div class="ls-head"><div><h3>' +
-        (sheet ? 'Print barcode stickers' : 'Print barcode label') +
-        '</h3><p data-ls-summary></p></div><button type="button" class="ls-x" data-ls-cancel aria-label="Close">\u2715</button></div>' +
+        '<div class="ls-head"><div><h3>Print barcode label</h3><p data-ls-summary></p></div><button type="button" class="ls-x" data-ls-cancel aria-label="Close">\u2715</button></div>' +
         '<div class="ls-body ls-confirm-body"><div class="ls-jobs">' +
         rows +
-        '</div>' +
-        (sheet
-          ? '<div class="ls-field"><div class="ls-fl">Start at cell ' +
-            tipHtml(
-              'Cells before this one were already peeled off the sheet. The first job prints in the chosen cell.',
-            ) +
-            '</div><div class="ls-cells">' +
-            Array.from(
-              { length: settings.sheetCells },
-              (_, i) =>
-                '<button type="button" class="ls-cell" data-ls-cell="' +
-                (i + 1) +
-                '">' +
-                (i + 1) +
-                '</button>',
-            ).join('') +
-            '</div><p class="ls-hint" data-ls-fill></p></div>'
-          : '') +
-        '</div><div class="ls-foot"><button type="button" class="button button-outline" data-ls-change>Change layout</button><button type="button" class="button button-outline" data-ls-cancel>Cancel</button><button type="button" class="button button-primary" data-ls-print>Print</button></div>';
+        '</div></div><div class="ls-foot"><button type="button" class="button button-outline" data-ls-change>Change layout</button><button type="button" class="button button-outline" data-ls-cancel>Cancel</button><button type="button" class="button button-primary" data-ls-print>Print</button></div>';
+      dialog.querySelector('[data-ls-summary]').textContent = summary;
       dialog.addEventListener('click', (event) => {
-        const cell = event.target.closest('[data-ls-cell]');
-        if (cell) {
-          startCell = Number(cell.dataset.lsCell);
-          render();
-        } else if (event.target.closest('[data-ls-print]')) {
+        if (event.target.closest('[data-ls-print]')) {
           dialog.close();
-          resolve({ startCell });
+          resolve({});
         } else if (event.target.closest('[data-ls-change]')) {
           dialog.close();
           resolve({ changeLayout: true });
@@ -4655,7 +4601,6 @@ ${bodyHtml}
         resolve(null);
       });
       document.body.appendChild(dialog);
-      render();
       dialog.showModal();
     });
   }
@@ -4664,14 +4609,13 @@ ${bodyHtml}
     if (!items || !items.length) return;
     const settings = loadLabelSettings();
     const core = window.JdLabel;
-    if (settings.layout === 'D' || items.length > 1) {
+    if (items.length > 1) {
       const choice = await confirmBarcodePrint(items, settings);
       if (!choice) return;
       if (choice.changeLayout) {
         openLabelSettings();
         return;
       }
-      if (settings.layout === 'D') settings.startCell = choice.startCell;
     }
     openPrintWindow(
       core.barcodeDocument(items, settings, {
@@ -4679,13 +4623,6 @@ ${bodyHtml}
         documentTitle: 'Barcode labels',
       }),
     );
-    if (settings.layout === 'D') {
-      // The next print starts after the cells just used; a full sheet goes back to cell 1.
-      saveLabelSettings({
-        ...settings,
-        startCell: core.barcodePlan(items.length, settings).nextStartCell,
-      });
-    }
   }
 
   // The "Sticker cannot be printed yet" pop-up.
@@ -4760,7 +4697,7 @@ ${bodyHtml}
   }
 
   // The Label settings dialog, shared by Service job cards and Delivery + Installation.
-  // Four layouts with a live preview (the real label code rendered in a small frame).
+  // Three layouts with a live preview (the real label code rendered in a small frame).
   function openLabelSettings(options = {}) {
     const core = window.JdLabel;
     const dialog = document.createElement('dialog');
@@ -4785,12 +4722,6 @@ ${bodyHtml}
         'Barcodes only, one scan per job. Batch tag for a visit or delivery note.',
         'Zebra roll 100 \u00d7 150 mm',
       ],
-      [
-        'D',
-        'Barcode stickers on an A4 sheet',
-        '6 or 8 peel-off cells. Reuse a part-used sheet with Start at cell.',
-        'Office printer, A4 sticker sheet',
-      ],
     ];
     const glyph = {
       A: '<svg width="30" height="46" viewBox="0 0 30 46"><rect x="1" y="1" width="28" height="44" rx="3" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/><rect x="5" y="5" width="20" height="16" rx="1.5" fill="#cfd9e6"/><rect x="5" y="25" width="20" height="16" rx="1.5" fill="#cfd9e6"/></svg>',
@@ -4811,23 +4742,6 @@ ${bodyHtml}
                   '" y="' +
                   (10 + r * 13) +
                   '" width="10" height="2" fill="#102b4e" opacity=".5"/>',
-              )
-              .join(''),
-          )
-          .join('') +
-        '</svg>',
-      D:
-        '<svg width="34" height="46" viewBox="0 0 34 46"><rect x="1" y="1" width="32" height="44" rx="2" fill="#fff" stroke="#6b7c93" stroke-width="1.5"/>' +
-        [0, 1, 2, 3]
-          .map((r) =>
-            [0, 1]
-              .map(
-                (c) =>
-                  '<rect x="' +
-                  (4 + c * 14) +
-                  '" y="' +
-                  (4 + r * 10) +
-                  '" width="12" height="8" rx="1.5" fill="#cfd9e6" stroke="#8ea0b8" stroke-width=".7"/>',
               )
               .join(''),
           )
@@ -4882,20 +4796,6 @@ ${bodyHtml}
         'Only with 5 per label. One scan of the visit barcode lists every job of that visit. It prints when all the jobs belong to one walk-in visit (WI- reference).',
       ) +
       '</span><input type="checkbox" data-ls-visit></label><p class="ls-tip">The barcode holds the job number only. Scan a unit shows the details.</p></div>' +
-      '<div class="ls-extra" data-ls-extra="D"><div class="ls-field"><div class="ls-fl">Sheet type ' +
-      tipHtml(
-        'Match the sticker sheet you load: 6 cells of 99 \u00d7 93 mm or 8 cells of 99 \u00d7 68 mm on A4.',
-      ) +
-      '</div>' +
-      seg('sheetCells', [6, 8], settings.sheetCells, [
-        '6 per A4 (99 \u00d7 93)',
-        '8 per A4 (99 \u00d7 68)',
-      ]) +
-      '</div><div class="ls-field"><div class="ls-fl">Start at cell ' +
-      tipHtml(
-        'The next free cell of the sheet in the tray. It moves on after every print; press New sheet when you load a fresh sheet.',
-      ) +
-      '</div><div class="ls-cells" data-ls-cells></div><div class="ls-row"><button type="button" class="button button-outline ls-small" data-ls-newsheet>New sheet</button><span class="ls-hint">Remembered on this computer.</span></div></div><p class="ls-tip">Print on A4 at scale 100% with no browser margins. Load the sheet the same way each time.</p></div>' +
       '<div class="ls-shift"><label class="ls-field"><div class="ls-fl">Shift right ' +
       tipHtml(
         'Moves the whole print right, in millimetres. Negative moves it left. Use after a test print if the print sits off the label.',
@@ -4904,7 +4804,7 @@ ${bodyHtml}
       '<label class="ls-field"><div class="ls-fl">Shift down ' +
       tipHtml('Moves the whole print down, in millimetres. Negative moves it up.') +
       '</div><span class="ls-num"><input type="number" step="0.5" data-ls-y><i>mm (negative = up)</i></span></label></div></div>' +
-      '<div class="ls-side"><div class="ls-h">Preview</div><div class="ls-preview" data-ls-preview></div><p class="ls-hint">Simplified preview of the real print, first label or sheet only.</p></div></div>' +
+      '<div class="ls-side"><div class="ls-h">Preview</div><div class="ls-preview" data-ls-preview></div><p class="ls-hint">Simplified preview of the real print, first label only.</p></div></div>' +
       '<div class="ls-foot"><button type="button" class="button button-outline" data-ls-close>Close</button><button type="button" class="button button-outline" data-ls-test>Print a test label</button><button type="button" class="button button-primary" data-ls-save>Save</button></div>';
 
     const $d = (sel) => dialog.querySelector(sel);
@@ -4916,23 +4816,18 @@ ${bodyHtml}
     function drawPreview() {
       const s = read();
       const box = $d('[data-ls-preview]');
-      const isSheet = s.layout === 'D';
-      const widthPx = isSheet ? 794 : 378;
-      const heightPx = isSheet ? 1123 : s.layout === 'B' ? 283 : 567;
-      const scale = isSheet ? 0.3 : s.layout === 'B' ? 0.62 : 0.5;
+      const widthPx = 378;
+      const heightPx = s.layout === 'B' ? 283 : 567;
+      const scale = s.layout === 'B' ? 0.62 : 0.5;
       let html;
       if (isBarcodeLayout(s)) {
         const sample = core.testBarcodeItems(s);
-        html = core.barcodeDocument(
-          sample.slice(0, s.layout === 'D' ? sample.length : s.perLabel),
-          s,
-          {
-            title: 'JUMEIRAH COLLEGE (2)',
-            sub: '26 Nov 2026 \u00b7 ' + sample.length + ' units',
-            visitCode: 'WI-2026-00112',
-            footer: 'Sample customer \u00b7 26 Nov 2026',
-          },
-        );
+        html = core.barcodeDocument(sample.slice(0, s.perLabel), s, {
+          title: 'JUMEIRAH COLLEGE (2)',
+          sub: '26 Nov 2026 \u00b7 ' + sample.length + ' units',
+          visitCode: 'WI-2026-00112',
+          footer: 'Sample customer \u00b7 26 Nov 2026',
+        });
       } else {
         html = core.labelDocument([core.testItem()], s);
       }
@@ -4970,23 +4865,6 @@ ${bodyHtml}
       });
       $d('[data-ls-visit]').checked = settings.visitBarcode;
       $d('[data-ls-visit]').disabled = settings.perLabel !== 5;
-      $d('[data-ls-cells]').innerHTML = Array.from(
-        { length: settings.sheetCells },
-        (_, i) =>
-          '<button type="button" class="ls-cell' +
-          (i + 1 < settings.startCell
-            ? ' is-used'
-            : i + 1 === settings.startCell
-              ? ' is-next'
-              : '') +
-          '" data-ls-cell="' +
-          (i + 1) +
-          '">' +
-          (i + 1) +
-          '</button>',
-      ).join('');
-      $d('[data-ls-test]').textContent =
-        settings.layout === 'D' ? 'Print a test sheet' : 'Print a test label';
       drawPreview();
     }
     $d('[data-ls-x]').value = settings.offsetX;
@@ -5006,19 +4884,12 @@ ${bodyHtml}
     dialog.addEventListener('click', (event) => {
       const opt = event.target.closest('[data-ls-opt]');
       const segButton = event.target.closest('[data-ls-seg] button');
-      const cell = event.target.closest('[data-ls-cell]');
       if (opt) {
         settings = { ...read(), layout: opt.dataset.lsOpt };
         sync();
       } else if (segButton) {
         const name = segButton.closest('[data-ls-seg]').dataset.lsSeg;
         settings = normaliseLabelSettings({ ...read(), [name]: Number(segButton.dataset.v) });
-        sync();
-      } else if (cell) {
-        settings = { ...read(), startCell: Number(cell.dataset.lsCell) };
-        sync();
-      } else if (event.target.closest('[data-ls-newsheet]')) {
-        settings = { ...read(), startCell: 1 };
         sync();
       } else if (event.target.closest('[data-ls-save]')) {
         saveLabelSettings(read());
@@ -5577,7 +5448,7 @@ ${bodyHtml}
     );
   }
 
-  // Tick boxes on the job card list: print one barcode label (options C and D) or stickers for several job cards.
+  // Tick boxes on the job card list: print one barcode label (option C) or stickers for several job cards.
   const selectedJobCards = new Set();
   function updateJobCardSelection() {
     const bar = $('#jobCardSelBar');
@@ -5589,11 +5460,7 @@ ${bodyHtml}
       escapeHtml(labelOptionDetail(settings)) +
       '</span>';
     $('#jobCardSelPrint').textContent =
-      settings.layout === 'C'
-        ? 'Print barcode label'
-        : settings.layout === 'D'
-          ? 'Print barcode stickers'
-          : 'Print stickers';
+      settings.layout === 'C' ? 'Print barcode label' : 'Print stickers';
     const boxes = $$('#jobCardsBody [data-jc-select]');
     const all = $('#jobCardSelectAll');
     all.checked = boxes.length > 0 && boxes.every((box) => box.checked);

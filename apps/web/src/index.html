@@ -3816,7 +3816,6 @@
         box-shadow: 0 0 0 3px rgb(23 105 170 / 12%);
       }
       .ls-opt:focus-visible,
-      .ls-cell:focus-visible,
       .ls-seg button:focus-visible {
         outline: 2px solid var(--blue);
         outline-offset: 2px;
@@ -3967,39 +3966,6 @@
         font-style: normal;
         font-size: 0.72rem;
         color: var(--muted);
-      }
-      .ls-cells {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.4rem;
-      }
-      .ls-cell {
-        width: 34px;
-        height: 34px;
-        border-radius: 8px;
-        border: 1px solid #b9c8da;
-        background: #fff;
-        color: var(--navy);
-        font: inherit;
-        font-weight: 700;
-        cursor: pointer;
-      }
-      .ls-cell.is-used {
-        background: #eceff4;
-        color: #8a96a8;
-        border-color: #d3dae5;
-        text-decoration: line-through;
-      }
-      .ls-cell.is-on,
-      .ls-cell.is-next {
-        background: var(--navy);
-        border-color: var(--navy);
-        color: #fff;
-      }
-      .ls-row {
-        display: flex;
-        align-items: center;
-        gap: 0.7rem;
       }
       .ls-small {
         padding: 0.25rem 0.8rem;

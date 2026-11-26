@@ -53,18 +53,18 @@ const settings = (page: Page) =>
   page.evaluate(() => JSON.parse(localStorage.getItem('jdLabelSettings') || '{}'));
 
 test.describe('Label settings options A to D', () => {
-  test('choose option C or D, the settings are saved and shown as a badge', async ({ page }) => {
+  test('choose option C, the settings are saved and shown as a badge', async ({ page }) => {
     await signIn(page);
     await page.locator('#jobCardsNav').dispatchEvent('click');
     await page.locator('#jobCardsLabelSettingsButton').click();
     const dialog = page.locator('dialog.ls-dialog');
     await expect(dialog).toBeVisible();
-    await expect(dialog.locator('[data-ls-opt]')).toHaveCount(4);
+    await expect(dialog.locator('[data-ls-opt]')).toHaveCount(3);
     await expect(dialog.locator('[data-ls-opt="A"]')).toHaveClass(/is-on/);
 
     await dialog.locator('[data-ls-opt="C"]').click();
     await expect(dialog.locator('[data-ls-extra="C"]')).toBeVisible();
-    await expect(dialog.locator('[data-ls-extra="D"]')).toBeHidden();
+    await expect(dialog.locator('[data-ls-opt="D"]')).toHaveCount(0);
     await dialog.locator('[data-ls-seg="perLabel"] button[data-v="8"]').click();
     await expect(dialog.locator('[data-ls-visit]')).toBeDisabled();
     await dialog.locator('[data-ls-save]').click();
@@ -72,18 +72,17 @@ test.describe('Label settings options A to D', () => {
     await expect(page.locator('#jobCardsLabelSettingsButton .ls-badge')).toHaveText('C');
     await expect(page.locator('#printUnitStickerButton')).toHaveText('Print barcode');
 
-    await page.locator('#jobCardsLabelSettingsButton').click();
-    await dialog.locator('[data-ls-opt="D"]').click();
-    await expect(dialog.locator('[data-ls-extra="D"]')).toBeVisible();
-    await dialog.locator('[data-ls-seg="sheetCells"] button[data-v="6"]').click();
-    await dialog.locator('[data-ls-cell="3"]').click();
-    await dialog.locator('[data-ls-save]').click();
-    expect(await settings(page)).toMatchObject({ layout: 'D', sheetCells: 6, startCell: 3 });
+    // A browser that still has the removed option D saved uses C.
+    await page.evaluate(() =>
+      localStorage.setItem('jdLabelSettings', JSON.stringify({ layout: 'D', sheetCells: 6 })),
+    );
+    await page.reload();
+    await expect(page.locator('#staff-workspace')).toBeVisible();
+    await page.locator('#jobCardsNav').dispatchEvent('click');
+    await expect(page.locator('#jobCardsLabelSettingsButton .ls-badge')).toHaveText('C');
   });
 
-  test('tick job cards and print a barcode label (C), then a sheet from the start cell (D)', async ({
-    page,
-  }) => {
+  test('tick job cards and print a barcode label (C)', async ({ page }) => {
     await signIn(page);
     await page.evaluate(() =>
       localStorage.setItem(
@@ -111,25 +110,5 @@ test.describe('Label settings options A to D', () => {
     expect((html.match(/class="bc-cell"/g) || []).length).toBe(3);
     expect(html).toContain('JBC-2026-00301');
     await popup.close();
-
-    // Option D: choose the start cell in the pop-up; the next print continues after it.
-    await page.evaluate(() =>
-      localStorage.setItem('jdLabelSettings', JSON.stringify({ layout: 'D', sheetCells: 8 })),
-    );
-    await page.reload();
-    await expect(page.locator('#staff-workspace')).toBeVisible();
-    await page.locator('#jobCardsNav').dispatchEvent('click');
-    await expect(page.locator('#jobCardsBody [data-jc-select]')).toHaveCount(3);
-    await page.locator('#jobCardSelectAll').check();
-    await expect(page.locator('#jobCardSelPrint')).toHaveText('Print barcode stickers');
-    await page.locator('#jobCardSelPrint').click();
-    await expect(confirm).toContainText('A4');
-    await confirm.locator('[data-ls-cell="4"]').click();
-    await expect(confirm.locator('[data-ls-fill]')).toContainText('cells 4 to 6');
-    const popup2Promise = page.waitForEvent('popup');
-    await confirm.locator('[data-ls-print]').click();
-    const popup2 = await popup2Promise;
-    await expect.poll(() => popup2.content()).toContain('sh-cell');
-    expect(await settings(page)).toMatchObject({ layout: 'D', startCell: 7 });
   });
 });

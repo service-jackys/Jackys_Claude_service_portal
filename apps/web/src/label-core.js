@@ -8,9 +8,8 @@
  *  - labelDocument(items, settings): the full printable page(s).
  *      layout 'A': 4 x 6 in label (100 x 150 mm), two stickers per label (unit copy + customer copy)
  *      layout 'B': 100 x 75 mm label, one sticker per label
- *  - barcodeDocument(items, settings, ctx): barcode-only pages (modification #320).
+ *  - barcodeDocument(items, settings, ctx): barcode-only pages (modification #320; the A4 sheet option D was removed in #322).
  *      layout 'C': 4 x 6 in label with 5 rows (+ visit barcode), 6 or 8 cells
- *      layout 'D': A4 sticker sheet, 6 or 8 cells, first cell = settings.startCell
  *    Barcodes use the compact keys (compactJob / compactVisit / compactUnit, parseCompact reads them back).
  * Kinds: 'repair' (a service job card), 'install' (a Delivery & Installation unit).
  */
@@ -56,7 +55,7 @@
 
   // Symbol values of a Code 128 barcode. Set B only by default (A and B stickers stay as they are);
   // with compact = true runs of 4 or more digits use set C (two digits per symbol), which is what
-  // lets the barcode label (options C and D) keep 3-dot bars.
+  // lets the barcode label (option C) keep 3-dot bars.
   function code128Values(text, compact) {
     var s = printable(text);
     var values = [];
@@ -349,7 +348,7 @@
     );
   }
 
-  // ---- Compact barcode keys (options C and D). Digits only, so Code 128 set C keeps 3-dot bars.
+  // ---- Compact barcode keys (option C). Digits only, so Code 128 set C keeps 3-dot bars.
   //   JBC-2026-00301 -> J26000301   WI-2026-00112 -> V26000112   delivery note 16101431 unit 1 -> 1610143101
   // Scan a unit reads these and the long forms printed on the A and B stickers.
   function pad(value, width) {
@@ -433,27 +432,15 @@
     };
   }
 
-  // How many labels / sheets and which cell is next free after printing count barcodes.
+  // How many labels count barcodes need.
   function barcodePlan(count, settings) {
-    settings = settings || {};
-    var cells = barcodeCells(settings);
-    var start = settings.layout === 'D' ? barcodeStart(settings, cells) : 1;
-    var used = start - 1 + Math.max(0, Number(count) || 0);
-    return {
-      cellsPerPage: cells,
-      startCell: start,
-      pages: Math.max(1, Math.ceil(used / cells)),
-      nextStartCell: (used % cells) + 1,
-    };
+    var cells = barcodeCells(settings || {});
+    var jobs = Math.max(0, Number(count) || 0);
+    return { cellsPerPage: cells, pages: Math.max(1, Math.ceil(jobs / cells)) };
   }
   function barcodeCells(settings) {
-    if (settings.layout === 'D') return Number(settings.sheetCells) === 6 ? 6 : 8;
     var n = Number(settings.perLabel);
     return n === 5 || n === 8 ? n : 6;
-  }
-  function barcodeStart(settings, cells) {
-    var s = Math.floor(Number(settings.startCell) || 1);
-    return s >= 1 && s <= cells ? s : 1;
   }
 
   var BCSS =
@@ -469,11 +456,7 @@
     '.bc-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;border-bottom:0.25mm dashed #666;padding:0 1mm;overflow:hidden}' +
     '.bc-cell:nth-child(odd){border-right:0.25mm dashed #666}' +
     '.bc-n{font-size:4mm;font-weight:700;margin-top:1mm;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}.bc-l{font-size:3.2mm;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}.bc-l3{font-size:3mm;font-weight:700;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}' +
-    '.bc-ft{height:8mm;display:flex;align-items:flex-end;font-weight:700;font-size:2.5mm;padding-top:1mm;overflow:hidden;white-space:nowrap}' +
-    '.sh-in{position:absolute;display:grid;grid-template-columns:99mm 99mm}' +
-    '.sh-cell{display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden}' +
-    '.sh-cell.test{outline:0.3mm dashed #777;outline-offset:-0.3mm}' +
-    '.sh-n{font-size:5mm;font-weight:700;margin-top:1.5mm;white-space:nowrap}.sh-l{font-size:4mm;font-weight:700;white-space:nowrap}.sh-l3{font-size:3.6mm;font-weight:700;white-space:nowrap}';
+    '.bc-ft{height:8mm;display:flex;align-items:flex-end;font-weight:700;font-size:2.5mm;padding-top:1mm;overflow:hidden;white-space:nowrap}';
 
   function entryCell(e, cls, barMm, maxMm, nCls, l2Cls, l3Cls) {
     return (
@@ -497,23 +480,18 @@
     );
   }
 
-  // The printable pages for options C and D.
-  //   C: Zebra 4 x 6 in label, 5 rows (+ visit barcode in the header), 6 or 8 cells.
-  //   D: A4 sticker sheet, 6 or 8 cells, first used cell = settings.startCell.
+  // The printable pages for option C: Zebra 4 x 6 in label, 5 rows (+ visit barcode in the header), 6 or 8 cells.
   // ctx: { title, sub, visitCode (long WI- reference, optional), footer, test (draw cell outlines) }
   function barcodeDocument(items, settings, ctx) {
     settings = settings || {};
     ctx = ctx || {};
-    var layout = settings.layout === 'D' ? 'D' : 'C';
     var dx = Number(settings.offsetX) || 0;
     var dy = Number(settings.offsetY) || 0;
     var cells = barcodeCells(settings);
     var entries = (items || []).map(barcodeEntry);
     var pages = '';
     var i;
-    var pageW = layout === 'D' ? 210 : 100;
-    var pageH = layout === 'D' ? 297 : 150;
-    if (layout === 'C') {
+    {
       for (i = 0; i < entries.length || i === 0; i += cells) {
         var chunk = entries.slice(i, i + cells);
         var inner = '';
@@ -575,52 +553,12 @@
           '</div></div>';
         if (!entries.length) break;
       }
-    } else {
-      var cellH = cells === 6 ? 93 : 68;
-      var topMm = (297 - cellH * (cells / 2)) / 2;
-      var first = barcodeStart(settings, cells) - 1;
-      var slots = [];
-      for (i = 0; i < first; i++) slots.push(null);
-      entries.forEach(function (e) {
-        slots.push(e);
-      });
-      var pageCount = Math.max(1, Math.ceil(slots.length / cells));
-      for (var p = 0; p < pageCount; p++) {
-        var body = '';
-        for (var c = 0; c < cells; c++) {
-          var e2 = slots[p * cells + c];
-          var cellStyle = 'width:99mm;height:' + cellH + 'mm';
-          body += e2
-            ? entryCell(
-                e2,
-                'sh-cell' + (ctx.test ? ' test' : ''),
-                cells === 6 ? 22 : 18,
-                70,
-                'sh-n',
-                'sh-l',
-                'sh-l3',
-              ).replace('class=', 'style="' + cellStyle + '" class=')
-            : '<div class="sh-cell' +
-              (ctx.test ? ' test' : '') +
-              '" style="' +
-              cellStyle +
-              '"></div>';
-        }
-        pages +=
-          '<div class="bc-page" style="width:210mm;height:297mm"><div class="sh-in" style="left:' +
-          (6 + dx) +
-          'mm;top:' +
-          (topMm + dy) +
-          'mm">' +
-          body +
-          '</div></div>';
-      }
     }
     return (
       '<!doctype html><html><head><meta charset="utf-8"><title>' +
       esc(ctx.documentTitle || 'Barcode labels') +
       '</title><style>@page{size:' +
-      (layout === 'D' ? 'A4' : '100mm 150mm') +
+      '100mm 150mm' +
       ';margin:0}' +
       BCSS +
       '</style></head><body>' +
@@ -629,7 +567,7 @@
     );
   }
 
-  // Sample jobs for "Print a test label / sheet" in Label settings.
+  // Sample jobs for "Print a test label" in Label settings.
   function testBarcodeItems(settings) {
     var n = barcodeCells(settings || {});
     var out = [];
