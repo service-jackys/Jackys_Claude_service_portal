@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 330,
+    "title": "Rate card simplified to three tabs: Rates, Fridge pricing, Portal overrides",
+    "area": "Pricing & rates",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Rate card tab.",
+    "changes": [
+      "What changed: The five tabs become three, named after what management asks. Rates keeps the price list and gains a banner \"Override active: older locked rows are re-priced at current rates\" with the AED effect and a link to the lines.…"
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, tests/e2e/fridge-logic-switch.spec.ts, modification.md, apps/api/src/changelog/changelog-data.ts."
+  },
+  {
     "id": 329,
     "title": "Rate card: \"saved\" message shown inside the open tab, tier basis in the key figures",
     "area": "Pricing & rates",

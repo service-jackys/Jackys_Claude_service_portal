@@ -31144,6 +31144,19 @@ ${bodyHtml}
           '</div></div>';
       }
       html += '<!--SEC:rates-->';
+      if (data.repriceEffect && data.fridgeLogic && data.fridgeLogic.repriceOlder && !editing) {
+        const ro = data.repriceEffect;
+        if (ro.lines)
+          html +=
+            '<div class="rc-ovr"><span><i>Override active</i> Older locked rows are re-priced at current rates: <b class="' +
+            (ro.change < 0 ? 'neg' : ro.change > 0 ? 'pos' : '') +
+            '">' +
+            (ro.change > 0 ? '+' : ro.change < 0 ? '\u2212' : '') +
+            rdMoney2(Math.abs(ro.change)) +
+            '</b> on ' +
+            ro.lines +
+            ' lines.</span><a href="#" data-rc-goto="older">See the lines &rarr;</a></div>';
+      }
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
       if (data.active && !editing)
@@ -31321,14 +31334,22 @@ ${bodyHtml}
       const bits = html.split(/<!--SEC:(\w+)-->/);
       const sections = { top: bits[0] };
       for (let i = 1; i < bits.length; i += 2) sections[bits[i]] = bits[i + 1];
+      // The installation-only discount basis is an admin rule set once: it lives in a fold under Portal overrides.
+      if (sections.tiers) {
+        sections.older =
+          (sections.older || '') +
+          '<details class="rc-adv"><summary>Advanced rule (admin only): installation-only discount basis</summary>' +
+          sections.tiers +
+          '</details>';
+        delete sections.tiers;
+      }
       if (editing || !sections[tab]) tab = 'rates';
       const tabs = [
         ['rates', 'Rates', ''],
         ['fridge', 'Fridge pricing', ''],
-        ['tiers', 'Discount tiers', ''],
         [
           'older',
-          'Older rows',
+          'Portal overrides',
           data.repriceEffect && data.repriceEffect.lines
             ? '<i>' + data.repriceEffect.lines + ' lines</i>'
             : '',
@@ -31418,6 +31439,13 @@ ${bodyHtml}
     };
 
     const wire = () => {
+      host.querySelectorAll('[data-rc-goto]').forEach((a) =>
+        a.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          tab = a.getAttribute('data-rc-goto');
+          draw();
+        }),
+      );
       host.querySelectorAll('[data-rc-tab]').forEach((b) =>
         b.addEventListener('click', () => {
           tab = b.getAttribute('data-rc-tab');

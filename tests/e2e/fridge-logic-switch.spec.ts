@@ -220,7 +220,11 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
       saves.push(body);
       return json({
         ...card(true, 92777),
-        fridgeLogic: { ...card(true, 1).fridgeLogic, installTierBasis: body.installTierBasis },
+        fridgeLogic: {
+          ...card(true, 1).fridgeLogic,
+          installTierBasis: body.installTierBasis,
+          repriceOlder: body.repriceOlder,
+        },
       });
     }
     if (url.pathname === '/api/revenue-dashboard/logic') return json(logicFixture);
@@ -251,7 +255,8 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.evaluate(() => document.getElementById('revenueDashNav')?.click());
   await page.locator('.rd-subtab-btn', { hasText: 'Rate card' }).click();
-  await page.getByRole('tab', { name: 'Discount tiers' }).click();
+  await page.getByRole('tab', { name: /Portal overrides/ }).click();
+  await page.getByText('Advanced rule (admin only)').click();
   await expect(page.getByText('Installation-only (CSIII) discount tiers')).toBeVisible();
   await expect(page.getByLabel(/Whole invoice \(portal rule\)/)).toBeChecked();
   await expect(page.getByText('8,060.75')).toBeVisible();
@@ -265,7 +270,7 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
     enabled: true,
   });
   // Modification #327: the re-price switch lists the older rows and saves the choice.
-  await page.getByRole('tab', { name: /Older rows/ }).click();
+  await page.getByRole('tab', { name: /Portal overrides/ }).click();
   await expect(page.getByText('Older rows (booked at older rates)')).toBeVisible();
   await expect(page.getByLabel(/As booked \(workbook\)/)).toBeChecked();
   await expect(page.locator('[data-rp-box]').getByText('983.00').first()).toBeVisible();
@@ -274,6 +279,10 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
   await page.locator('[data-rp-save]').click();
   await expect(page.getByText(/Older rows are now re-priced at current rates/)).toBeVisible();
   expect(saves[1]).toMatchObject({ repriceOlder: true, smallBase: 30 });
+  // Simplified layout: three tabs, and the Rates tab points at the active override.
+  await expect(page.getByRole('tab', { name: 'Discount tiers' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'Rates', exact: true }).click();
+  await expect(page.getByText('Override active')).toBeVisible();
 });
 
 test('Logic applied shows the portal figure, capacity and the workbook figure beside each line', async ({

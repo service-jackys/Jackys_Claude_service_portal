@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #330 — Rate card simplified to three tabs: Rates, Fridge pricing, Portal overrides
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — pull and hard-refresh (frontend only). No migration, no API restart.
+- **Scope:** Service Revenue dashboard, Rate card tab.
+
+**What changed.** The five tabs become three, named after what management asks. **Rates** keeps the price list and gains a banner "Override active: older locked rows are re-priced at current rates" with the AED effect and a link to the lines. **Fridge pricing** is unchanged. **Portal overrides** (formerly Older rows) holds the re-price switch and the list of every line that changes. The installation-only discount basis (formerly the Discount tiers tab) moves into a fold "Advanced rule (admin only)" at the bottom of Portal overrides, with its figures and Update tier basis button unchanged. The Impact tab is unchanged. No rate, switch or revenue logic changed.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, tests/e2e/fridge-logic-switch.spec.ts, modification.md, apps/api/src/changelog/changelog-data.ts.
+
 ## Modification #329 — Rate card: "saved" message shown inside the open tab, tier basis in the key figures
 
 - **Date:** 2026-11-27
