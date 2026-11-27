@@ -38,6 +38,23 @@ const card = (enabled: boolean, portal: number) => ({
     optionB: true,
     plugAmount: 15,
     installTierBasis: 'invoice',
+    repriceOlder: false,
+  },
+  repriceEffect: {
+    lines: 29,
+    units: 52,
+    change: -983,
+    rows: [
+      {
+        month: 202607,
+        category: 'Freestanding Cooker',
+        lines: 5,
+        units: 9,
+        asBooked: 720,
+        current: 571,
+        change: -149,
+      },
+    ],
   },
   tierEffect: { lines: 40, differing: 20, workbook: 8995, invoice: 8060.75, line: 8561.75 },
   figures: { workbook: 93617, portal },
@@ -230,6 +247,14 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
     plugAmount: 15,
     enabled: true,
   });
+  // Modification #327: the re-price switch lists the older rows and saves the choice.
+  await expect(page.getByText('Older rows (booked at older rates)')).toBeVisible();
+  await expect(page.getByLabel(/As booked \(workbook\)/)).toBeChecked();
+  await expect(page.locator('[data-rp-box]').getByText('983.00')).toBeVisible();
+  await page.getByLabel(/Current rates/).check();
+  await page.locator('[data-rp-save]').click();
+  await expect(page.getByText(/Older rows are now re-priced at current rates/)).toBeVisible();
+  expect(saves[1]).toMatchObject({ repriceOlder: true, smallBase: 30 });
 });
 
 test('Logic applied shows the portal figure, capacity and the workbook figure beside each line', async ({

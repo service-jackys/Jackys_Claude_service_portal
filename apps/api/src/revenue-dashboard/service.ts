@@ -1204,6 +1204,7 @@ export function createRevenueDashboardService(pool: Pool) {
     return {
       inputs: {
         installTierBasis: tierBasis,
+        repriceOlder: (await getFridgeLogic(client)).repriceOlder,
         lines,
         transportLines,
         sheetRows,
@@ -1644,6 +1645,68 @@ export function createRevenueDashboardService(pool: Pool) {
     return { lines, differing, workbook: r(workbook), invoice: r(invoice), line: r(line) };
   }
 
+  // What "Re-price older rows at current rates" does (modification #327): the older locked rows, before and after.
+  async function repriceEffect(
+    client: PoolClient,
+    batchId: string,
+    inputs: Awaited<ReturnType<typeof loadRevenueInputs>>['inputs'],
+    base: PricingRules,
+    custom: RateSet | null,
+  ) {
+    const fridgeSettings = await getFridgeLogic(client);
+    const rates = custom ?? ratesOf(base);
+    const ctx = fridgeSettings.enabled ? await fridgeContext(client, batchId, inputs) : null;
+    const run = (repriceOlder: boolean) => {
+      const inp = { ...inputs, repriceOlder };
+      return ctx
+        ? fridgeRevenue(inp, base, rates, fridgeSettings, ctx.lookup, ctx.plugQty).revenue
+        : computeRevenue(inp, base, custom ? overlayRates(base, custom) : base).revenue;
+    };
+    const asBooked = run(false);
+    const current = run(true);
+    const rows = new Map<
+      string,
+      {
+        month: number;
+        category: string;
+        lines: number;
+        units: number;
+        asBooked: number;
+        current: number;
+      }
+    >();
+    for (const l of inputs.lines) {
+      const a = asBooked.get(l.id) ?? l.workbookRevenue;
+      const b = current.get(l.id) ?? l.workbookRevenue;
+      if (Math.abs(a - b) < 0.005) continue;
+      const category =
+        (l.pricing as { applianceCategory?: string | null } | null)?.applianceCategory ?? 'Other';
+      const month = (l.year ?? 0) * 100 + (l.monthNo ?? 0);
+      const key = `${month}|${category}`;
+      const row = rows.get(key) ?? { month, category, lines: 0, units: 0, asBooked: 0, current: 0 };
+      row.lines += 1;
+      row.units += l.qty;
+      row.asBooked += a;
+      row.current += b;
+      rows.set(key, row);
+    }
+    const r2 = (v: number) => Math.round(v * 100) / 100;
+    const list = Array.from(rows.values())
+      .sort((x, y) => x.month - y.month || x.category.localeCompare(y.category))
+      .map((x) => ({
+        ...x,
+        asBooked: r2(x.asBooked),
+        current: r2(x.current),
+        change: r2(x.current - x.asBooked),
+      }));
+    return {
+      lines: list.reduce((n, x) => n + x.lines, 0),
+      units: list.reduce((n, x) => n + x.units, 0),
+      change: r2(list.reduce((n, x) => n + x.change, 0)),
+      rows: list,
+    };
+  }
+
   async function rateCard() {
     const client = await pool.connect();
     try {
@@ -1665,6 +1728,7 @@ export function createRevenueDashboardService(pool: Pool) {
       return {
         fridgeLogic,
         tierEffect: await tierBasisEffect(client, String(batch.id), inputs, base, custom),
+        repriceEffect: await repriceEffect(client, String(batch.id), inputs, base, custom),
         figures: {
           workbook: r2t(tot.rows[0]?.workbook ?? '0'),
           portal: r2t(tot.rows[0]?.portal ?? '0'),
@@ -1778,6 +1842,7 @@ export function createRevenueDashboardService(pool: Pool) {
     optionB: z.boolean(),
     plugAmount: rate,
     installTierBasis: z.enum(['invoice', 'line']).default('invoice'),
+    repriceOlder: z.boolean().default(false),
   });
 
   async function savedFridge(client: PoolClient) {
@@ -1789,6 +1854,7 @@ export function createRevenueDashboardService(pool: Pool) {
       optionB: f.optionB,
       plugAmount: f.plugAmount,
       installTierBasis: f.installTierBasis,
+      repriceOlder: f.repriceOlder,
     };
   }
 

@@ -163,3 +163,42 @@ test('installation-only tiers: lines skipped for the fridge logic keep their fig
   assert.equal(r.get('c'), 66.5);
   assert.equal(r.get('f'), 60);
 });
+
+// Re-price older rows at current rates (modification #327).
+test('re-price older rows: a cooker booked at 90 is rebuilt at the current rate; live and fridge rows are left alone', () => {
+  const v3 = { ...base, logicVersion: 3 as const };
+  const mk = (id: string, source: string, category: string, wb: number): RateLine =>
+    ({
+      ...installLine(id, id, 1, wb, category),
+      pricing: {
+        applianceCategory: category,
+        crewSize: 2,
+        city: 'DUBAI',
+        sourceName: source,
+        invoiceCsidiQty: 1,
+        before: { revenue: null, transport: null },
+      },
+    }) as unknown as RateLine;
+  const lines = [
+    mk('old', 'Locked history', 'Freestanding Cooker', 90),
+    mk('live', 'Net Sale Current (Live Feed)', 'Freestanding Cooker', 90),
+    mk('fr', 'Locked history', 'Freestanding Refrigerator', 90),
+  ];
+  const mkIn = (repriceOlder: boolean) => ({
+    lines,
+    transportLines: [],
+    sheetRows: [],
+    transportRules: noTransport,
+    repriceOlder,
+  });
+  const rules = overlayRates(v3, ratesOf(v3));
+  const off = computeRevenue(mkIn(false), v3, rules).revenue;
+  assert.equal(off.get('old'), 90);
+  const on = computeRevenue(mkIn(true), v3, rules, { skipTier: new Set(['fr']) }).revenue;
+  const rebuilt = on.get('old')!;
+  assert.notEqual(rebuilt, 90);
+  assert.equal(on.get('live'), 90);
+  assert.equal(on.get('fr'), 90);
+  // Switching it off again gives back exactly the workbook figure.
+  assert.equal(computeRevenue(mkIn(false), v3, rules).revenue.get('old'), 90);
+});
