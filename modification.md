@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #329 — Rate card: "saved" message shown inside the open tab, tier basis in the key figures
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — pull and hard-refresh (frontend only). No migration, no API restart.
+- **Scope:** Service Revenue dashboard, Rate card tab.
+
+**What changed.** Clicking "Update tier basis" (and the other save buttons) did save, but the confirmation, or an error, was drawn above the tabs and was out of sight on a scrolled page, so it looked as if nothing happened. The message now appears at the top of the open tab and scrolls into view. The key-figure strip gains **Install tiers** (Whole invoice / Each line) so the saved choice is always visible. The three figures inside the Discount tiers card compare both options on purpose and do not change when the choice is saved.
+
+**Files.** apps/web/src/app.js, modification.md, apps/api/src/changelog/changelog-data.ts.
+
 ## Modification #328 — Rate card page: key figures, section tabs, tooltips and the line list for older rows
 
 - **Date:** 2026-11-27
