@@ -3568,6 +3568,12 @@
         margin-top: 2px;
         font-size: 12px;
         color: #92400e;
+        /* The cell is right-aligned and does not wrap; a long note must wrap inside it. */
+        white-space: normal;
+        text-align: left;
+        max-width: 26rem;
+        margin-left: auto;
+        line-height: 1.4;
       }
       .rl-example + .rl-example {
         margin-top: 14px;
@@ -19692,10 +19698,11 @@
                   <h4 id="categoryMappingHeading">Delivery &amp; installation categories</h4>
                   <p class="form-note">
                     Tick Installable for item groups that are delivered and installed (fridge,
-                    washing machine, cooker, freestanding dishwasher) and choose the pricing category its rates come from.
-                    Any group not listed here is treated as delivery only (CSIDO), so you do not
-                    need to link it. Link a group only if it can be installed (for example air
-                    conditioners), so it can be priced as Delivery + Installation.
+                    washing machine, cooker, freestanding dishwasher) and choose the pricing
+                    category its rates come from. Any group not listed here is treated as delivery
+                    only (CSIDO), so you do not need to link it. Link a group only if it can be
+                    installed (for example air conditioners), so it can be priced as Delivery +
+                    Installation.
                   </p>
                   <div class="table-wrap">
                     <table>

@@ -5205,6 +5205,22 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #326 — One fridge on an invoice of 2 or more units pays the batch rate
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — needs pull, API restart, hard-refresh, then Save & recalculate in the Rate card (no migration)
+- **Scope:** Service Revenue dashboard, D+I Billing engine / New job, D+I Quote Calculator
+
+**The rule.** Fridges used to be counted per size group only, so a single fridge on an invoice with other appliances was charged the market rate (100). Now the invoice total decides, as for every other category: a fridge that is the only unit on the invoice (per invoice number and job type, CSIDI and CSIII counted separately) pays the market rate (installation only 60); when the invoice has 2 or more units in total, one fridge pays the batch rate (400 L and under: base 30, minimum 20; over 400 L: special 60), still with no discount tiers. Separate invoice numbers are never combined.
+
+**What changed.**
+
+- groupLabour (dashboard) and fridgeGroupLabour (calculator) take the invoice total; the billing engine passes the CSIDI or CSIII total. The three implementations stay identical.
+- Rate card, Pricing Masters help, fridge tips, Logic applied examples, Ask AI and export notes use the invoice-total wording.
+- Layout: the long "Workbook shows" note in Logic applied now wraps inside its cell.
+- Examples: invoice 16101581 portal 430 to 360, invoice 16101582 247 to 177. Expected portal total about AED 2,770 lower.
+
+**Files.** apps/api/src/revenue-dashboard/fridge-scenario.ts, apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/ai/workbook.ts, apps/api/src/revenue-dashboard/export.ts, tests (fridge-scenario, pricing engine, calc-core).
 ## Modification #325 — Dishwasher row in the Service Revenue Dashboard Rate card and Scenario test
 
 **Date:** 2026-11-27

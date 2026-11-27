@@ -21,6 +21,7 @@ const core = mod.exports as {
     large: boolean,
     rates: unknown,
     f: unknown,
+    noteUnits?: number,
   ): { total: number; rule: string };
 };
 
@@ -390,9 +391,24 @@ test('new fridge logic: group prices, no discount tiers, plug on top', () => {
   close(r.averagePerUnit, (r.totalCharge - 30) / 8);
 });
 
-test('new fridge logic: one fridge is market, above 10 uses the second tier (Option B)', () => {
+test('new fridge logic: a lone fridge is market, one fridge on a multi-unit note is batch (#326)', () => {
+  const alone = core.compute(cfg, { ...nbase, fridgeLogic: fl, qty: q({ fridge: 1 }) });
+  close(alone.lines.find((l: any) => l.key === 'fridge').lineTotal, 100);
   const one = core.compute(cfg, { ...nbase, fridgeLogic: fl, qty: q({ fridge: 1, washer: 1 }) });
-  close(one.lines.find((l: any) => l.key === 'fridge').lineTotal, 100);
+  close(one.lines.find((l: any) => l.key === 'fridge').lineTotal, 30);
+  const big = core.compute(cfg, {
+    ...nbase,
+    fridgeLogic: fl,
+    qty: q({ fridgeLarge: 1, cooker: 1 }),
+  });
+  close(big.lines.find((l: any) => l.key === 'fridgeLarge').lineTotal, 60);
+  const both = core.compute(cfg, {
+    ...nbase,
+    fridgeLogic: fl,
+    qty: q({ fridge: 1, fridgeLarge: 1 }),
+  });
+  close(both.lines.find((l: any) => l.key === 'fridge').lineTotal, 30);
+  close(both.lines.find((l: any) => l.key === 'fridgeLarge').lineTotal, 60);
   const many = core.compute(cfg, {
     ...nbase,
     plannedTrips: 2,
@@ -440,6 +456,13 @@ test('calculator fridge group rule equals the dashboard and billing rule', () =>
         const a = core.fridgeGroupLabour(n, large, rates, s).total;
         const b = groupLabour(n, large, rates, s).total;
         close(a, b);
+        // the same with a note of several units around the group
+        for (const note of [n, n + 1, n + 5]) {
+          close(
+            core.fridgeGroupLabour(n, large, rates, s, note).total,
+            groupLabour(n, large, rates, s, note).total,
+          );
+        }
       }
     }
   }

@@ -15,6 +15,24 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 326,
+    "title": "One fridge on an invoice of 2 or more units pays the batch rate",
+    "area": "Invoices & billing",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, D+I Billing engine / New job, D+I Quote Calculator",
+    "changes": [
+      "groupLabour (dashboard) and fridgeGroupLabour (calculator) take the invoice total; the billing engine passes the CSIDI or CSIII total. The three implementations stay identical.",
+      "Rate card, Pricing Masters help, fridge tips, Logic applied examples, Ask AI and export notes use the invoice-total wording.",
+      "Layout: the long \"Workbook shows\" note in Logic applied now wraps inside its cell.",
+      "Examples: invoice 16101581 portal 430 to 360, invoice 16101582 247 to 177. Expected portal total about AED 2,770 lower."
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "apps/api/src/revenue-dashboard/fridge-scenario.ts, apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html…"
+  },
+  {
     "id": 325,
     "title": "Dishwasher row in the Service Revenue Dashboard Rate card and Scenario test",
     "area": "Revenue",

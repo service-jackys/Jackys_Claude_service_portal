@@ -448,3 +448,35 @@ test('an unmapped dishwasher group still cannot be installed; a not installable 
   });
   assert.equal(builtIn.ok, false);
 });
+
+// --- One fridge on a note of several units takes the batch rate (modification #326) ------------------
+test('fridge: the only unit on the note is the market rate; with another unit it is the batch rate', () => {
+  assert.equal(newPrice([fridge(1, 350)]).lines[0]!.labour, 100);
+  const small = newPrice([di(1, WASHER), fridge(1, 350)]);
+  assert.equal(small.lines[1]!.labour, 30); // 400 L and under: base rate
+  assert.match(small.lines[1]!.note, /1 fridge on an invoice of 2 units/);
+  assert.equal(newPrice([di(1, COOKER), fridge(1, 500)]).lines[1]!.labour, 60); // over 400 L: special
+});
+
+test('fridge: 5 washers + 1 fridge, Dubai (invoice 16101581): 5 x 54, fridge 30, one transport 60', () => {
+  const r = newPrice([di(5, WASHER), fridge(1, 350)]);
+  assert.equal(r.lines[0]!.netRate, 54);
+  assert.equal(r.lines[1]!.labour, 30);
+  assert.equal(r.totals.total, 5 * 54 + 30 + 60);
+});
+
+test('fridge: a small and a large fridge together are each batch lines', () => {
+  const r = newPrice([fridge(1, 350), fridge(1, 500)]);
+  assert.equal(r.lines[0]!.labour, 30);
+  assert.equal(r.lines[1]!.labour, 60);
+});
+
+test('fridge: installation only follows the same test on the installation total', () => {
+  const alone = newPrice([fridge(1, 350, 'CSIII')]);
+  assert.equal(alone.lines[0]!.labour, 60); // market rate of the installation master
+  const withOther = newPrice([{ ...di(1, WASHER), type: 'CSIII' }, fridge(1, 350, 'CSIII')]);
+  assert.equal(withOther.lines[1]!.labour, 30);
+  // a CSIDI washer does not make a CSIII fridge a batch line
+  const mixed = newPrice([di(1, WASHER), fridge(1, 350, 'CSIII')]);
+  assert.equal(mixed.lines[1]!.labour, 60);
+});
