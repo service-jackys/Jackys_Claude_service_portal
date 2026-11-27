@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 332,
+    "title": "Overview top card: Excel figure, portal figure and the difference",
+    "area": "Portal look & feel",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Overview tab (replaces the small tag of #331 with a full card).",
+    "changes": [
+      "What changed: A wide card at the top of the Overview shows Total revenue (the portal figure) with three boxes: Excel (locked), Portal and Difference (AED and %), two bars comparing Excel and Portal, and Where the difference comes from…"
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "packages/db/src/revenue-dashboard.ts (summary totals gain workbookRevenue), apps/web/src/app.js, apps/web/src/index.html, tests/e2e/overview-excel-vs-portal.spec.ts, modification.md…"
+  },
+  {
     "id": 331,
     "title": "Overview \"Total revenue\" card says it is the portal figure",
     "area": "Revenue",

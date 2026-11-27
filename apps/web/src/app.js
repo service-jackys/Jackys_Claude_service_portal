@@ -33115,42 +33115,175 @@ ${bodyHtml}
 
     // ---------------------------------------------------------------- Overview
     async function drawOverview(sum) {
-      const [monthly, weekly, byType, byChannel, byCustomer, bySales, byBasis, basisMonthly] =
-        await Promise.all([
-          rdApi('matrix', {
-            ...F,
-            month: '',
-            week: '',
-            rowDimension: 'period',
-            columnDimension: 'jobType',
-          }),
-          rdApi('matrix', { ...F, week: '', rowDimension: 'yearWeek', columnDimension: 'jobType' }),
-          rdApi('group', { ...F, dimension: 'jobType' }),
-          rdApi('group', { ...F, dimension: 'channel' }),
-          rdApi('group', { ...F, dimension: 'customer' }),
-          rdApi('group', { ...F, dimension: 'salesPerson' }),
-          rdApi('group', { ...F, dimension: 'csijoBasis' }),
-          rdApi('matrix', {
-            ...F,
-            month: '',
-            week: '',
-            rowDimension: 'period',
-            columnDimension: 'csijoBasis',
-          }),
-        ]);
+      const [
+        monthly,
+        weekly,
+        byType,
+        byChannel,
+        byCustomer,
+        bySales,
+        byBasis,
+        basisMonthly,
+        rateCardData,
+      ] = await Promise.all([
+        rdApi('matrix', {
+          ...F,
+          month: '',
+          week: '',
+          rowDimension: 'period',
+          columnDimension: 'jobType',
+        }),
+        rdApi('matrix', { ...F, week: '', rowDimension: 'yearWeek', columnDimension: 'jobType' }),
+        rdApi('group', { ...F, dimension: 'jobType' }),
+        rdApi('group', { ...F, dimension: 'channel' }),
+        rdApi('group', { ...F, dimension: 'customer' }),
+        rdApi('group', { ...F, dimension: 'salesPerson' }),
+        rdApi('group', { ...F, dimension: 'csijoBasis' }),
+        rdApi('matrix', {
+          ...F,
+          month: '',
+          week: '',
+          rowDimension: 'period',
+          columnDimension: 'csijoBasis',
+        }),
+        // Older-rows effect for the breakdown; people without Rate card access simply get no breakdown.
+        apiRequest('/api/revenue-dashboard/rate-card').catch(() => null),
+      ]);
       const t = sum.summary.totals;
       const split = rdCsijoSplit(byBasis.data);
       const types = byType.data.rows;
       const rates = Object.fromEntries((sum.summary.rates || []).map((r) => [r.jobType, r.price]));
       const topType = types[0];
+      // Excel versus portal figure for the same filters, with where the difference comes from.
+      const signed = (v) => (v > 0 ? '+' : v < 0 ? '\u2212' : '') + rdMoney2(Math.abs(v));
+      const overviewHero = () => {
+        const portal = Number(t.revenue) || 0;
+        if (typeof t.workbookRevenue !== 'number') return '';
+        const excel = t.workbookRevenue;
+        const diff = Math.round((portal - excel) * 100) / 100;
+        const pct = excel ? (diff / excel) * 100 : 0;
+        const onlyPeriod = Object.keys(F).every((k) => !F[k] || k === 'year' || k === 'month');
+        let older = null;
+        let olderLines = 0;
+        const eff = rateCardData && rateCardData.repriceEffect;
+        if (
+          onlyPeriod &&
+          eff &&
+          rateCardData.fridgeLogic &&
+          rateCardData.fridgeLogic.repriceOlder
+        ) {
+          const yr = Number(F.year) || 0;
+          const mo = Number(F.month) || 0;
+          const rows = (eff.rows || []).filter(
+            (r) => (!yr || Math.floor(r.month / 100) === yr) && (!mo || r.month % 100 === mo),
+          );
+          older = Math.round(rows.reduce((a, r) => a + r.change, 0) * 100) / 100;
+          olderLines = rows.reduce((a, r) => a + r.lines, 0);
+        }
+        const top = Math.max(excel, portal, 1);
+        const step = (color, name, meta, value, cls, link) =>
+          '<div class="st"><span class="d" style="background:' +
+          color +
+          '"></span><div>' +
+          name +
+          (meta ? '<div class="m">' + meta + '</div>' : '') +
+          '</div><span class="v ' +
+          (cls || '') +
+          '">' +
+          value +
+          '</span>' +
+          (link ? '<a href="#" data-rd-ratecard>see lines</a>' : '<span></span>') +
+          '</div>';
+        const why =
+          Math.abs(diff) < 0.005
+            ? '<div class="rd-why"><h3>Portal and Excel agree</h3><p>No portal rule changes the figure for this selection.</p></div>'
+            : '<div class="rd-why"><h3>Where the difference comes from</h3><p>' +
+              (older === null
+                ? 'The difference is the portal rules: fridge rule, older rows, installation discount and your own rates.'
+                : 'Each step is one portal rule.') +
+              '</p><div class="steps">' +
+              step(
+                '#9aa8bb',
+                'Excel figure (locked)',
+                'Master workbook as uploaded',
+                rdMoney2(excel),
+              ) +
+              (older !== null && Math.abs(older) >= 0.005
+                ? step(
+                    '#e08a00',
+                    'Older rows at current rates',
+                    olderLines + ' lines re-priced at the current Rate card',
+                    signed(older),
+                    older < 0 ? 'neg' : 'pos',
+                    true,
+                  ) +
+                  step(
+                    '#1769aa',
+                    'Other portal rules',
+                    'New fridge rule and other rate rules',
+                    signed(Math.round((diff - older) * 100) / 100),
+                    diff - older < 0 ? 'neg' : 'pos',
+                    true,
+                  )
+                : step(
+                    '#1769aa',
+                    'Portal rules',
+                    older === null
+                      ? 'See the Rate card for each rule'
+                      : 'New fridge rule and other rate rules',
+                    signed(diff),
+                    diff < 0 ? 'neg' : 'pos',
+                    true,
+                  )) +
+              step('#102b4e', 'Portal figure', '', rdMoney2(portal), '', false).replace(
+                'class="st"',
+                'class="st tot"',
+              ) +
+              '</div></div>';
+        return (
+          '<section class="rd-hero" aria-label="Total revenue, Excel versus portal"><div class="rd-hero-head"><span class="lbl">Total revenue &middot; ' +
+          escapeHtml(periodLabel()) +
+          '</span><span class="chip" title="The master Excel workbook is never changed. The portal recalculates each line with the Rate card rules, and every tab and export shows that figure.">Portal figure &middot; after portal rules</span></div><div class="rd-hero-body"><div><div class="big"><small>\u20C3</small>' +
+          rdMoney(portal) +
+          '</div><div class="sub">The figure every tab and export uses. The master Excel is locked and never changed.</div></div><div class="trio"><div class="cell"><small>Excel (locked)</small><b>' +
+          rdMoney2(excel) +
+          '</b><em>Master workbook</em></div><div class="cell portal"><small>Portal</small><b>' +
+          rdMoney2(portal) +
+          '</b><em>After portal rules</em></div><div class="cell ' +
+          (diff < 0 ? 'neg' : diff > 0 ? 'pos' : '') +
+          '"><small>Difference</small><b>' +
+          signed(diff) +
+          '</b><em>' +
+          (diff > 0 ? '+' : diff < 0 ? '\u2212' : '') +
+          Math.abs(pct).toFixed(1) +
+          '% vs Excel</em></div></div><div class="bars"><div class="bar"><span>Excel</span><div class="t"><i style="width:' +
+          ((excel / top) * 100).toFixed(1) +
+          '%;background:#9aa8bb"></i></div><b>' +
+          rdMoney2(excel) +
+          '</b></div><div class="bar"><span>Portal</span><div class="t"><i style="width:' +
+          ((portal / top) * 100).toFixed(1) +
+          '%;background:#1769aa"></i></div><b>' +
+          rdMoney2(portal) +
+          '</b></div></div></div>' +
+          why +
+          '</section>'
+        );
+      };
+      const heroHtml = overviewHero();
       body.innerHTML =
+        heroHtml +
         rdKpis([
-          [
-            'Total revenue',
-            '\u20C3 ' + rdMoney(t.revenue),
-            periodLabel(),
-            '<div class="rd-pf" title="The master Excel workbook is never changed. The portal recalculates each line with the Rate card rules, and every tab and export shows that figure."><i>Portal figure</i> after portal rules &middot; <a href="#" data-rd-ratecard>compare with the Excel</a></div>',
-          ],
+          // Without an Excel figure to compare, keep the single Total revenue card with its portal tag.
+          ...(heroHtml
+            ? []
+            : [
+                [
+                  'Total revenue',
+                  '\u20C3 ' + rdMoney(t.revenue),
+                  periodLabel(),
+                  '<div class="rd-pf" title="The master Excel workbook is never changed. The portal recalculates each line with the Rate card rules, and every tab and export shows that figure."><i>Portal figure</i> after portal rules &middot; <a href="#" data-rd-ratecard>compare with the Excel</a></div>',
+                ],
+              ]),
           ['Jobs billed', rdMoney(t.jobs), 'Revenue lines in the workbook'],
           ['Units / qty', rdMoney(t.qty), 'Billing quantity'],
           [

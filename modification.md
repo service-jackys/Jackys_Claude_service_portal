@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #332 — Overview top card: Excel figure, portal figure and the difference
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — pull, restart the API (the Overview summary now returns the Excel figure), hard-refresh. No migration.
+- **Scope:** Service Revenue dashboard, Overview tab (replaces the small tag of #331 with a full card).
+
+**What changed.** A wide card at the top of the Overview shows Total revenue (the portal figure) with three boxes: **Excel (locked)**, **Portal** and **Difference** (AED and %), two bars comparing Excel and Portal, and **Where the difference comes from**: older rows at current rates (from the Rate card re-price effect) and other portal rules (the remainder: fridge rule, installation discount, your own rates). The Excel figure and the difference follow the Overview filters (year, month, job type and the rest). The older-rows step is shown only when the filters are year and month only, and the Rate card switch is on; otherwise one "Portal rules" step is shown. People without Rate card access still see the three figures. The master Excel is never changed.
+
+**Files.** packages/db/src/revenue-dashboard.ts (summary totals gain workbookRevenue), apps/web/src/app.js, apps/web/src/index.html, tests/e2e/overview-excel-vs-portal.spec.ts, modification.md, apps/api/src/changelog/changelog-data.ts.
+
 ## Modification #331 — Overview "Total revenue" card says it is the portal figure
 
 - **Date:** 2026-11-27
