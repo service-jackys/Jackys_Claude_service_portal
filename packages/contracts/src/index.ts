@@ -1803,6 +1803,7 @@ export const dandiModeSchema = z
         fridge: dandiApplianceRatesSchema,
         washer: dandiApplianceRatesSchema,
         cooker: dandiApplianceRatesSchema,
+        dishwasher: dandiApplianceRatesSchema,
       })
       .strict(),
     discounts: z.array(dandiDiscountTierSchema).min(1),
@@ -1828,26 +1829,77 @@ export const dandiFlatRateDefaults: DandiFlatRates = {
   RWR: 60,
 };
 
-export const dandiPricingSchema = z
-  .object({
-    maxUnits: z.number().int().min(1).max(500),
-    minUnitRate: nonNegSchema,
-    regions: z.array(dandiRegionSchema).min(1),
-    groupings: z.array(z.string().trim().min(1).max(120)).min(1),
-    crewFactors: z
-      .object({ '1': positiveSchema, '2': positiveSchema, '3': positiveSchema })
-      .strict(),
-    capacities: z
-      .object({ fridge: positiveSchema, washer: positiveSchema, cooker: positiveSchema })
-      .strict(),
-    laborMinutes: z
-      .object({ fridge: nonNegSchema, washer: nonNegSchema, cooker: nonNegSchema })
-      .strict(),
-    laborCostPerHour: nonNegSchema,
-    flatRates: dandiFlatRatesSchema.default(dandiFlatRateDefaults),
-    modes: z.object({ dandi: dandiModeSchema, install: dandiModeSchema }).strict(),
-  })
-  .strict();
+// A D+I configuration saved before Dishwasher became a rate category has no
+// dishwasher entries. Dishwasher follows the Washing Machine for capacity and
+// labour minutes, and has its own rates: D+I 60 special / 100 market,
+// Installation only 60 special / 60 market (rate card, effective 25 Nov 2026).
+export const dandiDishwasherDefaults = {
+  dandi: { batch: 60, standard: 100 },
+  install: { batch: 60, standard: 60 },
+} as const;
+
+export function withDandiDishwasher(input: unknown): unknown {
+  if (!input || typeof input !== 'object') return input;
+  const record = { ...(input as Record<string, unknown>) };
+  const fill = (value: unknown, fallback: unknown) => {
+    const base =
+      value && typeof value === 'object' ? { ...(value as Record<string, unknown>) } : {};
+    if (base.dishwasher === undefined && fallback !== undefined) base.dishwasher = fallback;
+    return base;
+  };
+  const washerOf = (value: unknown) =>
+    value && typeof value === 'object' ? (value as Record<string, unknown>).washer : undefined;
+  if (record.capacities) record.capacities = fill(record.capacities, washerOf(record.capacities));
+  if (record.laborMinutes)
+    record.laborMinutes = fill(record.laborMinutes, washerOf(record.laborMinutes));
+  const modes = record.modes;
+  if (modes && typeof modes === 'object') {
+    const next: Record<string, unknown> = { ...(modes as Record<string, unknown>) };
+    for (const key of ['dandi', 'install'] as const) {
+      const mode = next[key];
+      if (mode && typeof mode === 'object' && (mode as Record<string, unknown>).rates) {
+        const m = mode as Record<string, unknown>;
+        next[key] = { ...m, rates: fill(m.rates, { ...dandiDishwasherDefaults[key] }) };
+      }
+    }
+    record.modes = next;
+  }
+  return record;
+}
+
+export const dandiPricingSchema = z.preprocess(
+  withDandiDishwasher,
+  z
+    .object({
+      maxUnits: z.number().int().min(1).max(500),
+      minUnitRate: nonNegSchema,
+      regions: z.array(dandiRegionSchema).min(1),
+      groupings: z.array(z.string().trim().min(1).max(120)).min(1),
+      crewFactors: z
+        .object({ '1': positiveSchema, '2': positiveSchema, '3': positiveSchema })
+        .strict(),
+      capacities: z
+        .object({
+          fridge: positiveSchema,
+          washer: positiveSchema,
+          cooker: positiveSchema,
+          dishwasher: positiveSchema,
+        })
+        .strict(),
+      laborMinutes: z
+        .object({
+          fridge: nonNegSchema,
+          washer: nonNegSchema,
+          cooker: nonNegSchema,
+          dishwasher: nonNegSchema,
+        })
+        .strict(),
+      laborCostPerHour: nonNegSchema,
+      flatRates: dandiFlatRatesSchema.default(dandiFlatRateDefaults),
+      modes: z.object({ dandi: dandiModeSchema, install: dandiModeSchema }).strict(),
+    })
+    .strict(),
+);
 export type DandiPricingInput = z.infer<typeof dandiPricingSchema>;
 
 // --- AMC ------------------------------------------------------------------

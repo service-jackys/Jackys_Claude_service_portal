@@ -44,6 +44,7 @@
     { key: 'fridge', label: 'Refrigerator' },
     { key: 'washer', label: 'Washing Machine' },
     { key: 'cooker', label: 'Cooker' },
+    { key: 'dishwasher', label: 'Dishwasher' },
   ];
 
   function num(value) {
@@ -115,7 +116,7 @@
   }
 
   // input: { mode: 'dandi'|'install', region, grouping, sites, plannedTrips,
-  //          crew, transport: 'Yes'|'No' (Installation Only), qty: {fridge, washer, cooker} }
+  //          crew, transport: 'Yes'|'No' (Installation Only), qty: {fridge, washer, cooker, dishwasher} }
   function compute(cfg, input) {
     var modeKey = input.mode === 'install' ? 'install' : 'dandi';
     var mode = cfg.modes[modeKey];
@@ -136,7 +137,7 @@
     }
     var plugQty = newFridge ? Math.max(0, Math.floor(num(input.qty && input.qty.plug))) : 0;
     var plugAmount = newFridge ? Math.max(0, num(fl.plugAmount)) : 0;
-    var total = qty.fridge + qty.fridgeLarge + qty.washer + qty.cooker;
+    var total = qty.fridge + qty.fridgeLarge + qty.washer + qty.cooker + qty.dishwasher;
     var region = (cfg.regions || []).filter(function (r) {
       return String(r.name) === String(input.region);
     })[0];

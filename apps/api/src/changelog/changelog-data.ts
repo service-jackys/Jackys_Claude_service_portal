@@ -15,6 +15,26 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 324,
+    "title": "Dishwasher is a fourth Delivery + Installation rate category",
+    "area": "General",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": null,
+    "summary": "The technical team confirmed that freestanding dishwashers are installed like washing machines and need their own rate card. Before this, a dishwasher could only be Delivery only.",
+    "changes": [
+      "New pricing category Freestanding Dishwasher. Rates copy the washing machine: Delivery + Installation (CSIDI) special 60 / market 100, Installation only (CSIII) special 60 / market 60, minimum 35. Same discount tiers, transport rules…",
+      "Category Mapping: ERP group DISH WASHER is added as installable and linked to Freestanding Dishwasher. Built-in dishwashers stay outside this rate card and follow the Thomson Quote Calculator.",
+      "Pricing Masters (Admin Entry), the Revenue Rate card, New job live price, the D+I Quote Calculator (fourth appliance row) and the Service Revenue Dashboard logic summary, scenario run and Excel export all include the fourth category.",
+      "Saved masters from before this change get the dishwasher entries automatically on read, save and restore. Values an admin already typed are never overwritten.",
+      "Fridge, washing machine and cooker rates and capacities are unchanged. No past figure changes (no dishwasher installation history exists).",
+      "Tests: engine (single, pair, mixed note, installation only), calculator, legacy configuration fill, masters and mapping suites pass."
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": null
+  },
+  {
     "id": 323,
     "title": "Sticker button on every row of the Service job cards list",
     "area": "Job cards",

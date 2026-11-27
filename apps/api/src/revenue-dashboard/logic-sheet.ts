@@ -281,7 +281,7 @@ function buildInvoiceLevelLogicSheet(
     ],
     CSIDI: [
       'CSIDI  Delivery + installation',
-      `Qty x net rate. Quantity basis: physical units - for fridge, freezer, washer and cooker a delivery line and its installation line count as ONE unit (older ERP data logs two lines per unit; from 11 Oct the ERP logs one combined line carrying the quantity). Rows dated after 17 Oct come from the workbook's live feed; earlier rows are locked history (see Data source column). Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.` +
+      `Qty x net rate. Quantity basis: physical units - for fridge, freezer, washer, cooker and dishwasher a delivery line and its installation line count as ONE unit (older ERP data logs two lines per unit; from 11 Oct the ERP logs one combined line carrying the quantity). Rows dated after 17 Oct come from the workbook's live feed; earlier rows are locked history (see Data source column). Net rate = base rate less the volume discount, never below the minimum rate. The base rate and the discount tier are decided on the invoice's total delivery + installation quantity across all its categories: more than 1 unit uses the batch rate for every line (even a line of 1), a single unit uses the standard rate. Transport (${transports}) is added once per invoice, on its first line, only when the invoice has more than 1 unit and no delivery-only line.` +
         (rules.csidoMixedRegional
           ? ' When the invoice does have a delivery-only line, the CSIDI lines carry no transport and the delivery-only line is charged the regional rate instead.'
           : ''),
@@ -655,7 +655,7 @@ export function buildLogicSheet(
       [null, null, MONEY, MONEY, MONEY, PCT, null],
     );
   row(
-    'Appliance category unknown: priced at the Default rate - if every unit were a refrigerator / washer',
+    'Appliance category unknown: priced at the Default rate - if every unit were a refrigerator / washer / dishwasher',
     defaults.length,
     defCur,
     defRef,
@@ -860,7 +860,7 @@ export function buildLogicSheet(
     ],
     [
       'Appliance category (and model / item code)',
-      'Rates differ for refrigerator, washer and cooker; batch vs standard rate',
+      'Rates differ for refrigerator, washer, cooker and dishwasher; batch vs standard rate',
       'Keyword in Remarks, else Default',
       defaults.length,
       defCur,
@@ -926,7 +926,7 @@ export function buildLogicSheet(
     'Are discounts applied per invoice, order, customer/site batch or monthly batch?',
     'Maximum installation batch size: 50 or 70 units (different in different formulas)?',
     'Authoritative CSIDI standard rates: 95.20 / 123.80 or 97.50 / 130?',
-    'How should products outside refrigerator, washer and cooker be priced?',
+    'How should products outside refrigerator, washer, cooker and dishwasher be priced?',
     'Should history be recalculated or only jobs from an effective date?',
   ])
     w.add([t]);

@@ -15,6 +15,7 @@ const core = mod.exports as {
   compute(cfg: unknown, input: Record<string, unknown>): any;
   discountFor(mode: unknown, total: number): { label: string; rate: number };
   requiredTrips(total: number): number;
+  KINDS: { key: string; label: string }[];
   fridgeGroupLabour(
     units: number,
     large: boolean,
@@ -417,7 +418,7 @@ test('new fridge logic off or absent: one fridge box at the old prices, no plug'
   const none = core.compute(cfg, { ...nbase, qty: { fridge: 3, washer: 0, cooker: 0 } });
   close(off.totalCharge, none.totalCharge);
   assert.equal(off.plug.total, 0);
-  assert.equal(off.lines.length, 3);
+  assert.equal(off.lines.length, 4);
 });
 
 test('fridges of different customers are not grouped: market rate per unit', () => {
@@ -442,4 +443,15 @@ test('calculator fridge group rule equals the dashboard and billing rule', () =>
       }
     }
   }
+});
+
+test('dishwasher is a fourth appliance: 4 dishwashers delivered and installed, Dubai', () => {
+  assert.ok(core.KINDS.some((k: { key: string }) => k.key === 'dishwasher'));
+  const r = core.compute(cfg, {
+    ...nbase,
+    qty: { fridge: 0, washer: 0, cooker: 0, dishwasher: 4 },
+  });
+  assert.equal(r.total, 4);
+  close(r.lines.find((l: { key: string }) => l.key === 'dishwasher').unit, 57);
+  close(r.totalCharge, 4 * 57 + 60);
 });

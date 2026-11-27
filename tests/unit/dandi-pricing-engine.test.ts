@@ -398,3 +398,53 @@ test('old logic switched on: fridges keep the old prices and the plug is not cha
   assert.ok(off.issues.some((i) => i.code === 'plug-old-logic'));
   assert.equal(off.ok, true);
 });
+
+// ---- Dishwasher: a fourth rate category, priced like the washing machine ----
+const DISHWASHER = 'Freestanding Dishwasher';
+
+test('dishwasher rates: D+I 60 special / 100 market, Installation only 60 / 60, minimum 35', () => {
+  const dandi = master.deliveryInstall.categories.find((c) => c.category === DISHWASHER)!;
+  const install = master.install.categories.find((c) => c.category === DISHWASHER)!;
+  assert.deepEqual([dandi.batchRate, dandi.standardRate, dandi.minimumRate], [60, 100, 35]);
+  assert.deepEqual([install.batchRate, install.standardRate, install.minimumRate], [60, 60, 35]);
+});
+
+test('one dishwasher delivered and installed: market rate 100, no discount, no transport', () => {
+  const result = price([di(1, DISHWASHER)]);
+  assert.equal(result.ok, true);
+  assert.equal(result.lines[0]!.revenue, 100);
+  assert.equal(result.lines[0]!.transport, 0);
+  assert.equal(result.totals.total, 100);
+});
+
+test('two dishwashers: special rate 60 less 5% = 57 each, one Dubai transport 60', () => {
+  const result = price([di(2, DISHWASHER)]);
+  assert.equal(result.lines[0]!.netRate, 57);
+  assert.equal(result.totals.total, 2 * 57 + 60);
+});
+
+test('3 washers + 3 dishwashers on one note count as 6 units: 54 each (10% tier) + transport 60 = 384', () => {
+  const result = price([di(3, WASHER), di(3, DISHWASHER)]);
+  assert.equal(result.lines[0]!.netRate, 54);
+  assert.equal(result.lines[1]!.netRate, 54);
+  assert.equal(result.totals.total, 6 * 54 + 60);
+});
+
+test('4 dishwashers installed only: 57 each, no transport', () => {
+  const result = price([inst(4, DISHWASHER)]);
+  assert.equal(result.lines[0]!.netRate, 57);
+  assert.equal(result.totals.total, 4 * 57);
+});
+
+test('an unmapped dishwasher group still cannot be installed; a not installable one is delivery only', () => {
+  const unmapped = priceDeliveryNote(master, {
+    region: 'Dubai',
+    lines: [{ qty: 1, type: 'CSIDI', pricingCategory: null, installable: null }],
+  });
+  assert.equal(unmapped.ok, false);
+  const builtIn = priceDeliveryNote(master, {
+    region: 'Dubai',
+    lines: [{ qty: 1, type: 'CSIDI', pricingCategory: null, installable: false }],
+  });
+  assert.equal(builtIn.ok, false);
+});

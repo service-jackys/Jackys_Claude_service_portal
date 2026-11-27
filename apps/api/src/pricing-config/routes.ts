@@ -41,7 +41,7 @@ export function redactForCalculator<T extends { payload?: unknown }>(
   if (domain !== 'dandi_pricing' || canReadConfig) return record;
   const payload = { ...(record.payload as Record<string, unknown>) };
   payload.laborCostPerHour = 0;
-  payload.laborMinutes = { fridge: 0, washer: 0, cooker: 0 };
+  payload.laborMinutes = { fridge: 0, washer: 0, cooker: 0, dishwasher: 0 };
   return { ...record, payload };
 }
 

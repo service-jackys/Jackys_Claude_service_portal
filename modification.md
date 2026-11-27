@@ -5205,6 +5205,25 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #324 — Dishwasher is a fourth Delivery + Installation rate category
+
+**Date:** 2026-11-27 (effective 25 Nov 2026)
+
+**Why.** The technical team confirmed that freestanding dishwashers are installed like washing machines and need their own rate card. Before this, a dishwasher could only be Delivery only.
+
+**What changed.**
+
+- New pricing category **Freestanding Dishwasher**. Rates copy the washing machine: Delivery + Installation (CSIDI) special 60 / market 100, Installation only (CSIII) special 60 / market 60, minimum 35. Same discount tiers, transport rules, capacity per trip and labour minutes as the washing machine. No litre bands, no plug line.
+- Category Mapping: ERP group **DISH WASHER** is added as installable and linked to Freestanding Dishwasher. Built-in dishwashers stay outside this rate card and follow the Thomson Quote Calculator.
+- Pricing Masters (Admin Entry), the Revenue Rate card, New job live price, the D+I Quote Calculator (fourth appliance row) and the Service Revenue Dashboard logic summary, scenario run and Excel export all include the fourth category.
+- Saved masters from before this change get the dishwasher entries automatically on read, save and restore. Values an admin already typed are never overwritten.
+- Fridge, washing machine and cooker rates and capacities are unchanged. No past figure changes (no dishwasher installation history exists).
+- Tests: engine (single, pair, mixed note, installation only), calculator, legacy configuration fill, masters and mapping suites pass.
+
+**Needs you.** Pull, run `npm.cmd run db:migrate` (migration 114), restart the API, hard-refresh.
+
+**Status.** Code complete.
+
 ## Modification #323 — Sticker button on every row of the Service job cards list
 
 **Date:** 2026-11-26

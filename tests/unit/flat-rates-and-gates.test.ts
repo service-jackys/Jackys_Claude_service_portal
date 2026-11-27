@@ -98,11 +98,33 @@ test('the D+I calculator gets the rates but not our labour cost unless it may re
   };
   const redacted = redactForCalculator('dandi_pricing', record, false).payload as any;
   assert.equal(redacted.laborCostPerHour, 0);
-  assert.deepEqual(redacted.laborMinutes, { fridge: 0, washer: 0, cooker: 0 });
+  assert.deepEqual(redacted.laborMinutes, { fridge: 0, washer: 0, cooker: 0, dishwasher: 0 });
   assert.equal(redacted.minUnitRate, 35);
   assert.equal(redacted.modes.dandi.rates.fridge.standard, 100);
   // The original is untouched, and a config reader (or another domain) gets it as is.
   assert.equal((record.payload as any).laborCostPerHour, 43.27);
   assert.equal(redactForCalculator('dandi_pricing', record, true), record);
   assert.equal(redactForCalculator('thomson_pricing', record, false), record);
+});
+
+test('a D+I configuration saved before Dishwasher existed gets the dishwasher entries on read and restore', async () => {
+  const { withDandiDishwasher, dandiPricingSchema } =
+    await import('../../packages/contracts/src/index.js');
+  const legacy = JSON.parse(JSON.stringify(dandiPricingDefault));
+  delete legacy.capacities.dishwasher;
+  delete legacy.laborMinutes.dishwasher;
+  delete legacy.modes.dandi.rates.dishwasher;
+  delete legacy.modes.install.rates.dishwasher;
+  legacy.capacities.washer = 12;
+  const filled = withDandiDishwasher(legacy) as typeof dandiPricingDefault;
+  assert.equal(filled.capacities.dishwasher, 12);
+  assert.equal(filled.laborMinutes.dishwasher, legacy.laborMinutes.washer);
+  assert.deepEqual(filled.modes.dandi.rates.dishwasher, { batch: 60, standard: 100 });
+  assert.deepEqual(filled.modes.install.rates.dishwasher, { batch: 60, standard: 60 });
+  assert.equal(dandiPricingSchema.safeParse(legacy).success, true);
+  // A value an admin already typed is never overwritten.
+  const typed = JSON.parse(JSON.stringify(legacy));
+  typed.modes.dandi.rates.dishwasher = { batch: 55, standard: 90 };
+  const kept = withDandiDishwasher(typed) as typeof dandiPricingDefault;
+  assert.deepEqual(kept.modes.dandi.rates.dishwasher, { batch: 55, standard: 90 });
 });
