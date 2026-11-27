@@ -433,8 +433,17 @@ export async function revenueSummary(client: PoolClient, batchId: string, filter
     `SELECT summary FROM revenue_import_batches WHERE id = $1`,
     [batchId],
   );
+  // The master Excel figure for the same filters, so the Overview can set it beside the portal figure.
+  const workbook = await client.query<{ workbook: string }>(
+    `SELECT COALESCE(SUM(COALESCE(workbook_revenue, revenue)), 0) AS workbook
+     FROM revenue_lines WHERE ${f.where}`,
+    f.params,
+  );
   return {
-    totals: await totalsFor(client, f),
+    totals: {
+      ...(await totalsFor(client, f)),
+      workbookRevenue: Math.round(Number(workbook.rows[0]?.workbook ?? 0) * 100) / 100,
+    },
     rates: rates.rows[0]?.summary?.rates ?? [],
     options: {
       years: years.rows.map((r) => r.year),
