@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 328,
+    "title": "Rate card page: key figures, section tabs, tooltips and the line list for older rows",
+    "area": "Pricing & rates",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Rate card tab (look 1, Material, light).",
+    "changes": [
+      "What changed: Below the header and the \"Rates locked\" bar the page is now organised as: a strip of key figures (Workbook figure, Portal figure, Difference, Fridge pricing, Older rows), then five section tabs - Rates, Fridge pricing…"
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/service.ts (repriceEffect.detail), tests/e2e/fridge-logic-switch.spec.ts."
+  },
+  {
     "id": 327,
     "title": "\"Older rows\" switch: re-price the older locked rows at current rates",
     "area": "General",

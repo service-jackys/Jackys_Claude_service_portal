@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #328 — Rate card page: key figures, section tabs, tooltips and the line list for older rows
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — pull, restart the API (the older-rows effect now lists its lines), hard-refresh. No migration.
+- **Scope:** Service Revenue dashboard, Rate card tab (look 1, Material, light).
+
+**What changed.** Below the header and the "Rates locked" bar the page is now organised as: a strip of key figures (Workbook figure, Portal figure, Difference, Fridge pricing, Older rows), then five section tabs - Rates, Fridge pricing, Discount tiers, Older rows (with a lines badge), Impact - showing one section at a time. Every card heading and key figure has a small (i) tooltip in plain words for management. The Older rows tab gains a "What is the difference?" note, summary figures and a collapsible list **Every line that changes** (date, invoice, customer, type, category, quantity, as booked, current, change, why; up to 1,000 lines). Editing rates always shows the Rates tab. Layout and wording only: no rate or revenue logic changed.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, apps/api/src/revenue-dashboard/service.ts (repriceEffect.detail), tests/e2e/fridge-logic-switch.spec.ts.
+
 ## Modification #327 — "Older rows" switch: re-price the older locked rows at current rates
 
 - **Date:** 2026-11-27

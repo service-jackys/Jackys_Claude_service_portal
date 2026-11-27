@@ -1691,6 +1691,44 @@ export function createRevenueDashboardService(pool: Pool) {
       rows.set(key, row);
     }
     const r2 = (v: number) => Math.round(v * 100) / 100;
+    // Every line that moves, in date order, with one plain sentence on why (capped for the screen).
+    const detail: {
+      date: string | null;
+      invoice: string | null;
+      customer: string | null;
+      jobType: string;
+      category: string;
+      qty: number;
+      asBooked: number;
+      current: number;
+      change: number;
+      why: string;
+    }[] = [];
+    for (const l of inputs.lines) {
+      const a = asBooked.get(l.id) ?? l.workbookRevenue;
+      const b = current.get(l.id) ?? l.workbookRevenue;
+      if (Math.abs(a - b) < 0.005) continue;
+      const category =
+        (l.pricing as { applianceCategory?: string | null } | null)?.applianceCategory ?? 'Other';
+      const per = (v: number) => r2(l.qty ? v / l.qty : v);
+      detail.push({
+        date: l.orderDate ? String(l.orderDate).slice(0, 10) : null,
+        invoice: l.invDelNo,
+        customer: l.customer ?? null,
+        jobType: l.jobType,
+        category,
+        qty: l.qty,
+        asBooked: r2(a),
+        current: r2(b),
+        change: r2(b - a),
+        why: `${category.replace('Freestanding ', '')}: AED ${per(a)} per unit as booked, AED ${per(b)} at current rates (rate, volume discount or minimum)`,
+      });
+    }
+    detail.sort(
+      (x, y) =>
+        (x.date ?? '').localeCompare(y.date ?? '') ||
+        (x.invoice ?? '').localeCompare(y.invoice ?? ''),
+    );
     const list = Array.from(rows.values())
       .sort((x, y) => x.month - y.month || x.category.localeCompare(y.category))
       .map((x) => ({
@@ -1704,6 +1742,8 @@ export function createRevenueDashboardService(pool: Pool) {
       units: list.reduce((n, x) => n + x.units, 0),
       change: r2(list.reduce((n, x) => n + x.change, 0)),
       rows: list,
+      detail: detail.slice(0, 1000),
+      detailTruncated: detail.length > 1000,
     };
   }
 

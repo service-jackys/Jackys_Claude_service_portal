@@ -55,6 +55,21 @@ const card = (enabled: boolean, portal: number) => ({
         change: -149,
       },
     ],
+    detail: [
+      {
+        date: '2026-07-08',
+        invoice: '16100012',
+        customer: 'Emaar Properties',
+        jobType: 'CSIDI',
+        category: 'Freestanding Cooker',
+        qty: 2,
+        asBooked: 160,
+        current: 120,
+        change: -40,
+        why: 'Cooker: AED 80 per unit as booked, AED 60 at current rates',
+      },
+    ],
+    detailTruncated: false,
   },
   tierEffect: { lines: 40, differing: 20, workbook: 8995, invoice: 8060.75, line: 8561.75 },
   figures: { workbook: 93617, portal },
@@ -112,9 +127,10 @@ test('Rate card shows the fridge pricing card and saves the switch', async ({ pa
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.evaluate(() => document.getElementById('revenueDashNav')?.click());
   await page.locator('.rd-subtab-btn', { hasText: 'Rate card' }).click();
+  await page.getByRole('tab', { name: 'Fridge pricing' }).click();
   await expect(page.getByText('New logic in force')).toBeVisible();
-  await expect(page.getByText('92,335.75')).toBeVisible();
-  await expect(page.getByText('93,617')).toBeVisible();
+  await expect(page.getByText('92,335.75').first()).toBeVisible();
+  await expect(page.getByText('93,617').first()).toBeVisible();
   await page.getByLabel('Old logic').check();
   await page.getByRole('button', { name: 'Save & recalculate' }).click();
   await expect(page.getByText('Old logic in force')).toBeVisible();
@@ -235,6 +251,7 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
   await expect(page.locator('#staff-workspace')).toBeVisible();
   await page.evaluate(() => document.getElementById('revenueDashNav')?.click());
   await page.locator('.rd-subtab-btn', { hasText: 'Rate card' }).click();
+  await page.getByRole('tab', { name: 'Discount tiers' }).click();
   await expect(page.getByText('Installation-only (CSIII) discount tiers')).toBeVisible();
   await expect(page.getByLabel(/Whole invoice \(portal rule\)/)).toBeChecked();
   await expect(page.getByText('8,060.75')).toBeVisible();
@@ -248,9 +265,11 @@ test('Rate card saves the installation-only tier basis and keeps the fridge sett
     enabled: true,
   });
   // Modification #327: the re-price switch lists the older rows and saves the choice.
+  await page.getByRole('tab', { name: /Older rows/ }).click();
   await expect(page.getByText('Older rows (booked at older rates)')).toBeVisible();
   await expect(page.getByLabel(/As booked \(workbook\)/)).toBeChecked();
-  await expect(page.locator('[data-rp-box]').getByText('983.00')).toBeVisible();
+  await expect(page.locator('[data-rp-box]').getByText('983.00').first()).toBeVisible();
+  await expect(page.locator('[data-rp-box]').getByText('Every line that changes')).toBeVisible();
   await page.getByLabel(/Current rates/).check();
   await page.locator('[data-rp-save]').click();
   await expect(page.getByText(/Older rows are now re-priced at current rates/)).toBeVisible();
