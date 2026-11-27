@@ -5231,6 +5231,20 @@ Display only; no pricing formulas, API or database changes.
 - Examples: invoice 16101581 portal 430 to 360, invoice 16101582 247 to 177. Expected portal total about AED 2,770 lower.
 
 **Files.** apps/api/src/revenue-dashboard/fridge-scenario.ts, apps/api/src/dandi-jobs/pricing-engine.ts, apps/web/src/dandi-calc-core.js, apps/web/src/app.js, apps/web/src/index.html, apps/api/src/ai/workbook.ts, apps/api/src/revenue-dashboard/export.ts, tests (fridge-scenario, pricing engine, calc-core).
+## Modification #325 — Dishwasher row in the Service Revenue Dashboard Rate card and Scenario test
+
+**Date:** 2026-11-27
+
+**Why.** Dishwasher was in Pricing Masters, but the dashboard's Rate card & Scenario test lists the categories of the uploaded master workbook, so it had no Dishwasher row until a workbook with that row was uploaded.
+
+**What changed.**
+
+- A stored upload whose workbook has no Dishwasher row now gets one, from the portal's own rates (Delivery + installation 60 / 100 / 35, Installation only 60 / 60 / 35), in front of Default. It follows Pricing Masters like the other categories.
+- The Rate card, Scenario test, Apply to Pricing Masters and dashboard pricing all use it. A workbook that already has the row is left as it is.
+- No past figure changes: there are no dishwasher invoices before 25 Nov.
+- Test added (an upload without the row shows it, an upload with the row is not doubled). No migration. Restart the API, then hard-refresh.
+
+**Status.** Code complete.
 
 ## Modification #324 — Dishwasher is a fourth Delivery + Installation rate category
 
