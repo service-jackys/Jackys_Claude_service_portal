@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { Pool, PoolClient } from 'pg';
 import {
   dandiFlatRateDefaults,
+  withDandiDishwasher,
   pricingConfigSchemaFor,
   thomsonPricingSchema,
   type ApplianceMasterInput,
@@ -51,7 +52,8 @@ export type PricingConfigView = {
 function withDandiFlatRates(domain: PricingConfigDomain, payload: unknown): unknown {
   if (domain !== 'dandi_pricing' || !payload || typeof payload !== 'object') return payload;
   const record = payload as Record<string, unknown>;
-  return record.flatRates ? payload : { ...record, flatRates: { ...dandiFlatRateDefaults } };
+  const filled = withDandiDishwasher(record) as Record<string, unknown>;
+  return record.flatRates ? filled : { ...filled, flatRates: { ...dandiFlatRateDefaults } };
 }
 
 // Keeps the Thomson appliance list in step with the shared Appliance Master:

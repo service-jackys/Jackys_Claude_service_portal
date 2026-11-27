@@ -153,8 +153,8 @@ export const dandiPricingDefault: DandiPricingInput = {
     'Different customers / multiple sites',
   ],
   crewFactors: { '1': 1, '2': 1, '3': 1.5 },
-  capacities: { fridge: 10, washer: 10, cooker: 10 },
-  laborMinutes: { fridge: 17.5, washer: 25, cooker: 25 },
+  capacities: { fridge: 10, washer: 10, cooker: 10, dishwasher: 10 },
+  laborMinutes: { fridge: 17.5, washer: 25, cooker: 25, dishwasher: 25 },
   laborCostPerHour: 43.2692307692,
   flatRates: { ...dandiFlatRateDefaults },
   modes: {
@@ -165,6 +165,7 @@ export const dandiPricingDefault: DandiPricingInput = {
         fridge: { batch: 60, standard: 100 },
         washer: { batch: 60, standard: 100 },
         cooker: { batch: 80, standard: 120 },
+        dishwasher: { batch: 60, standard: 100 },
       },
       discounts: [
         { min: 1, max: 1, label: '1 unit', rate: 0 },
@@ -183,6 +184,7 @@ export const dandiPricingDefault: DandiPricingInput = {
         fridge: { batch: 55, standard: 60 },
         washer: { batch: 55, standard: 60 },
         cooker: { batch: 70, standard: 80 },
+        dishwasher: { batch: 60, standard: 60 },
       },
       discounts: [
         { min: 1, max: 1, label: '1 unit', rate: 0 },

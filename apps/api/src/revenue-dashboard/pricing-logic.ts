@@ -103,6 +103,7 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         minimumRate: 35,
       },
       { category: 'Freestanding Cooker', batchRate: 80, standardRate: 123.8, minimumRate: 35 },
+      { category: 'Freestanding Dishwasher', batchRate: 60, standardRate: 100, minimumRate: 35 },
       { category: 'Default', batchRate: 60, standardRate: 60, minimumRate: 35 },
     ],
     discounts: [
@@ -142,6 +143,7 @@ export const DEFAULT_PRICING_RULES: PricingRules = {
         minimumRate: 35,
       },
       { category: 'Freestanding Cooker', batchRate: 70, standardRate: 80, minimumRate: 35 },
+      { category: 'Freestanding Dishwasher', batchRate: 60, standardRate: 60, minimumRate: 35 },
       { category: 'Default', batchRate: 60, standardRate: 60, minimumRate: 35 },
     ],
     discounts: [
@@ -359,7 +361,7 @@ const DELIVERY = /ELIVERY|DELVERY|DELIVERED|DELIVER /;
 const INSTALL = /INSTAL|AND INST|& INST/;
 const ONLY_INSTALL = /ONLY\s+(THE\s+)?INSTALL/;
 const OTHER_PRODUCT =
-  /\b(TV|TELEVISION|MICROWAVE|MICRO WAVE|OVEN|HOB|HOOD|DISHWASHER|DISH WASHER|DRYER|AIR CONDITION\w*|A\/C|AC UNIT|SPLIT|FREEZER|CHILLER|WATER DISPENSER|DISPENSER|COOKTOP)\b/;
+  /\b(TV|TELEVISION|MICROWAVE|MICRO WAVE|OVEN|HOB|HOOD|DRYER|AIR CONDITION\w*|A\/C|AC UNIT|SPLIT|FREEZER|CHILLER|WATER DISPENSER|DISPENSER|COOKTOP)\b/;
 
 export type RemarkReading = {
   activityEvidence: string;

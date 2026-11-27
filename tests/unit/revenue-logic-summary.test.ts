@@ -56,7 +56,7 @@ test('master rates come from the D+I pricing master, VAT-inclusive, flat rates f
   assert.equal(m.vatIncluded, true);
   assert.deepEqual(
     m.deliveryInstall.categories.map((c) => c.standardRate),
-    [100, 100, 120],
+    [100, 100, 120, 100],
   );
   assert.deepEqual(
     m.jobRates.map((r) => [r.jobType, r.price]),

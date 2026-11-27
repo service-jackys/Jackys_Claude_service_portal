@@ -35,19 +35,28 @@ test(
       );
       const profileId = profile.rows[0]!.id;
 
-      // The migration seeds the four installable groups from the workbook.
+      // The migrations seed the installable groups: four from the workbook and DISH WASHER.
       const service = createCategoryMappingService(pool);
       const initial = await service.list();
       const seeded = initial.categoryMappings.filter((m) =>
-        ['FRIDGE', 'FREEZER', 'WASHING MACHINE', 'COOKER'].includes(m.groupName),
+        ['FRIDGE', 'FREEZER', 'WASHING MACHINE', 'COOKER', 'DISH WASHER'].includes(m.groupName),
       );
-      assert.equal(seeded.length, 4);
+      assert.equal(seeded.length, 5);
       assert.ok(seeded.every((m) => m.installable && m.pricingCategory));
       assert.deepEqual(initial.pricingCategories, [
         'Freestanding Refrigerator',
         'Freestanding Washing Machine',
         'Freestanding Cooker',
+        'Freestanding Dishwasher',
       ]);
+      assert.ok(
+        seeded.some(
+          (m) =>
+            m.groupName === 'DISH WASHER' &&
+            m.installable &&
+            m.pricingCategory === 'Freestanding Dishwasher',
+        ),
+      );
 
       // Add, reject a duplicate (case-insensitive), reject an unknown pricing category.
       const group = `TEST GROUP ${tag}`;

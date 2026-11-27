@@ -110,6 +110,7 @@ export function masterRates(dandi: DandiPricingInput, workbookRules: PricingRule
     fridge: 'Freestanding Refrigerator',
     washer: 'Freestanding Washing Machine',
     cooker: 'Freestanding Cooker',
+    dishwasher: 'Freestanding Dishwasher',
   } as const;
   const side = (mode: DandiPricingInput['modes']['dandi']) => ({
     categories: (Object.keys(names) as (keyof typeof names)[]).map((k) => ({

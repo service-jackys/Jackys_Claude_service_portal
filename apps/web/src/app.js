@@ -13349,6 +13349,13 @@ ${bodyHtml}
             tooltip: 'Maximum number of cookers that fit in one transport trip.',
           },
           {
+            path: 'capacities.dishwasher',
+            label: 'Dishwasher load capacity / trip',
+            type: 'number',
+            step: '1',
+            tooltip: 'Maximum number of freestanding dishwashers that fit in one transport trip.',
+          },
+          {
             path: 'laborMinutes.fridge',
             label: 'Refrigerator technician minutes',
             type: 'number',
@@ -13368,6 +13375,14 @@ ${bodyHtml}
             type: 'number',
             step: '1',
             tooltip: 'Standard technician time budgeted to install/dismantle one cooker.',
+          },
+          {
+            path: 'laborMinutes.dishwasher',
+            label: 'Dishwasher technician minutes',
+            type: 'number',
+            step: '1',
+            tooltip:
+              'Standard technician time budgeted to install/dismantle one freestanding dishwasher.',
           },
         ],
         data,
@@ -13507,6 +13522,7 @@ ${bodyHtml}
             { name: 'Refrigerator', rates: mode.rates.fridge },
             { name: 'Washing machine', rates: mode.rates.washer },
             { name: 'Cooker', rates: mode.rates.cooker },
+            { name: 'Dishwasher', rates: mode.rates.dishwasher },
           ],
           [
             { key: 'name', label: 'Appliance', type: 'readonly' },
@@ -13558,7 +13574,7 @@ ${bodyHtml}
           );
         rerenderDiscounts();
         tierUpdaters.push(() => {
-          const batchRates = ['fridge', 'washer', 'cooker']
+          const batchRates = ['fridge', 'washer', 'cooker', 'dishwasher']
             .map((key) => Number(mode.rates[key].batch))
             .filter((rate) => rate > 0);
           const lowestBatchRate = batchRates.length ? Math.min(...batchRates) : 0;
@@ -16016,6 +16032,7 @@ ${bodyHtml}
       ['fridge', 'Refrigerator'],
       ['washer', 'Washing machine'],
       ['cooker', 'Cooker'],
+      ['dishwasher', 'Dishwasher'],
     ];
     const rateRows = appliances
       .map(
@@ -20170,7 +20187,7 @@ ${bodyHtml}
       plannedTrips: 1,
       crew: 2,
       transport: 'No',
-      qty: { fridge: 0, fridgeLarge: 0, washer: 0, cooker: 0, plug: 0 },
+      qty: { fridge: 0, fridgeLarge: 0, washer: 0, cooker: 0, dishwasher: 0, plug: 0 },
       extra: { type: 'percent', value: 0 },
       // The saved fridge and 13A/15A plug settings (the Rate card's, Pricing Masters edits them).
       // null or switched off = one fridge box and no plug box, the old way.
@@ -20363,6 +20380,7 @@ ${bodyHtml}
         },
         { ...core.KINDS[1], group: 'Other appliances', tip: '' },
         { ...core.KINDS[2], group: 'Other appliances', tip: '' },
+        { ...core.KINDS[3], group: 'Other appliances', tip: '' },
         {
           key: 'plug',
           label: '13A/15A plugs',
@@ -20556,7 +20574,8 @@ ${bodyHtml}
         '</dd></div>';
       const extraOn = calc.valid && calc.extra.applied > 0.004;
       // Fridges have no discount tiers under the new logic; the tier only matters for other appliances.
-      const fridgesOnly = calc.newFridge && calc.qty.washer + calc.qty.cooker === 0;
+      const fridgesOnly =
+        calc.newFridge && calc.qty.washer + calc.qty.cooker + calc.qty.dishwasher === 0;
       $q('[data-dc-facts]').innerHTML =
         fact('Service type', calc.modeLabel) +
         fact('Region', calc.region ? calc.region.name : '—') +
@@ -34742,7 +34761,7 @@ ${bodyHtml}
         ],
         [
           'Decide the job type',
-          'Repairs are CSIJW or CSIJO. Fridge, washer or cooker delivered and installed is CSIDI; installed only is CSIII; every other delivery is CSIDO.',
+          'Repairs are CSIJW or CSIJO. Fridge, washer, cooker or freestanding dishwasher delivered and installed is CSIDI; installed only is CSIII; every other delivery is CSIDO.',
         ],
         [
           'Price the line',

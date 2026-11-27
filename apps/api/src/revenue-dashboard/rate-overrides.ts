@@ -370,6 +370,7 @@ const MASTER_CATEGORY = {
   fridge: 'Freestanding Refrigerator',
   washer: 'Freestanding Washing Machine',
   cooker: 'Freestanding Cooker',
+  dishwasher: 'Freestanding Dishwasher',
 } as const;
 
 /**

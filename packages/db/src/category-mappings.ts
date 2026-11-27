@@ -11,6 +11,7 @@ export const PRICING_CATEGORIES = [
   'Freestanding Refrigerator',
   'Freestanding Washing Machine',
   'Freestanding Cooker',
+  'Freestanding Dishwasher',
 ] as const;
 
 export type CategoryMappingRecord = {

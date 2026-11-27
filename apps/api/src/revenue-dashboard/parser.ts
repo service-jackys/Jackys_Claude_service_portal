@@ -292,7 +292,7 @@ function nOrNull(value: ExcelJS.CellValue | undefined): number | null {
 }
 
 // The pricing masters sit at fixed cells on "Del+Install Pricing" and
-// "Install Pricing" (category master J18:M22, discounts B25:E32, transport
+// "Install Pricing" (category master J18:M23, discounts B25:E32, transport
 // G25:J27, crew factors G31:H34, defaults L25:M31).
 function readPricingMaster(sheet: ExcelJS.Worksheet | undefined): PricingMaster | null {
   if (!sheet) return null;
