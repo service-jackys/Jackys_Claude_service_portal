@@ -24,7 +24,9 @@
 //    size (400 L and under / over 400 L; litres come from the Stock Master, 400 L and a warning when
 //    unknown) with the same groupLabour rule the dashboard and the quote calculator use, and no
 //    discount tiers. Other categories keep their rates and tiers; fridge units still count towards the
-//    note's quantity for those tiers, for the batch rate and for transport.
+//    note's quantity for those tiers, for the batch rate and for transport. One fridge on a note of 2 or
+//    more units of its job type takes the batch rate (modification #326); only a note with a single
+//    unit in total pays the market rate.
 //  - A 13A/15A plug line (item REPAIR-MATERIAL) on CSIDI or CSIII is charged the plug amount x its
 //    quantity, no discount; it is not a unit, a trip or transport, and is never a CSIDO line.
 import type { DandiPricingInput } from '../../../../packages/contracts/src/index.js';
@@ -282,6 +284,7 @@ export function priceDeliveryNote(
         group.large,
         { market: cat.standardRate, special: cat.batchRate, minimum: cat.minimumRate },
         fs,
+        group.type === 'CSIDI' ? csidiQty : csiiiQty,
       );
       let given = 0;
       group.indexes.forEach((i, k) => {

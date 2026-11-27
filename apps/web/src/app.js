@@ -20370,13 +20370,13 @@ ${bodyHtml}
           key: 'fridge',
           label: '400 L and under',
           group: 'Refrigerators',
-          tip: 'Fridges of 400 litres or less. Priced as a group: 1 unit at the market rate, 2 to 10 at the base rate, more than 10 at the second tier. No quantity discount tiers.',
+          tip: 'Fridges of 400 litres or less. The market rate applies only when the fridge is the only unit on the invoice. Otherwise: 1 to 10 at the base rate, more than 10 at the second tier. No quantity discount tiers.',
         },
         {
           key: 'fridgeLarge',
           label: 'Over 400 L',
           group: 'Refrigerators',
-          tip: 'Fridges over 400 litres. 1 unit at the market rate, 2 or more at the special rate. No quantity discount tiers.',
+          tip: 'Fridges over 400 litres. The market rate applies only when the fridge is the only unit on the invoice; otherwise the special rate. No quantity discount tiers.',
         },
         { ...core.KINDS[1], group: 'Other appliances', tip: '' },
         { ...core.KINDS[2], group: 'Other appliances', tip: '' },
@@ -25395,7 +25395,7 @@ ${bodyHtml}
         '</tr></thead><tbody>' +
         rows +
         '</tbody></table></div>' +
-        '<p class="form-note">Revenue = labour + transport. Labour = units \u00d7 net rate; for fridges the whole size group (400 L and under / over 400 L) is priced together: 1 unit at the market rate, 2 to 10 at the base rate, units above 10 at the second tier, over 400 L from 2 units at the special rate. A 13A/15A plug (REPAIR-MATERIAL) is the plug amount \u00d7 quantity. Rates come from Pricing Masters.</p></details>'
+        '<p class="form-note">Revenue = labour + transport. Labour = units \u00d7 net rate; for fridges the whole size group (400 L and under / over 400 L) is priced together: the market rate only when the fridge is the only unit on the note, otherwise 1 to 10 at the base rate, units above 10 at the second tier, and over 400 L at the special rate. A 13A/15A plug (REPAIR-MATERIAL) is the plug amount \u00d7 quantity. Rates come from Pricing Masters.</p></details>'
       );
     }
 
@@ -30921,8 +30921,8 @@ ${bodyHtml}
             : '') +
           '</div><div class="fl-body">' +
           '<table class="rc-t"><thead><tr><th>Rule</th><th class="rc-num">AED per unit</th></tr></thead><tbody>' +
-          '<tr><td>400 L and under, 1 unit</td><td class="rc-num">market rate</td></tr>' +
-          '<tr><td>400 L and under, 2 to 10 units: base</td><td class="rc-num">' +
+          '<tr><td>400 L and under, the only unit on the invoice</td><td class="rc-num">market rate</td></tr>' +
+          '<tr><td>400 L and under, 1 to 10 units on an invoice of 2 or more units: base</td><td class="rc-num">' +
           fnum('smallBase', fl.smallBase) +
           '</td></tr><tr><td>400 L and under, units above 10: second tier</td><td class="rc-num">' +
           fnum('smallOver10', fl.smallOver10) +
@@ -30938,7 +30938,7 @@ ${bodyHtml}
             : fl.optionB
               ? 'units above 10'
               : 'every unit') +
-          '</td></tr><tr><td>Over 400 L: 1 unit market, 2 or more</td><td class="rc-num">special rate</td></tr>' +
+          '</td></tr><tr><td>Over 400 L: only unit on the invoice market, otherwise</td><td class="rc-num">special rate</td></tr>' +
           '<tr><td>13A/15A plug, per unit, on top of the cooker, no discount</td><td class="rc-num">' +
           fnum('plugAmount', fl.plugAmount) +
           '</td></tr></tbody></table>' +
@@ -35287,7 +35287,16 @@ ${bodyHtml}
                 ? Math.max(fr.minimumRate || 0, market)
                 : n * Math.max(fr.minimumRate || 0, special);
           const ex = [
-            ['1 fridge, 400 L and under', 'one unit: market rate ' + chip(market), small(1)],
+            [
+              '1 fridge, 400 L and under, alone on the invoice',
+              'only unit: market rate ' + chip(market),
+              small(1),
+            ],
+            [
+              '1 fridge, 400 L and under, with other units',
+              'invoice of 2 or more units: base ' + chip(fl.smallBase),
+              Math.max(fl.smallMinimum, fl.smallBase),
+            ],
             [
               '6 fridges, 400 L and under',
               '6 units × base ' + chip(fl.smallBase) + ', no discount tiers',

@@ -55,3 +55,18 @@ test('litres come from the model; several models take the largest; none found is
   assert.equal(litresOfModels('XX1', lookup).source, 'default');
   assert.equal(litresOfModels(null, lookup).source, 'not-in-master');
 });
+
+test('one fridge on an invoice of 2 or more units is a batch line; alone it is the market rate (#326)', () => {
+  const one = (large: boolean, invoiceUnits: number | null) =>
+    groupLabour(1, large, rates, s, invoiceUnits).total;
+  assert.equal(one(false, 1), 100);
+  assert.equal(one(false, null), 100);
+  assert.equal(one(false, 2), 30);
+  assert.equal(one(false, 6), 30);
+  assert.equal(one(true, 1), 100);
+  assert.equal(one(true, 2), 60);
+  // two or more fridges of a group are unchanged by the invoice total
+  assert.equal(groupLabour(3, false, rates, s, 9).total, 90);
+  assert.equal(groupLabour(12, false, rates, s, 12).total, 10 * 30 + 2 * 20);
+  assert.match(groupLabour(1, false, rates, s, 6).rule, /1 fridge on an invoice of 6 units/);
+});

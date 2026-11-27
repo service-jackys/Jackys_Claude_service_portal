@@ -93,11 +93,11 @@ export async function buildWorkbookSnapshot(pool: Pool, access: WorkbookAccess) 
           );
           fridgeNote =
             'Fridges are priced with the new logic on every invoice (the master workbook is unchanged; the portal re-prices it). ' +
-            `Fridge 400 L and under: 1 unit pays the market rate${fr ? ` (AED ${fr.standardRate})` : ' from the Rate card'}; 2 to 10 units pay the base rate (AED ${fl.smallBase}); ` +
+            `Fridge 400 L and under: a fridge that is the only unit on the invoice pays the market rate${fr ? ` (AED ${fr.standardRate})` : ' from the Rate card'}; on an invoice of 2 or more units (any category) fridges 1 to 10 pay the base rate (AED ${fl.smallBase}); ` +
             (fl.optionB ? 'only the units above 10' : 'every unit when there are more than 10') +
             ` pay the second tier (AED ${fl.smallOver10}); minimum AED ${fl.smallMinimum}; no volume discount tiers. ` +
-            `Fridge over 400 L: 1 unit pays the market rate, 2 or more the special rate${fr ? ` (AED ${fr.batchRate})` : ''}; no volume discount tiers. ` +
-            `Units are counted per invoice, job type and size group; litres come from the Stock Master and a model without litres counts as 400 L. ` +
+            `Fridge over 400 L: the market rate only when it is the only unit on the invoice, otherwise the special rate${fr ? ` (AED ${fr.batchRate})` : ''}; no volume discount tiers. ` +
+            `Units are counted per invoice number and job type (the second tier per size group); litres come from the Stock Master and a model without litres counts as 400 L. ` +
             `13A/15A plug lines (item code REPAIR-MATERIAL) on CSIDI and CSIII invoices add AED ${fl.plugAmount} x quantity on top of the cooker rate, with no discount. ` +
             'Washing machines, cookers and other categories keep their rates and volume discount tiers. An admin can switch back to the old logic on the Rate card.';
         } else

@@ -5,7 +5,10 @@
 //   fridge 400 L and under : 1 unit = market rate; 2-10 units = base; over 10 = second tier
 //                            (Option B: only the units above 10; Option A: all units); no discount tiers
 //   fridge over 400 L      : 1 unit = market rate; 2 or more = special rate; no discount tiers
-// Units are counted per invoice, per job type and per size group. Litres come from the Stock Master.
+// "1 unit" means the invoice holds ONE delivery + installation (or installation-only) unit in total, across
+// every category (modification #326). A single fridge on an invoice of 2 or more units takes the batch rate
+// (base / special) like every other line. The second tier (over 10) is still counted per size group.
+// Units are counted per invoice number, per job type. Litres come from the Stock Master.
 import {
   DEFAULT_CAPACITY_LITRES,
   FRIDGE_LARGE_THRESHOLD_LITRES,
@@ -51,20 +54,26 @@ export function groupLabour(
   large: boolean,
   rates: FridgeRates,
   s: FridgeScenario,
+  /** Delivery + installation (or installation-only) units on the whole invoice, all categories. */
+  invoiceUnits: number | null = null,
 ): { total: number; rule: string } {
   if (units <= 0) return { total: 0, rule: '' };
+  // One fridge on an invoice of several units is a batch line, like every other category.
+  const clubbed = units === 1 && invoiceUnits !== null && invoiceUnits >= 2;
   if (large) {
-    if (units === 1)
+    if (units === 1 && !clubbed)
       return {
         total: Math.max(rates.minimum, rates.market),
         rule: 'Over 400 L, 1 unit: market rate',
       };
     return {
       total: units * Math.max(rates.minimum, rates.special),
-      rule: `Over 400 L, ${units} units: special rate, no discount tiers`,
+      rule: clubbed
+        ? `Over 400 L, 1 fridge on an invoice of ${invoiceUnits} units: special rate, no discount tiers`
+        : `Over 400 L, ${units} units: special rate, no discount tiers`,
     };
   }
-  if (units === 1)
+  if (units === 1 && !clubbed)
     return {
       total: Math.max(s.smallMinimum, rates.market),
       rule: '400 L and under, 1 unit: market rate',
@@ -74,7 +83,9 @@ export function groupLabour(
   if (units <= 10)
     return {
       total: units * base,
-      rule: `400 L and under, ${units} units: base rate, no discount tiers`,
+      rule: clubbed
+        ? `400 L and under, 1 fridge on an invoice of ${invoiceUnits} units: base rate, no discount tiers`
+        : `400 L and under, ${units} units: base rate, no discount tiers`,
     };
   if (s.optionB)
     return {
@@ -162,6 +173,14 @@ export function priceFridgeLines(
       litres: litresOfModels(p.erpModels, lookup),
     });
   }
+  // Delivery + installation (or installation-only) units on each invoice, all categories.
+  const invoiceUnits = new Map<string, number>();
+  for (const l of lines)
+    if ((l.jobType === 'CSIDI' || l.jobType === 'CSIII') && l.invDelNo)
+      invoiceUnits.set(
+        `${l.invDelNo}|${l.jobType}`,
+        (invoiceUnits.get(`${l.invDelNo}|${l.jobType}`) ?? 0) + l.qty,
+      );
   const groups = new Map<string, Item[]>();
   for (const it of items) {
     const key = `${it.line.invDelNo ?? it.line.id}|${it.line.jobType}|${it.litres.litres > FRIDGE_LARGE_THRESHOLD_LITRES ? 'L' : 'S'}`;
@@ -181,7 +200,10 @@ export function priceFridgeLines(
       minimum: cat?.minimumRate ?? 0,
     };
     const units = group.reduce((t, i) => t + i.line.qty, 0);
-    const { total, rule } = groupLabour(units, large, rates, scenario);
+    const noteUnits = first.line.invDelNo
+      ? (invoiceUnits.get(`${first.line.invDelNo}|${first.line.jobType}`) ?? null)
+      : null;
+    const { total, rule } = groupLabour(units, large, rates, scenario, noteUnits);
     for (const it of group) {
       const share = units > 0 ? it.line.qty / units : 0;
       out.set(it.line.id, {

@@ -68,21 +68,25 @@
 
   // Group labour of `units` fridges of one size group (same rule as groupLabour in
   // apps/api/src/revenue-dashboard/fridge-scenario.ts). rates: {market, special, minimum}.
-  function fridgeGroupLabour(units, large, rates, f) {
+  // noteUnits: all units of the job on the note (every category). One fridge on a note of 2 or more units
+  // takes the batch rate; only a note with a single unit in total pays the market rate.
+  function fridgeGroupLabour(units, large, rates, f, noteUnits) {
     if (units <= 0) return { total: 0, rule: '' };
+    var clubbed = units === 1 && num(noteUnits) >= 2;
+    var onNote = clubbed ? '1 fridge on a note of ' + noteUnits + ' units' : units + ' units';
     if (large) {
-      if (units === 1)
+      if (units === 1 && !clubbed)
         return {
           total: Math.max(num(rates.minimum), num(rates.market)),
           rule: 'Over 400 L, 1 unit: market rate',
         };
       return {
         total: units * Math.max(num(rates.minimum), num(rates.special)),
-        rule: 'Over 400 L, ' + units + ' units: special rate, no discount tiers',
+        rule: 'Over 400 L, ' + onNote + ': special rate, no discount tiers',
       };
     }
     var min = num(f.smallMinimum);
-    if (units === 1)
+    if (units === 1 && !clubbed)
       return {
         total: Math.max(min, num(rates.market)),
         rule: '400 L and under, 1 unit: market rate',
@@ -92,7 +96,7 @@
     if (units <= 10)
       return {
         total: units * base,
-        rule: '400 L and under, ' + units + ' units: base rate, no discount tiers',
+        rule: '400 L and under, ' + onNote + ': base rate, no discount tiers',
       };
     if (f.optionB)
       return {
@@ -179,6 +183,7 @@
                     minimum: cfg.minUnitRate,
                   },
                   fl,
+                  total,
                 )
               : {
                   total:
