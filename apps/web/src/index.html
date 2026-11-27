@@ -3072,6 +3072,57 @@
       .rc-v2 .tb-opt small {
         font-weight: 400;
       }
+      .rc-v2 th.rc-chg {
+        background: var(--rc-tonal);
+        color: var(--rc-ontonal);
+      }
+      .rc-v2 td.rc-chg {
+        font-weight: 700;
+        border-left: 3px solid transparent;
+      }
+      .rc-v2 td.rc-chg.neg {
+        background: #fdecea;
+        color: #b3261e;
+        border-left-color: #b3261e;
+      }
+      .rc-v2 td.rc-chg.pos {
+        background: #e6f4ea;
+        color: #1c7a45;
+        border-left-color: #1c7a45;
+      }
+      .rc-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 14px;
+        border-radius: 14px;
+        background: var(--rc-tonal);
+        color: var(--rc-ontonal);
+        font-size: 0.85rem;
+      }
+      .rc-actions span {
+        flex: 1;
+        min-width: 220px;
+      }
+      .rc-primary {
+        border: 0;
+        border-radius: 99px;
+        background: var(--rc-pri);
+        color: #fff;
+        padding: 11px 22px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(91, 69, 201, 0.35);
+      }
+      .rc-primary:hover {
+        filter: brightness(1.08);
+      }
+      .rc-primary:focus-visible {
+        outline: 3px solid var(--rc-ontonal);
+        outline-offset: 2px;
+      }
       .rc-expl {
         background: var(--surface-soft);
         border-radius: 12px;

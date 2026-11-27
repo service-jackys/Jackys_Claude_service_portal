@@ -31056,6 +31056,9 @@ ${bodyHtml}
             'Current rates',
             'The labour of those rows is rebuilt with the rates above. Transport, quantities and rows fed live from the ERP stay as they are. Later rate changes re-price them too.',
           ) +
+          (canEdit
+            ? '<div class="rc-actions"><button type="button" class="rc-primary" data-rp-save>Save re-price &amp; recalculate</button><span>Applies the choice above to every tab and export and writes an audit entry. You can go back to "As booked" at any time.</span></div>'
+            : '<small>Admins change this.</small>') +
           (re && re.rows.length
             ? '<div class="rc-sum"><div class="rc-kpi"><small>Lines changed</small><b>' +
               re.lines +
@@ -31066,7 +31069,7 @@ ${bodyHtml}
               '">' +
               (re.change > 0 ? '+' : re.change < 0 ? '\u2212' : '') +
               rdMoney2(Math.abs(re.change)) +
-              '</b></div></div><b>By month and category</b><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Month</th><th>Category</th><th class="rc-num">Lines</th><th class="rc-num">Units</th><th class="rc-num">As booked</th><th class="rc-num">Current rates</th><th class="rc-num">Change</th></tr></thead><tbody>' +
+              '</b></div></div><b>By month and category</b><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Month</th><th>Category</th><th class="rc-num">Lines</th><th class="rc-num">Units</th><th class="rc-num">As booked</th><th class="rc-num">Current rates</th><th class="rc-num rc-chg">Change</th></tr></thead><tbody>' +
               re.rows
                 .map(
                   (x) =>
@@ -31082,7 +31085,9 @@ ${bodyHtml}
                     rdMoney2(x.asBooked) +
                     '</td><td class="rc-num">' +
                     rdMoney2(x.current) +
-                    '</td><td class="rc-num">' +
+                    '</td><td class="rc-num rc-chg ' +
+                    (x.change < 0 ? 'neg' : x.change > 0 ? 'pos' : '') +
+                    '">' +
                     (x.change > 0 ? '+' : x.change < 0 ? '\u2212' : '') +
                     rdMoney2(Math.abs(x.change)) +
                     '</td></tr>',
@@ -31092,7 +31097,9 @@ ${bodyHtml}
               re.lines +
               '</b></td><td class="rc-num"><b>' +
               re.units +
-              '</b></td><td></td><td></td><td class="rc-num"><b>' +
+              '</b></td><td></td><td></td><td class="rc-num rc-chg ' +
+              (re.change < 0 ? 'neg' : re.change > 0 ? 'pos' : '') +
+              '"><b>' +
               (re.change > 0 ? '+' : re.change < 0 ? '\u2212' : '') +
               rdMoney2(Math.abs(re.change)) +
               '</b></td></tr></tbody></table></div>' +
@@ -31102,7 +31109,7 @@ ${bodyHtml}
               tip(
                 'One row per invoice line that moves, with what it was booked at and what it becomes. The Export report shows the same lines in its Delivery & Install sheet (Revenue vs Workbook revenue).',
               ) +
-              '</summary><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Type</th><th>Category</th><th class="rc-num">Qty</th><th class="rc-num">As booked</th><th class="rc-num">Current</th><th class="rc-num">Change</th><th>Why</th></tr></thead><tbody>' +
+              '</summary><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Type</th><th>Category</th><th class="rc-num">Qty</th><th class="rc-num">As booked</th><th class="rc-num">Current</th><th class="rc-num rc-chg">Change</th><th>Why</th></tr></thead><tbody>' +
               (re.detail || [])
                 .map(
                   (x) =>
@@ -31122,7 +31129,7 @@ ${bodyHtml}
                     rdMoney2(x.asBooked) +
                     '</td><td class="rc-num">' +
                     rdMoney2(x.current) +
-                    '</td><td class="rc-num ' +
+                    '</td><td class="rc-num rc-chg ' +
                     (x.change < 0 ? 'neg' : x.change > 0 ? 'pos' : '') +
                     '">' +
                     (x.change > 0 ? '+' : x.change < 0 ? '\u2212' : '') +
@@ -31136,9 +31143,6 @@ ${bodyHtml}
               (re.detailTruncated ? '<small>Showing the first 1,000 lines.</small>' : '') +
               '</details>'
             : '<small>No older row differs from the current rates, so nothing would change.</small>') +
-          (canEdit
-            ? '<div><button type="button" class="button" data-rp-save>Save re-price &amp; recalculate</button> <small>Writes an audit entry. You can go back to "As booked" at any time.</small></div>'
-            : '<small>Admins change this.</small>') +
           '</div></div>';
       }
       html += '<!--SEC:rates-->';
