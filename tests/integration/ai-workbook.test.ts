@@ -57,7 +57,11 @@ test(
     // Everything happens in one transaction that is rolled back, so the real
     // uploaded workbooks are never touched.
     const client = await real.connect();
-    const pool = { connect: async () => ({ query: client.query.bind(client), release() {} }) };
+    const pool = {
+      connect: async () => ({ query: client.query.bind(client), release() {} }),
+      // buildWorkbookSnapshot also reads the fridge settings straight from the pool.
+      query: client.query.bind(client),
+    };
     try {
       await client.query('BEGIN');
       const profile = await client.query<{ id: string }>(
