@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 329,
+    "title": "Rate card: \"saved\" message shown inside the open tab, tier basis in the key figures",
+    "area": "Pricing & rates",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Rate card tab.",
+    "changes": [
+      "What changed: Clicking \"Update tier basis\" (and the other save buttons) did save, but the confirmation, or an error, was drawn above the tabs and was out of sight on a scrolled page, so it looked as if nothing happened. The message now…"
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "apps/web/src/app.js, modification.md, apps/api/src/changelog/changelog-data.ts."
+  },
+  {
     "id": 328,
     "title": "Rate card page: key figures, section tabs, tooltips and the line list for older rows",
     "area": "Pricing & rates",

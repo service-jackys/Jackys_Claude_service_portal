@@ -30892,8 +30892,6 @@ ${bodyHtml}
           '">&#8679; Apply to Pricing Masters</button>';
       }
       html += '</div></div>';
-      if (message.text)
-        html += '<p class="rc-msg ' + (message.ok ? 'ok' : 'bad') + '">' + e(message.text) + '</p>';
       // Fridge pricing (modification #306): the new logic switch, its rates and the workbook figure.
       html += '<!--SEC:fridge-->';
       if (data.fridgeLogic) {
@@ -31370,6 +31368,10 @@ ${bodyHtml}
         ) +
         (data.fridgeLogic
           ? kpi('Fridge pricing', data.fridgeLogic.enabled ? 'New logic' : 'Old logic') +
+            kpi(
+              'Install tiers',
+              data.fridgeLogic.installTierBasis === 'line' ? 'Each line' : 'Whole invoice',
+            ) +
             kpi('Older rows', data.fridgeLogic.repriceOlder ? 'Current rates' : 'As booked')
           : '') +
         '</div>';
@@ -31392,9 +31394,17 @@ ${bodyHtml}
           )
           .join('') +
         '</div><div class="rc-pane">' +
+        (message.text
+          ? '<p class="rc-msg ' +
+            (message.ok ? 'ok' : 'bad') +
+            '" data-rc-flash role="status">' +
+            e(message.text) +
+            '</p>'
+          : '') +
         (sections[tab] || '') +
         '</div></div>';
       wire();
+      host.querySelector('[data-rc-flash]')?.scrollIntoView({ block: 'nearest' });
     };
 
     const run = async (fn) => {
