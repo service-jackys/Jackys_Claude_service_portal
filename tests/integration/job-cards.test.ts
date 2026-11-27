@@ -96,6 +96,10 @@ test(
       );
       assert.equal(inProgress.status, 'In Progress');
 
+      // The unit sticker must be attached before a job card can be completed (modification #297).
+      await pool.query(`UPDATE service_job_cards SET sticker_attached = true WHERE id = $1`, [
+        created.id,
+      ]);
       const completed = await jobCardService.changeStatus(
         created.id,
         { status: 'Completed', reason: 'Service completed' },
