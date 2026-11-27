@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { dandiPricingDefault } from '../../packages/db/src/pricing-config-defaults.js';
 import { DEFAULT_PRICING_RULES } from '../../apps/api/src/revenue-dashboard/pricing-logic.js';
+import { rulesOfBatch } from '../../apps/api/src/revenue-dashboard/logic-summary.js';
 import {
   computeRevenue,
   diffRates,
@@ -162,4 +163,24 @@ test('installation-only tiers: lines skipped for the fridge logic keep their fig
   }).revenue;
   assert.equal(r.get('c'), 66.5);
   assert.equal(r.get('f'), 60);
+});
+
+test('an upload made before Dishwasher existed still shows the Dishwasher row in the Rate card', () => {
+  const old = clone(DEFAULT_PRICING_RULES);
+  for (const m of [old.deliveryInstall, old.install])
+    m.categories = m.categories.filter((c) => !/dishwasher/i.test(c.category));
+  const rules = rulesOfBatch({ summary: { pricingRules: old } } as never);
+  for (const m of [rules.deliveryInstall, rules.install]) {
+    const names = m.categories.map((c) => c.category);
+    assert.ok(names.includes('Freestanding Dishwasher'));
+    assert.equal(names[names.length - 1], 'Default');
+  }
+  const set = ratesFromMasters(dandiPricingDefault, rules);
+  const di = set.deliveryInstall.categories.find((c) => c.category === 'Freestanding Dishwasher')!;
+  const inst = set.install.categories.find((c) => c.category === 'Freestanding Dishwasher')!;
+  assert.deepEqual([di.batchRate, di.standardRate, di.minimumRate], [60, 100, 35]);
+  assert.deepEqual([inst.batchRate, inst.standardRate, inst.minimumRate], [60, 60, 35]);
+  // A workbook that already has the row is left alone.
+  const again = rulesOfBatch({ summary: { pricingRules: rules } } as never);
+  assert.equal(again.deliveryInstall.categories.length, rules.deliveryInstall.categories.length);
 });

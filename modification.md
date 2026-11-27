@@ -5205,6 +5205,21 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #325 — Dishwasher row in the Service Revenue Dashboard Rate card and Scenario test
+
+**Date:** 2026-11-27
+
+**Why.** Dishwasher was in Pricing Masters, but the dashboard's Rate card & Scenario test lists the categories of the uploaded master workbook, so it had no Dishwasher row until a workbook with that row was uploaded.
+
+**What changed.**
+
+- A stored upload whose workbook has no Dishwasher row now gets one, from the portal's own rates (Delivery + installation 60 / 100 / 35, Installation only 60 / 60 / 35), in front of Default. It follows Pricing Masters like the other categories.
+- The Rate card, Scenario test, Apply to Pricing Masters and dashboard pricing all use it. A workbook that already has the row is left as it is.
+- No past figure changes: there are no dishwasher invoices before 25 Nov.
+- Test added (an upload without the row shows it, an upload with the row is not doubled). No migration. Restart the API, then hard-refresh.
+
+**Status.** Code complete.
+
 ## Modification #324 — Dishwasher is a fourth Delivery + Installation rate category
 
 **Date:** 2026-11-27 (effective 25 Nov 2026)
