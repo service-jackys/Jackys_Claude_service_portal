@@ -31965,6 +31965,16 @@ ${bodyHtml}
     };
   }
 
+  // Overview "Total revenue" card: the link jumps to the Rate card tab, where the Excel and portal figures sit side by side.
+  if (!window.__rdRateCardLink) {
+    window.__rdRateCardLink = true;
+    document.addEventListener('click', (ev) => {
+      const a = ev.target && ev.target.closest ? ev.target.closest('[data-rd-ratecard]') : null;
+      if (!a) return;
+      ev.preventDefault();
+      document.querySelector('[data-rd-tab="rates"]')?.click();
+    });
+  }
   function rdKpis(items) {
     return (
       '<div class="rd-kpi-grid">' +
@@ -33135,7 +33145,12 @@ ${bodyHtml}
       const topType = types[0];
       body.innerHTML =
         rdKpis([
-          ['Total revenue', '\u20C3 ' + rdMoney(t.revenue), periodLabel()],
+          [
+            'Total revenue',
+            '\u20C3 ' + rdMoney(t.revenue),
+            periodLabel(),
+            '<div class="rd-pf" title="The master Excel workbook is never changed. The portal recalculates each line with the Rate card rules, and every tab and export shows that figure."><i>Portal figure</i> after portal rules &middot; <a href="#" data-rd-ratecard>compare with the Excel</a></div>',
+          ],
           ['Jobs billed', rdMoney(t.jobs), 'Revenue lines in the workbook'],
           ['Units / qty', rdMoney(t.qty), 'Billing quantity'],
           [

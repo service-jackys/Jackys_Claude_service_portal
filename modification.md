@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #331 — Overview "Total revenue" card says it is the portal figure
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — pull and hard-refresh (frontend only). No migration, no API restart.
+- **Scope:** Service Revenue dashboard, Overview tab.
+
+**What changed.** The Overview Total revenue card now carries a "Portal figure" tag with the words "after portal rules" and a link "compare with the Excel" that opens the Rate card tab, where the Workbook figure, Portal figure and Difference sit side by side. The number itself is unchanged: Overview always showed the portal figure (for example 118,226.75), while the Rate card also shows the master Excel figure (124,482.75). The card follows the Overview filters, so the Excel figure is not repeated beside it.
+
+**Files.** apps/web/src/app.js, apps/web/src/index.html, modification.md, apps/api/src/changelog/changelog-data.ts.
+
 ## Modification #330 — Rate card simplified to three tabs: Rates, Fridge pricing, Portal overrides
 
 - **Date:** 2026-11-27

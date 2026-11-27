@@ -15,6 +15,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 331,
+    "title": "Overview \"Total revenue\" card says it is the portal figure",
+    "area": "Revenue",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Overview tab.",
+    "changes": [
+      "What changed: The Overview Total revenue card now carries a \"Portal figure\" tag with the words \"after portal rules\" and a link \"compare with the Excel\" that opens the Rate card tab, where the Workbook figure, Portal figure and Difference…"
+    ],
+    "needsYou": null,
+    "migrations": [],
+    "files": "apps/web/src/app.js, apps/web/src/index.html, modification.md, apps/api/src/changelog/changelog-data.ts."
+  },
+  {
     "id": 330,
     "title": "Rate card simplified to three tabs: Rates, Fridge pricing, Portal overrides",
     "area": "Pricing & rates",
