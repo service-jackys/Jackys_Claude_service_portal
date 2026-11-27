@@ -361,9 +361,32 @@ function invoiceNotes(rules: PricingRules, set: LogicSummaryLine[]): string[] {
   return notes;
 }
 
+/**
+ * An upload of the master workbook made before Dishwasher became a rate category has no Dishwasher row in
+ * its rate tables. The portal's masters own that category (modification #324), so add the row, from the
+ * portal's built-in rates, in front of "Default". The Rate card, Scenario test and the pricing of
+ * dishwasher lines then work on every stored upload, not only on a workbook that has the row.
+ */
+function withDishwasher(rules: PricingRules): PricingRules {
+  const add = (m: PricingRules['deliveryInstall'], builtIn: PricingRules['deliveryInstall']) => {
+    if (m.categories.some((c) => /DISH\s*WASHER/i.test(c.category))) return m;
+    const row = builtIn.categories.find((c) => c.category === 'Freestanding Dishwasher');
+    if (!row) return m;
+    const at = m.categories.findIndex((c) => c.category === 'Default');
+    const categories = [...m.categories];
+    categories.splice(at < 0 ? categories.length : at, 0, { ...row });
+    return { ...m, categories };
+  };
+  return {
+    ...rules,
+    deliveryInstall: add(rules.deliveryInstall, DEFAULT_PRICING_RULES.deliveryInstall),
+    install: add(rules.install, DEFAULT_PRICING_RULES.install),
+  };
+}
+
 export function rulesOfBatch(batch: ImportBatch): PricingRules {
   const stored = (batch.summary as { pricingRules?: PricingRules }).pricingRules;
-  return stored?.deliveryInstall ? stored : DEFAULT_PRICING_RULES;
+  return withDishwasher(stored?.deliveryInstall ? stored : DEFAULT_PRICING_RULES);
 }
 
 export function buildLogicSummary(
