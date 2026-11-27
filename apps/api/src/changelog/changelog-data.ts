@@ -15,6 +15,23 @@ export interface ChangelogEntry {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    "id": 327,
+    "title": "\"Older rows\" switch: re-price the older locked rows at current rates",
+    "area": "General",
+    "date": "2026-11-27",
+    "approxDate": false,
+    "status": "Code complete",
+    "summary": "Service Revenue dashboard, Rate card (admins). Portal only: the master workbook and its locked rows are not changed.",
+    "changes": [
+      "What it does: Older locked rows of the master workbook were booked at older rates (for example cookers at AED 80). A new card \"Older rows (booked at older rates)\" in the Rate card has two choices: As booked (workbook), the default, or…"
+    ],
+    "needsYou": null,
+    "migrations": [
+      "115_revenue_reprice_older.sql"
+    ],
+    "files": "packages/db/migrations/115_revenue_reprice_older.sql (column reprice_older on revenue_fridge_logic), packages/db/src/revenue-rate-overrides.ts, apps/api/src/revenue-dashboard/rate-overrides.ts…"
+  },
+  {
     "id": 326,
     "title": "One fridge on an invoice of 2 or more units pays the batch rate",
     "area": "Invoices & billing",

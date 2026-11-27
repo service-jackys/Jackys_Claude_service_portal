@@ -5205,6 +5205,16 @@ Display only; no pricing formulas, API or database changes.
 
 **Needs you:** pull, run the migration (npm.cmd run db:migrate), restart the API, then upload the master workbook (the new one, opened and saved in Excel). The toggles screen follows in the next step.
 
+## Modification #327 — "Older rows" switch: re-price the older locked rows at current rates
+
+- **Date:** 2026-11-27
+- **Status:** Code complete — needs pull, run the migration (npm.cmd run db:migrate), restart the API, hard-refresh; then choose "Current rates" in the Rate card and save
+- **Scope:** Service Revenue dashboard, Rate card (admins). Portal only: the master workbook and its locked rows are not changed.
+
+**What it does.** Older locked rows of the master workbook were booked at older rates (for example cookers at AED 80). A new card "Older rows (booked at older rates)" in the Rate card has two choices: **As booked (workbook)**, the default, or **Current rates**, which rebuilds the labour of those rows with the Rate card as it stands. Transport, quantities, rows fed live from the ERP and fridges (priced by the fridge logic) are left as they are. Later rate changes re-price these rows too. The card lists the affected lines by month and category with As booked, Current rates and Change, so the effect is seen before saving. "Save re-price & recalculate" re-prices every tab and export and writes an audit entry; "As booked" goes back at any time (the workbook figure of each line is always kept).
+
+**Files.** packages/db/migrations/115_revenue_reprice_older.sql (column reprice_older on revenue_fridge_logic), packages/db/src/revenue-rate-overrides.ts, apps/api/src/revenue-dashboard/rate-overrides.ts (repriceAdjustments), apps/api/src/revenue-dashboard/service.ts (repriceEffect, saved with the fridge-logic settings), apps/web/src/app.js, tests/unit/rate-overrides.test.ts, tests/e2e/fridge-logic-switch.spec.ts.
+
 ## Modification #326 — One fridge on an invoice of 2 or more units pays the batch rate
 
 - **Date:** 2026-11-27

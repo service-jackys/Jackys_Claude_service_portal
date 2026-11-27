@@ -30995,6 +30995,76 @@ ${bodyHtml}
             ? '<div><button type="button" class="button" data-tb-save>Update tier basis</button> <small>Re-prices the dashboard and writes an audit entry.</small></div>'
             : '<small>Admins change this.</small>') +
           '</div></div>';
+        // Re-price older rows at current rates (modification #327): portal only, the master workbook is untouched.
+        const re = data.repriceEffect;
+        const rpOpt = (val, title, text) =>
+          '<label class="fl-opt tb-opt' +
+          ((fl.repriceOlder ? 'current' : 'booked') === val ? ' tb-on' : '') +
+          '" style="display:flex;gap:10px;align-items:flex-start;text-align:left;padding:10px 12px"><input type="radio" name="repriceOlder" data-rp value="' +
+          val +
+          '"' +
+          ((fl.repriceOlder ? 'current' : 'booked') === val ? ' checked' : '') +
+          (canEdit ? '' : ' disabled') +
+          ' /><span><b>' +
+          title +
+          '</b><br><small>' +
+          text +
+          '</small></span></label>';
+        const rpMonth = (m) =>
+          ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][
+            (m % 100) - 1
+          ] +
+          ' ' +
+          Math.floor(m / 100);
+        html +=
+          '<div class="rc-box" data-rp-box><div class="rc-box-head"><b>Older rows (booked at older rates)</b><span>portal only: the master workbook and its locked rows are not changed</span></div>' +
+          '<div class="fl-body" style="display:grid;gap:10px">' +
+          rpOpt(
+            'booked',
+            'As booked (workbook)',
+            'Older locked rows keep the labour they were booked with, for example cookers at AED 80.',
+          ) +
+          rpOpt(
+            'current',
+            'Current rates',
+            'The labour of those rows is rebuilt with the rates above. Transport, quantities and rows fed live from the ERP stay as they are. Later rate changes re-price them too.',
+          ) +
+          (re && re.rows.length
+            ? '<div class="rc-scroll"><table class="rc-table"><thead><tr><th>Month</th><th>Category</th><th class="rc-num">Lines</th><th class="rc-num">Units</th><th class="rc-num">As booked</th><th class="rc-num">Current rates</th><th class="rc-num">Change</th></tr></thead><tbody>' +
+              re.rows
+                .map(
+                  (x) =>
+                    '<tr><td>' +
+                    rpMonth(x.month) +
+                    '</td><td>' +
+                    escapeHtml(String(x.category).replace('Freestanding ', '')) +
+                    '</td><td class="rc-num">' +
+                    x.lines +
+                    '</td><td class="rc-num">' +
+                    x.units +
+                    '</td><td class="rc-num">' +
+                    rdMoney2(x.asBooked) +
+                    '</td><td class="rc-num">' +
+                    rdMoney2(x.current) +
+                    '</td><td class="rc-num">' +
+                    (x.change > 0 ? '+' : x.change < 0 ? '\u2212' : '') +
+                    rdMoney2(Math.abs(x.change)) +
+                    '</td></tr>',
+                )
+                .join('') +
+              '<tr><td colspan="2"><b>Total</b></td><td class="rc-num"><b>' +
+              re.lines +
+              '</b></td><td class="rc-num"><b>' +
+              re.units +
+              '</b></td><td></td><td></td><td class="rc-num"><b>' +
+              (re.change > 0 ? '+' : re.change < 0 ? '\u2212' : '') +
+              rdMoney2(Math.abs(re.change)) +
+              '</b></td></tr></tbody></table></div>'
+            : '<small>No older row differs from the current rates, so nothing would change.</small>') +
+          (canEdit
+            ? '<div><button type="button" class="button" data-rp-save>Save re-price &amp; recalculate</button> <small>Writes an audit entry. You can go back to "As booked" at any time.</small></div>'
+            : '<small>Admins change this.</small>') +
+          '</div></div>';
       }
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
@@ -31189,6 +31259,7 @@ ${bodyHtml}
             optionB: true,
             enabled: true,
             installTierBasis: (data.fridgeLogic && data.fridgeLogic.installTierBasis) || 'invoice',
+            repriceOlder: !!(data.fridgeLogic && data.fridgeLogic.repriceOlder),
           };
           host.querySelectorAll('[data-fl]').forEach((el) => {
             const k = el.getAttribute('data-fl');
@@ -31203,6 +31274,31 @@ ${bodyHtml}
             'Fridge pricing saved (' +
             (body.enabled ? 'new logic' : 'old logic') +
             '). Every figure was recalculated.';
+          message.ok = true;
+          draw();
+        }),
+      );
+      host.querySelector('[data-rp-save]')?.addEventListener('click', () =>
+        run(async () => {
+          const f = data.fridgeLogic;
+          const on = host.querySelector('[data-rp]:checked')?.value === 'current';
+          data = await apiRequest('/api/revenue-dashboard/fridge-logic', {
+            method: 'PUT',
+            body: JSON.stringify({
+              enabled: f.enabled,
+              smallBase: f.smallBase,
+              smallOver10: f.smallOver10,
+              smallMinimum: f.smallMinimum,
+              optionB: f.optionB,
+              plugAmount: f.plugAmount,
+              installTierBasis: f.installTierBasis,
+              repriceOlder: on,
+            }),
+          });
+          message.text =
+            'Older rows are now ' +
+            (on ? 're-priced at current rates' : 'shown as booked') +
+            '. Every figure was recalculated.';
           message.ok = true;
           draw();
         }),
@@ -31222,6 +31318,7 @@ ${bodyHtml}
               optionB: f.optionB,
               plugAmount: f.plugAmount,
               installTierBasis: basis,
+              repriceOlder: !!f.repriceOlder,
             }),
           });
           message.text =

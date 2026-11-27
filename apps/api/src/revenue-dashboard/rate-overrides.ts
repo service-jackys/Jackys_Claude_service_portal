@@ -213,6 +213,30 @@ export interface RevenueInputs {
    * total installation units (the portal rule), 'line' on its own quantity (the master workbook).
    */
   installTierBasis?: 'invoice' | 'line';
+  /**
+   * Modification #327: rebuild the labour of the older locked workbook rows (booked at older rates, for
+   * example cookers at AED 80) with the current rates. Transport and quantities stay as they are.
+   */
+  repriceOlder?: boolean;
+}
+
+/**
+ * Per-line revenue difference when an older (locked) delivery + installation or installation-only row is
+ * rebuilt with the rates in force instead of the rates it was booked with. The workbook's own rows fed
+ * live from the ERP are left alone, and so are lines in `skip` (fridges, priced by the fridge logic).
+ */
+export function repriceAdjustments(lines: RateLine[], rules: PricingRules, skip?: Set<string>) {
+  const out = new Map<string, number>();
+  for (const l of lines) {
+    if ((l.jobType !== 'CSIDI' && l.jobType !== 'CSIII') || !l.pricing || skip?.has(l.id)) continue;
+    if (/live feed/i.test(String((l.pricing as { sourceName?: string | null }).sourceName ?? '')))
+      continue;
+    const e = enrichLine(rules, toLike(l));
+    // Only a difference of rate (or quantity), never of transport: transport is left as booked.
+    if (e.diffCause !== 'Rate or quantity' || e.reconcileDiff === null) continue;
+    out.set(l.id, money(-e.reconcileDiff));
+  }
+  return out;
 }
 
 /**
@@ -267,6 +291,9 @@ export function computeRevenue(
   }
   if (!same)
     for (const [id, delta] of unitAdjustments(inputs.lines, base, next))
+      out.set(id, money((out.get(id) ?? 0) + delta));
+  if (inputs.repriceOlder)
+    for (const [id, delta] of repriceAdjustments(inputs.lines, base, opts.skipTier))
       out.set(id, money((out.get(id) ?? 0) + delta));
   if (inputs.installTierBasis === 'invoice')
     for (const [id, delta] of installTierAdjustments(inputs.lines, next, opts.skipTier))
