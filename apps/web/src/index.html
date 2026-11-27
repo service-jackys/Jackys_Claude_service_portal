@@ -2916,6 +2916,189 @@
         background: color-mix(in srgb, #e0a21a 18%, transparent);
         border-color: #e0a21a;
       }
+      /* Rate card page layout (modification #328): key figures, section tabs, tooltips. */
+      .rc-v2 {
+        --rc-pri: #5b45c9;
+        --rc-tonal: #e6defb;
+        --rc-ontonal: #2a1f6b;
+      }
+      .rc-v2 .rc-sum {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+        gap: 10px;
+        margin: 0 0 12px;
+      }
+      .rc-v2 .rc-kpi {
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(40, 30, 90, 0.1);
+      }
+      .rc-v2 .rc-kpi small {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .rc-v2 .rc-kpi b.neg {
+        color: #b3261e;
+      }
+      .rc-v2 .rc-kpi b.pos {
+        color: #1c7a45;
+      }
+      .rc-tabs {
+        position: sticky;
+        top: 0;
+        z-index: 6;
+        display: flex;
+        gap: 6px;
+        overflow-x: auto;
+        padding: 6px 0;
+        margin: 0 0 12px;
+        background: var(--bg, #eef3fa);
+      }
+      .rc-tab {
+        flex: none;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--muted);
+        border-radius: 99px;
+        padding: 9px 16px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .rc-tab[aria-selected='true'] {
+        background: var(--rc-pri);
+        border-color: var(--rc-pri);
+        color: #fff;
+      }
+      .rc-tab:focus-visible,
+      .rc-tip button:focus-visible {
+        outline: 3px solid var(--rc-pri);
+        outline-offset: 2px;
+      }
+      .rc-tab i {
+        font-style: normal;
+        background: #fff1cf;
+        color: #8a5a00;
+        border-radius: 99px;
+        padding: 0 7px;
+        margin-left: 6px;
+        font-size: 0.72rem;
+      }
+      .rc-v2 .rc-box {
+        border-radius: 16px;
+        box-shadow: 0 1px 3px rgba(40, 30, 90, 0.1);
+      }
+      .rc-tip {
+        position: relative;
+        display: inline-flex;
+        margin-left: 6px;
+        vertical-align: middle;
+      }
+      .rc-tip button {
+        all: unset;
+        cursor: help;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: var(--rc-tonal, #e6defb);
+        color: var(--rc-ontonal, #2a1f6b);
+        font:
+          700 11px/18px system-ui,
+          sans-serif;
+        text-align: center;
+      }
+      .rc-v2 .rc-tip > span {
+        display: none;
+        position: absolute;
+        z-index: 30;
+        left: 0;
+        top: 24px;
+        width: min(300px, 72vw);
+        background: #222a3a;
+        color: #fff;
+        padding: 10px 12px;
+        border-radius: 10px;
+        font:
+          400 0.8rem/1.45 system-ui,
+          sans-serif;
+        text-transform: none;
+        letter-spacing: 0;
+        white-space: normal;
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+      }
+      .rc-tip:hover > span,
+      .rc-tip:focus-within > span {
+        display: block;
+      }
+      .rc-v2 .fl-body {
+        grid-template-columns: minmax(0, 1fr) !important;
+      }
+      .rc-v2 .tb-opt {
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+        font-size: 0.9rem;
+      }
+      .rc-v2 .tb-opt.tb-on {
+        border-color: var(--rc-pri);
+        background: var(--rc-tonal);
+        color: var(--ink, #1d1b24);
+      }
+      .rc-v2 .tb-opt small {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .rc-v2 .tb-opt input {
+        position: static;
+        opacity: 1;
+        inset: auto;
+        width: 18px;
+        height: 18px;
+        margin: 2px 0 0;
+        flex: none;
+        accent-color: var(--rc-pri);
+      }
+      .rc-v2 .tb-opt span,
+      .rc-v2 .tb-opt input:checked + span {
+        display: block;
+        padding: 0;
+        border-radius: 0;
+        background: none;
+        box-shadow: none;
+        font-size: 0.9rem;
+        color: var(--ink, #1d1b24);
+      }
+      .rc-v2 .tb-opt small {
+        font-weight: 400;
+      }
+      .rc-expl {
+        background: var(--surface-soft);
+        border-radius: 12px;
+        padding: 11px 13px;
+        font-size: 0.85rem;
+      }
+      .rc-expl b {
+        display: block;
+        margin-bottom: 2px;
+      }
+      .rc-lines summary {
+        cursor: pointer;
+        font-weight: 600;
+        padding: 6px 0;
+      }
+      .rc-why-cell {
+        white-space: normal;
+        min-width: 220px;
+      }
+      .rc-sum .rc-kpi b {
+        font-variant-numeric: tabular-nums;
+      }
+      @media (max-width: 700px) {
+        .rc-v2 .rc-tip > span {
+          left: -60px;
+        }
+      }
       .rc-kpis {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));

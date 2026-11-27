@@ -30683,8 +30683,14 @@ ${bodyHtml}
     const clone = (o) => JSON.parse(JSON.stringify(o));
     const rows = rcRows(data.workbook, data.discountLabels);
     let editing = false;
+    let tab = 'rates';
     let draft = clone(data.custom || data.workbook);
     const message = { text: '', ok: true };
+    // A small (i) mark with a plain-words explanation for management (hover, focus or tap).
+    const tip = (text) =>
+      '<span class="rc-tip"><button type="button" aria-label="What is this?">i</button><span role="tooltip">' +
+      escapeHtml(text) +
+      '</span></span>';
 
     const changedRows = (a, b) =>
       rows
@@ -30748,9 +30754,10 @@ ${bodyHtml}
           '</td>'
         );
       };
-      const card = (title, sub, inner) =>
+      const card = (title, sub, inner, help) =>
         '<div class="rc-box"><div class="rc-box-head"><b>' +
         e(title) +
+        (help ? tip(help) : '') +
         '</b>' +
         (sub ? '<span>' + e(sub) + '</span>' : '') +
         '</div>' +
@@ -30776,6 +30783,7 @@ ${bodyHtml}
               '</tr>',
           ).join('') +
           '</tbody></table>',
+        'Fixed AED charge per job. Repair jobs (CSIJW, CSIJO) and delivery only are not multiplied by the number of appliances.',
       );
       const discCard = card(
         'Volume discount',
@@ -30793,6 +30801,7 @@ ${bodyHtml}
             )
             .join('') +
           '</tbody></table>',
+        'Discount on the labour when many units are on one invoice. The tier is read on the invoice total of units. Fridges do not get volume discounts.',
       );
       const catCard = (key, title) =>
         card(
@@ -30812,6 +30821,7 @@ ${bodyHtml}
               )
               .join('') +
             '</tbody></table>',
+          'Special = rate when 2 or more units are on one invoice (a batch). Market = rate for a single unit. Minimum = the lowest unit rate after the volume discount.',
         );
       const trCard = card(
         'Once-per-invoice transport',
@@ -30828,6 +30838,7 @@ ${bodyHtml}
             )
             .join('') +
           '</tbody></table>',
+        'Charged once per invoice when it has more than one delivery + installation unit and no delivery-only line. At most 2 charged installation trips per salesperson per day.',
       );
 
       let html =
@@ -30884,6 +30895,7 @@ ${bodyHtml}
       if (message.text)
         html += '<p class="rc-msg ' + (message.ok ? 'ok' : 'bad') + '">' + e(message.text) + '</p>';
       // Fridge pricing (modification #306): the new logic switch, its rates and the workbook figure.
+      html += '<!--SEC:fridge-->';
       if (data.fridgeLogic) {
         const fl = data.fridgeLogic;
         const fig = data.figures || { workbook: 0, portal: 0 };
@@ -30908,7 +30920,11 @@ ${bodyHtml}
           '</span></label>';
         const diff = fig.portal - fig.workbook;
         html +=
-          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing</b><span>fridges and the 13A/15A plug, CSIDI and CSIII</span></div>' +
+          '<div class="rc-box" data-fl-box><div class="rc-box-head"><b>Fridge pricing' +
+          tip(
+            'A fridge that is the only unit on its invoice pays the market rate. With other units on the same invoice it pays the batch rate. Fridges get no volume discount tiers. New logic = these rules; Old logic = fridges treated like other appliances.',
+          ) +
+          '</b><span>fridges and the 13A/15A plug, CSIDI and CSIII</span></div>' +
           '<div class="fl-top"><div class="fl-seg" role="radiogroup" aria-label="Fridge pricing logic">' +
           seg('1', 'New logic', 'fl-new') +
           seg('0', 'Old logic', 'fl-old') +
@@ -30965,8 +30981,13 @@ ${bodyHtml}
           '</b><br><small>' +
           text +
           '</small></span></label>';
+        html += '<!--SEC:tiers-->';
         html +=
-          '<div class="rc-box" data-tb-box><div class="rc-box-head"><b>Installation-only (CSIII) discount tiers</b><span>how many units set the volume-discount tier</span></div>' +
+          '<div class="rc-box" data-tb-box><div class="rc-box-head"><b>Installation-only (CSIII) discount tiers' +
+          tip(
+            'The volume discount depends on how many units are counted together. Whole invoice = every installation unit on the invoice (the portal rule, same as delivery + installation). Each line = the older workbook way.',
+          ) +
+          '</b><span>how many units set the volume-discount tier</span></div>' +
           '<div class="fl-body" style="display:grid;gap:10px">' +
           tierOpt(
             'invoice',
@@ -31016,9 +31037,15 @@ ${bodyHtml}
           ] +
           ' ' +
           Math.floor(m / 100);
+        html += '<!--SEC:older-->';
         html +=
-          '<div class="rc-box" data-rp-box><div class="rc-box-head"><b>Older rows (booked at older rates)</b><span>portal only: the master workbook and its locked rows are not changed</span></div>' +
+          '<div class="rc-box" data-rp-box><div class="rc-box-head"><b>Older rows (booked at older rates)' +
+          tip(
+            'Some older invoices (July to mid October) were booked in the master workbook at old rates, for example cookers at AED 80 batch or 120 market. As booked shows them that way; Current rates re-calculates the same invoices, quantities and transport at the Rate card as it stands today. Only the portal changes; the Excel workbook is never touched.',
+          ) +
+          '</b><span>portal only: the master workbook and its locked rows are not changed</span></div>' +
           '<div class="fl-body" style="display:grid;gap:10px">' +
+          '<div class="rc-expl"><b>What is the difference?</b>As booked = the figures in your master Excel. Current rates = the same invoices, same quantities and same transport, with the labour re-calculated at the rates in this Rate card today. You can switch back at any time.</div>' +
           rpOpt(
             'booked',
             'As booked (workbook)',
@@ -31030,7 +31057,16 @@ ${bodyHtml}
             'The labour of those rows is rebuilt with the rates above. Transport, quantities and rows fed live from the ERP stay as they are. Later rate changes re-price them too.',
           ) +
           (re && re.rows.length
-            ? '<div class="rc-scroll"><table class="rc-table"><thead><tr><th>Month</th><th>Category</th><th class="rc-num">Lines</th><th class="rc-num">Units</th><th class="rc-num">As booked</th><th class="rc-num">Current rates</th><th class="rc-num">Change</th></tr></thead><tbody>' +
+            ? '<div class="rc-sum"><div class="rc-kpi"><small>Lines changed</small><b>' +
+              re.lines +
+              '</b></div><div class="rc-kpi"><small>Units</small><b>' +
+              re.units +
+              '</b></div><div class="rc-kpi"><small>Change in revenue</small><b class="' +
+              (re.change < 0 ? 'neg' : re.change > 0 ? 'pos' : '') +
+              '">' +
+              (re.change > 0 ? '+' : re.change < 0 ? '\u2212' : '') +
+              rdMoney2(Math.abs(re.change)) +
+              '</b></div></div><b>By month and category</b><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Month</th><th>Category</th><th class="rc-num">Lines</th><th class="rc-num">Units</th><th class="rc-num">As booked</th><th class="rc-num">Current rates</th><th class="rc-num">Change</th></tr></thead><tbody>' +
               re.rows
                 .map(
                   (x) =>
@@ -31059,13 +31095,53 @@ ${bodyHtml}
               '</b></td><td></td><td></td><td class="rc-num"><b>' +
               (re.change > 0 ? '+' : re.change < 0 ? '\u2212' : '') +
               rdMoney2(Math.abs(re.change)) +
-              '</b></td></tr></tbody></table></div>'
+              '</b></td></tr></tbody></table></div>' +
+              '<details class="rc-lines"><summary>Every line that changes (' +
+              re.lines +
+              ')' +
+              tip(
+                'One row per invoice line that moves, with what it was booked at and what it becomes. The Export report shows the same lines in its Delivery & Install sheet (Revenue vs Workbook revenue).',
+              ) +
+              '</summary><div class="rc-scroll"><table class="rc-table"><thead><tr><th>Date</th><th>Invoice</th><th>Customer</th><th>Type</th><th>Category</th><th class="rc-num">Qty</th><th class="rc-num">As booked</th><th class="rc-num">Current</th><th class="rc-num">Change</th><th>Why</th></tr></thead><tbody>' +
+              (re.detail || [])
+                .map(
+                  (x) =>
+                    '<tr><td>' +
+                    e(x.date || '') +
+                    '</td><td>' +
+                    e(x.invoice || '') +
+                    '</td><td>' +
+                    e(x.customer || '') +
+                    '</td><td>' +
+                    e(x.jobType) +
+                    '</td><td>' +
+                    e(String(x.category).replace('Freestanding ', '')) +
+                    '</td><td class="rc-num">' +
+                    x.qty +
+                    '</td><td class="rc-num">' +
+                    rdMoney2(x.asBooked) +
+                    '</td><td class="rc-num">' +
+                    rdMoney2(x.current) +
+                    '</td><td class="rc-num ' +
+                    (x.change < 0 ? 'neg' : x.change > 0 ? 'pos' : '') +
+                    '">' +
+                    (x.change > 0 ? '+' : x.change < 0 ? '\u2212' : '') +
+                    rdMoney2(Math.abs(x.change)) +
+                    '</td><td class="rc-why-cell">' +
+                    e(x.why) +
+                    '</td></tr>',
+                )
+                .join('') +
+              '</tbody></table></div>' +
+              (re.detailTruncated ? '<small>Showing the first 1,000 lines.</small>' : '') +
+              '</details>'
             : '<small>No older row differs from the current rates, so nothing would change.</small>') +
           (canEdit
             ? '<div><button type="button" class="button" data-rp-save>Save re-price &amp; recalculate</button> <small>Writes an audit entry. You can go back to "As booked" at any time.</small></div>'
             : '<small>Admins change this.</small>') +
           '</div></div>';
       }
+      html += '<!--SEC:rates-->';
       if (data.active && !editing && !data.mastersDiffer)
         html += '<p class="rc-msg ok">Pricing Masters already hold these rates.</p>';
       if (data.active && !editing)
@@ -31120,6 +31196,7 @@ ${bodyHtml}
       if (editing)
         html +=
           '<p class="form-note">Changed cells are highlighted with the workbook value struck through. Only rates change: every revenue rule (discount tiers, transport trips and cap, once-per-invoice charges, which lines count) stays exactly as it is.</p>';
+      if (imp && data.active && !editing) html += '<!--SEC:impact-->';
       if (imp && data.active && !editing) {
         const diffCell = (v) =>
           '<td class="rc-num ' +
@@ -31238,7 +31315,81 @@ ${bodyHtml}
               .join('') +
             '</tbody></table></div>';
       }
-      host.innerHTML = html;
+      // Page layout: bar, key figures, section tabs, one section at a time.
+      const bits = html.split(/<!--SEC:(\w+)-->/);
+      const sections = { top: bits[0] };
+      for (let i = 1; i < bits.length; i += 2) sections[bits[i]] = bits[i + 1];
+      if (editing || !sections[tab]) tab = 'rates';
+      const tabs = [
+        ['rates', 'Rates', ''],
+        ['fridge', 'Fridge pricing', ''],
+        ['tiers', 'Discount tiers', ''],
+        [
+          'older',
+          'Older rows',
+          data.repriceEffect && data.repriceEffect.lines
+            ? '<i>' + data.repriceEffect.lines + ' lines</i>'
+            : '',
+        ],
+        ['impact', 'Impact', ''],
+      ].filter((t) => sections[t[0]]);
+      const fg = data.figures || { workbook: 0, portal: 0 };
+      const fdiff = Math.round((fg.portal - fg.workbook) * 100) / 100;
+      const kpi = (label, value, cls, help) =>
+        '<div class="rc-kpi"><small>' +
+        label +
+        (help ? tip(help) : '') +
+        '</small><b class="' +
+        (cls || '') +
+        '">' +
+        value +
+        '</b></div>';
+      const strip =
+        '<div class="rc-sum">' +
+        kpi(
+          'Workbook figure',
+          rdMoney2(fg.workbook),
+          '',
+          'Total revenue exactly as the master Excel workbook shows it. The portal never changes the workbook.',
+        ) +
+        kpi(
+          'Portal figure',
+          rdMoney2(fg.portal),
+          '',
+          'Total revenue after the portal rules: the Rate card, fridge pricing, installation-only tiers and the older-rows choice. Every tab and export uses this figure.',
+        ) +
+        kpi(
+          'Difference',
+          (fdiff > 0 ? '+' : fdiff < 0 ? '\u2212' : '') + rdMoney2(Math.abs(fdiff)),
+          fdiff < 0 ? 'neg' : fdiff > 0 ? 'pos' : '',
+          'Portal figure minus workbook figure. The Impact and Older rows tabs show where it comes from.',
+        ) +
+        (data.fridgeLogic
+          ? kpi('Fridge pricing', data.fridgeLogic.enabled ? 'New logic' : 'Old logic') +
+            kpi('Older rows', data.fridgeLogic.repriceOlder ? 'Current rates' : 'As booked')
+          : '') +
+        '</div>';
+      host.innerHTML =
+        '<div class="rc-v2">' +
+        sections.top +
+        strip +
+        '<div class="rc-tabs" role="tablist" aria-label="Rate card sections">' +
+        tabs
+          .map(
+            (t) =>
+              '<button type="button" role="tab" class="rc-tab" data-rc-tab="' +
+              t[0] +
+              '" aria-selected="' +
+              (t[0] === tab ? 'true' : 'false') +
+              '">' +
+              t[1] +
+              t[2] +
+              '</button>',
+          )
+          .join('') +
+        '</div><div class="rc-pane">' +
+        (sections[tab] || '') +
+        '</div></div>';
       wire();
     };
 
@@ -31253,6 +31404,12 @@ ${bodyHtml}
     };
 
     const wire = () => {
+      host.querySelectorAll('[data-rc-tab]').forEach((b) =>
+        b.addEventListener('click', () => {
+          tab = b.getAttribute('data-rc-tab');
+          draw();
+        }),
+      );
       host.querySelector('[data-fl-save]')?.addEventListener('click', () =>
         run(async () => {
           const body = {
